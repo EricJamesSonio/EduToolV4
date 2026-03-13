@@ -1,3 +1,16 @@
+# EduTool
+uses:
+students, educators and admin.
+
+educators, managing there class managements etc,
+admin = just manage the semesters, and classes. to distribute to the educators.
+- so admin handlign the class creations. so the educators, just use the classes given by the admin.
+- admin handles the educaotrs classes, and making the schedules. and also conmsidering having lots of departments.
+- such as bscs, bsba, bsa,
+- theres lots of admin, so admin can only virew the school he has. can't see other admin's school.
+- since admin representing the head of the school, managing the classes , shcedule, and departments.
+- admin can create sections such as "elementary level", "high school level", "college level". since the semester applying is withn that level scetions. so all that are inside colleg level section, follos the semester flow of what the admin seelcted for that,. so each level has its own semester. since the semester for example of elem is different compare to the highschool and college. so yeah, have different semester.
+
 # Class management
 
 create class
@@ -46,7 +59,14 @@ when created
     - such as for example activity 20%, quiz 20 %, exam 30 %, behavior 30 percent. 
     - now notice theree is a grade that our system cannot track ., which is the behjavior, so that is manualyl edit by the taecher itself so its fully manually by the user
     - the scores and grading here, deopends on the created assessments and manually edit non assessment grades such asbehavior.
-    - have option to see the 
+    - the system has a section like "computed final grade" based on the rassessments records. so this alwasys triggered when theres new record of asessment, (liek sutdent submitted, or user manually edit this scores)
+    - the grade display will be like scoped inside, like rather than dispalying., activei 1, activity 2. quiz 1, exam1, quzi 2. its clusterd so i bit annoying, so to make it easier, lets have scoped like dispaly only by section. so dispaly Activities then the output there is the all activity computed. so not individual. if the user wants to viewthe activities then just click there. but we awil be having 2 modes, the excel mode whihc is the clustered, and this clean version viewing
+
+* meeting management
+    - creates a meeting for the class then have option to invite all students that are in the classor just select.
+    - set the title of the meeting, desctiption (optional), start time and date. 
+    - once the meeting started. it will be notif in the students that are invited so the notif of the class itself is updated..
+    - the students that are not invited. can request to join since they can view the meeting 
     
 Notes:
 validation checks:
@@ -55,3 +75,16 @@ validation checks:
 
 * The class start date and end date. depends on the semster its on. since class is scoped within a semster.
 so the weeks are computed basd on the range of the semester .
+
+# Global managements (outside class management.)
+since the students and educators create their own accounts. so theres no need for students management to create students etc.
+
+let them create account then sign in
+
+#  Semster management (admin level)
+- Set the first and second semester, can have 3 semester at max. 
+- create semester 
+- title
+- description (optional)
+- start date 
+- end date
