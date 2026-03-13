@@ -1,5 +1,5 @@
 ================================================================================
-  EDUTOOL — SYSTEM PLANNING DOCUMENT  v6
+  EDUTOOL — SYSTEM PLANNING DOCUMENT  v7
   Multi-tenant academic management system for schools
 ================================================================================
 
@@ -16,8 +16,9 @@ and Admins create all other accounts.
   Role        Managed By          Core Scope
   ----------  ------------------  ----------------------------------------------
   Admin       Platform owner      Creates and manages the org's full academic
-                                  structure. Creates all educator and student
-                                  accounts. One org per Admin account.
+                                  structure. Creates and manages all educator
+                                  and student accounts, including subject
+                                  assignments. One org per Admin account.
 
   Educators   Admin               Manage lessons, assessments, grades, attendance,
                                   and meetings — only within assigned classes.
@@ -54,23 +55,24 @@ Admin creates all accounts. No self-registration. Credentials system-generated
   Educator Account Fields:
     - Full Name
     - Email (school-provided Gmail)
+    (System auto-generates an Educator ID on creation)
 
   Student Account Fields:
     - Full Name
     - Email (school-provided Gmail)
-    - Student ID
+    - Student ID  (Admin-assigned, unique within org)
     - Level Section  (Elementary / High School / Senior High / College)
-    - Grade Level or Year Level  (based on level section)
+    - Grade/Year Level  (based on level section)
+    - Section  (from org's existing sections for that grade/year level)
     - Strand  —  if Senior High (from org's existing strands)
     - Course  —  if College (from org's existing courses)
 
 NOTE: The student form is fully dynamic. Selecting a Level Section reveals the
-      correct fields. Strand and Course dropdowns show only what exists in
-      the org — no hardcoded options.
+      correct fields. Section, Strand, and Course dropdowns show only what
+      exists in the org — no hardcoded options.
 
-NOTE: Student profile data (Level Section, Year/Grade Level, Strand, Course)
-      is used by the system to automatically enroll students into matching
-      classes. See Section 7.2 for auto-enrollment behavior.
+NOTE: Student profile data drives auto-enrollment into matching classes.
+      See Section 7.2 for auto-enrollment behavior.
 
 --------------------------------------------------------------------------------
   2.3  Password Management
@@ -94,8 +96,8 @@ NOTE: Student profile data (Level Section, Year/Grade Level, Strand, Course)
 --------------------------------------------------------------------------------
 
   Format      CSV bulk download — all accounts at once
-  Columns     Full Name, Student ID, Email, Generated Password,
-              Level Section, Course/Strand, Year/Grade Level
+  Columns     Full Name, Student ID / Educator ID, Email, Generated Password,
+              Level Section, Section, Course/Strand, Year/Grade Level
   Delivery    Admin distributes externally (print, email, hand out)
 
 
@@ -103,15 +105,40 @@ NOTE: Student profile data (Level Section, Year/Grade Level, Strand, Course)
   3. ORGANIZATION STRUCTURE
 ================================================================================
 
-  Level Section       Grade/Year Levels    Subdivisions
+--------------------------------------------------------------------------------
+  3.1  Level Sections and Sections
+--------------------------------------------------------------------------------
+
+  All level sections support named Sections at each grade/year level.
+  Sections are created and managed by Admin.
+
+  Level Section       Grade/Year Levels    Sections
   ----------------    -----------------    ------------------------------------
-  Elementary          Grade 1 - Grade 6    None — grade level only
-  High School         Grade 7 - Grade 10   None — grade level only
-  Senior High School  Grade 11 - Grade 12  Strands — Admin defines
-                                           (e.g. ABM, STEM, HUMSS, TVL)
-  College             Year 1 - Year N      Courses — Admin defines
-                                           (e.g. BSCS, BSBA, BSA)
-                                           + max year level per course
+  Elementary          Grade 1 - Grade 6    Admin-defined per grade level
+                                           e.g. Grade 3 - Section A, Section B
+  High School         Grade 7 - Grade 10   Admin-defined per grade level
+                                           e.g. Grade 8 - Narra, Molave
+  Senior High School  Grade 11 - Grade 12  Admin-defined per grade level
+                                           per strand
+                                           e.g. Grade 11 STEM - Section 1
+  College             Year 1 - Year N      Admin-defined per year level
+                                           per course
+                                           e.g. BSCS Year 2 - Block A, Block B
+
+  Section Properties:
+    Name              e.g. Section A, Block A, Narra
+    Level Section     Which level section this belongs to
+    Grade/Year Level  Which specific grade or year
+    Course/Strand     For Senior High and College only
+    Capacity          Optional — max students for this section
+
+  NOTE: Sections are organizational groupings for students. Classes remain
+        independently configured by Admin. A section is NOT automatically
+        a class — it just groups students at that level.
+
+--------------------------------------------------------------------------------
+  3.2  Courses and Strands
+--------------------------------------------------------------------------------
 
   Course / Strand Properties:
     Title               e.g. BSCS, STEM
@@ -130,9 +157,10 @@ NOTE: Student profile data (Level Section, Year/Grade Level, Strand, Course)
   Carries Over from Previous Year       Resets / Unlocks for New Year
   ------------------------------------  ----------------------------------------
   Level sections and structure          Schedules — rebuilt fresh
-  Courses and strands                   Subjects — unlocked until enrollment
-  Semester setting selections           Classes — created fresh
-  Educator accounts                     Grade locks — all start unlocked
+  Sections (all levels)                 Subjects — unlocked until enrollment
+  Courses and strands                   Classes — created fresh
+  Semester setting selections           Grade locks — all start unlocked
+  Educator accounts
   Student accounts
 
 NOTE: All past school years permanently archived and read-only. Students
@@ -192,12 +220,18 @@ Admin creates class structure. Educator manages all content inside.
 --------------------------------------------------------------------------------
 
   Title, Level Section, Course/Strand (Senior High/College only),
-  Year/Grade Level, Semester, School Year, Assigned Educator,
-  Weekday(s), Time
+  Year/Grade Level, Section (optional — target specific section),
+  Semester, School Year, Assigned Educator, Weekday(s), Time
 
   Weekday(s):
     Admin selects one or more weekdays for the class (e.g. Mon only,
     Mon+Wed+Fri, Mon through Fri for daily classes). Up to 5 days/week.
+
+  Section Targeting:
+    Admin can optionally assign a class to a specific section.
+    If a section is specified, auto-enrollment filters to students
+    in that section only. If no section is set, all matching
+    students at that level are eligible.
 
   Capacity:
     Limited (hard cap set by Admin) or Unlimited.
@@ -211,36 +245,41 @@ Admin creates class structure. Educator manages all content inside.
   NOT manually add students.
 
   Matching Logic:
-    When a class is created, the system matches students whose profile satisfies
-    ALL of the following:
+    When a class is created, the system matches students whose profile
+    satisfies ALL of the following:
       - Level Section matches the class's Level Section
       - Year/Grade Level matches the class's Year/Grade Level
       - Course (College) or Strand (Senior High) matches, if applicable
+      - Section matches, if the class has a section assigned
 
-    Any student account created or updated after a class is created is also
+    Any student account created or updated after a class exists is also
     auto-enrolled if their profile matches.
 
+  Additional Subject Assignment (Admin only):
+    If a student needs to be enrolled in a class outside their standard
+    profile match — e.g. an extra subject, an elective, a retake — only
+    Admin can trigger this. See Section 9.3 for the full flow.
+
   Capacity Enforcement:
-    If a class has a Limited capacity, auto-enrollment stops when the cap is
-    reached. Admin must increase the cap or create a new section to accommodate
-    additional students.
+    If a class has a Limited capacity, auto-enrollment stops when the cap
+    is reached. Admin must increase the cap or create a new section to
+    accommodate additional students.
 
   Duplicate Prevention:
-    System blocks enrollment if the student is already enrolled in a class for
-    the same subject in the same semester.
+    System blocks enrollment if the student is already enrolled in a class
+    for the same subject in the same semester.
 
   Late Student Additions:
-    If a student is added mid-semester and auto-enrolled, the educator must
-    manually assign a status (NULL, Exempted, or Custom Score) for each past
-    assessment the student missed.
+    If a student is auto-enrolled or manually enrolled mid-semester, the
+    educator must manually assign a status (NULL, Exempted, or Custom Score)
+    for each past assessment the student missed.
 
   Removal:
     Educator can manually remove a student from a class if needed
     (e.g. wrong section, transfer). Removal is logged.
 
-  NOTE: Educators have full visibility into their enrolled student list but
-        do not manage enrollment themselves. Changes to a student's profile
-        (e.g. strand or year level) trigger re-evaluation of their enrollments.
+  NOTE: Changes to a student's profile (e.g. section, strand, year level)
+        trigger re-evaluation of their enrollments.
 
 --------------------------------------------------------------------------------
   7.3  Week Computation  (by calendar week, not session count)
@@ -267,11 +306,32 @@ Admin creates class structure. Educator manages all content inside.
   8. EDUCATOR MANAGEMENT  (Admin)
 ================================================================================
 
-  Removal:
-    Blocked if active classes exist. Admin must reassign first.
-    Once no active classes remain, removal goes through.
+--------------------------------------------------------------------------------
+  8.1  Educator Accounts
+--------------------------------------------------------------------------------
 
-  Class Ownership History Log (on every reassignment):
+  Each educator has a system-generated Educator ID used for lookup and search.
+  Admin can search educators by Educator ID or name.
+
+  From an educator's account view, Admin can:
+    - View the educator's profile and Educator ID
+    - See all classes currently assigned to this educator
+    - Add a class assignment (assign this educator to an existing class)
+    - Remove a class assignment (with reassignment flow if class is active)
+    - Reset password
+
+--------------------------------------------------------------------------------
+  8.2  Educator Removal
+--------------------------------------------------------------------------------
+
+  Blocked if active classes exist. Admin must reassign all classes first.
+  Once no active classes remain, removal goes through.
+
+--------------------------------------------------------------------------------
+  8.3  Class Ownership History Log
+--------------------------------------------------------------------------------
+
+  On every reassignment:
     - Original educator name and period (from -> to date)
     - Reason for reassignment (optional Admin note)
     - New educator name and start date
@@ -283,20 +343,24 @@ Admin creates class structure. Educator manages all content inside.
   9. STUDENT MANAGEMENT  (Admin)
 ================================================================================
 
+--------------------------------------------------------------------------------
+  9.1  Student Profile
+--------------------------------------------------------------------------------
+
   Dynamic Profile Form:
-    Elementary      Grade Level only              (Grade 1-6)
-    High School     Grade Level only              (Grade 7-10)
-    Senior High     Grade Level + Strand          (Grade 11-12 + ABM/STEM/etc)
-    College         Year Level  + Course          (1st-Nth Year + BSCS/etc)
+    Elementary      Grade Level + Section         (Grade 1-6 + Section Name)
+    High School     Grade Level + Section         (Grade 7-10 + Section Name)
+    Senior High     Grade Level + Strand          (Grade 11-12 + Strand + Section)
+    College         Year Level + Course           (1st-Nth Year + Course + Section)
 
   Profile Changes:
     Between semesters only. Manual per student. Handles retakers, shifters,
     irregular students, conditional advancement cases.
 
     NOTE: Updating a student's profile (Level Section, Year/Grade Level,
-    Course/Strand) triggers re-evaluation of auto-enrollment. The student
-    may be unenrolled from classes that no longer match and enrolled in
-    newly matching ones.
+    Course/Strand, Section) triggers re-evaluation of auto-enrollment.
+    The student may be unenrolled from classes that no longer match and
+    enrolled in newly matching ones.
 
   Graduated Accounts:
     System flags when student reaches max year level.
@@ -304,6 +368,66 @@ Admin creates class structure. Educator manages all content inside.
 
   Transcript:
     Full grade history across all semesters and school years. Read-only.
+
+--------------------------------------------------------------------------------
+  9.2  Student Account Search
+--------------------------------------------------------------------------------
+
+  Admin can search students by:
+    - Student ID  (exact or partial match)
+    - Full Name
+    - Level Section / Year Level / Section / Course / Strand  (filters)
+
+  From a student's account view, Admin can:
+    - View full profile and Student ID
+    - See all current class enrollments (subject, educator, semester)
+    - Add an additional subject (see Section 9.3)
+    - Remove a subject enrollment (see Section 9.4)
+    - Edit profile (between semesters)
+    - Reset password
+
+--------------------------------------------------------------------------------
+  9.3  Adding an Additional Subject to a Student  (Admin only)
+--------------------------------------------------------------------------------
+
+  Educators cannot add subjects to students. Only Admin can.
+
+  Flow:
+    Step 1  Admin searches for the student (by Student ID or name).
+    Step 2  Admin views the student's current subject/class enrollments.
+    Step 3  Admin selects "Add Subject" and searches for the target class
+            (by class title, subject, educator, or semester).
+    Step 4  System validates:
+              - No duplicate enrollment in same subject same semester.
+              - Class capacity not exceeded.
+    Step 5  Admin confirms. System enrolls the student in the class.
+    Step 6  Educator assigned to that class receives a notification:
+              "New student [Name] has been added to your class [Class Title]
+               by Admin."
+    Step 7  If the class has past assessments, educator manually assigns
+            status for each one (NULL, Exempted, or Custom Score).
+
+  NOTE: This is the only pathway for enrolling a student in a class that
+        does not match their standard profile. Admin takes responsibility
+        for correctness.
+
+--------------------------------------------------------------------------------
+  9.4  Removing a Subject from a Student  (Admin only)
+--------------------------------------------------------------------------------
+
+  Admin can remove a student from a class enrollment at any time.
+
+  Flow:
+    Step 1  Admin searches for the student.
+    Step 2  Admin selects the enrollment to remove.
+    Step 3  System warns if the class has existing grades or submissions.
+    Step 4  Admin confirms. Student is unenrolled. Removal is logged.
+    Step 5  Educator assigned to that class receives a notification:
+              "Student [Name] has been removed from your class [Class Title]
+               by Admin."
+
+  NOTE: Removing a student from a class does not delete historical records
+        already submitted. The student's existing scores are archived.
 
 
 ================================================================================
@@ -666,19 +790,21 @@ Admin creates class structure. Educator manages all content inside.
 
   In-app only. No email or SMS. Simple list — no read/unread tracking.
 
-  Trigger                           Recipient         When
-  --------------------------------  ----------------  --------------------------
-  Concept extraction complete       Educator          Job finishes
-  Assessment generation complete    Educator          Job finishes
-  Assessment released               Assigned students Release date reached
-  Assessment deadline approaching   Assigned students Before end date
-  Score published                   Student           Educator publishes score
-  Grades locked — scores visible    Students in class Grade lock applied
-  Class reassigned                  New educator      Admin reassigns class
-  Meeting created                   Invited students  On creation
-  Grade lock window opened          All educators     Admin enables window
-  Auto-lock applied                 Affected educator Class auto-locked
-  Auto-enrolled in class            Student           On enrollment trigger
+  Trigger                               Recipient         When
+  ------------------------------------  ----------------  ----------------------
+  Concept extraction complete           Educator          Job finishes
+  Assessment generation complete        Educator          Job finishes
+  Assessment released                   Assigned students Release date reached
+  Assessment deadline approaching       Assigned students Before end date
+  Score published                       Student           Educator publishes
+  Grades locked — scores visible        Students in class Grade lock applied
+  Class reassigned                      New educator      Admin reassigns class
+  Meeting created                       Invited students  On creation
+  Grade lock window opened              All educators     Admin enables window
+  Auto-lock applied                     Affected educator Class auto-locked
+  Auto-enrolled in class                Student           On enrollment trigger
+  Student added to class by Admin       Educator          Admin adds student
+  Student removed from class by Admin   Educator          Admin removes student
 
 
 ================================================================================
@@ -688,7 +814,8 @@ Admin creates class structure. Educator manages all content inside.
   Admin sees aggregate analytics only — no access to live class internals
   (active assessments, current grades, unpublished scores).
 
-  - Total enrollment per level section, course, strand, year/grade level.
+  - Total enrollment per level section, course, strand, year/grade level,
+    and section.
   - Active class count per semester.
   - Grade distribution summaries (after locking).
   - Educator count and class load overview.
@@ -702,19 +829,22 @@ Admin creates class structure. Educator manages all content inside.
   Role        Manages                                   Cannot Do
   ----------  ----------------------------------------  ------------------------
   Admin       One org, school years, level sections,     Manage lesson content,
-              courses/strands, subjects, class           generate assessments,
-              structure, schedules, all accounts,        enter grades, view
-              password resets, grading scales (per       class internals,
-              level section, per school year),           or override locks.
+              sections (all levels), courses/strands,    generate assessments,
+              subjects, class structure, schedules,      enter grades, view live
+              all accounts (student + educator),         class internals, or
+              student subject assignments (add/remove),  override locks.
+              educator class assignments (add/remove),
+              password resets, grading scales (per
+              level section, per school year),
               rubric default, lock windows,
               exports, analytics.
 
   Educators   Lessons, concept extraction (manual        Create/modify class
-              re-trigger), assessments (config +         structure. Manage
-              generation + question editing +            enrollment. View other
-              assignment + essay grading + score         educators' classes.
-              publishing), attendance management,        Change student profiles.
-              grades, rubric library, meetings,
+              re-trigger), assessments (config +         structure. Add/remove
+              generation + question editing +            student enrollments.
+              assignment + essay grading + score         View other educators'
+              publishing), attendance management,        classes. Change student
+              grades, rubric library, meetings,          profiles.
               exports.
 
   Students    Take assessments, attend meetings,         Modify any academic
@@ -724,5 +854,5 @@ Admin creates class structure. Educator manages all content inside.
 
 
 ================================================================================
-  EduTool  •  System Planning Document  v6
+  EduTool  •  System Planning Document  v7
 ================================================================================
