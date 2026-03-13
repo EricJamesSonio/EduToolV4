@@ -20,6 +20,7 @@ create class
 - capacity (how many student can be in this class. can be set to none, if it doesnt require limit capacity)
 - weekday (monday, tuesday, wednesday)
 - time 
+- assigned educator.
 
 when created
 * Computed weeks (based on the semester range date since the date of this is depends on the semester)

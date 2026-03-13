@@ -1,4 +1,4 @@
-Semester management
+Semester management (Admin level authority)
     Title : Main semester setting:  
         1st sem
             Start date : August 12
@@ -77,4 +77,7 @@ Week days :  Monday         Tuesday     Wednesday     Thursday      Friday      
 
 * Notes:
     So basically all yr level has it's own schedule since its the correct standard way.
+
+* Summary:
+    The semester setting is needed
 
