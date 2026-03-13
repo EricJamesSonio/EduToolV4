@@ -1,6 +1,6 @@
 ================================================================================
   EDUTOOL — SYSTEM PLANNING DOCUMENT
-  Academic management system for schools
+  Academic management system for schools — multi-tenant, organization-scoped
 ================================================================================
 
 
@@ -8,44 +8,132 @@
   1. SYSTEM OVERVIEW
 ================================================================================
 
-EduTool is an academic management platform with three primary user roles, each
-with clearly scoped responsibilities.
+EduTool is a multi-tenant academic management platform. The top-level container
+is an Organization (school). All departments, classes, educators, and students
+are scoped within an organization. There are three primary user roles:
 
   Role          Core Responsibilities
   ----------    ----------------------------------------------------------------
-  Admin         Manages departments, semester templates, classes, schedules, and
-                educator assignments. Scoped to their own school only.
+  Admin         Registers an account, then creates and manages one or more
+                Organizations. Each org has its own separate dashboard. Manages
+                departments, semester templates, classes, schedules, and
+                educator assignments within each org.
 
-  Educators     Manages lessons, generates assessments, handles grades, and
-                conducts meetings for their assigned classes.
+  Educators     Registers an account, then sends a join request to one or more
+                Organizations. Once accepted by the Admin, they are part of that
+                org's educator pool and can be assigned to classes.
 
-  Students      Joins classes, views and takes lessons/assessments, attends
-                meetings, and tracks their own grades.
+  Students      Registers an account and selects the Organization they belong
+                to. Scoped to that org's classes and activities.
 
-NOTE: Admins cannot view or access other schools. Each admin is scoped
-      exclusively to their own school.
+NOTE: An Admin can own multiple Organizations (e.g. a chain of schools). Each
+      org has a fully separate dashboard. No cross-org data is ever visible.
 
 
 ================================================================================
-  2. AUTHORITY LEVELS
+  2. ORGANIZATION MANAGEMENT  (Admin)
 ================================================================================
 
-The system enforces a strict three-tier authority model:
+An Organization represents a school or institution. It is the top-level
+container for all academic data — departments, educators, students, classes,
+and schedules all live within an org. One Admin account can create and manage
+multiple organizations.
 
-  1. Admin      — School head. Owns the academic structure (departments,
-                  schedules, classes, semester templates).
+--------------------------------------------------------------------------------
+  2.1  Organization Properties
+--------------------------------------------------------------------------------
 
-  2. Educators  — Teachers. Operate within the classes assigned to them
-                  by Admin.
+  Property      Details
+  ----------    ----------------------------------------------------------------
+  Name          The official name of the school or institution
+  Description   Optional. Brief description of the organization.
+  Admin Owner   The Admin account that created this organization
+  Dashboard     Each organization has its own fully separate dashboard
 
-  3. Students   — Learners. Participate in the classes they are enrolled in.
+--------------------------------------------------------------------------------
+  2.2  Admin Registration & Org Creation Flow
+--------------------------------------------------------------------------------
+
+  Step 1  Admin registers an account on EduTool.
+
+  Step 2  Admin creates one or more Organizations from their account.
+
+  Step 3  Each org gets its own separate dashboard. The Admin switches between
+          orgs by switching dashboards.
+
+  Step 4  Within each org, the Admin manages departments, classes, educators,
+          and schedules independently.
+
+--------------------------------------------------------------------------------
+  2.3  Educator Join Request Flow
+--------------------------------------------------------------------------------
+
+Educators are not manually created by Admins. They register independently and
+request to join an organization. This keeps the system strict — only vetted
+educators appear in an org's pool.
+
+  Step 1  Educator registers an account on EduTool.
+
+  Step 2  Educator sends a join request to one or more Organizations they want
+          to work in.
+
+  Step 3  The Admin of that org receives the join request and either accepts
+          or rejects it.
+
+  Step 4  If accepted, the educator is added to the org's educator pool and
+          becomes selectable for department and class assignments.
+
+  Step 5  If rejected, the educator is not visible within that org.
+
+NOTE: An educator can belong to multiple organizations simultaneously — useful
+      for educators who teach at more than one school. Each membership is
+      approved independently by each org's Admin.
+
+--------------------------------------------------------------------------------
+  2.4  Student Registration Flow
+--------------------------------------------------------------------------------
+
+  Step 1  Student registers an account on EduTool.
+
+  Step 2  Student selects the Organization they belong to during registration.
+
+  Step 3  Student is scoped to that org — they only see classes, lessons, and
+          assessments within their org.
+
+--------------------------------------------------------------------------------
+  2.5  Org Scoping Rules
+--------------------------------------------------------------------------------
+
+  • Admins only see educators and students that belong to their org(s).
+  • Educators only see classes and students within the org(s) they have been
+    accepted into.
+  • Students only see content within their registered org.
+  • No cross-org data is ever visible to any user role.
+
+
+================================================================================
+  3. AUTHORITY LEVELS
+================================================================================
+
+The system enforces a strict three-tier authority model within each organization:
+
+  1. Admin      — Organization owner. Creates and manages the org's academic
+                  structure (departments, schedules, classes, semester
+                  templates). Can own multiple orgs, each with its own dashboard.
+
+  2. Educators  — Teachers. Must be accepted into an org before being assigned
+                  to classes. Operate within the classes assigned by Admin.
+                  Can belong to multiple orgs simultaneously.
+
+  3. Students   — Learners. Scoped to their registered org. Participate in the
+                  classes they are enrolled in.
 
 NOTE: Educators cannot create classes. They can only manage classes that the
       Admin has already created and assigned to them.
 
 
 ================================================================================
-  3. LEVEL SECTIONS  (Admin)
+  4. LEVEL SECTIONS  (Admin)
 ================================================================================
 
 Admins organize the school into Level Sections, which group related departments
@@ -71,7 +159,7 @@ Why Level Sections Matter:
 
 
 ================================================================================
-  4. SEMESTER MANAGEMENT  (Admin)
+  5. SEMESTER MANAGEMENT  (Admin)
 ================================================================================
 
 Semesters are reusable templates that define academic time ranges. They are not
@@ -80,7 +168,7 @@ semester template to follow. This allows different departments to operate on
 different academic calendars.
 
 --------------------------------------------------------------------------------
-  4.1  Semester Template Properties
+  5.1  Semester Template Properties
 --------------------------------------------------------------------------------
 
   Property        Details
@@ -93,7 +181,7 @@ different academic calendars.
                   and rejects conflicting ranges.
 
 --------------------------------------------------------------------------------
-  4.2  Example Semester Templates
+  5.2  Example Semester Templates
 --------------------------------------------------------------------------------
 
   Template A — Main Semester Setting
@@ -106,7 +194,7 @@ different academic calendars.
     3rd Semester:   February 20   →  April 20
 
 --------------------------------------------------------------------------------
-  4.3  Key Rules
+  5.3  Key Rules
 --------------------------------------------------------------------------------
 
   • Templates are fully editable at any time.
@@ -118,14 +206,14 @@ different academic calendars.
 
 
 ================================================================================
-  5. DEPARTMENT MANAGEMENT  (Admin)
+  6. DEPARTMENT MANAGEMENT  (Admin)
 ================================================================================
 
 Each department represents a degree program or course offering. Departments are
 created and managed by the Admin and live inside a Level Section.
 
 --------------------------------------------------------------------------------
-  5.1  Department Object Properties
+  6.1  Department Object Properties
 --------------------------------------------------------------------------------
 
   Property          Details
@@ -140,7 +228,7 @@ created and managed by the Admin and live inside a Level Section.
   Schedules         Auto-generated schedule grid, organized per year level
 
 --------------------------------------------------------------------------------
-  5.2  Semester Setting per Department
+  6.2  Semester Setting per Department
 --------------------------------------------------------------------------------
 
 The semester setting is applied at the department level. Different departments
@@ -153,7 +241,7 @@ NOTE: The semester setting drives week computation for all classes within that
       department. Weeks are calculated from the semester start and end dates.
 
 --------------------------------------------------------------------------------
-  5.3  Subject Management
+  6.3  Subject Management
 --------------------------------------------------------------------------------
 
 Subjects belong to a department and are assigned to a specific year level.
@@ -183,7 +271,7 @@ Each subject carries all the information needed to build a schedule.
     4th Year  IT Review            Jay Entileso    Friday       1:00–4:00 PM
 
 --------------------------------------------------------------------------------
-  5.4  Schedule Management
+  6.4  Schedule Management
 --------------------------------------------------------------------------------
 
 Schedules are automatically generated based on the subjects configured in the
@@ -216,14 +304,14 @@ reflected in the schedule viewer.
 
 
 ================================================================================
-  6. CLASS MANAGEMENT  (Admin)
+  7. CLASS MANAGEMENT  (Admin)
 ================================================================================
 
 Classes are created exclusively by the Admin. Educators cannot create classes —
 they can only manage the classes assigned to them.
 
 --------------------------------------------------------------------------------
-  6.1  Class Properties
+  7.1  Class Properties
 --------------------------------------------------------------------------------
 
   Property             Details
@@ -248,7 +336,7 @@ they can only manage the classes assigned to them.
     Capacity:         Limited — 40 Students
 
 --------------------------------------------------------------------------------
-  6.2  Capacity Settings
+  7.2  Capacity Settings
 --------------------------------------------------------------------------------
 
   Limited Capacity:
@@ -261,7 +349,7 @@ they can only manage the classes assigned to them.
     open or online classes.
 
 --------------------------------------------------------------------------------
-  6.3  Week Computation
+  7.3  Week Computation
 --------------------------------------------------------------------------------
 
 When a class is created, the system automatically computes class weeks based on
@@ -281,7 +369,7 @@ NOTE: Total weeks and labels depend entirely on the semester start and end dates
       of the department's selected semester template.
 
 --------------------------------------------------------------------------------
-  6.4  Student Filtering
+  7.4  Student Filtering
 --------------------------------------------------------------------------------
 
 When adding students to a class, the system automatically filters the student
@@ -298,14 +386,14 @@ NOTE: Students create their own accounts. Admins do not manually register
 
 
 ================================================================================
-  7. LESSON MANAGEMENT  (Educator)
+  8. LESSON MANAGEMENT  (Educator)
 ================================================================================
 
 Lessons are created by educators and exist within a specific class. Each lesson
 is assigned to a week and forms the foundation for assessment generation.
 
 --------------------------------------------------------------------------------
-  7.1  Lesson Properties
+  8.1  Lesson Properties
 --------------------------------------------------------------------------------
 
   Property        Details
@@ -316,7 +404,7 @@ is assigned to a week and forms the foundation for assessment generation.
   Lesson Detail   The actual lesson content. Minimum 10 words required.
 
 --------------------------------------------------------------------------------
-  7.2  Setting the Week
+  8.2  Setting the Week
 --------------------------------------------------------------------------------
 
 When assigning a week to a lesson, the Lesson Viewer (calendar view) opens.
@@ -324,7 +412,7 @@ The educator clicks a week to assign it. Multiple lessons can share the same
 week — this is allowed and expected.
 
 --------------------------------------------------------------------------------
-  7.3  Lesson Detail and Concept Extraction
+  8.3  Lesson Detail and Concept Extraction
 --------------------------------------------------------------------------------
 
 The Lesson Detail field powers the automated concept extraction system, which
@@ -342,7 +430,7 @@ NOTE: If a lesson has no Lesson Detail, or the detail is too short, it cannot
       be used in the Assessment Generator.
 
 --------------------------------------------------------------------------------
-  7.4  Lesson Viewer (Calendar View)
+  8.4  Lesson Viewer (Calendar View)
 --------------------------------------------------------------------------------
 
 The Lesson Viewer displays lessons in a calendar-style layout organized by week,
@@ -360,7 +448,7 @@ NOTE: Lessons support doubly linked list navigation for presentation purposes �
 
 
 ================================================================================
-  8. ASSESSMENT GENERATOR  (Educator)
+  9. ASSESSMENT GENERATOR  (Educator)
 ================================================================================
 
 The Assessment Generator is an AI-powered tool that automatically creates
@@ -368,7 +456,7 @@ assessments from lesson concepts. It is scoped within a class — assessments
 are tied to the class and its students.
 
 --------------------------------------------------------------------------------
-  8.1  Generation Workflow
+  9.1  Generation Workflow
 --------------------------------------------------------------------------------
 
   Step 1  Select a lesson from the class lesson list.
@@ -388,7 +476,7 @@ are tied to the class and its students.
           (see Section 8.3).
 
 --------------------------------------------------------------------------------
-  8.2  Assessment Template Configuration
+  9.2  Assessment Template Configuration
 --------------------------------------------------------------------------------
 
   Field              Details
@@ -409,7 +497,7 @@ NOTE: The educator can cancel an in-progress generation. Otherwise it completes
       in the background.
 
 --------------------------------------------------------------------------------
-  8.3  Assessment Assignment
+  9.3  Assessment Assignment
 --------------------------------------------------------------------------------
 
 After generation, the educator assigns the assessment to students:
@@ -432,14 +520,14 @@ After generation, the educator assigns the assessment to students:
 
 
 ================================================================================
-  9. GRADE MANAGEMENT  (Educator)
+  10. GRADE MANAGEMENT  (Educator)
 ================================================================================
 
 Grades are computed automatically based on a global rubric configuration. The
 grade system tracks assessment scores and non-assessment grades (e.g., behavior).
 
 --------------------------------------------------------------------------------
-  9.1  Global Rubric Configuration
+  10.1  Global Rubric Configuration
 --------------------------------------------------------------------------------
 
   The grade breakdown is defined globally and applied to all classes.
@@ -451,7 +539,7 @@ grade system tracks assessment scores and non-assessment grades (e.g., behavior)
     Behavior      30%  (manually entered — cannot be auto-tracked)
 
 --------------------------------------------------------------------------------
-  9.2  Grade Computation Triggers
+  10.2  Grade Computation Triggers
 --------------------------------------------------------------------------------
 
 The system automatically recomputes final grades when:
@@ -460,7 +548,7 @@ The system automatically recomputes final grades when:
   • A new assessment is created and assigned.
 
 --------------------------------------------------------------------------------
-  9.3  Grade Display Modes
+  10.3  Grade Display Modes
 --------------------------------------------------------------------------------
 
   Clean Mode:
@@ -477,14 +565,14 @@ NOTE: Behavior grades are always entered manually by the educator. The system
 
 
 ================================================================================
-  10. MEETING MANAGEMENT  (Educator)
+  11. MEETING MANAGEMENT  (Educator)
 ================================================================================
 
 Educators can schedule meetings for their classes, targeted to all students or
 a specific subset.
 
 --------------------------------------------------------------------------------
-  10.1  Meeting Properties
+  11.1  Meeting Properties
 --------------------------------------------------------------------------------
 
   Property          Details
@@ -497,7 +585,7 @@ a specific subset.
                     students manually
 
 --------------------------------------------------------------------------------
-  10.2  Invitation Behavior
+  11.2  Invitation Behavior
 --------------------------------------------------------------------------------
 
   • Invited students receive a notification when the meeting is created.
@@ -506,35 +594,46 @@ a specific subset.
 
 
 ================================================================================
-  11. GLOBAL ACCOUNT SYSTEM
+  12. GLOBAL ACCOUNT SYSTEM
 ================================================================================
 
-EduTool uses a self-registration model. Admins do not create accounts for
-educators or students — each user registers their own account.
+EduTool uses a self-registration model. No account is created on behalf of any
+user — each person registers independently.
 
-  • Students register their own accounts and are filtered by course and year
-    level when being added to classes.
-  • Educators register their own accounts and are assigned to departments and
-    classes by the Admin.
-  • Admins are scoped to a single school — they cannot view or manage other
-    schools.
+  • Admins register their own accounts, then create one or more Organizations.
+    Each org has its own separate dashboard.
+
+  • Educators register their own accounts, then send join requests to the
+    Organization(s) they want to work in. The Admin must accept before the
+    educator becomes part of that org's pool.
+
+  • Students register their own accounts and select the Organization they
+    belong to. They are scoped to that org.
+
+  • An educator can belong to multiple organizations. Each membership is
+    approved independently by each org's Admin.
+
+  • Admins only see educators and students within their own org(s).
+    No cross-org data is ever visible.
 
 
 ================================================================================
-  12. SYSTEM SUMMARY
+  13. SYSTEM SUMMARY
 ================================================================================
 
   Role        Manages                                  Cannot Do
   ----------  ---------------------------------------  -------------------------
-  Admin       Departments, semester templates,         Manage lessons,
-              classes, schedules, educator             assessments, or grades.
-              assignments.                             View other schools.
+  Admin       Organizations, departments, semester     Manage lessons,
+              templates, classes, schedules, educator  assessments, or grades.
+              assignments. Multiple orgs per account.  View other admins' orgs.
 
   Educators   Lessons, assessments, grades, meetings   Create classes. Manage
-              — all within assigned classes.           departments or schedules.
+              — within accepted orgs only. Can join    departments or schedules.
+              multiple orgs (each needs approval).
 
   Students    Join classes, take assessments, attend   Modify lessons, grades, or
-              meetings, view grades.                   any admin-level settings.
+              meetings, view grades — within their     any admin-level settings.
+              registered org.
 
 
 ================================================================================
