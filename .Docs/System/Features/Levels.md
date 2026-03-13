@@ -64,8 +64,15 @@ Schedule management:
 #  Department object
     - title
     - description
-    - Yr levels
-    - Subjects
+    - Yr level
+    - Subjects list (sorted by yr level)
+
+    Add subject 
+        - Title 
+        - description
+        - Educator assigned (Eric james)
+        - Applicable yr level (select from the yr levels set in component)
+        - save in 
 
     Example:
         BSCS
@@ -85,4 +92,12 @@ Schedule management:
             4th yr
                 - thesis
                 - it review
+
+# Department management
+    Departments 
+        - BSCS, BSBA, BSA etc.
+    Each department has its own subject list and yr list.
+        ex. 
+            BSCS
+                
 
