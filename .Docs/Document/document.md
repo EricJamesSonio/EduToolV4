@@ -1,5 +1,5 @@
 ================================================================================
-  EDUTOOL — SYSTEM PLANNING DOCUMENT  v7
+  EDUTOOL — SYSTEM PLANNING DOCUMENT  v8
   Multi-tenant academic management system for schools
 ================================================================================
 
@@ -67,12 +67,14 @@ Admin creates all accounts. No self-registration. Credentials system-generated
     - Strand  —  if Senior High (from org's existing strands)
     - Course  —  if College (from org's existing courses)
 
+  On Save — Enrollment Validation:
+    When Admin saves a student's profile (on creation or update), the system
+    immediately runs capacity and enrollment checks. See Section 9.5 for the
+    full validation flow.
+
 NOTE: The student form is fully dynamic. Selecting a Level Section reveals the
       correct fields. Section, Strand, and Course dropdowns show only what
       exists in the org — no hardcoded options.
-
-NOTE: Student profile data drives auto-enrollment into matching classes.
-      See Section 7.2 for auto-enrollment behavior.
 
 --------------------------------------------------------------------------------
   2.3  Password Management
@@ -97,7 +99,8 @@ NOTE: Student profile data drives auto-enrollment into matching classes.
 
   Format      CSV bulk download — all accounts at once
   Columns     Full Name, Student ID / Educator ID, Email, Generated Password,
-              Level Section, Section, Course/Strand, Year/Grade Level
+              Level Section, Section, Course/Strand, Year/Grade Level,
+              Account Status
   Delivery    Admin distributes externally (print, email, hand out)
 
 
@@ -115,22 +118,34 @@ NOTE: Student profile data drives auto-enrollment into matching classes.
   Level Section       Grade/Year Levels    Sections
   ----------------    -----------------    ------------------------------------
   Elementary          Grade 1 - Grade 6    Admin-defined per grade level
-                                           e.g. Grade 3 - Section A, Section B
+                                           e.g. Grade 3 — Section A, Section B
   High School         Grade 7 - Grade 10   Admin-defined per grade level
-                                           e.g. Grade 8 - Narra, Molave
-  Senior High School  Grade 11 - Grade 12  Admin-defined per grade level
-                                           per strand
-                                           e.g. Grade 11 STEM - Section 1
-  College             Year 1 - Year N      Admin-defined per year level
-                                           per course
-                                           e.g. BSCS Year 2 - Block A, Block B
+                                           e.g. Grade 8 — Narra, Molave
+  Senior High School  Grade 11 - Grade 12  Admin-defined per grade + strand
+                                           e.g. Grade 11 STEM — Section 1
+  College             Year 1 - Year N      Admin-defined per year + course
+                                           e.g. BSCS Year 2 — Block A, Block B
 
   Section Properties:
     Name              e.g. Section A, Block A, Narra
     Level Section     Which level section this belongs to
     Grade/Year Level  Which specific grade or year
     Course/Strand     For Senior High and College only
-    Capacity          Optional — max students for this section
+    Capacity          Maximum number of students allowed in this section
+
+  Section Capacity Enforcement:
+    When a student is assigned to a section (on account creation or profile
+    update), the system checks the section's current headcount against its
+    capacity limit.
+
+    If capacity is reached:
+      - System prompts Admin: "Section [Name] is full. Create a new section
+        or leave student without a section for now?"
+      - If Admin confirms new section: system creates a new section with an
+        auto-incremented name (e.g. Block A → Block B) and assigns the student.
+      - If Admin declines: student is saved with no section assigned.
+        Student status is set to Pending until Admin manually assigns a section.
+      - Logged in the Admin Audit Log.
 
   NOTE: Sections are organizational groupings for students. Classes remain
         independently configured by Admin. A section is NOT automatically
@@ -161,7 +176,7 @@ NOTE: Student profile data drives auto-enrollment into matching classes.
   Courses and strands                   Classes — created fresh
   Semester setting selections           Grade locks — all start unlocked
   Educator accounts
-  Student accounts
+  Student accounts (with statuses)
 
 NOTE: All past school years permanently archived and read-only. Students
       can view full grade history across all years.
@@ -182,7 +197,46 @@ per school year.
 
 
 ================================================================================
-  6. SUBJECT MANAGEMENT  (Admin)
+  6. ACADEMIC CALENDAR  (Admin)
+================================================================================
+
+  Admin manages an org-wide academic calendar per school year. This is
+  optional but recommended. It affects lesson scheduling, attendance, and
+  meeting behavior across all classes.
+
+--------------------------------------------------------------------------------
+  6.1  Calendar Event Types
+--------------------------------------------------------------------------------
+
+  Event Type      Effect on Classes
+  --------------  --------------------------------------------------------------
+  Holiday         Class sessions scheduled on this date are skipped.
+                  Attendance record is not created for that session.
+                  Lesson scheduling shifts automatically.
+  No Class Day    Same behavior as Holiday — sessions skipped.
+  Exam Week       Advisory only. No automatic session changes. Informs
+                  educators of the exam period for planning.
+  Special Event   Informational only. No scheduling effect.
+
+--------------------------------------------------------------------------------
+  6.2  System Behavior on Event Days
+--------------------------------------------------------------------------------
+
+  - Attendance sessions that fall on a Holiday or No Class Day are
+    automatically skipped — no record is created, no mark needed.
+  - Lesson week assignments adjust so that skipped sessions don't
+    create gaps in the week numbering sequence.
+  - Meeting reminders and notifications are suppressed on event days.
+  - Educators are NOT required to manually adjust their schedules for
+    declared calendar events.
+
+  NOTE: If a calendar event is added retroactively (after sessions have
+        already been created), Admin is warned that past records may need
+        manual review.
+
+
+================================================================================
+  7. SUBJECT MANAGEMENT  (Admin)
 ================================================================================
 
   Property          Details
@@ -196,7 +250,7 @@ per school year.
   Multiple Weekday Support:
     A subject can be scheduled on 1 to 5 weekdays per week.
     Each day uses the same assigned time slot.
-    Week labeling adapts based on meeting frequency (see Section 7.3).
+    Week labeling adapts based on meeting frequency (see Section 8.3).
 
   Lock/Unlock Cycle:
     Start of year       Unlocked — Admin edits freely.
@@ -210,13 +264,13 @@ per school year.
 
 
 ================================================================================
-  7. CLASS MANAGEMENT  (Admin & Educator)
+  8. CLASS MANAGEMENT  (Admin & Educator)
 ================================================================================
 
 Admin creates class structure. Educator manages all content inside.
 
 --------------------------------------------------------------------------------
-  7.1  Admin — Class Setup Properties
+  8.1  Admin — Class Setup Properties
 --------------------------------------------------------------------------------
 
   Title, Level Section, Course/Strand (Senior High/College only),
@@ -235,39 +289,48 @@ Admin creates class structure. Educator manages all content inside.
 
   Capacity:
     Limited (hard cap set by Admin) or Unlimited.
-    Hard block — system cannot enroll students beyond the cap. No override.
+    When capacity is reached and more eligible students exist, see
+    Section 8.2 for the overflow handling flow.
 
 --------------------------------------------------------------------------------
-  7.2  Auto-Enrollment
+  8.2  Auto-Enrollment and Class Capacity Enforcement
 --------------------------------------------------------------------------------
 
   Students are automatically enrolled in classes by the system — educators do
   NOT manually add students.
 
   Matching Logic:
-    When a class is created, the system matches students whose profile
+    When a student account is saved, the system matches classes whose config
     satisfies ALL of the following:
-      - Level Section matches the class's Level Section
-      - Year/Grade Level matches the class's Year/Grade Level
+      - Level Section matches the student's Level Section
+      - Year/Grade Level matches the student's Year/Grade Level
       - Course (College) or Strand (Senior High) matches, if applicable
       - Section matches, if the class has a section assigned
+      - Student's account status is Active
 
-    Any student account created or updated after a class exists is also
-    auto-enrolled if their profile matches.
+    Only Active students are auto-enrolled. Students with Pending, Dropped,
+    Transferred, Suspended, or Graduated status are not auto-enrolled.
 
-  Additional Subject Assignment (Admin only):
-    If a student needs to be enrolled in a class outside their standard
-    profile match — e.g. an extra subject, an elective, a retake — only
-    Admin can trigger this. See Section 9.3 for the full flow.
-
-  Capacity Enforcement:
-    If a class has a Limited capacity, auto-enrollment stops when the cap
-    is reached. Admin must increase the cap or create a new section to
-    accommodate additional students.
+  Class Capacity Overflow:
+    If auto-enrollment would exceed a class's capacity limit:
+      - System prompts Admin: "Class [Title] is full ([N] students). Add
+        another weekday session to split the load, or leave the student
+        pending enrollment?"
+      - If Admin adds a session: a new parallel class is created with the
+        same subject and settings but an additional or different weekday.
+        The overflow student(s) are enrolled in the new class.
+      - If Admin declines: the student is marked as Pending Enrollment for
+        that subject. Admin must resolve before the student can access it.
+      - Logged in the Admin Audit Log.
 
   Duplicate Prevention:
     System blocks enrollment if the student is already enrolled in a class
     for the same subject in the same semester.
+
+  Additional Subject Assignment (Admin only):
+    If a student needs to be enrolled in a class outside their standard
+    profile match — e.g. an extra subject, an elective, a retake — only
+    Admin can trigger this. See Section 10.3 for the full flow.
 
   Late Student Additions:
     If a student is auto-enrolled or manually enrolled mid-semester, the
@@ -276,38 +339,65 @@ Admin creates class structure. Educator manages all content inside.
 
   Removal:
     Educator can manually remove a student from a class if needed
-    (e.g. wrong section, transfer). Removal is logged.
+    (e.g. wrong section, transfer). Removal is logged in the Educator
+    Activity Log.
 
   NOTE: Changes to a student's profile (e.g. section, strand, year level)
         trigger re-evaluation of their enrollments.
 
 --------------------------------------------------------------------------------
-  7.3  Week Computation  (by calendar week, not session count)
+  8.3  Week Computation  (by calendar week, not session count)
 --------------------------------------------------------------------------------
 
   Single weekday:               Week 1, Week 2, Week 3 ...
   Two weekdays (e.g. Mon+Fri):  Week 1.1, Week 1.2, Week 2.1, Week 2.2 ...
   Three weekdays:               Week 1.1, Week 1.2, Week 1.3, Week 2.1 ...
   Four weekdays:                Week 1.1, Week 1.2, Week 1.3, Week 1.4 ...
-  Five weekdays (daily):        Week 1.1, Week 1.2, Week 1.3, Week 1.4, Week 1.5 ...
+  Five weekdays (daily):        Week 1.1 through Week 1.5, Week 2.1 ...
 
   The week label reflects the calendar week. Each session within that week
   gets a sub-index (1.1, 1.2, etc.) ordered by weekday.
+  Sessions that fall on Academic Calendar event days are skipped and do not
+  consume a week index.
 
 --------------------------------------------------------------------------------
-  7.4  Class Archiving
+  8.4  Class Archiving
 --------------------------------------------------------------------------------
 
   Admin manually closes and archives at end of semester. Read-only after.
-  Nothing ever deleted. Full history preserved permanently.
+  Records are soft-deleted — invisible in active UI but permanently stored
+  in the database. See Section 20 for soft delete policy.
+
+--------------------------------------------------------------------------------
+  8.5  Educator Reassignment Mid-Semester
+--------------------------------------------------------------------------------
+
+  When Admin reassigns a class to a new educator mid-semester:
+
+  The new educator inherits:
+    - All lessons and concept builds
+    - All assessments (including generated questions)
+    - All grading responsibilities (including ungraded essays)
+    - All unpublished scores
+    - All attendance records
+
+  Historical Attribution:
+    Scores and grades already recorded remain attributed to the educator
+    who graded them at the time. Attribution is never modified retroactively.
+
+  Ownership History Log (on every reassignment):
+    - Original educator name, period (from → to date)
+    - Reason for reassignment (optional Admin note)
+    - New educator name and start date
+    - Complete audit trail — never deleted
 
 
 ================================================================================
-  8. EDUCATOR MANAGEMENT  (Admin)
+  9. EDUCATOR MANAGEMENT  (Admin)
 ================================================================================
 
 --------------------------------------------------------------------------------
-  8.1  Educator Accounts
+  9.1  Educator Accounts
 --------------------------------------------------------------------------------
 
   Each educator has a system-generated Educator ID used for lookup and search.
@@ -321,30 +411,57 @@ Admin creates class structure. Educator manages all content inside.
     - Reset password
 
 --------------------------------------------------------------------------------
-  8.2  Educator Removal
+  9.2  Educator Removal
 --------------------------------------------------------------------------------
 
   Blocked if active classes exist. Admin must reassign all classes first.
   Once no active classes remain, removal goes through.
 
---------------------------------------------------------------------------------
-  8.3  Class Ownership History Log
---------------------------------------------------------------------------------
-
-  On every reassignment:
-    - Original educator name and period (from -> to date)
-    - Reason for reassignment (optional Admin note)
-    - New educator name and start date
-    - All records stay attributed to the educator active at the time
-    - Complete audit trail — never deleted
-
 
 ================================================================================
-  9. STUDENT MANAGEMENT  (Admin)
+  10. STUDENT MANAGEMENT  (Admin)
 ================================================================================
 
 --------------------------------------------------------------------------------
-  9.1  Student Profile
+  10.1  Student Account Status
+--------------------------------------------------------------------------------
+
+  Each student account carries a status that controls their access and
+  enrollment eligibility.
+
+  Status          Meaning
+  -----------     --------------------------------------------------------------
+  Active          Normal enrolled student. Auto-enrollment applies. Can log in,
+                  take assessments, attend meetings, view grades.
+  Pending         Profile is incomplete or a capacity conflict was unresolved
+                  on save. Student has no section or class enrollment yet.
+                  Admin must resolve before student can access the system.
+  Dropped         Student has dropped out. Account is read-only. Enrollments
+                  are removed. Transcript preserved. Cannot log in.
+  Transferred     Student has transferred to another institution. Same behavior
+                  as Dropped — read-only, enrollments removed, transcript kept.
+  Suspended       Temporary restriction. Student cannot log in or access
+                  classes. Account and enrollments remain intact. Admin lifts
+                  suspension to restore Active status.
+  Graduated       System-set when student reaches max year level. Read-only.
+                  Full transcript accessible. Cannot log in.
+
+  Status Transitions:
+    Admin can manually change status at any time, subject to these rules:
+      - Dropped / Transferred / Graduated → cannot be reversed to Active
+        without platform owner involvement (logged).
+      - Suspended → Active: Admin lifts directly.
+      - Pending → Active: resolved when Admin assigns a valid section and
+        confirms enrollment.
+
+  Effect on Enrollment:
+    Only Active students participate in auto-enrollment.
+    Suspended students retain existing enrollments but cannot access them.
+    Dropped / Transferred students are unenrolled from all active classes.
+    Graduated students are flagged read-only; classes archive normally.
+
+--------------------------------------------------------------------------------
+  10.2  Student Profile
 --------------------------------------------------------------------------------
 
   Dynamic Profile Form:
@@ -362,32 +479,30 @@ Admin creates class structure. Educator manages all content inside.
     The student may be unenrolled from classes that no longer match and
     enrolled in newly matching ones.
 
-  Graduated Accounts:
-    System flags when student reaches max year level.
-    Account becomes read-only. Transcript remains accessible.
-
   Transcript:
     Full grade history across all semesters and school years. Read-only.
 
 --------------------------------------------------------------------------------
-  9.2  Student Account Search
+  10.3  Student Account Search
 --------------------------------------------------------------------------------
 
   Admin can search students by:
     - Student ID  (exact or partial match)
     - Full Name
+    - Status  (Active / Pending / Dropped / Transferred / Suspended / Graduated)
     - Level Section / Year Level / Section / Course / Strand  (filters)
 
   From a student's account view, Admin can:
-    - View full profile and Student ID
+    - View full profile, Student ID, and current status
     - See all current class enrollments (subject, educator, semester)
-    - Add an additional subject (see Section 9.3)
-    - Remove a subject enrollment (see Section 9.4)
+    - Add an additional subject  (see Section 10.4)
+    - Remove a subject enrollment  (see Section 10.5)
+    - Change account status
     - Edit profile (between semesters)
     - Reset password
 
 --------------------------------------------------------------------------------
-  9.3  Adding an Additional Subject to a Student  (Admin only)
+  10.4  Adding an Additional Subject to a Student  (Admin only)
 --------------------------------------------------------------------------------
 
   Educators cannot add subjects to students. Only Admin can.
@@ -400,45 +515,74 @@ Admin creates class structure. Educator manages all content inside.
     Step 4  System validates:
               - No duplicate enrollment in same subject same semester.
               - Class capacity not exceeded.
+              - Student status is Active or resolvable.
     Step 5  Admin confirms. System enrolls the student in the class.
     Step 6  Educator assigned to that class receives a notification:
               "New student [Name] has been added to your class [Class Title]
                by Admin."
     Step 7  If the class has past assessments, educator manually assigns
             status for each one (NULL, Exempted, or Custom Score).
+    Step 8  Action is logged in the Admin Audit Log.
 
   NOTE: This is the only pathway for enrolling a student in a class that
-        does not match their standard profile. Admin takes responsibility
-        for correctness.
+        does not match their standard profile. Admin takes full responsibility.
 
 --------------------------------------------------------------------------------
-  9.4  Removing a Subject from a Student  (Admin only)
+  10.5  Removing a Subject from a Student  (Admin only)
 --------------------------------------------------------------------------------
-
-  Admin can remove a student from a class enrollment at any time.
 
   Flow:
     Step 1  Admin searches for the student.
     Step 2  Admin selects the enrollment to remove.
     Step 3  System warns if the class has existing grades or submissions.
-    Step 4  Admin confirms. Student is unenrolled. Removal is logged.
+    Step 4  Admin confirms. Student is unenrolled. Removal is soft-deleted
+            (record preserved, invisible in active views).
     Step 5  Educator assigned to that class receives a notification:
               "Student [Name] has been removed from your class [Class Title]
                by Admin."
+    Step 6  Action is logged in the Admin Audit Log.
 
-  NOTE: Removing a student from a class does not delete historical records
-        already submitted. The student's existing scores are archived.
+  NOTE: Existing submissions and scores are archived, not wiped.
+
+--------------------------------------------------------------------------------
+  10.5  Enrollment Validation on Save
+--------------------------------------------------------------------------------
+
+  Every time Admin saves a student profile (creation or update), the system
+  runs the following checks in order:
+
+  Check 1 — Section Capacity:
+    Does the assigned section have space?
+      YES → proceed.
+      NO  → prompt Admin: create new section or leave student with no section
+            (Pending status). See Section 3.1 for section capacity flow.
+
+  Check 2 — Class Matching:
+    For each subject applicable to this student's profile, is there a
+    matching class with available capacity?
+      YES → enroll student automatically.
+      NO (class full) → prompt Admin: add a session/split class or mark
+            student as Pending Enrollment for that subject.
+            See Section 8.2 for class capacity overflow flow.
+
+  Check 3 — Duplicate Enrollment:
+    Is the student already enrolled in this subject for this semester?
+      YES → skip (no duplicate created, no error shown).
+      NO  → enroll.
+
+  All outcomes (enrollments, pending flags, skipped duplicates) are logged
+  in the Admin Audit Log.
 
 
 ================================================================================
-  10. LESSON MANAGEMENT  (Educator)
+  11. LESSON MANAGEMENT  (Educator)
 ================================================================================
 
   Properties:
     Title, Description (optional), Week Assignment, Lesson Detail (min 10 words)
 
 --------------------------------------------------------------------------------
-  10.1  Concept Extraction
+  11.1  Concept Extraction
 --------------------------------------------------------------------------------
 
   - Auto-triggered when Lesson Detail of 10+ words is saved for the first time.
@@ -452,7 +596,7 @@ Admin creates class structure. Educator manages all content inside.
   the old build. Only new assessments use the updated concept build.
 
 --------------------------------------------------------------------------------
-  10.2  Lesson Viewer & Presentation Mode
+  11.2  Lesson Viewer & Presentation Mode
 --------------------------------------------------------------------------------
 
   Calendar layout by week. Educator can present lesson content directly inside
@@ -461,11 +605,11 @@ Admin creates class structure. Educator manages all content inside.
 
 
 ================================================================================
-  11. ASSESSMENT MANAGEMENT  (Educator)
+  12. ASSESSMENT MANAGEMENT  (Educator)
 ================================================================================
 
 --------------------------------------------------------------------------------
-  11.1  Question Types
+  12.1  Question Types
 --------------------------------------------------------------------------------
 
   Type              AI Generated    Auto-Graded    Notes
@@ -478,14 +622,14 @@ Admin creates class structure. Educator manages all content inside.
                                                    Educator manually grades.
 
 --------------------------------------------------------------------------------
-  11.2  Assessment Dates
+  12.2  Assessment Dates
 --------------------------------------------------------------------------------
 
   Release Date    Before this, students see title only — questions hidden.
   End Date        Submission deadline. Assessment auto-closes.
 
 --------------------------------------------------------------------------------
-  11.3  Template Configuration & Generation Flow
+  12.3  Template Configuration & Generation Flow
 --------------------------------------------------------------------------------
 
   Step 1  Select lesson. If no concept build exists, lesson is blocked.
@@ -516,7 +660,7 @@ Admin creates class structure. Educator manages all content inside.
     Item 21     Essay           Remaining concepts              OK
 
 --------------------------------------------------------------------------------
-  11.4  Editing Generated Questions
+  12.4  Editing Generated Questions
 --------------------------------------------------------------------------------
 
   - Educator can edit any AI-generated question before the release date.
@@ -525,7 +669,7 @@ Admin creates class structure. Educator manages all content inside.
   - Once the release date passes, questions lock — no further edits.
 
 --------------------------------------------------------------------------------
-  11.5  Student Assignment & Status
+  12.5  Student Assignment & Status
 --------------------------------------------------------------------------------
 
   Status          Meaning
@@ -541,7 +685,30 @@ Admin creates class structure. Educator manages all content inside.
     assessment the student missed.
 
 --------------------------------------------------------------------------------
-  11.6  Score Publishing
+  12.6  Assessment Attempt Control
+--------------------------------------------------------------------------------
+
+  Each student may have only one active attempt per assessment at any time.
+
+  When a student opens an assessment:
+    - An attempt record is created with status = Active.
+    - All auto-save progress is stored under this attempt.
+
+  If the same student opens the assessment from another tab or device:
+    - System detects the existing Active attempt.
+    - The existing attempt is resumed — no new attempt created.
+    - Previous progress is restored exactly where left off.
+
+  This prevents:
+    - Multiple simultaneous tab attempts
+    - Multiple device attempts
+    - Accidental duplicate submissions
+
+  On submission: attempt status is set to Submitted. No further access.
+  On end date:   all Draft attempts are closed automatically.
+
+--------------------------------------------------------------------------------
+  12.7  Score Publishing
 --------------------------------------------------------------------------------
 
   Scores hidden by default. Educator publishes when ready.
@@ -556,29 +723,33 @@ Admin creates class structure. Educator manages all content inside.
     Students see final grade + every individual score simultaneously.
 
 --------------------------------------------------------------------------------
-  11.7  Assessment Deletion
+  12.8  Assessment Deletion
 --------------------------------------------------------------------------------
 
   WARNING: Deleting an assessment after students have submitted wipes all
-  scores. Final grade recomputes without it. Irreversible.
+  scores. Final grade recomputes without it.
+  Assessment is soft-deleted — removed from active UI but preserved in DB.
 
 
 ================================================================================
-  12. ATTENDANCE MANAGEMENT  (Educator)
+  13. ATTENDANCE MANAGEMENT  (Educator)
 ================================================================================
 
 --------------------------------------------------------------------------------
-  12.1  Overview
+  13.1  Overview
 --------------------------------------------------------------------------------
 
   Attendance is tracked per class session, not per calendar day.
   Sessions correspond to the class's scheduled weekday(s) within each week.
+  Sessions that fall on Academic Calendar event days (Holiday / No Class Day)
+  are automatically skipped — no record is created.
+
   The attendance view is organized by week (Week 1, Week 2, etc.) — not a
   full calendar. A class that meets once a week shows one session per week;
   a class meeting three times a week shows three sessions per week.
 
 --------------------------------------------------------------------------------
-  12.2  Auto-Attendance from Assessments
+  13.2  Auto-Attendance from Assessments
 --------------------------------------------------------------------------------
 
   If an assessment is assigned to a student on a given session day:
@@ -586,11 +757,8 @@ Admin creates class structure. Educator manages all content inside.
     - Not submitted (NULL, Draft, Exempted, Custom) → No automatic mark.
       Educator resolves manually.
 
-  This means assessment submission doubles as an attendance signal. No separate
-  action needed if the student submitted.
-
 --------------------------------------------------------------------------------
-  12.3  Manual Attendance Entry
+  13.3  Manual Attendance Entry
 --------------------------------------------------------------------------------
 
   Educator can manually set or override attendance for any session:
@@ -604,19 +772,15 @@ Admin creates class structure. Educator manages all content inside.
 
   Use cases for manual entry:
     - Sessions with no assessment (lecture-only days, activities, etc.)
-    - Override auto-marked status if needed (e.g. student submitted but was
-      actually marked absent administratively)
+    - Override auto-marked status if needed
     - Any session where the educator needs full control
 
 --------------------------------------------------------------------------------
-  12.4  Attendance View — Weekly Layout
+  13.4  Attendance View — Weekly Layout
 --------------------------------------------------------------------------------
 
-  The attendance interface is organized by week, matching the class's week
-  structure (see Section 7.3 for week computation).
-
-  Each week expands to show its sessions. For each session, the educator
-  sees each enrolled student and their attendance status for that day.
+  Each week expands to show its sessions. For each session, the educator sees
+  each enrolled student and their attendance status for that day.
 
   Weekly view examples:
     Once a week:      Week 1 → 1 session | Week 2 → 1 session | ...
@@ -627,25 +791,22 @@ Admin creates class structure. Educator manages all content inside.
   at any time before grades are locked.
 
 --------------------------------------------------------------------------------
-  12.5  Attendance in Grade Computation
+  13.5  Attendance in Grade Computation
 --------------------------------------------------------------------------------
 
   If the rubric includes an Attendance category (manual entry type), the
-  educator inputs the attendance summary score for each student manually —
-  the system does not auto-compute a grade from raw attendance records.
-  The raw session-by-session attendance data is for tracking and reference;
-  the final attendance grade component is manually entered.
+  educator inputs the attendance summary score per student manually.
+  The raw session-by-session records are for reference and tracking only.
 
-  NOTE: This may be revisited in a future version to support auto-calculation
-  from session records.
+  NOTE: Auto-calculation from session records may be added in a future version.
 
 
 ================================================================================
-  13. GRADE MANAGEMENT  (Educator)
+  14. GRADE MANAGEMENT  (Educator)
 ================================================================================
 
 --------------------------------------------------------------------------------
-  13.1  Rubric System
+  14.1  Rubric System
 --------------------------------------------------------------------------------
 
   Admin default rubric
@@ -674,7 +835,7 @@ Admin creates class structure. Educator manages all content inside.
     Total           100%
 
 --------------------------------------------------------------------------------
-  13.2  Student Grade Visibility
+  14.2  Student Grade Visibility
 --------------------------------------------------------------------------------
 
   Assessment scores       Visible only after educator publishes them.
@@ -683,14 +844,14 @@ Admin creates class structure. Educator manages all content inside.
   Essay pending           Score shows as incomplete until essay is graded.
 
 --------------------------------------------------------------------------------
-  13.3  Grade Display Modes  (Educator View)
+  14.3  Grade Display Modes  (Educator View)
 --------------------------------------------------------------------------------
 
   Clean Mode    Groups by category. Click to drill into individual scores.
   Excel Mode    Full flat list of every individual assessment.
 
 --------------------------------------------------------------------------------
-  13.4  Grade Locking
+  14.4  Grade Locking
 --------------------------------------------------------------------------------
 
   Admin enables lock window    Admin sets a deadline (e.g. 24 hours).
@@ -700,14 +861,14 @@ Admin creates class structure. Educator manages all content inside.
   Auto-lock on deadline        System auto-locks if educator missed deadline.
   After lock                   Grades frozen. Read-only for everyone.
   Platform override            Platform owner unlocks on formal Admin request
-                               (extreme cases only). Logged permanently.
+                               (extreme cases only). Logged in Admin Audit Log.
 
   WARNING: If Essay items are ungraded when locking, system warns but allows.
   Educator takes full responsibility.
 
 
 ================================================================================
-  14. GRADING SCALE CONFIGURATION  (Admin)
+  15. GRADING SCALE CONFIGURATION  (Admin)
 ================================================================================
 
   Per level section. Each section can use a completely different scale.
@@ -741,7 +902,7 @@ Admin creates class structure. Educator manages all content inside.
 
 
 ================================================================================
-  15. GRADE EXPORT & CLASS CARDS
+  16. GRADE EXPORT & CLASS CARDS
 ================================================================================
 
   PDF — Per Student Class Card:
@@ -756,7 +917,7 @@ Admin creates class structure. Educator manages all content inside.
 
 
 ================================================================================
-  16. MEETING MANAGEMENT  (Educator)
+  17. MEETING MANAGEMENT  (Educator)
 ================================================================================
 
   Built-in video meeting room — no third-party tools.
@@ -777,6 +938,8 @@ Admin creates class structure. Educator manages all content inside.
 
   Behavior:
     - Room opens automatically at scheduled time.
+    - Meeting reminders and notifications are suppressed on Academic Calendar
+      event days (Holiday / No Class Day).
     - Invited students notified on meeting creation.
     - Non-invited can see meeting exists and send join request.
     - Educator accepts/declines requests from inside the room.
@@ -785,7 +948,7 @@ Admin creates class structure. Educator manages all content inside.
 
 
 ================================================================================
-  17. NOTIFICATION SYSTEM
+  18. NOTIFICATION SYSTEM
 ================================================================================
 
   In-app only. No email or SMS. Simple list — no read/unread tracking.
@@ -805,17 +968,24 @@ Admin creates class structure. Educator manages all content inside.
   Auto-enrolled in class                Student           On enrollment trigger
   Student added to class by Admin       Educator          Admin adds student
   Student removed from class by Admin   Educator          Admin removes student
+  Enrollment pending (capacity full)    Admin             On capacity block
+
+  Retention Policy:
+    Notifications older than 90 days are archived automatically.
+    Archived notifications are removed from the active list but retained
+    in internal logs. They are not visible to users after archiving.
 
 
 ================================================================================
-  18. ADMIN DASHBOARD & ANALYTICS
+  19. ADMIN DASHBOARD & ANALYTICS
 ================================================================================
 
   Admin sees aggregate analytics only — no access to live class internals
   (active assessments, current grades, unpublished scores).
 
   - Total enrollment per level section, course, strand, year/grade level,
-    and section.
+    and section. Broken down by account status.
+  - Pending students count (no section or pending enrollment).
   - Active class count per semester.
   - Grade distribution summaries (after locking).
   - Educator count and class load overview.
@@ -823,36 +993,113 @@ Admin creates class structure. Educator manages all content inside.
 
 
 ================================================================================
-  19. SYSTEM SUMMARY
+  20. SOFT DELETE POLICY
+================================================================================
+
+  EduTool uses soft deletion for critical records. No academic data is
+  permanently destroyed. Deleted records are flagged with a deleted_at
+  timestamp and become invisible in the active UI but remain fully stored
+  in the database.
+
+  Soft Delete Applies To:
+    - Classes
+    - Assessments
+    - Lessons
+    - Enrollments
+    - Meetings
+
+  Behavior:
+    - Soft-deleted records do not appear in any active view for any role.
+    - Historical grade and score records referencing soft-deleted items
+      are preserved and still contribute to transcripts and exports.
+    - Platform owner can access raw data for dispute resolution or recovery.
+
+  Hard deletes are never performed on any of the above record types.
+
+
+================================================================================
+  21. AUDIT LOGS
+================================================================================
+
+  EduTool maintains two tiers of activity logs — Admin-level and
+  Educator-level — stored permanently and never deleted.
+
+--------------------------------------------------------------------------------
+  21.1  Admin Audit Log
+--------------------------------------------------------------------------------
+
+  Records high-impact administrative actions across the org.
+
+  Logged Actions:
+    - Student profile changes (field, old value, new value)
+    - Account status changes (Active / Dropped / Suspended / etc.)
+    - Subject assignment changes (add / remove enrollment)
+    - Educator class assignment changes (add / remove / reassign)
+    - Section capacity overflow decisions (new section created / student pending)
+    - Class capacity overflow decisions (new session added / student pending)
+    - Password resets (who was reset, by whom)
+    - Grade lock override requests (platform owner actions)
+    - Academic calendar event creation and modification
+
+  Log Fields:
+    Timestamp     |  Actor (Admin)  |  Action Type  |  Target Entity  |  Details
+
+  Admin can filter and search the audit log by date, action type, or
+  target entity (Student ID, Educator ID, class, etc.).
+
+--------------------------------------------------------------------------------
+  21.2  Educator Activity Log
+--------------------------------------------------------------------------------
+
+  Records class-level events scoped to each educator's classes.
+  Educators see only their own class logs.
+
+  Logged Events:
+    - New student enrolled in class (auto or by Admin)
+    - Student removed from class (by educator or Admin)
+    - Meeting started / ended
+    - Assessment created, edited, published, deleted
+    - Scores published / unpublished
+    - Grade locked (by educator or auto-lock)
+    - Lesson created or updated
+    - Concept extraction triggered / completed
+
+  Log Fields:
+    Timestamp  |  Event Type  |  Details  |  Class
+
+  Educator Activity Logs are also visible to Admin for oversight.
+
+
+================================================================================
+  22. SYSTEM SUMMARY
 ================================================================================
 
   Role        Manages                                   Cannot Do
   ----------  ----------------------------------------  ------------------------
   Admin       One org, school years, level sections,     Manage lesson content,
-              sections (all levels), courses/strands,    generate assessments,
-              subjects, class structure, schedules,      enter grades, view live
-              all accounts (student + educator),         class internals, or
-              student subject assignments (add/remove),  override locks.
-              educator class assignments (add/remove),
-              password resets, grading scales (per
-              level section, per school year),
-              rubric default, lock windows,
-              exports, analytics.
+              sections + capacity (all levels),          generate assessments,
+              courses/strands, subjects, class           enter grades, view live
+              structure + capacity, academic calendar,   class internals, or
+              all accounts (student + educator),         override locks without
+              student statuses, subject assignments,     platform owner.
+              educator class assignments, password
+              resets, grading scales, rubric default,
+              lock windows, exports, analytics,
+              audit log access.
 
-  Educators   Lessons, concept extraction (manual        Create/modify class
-              re-trigger), assessments (config +         structure. Add/remove
-              generation + question editing +            student enrollments.
-              assignment + essay grading + score         View other educators'
-              publishing), attendance management,        classes. Change student
-              grades, rubric library, meetings,          profiles.
-              exports.
+  Educators   Lessons, concept extraction, assessments   Create/modify class
+              (config + generation + editing +           structure. Add/remove
+              assignment + essay grading + score         student enrollments.
+              publishing), attendance management,        View other educators'
+              grades, rubric library, meetings,          classes. Change student
+              exports, activity log (own classes).       profiles or statuses.
 
-  Students    Take assessments, attend meetings,         Modify any academic
-              view published scores, view locked         data. View other
-              final grades + all scores on lock,         students' data.
-              full transcript.
+  Students    Take assessments (one active attempt),     Modify any academic
+              attend meetings, view published scores,    data. View other
+              view locked final grades + all scores      students' data.
+              on lock, full transcript.
 
 
 ================================================================================
-  EduTool  •  System Planning Document  v7
+  EduTool  •  System Planning Document  v8
 ================================================================================
