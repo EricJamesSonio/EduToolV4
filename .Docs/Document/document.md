@@ -1,5 +1,5 @@
 ================================================================================
-  EDUTOOL — SYSTEM PLANNING DOCUMENT  v8
+  EDUTOOL — SYSTEM PLANNING DOCUMENT  v8.1
   Multi-tenant academic management system for schools
 ================================================================================
 
@@ -103,6 +103,50 @@ NOTE: The student form is fully dynamic. Selecting a Level Section reveals the
               Account Status
   Delivery    Admin distributes externally (print, email, hand out)
 
+--------------------------------------------------------------------------------
+  2.5  Bulk Student Import
+--------------------------------------------------------------------------------
+
+  For large schools (1,000+ students), Admin can import student accounts in
+  bulk via CSV upload instead of creating accounts one by one.
+
+  CSV Template Columns:
+    Full Name, Student ID, Email, Level Section, Grade/Year Level,
+    Section, Strand (if Senior High), Course (if College)
+
+  Import Flow:
+    Step 1  Admin downloads the blank CSV template from the system.
+    Step 2  Admin fills in student data externally (spreadsheet editor).
+    Step 3  Admin uploads the completed CSV.
+    Step 4  System validates each row:
+              - Required fields present (Full Name, Student ID, Email,
+                Level Section, Grade/Year Level)
+              - Student ID unique within org
+              - Email unique within org
+              - Level Section, Grade/Year Level, Section, Strand/Course
+                values exist in the org's structure
+    Step 5  Validation report shown before any accounts are created:
+              - Valid rows: count and preview
+              - Error rows: listed with reason (e.g. "Student ID 2024-001
+                already exists", "Section 'Narra' not found for Grade 7")
+    Step 6  Admin can:
+              - Fix errors externally and re-upload
+              - Proceed with valid rows only, skipping error rows
+    Step 7  System creates accounts for all valid rows.
+            System-generated passwords assigned. Credentials available
+            for download as CSV immediately after import.
+    Step 8  Enrollment validation runs for each imported student
+            (section capacity + class matching — see Section 10.5).
+            Any capacity conflicts surface as Pending students for Admin
+            to resolve after import.
+
+  NOTE: Bulk import creates student accounts only. Educator accounts must
+        still be created individually as educator roles require more
+        deliberate assignment review.
+
+  NOTE: Bulk import does not bypass any validation rules. Section capacity,
+        class capacity, and duplicate checks all still apply per student.
+
 
 ================================================================================
   3. ORGANIZATION STRUCTURE
@@ -139,13 +183,26 @@ NOTE: The student form is fully dynamic. Selecting a Level Section reveals the
     capacity limit.
 
     If capacity is reached:
-      - System prompts Admin: "Section [Name] is full. Create a new section
-        or leave student without a section for now?"
-      - If Admin confirms new section: system creates a new section with an
-        auto-incremented name (e.g. Block A → Block B) and assigns the student.
-      - If Admin declines: student is saved with no section assigned.
+      - System prompts Admin with two options:
+          (A) Create a new section
+          (B) Leave student with no section for now (Pending)
+
+      - If Admin chooses (A): Admin is shown a creation form pre-filled with
+        the same Level Section, Grade/Year Level, Course/Strand, and Capacity
+        as the full section. Admin provides a custom name — no auto-naming.
+        The new section is created and the student is assigned to it.
+
+      - If Admin chooses (B): student is saved with no section assigned.
         Student status is set to Pending until Admin manually assigns a section.
+
       - Logged in the Admin Audit Log.
+
+  NOTE: Section names are always fully custom — Admin names every section
+        manually. No automatic name generation (e.g. Block A → Block B) is
+        performed because naming schemes vary: some schools use letters
+        (Section A, B, C), others use trees (Narra, Molave), numbers
+        (Block 1, Block 2), or entirely custom names. The system cannot
+        assume a naming pattern.
 
   NOTE: Sections are organizational groupings for students. Classes remain
         independently configured by Admin. A section is NOT automatically
@@ -1101,5 +1158,5 @@ Admin creates class structure. Educator manages all content inside.
 
 
 ================================================================================
-  EduTool  •  System Planning Document  v8
+  EduTool  •  System Planning Document  v8.1
 ================================================================================
