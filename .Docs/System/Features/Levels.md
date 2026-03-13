@@ -6,7 +6,7 @@ Levels of authority
 
 # Admin level authority
 * Level section components.
-    - Semester setting (reusable)
+    - Semester setting 
     - Departments (BSBA, BSCS, BSA , BSHM etc.)
 
 * Create level sections.
@@ -31,6 +31,8 @@ notes:
             Analgor  - 2nd yr - Jay entilleso - wednesday - 2pm -4pm
             Parallel - 3rd yr - Rj Diaz - tuesday - 1pm -5pm
             Thesis - 4th yr - Eric james - thursday - 7am -10am
+        
+    
 
 Schedule management:
     * Since we have now the list of subjects and the educators that handles it. now we will create astrict and safe schedule. VAlidatign and checking for conflict. for example, theres a subject conflict like, 2 subject ares in the same time, or got overlapping time, its bad. and also if the educator handles 2 subject at the same time in schedule, its conflci since educator is cannot go in 2 different class atthje same time.
@@ -42,6 +44,7 @@ Schedule management:
             * This autoamticall created based on the subject's weekday and time set when creating a subject.
             * so every create of subject, builds this schedule viewer
             * if admin wants to change the time and weekday of the subject, it clicked the subject in here. then edit the weekday and time
+    * For creating of schedule, its based on yr level. so its easier. have the set of subjects that are on the smae level and department
 
     Weekdays schedule!
     - jsut select subject since the subject alreay contains the educator that handles it so we dont need to input the educator there, its automatically fetch from the educator component of the subject
@@ -52,8 +55,34 @@ Schedule management:
     - Title :
     - Description (optional)
     - Semesters :
-        * 1st semester
+        * 1st semester 
         * 2nd semester
 
     - each semester has its own start date and end date.
     - validayte, they shouldn't overlapp, creates conflict. checks it.
+
+#  Department object
+    - title
+    - description
+    - Yr levels
+    - Subjects
+
+    Example:
+        BSCS
+        Bachelor of science in computer science
+        4 yr levels
+        Subject list: (sorted by year)
+            1st yr 
+                - data structure
+                - prog1
+                - com1
+            2nd yr
+                - oop
+                - analgor
+            3rd yr
+                - research
+                - parallel
+            4th yr
+                - thesis
+                - it review
+
