@@ -19,4 +19,6 @@
 
     1-1o (select questuion type . example : identification) (select section from the concept build of the lesson selected. example data structure)
     checks if the selected section can fullfill the items 1-10, if not then allow getting other sections to use. until fullfill 10 items.
+    11-15 (enumeration) selected section (queue) has 6 items so check, it can fullfil
+    16-20 (true or false) selected section is binary tree has 4 items so cannot be, so allowed selecting to otehr section., second section is data linear, has 5 items, so now it can provide, so in this 16-20 sectiuon, has 2 concept section,
 
