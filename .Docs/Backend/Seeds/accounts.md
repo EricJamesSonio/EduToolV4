@@ -1,4 +1,9 @@
-Seed accounts for testing....
+System Details:
+
+Admin details:
+Email: eric@first.com
+Password:   eric1_pass
+Status: Active , Blocked , Inactive
 
 Admin accounts
 1. eric@first.com       eric1_pass
@@ -16,6 +21,38 @@ Students accounts for Admin account 1 "eric@first.com"
 Educators account for Admin account 1 "eric@first.com"
 1. edu1@testing.com     edu1_pass
 2. edu2@testing.com     edu2_pass (do this increment up to 10 educators)
+
+Educator details:
+Last name : 
+Middle name : 
+First name : 
+Handled Course : BSCS
+Handled subjects : (based on class assigned educator per subject. so the class scheduler handles this)
+
+[Account] (saved in the account management to be exported or send to them soon, admin can change passwords)
+Email : edu1@testing.com 
+Password : edu1_pass
+
+Students enrollment: (example)
+1.
+Last name : Sonio
+First name : Eric james
+Middle name : A.
+Course : BSCS
+Subjects : (Selected from the course "BSCS")
+    Data structure 
+    Prog1
+    Com1
+    PE1
+Yr level : 1
+Student Id : 50-0001
+
+[Account] (account for that student) (saved in the account management to be exported or send to them soon)
+Email : stud1@testing.com
+password : stud1_pass
+
+(For the remaining student accounts, those should have this since in creating an account, we need to have student details first.
+and just shuffle subjects. )
 
 Levels seed, this is for level section default (applied to all since this is not tightly for each only)
 Elementary -
