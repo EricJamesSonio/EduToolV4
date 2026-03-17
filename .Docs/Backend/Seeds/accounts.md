@@ -85,5 +85,99 @@ College -
             Sections:
                 A, B
 
+Course components seeds:
+- educators
+- subjects
+- class
+
+BSCS:
+    educators:
+        edu account 1 and 2
+    subjects:   (Subjects that are only used in this course)
+        1. 
+            title: Datastruct
+            description : Fundamentals of data structures
+            weekday: monday 
+            time:  8am - 11am
+            applicable yr: 1 (means applied for BSCS - 1 only, just use in creating schedules. so it won't mixed in other yr level scheds)
+
+        2. 
+            title: Prog1 
+            description : Programming and basic learning
+            weekday: tuesday
+            time : 8am - 11am
+            applicable yr: 1 
+
+        3. 
+            title: Com1
+            description : Learning the computer parts
+            weekday: wednesday 
+            time : 11am - 2pm
+            applicable yr: 1
+        4.
+            title : PE 1 (From shared subjects)
+            description : Physical education 1
+            weekday : Friday
+            time : 2pm - 5pm
+            applicanble yr: 1
+
+        5. 
+            title : MMW (From shared subjects)
+            description : Math in modern world
+            weekday : Saturday
+            titme : 2pm - 5pm
+            applicable yr: 1
+
+    class:
+        class name : BSCS - 1
+            classes:
+            1.
+                subject : data structure
+                educator: edu1 (the edu assigned to handle this subject)
+                status : active, inactive etc. (depends for future improvements)
+                
+            2.
+                subject : PE 1
+                educator: edu2 
+                status : active
+
+            3. 
+                subject : Com1
+                educator: edu1
+                status: active
+
+            4. 
+                subject : Prog1
+                educator: edu1
+                status : active
+
+            5. 
+                subject : MMW
+                educator: edu2
+                status: active
+
+        System automated schedule based on the classes. generated using the active classes. if theres conflic check based on weekdays and 
+        week time. the system automatically tell the user that there's conflic. so the generated schedule will be clean.
+
+        Title : BSCS 1 
+        schedule:
+            Monday      Tuesday         Wednesday       Thursday        Friday         Saturday         Sunday
+
+            8am-11am    8am-11am
+            Datastruct  Prog1
+                                        11am-2pm                        
+                                        Com1
+                                                                        2pm -5pm        2pm-5pm
+                                                                        PE 1            MMW
+
+        
+Shared Subjects (lives outside of course, since this can be used in different courses also.):
+    PE 1
+    PE 2
+    MMW
+    BusMath
+    GenMath
+    etc...
+    (user can add more, this is reusable!)
 
 
