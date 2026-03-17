@@ -31,9 +31,9 @@ next-frontend/
             adminApi.ts etc...
 
         utils/
-            date.util.ts
+            date.util.ts   
             token.util.ts
-            validation.util.ts
+            validation.util.ts  
 
         types/
             auth.types.ts

@@ -39,6 +39,7 @@ Last name : Sonio
 First name : Eric james
 Middle name : A.
 Course : BSCS
+Section : A
 Subjects : (Selected from the course "BSCS")
     Data structure 
     Prog1
@@ -59,11 +60,23 @@ Elementary -
     Day care
     Kinder
     Yr level 1
+        Sections:
+            A, B 
     Yr level 2
+            Sections:
+            A, B 
     Yr level 3
+            Sections:
+            A, B 
     Yr level 4
+            Sections:
+            A, B 
     Yr level 5
+            Sections:
+            A, B 
     Yr level 6
+            Sections:
+            A, B 
 
 High school - 
     Yr level 7
@@ -165,38 +178,57 @@ BSCS:
             titme : 2pm - 5pm
             applicable yr: 1
 
+        6. 
+            title : Analgor
+            description : Analytics and algorithms
+            weekday : Monday 
+            time : 8am - 11am
+            applicabley yr: 2
+
     class:
         class name : BSCS - 1
             classes:
             1.
                 subject : data structure
                 educator: edu1 (the edu assigned to handle this subject)
+                capacity : 50 (editable) (System check also the num of students if the capacity is not enough. (for this case, system checks
+                for students that are in this course and yr and section of this. so BSCS 1 A. check if num don't exceed. use solutioon maybe
+                add capacity, or make another class for it, with differnt time. or just move the students to other section. depends))
+                section : A (Select from sections of this yr of course (example, this is from bscs 1 and it has A and B, so select from it))
                 status : active, inactive etc. (depends for future improvements)
                 
             2.
                 subject : PE 1
                 educator: edu2 
+                capacity : 30
+                section : A 
                 status : active
 
             3. 
                 subject : Com1
                 educator: edu1
+                capacity : 40
+                section : A 
                 status: active
 
             4. 
                 subject : Prog1
                 educator: edu1
+                capacity : 30
+                section : A 
                 status : active
 
             5. 
                 subject : MMW
                 educator: edu2
+                capacity : 50
+                section : A 
                 status: active
 
         System automated schedule based on the classes. generated using the active classes. if theres conflic check based on weekdays and 
         week time. the system automatically tell the user that there's conflic. so the generated schedule will be clean.
 
-        Title : BSCS 1 
+        Title : BSCS 1 A
         schedule:
             Monday      Tuesday         Wednesday       Thursday        Friday         Saturday         Sunday
 
@@ -216,5 +248,59 @@ Shared Subjects (lives outside of course, since this can be used in different co
     GenMath
     etc...
     (user can add more, this is reusable!)
+
+Rubrics Settings: (in here we saved rubrics so it can be used in different levels if wanted, so ellimintae manual most of the time)
+Standard rubrics:
+New rubrics:
+Elementary Rubrics:
+College rubrics:
+High school rubrics: (so this depends on the admin all this . can just have 1 if only one need to use to all., since educators can 
+just modify their own rubrics. and this is just the default for them)
+
+
+Educators dashboard level
+This is based on the admin given to the educators so educators are just gonna handle their classes and students. elliminating
+the manual stuffs.
+
+Classes: (Example) (from the subject lists then the class schedule is here)
+1.
+    Data structure  
+    Capacity : Based on the admin set up    
+    Students list : based on the admin assgined
+    Analgor 
+    PE 1
+
+Schedule: (only the classes it handles) (example)
+    Monday      Tuesday         Wednesday           Thursday        Friday      Saturday        Sunday
+    8-11am
+    Datastructure
+                                2pm-5pm                             2pm-5pm
+                                Analgor                             PE 1
+
+Class Level Structure:
+Students list:
+    List of students that are in this class
+Grade management:
+    Grading of students:
+    Depends on the assessment assgined to them, check scores.
+    Grading computation depends on the rubrics set by the educator. if educator changes it's own rubrics. if not, then it's using the admin
+    default.
+    Non assessment grading, will be manually set by the educator. sinc esystem cannot automate it.
+    First layer is Term selection:
+        Prelim  Midterms    Pre finals  Finals
+    Cleaner view settings or just default: (educator can swithc between)
+        The default looks like this: (grading is per terms. so example this is Prelim ) (example)
+            Name        Act 1   Act 2   Quiz 1  quiz 2      Exam    Behavior    Attendance  Recitation  Final grade    
+            1. Stud1    19/20    21/30   11/20   19/20       45/50   80/100          5/14        90/100      94
+
+        Cleaner is looks like this: (sorted the assesssments type if more than 1)
+            Name        Activities   Quizzes  Exam    Behavior    Attendance  Recitation  Final grade    
+            1. Stud1    40/50       30/40      45/50     80/100        5/14        90/100      94
+
+
+Assessment Generator:
+Lesson management:
+Video meeting:
+
 
 
