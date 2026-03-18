@@ -1,5 +1,45 @@
 System Details:
 
+system flow:
+When platform owner gives an admin account.
+The admin can create an org only one. so can't have multiple orgs.
+
+Organization:
+Name :
+Description :
+
+Components inside:
+- School years contains the school management such as levels (top level).
+- So organization has the history of school years.
+- Admin can plan for future years here.
+- Levels settings (this will be the base template of levels. so when creaet new school year. that school year's levels settings, use it. so 
+it's easier for the admin to create. eliminate the starting again from scratch. if there's some changes, then admin will be manually update 
+that, or update also that default if that change will be applied to the next years.)
+
+Like:
+Title: School year 2025-2026 (History tracking)
+Status: Ended
+
+Title :School year 2026-2027  (Current org year)
+Status: Active
+
+Title: School year 2027-2028 (Future plan, good for advance set up and modifications if possible)
+Status: Pending
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Admin details:
 Email: eric@first.com
 Password:   eric1_pass
@@ -56,6 +96,18 @@ password : stud1_pass
 and just shuffle subjects. )
 
 Levels seed, this is for level section default (applied to all since this is not tightly for each only)
+
+Each level has this:
+    rubrics (select from rubric settings )
+    So Elementary has its own rubric,
+    High school has its own rubric
+    Senior high school has its own rubric
+    College has its own rubric
+
+    They can have the same, so just let them set the same rubrics. 
+    This gives a freedom for admin to have different rubrics per level.
+    Note that this will be just default, still the educator can modify it.
+
 Elementary -
     Day care
     Kinder
@@ -256,3 +308,14 @@ Elementary Rubrics:
 College rubrics:
 High school rubrics: (so this depends on the admin all this . can just have 1 if only one need to use to all., since educators can 
 just modify their own rubrics. and this is just the default for them)
+
+Example:
+Title : Standard rubrics
+Activity:   20%         
+Quizzes:    20%
+Exam:       20%
+Attendance: 20% 
+Behavior:   20%
+Total : 100 % (should always result to 100, if not. system invalidates it. not valid)
+
+Now this can be applied now in the levels section's rubrics settings.
