@@ -15,8 +15,8 @@ and Admins create all other accounts.
 
   Role            Managed By          Core Scope
   ----------      ------------------  ------------------------------------------
-  Platform Owner  EduTool team        Creates and manages all Admin accounts.
-                                      Oversees all orgs at the system level.
+  Platform Owner  EduTool team        Creates and manages Admin accounts only.
+                                      No access to any org's internal data.
 
   Admin           Platform owner      Creates and manages one org. Manages the
                                       full academic structure within that org.
@@ -44,9 +44,9 @@ transcripts, and audit logs — is strictly scoped to that org and is never
 visible, accessible, or shared with any other org or Admin.
 
 This is an absolute system-level boundary. It is not a permission setting —
-it cannot be toggled or overridden by any Admin. Only the Platform Owner
-operates above org boundaries, and only at the account-management level
-(see Section 4).
+it cannot be toggled or overridden by any Admin. The Platform Owner has no
+access to org-internal data either — their scope is Admin account
+management only (see Section 3).
 
 --------------------------------------------------------------------------------
   2.1  What Is Isolated Per Org
@@ -107,44 +107,43 @@ operates above org boundaries, and only at the account-management level
     Identical names in two orgs are entirely independent records.
 
 --------------------------------------------------------------------------------
-  2.3  Platform Owner Visibility Exception
+  2.3  Platform Owner Scope Boundary
 --------------------------------------------------------------------------------
 
-  The Platform Owner can see all orgs at the account level (org name, Admin
-  account, block status, school year status, account counts). This is a
-  read-only system overview — the Platform Owner does not read or modify
-  org-internal data (grades, students, classes, assessments) in normal
-  operation. See Section 4 for full Platform Owner capabilities.
+  The Platform Owner only knows that an Admin account exists — because they
+  created it. They cannot see the org's name, structure, students, grades,
+  or any internal data. Their scope ends entirely at the Admin account.
+  See Section 3 for full Platform Owner capabilities.
 
 
 ================================================================================
   3. PLATFORM OWNER
 ================================================================================
 
-The Platform Owner is the EduTool team — the top-level operator of the system.
-They do not belong to any organization.
+The Platform Owner is the EduTool team. Their sole responsibility is managing
+Admin accounts. They have no visibility into any organization's internal data —
+no students, no grades, no classes, no structure of any kind. They simply
+provision and maintain the Admin accounts that schools use to access the platform.
 
 --------------------------------------------------------------------------------
   3.1  Platform Owner Capabilities
 --------------------------------------------------------------------------------
 
-  Account Management:
-    - Create new Admin accounts (triggers school onboarding, see Section 4.1).
-    - View all existing Admin accounts.
-    - View a specific Admin's credentials (password visible in plain text —
-      used for distributing credentials to school clients).
+  Admin Account Management (the full and only scope):
+    - Create new Admin accounts (one per school).
+    - View all existing Admin accounts and their credentials.
+    - View a specific Admin's password in plain text — for distributing
+      login credentials to the school client.
     - Copy Admin account credentials for distribution.
-    - Block an Admin account (disables login without deleting the org).
+    - Reset an Admin's password.
+    - Block an Admin account (disables login; the org is unaffected).
     - Unblock a blocked Admin account.
 
-  System-Level Oversight:
-    - Overview of all organizations on the platform (name, handle, status,
-      school year, account counts).
-    - Can unlock a locked grade on formal Admin request (extreme cases only).
-      Logged in the Admin Audit Log.
+  NOTE: Platform Owner cannot see, enter, or manage any organization's
+        internal data — no students, no educators, no classes, no grades,
+        no structure, no logs. The org belongs entirely to the Admin.
+        Platform Owner scope ends at the Admin account itself.
 
-  NOTE: Platform Owner does not access org-internal data (grades, students,
-        lessons) in normal operation. Oversight is at the account and org level.
 
 
 ================================================================================
@@ -760,7 +759,7 @@ Admin creates class structure. Educator manages all content inside.
   Status Transitions:
     Admin can manually change status at any time, subject to these rules:
       - Dropped / Transferred / Graduated → cannot be reversed to Active
-        without platform owner involvement (logged).
+        without a deliberate Admin confirmation step (logged in Audit Log).
       - Suspended → Active: Admin lifts directly.
       - Pending → Active: resolved when Admin assigns a valid section.
 
@@ -1194,8 +1193,8 @@ Admin creates class structure. Educator manages all content inside.
                                revealed to students.
   Auto-lock on deadline        System auto-locks if educator missed deadline.
   After lock                   Grades frozen. Read-only for everyone.
-  Platform override            Platform owner unlocks on formal Admin request
-                               (extreme cases only). Logged in Admin Audit Log.
+  Grade lock override          Admin can unlock grades directly in extreme cases
+                               without any external approval — Admin has full authority.
 
   WARNING: If Essay items are ungraded when locking, system warns but allows.
   Educator takes full responsibility.
@@ -1348,7 +1347,8 @@ Admin creates class structure. Educator manages all content inside.
     - Soft-deleted records do not appear in any active view for any role.
     - Historical grade and score records referencing soft-deleted items
       are preserved and still contribute to transcripts and exports.
-    - Platform owner can access raw data for dispute resolution or recovery.
+    - Raw soft-deleted data is retained in the database for dispute resolution
+      or recovery by the Admin with platform-level DB access if needed.
 
   Hard deletes are never performed on any of the above record types.
 
@@ -1374,7 +1374,7 @@ Admin creates class structure. Educator manages all content inside.
     - Section capacity overflow decisions (new section created / student pending)
     - Class capacity overflow decisions (new session added / student pending)
     - Password resets (who was reset, by whom)
-    - Grade lock override requests (platform owner actions)
+    - Grade lock override actions (Admin-initiated)
     - Academic calendar event creation and modification
 
   Log Fields:
@@ -1412,11 +1412,11 @@ Admin creates class structure. Educator manages all content inside.
 
   Role            Manages                                   Cannot Do
   ----------      ----------------------------------------  --------------------
-  Platform Owner  All Admin accounts, system-level          Access org-internal
-                  overview, block/unblock Admins,           data in normal
-                  credential distribution to schools,       operation. Cannot
-                  grade lock overrides on formal request.   create student or
-                                                            educator accounts.
+  Platform Owner  Admin account management only:          Access any org's
+                  create, view, copy, reset password,       internal data.
+                  block/unblock Admin accounts.             Cannot see students,
+                  Credential distribution to schools.       grades, classes, or
+                                                            any org structure.
 
   Admin           One org, school years, level defaults,    Manage lesson content,
                   programs (including custom programs),     generate assessments,
