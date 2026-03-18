@@ -15,8 +15,11 @@ Components inside:
 - Levels settings (this will be the base template of levels. so when creaet new school year. that school year's levels settings, use it. so 
 it's easier for the admin to create. eliminate the starting again from scratch. if there's some changes, then admin will be manually update 
 that, or update also that default if that change will be applied to the next years.)
+- Example level default is the below levels details.
+- Educators list (educators that are inside the org. will be teaching)
+- Students list (students that are enrolled in this school org)
 
-Like:
+Example SChool years:
 Title: School year 2025-2026 (History tracking)
 Status: Ended
 
