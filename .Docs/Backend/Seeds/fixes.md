@@ -13,3 +13,7 @@ Current the student is assigned to section first.
 This problematic since the student automatically gets the subject of that section. 
 what if the student drop that or what. so we need to assign the student per subjects. not section.
 Can assign section after but don;t let section decides what subject it can have
+
+Subject should not contain weekday and time, class should have that.
+since what if the subject has multiple sched. like it was used in section A and section B ,, now the sched of time of them is ddiferent.
+much better if the class contains it.
