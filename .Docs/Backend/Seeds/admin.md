@@ -29,20 +29,6 @@ Status: Active
 Title: School year 2027-2028 (Future plan, good for advance set up and modifications if possible)
 Status: Pending
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 Admin details:
 Email: eric@first.com
 Password:   eric1_pass
