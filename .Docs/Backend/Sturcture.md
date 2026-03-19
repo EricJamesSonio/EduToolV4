@@ -40,7 +40,7 @@ nest-backend
                 database.provider.ts
 
             events/     
-                event.module.ts
+                event.module.ts     # services are not tightly coupled and makes some process work on background,. such as sending emails etc.
                 event.service.ts
             middleware/
                 request-id.middleware.ts # provides unique id per logs, use winston
