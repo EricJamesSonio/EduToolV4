@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduTool — Backend Pseudocode Reference</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #161b27;
+    --bg3: #1e2535;
+    --border: #2a3347;
+    --accent: #4f8ef7;
+    --accent2: #38d9a9;
+    --accent3: #f7a04f;
+    --accent4: #c678dd;
+    --accent5: #e06c75;
+    --text: #abb2bf;
+    --text-hi: #dde3ef;
+    --text-dim: #636d83;
+    --comment: #5c6370;
+    --string: #98c379;
+    --keyword: #c678dd;
+    --type: #e5c07b;
+    --fn: #61afef;
+    --number: #d19a66;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'Courier New', monospace;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 13px;
+  }
+
+  /* Layout */
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .main { flex: 1; padding: 40px 48px; max-width: 900px; overflow-x: hidden; }
+
+  /* Sidebar */
+  .sidebar-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    padding: 0 20px 12px;
+    font-weight: 600;
+  }
+  .sidebar-section { margin-bottom: 8px; }
+  .sidebar-group {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent3);
+    padding: 12px 20px 4px;
+    font-weight: 700;
+  }
+  .sidebar a {
+    display: block;
+    padding: 5px 20px 5px 28px;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 12px;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+  }
+  .sidebar a:hover { color: var(--text-hi); border-left-color: var(--accent); background: rgba(79,142,247,0.06); }
+
+  /* Page title */
+  .page-header { margin-bottom: 48px; }
+  .page-title { font-size: 28px; font-weight: 700; color: var(--text-hi); letter-spacing: -0.02em; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .page-sub { color: var(--text-dim); font-size: 13px; margin-top: 6px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .version-badge {
+    display: inline-block;
+    background: rgba(79,142,247,0.12);
+    color: var(--accent);
+    border: 1px solid rgba(79,142,247,0.3);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    margin-top: 8px;
+    font-family: monospace;
+  }
+
+  /* Section */
+  .section { margin-bottom: 56px; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-num {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent3);
+    background: rgba(247,160,79,0.1);
+    border: 1px solid rgba(247,160,79,0.25);
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-family: monospace;
+  }
+  .section-title { font-size: 18px; color: var(--text-hi); font-weight: 600; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .section-desc { color: var(--text-dim); font-size: 12px; margin-bottom: 16px; font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.5; }
+
+  /* Code blocks */
+  .code-block {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+  }
+  .code-file {
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .code-tag {
+    font-size: 10px;
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-weight: 600;
+    margin-left: auto;
+  }
+  .tag-middleware { background: rgba(56,217,169,0.1); color: var(--accent2); border: 1px solid rgba(56,217,169,0.25); }
+  .tag-guard { background: rgba(197,100,113,0.1); color: var(--accent5); border: 1px solid rgba(197,100,113,0.25); }
+  .tag-filter { background: rgba(198,120,221,0.1); color: var(--accent4); border: 1px solid rgba(198,120,221,0.25); }
+  .tag-interceptor { background: rgba(247,160,79,0.1); color: var(--accent3); border: 1px solid rgba(247,160,79,0.25); }
+  .tag-service { background: rgba(79,142,247,0.1); color: var(--accent); border: 1px solid rgba(79,142,247,0.3); }
+  .tag-entity { background: rgba(229,192,123,0.1); color: var(--type); border: 1px solid rgba(229,192,123,0.25); }
+  .tag-config { background: rgba(92,99,112,0.2); color: var(--text-dim); border: 1px solid rgba(92,99,112,0.3); }
+  .tag-core { background: rgba(56,217,169,0.1); color: var(--accent2); border: 1px solid rgba(56,217,169,0.25); }
+
+  pre {
+    padding: 16px;
+    overflow-x: auto;
+    line-height: 1.65;
+    font-size: 12.5px;
+  }
+
+  /* Syntax tokens */
+  .kw { color: var(--keyword); }
+  .fn { color: var(--fn); }
+  .type { color: var(--type); }
+  .str { color: var(--string); }
+  .num { color: var(--number); }
+  .cm { color: var(--comment); font-style: italic; }
+  .dec { color: var(--accent2); }
+  .prop { color: var(--accent5); }
+
+  /* Flow boxes */
+  .flow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .flow-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .flow-box-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-hi);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  .flow-box p { font-size: 11.5px; color: var(--text-dim); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.5; }
+  .flow-arrow { text-align: center; color: var(--accent); font-size: 18px; padding: 4px; }
+
+  /* Pipeline visual */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    padding: 4px 0 8px;
+  }
+  .pipe-step {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--text-hi);
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  .pipe-step.middleware { border-color: rgba(56,217,169,0.4); color: var(--accent2); }
+  .pipe-step.guard { border-color: rgba(197,100,113,0.4); color: var(--accent5); }
+  .pipe-step.interceptor { border-color: rgba(247,160,79,0.4); color: var(--accent3); }
+  .pipe-step.pipe-v { border-color: rgba(198,120,221,0.4); color: var(--accent4); }
+  .pipe-step.filter { border-color: rgba(79,142,247,0.4); color: var(--accent); }
+  .pipe-step.handler { border-color: rgba(56,217,169,0.4); color: var(--accent2); background: rgba(56,217,169,0.06); }
+  .pipe-sep { color: var(--text-dim); padding: 0 4px; font-size: 14px; }
+
+  /* Note boxes */
+  .note {
+    border-left: 3px solid var(--accent3);
+    background: rgba(247,160,79,0.04);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.55;
+  }
+  .note strong { color: var(--accent3); font-weight: 600; }
+
+  .note-info {
+    border-left-color: var(--accent);
+    background: rgba(79,142,247,0.04);
+  }
+  .note-info strong { color: var(--accent); }
+  .note-danger {
+    border-left-color: var(--accent5);
+    background: rgba(197,100,113,0.04);
+  }
+  .note-danger strong { color: var(--accent5); }
+
+  /* Sub-section */
+  .subsection { margin-bottom: 28px; }
+  .sub-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 10px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sub-title::before { content: '//'; color: var(--comment); font-family: monospace; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a4560; }
+
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { padding: 24px 20px; }
+    .flow-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-title">EduTool Backend</div>
+  <div class="sidebar-group">Core</div>
+  <a href="#main">main.ts bootstrap</a>
+  <a href="#configs">configs/</a>
+  <a href="#database">database/</a>
+  <a href="#logger">logger/</a>
+  <a href="#events">events/</a>
+  <a href="#middleware">middleware/</a>
+  <div class="sidebar-group">Commons</div>
+  <a href="#guards">guards/</a>
+  <a href="#filters">filters/</a>
+  <a href="#interceptors">interceptors/</a>
+  <a href="#pipes">pipes/</a>
+  <a href="#decorators">decorators/</a>
+  <a href="#utils">utils/</a>
+  <div class="sidebar-group">Modules</div>
+  <a href="#auth">auth/</a>
+  <a href="#pipeline">Request Pipeline</a>
+  <a href="#module-map">Module Map</a>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+<div class="page-header">
+  <div class="page-title">EduTool — Backend Pseudocode</div>
+  <div class="page-sub">NestJS · Prisma · JWT · Multi-tenant Academic System</div>
+  <div class="version-badge">v8.3 · nest-backend/src/</div>
+</div>
+
+<!-- ======================== MAIN.TS ======================== -->
+<div class="section" id="main">
+  <div class="section-header">
+    <span class="section-num">01</span>
+    <span class="section-title">main.ts — Application Bootstrap</span>
+  </div>
+  <div class="section-desc">
+    Entry point. Creates the NestJS application, wires global middleware, pipes, filters, interceptors, then starts listening. Everything that applies to ALL routes is registered here.
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/main.ts</span>
+      <span class="code-tag tag-core">bootstrap</span>
+    </div>
+<pre><span class="kw">async function</span> <span class="fn">bootstrap</span>() {
+  <span class="cm">// 1. Create the NestJS app from AppModule (root module)</span>
+  <span class="kw">const</span> app = <span class="kw">await</span> <span class="fn">NestFactory.create</span>(AppModule, {
+    logger: <span class="fn">WinstonModule.createLogger</span>(winstonConfig), <span class="cm">// custom logger</span>
+  })
+
+  <span class="cm">// 2. Apply global prefix (all routes: /api/v1/...)</span>
+  app.<span class="fn">setGlobalPrefix</span>(<span class="str">'api/v1'</span>)
+
+  <span class="cm">// 3. Apply global middleware (runs before guards/pipes/interceptors)</span>
+  app.<span class="fn">use</span>(<span class="fn">RequestIdMiddleware</span>())   <span class="cm">// stamps x-request-id on every request</span>
+  app.<span class="fn">use</span>(<span class="fn">helmet</span>())               <span class="cm">// security headers</span>
+  app.<span class="fn">use</span>(<span class="fn">compression</span>())          <span class="cm">// gzip response bodies</span>
+  app.<span class="fn">use</span>(<span class="fn">cookieParser</span>())         <span class="cm">// parse cookies (refresh token)</span>
+  app.<span class="fn">enableCors</span>({ origin: config.ALLOWED_ORIGINS, credentials: <span class="kw">true</span> })
+
+  <span class="cm">// 4. Global validation pipe — applies to ALL incoming DTOs</span>
+  <span class="cm">//    whitelist strips unknown props, transform auto-converts types</span>
+  app.<span class="fn">useGlobalPipes</span>(
+    <span class="kw">new</span> <span class="fn">ValidationPipe</span>({ whitelist: <span class="kw">true</span>, transform: <span class="kw">true</span>, forbidNonWhitelisted: <span class="kw">true</span> })
+  )
+
+  <span class="cm">// 5. Global exception filters (outermost catch)</span>
+  app.<span class="fn">useGlobalFilters</span>(
+    <span class="kw">new</span> <span class="fn">AllExceptionFilter</span>(logger),     <span class="cm">// catch-all (unexpected errors)</span>
+    <span class="kw">new</span> <span class="fn">HttpExceptionFilter</span>(logger),    <span class="cm">// HTTP errors (400, 401, 404...)</span>
+  )
+
+  <span class="cm">// 6. Global interceptors (wrap every controller method)</span>
+  app.<span class="fn">useGlobalInterceptors</span>(
+    <span class="kw">new</span> <span class="fn">LoggingInterceptor</span>(logger),     <span class="cm">// log req/res + duration</span>
+    <span class="kw">new</span> <span class="fn">ResponseInterceptor</span>(),           <span class="cm">// wrap all responses in { data, meta }</span>
+  )
+
+  <span class="cm">// 7. Swagger setup (dev/staging only)</span>
+  <span class="kw">if</span> (config.NODE_ENV !== <span class="str">'production'</span>) <span class="fn">setupSwagger</span>(app)
+
+  <span class="cm">// 8. Prisma graceful shutdown hook</span>
+  <span class="kw">const</span> prisma = app.<span class="fn">get</span>(DatabaseService)
+  <span class="kw">await</span> prisma.<span class="fn">enableShutdownHooks</span>(app)
+
+  <span class="kw">await</span> app.<span class="fn">listen</span>(config.PORT ?? <span class="num">3000</span>)
+  logger.<span class="fn">log</span>(<span class="str">`🚀 EduTool API running on port <span class="kw">${config.PORT}</span>`</span>)
+}
+<span class="fn">bootstrap</span>()</pre>
+  </div>
+</div>
+
+<!-- ======================== CONFIGS ======================== -->
+<div class="section" id="configs">
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <span class="section-title">configs/ — Environment Configuration</span>
+  </div>
+  <div class="section-desc">
+    Each config file exports a typed factory loaded by NestJS ConfigModule. Values are validated at startup using Joi or class-validator so the app fails fast if env vars are missing.
+  </div>
+
+  <div class="subsection">
+    <div class="sub-title">app.config.ts</div>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-file">src/configs/app.config.ts</span>
+        <span class="code-tag tag-config">config</span>
+      </div>
+<pre><span class="cm">// Loaded via ConfigModule.forRoot() → ConfigService.get('app')</span>
+<span class="kw">export const</span> <span class="fn">appConfig</span> = <span class="fn">registerAs</span>(<span class="str">'app'</span>, () => ({
+  port:         <span class="fn">parseInt</span>(process.env.PORT, <span class="num">10</span>) ?? <span class="num">3000</span>,
+  nodeEnv:      process.env.NODE_ENV ?? <span class="str">'development'</span>,
+  allowedOrigins: process.env.ALLOWED_ORIGINS?.<span class="fn">split</span>(<span class="str">','</span>) ?? [],
+}))
+
+<span class="cm">// jwt.config.ts — injected into auth module</span>
+<span class="kw">export const</span> <span class="fn">jwtConfig</span> = <span class="fn">registerAs</span>(<span class="str">'jwt'</span>, () => ({
+  accessSecret:  process.env.JWT_ACCESS_SECRET,
+  refreshSecret: process.env.JWT_REFRESH_SECRET,
+  accessExpiry:  process.env.JWT_ACCESS_EXPIRY  ?? <span class="str">'15m'</span>,
+  refreshExpiry: process.env.JWT_REFRESH_EXPIRY ?? <span class="str">'7d'</span>,
+}))
+
+<span class="cm">// db.config.ts — consumed by DatabaseModule</span>
+<span class="kw">export const</span> <span class="fn">dbConfig</span> = <span class="fn">registerAs</span>(<span class="str">'db'</span>, () => ({
+  url: process.env.DATABASE_URL,  <span class="cm">// postgres connection string</span>
+}))</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== DATABASE ======================== -->
+<div class="section" id="database">
+  <div class="section-header">
+    <span class="section-num">03</span>
+    <span class="section-title">core/database/ — Singleton Prisma Provider</span>
+  </div>
+  <div class="section-desc">
+    Instead of importing PrismaClient everywhere, a single DatabaseService wraps it. Registered as a global module so every feature module can inject it without re-importing DatabaseModule.
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/core/database/database.service.ts</span>
+      <span class="code-tag tag-core">singleton</span>
+    </div>
+<pre><span class="dec">@Injectable()</span>
+<span class="kw">export class</span> <span class="type">DatabaseService</span> <span class="kw">extends</span> <span class="type">PrismaClient</span> <span class="kw">implements</span> <span class="type">OnModuleInit</span> {
+
+  <span class="kw">async</span> <span class="fn">onModuleInit</span>() {
+    <span class="cm">// Connect on app start — fail fast if DB unreachable</span>
+    <span class="kw">await</span> <span class="kw">this</span>.<span class="fn">$connect</span>()
+  }
+
+  <span class="kw">async</span> <span class="fn">enableShutdownHooks</span>(app: <span class="type">INestApplication</span>) {
+    <span class="cm">// Prisma signals 'beforeExit' → call app.close() → NestJS lifecycle hooks run</span>
+    <span class="kw">this</span>.<span class="fn">$on</span>(<span class="str">'beforeExit'</span>, <span class="kw">async</span> () => { <span class="kw">await</span> app.<span class="fn">close</span>() })
+  }
+}</pre>
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/core/database/database.module.ts</span>
+      <span class="code-tag tag-core">global module</span>
+    </div>
+<pre><span class="dec">@Global()</span>             <span class="cm">// ← makes DatabaseService available everywhere without re-importing</span>
+<span class="dec">@Module</span>({
+  providers: [<span class="type">DatabaseService</span>],
+  exports:   [<span class="type">DatabaseService</span>],
+})
+<span class="kw">export class</span> <span class="type">DatabaseModule</span> {}</pre>
+  </div>
+  <div class="note note-info">
+    <strong>How it connects:</strong> AppModule imports DatabaseModule. Because it's <code>@Global()</code>, any other module (AuthModule, StudentModule, etc.) can inject <code>DatabaseService</code> directly without listing DatabaseModule in their own imports array.
+  </div>
+</div>
+
+<!-- ======================== LOGGER ======================== -->
+<div class="section" id="logger">
+  <div class="section-header">
+    <span class="section-num">04</span>
+    <span class="section-title">core/logger/ — Winston Structured Logger</span>
+  </div>
+  <div class="section-desc">
+    Custom logger using Winston. Every log entry includes the request-id (from RequestIdMiddleware), timestamp, log level, and context. Replaces NestJS's default console logger.
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/core/logger/logger.ts</span>
+      <span class="code-tag tag-core">winston</span>
+    </div>
+<pre><span class="cm">// Winston instance exported as NestJS-compatible logger</span>
+<span class="kw">export const</span> winstonConfig = {
+  transports: [
+    <span class="kw">new</span> winston.transports.<span class="type">Console</span>({
+      format: winston.format.<span class="fn">combine</span>(
+        winston.format.<span class="fn">timestamp</span>(),
+        winston.format.<span class="fn">printf</span>(({ level, message, timestamp, requestId, context }) =>
+          <span class="str">`[<span class="kw">${timestamp}</span>] [<span class="kw">${requestId ?? '-'}</span>] [<span class="kw">${level.toUpperCase()}</span>] [<span class="kw">${context}</span>] <span class="kw">${message}</span>`</span>
+        )
+      )
+    }),
+    <span class="kw">new</span> winston.transports.<span class="type">File</span>({ filename: <span class="str">'logs/error.log'</span>, level: <span class="str">'error'</span> }),
+    <span class="kw">new</span> winston.transports.<span class="type">File</span>({ filename: <span class="str">'logs/combined.log'</span> }),
+  ]
+}
+
+<span class="cm">// Usage in any service:</span>
+<span class="cm">//   constructor(private logger: Logger) {}</span>
+<span class="cm">//   this.logger.log('User created', { requestId, userId })</span></pre>
+  </div>
+</div>
+
+<!-- ======================== EVENTS ======================== -->
+<div class="section" id="events">
+  <div class="section-header">
+    <span class="section-num">05</span>
+    <span class="section-title">core/events/ — Internal Event Bus</span>
+  </div>
+  <div class="section-desc">
+    Uses NestJS's built-in EventEmitter2. Services emit domain events (e.g. "student.enrolled") and listeners handle side-effects (notifications, audit logs) without coupling the emitting service to those concerns.
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/core/events/event.service.ts</span>
+      <span class="code-tag tag-core">event bus</span>
+    </div>
+<pre><span class="dec">@Injectable()</span>
+<span class="kw">export class</span> <span class="type">EventService</span> {
+  <span class="kw">constructor</span>(<span class="kw">private</span> emitter: <span class="type">EventEmitter2</span>) {}
+
+  <span class="fn">emit</span>(event: <span class="type">string</span>, payload: <span class="type">unknown</span>) {
+    <span class="kw">this</span>.emitter.<span class="fn">emit</span>(event, payload)
+  }
+}
+
+<span class="cm">// ─── Example events emitted across the system ───────────────────────────</span>
+<span class="cm">// 'student.enrolled'       → payload: { studentId, classId, adminId }</span>
+<span class="cm">// 'grade.locked'           → payload: { classId, educatorId }</span>
+<span class="cm">// 'assessment.published'   → payload: { assessmentId, studentIds[] }</span>
+<span class="cm">// 'meeting.created'        → payload: { meetingId, invitedStudentIds[] }</span>
+<span class="cm">// 'concept.extracted'      → payload: { lessonId, educatorId }</span>
+
+<span class="cm">// ─── Listener example (NotificationModule) ───────────────────────────────</span>
+<span class="dec">@OnEvent</span>(<span class="str">'student.enrolled'</span>)
+<span class="kw">async</span> <span class="fn">handleStudentEnrolled</span>(payload: <span class="type">StudentEnrolledEvent</span>) {
+  <span class="cm">// Save in-app notification to DB for the student</span>
+  <span class="kw">await</span> <span class="kw">this</span>.notificationRepo.<span class="fn">create</span>({
+    userId:  payload.studentId,
+    message: <span class="str">`You have been enrolled in class <span class="kw">${payload.classId}</span>`</span>,
+    type:    <span class="str">'ENROLLMENT'</span>,
+  })
+}</pre>
+  </div>
+  <div class="note">
+    <strong>Why events?</strong> When Admin enrolls a student, AuthService should not import NotificationService and AuditLogService directly — that creates tight coupling. Instead it emits <code>'student.enrolled'</code> and each listener handles its own concern independently.
+  </div>
+</div>
+
+<!-- ======================== MIDDLEWARE ======================== -->
+<div class="section" id="middleware">
+  <div class="section-header">
+    <span class="section-num">06</span>
+    <span class="section-title">core/middleware/request-id.middleware.ts</span>
+  </div>
+  <div class="section-desc">
+    Runs before everything else. Stamps a unique UUID on every incoming request. This ID is threaded through all logs so you can trace a full request lifecycle across services.
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/core/middleware/request-id.middleware.ts</span>
+      <span class="code-tag tag-middleware">middleware</span>
+    </div>
+<pre><span class="dec">@Injectable()</span>
+<span class="kw">export class</span> <span class="type">RequestIdMiddleware</span> <span class="kw">implements</span> <span class="type">NestMiddleware</span> {
+
+  <span class="fn">use</span>(req: <span class="type">Request</span>, res: <span class="type">Response</span>, next: <span class="type">NextFunction</span>) {
+    <span class="cm">// Use incoming x-request-id if trusted proxy provides it, else generate one</span>
+    <span class="kw">const</span> requestId = req.headers[<span class="str">'x-request-id'</span>] ?? <span class="fn">uuidv4</span>()
+
+    req[<span class="str">'requestId'</span>]              = requestId         <span class="cm">// attach to req object</span>
+    res.<span class="fn">setHeader</span>(<span class="str">'x-request-id'</span>, requestId)  <span class="cm">// echo back to client</span>
+
+    <span class="cm">// AsyncLocalStorage — makes requestId available in any nested service call</span>
+    <span class="cm">// without having to pass it through every function signature</span>
+    asyncLocalStorage.<span class="fn">run</span>({ requestId }, () => <span class="fn">next</span>())
+  }
+}
+
+<span class="cm">// Applied in AppModule.configure():</span>
+<span class="cm">// consumer.apply(RequestIdMiddleware).forRoutes('*')</span></pre>
+  </div>
+</div>
+
+<!-- ======================== GUARDS ======================== -->
+<div class="section" id="guards">
+  <div class="section-header">
+    <span class="section-num">07</span>
+    <span class="section-title">commons/guards/ — Auth &amp; Roles Guards</span>
+  </div>
+  <div class="section-desc">
+    Guards run after middleware but before interceptors and route handlers. They answer: "Is this request allowed to proceed?" Two guards stack: AuthGuard validates the JWT, RolesGuard checks the role against the route's requirements.
+  </div>
+
+  <div class="subsection">
+    <div class="sub-title">auth.guard.ts — JWT validation</div>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-file">src/commons/guards/auth.guard.ts</span>
+        <span class="code-tag tag-guard">guard</span>
+      </div>
+<pre><span class="dec">@Injectable()</span>
+<span class="kw">export class</span> <span class="type">AuthGuard</span> <span class="kw">implements</span> <span class="type">CanActivate</span> {
+
+  <span class="fn">canActivate</span>(ctx: <span class="type">ExecutionContext</span>): <span class="type">boolean</span> {
+    <span class="kw">const</span> req = ctx.<span class="fn">switchToHttp</span>().<span class="fn">getRequest</span>()
+
+    <span class="cm">// 1. Extract Bearer token from Authorization header</span>
+    <span class="kw">const</span> token = <span class="kw">this</span>.<span class="fn">extractToken</span>(req.headers.authorization)
+    <span class="kw">if</span> (!token) <span class="kw">throw new</span> <span class="type">UnauthorizedException</span>(<span class="str">'No token provided'</span>)
+
+    <span class="kw">try</span> {
+      <span class="cm">// 2. Verify signature + expiry using JWT_ACCESS_SECRET</span>
+      <span class="kw">const</span> payload = <span class="kw">this</span>.jwt.<span class="fn">verify</span>(token, { secret: jwtConfig.accessSecret })
+
+      <span class="cm">// 3. Attach decoded payload to req so @CurrentUser() can read it</span>
+      <span class="cm">// payload shape: { sub: userId, role: 'ADMIN'|'EDUCATOR'|'STUDENT', orgId }</span>
+      req.user = payload
+      <span class="kw">return</span> <span class="kw">true</span>
+    } <span class="kw">catch</span> {
+      <span class="kw">throw new</span> <span class="type">UnauthorizedException</span>(<span class="str">'Invalid or expired token'</span>)
+    }
+  }
+
+  <span class="kw">private</span> <span class="fn">extractToken</span>(header?: <span class="type">string</span>) {
+    <span class="cm">// 'Bearer eyJ...' → 'eyJ...'</span>
+    <span class="kw">const</span> [type, token] = header?.<span class="fn">split</span>(<span class="str">' '</span>) ?? []
+    <span class="kw">return</span> type === <span class="str">'Bearer'</span> ? token : <span class="kw">undefined</span>
+  }
+}</pre>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="sub-title">roles.guard.ts — role-based access control</div>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-file">src/commons/guards/roles.guard.ts</span>
+        <span class="code-tag tag-guard">guard</span>
+      </div>
+<pre><span class="dec">@Injectable()</span>
+<span class="kw">export class</span> <span class="type">RolesGuard</span> <span class="kw">implements</span> <span class="type">CanActivate</span> {
+
+  <span class="fn">canActivate</span>(ctx: <span class="type">ExecutionContext</span>): <span class="type">boolean</span> {
+    <span class="cm">// Read roles allowed for this route (set via @Roles() decorator)</span>
+    <span class="kw">const</span> requiredRoles = <span class="kw">this</span>.reflector.<span class="fn">getAllAndOverride</span>(<span class="str">ROLES_KEY</span>, [
+      ctx.<span class="fn">getHandler</span>(),   <span class="cm">// method-level decorator wins</span>
+      ctx.<span class="fn">getClass</span>(),    <span class="cm">// class-level decorator is fallback</span>
+    ])
+    <span class="kw">if</span> (!requiredRoles) <span class="kw">return</span> <span class="kw">true</span>   <span class="cm">// no restriction → allow</span>
+
+    <span class="kw">const</span> { user } = ctx.<span class="fn">switchToHttp</span>().<span class="fn">getRequest</span>()
+    <span class="kw">if</span> (!requiredRoles.<span class="fn">includes</span>(user?.role)) {
+      <span class="kw">throw new</span> <span class="type">ForbiddenException</span>(<span class="str">'Insufficient role'</span>)
+    }
+    <span class="kw">return</span> <span class="kw">true</span>
+  }
+}
+
+<span class="cm">// Usage on a controller:</span>
+<span class="dec">@Roles</span>(<span class="str">'ADMIN'</span>)
+<span class="dec">@UseGuards</span>(<span class="type">AuthGuard</span>, <span class="type">RolesGuard</span>)
+<span class="dec">@Get</span>(<span class="str">'students'</span>)
+<span class="fn">getAllStudents</span>() { ... }
+
+<span class="cm">// Or apply globally for all routes in a controller:</span>
+<span class="dec">@UseGuards</span>(<span class="type">AuthGuard</span>, <span class="type">RolesGuard</span>)
+<span class="dec">@Roles</span>(<span class="str">'EDUCATOR'</span>)
+<span class="dec">@Controller</span>(<span class="str">'lessons'</span>)
+<span class="kw">export class</span> <span class="type">LessonController</span> {}</pre>
+    </div>
+  </div>
+  <div class="note">
+    <strong>Multi-tenant safety:</strong> The JWT payload contains <code>orgId</code>. Every repository method that queries the DB automatically scopes by <code>orgId</code> — no data from another org is ever returned, regardless of role.
+  </div>
+</div>
+
+<!-- ======================== FILTERS ======================== -->
+<div class="section" id="filters">
+  <div class="section-header">
+    <span class="section-num">08</span>
+    <span class="section-title">commons/filters/ — Exception Filters</span>
+  </div>
+  <div class="section-desc">
+    Filters catch exceptions thrown anywhere in the pipeline and convert them into a consistent JSON error shape. Two filters are layered: the specific one handles known HTTP errors, the catch-all handles everything else.
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/commons/filters/http-exception.filter.ts</span>
+      <span class="code-tag tag-filter">filter</span>
+    </div>
+<pre><span class="dec">@Catch</span>(<span class="type">HttpException</span>)
+<span class="kw">export class</span> <span class="type">HttpExceptionFilter</span> <span class="kw">implements</span> <span class="type">ExceptionFilter</span> {
+
+  <span class="fn">catch</span>(exception: <span class="type">HttpException</span>, host: <span class="type">ArgumentsHost</span>) {
+    <span class="kw">const</span> ctx        = host.<span class="fn">switchToHttp</span>()
+    <span class="kw">const</span> response   = ctx.<span class="fn">getResponse</span>()
+    <span class="kw">const</span> request    = ctx.<span class="fn">getRequest</span>()
+    <span class="kw">const</span> statusCode = exception.<span class="fn">getStatus</span>()
+    <span class="kw">const</span> exRes      = exception.<span class="fn">getResponse</span>()
+
+    <span class="cm">// Standardised error body sent to every client</span>
+    response.<span class="fn">status</span>(statusCode).<span class="fn">json</span>({
+      success:   <span class="kw">false</span>,
+      statusCode,
+      requestId: request[<span class="str">'requestId'</span>],  <span class="cm">// links to logs</span>
+      timestamp: <span class="kw">new</span> <span class="type">Date</span>().<span class="fn">toISOString</span>(),
+      path:      request.url,
+      message:   <span class="kw">typeof</span> exRes === <span class="str">'object'</span> ? exRes[<span class="str">'message'</span>] : exRes,
+      errors:    exRes[<span class="str">'errors'</span>] ?? [],   <span class="cm">// validation errors array</span>
+    })
+
+    <span class="kw">this</span>.logger.<span class="fn">warn</span>(<span class="str">`HTTP <span class="kw">${statusCode}</span> on <span class="kw">${request.url}</span>`</span>, { requestId: request[<span class="str">'requestId'</span>] })
+  }
+}
+
+<span class="cm">// all-exception.filter.ts  — catches anything NOT HttpException</span>
+<span class="dec">@Catch</span>()  <span class="cm">// empty = catch everything</span>
+<span class="kw">export class</span> <span class="type">AllExceptionFilter</span> <span class="kw">implements</span> <span class="type">ExceptionFilter</span> {
+  <span class="fn">catch</span>(exception: <span class="type">unknown</span>, host: <span class="type">ArgumentsHost</span>) {
+    <span class="kw">this</span>.logger.<span class="fn">error</span>(<span class="str">'Unhandled exception'</span>, exception)
+    <span class="cm">// Return 500 with generic message — never leak internal details</span>
+    response.<span class="fn">status</span>(<span class="num">500</span>).<span class="fn">json</span>({ success: <span class="kw">false</span>, message: <span class="str">'Internal server error'</span> })
+  }
+}</pre>
+  </div>
+</div>
+
+<!-- ======================== INTERCEPTORS ======================== -->
+<div class="section" id="interceptors">
+  <div class="section-header">
+    <span class="section-num">09</span>
+    <span class="section-title">commons/interceptors/ — Logging &amp; Response</span>
+  </div>
+  <div class="section-desc">
+    Interceptors wrap the route handler execution. They see both the request (before handler) and the response (after handler). Think of them as Express middleware that can also transform what the handler returns.
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/commons/interceptors/logging.interceptor.ts</span>
+      <span class="code-tag tag-interceptor">interceptor</span>
+    </div>
+<pre><span class="dec">@Injectable()</span>
+<span class="kw">export class</span> <span class="type">LoggingInterceptor</span> <span class="kw">implements</span> <span class="type">NestInterceptor</span> {
+
+  <span class="fn">intercept</span>(ctx: <span class="type">ExecutionContext</span>, next: <span class="type">CallHandler</span>): <span class="type">Observable</span>&lt;any&gt; {
+    <span class="kw">const</span> req       = ctx.<span class="fn">switchToHttp</span>().<span class="fn">getRequest</span>()
+    <span class="kw">const</span> startTime = Date.<span class="fn">now</span>()
+
+    <span class="kw">this</span>.logger.<span class="fn">log</span>(<span class="str">`→ <span class="kw">${req.method}</span> <span class="kw">${req.url}</span>`</span>, { requestId: req[<span class="str">'requestId'</span>] })
+
+    <span class="cm">// next.handle() executes the route handler</span>
+    <span class="cm">// tap() runs AFTER the handler resolves (non-blocking)</span>
+    <span class="kw">return</span> next.<span class="fn">handle</span>().<span class="fn">pipe</span>(
+      <span class="fn">tap</span>(() => {
+        <span class="kw">const</span> duration = Date.<span class="fn">now</span>() - startTime
+        <span class="kw">this</span>.logger.<span class="fn">log</span>(<span class="str">`← <span class="kw">${req.method}</span> <span class="kw">${req.url}</span> +<span class="kw">${duration}</span>ms`</span>, {
+          requestId: req[<span class="str">'requestId'</span>],
+          userId:    req.user?.sub,
+        })
+      })
+    )
+  }
+}</pre>
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/commons/interceptors/response.interceptor.ts</span>
+      <span class="code-tag tag-interceptor">interceptor</span>
+    </div>
+<pre><span class="cm">// Wraps all successful responses in a consistent envelope</span>
+<span class="dec">@Injectable()</span>
+<span class="kw">export class</span> <span class="type">ResponseInterceptor</span> <span class="kw">implements</span> <span class="type">NestInterceptor</span> {
+
+  <span class="fn">intercept</span>(ctx: <span class="type">ExecutionContext</span>, next: <span class="type">CallHandler</span>): <span class="type">Observable</span>&lt;any&gt; {
+    <span class="kw">const</span> req = ctx.<span class="fn">switchToHttp</span>().<span class="fn">getRequest</span>()
+
+    <span class="kw">return</span> next.<span class="fn">handle</span>().<span class="fn">pipe</span>(
+      <span class="fn">map</span>(data => ({
+        success:   <span class="kw">true</span>,
+        statusCode: ctx.<span class="fn">switchToHttp</span>().<span class="fn">getResponse</span>().<span class="fn">statusCode</span>,
+        requestId: req[<span class="str">'requestId'</span>],
+        timestamp: <span class="kw">new</span> <span class="type">Date</span>().<span class="fn">toISOString</span>(),
+        data,              <span class="cm">// the actual controller return value goes here</span>
+      }))
+    )
+  }
+}
+
+<span class="cm">// Every API response looks like:</span>
+<span class="cm">// { "success": true, "statusCode": 200, "requestId": "...", "data": { ... } }</span></pre>
+  </div>
+</div>
+
+<!-- ======================== PIPES ======================== -->
+<div class="section" id="pipes">
+  <div class="section-header">
+    <span class="section-num">10</span>
+    <span class="section-title">commons/pipes/ — Validation &amp; Transform</span>
+  </div>
+  <div class="section-desc">
+    Pipes run on incoming data right before the route handler. The global ValidationPipe (wired in main.ts) applies automatically. Custom pipes handle specific transforms.
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/commons/pipes/validation.pipe.ts</span>
+      <span class="code-tag tag-filter">pipe</span>
+    </div>
+<pre><span class="cm">// Global ValidationPipe config — applied in main.ts</span>
+<span class="cm">// class-validator + class-transformer power this</span>
+<span class="kw">new</span> <span class="type">ValidationPipe</span>({
+  whitelist:           <span class="kw">true</span>,  <span class="cm">// strip properties not in DTO</span>
+  transform:           <span class="kw">true</span>,  <span class="cm">// auto-convert '123' → 123 for @IsInt()</span>
+  forbidNonWhitelisted:<span class="kw">true</span>,  <span class="cm">// throw if unknown props sent</span>
+  exceptionFactory: (errors) => {
+    <span class="cm">// Convert class-validator errors into structured response</span>
+    <span class="kw">const</span> formatted = errors.<span class="fn">map</span>(e => ({
+      field:    e.property,
+      messages: <span class="type">Object</span>.<span class="fn">values</span>(e.constraints ?? {}),
+    }))
+    <span class="kw">throw new</span> <span class="type">BadRequestException</span>({ message: <span class="str">'Validation failed'</span>, errors: formatted })
+  }
+})
+
+<span class="cm">// parse-int.pipe.ts — for path params that must be integers</span>
+<span class="dec">@Injectable()</span>
+<span class="kw">export class</span> <span class="type">ParseIntPipe</span> <span class="kw">implements</span> <span class="type">PipeTransform</span> {
+  <span class="fn">transform</span>(value: <span class="type">string</span>) {
+    <span class="kw">const</span> parsed = <span class="fn">parseInt</span>(value, <span class="num">10</span>)
+    <span class="kw">if</span> (<span class="fn">isNaN</span>(parsed)) <span class="kw">throw new</span> <span class="type">BadRequestException</span>(<span class="str">'ID must be a number'</span>)
+    <span class="kw">return</span> parsed
+  }
+}
+
+<span class="cm">// Usage: @Param('id', ParseIntPipe) id: number</span></pre>
+  </div>
+</div>
+
+<!-- ======================== DECORATORS ======================== -->
+<div class="section" id="decorators">
+  <div class="section-header">
+    <span class="section-num">11</span>
+    <span class="section-title">commons/decorators/ — Custom Decorators</span>
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/commons/decorators/current-user.decorator.ts</span>
+      <span class="code-tag tag-filter">decorator</span>
+    </div>
+<pre><span class="cm">// Extracts req.user (set by AuthGuard) as a route handler parameter</span>
+<span class="kw">export const</span> <span class="type">CurrentUser</span> = <span class="fn">createParamDecorator</span>(
+  (field: <span class="type">string</span> | undefined, ctx: <span class="type">ExecutionContext</span>) => {
+    <span class="kw">const</span> user = ctx.<span class="fn">switchToHttp</span>().<span class="fn">getRequest</span>()?.user
+    <span class="kw">return</span> field ? user?.[field] : user   <span class="cm">// @CurrentUser() → full user</span>
+                                          <span class="cm">// @CurrentUser('orgId') → just orgId</span>
+  }
+)
+
+<span class="cm">// Usage:</span>
+<span class="fn">getStudents</span>(<span class="dec">@CurrentUser</span>(<span class="str">'orgId'</span>) orgId: <span class="type">string</span>) {
+  <span class="kw">return</span> <span class="kw">this</span>.studentService.<span class="fn">findAll</span>(orgId)  <span class="cm">// always scoped to org!</span>
+}
+
+<span class="cm">// roles.decorator.ts</span>
+<span class="kw">export const</span> <span class="type">Roles</span> = (...roles: <span class="type">Role</span>[]) => <span class="fn">SetMetadata</span>(<span class="str">ROLES_KEY</span>, roles)
+
+<span class="cm">// Usage:</span>
+<span class="dec">@Roles</span>(<span class="str">'ADMIN'</span>, <span class="str">'EDUCATOR'</span>)
+<span class="dec">@Get</span>(<span class="str">'classes/:id'</span>)
+<span class="fn">getClass</span>() { ... }</pre>
+  </div>
+</div>
+
+<!-- ======================== UTILS ======================== -->
+<div class="section" id="utils">
+  <div class="section-header">
+    <span class="section-num">12</span>
+    <span class="section-title">commons/utils/ — Shared Utilities</span>
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/commons/utils/hash.util.ts · token.util.ts · date.util.ts</span>
+      <span class="code-tag tag-config">utils</span>
+    </div>
+<pre><span class="cm">// ─── hash.util.ts ────────────────────────────────────────────────────────</span>
+<span class="cm">// bcrypt helpers — used by AuthService for password hashing</span>
+<span class="kw">export async function</span> <span class="fn">hashPassword</span>(plain: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="type">string</span>&gt; {
+  <span class="kw">return</span> bcrypt.<span class="fn">hash</span>(plain, <span class="num">12</span>)   <span class="cm">// 12 rounds is the sweet spot</span>
+}
+<span class="kw">export async function</span> <span class="fn">verifyPassword</span>(plain: <span class="type">string</span>, hashed: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="type">boolean</span>&gt; {
+  <span class="kw">return</span> bcrypt.<span class="fn">compare</span>(plain, hashed)
+}
+
+<span class="cm">// ─── token.util.ts ───────────────────────────────────────────────────────</span>
+<span class="cm">// Generates system passwords (10 char alphanumeric) for new accounts</span>
+<span class="kw">export function</span> <span class="fn">generatePassword</span>(length = <span class="num">10</span>): <span class="type">string</span> {
+  <span class="kw">const</span> chars = <span class="str">'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'</span>
+  <span class="kw">return</span> <span class="type">Array</span>.<span class="fn">from</span>({ length }, () => chars[<span class="fn">Math.floor</span>(<span class="type">Math</span>.<span class="fn">random</span>() * chars.length)]).<span class="fn">join</span>(<span class="str">''</span>)
+}
+<span class="cm">// Creates short unique IDs for Educator auto-IDs</span>
+<span class="kw">export function</span> <span class="fn">generateEducatorId</span>(orgId: <span class="type">string</span>): <span class="type">string</span> {
+  <span class="kw">return</span> <span class="str">`EDU-<span class="kw">${orgId.slice(0,4).toUpperCase()}</span>-<span class="kw">${nanoid(6)}</span>`</span>
+}
+
+<span class="cm">// ─── date.util.ts ────────────────────────────────────────────────────────</span>
+<span class="cm">// Week index computation (matches Section 10.3 of spec)</span>
+<span class="cm">// Given a class start date, weekdays[], and session date → returns '1.2' style label</span>
+<span class="kw">export function</span> <span class="fn">computeWeekLabel</span>(startDate: <span class="type">Date</span>, weekdays: <span class="type">string</span>[], sessionDate: <span class="type">Date</span>): <span class="type">string</span> {
+  <span class="kw">const</span> calendarWeek = <span class="fn">differenceInCalendarWeeks</span>(sessionDate, startDate) + <span class="num">1</span>
+  <span class="kw">const</span> dayIndex     = weekdays.<span class="fn">indexOf</span>(<span class="fn">format</span>(sessionDate, <span class="str">'EEE'</span>)) + <span class="num">1</span>
+  <span class="kw">if</span> (weekdays.length === <span class="num">1</span>) <span class="kw">return</span> <span class="str">`Week <span class="kw">${calendarWeek}</span>`</span>
+  <span class="kw">return</span> <span class="str">`Week <span class="kw">${calendarWeek}</span>.<span class="kw">${dayIndex}</span>`</span>
+  <span class="cm">// Examples: 'Week 1', 'Week 1.2', 'Week 3.1'</span>
+}</pre>
+  </div>
+</div>
+
+<!-- ======================== AUTH MODULE ======================== -->
+<div class="section" id="auth">
+  <div class="section-header">
+    <span class="section-num">13</span>
+    <span class="section-title">modules/auth/ — Authentication Module</span>
+  </div>
+  <div class="section-desc">
+    The auth module is the most cross-cutting module. It handles login for all three roles (Admin, Educator, Student), issues access + refresh tokens, and exposes the token refresh endpoint. All other modules depend on the guards it provides.
+  </div>
+
+  <div class="subsection">
+    <div class="sub-title">auth.entity.ts — Prisma model shape (conceptual)</div>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-file">src/modules/auth/entity/auth.entity.ts</span>
+        <span class="code-tag tag-entity">entity</span>
+      </div>
+<pre><span class="cm">// Maps to DB tables via Prisma — represented here as TypeScript classes</span>
+<span class="kw">class</span> <span class="type">User</span> {
+  id:           <span class="type">string</span>   <span class="cm">// uuid</span>
+  email:        <span class="type">string</span>
+  passwordHash: <span class="type">string</span>   <span class="cm">// bcrypt — plain text NEVER stored</span>
+  role:         <span class="type">Role</span>     <span class="cm">// 'PLATFORM_OWNER' | 'ADMIN' | 'EDUCATOR' | 'STUDENT'</span>
+  orgId?:       <span class="type">string</span>   <span class="cm">// null for PLATFORM_OWNER</span>
+  isBlocked:    <span class="type">boolean</span>  <span class="cm">// Admin-blocked or Platform-Owner-blocked</span>
+  createdAt:    <span class="type">Date</span>
+}
+
+<span class="kw">class</span> <span class="type">RefreshToken</span> {
+  id:        <span class="type">string</span>
+  userId:    <span class="type">string</span>
+  tokenHash: <span class="type">string</span>   <span class="cm">// store hash, not raw token</span>
+  expiresAt: <span class="type">Date</span>
+  revokedAt: <span class="type">Date</span>?    <span class="cm">// null = still valid</span>
+}</pre>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="sub-title">auth.dto.ts — input validation</div>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-file">src/modules/auth/dto/auth.dto.ts</span>
+        <span class="code-tag tag-entity">dto</span>
+      </div>
+<pre><span class="kw">export class</span> <span class="type">LoginDto</span> {
+  <span class="dec">@IsEmail</span>()
+  email: <span class="type">string</span>
+
+  <span class="dec">@IsString</span>()
+  <span class="dec">@MinLength</span>(<span class="num">1</span>)
+  password: <span class="type">string</span>
+}
+
+<span class="kw">export class</span> <span class="type">RefreshTokenDto</span> {
+  <span class="dec">@IsString</span>()
+  refreshToken: <span class="type">string</span>
+}
+
+<span class="cm">// ValidationPipe (global) runs these decorators automatically.</span>
+<span class="cm">// If email is missing → 400 with field-level error before handler is called.</span></pre>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="sub-title">auth.repository.ts — DB queries</div>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-file">src/modules/auth/auth.repository.ts</span>
+        <span class="code-tag tag-service">repository</span>
+      </div>
+<pre><span class="dec">@Injectable()</span>
+<span class="kw">export class</span> <span class="type">AuthRepository</span> {
+  <span class="kw">constructor</span>(<span class="kw">private</span> db: <span class="type">DatabaseService</span>) {}
+
+  <span class="kw">async</span> <span class="fn">findUserByEmail</span>(email: <span class="type">string</span>) {
+    <span class="kw">return</span> <span class="kw">this</span>.db.user.<span class="fn">findUnique</span>({ where: { email } })
+  }
+
+  <span class="kw">async</span> <span class="fn">saveRefreshToken</span>(userId: <span class="type">string</span>, tokenHash: <span class="type">string</span>, expiresAt: <span class="type">Date</span>) {
+    <span class="cm">// Rotate: revoke all previous tokens for this user first</span>
+    <span class="kw">await</span> <span class="kw">this</span>.db.refreshToken.<span class="fn">updateMany</span>({
+      where:  { userId, revokedAt: <span class="kw">null</span> },
+      data:   { revokedAt: <span class="kw">new</span> <span class="type">Date</span>() },
+    })
+    <span class="kw">return</span> <span class="kw">this</span>.db.refreshToken.<span class="fn">create</span>({
+      data: { userId, tokenHash, expiresAt }
+    })
+  }
+
+  <span class="kw">async</span> <span class="fn">findValidRefreshToken</span>(userId: <span class="type">string</span>, tokenHash: <span class="type">string</span>) {
+    <span class="kw">return</span> <span class="kw">this</span>.db.refreshToken.<span class="fn">findFirst</span>({
+      where: { userId, tokenHash, revokedAt: <span class="kw">null</span>, expiresAt: { gt: <span class="kw">new</span> <span class="type">Date</span>() } }
+    })
+  }
+}</pre>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="sub-title">auth.service.ts — business logic</div>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-file">src/modules/auth/auth.service.ts</span>
+        <span class="code-tag tag-service">service</span>
+      </div>
+<pre><span class="dec">@Injectable()</span>
+<span class="kw">export class</span> <span class="type">AuthService</span> {
+  <span class="kw">constructor</span>(
+    <span class="kw">private</span> repo:      <span class="type">AuthRepository</span>,
+    <span class="kw">private</span> jwt:       <span class="type">JwtService</span>,
+    <span class="kw">private</span> jwtConfig: <span class="type">JwtConfig</span>,
+  ) {}
+
+  <span class="kw">async</span> <span class="fn">login</span>(dto: <span class="type">LoginDto</span>): <span class="type">Promise</span>&lt;<span class="type">TokenPair</span>&gt; {
+    <span class="cm">// 1. Find user — same error for bad email OR bad password (timing-safe)</span>
+    <span class="kw">const</span> user = <span class="kw">await</span> <span class="kw">this</span>.repo.<span class="fn">findUserByEmail</span>(dto.email)
+    <span class="kw">if</span> (!user) <span class="kw">throw new</span> <span class="type">UnauthorizedException</span>(<span class="str">'Invalid credentials'</span>)
+
+    <span class="cm">// 2. Compare passwords</span>
+    <span class="kw">const</span> valid = <span class="kw">await</span> <span class="fn">verifyPassword</span>(dto.password, user.passwordHash)
+    <span class="kw">if</span> (!valid) <span class="kw">throw new</span> <span class="type">UnauthorizedException</span>(<span class="str">'Invalid credentials'</span>)
+
+    <span class="cm">// 3. Check account not blocked or in invalid status</span>
+    <span class="kw">if</span> (user.isBlocked) <span class="kw">throw new</span> <span class="type">ForbiddenException</span>(<span class="str">'Account is blocked'</span>)
+    <span class="kw">if</span> (user.status === <span class="str">'DROPPED'</span> || user.status === <span class="str">'GRADUATED'</span>) {
+      <span class="kw">throw new</span> <span class="type">ForbiddenException</span>(<span class="str">'Account is inactive'</span>)
+    }
+
+    <span class="cm">// 4. Issue tokens</span>
+    <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">issueTokenPair</span>(user)
+  }
+
+  <span class="kw">private async</span> <span class="fn">issueTokenPair</span>(user: <span class="type">User</span>): <span class="type">Promise</span>&lt;<span class="type">TokenPair</span>&gt; {
+    <span class="kw">const</span> payload = { sub: user.id, role: user.role, orgId: user.orgId }
+
+    <span class="kw">const</span> accessToken  = <span class="kw">this</span>.jwt.<span class="fn">sign</span>(payload, {
+      secret:    <span class="kw">this</span>.jwtConfig.accessSecret,
+      expiresIn: <span class="kw">this</span>.jwtConfig.accessExpiry,   <span class="cm">// 15m</span>
+    })
+    <span class="kw">const</span> refreshToken = <span class="kw">this</span>.jwt.<span class="fn">sign</span>(payload, {
+      secret:    <span class="kw">this</span>.jwtConfig.refreshSecret,
+      expiresIn: <span class="kw">this</span>.jwtConfig.refreshExpiry,  <span class="cm">// 7d</span>
+    })
+
+    <span class="cm">// Store hashed refresh token for rotation/revocation</span>
+    <span class="kw">await</span> <span class="kw">this</span>.repo.<span class="fn">saveRefreshToken</span>(
+      user.id,
+      <span class="kw">await</span> <span class="fn">hashPassword</span>(refreshToken),
+      <span class="fn">addDays</span>(<span class="kw">new</span> <span class="type">Date</span>(), <span class="num">7</span>)
+    )
+    <span class="kw">return</span> { accessToken, refreshToken }
+  }
+
+  <span class="kw">async</span> <span class="fn">refresh</span>(dto: <span class="type">RefreshTokenDto</span>): <span class="type">Promise</span>&lt;<span class="type">TokenPair</span>&gt; {
+    <span class="kw">let</span> payload: <span class="type">JwtPayload</span>
+    <span class="kw">try</span> {
+      payload = <span class="kw">this</span>.jwt.<span class="fn">verify</span>(dto.refreshToken, { secret: <span class="kw">this</span>.jwtConfig.refreshSecret })
+    } <span class="kw">catch</span> {
+      <span class="kw">throw new</span> <span class="type">UnauthorizedException</span>(<span class="str">'Invalid refresh token'</span>)
+    }
+
+    <span class="kw">const</span> tokenHash = <span class="kw">await</span> <span class="fn">hashPassword</span>(dto.refreshToken)
+    <span class="kw">const</span> stored    = <span class="kw">await</span> <span class="kw">this</span>.repo.<span class="fn">findValidRefreshToken</span>(payload.sub, tokenHash)
+    <span class="kw">if</span> (!stored) <span class="kw">throw new</span> <span class="type">UnauthorizedException</span>(<span class="str">'Token revoked or expired'</span>)
+
+    <span class="kw">const</span> user = <span class="kw">await</span> <span class="kw">this</span>.repo.<span class="fn">findUserByEmail</span>(payload.sub)
+    <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">issueTokenPair</span>(user)   <span class="cm">// issues new pair + revokes old token</span>
+  }
+}</pre>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="sub-title">auth.controller.ts — route handlers</div>
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-file">src/modules/auth/auth.controller.ts</span>
+        <span class="code-tag tag-service">controller</span>
+      </div>
+<pre><span class="dec">@Controller</span>(<span class="str">'auth'</span>)
+<span class="kw">export class</span> <span class="type">AuthController</span> {
+  <span class="kw">constructor</span>(<span class="kw">private</span> auth: <span class="type">AuthService</span>) {}
+
+  <span class="cm">// POST /api/v1/auth/login → no auth guard (public endpoint)</span>
+  <span class="dec">@Post</span>(<span class="str">'login'</span>)
+  <span class="dec">@HttpCode</span>(<span class="num">200</span>)
+  <span class="fn">login</span>(<span class="dec">@Body</span>() dto: <span class="type">LoginDto</span>) {
+    <span class="cm">// ValidationPipe validates LoginDto before this runs</span>
+    <span class="kw">return</span> <span class="kw">this</span>.auth.<span class="fn">login</span>(dto)
+    <span class="cm">// ResponseInterceptor wraps return value into { success, data: { accessToken, refreshToken } }</span>
+  }
+
+  <span class="cm">// POST /api/v1/auth/refresh</span>
+  <span class="dec">@Post</span>(<span class="str">'refresh'</span>)
+  <span class="dec">@HttpCode</span>(<span class="num">200</span>)
+  <span class="fn">refresh</span>(<span class="dec">@Body</span>() dto: <span class="type">RefreshTokenDto</span>) {
+    <span class="kw">return</span> <span class="kw">this</span>.auth.<span class="fn">refresh</span>(dto)
+  }
+
+  <span class="cm">// POST /api/v1/auth/logout  (requires valid access token)</span>
+  <span class="dec">@UseGuards</span>(<span class="type">AuthGuard</span>)
+  <span class="dec">@Post</span>(<span class="str">'logout'</span>)
+  <span class="dec">@HttpCode</span>(<span class="num">204</span>)
+  <span class="fn">logout</span>(<span class="dec">@CurrentUser</span>(<span class="str">'sub'</span>) userId: <span class="type">string</span>) {
+    <span class="kw">return</span> <span class="kw">this</span>.auth.<span class="fn">revokeAllTokens</span>(userId)
+  }
+}</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== PIPELINE ======================== -->
+<div class="section" id="pipeline">
+  <div class="section-header">
+    <span class="section-num">14</span>
+    <span class="section-title">Request Pipeline — How a Request Flows</span>
+  </div>
+  <div class="section-desc">
+    Every HTTP request passes through these layers in order. Understanding this flow is essential for knowing where to put logic.
+  </div>
+
+  <div class="pipeline">
+    <div class="pipe-step middleware">RequestIdMiddleware</div>
+    <div class="pipe-sep">→</div>
+    <div class="pipe-step middleware">Helmet · CORS · Compression</div>
+    <div class="pipe-sep">→</div>
+    <div class="pipe-step guard">AuthGuard (JWT)</div>
+    <div class="pipe-sep">→</div>
+    <div class="pipe-step guard">RolesGuard</div>
+    <div class="pipe-sep">→</div>
+    <div class="pipe-step interceptor">LoggingInterceptor</div>
+    <div class="pipe-sep">→</div>
+    <div class="pipe-step interceptor">ResponseInterceptor</div>
+    <div class="pipe-sep">→</div>
+    <div class="pipe-step pipe-v">ValidationPipe</div>
+    <div class="pipe-sep">→</div>
+    <div class="pipe-step handler">Route Handler</div>
+    <div class="pipe-sep">→</div>
+    <div class="pipe-step filter">HttpExceptionFilter</div>
+  </div>
+
+  <div class="flow-grid">
+    <div class="flow-box">
+      <div class="flow-box-title">On happy path</div>
+      <p>Request enters → RequestId stamped → JWT verified → Role checked → interceptors run before → ValidationPipe validates body → Handler executes → ResponseInterceptor wraps result → Client gets <code>{ success: true, data: ... }</code></p>
+    </div>
+    <div class="flow-box">
+      <div class="flow-box-title">On error path</div>
+      <p>Any layer throws → exception bubbles up → HttpExceptionFilter catches known errors → AllExceptionFilter catches unknown errors → Client gets <code>{ success: false, message: ..., requestId: ... }</code>. RequestId lets you find the full trace in Winston logs.</p>
+    </div>
+  </div>
+
+  <div class="note note-info">
+    <strong>Multi-tenant enforcement point:</strong> After AuthGuard runs, <code>req.user.orgId</code> is always set. The <code>@CurrentUser('orgId')</code> decorator extracts it. Every repository method receives <code>orgId</code> and uses it in <code>WHERE org_id = $orgId</code>. This is the single enforcement boundary — all data isolation flows from here.
+  </div>
+</div>
+
+<!-- ======================== MODULE MAP ======================== -->
+<div class="section" id="module-map">
+  <div class="section-header">
+    <span class="section-num">15</span>
+    <span class="section-title">Full Module Map — What Modules to Create</span>
+  </div>
+  <div class="section-desc">
+    Each domain area from the spec maps to a NestJS module. Each module contains controller → service → repository following the same pattern as auth/. Below is the complete list with their key responsibilities.
+  </div>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-file">src/modules/ — all feature modules</span>
+      <span class="code-tag tag-service">module map</span>
+    </div>
+<pre><span class="cm">// ─── modules/organization/ ───────────────────────────────────────────────</span>
+<span class="cm">// Admin creates org on first login. Scoped: one per Admin.</span>
+<span class="cm">// Routes: POST /org (create), GET /org (my org), PATCH /org</span>
+<span class="cm">// Connects to: school-year, level-defaults, programs</span>
+
+<span class="cm">// ─── modules/school-year/ ────────────────────────────────────────────────</span>
+<span class="cm">// CRUD for school years. Status transitions: Pending → Active → Ended</span>
+<span class="cm">// On create: copies level-defaults as base, starts unlocked</span>
+<span class="cm">// Emits: 'school-year.activated' → resets grade locks, schedules</span>
+
+<span class="cm">// ─── modules/semester/ ───────────────────────────────────────────────────</span>
+<span class="cm">// Reusable semester templates. Up to 3 semesters, each with N terms.</span>
+<span class="cm">// Validates: date ranges don't overlap within template</span>
+<span class="cm">// Each program in school year selects one semester template</span>
+
+<span class="cm">// ─── modules/section/ ────────────────────────────────────────────────────</span>
+<span class="cm">// Admin manages sections per grade/year level.</span>
+<span class="cm">// Capacity enforcement: if full → prompt (new section | Pending student)</span>
+<span class="cm">// Emits: 'section.capacity.exceeded' → Admin Audit Log</span>
+
+<span class="cm">// ─── modules/subject/ ────────────────────────────────────────────────────</span>
+<span class="cm">// Admin creates subjects per year/grade. Assigns educator + grading system.</span>
+<span class="cm">// Lock/unlock cycle: manual lock → read-only → auto-unlock new school year</span>
+<span class="cm">// One subject can have many class instances (different sections/schedules)</span>
+
+<span class="cm">// ─── modules/class/ ──────────────────────────────────────────────────────</span>
+<span class="cm">// Admin creates class structure. Educator manages content inside.</span>
+<span class="cm">// Validates: no schedule conflict (same section + same time slot)</span>
+<span class="cm">// Educator reassignment: logs ownership history, never modifies past attributions</span>
+<span class="cm">// Connects to: lesson, assessment, attendance, grade, meeting</span>
+
+<span class="cm">// ─── modules/student/ ────────────────────────────────────────────────────</span>
+<span class="cm">// Admin CRUD. Dynamic profile form based on level section.</span>
+<span class="cm">// Status machine: Active|Pending|Dropped|Transferred|Suspended|Graduated</span>
+<span class="cm">// On save: runs section capacity check (Section 12.6)</span>
+<span class="cm">// Bulk import: CSV parse → validate rows → report → create valid rows</span>
+<span class="cm">// Emits: 'student.status.changed', 'student.section.assigned'</span>
+
+<span class="cm">// ─── modules/educator/ ───────────────────────────────────────────────────</span>
+<span class="cm">// Admin CRUD. System-generates Educator ID on create.</span>
+<span class="cm">// Cannot remove if active classes exist (must reassign first)</span>
+<span class="cm">// Connects to: class (assignment), subject</span>
+
+<span class="cm">// ─── modules/enrollment/ ─────────────────────────────────────────────────</span>
+<span class="cm">// Admin only. Enrolls/removes students from classes.</span>
+<span class="cm">// Validates: no duplicate, capacity, student status Active</span>
+<span class="cm">// Emits: 'student.enrolled', 'student.unenrolled'</span>
+<span class="cm">// Listeners: NotificationService, AuditLogService</span>
+
+<span class="cm">// ─── modules/lesson/ ─────────────────────────────────────────────────────</span>
+<span class="cm">// Educator CRUD. Min 10 words triggers concept extraction (background job).</span>
+<span class="cm">// Re-extract: replaces old build, does NOT affect already-generated assessments</span>
+<span class="cm">// Emits: 'concept.extraction.started' → background job → 'concept.extracted'</span>
+
+<span class="cm">// ─── modules/assessment/ ─────────────────────────────────────────────────</span>
+<span class="cm">// Educator creates from concept build. Background generation job.</span>
+<span class="cm">// Question types: MC, T/F, Identification, Enumeration, Essay</span>
+<span class="cm">// Attempt control: one active attempt per student (resume across tabs/devices)</span>
+<span class="cm">// Score publishing: per-student or all-at-once, unpublishable</span>
+<span class="cm">// On grade lock: auto-publish all unpublished scores</span>
+
+<span class="cm">// ─── modules/attendance/ ─────────────────────────────────────────────────</span>
+<span class="cm">// Per session (not per calendar day). Skips calendar event days automatically.</span>
+<span class="cm">// Auto-mark Present from assessment submissions (Section 15.2)</span>
+<span class="cm">// Weekly view: Week 1, Week 1.1/1.2 etc. (see date.util.ts)</span>
+
+<span class="cm">// ─── modules/grade/ ──────────────────────────────────────────────────────</span>
+<span class="cm">// Per term within semester. Rubric weights must total 100%.</span>
+<span class="cm">// Rubric locks on first enrollment. Default view vs Clean view.</span>
+<span class="cm">// Grade lock: permanent unless Admin overrides. Auto-lock if deadline missed.</span>
+<span class="cm">// Emits: 'grade.locked' → auto-publishes all scores → notifies students</span>
+
+<span class="cm">// ─── modules/grading-scale/ ──────────────────────────────────────────────</span>
+<span class="cm">// Admin configures per level section. Must cover 0-100 fully, no gaps/overlaps.</span>
+<span class="cm">// Locks when first grade is locked for that level section in school year.</span>
+<span class="cm">// Unlocks at start of new school year.</span>
+
+<span class="cm">// ─── modules/calendar/ ───────────────────────────────────────────────────</span>
+<span class="cm">// Admin manages org-wide calendar events per school year.</span>
+<span class="cm">// Holiday/No Class Day: attendance sessions auto-skipped</span>
+<span class="cm">// Exam Week / Special Event: informational only</span>
+<span class="cm">// Emits: 'calendar.event.created' → AttendanceService, MeetingService</span>
+
+<span class="cm">// ─── modules/meeting/ ────────────────────────────────────────────────────</span>
+<span class="cm">// Built-in video room. No recording. Educator controls everything.</span>
+<span class="cm">// Suppressed on calendar event days.</span>
+<span class="cm">// Features: lesson presentation mode (real-time forward/back for all)</span>
+<span class="cm">// Non-invited students can request join → educator accepts/declines</span>
+
+<span class="cm">// ─── modules/notification/ ───────────────────────────────────────────────</span>
+<span class="cm">// In-app only. Simple list. Listens to domain events via EventBus.</span>
+<span class="cm">// Retention: 90 days → auto-archive (cron job)</span>
+<span class="cm">// No email/SMS integration needed per spec</span>
+
+<span class="cm">// ─── modules/audit-log/ ──────────────────────────────────────────────────</span>
+<span class="cm">// Two tiers: AdminAuditLog (high-impact) + EducatorActivityLog (class-level)</span>
+<span class="cm">// Never deleted. Searchable by Admin.</span>
+<span class="cm">// Populated by EventBus listeners — not called directly by services</span>
+
+<span class="cm">// ─── modules/export/ ─────────────────────────────────────────────────────</span>
+<span class="cm">// PDF class cards (per student) + CSV full class export</span>
+<span class="cm">// Both Admin and Educator can trigger for their scope</span>
+<span class="cm">// Uses: pdfmake or puppeteer for PDF generation</span>
+
+<span class="cm">// ─── modules/analytics/ ──────────────────────────────────────────────────</span>
+<span class="cm">// Admin dashboard only. Aggregate views — no live class internals.</span>
+<span class="cm">// Enrollment counts, pending students, grade distribution (post-lock)</span></pre>
+  </div>
+
+  <div class="note note-danger">
+    <strong>Org isolation rule:</strong> Every repository in every module must include <code>WHERE org_id = $orgId</code> in all queries. The <code>orgId</code> always comes from the JWT payload via <code>@CurrentUser('orgId')</code> — never from the request body or query params.
+  </div>
+</div>
+
+</main>
+</div>
+</body>
+</html>
