@@ -1,0 +1,314 @@
+generator client {
+provider = "prisma-client-js"
+}
+
+datasource db {
+provider = "postgresql"
+}
+
+//////////////////////
+// ENUMS
+//////////////////////
+
+enum Role {
+platform_owner
+admin
+educator
+student
+}
+
+enum AccountStatus {
+active
+suspended
+pending
+dropped
+transferred
+graduated
+}
+
+enum EnrollmentStatus {
+active
+pending
+removed
+}
+
+enum SubmissionStatus {
+draft
+submitted
+exempted
+custom
+}
+
+enum AttendanceStatus {
+present
+absent
+late
+excused
+}
+
+//////////////////////
+// CORE TABLES
+//////////////////////
+
+model Organization {
+id          String   @id @default(uuid())
+name        String
+description String?
+created_at  DateTime @default(now())
+
+accounts    Account[]
+}
+
+model Account {
+id         String         @id @default(uuid())
+org_id     String?
+role       Role
+email      String
+password   String
+status     AccountStatus
+created_at DateTime       @default(now())
+updated_at DateTime       @updatedAt
+deleted_at DateTime?
+
+organization Organization? @relation(fields: [org_id], references: [id])
+profile      Profile?
+
+@@unique([org_id, email])
+}
+
+model Profile {
+id         String   @id @default(uuid())
+account_id String   @unique
+full_name  String
+metadata   Json?
+created_at DateTime @default(now())
+
+account Account @relation(fields: [account_id], references: [id])
+}
+
+//////////////////////
+// STRUCTURE
+//////////////////////
+
+model Program {
+id     String @id @default(uuid())
+org_id String
+name   String
+type   String
+}
+
+model Level {
+id         String @id @default(uuid())
+org_id     String
+program_id String
+name       String
+}
+
+model Section {
+id       String @id @default(uuid())
+org_id   String
+level_id String
+name     String
+capacity Int
+}
+
+model SchoolYear {
+id     String @id @default(uuid())
+org_id String
+name   String
+status String
+}
+
+model Semester {
+id             String   @id @default(uuid())
+org_id         String
+school_year_id String
+name           String
+start_date     DateTime
+end_date       DateTime
+}
+
+model Term {
+id           String   @id @default(uuid())
+org_id       String
+semester_id  String
+name         String
+order_index  Int
+start_date   DateTime
+end_date     DateTime
+}
+
+//////////////////////
+// ACADEMIC
+//////////////////////
+
+model Subject {
+id           String  @id @default(uuid())
+org_id       String
+name         String
+level_id     String
+educator_id  String?
+is_locked    Boolean @default(false)
+}
+
+model Class {
+id             String   @id @default(uuid())
+org_id         String
+subject_id     String
+educator_id    String
+section_id     String?
+school_year_id String
+semester_id    String
+capacity       Int
+created_at     DateTime @default(now())
+}
+
+model ClassSchedule {
+id         String   @id @default(uuid())
+org_id     String
+class_id   String
+weekday    Int
+start_time DateTime
+end_time   DateTime
+}
+
+model Enrollment {
+id         String           @id @default(uuid())
+org_id     String
+class_id   String
+student_id String
+status     EnrollmentStatus
+created_at DateTime         @default(now())
+}
+
+//////////////////////
+// LESSONS
+//////////////////////
+
+model Lesson {
+id           String   @id @default(uuid())
+org_id       String
+class_id     String
+title        String
+description  String?
+week_number  Int
+sub_index    Int
+created_at   DateTime @default(now())
+}
+
+model LessonConcept {
+id         String   @id @default(uuid())
+org_id     String
+lesson_id  String
+content    Json
+created_at DateTime @default(now())
+}
+
+//////////////////////
+// ASSESSMENTS
+//////////////////////
+
+model Assessment {
+id           String   @id @default(uuid())
+org_id       String
+class_id     String
+lesson_id    String?
+term_id      String
+type         String
+total_items  Int
+release_date DateTime?
+is_published Boolean  @default(false)
+created_at   DateTime @default(now())
+}
+
+model Question {
+id             String @id @default(uuid())
+org_id         String
+assessment_id  String
+type           String
+question_text  String
+correct_answer String?
+}
+
+model Submission {
+id            String           @id @default(uuid())
+org_id        String
+assessment_id String
+student_id    String
+status        SubmissionStatus
+score         Float?
+manual_score  Float?
+submitted_at  DateTime?
+}
+
+model SubmissionAnswer {
+id            String @id @default(uuid())
+org_id        String
+submission_id String
+question_id   String
+answer        String
+is_correct    Boolean?
+}
+
+//////////////////////
+// GRADING
+//////////////////////
+
+model Grade {
+id          String  @id @default(uuid())
+org_id      String
+student_id  String
+class_id    String
+term_id     String
+final_score Float
+final_grade String
+is_locked   Boolean @default(false)
+locked_at   DateTime?
+}
+
+//////////////////////
+// ATTENDANCE
+//////////////////////
+
+model AttendanceSession {
+id          String   @id @default(uuid())
+org_id      String
+class_id    String
+date        DateTime
+week_number Int
+sub_index   Int
+}
+
+model AttendanceRecord {
+id         String           @id @default(uuid())
+org_id     String
+session_id String
+student_id String
+status     AttendanceStatus
+}
+
+//////////////////////
+// SYSTEM
+//////////////////////
+
+model Notification {
+id          String   @id @default(uuid())
+org_id      String
+account_id  String
+type        String
+payload     Json
+read_at     DateTime?
+archived_at DateTime?
+created_at  DateTime @default(now())
+}
+
+model AuditLog {
+id          String   @id @default(uuid())
+org_id      String
+actor_id    String
+action      String
+entity_type String
+entity_id   String
+metadata    Json?
+created_at  DateTime @default(now())
+}
