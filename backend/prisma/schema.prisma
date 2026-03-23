@@ -121,22 +121,26 @@ status String
 }
 
 model Semester {
-id             String   @id @default(uuid())
-org_id         String
-school_year_id String
-name           String
-start_date     DateTime
-end_date       DateTime
+  id             String   @id @default(uuid())
+  org_id         String
+  school_year_id String
+  name           String
+  start_date     DateTime
+  end_date       DateTime
+
+  terms Term[] // <-- add this
 }
 
 model Term {
-id           String   @id @default(uuid())
-org_id       String
-semester_id  String
-name         String
-order_index  Int
-start_date   DateTime
-end_date     DateTime
+  id           String   @id @default(uuid())
+  org_id       String
+  semester_id  String
+  name         String
+  order_index  Int
+  start_date   DateTime
+  end_date     DateTime
+
+  semester Semester @relation(fields: [semester_id], references: [id]) // <-- add this
 }
 
 //////////////////////
@@ -180,6 +184,18 @@ class_id   String
 student_id String
 status     EnrollmentStatus
 created_at DateTime         @default(now())
+}
+
+model AcademicCalendar {
+  id             String   @id @default(uuid())
+  org_id         String
+  school_year_id String
+  title          String
+  type           String   // holiday | no_class_day | exam_week | special_event
+  start_date     DateTime
+  end_date       DateTime
+  description    String?
+  created_at     DateTime @default(now())
 }
 
 //////////////////////
