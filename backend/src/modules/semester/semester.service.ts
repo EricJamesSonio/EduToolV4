@@ -211,13 +211,23 @@ export class SemesterService {
       await this.semesterRepository.upsertTerms(
         orgId,
         id,
-        dto.terms.map((t) => ({
-          id: t.id,
-          name: t.name,
-          orderIndex: t.orderIndex,
-          startDate: toDate(t.startDate, `Term "${t.name}" startDate`),
-          endDate: toDate(t.endDate, `Term "${t.name}" endDate`),
-        })),
+        dto.terms.map((t) => {
+          if (!t.name) {
+            throw new BadRequestException('Each term must have a name.');
+          }
+          if (t.orderIndex === undefined) {
+            throw new BadRequestException(
+              `Term "${t.name}" must have an orderIndex.`,
+            );
+          }
+          return {
+            id: t.id,
+            name: t.name,
+            orderIndex: t.orderIndex,
+            startDate: toDate(t.startDate, `Term "${t.name}" startDate`),
+            endDate: toDate(t.endDate, `Term "${t.name}" endDate`),
+          };
+        }),
       );
     }
 
