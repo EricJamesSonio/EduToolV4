@@ -8,12 +8,25 @@ import {
 import { SemesterRepository } from './semester.repository';
 import { CreateSemesterDto, UpdateSemesterDto } from './dto/semester.dto';
 
-// ── Date range overlap helper ─────────────────────────────────────────────────
-// Inline here for Phase 2. In Phase 3, this moves to date.util.ts
+// ── Date helpers ──────────────────────────────────────────────────────────────
 
 interface DateRange {
   startDate: Date;
   endDate: Date;
+}
+
+function toDate(value: string | undefined, field: string): Date {
+  if (!value) {
+    throw new BadRequestException(`${field} is required.`);
+  }
+
+  const date = new Date(value);
+
+  if (isNaN(date.getTime())) {
+    throw new BadRequestException(`${field} is invalid.`);
+  }
+
+  return date;
 }
 
 function isOverlapping(a: DateRange, b: DateRange): boolean {
@@ -35,8 +48,8 @@ export class SemesterService {
   // ── POST /semester-settings ─────────────────────────────────────────────────
 
   async create(orgId: string, dto: CreateSemesterDto) {
-    const startDate = new Date(dto.startDate!);
-    const endDate = new Date(dto.endDate);
+    const startDate = toDate(dto.startDate, 'startDate');
+    const endDate = toDate(dto.endDate, 'endDate');
 
     // 1. Validate semester date range
     validateDateRange(startDate, endDate, 'Semester');
@@ -74,8 +87,8 @@ export class SemesterService {
 
     // 4. Validate term date ranges — must be within the semester range
     for (const term of dto.terms) {
-      const tStart = new Date(term.startDate);
-      const tEnd = new Date(term.endDate);
+      const tStart = toDate(term.startDate, `Term "${term.name}" startDate`);
+      const tEnd = toDate(term.endDate, `Term "${term.name}" endDate`);
 
       validateDateRange(tStart, tEnd, `Term "${term.name}"`);
 
@@ -89,8 +102,14 @@ export class SemesterService {
     // 5. Validate terms don't overlap each other
     for (let i = 0; i < dto.terms.length; i++) {
       for (let j = i + 1; j < dto.terms.length; j++) {
-        const a = { startDate: new Date(dto.terms[i].startDate), endDate: new Date(dto.terms[i].endDate) };
-        const b = { startDate: new Date(dto.terms[j].startDate), endDate: new Date(dto.terms[j].endDate) };
+        const a = {
+          startDate: toDate(dto.terms[i].startDate, `terms[${i}].startDate`),
+          endDate: toDate(dto.terms[i].endDate, `terms[${i}].endDate`),
+        };
+        const b = {
+          startDate: toDate(dto.terms[j].startDate, `terms[${j}].startDate`),
+          endDate: toDate(dto.terms[j].endDate, `terms[${j}].endDate`),
+        };
 
         if (isOverlapping(a, b)) {
           throw new ConflictException(
@@ -115,8 +134,8 @@ export class SemesterService {
       dto.terms.map((t) => ({
         name: t.name,
         orderIndex: t.orderIndex,
-        startDate: new Date(t.startDate),
-        endDate: new Date(t.endDate),
+        startDate: toDate(t.startDate, `Term "${t.name}" startDate`),
+        endDate: toDate(t.endDate, `Term "${t.name}" endDate`),
       })),
     );
 
@@ -139,9 +158,11 @@ export class SemesterService {
     }
 
     const startDate = dto.startDate
-      ? new Date(dto.startDate)
+      ? toDate(dto.startDate, 'startDate')
       : semester.start_date;
-    const endDate = dto.endDate ? new Date(dto.endDate) : semester.end_date;
+    const endDate = dto.endDate
+      ? toDate(dto.endDate, 'endDate')
+      : semester.end_date;
 
     validateDateRange(startDate, endDate, 'Semester');
 
@@ -174,10 +195,9 @@ export class SemesterService {
 
     // Upsert terms if provided
     if (dto.terms && dto.terms.length > 0) {
-      // Validate terms
       for (const term of dto.terms) {
-        const tStart = new Date(term.startDate);
-        const tEnd = new Date(term.endDate);
+        const tStart = toDate(term.startDate, `Term "${term.name}" startDate`);
+        const tEnd = toDate(term.endDate, `Term "${term.name}" endDate`);
 
         validateDateRange(tStart, tEnd, `Term "${term.name}"`);
 
@@ -195,8 +215,8 @@ export class SemesterService {
           id: t.id,
           name: t.name,
           orderIndex: t.orderIndex,
-          startDate: new Date(t.startDate),
-          endDate: new Date(t.endDate),
+          startDate: toDate(t.startDate, `Term "${t.name}" startDate`),
+          endDate: toDate(t.endDate, `Term "${t.name}" endDate`),
         })),
       );
     }
@@ -206,11 +226,6 @@ export class SemesterService {
 
   // ── DELETE /semester-settings/:id ──────────────────────────────────────────
 
-  /**
-   * Hard deletes the semester and its terms.
-   * Semesters are configuration templates — no academic records live here
-   * directly (classes reference semester_id, that is handled in Phase 3).
-   */
   async remove(id: string, orgId: string) {
     const semester = await this.semesterRepository.findById(id, orgId);
 
@@ -218,7 +233,6 @@ export class SemesterService {
       throw new NotFoundException('Semester not found.');
     }
 
-    // Delete terms first, then semester
     await this.semesterRepository.deleteTermsBySemester(id);
     await this.semesterRepository.delete(id);
   }
