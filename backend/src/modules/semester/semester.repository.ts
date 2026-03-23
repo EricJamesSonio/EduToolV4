@@ -1,6 +1,7 @@
 // src/modules/semester/semester.repository.ts
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/core/database/database.provider';
+import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class SemesterRepository {
