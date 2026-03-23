@@ -1,23 +1,52 @@
-import { Injectable } from '@nestjs/common';
+// src/modules/auth/strategies/jwt.strategy.ts
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { AuthService } from '../auth.service';
 import { ConfigService } from '@nestjs/config';
+import { AuthRepository } from '../auth.repository';
+import { TokenPayload } from '../entity/auth.entity';
+import { AccountStatus } from '@prisma/client';
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
-    private authService: AuthService,
-    configService: ConfigService,
+    private readonly configService: ConfigService,
+    private readonly authRepository: AuthRepository,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: configService.get('jwt.secret'),
+      ignoreExpiration: false,
+      secretOrKey: configService.get<string>('jwt.secret'),
     });
   }
 
-  async validate(payload: any) {
-    const user = await this.authService.validateUser(payload.sub);
-    return user;
+  async validate(payload: TokenPayload) {
+    const account = await this.authRepository.findAccountById(payload.sub);
+
+    if (!account) {
+      throw new UnauthorizedException('Account not found');
+    }
+
+    if (account.status === AccountStatus.suspended) {
+      throw new UnauthorizedException('Account is suspended');
+    }
+
+    if (
+      account.status === AccountStatus.dropped ||
+      account.status === AccountStatus.transferred ||
+      account.status === AccountStatus.graduated
+    ) {
+      throw new UnauthorizedException('Account is no longer active');
+    }
+
+    // This becomes req.user in all downstream guards/controllers
+    return {
+      id: account.id,
+      orgId: account.org_id,
+      role: account.role,
+      email: account.email,
+      status: account.status,
+      fullName: account.profile?.full_name,
+    };
   }
 }
