@@ -105,11 +105,12 @@ name       String
 }
 
 model Section {
-id       String @id @default(uuid())
-org_id   String
-level_id String
-name     String
-capacity Int
+  id         String    @id @default(uuid())
+  org_id     String
+  level_id   String
+  name       String
+  capacity   Int
+  deleted_at DateTime?
 }
 
 model SchoolYear {

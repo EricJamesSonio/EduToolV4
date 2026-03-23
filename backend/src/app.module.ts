@@ -6,6 +6,7 @@ import jwtConfig from './configs/jwt.config';
 import dbConfig from './configs/db.config';
 import { envValidationSchema } from './configs/env.validation';
 import { AuthModule } from './modules/auth/auth.module';
+import { LevelModule } from './modules/level/level.module';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { AuthModule } from './modules/auth/auth.module';
       isGlobal: true,
       load: [appConfig, jwtConfig, dbConfig],
       validationSchema: envValidationSchema,
-    }), AuthModule,
+    }), AuthModule, LevelModule,
   ],
 })
 export class AppModule {}
