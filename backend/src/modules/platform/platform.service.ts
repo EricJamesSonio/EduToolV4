@@ -18,17 +18,21 @@ export class PlatformService {
   ) {}
 
   // 🔐 LOGIN
-  login(password: string) {
+    login(password: string) {
+    if (!process.env.PLATFORM_SECRET_PASSWORD) {
+        throw new Error('PLATFORM_SECRET_PASSWORD not set');
+    }
+
     if (password !== process.env.PLATFORM_SECRET_PASSWORD) {
-      throw new UnauthorizedException('Invalid password');
+        throw new UnauthorizedException('Invalid password');
     }
 
     return {
-      access_token: this.jwtService.sign({
+        access_token: this.jwtService.sign({
         role: 'platform_owner',
-      }),
+        }),
     };
-  }
+    }
 
   // 👤 CREATE ADMIN
   async createAdmin(dto: CreateAdminDto) {

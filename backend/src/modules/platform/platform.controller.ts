@@ -12,20 +12,19 @@ import { PlatformService } from './platform.service';
 import { LoginPlatformDto } from './dto/login-platform.dto';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-
 import { PlatformOwnerGuard } from './guards/platform-owner.guard';
 
 @Controller('platform')
 export class PlatformController {
   constructor(private readonly service: PlatformService) {}
 
-  // 🔐 LOGIN (NO GUARD)
+  // 🔐 LOGIN (public)
   @Post('login')
   login(@Body() dto: LoginPlatformDto) {
     return this.service.login(dto.password);
   }
 
-  // 🔒 PROTECTED ROUTES
+  // 🔒 ADMIN ROUTES (protected)
   @UseGuards(PlatformOwnerGuard)
 
   @Post('admins')
