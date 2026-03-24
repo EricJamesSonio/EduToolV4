@@ -52,12 +52,13 @@ excused
 //////////////////////
 
 model Organization {
-id          String   @id @default(uuid())
-name        String
-description String?
-created_at  DateTime @default(now())
+  id          String   @id @default(uuid())
+  name        String
+  description String?
 
-accounts    Account[]
+  admin_account_id String? @unique
+
+  accounts    Account[]
 }
 
 model Account {
