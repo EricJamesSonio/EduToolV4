@@ -70,7 +70,37 @@ export class LevelRepository {
 
   // ── Single level ────────────────────────────────────────────────────────────
 
-  async findById(id: string, orgId: string) {
+  /**
+   * Deep-clone the org's level defaults into a new school year.
+   * Each default level row is copied with the school_year_id attached.
+   * Phase 3: requires school_year_id column on Level model.
+   *
+   * Schema addition needed:
+   *   model Level {
+   *     ...
+   *     school_year_id String?  // null = default template, set = school year copy
+   *   }
+   */
+  async seedFromDefaults(orgId: string, schoolYearId: string) {
+    const defaults = await this.findDefaultsByOrgId(orgId);
+
+    if (defaults.length === 0) return [];
+
+    const ops = defaults.map((level) =>
+      this.db.level.create({
+        data: {
+          org_id: orgId,
+          program_id: level.program_id,
+          name: level.name,
+          school_year_id: schoolYearId,
+        },
+      }),
+    );
+
+    return this.db.$transaction(ops);
+  }
+
+    async findById(id: string, orgId: string) {
     return this.db.level.findFirst({
       where: { id, org_id: orgId },
     });

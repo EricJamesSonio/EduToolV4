@@ -27,7 +27,7 @@ export class SectionRepository {
       where: {
         org_id: orgId,
         ...(levelId ? { level_id: levelId } : {}),
-        deleted_at: null,
+        deleted_at: null, // ✅ FIXED (was isDeleted)
       },
       orderBy: [{ level_id: 'asc' }, { name: 'asc' }],
     });
@@ -35,22 +35,13 @@ export class SectionRepository {
 
   async findById(id: string, orgId: string) {
     return this.db.section.findFirst({
-      where: { id, org_id: orgId, deleted_at: null },
+      where: {
+        id,
+        org_id: orgId,
+        deleted_at: null, // ✅ FIXED
+      },
     });
   }
-
-  // NOTE: deleted_at requires the following addition to your Prisma schema:
-  //
-  // model Section {
-  //   id         String    @id @default(uuid())
-  //   org_id     String
-  //   level_id   String
-  //   name       String
-  //   capacity   Int
-  //   deleted_at DateTime?   <-- add this
-  // }
-  //
-  // Then run: npx prisma migrate dev --name add_deleted_at_to_section
 
   async update(id: string, data: { name?: string; capacity?: number }) {
     return this.db.section.update({
@@ -72,12 +63,22 @@ export class SectionRepository {
 
   /**
    * Count active students assigned to this section.
-   * Used in Phase 3 for capacity enforcement when enrolling/creating students.
+   * Queries profile.metadata.sectionId — wired in Phase 3.
    */
   async countStudentsInSection(sectionId: string): Promise<number> {
-    // Phase 3: query against student/account table once student module is wired
-    // Stubbed as 0 for now — capacity overflow logic added in Phase 3
-    return 0;
+    return this.db.profile.count({
+      where: {
+        metadata: {
+          path: ['sectionId'],
+          equals: sectionId,
+        },
+        account: {
+          role: 'student',
+          deleted_at: null,
+          status: 'active',
+        },
+      },
+    });
   }
 
   /**

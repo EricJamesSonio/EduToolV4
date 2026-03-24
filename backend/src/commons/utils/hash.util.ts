@@ -1,5 +1,5 @@
 // src/commons/utils/hash.util.ts
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 const SALT_ROUNDS = 10;
 

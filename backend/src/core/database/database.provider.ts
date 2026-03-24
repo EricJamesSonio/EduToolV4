@@ -1,4 +1,3 @@
-// src/core/database/database.provider.ts
 import { PrismaClient } from '@prisma/client';
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 
@@ -7,6 +6,10 @@ export class DatabaseService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  constructor() {
+    super(); // ✅ REQUIRED
+  }
+
   async onModuleInit() {
     await this.$connect();
   }

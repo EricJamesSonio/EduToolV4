@@ -5,14 +5,15 @@ import { memoryStorage } from 'multer';
 import { StudentController } from './student.controller';
 import { StudentService } from './student.service';
 import { StudentRepository } from './student.repository';
+import { SectionModule } from 'src/modules/section/section.module';
 
 @Module({
   imports: [
-    // Store uploaded CSV in memory buffer — no disk writes needed
     MulterModule.register({ storage: memoryStorage() }),
+    SectionModule, // for section capacity enforcement
   ],
   controllers: [StudentController],
   providers: [StudentService, StudentRepository],
-  exports: [StudentService], // exported for Phase 3: enrollment validation, section capacity
+  exports: [StudentService],
 })
 export class StudentModule {}

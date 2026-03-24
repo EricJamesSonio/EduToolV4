@@ -1,6 +1,7 @@
 // src/modules/audit-log/audit-log.repository.ts
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/core/database/database.provider';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class AuditLogRepository {
@@ -27,7 +28,7 @@ export class AuditLogRepository {
         action: data.action,
         entity_type: data.entityType,
         entity_id: data.entityId,
-        metadata: data.metadata ?? null,
+        metadata: data.metadata ?? Prisma.JsonNull,
       },
     });
   }
@@ -52,7 +53,8 @@ export class AuditLogRepository {
         action: data.action,
         entity_type: data.entityType,
         entity_id: data.entityId,
-        metadata: data.metadata ?? null,
+        metadata: data.metadata ?? Prisma.JsonNull
+
       },
     });
   }
