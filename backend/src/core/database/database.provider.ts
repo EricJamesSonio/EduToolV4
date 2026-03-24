@@ -1,4 +1,3 @@
-// src/core/database/database.provider.ts
 import { PrismaClient } from '@prisma/client';
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 
