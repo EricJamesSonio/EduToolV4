@@ -1,9 +1,10 @@
-generator client {
-provider = "prisma-client-js"
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-datasource db {
-provider = "postgresql"
+generator client {
+  provider = "prisma-client-js"
 }
 
 //////////////////////
@@ -168,11 +169,12 @@ model Class {
   semester_id    String
   capacity       Int
   created_at     DateTime  @default(now())
-  deleted_at     DateTime? // ← add this
+  deleted_at     DateTime?
 
-  schedules ClassSchedule[] // ← add this
+  schedules ClassSchedule[]
+
+  enrollments Enrollment[] // ← add this
 }
-
 model ClassSchedule {
   id         String   @id @default(uuid())
   org_id     String
@@ -185,12 +187,14 @@ model ClassSchedule {
 }
 
 model Enrollment {
-id         String           @id @default(uuid())
-org_id     String
-class_id   String
-student_id String
-status     EnrollmentStatus
-created_at DateTime         @default(now())
+  id         String           @id @default(uuid())
+  org_id     String
+  class_id   String
+  student_id String
+  status     EnrollmentStatus
+  created_at DateTime         @default(now())
+
+  class Class @relation(fields: [class_id], references: [id])
 }
 
 model AcademicCalendar {
