@@ -38,6 +38,12 @@ export class LevelService {
     return this.levelRepository.findBySchoolYear(orgId, schoolYearId);
   }
 
+  // ── Seed from defaults (called by school-year on creation) ────────────────
+
+  async seedFromDefaults(orgId: string, schoolYearId: string) {
+    return this.levelRepository.seedFromDefaults(orgId, schoolYearId);
+  }
+
   // ── PATCH /levels/:id ─────────────────────────────────────────────────────
 
   async updateOne(id: string, orgId: string, dto: UpdateLevelDto) {

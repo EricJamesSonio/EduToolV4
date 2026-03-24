@@ -6,11 +6,17 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { SchoolYearRepository } from './school-year.repository';
+import { LevelService } from 'src/modules/level/level.service';
+import { SubjectService } from 'src/modules/subject/subject.service';
 import { CreateSchoolYearDto, UpdateSchoolYearDto } from './dto/school-year.dto';
 
 @Injectable()
 export class SchoolYearService {
-  constructor(private readonly schoolYearRepository: SchoolYearRepository) {}
+  constructor(
+    private readonly schoolYearRepository: SchoolYearRepository,
+    private readonly levelService: LevelService,
+    private readonly subjectService: SubjectService,
+  ) {}
 
   // ── POST /school-years ──────────────────────────────────────────────────────
 
@@ -24,7 +30,8 @@ export class SchoolYearService {
       name: dto.name,
     });
 
-    // Phase 3 hook: LevelService.seedFromDefaults(orgId, schoolYear.id)
+    // Seed level structure from org defaults into this school year
+    await this.levelService.seedFromDefaults(orgId, schoolYear.id);
 
     return schoolYear;
   }
@@ -89,7 +96,12 @@ export class SchoolYearService {
       );
     }
 
-    return this.schoolYearRepository.updateStatus(id, 'active');
+    const result = await this.schoolYearRepository.updateStatus(id, 'active');
+
+    // Unlock all subjects for this org at the start of a new school year
+    await this.subjectService.unlockAllForOrg(orgId);
+
+    return result;
   }
 
   // ── PATCH /school-years/:id/end ─────────────────────────────────────────────

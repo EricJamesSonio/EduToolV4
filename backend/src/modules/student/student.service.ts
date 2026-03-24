@@ -6,6 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { StudentRepository } from './student.repository';
+import { SectionService } from 'src/modules/section/section.service';
 import {
   CreateStudentDto,
   UpdateStudentDto,
@@ -29,7 +30,10 @@ const IRREVERSIBLE_STATUSES: StudentStatus[] = [
 
 @Injectable()
 export class StudentService {
-  constructor(private readonly studentRepository: StudentRepository) {}
+  constructor(
+    private readonly studentRepository: StudentRepository,
+    private readonly sectionService: SectionService,
+  ) {}
 
   // ── POST /students ──────────────────────────────────────────────────────────
 
@@ -56,19 +60,22 @@ export class StudentService {
       );
     }
 
-    // Phase 3 hook: section capacity check
-    // if (dto.sectionId) {
-    //   const count = await this.sectionService.countStudentsInSection(dto.sectionId);
-    //   const section = await this.sectionService.findById(dto.sectionId, orgId);
-    //   if (count >= section.capacity) {
-    //     -> prompt: new section OR leave pending
-    //   }
-    // }
+    // Section capacity check
+    let status = StudentStatus.ACTIVE;
+    if (dto.sectionId) {
+      const section = await this.sectionService.findById(dto.sectionId, orgId);
+      const currentCount = await this.sectionService.countStudentsInSection(dto.sectionId);
 
-    // Student starts as pending if no section assigned, active otherwise
-    const status = dto.sectionId
-      ? StudentStatus.ACTIVE
-      : StudentStatus.PENDING;
+      if (currentCount >= section.capacity) {
+        // Section is full — student created as Pending, no section assigned
+        // Admin must resolve: create new section or leave as Pending
+        status = StudentStatus.PENDING;
+        dto.sectionId = undefined;
+      }
+    } else {
+      // No section assigned — student starts as pending
+      status = StudentStatus.PENDING;
+    }
 
     const plainPassword = generateSystemPassword();
     const hashedPassword = await hashPassword(plainPassword);
