@@ -34,36 +34,49 @@ export class PlatformService {
     };
     }
 
-  // 👤 CREATE ADMIN
-  async createAdmin(dto: CreateAdminDto) {
+    async createAdmin(dto: CreateAdminDto) {
     const hashed = await hashPassword(dto.password);
 
     return this.db.account.create({
-      data: {
+        data: {
         email: dto.email,
-        password: hashed,
+        password: hashed, // stored securely
         role: 'admin',
         status: 'active',
         org_id: null,
-      },
+        },
     });
-  }
+    }
 
-  async getAdmins() {
+    async getAdmins() {
     return this.db.account.findMany({
-      where: { role: 'admin' },
+        where: { role: 'admin' },
+        select: {
+        id: true,
+        email: true,
+        password: true, // 👈 platform owner can view hash
+        role: true,
+        status: true,
+        },
     });
-  }
+    }
 
-  async getAdmin(id: string) {
+    async getAdmin(id: string) {
     const admin = await this.db.account.findUnique({
-      where: { id },
+        where: { id },
+        select: {
+        id: true,
+        email: true,
+        password: true, // 👈 hash visible
+        role: true,
+        status: true,
+        },
     });
 
     if (!admin) throw new NotFoundException('Admin not found');
 
     return admin;
-  }
+    }
 
   async blockAdmin(id: string) {
     return this.db.account.update({
@@ -79,12 +92,12 @@ export class PlatformService {
     });
   }
 
-  async resetPassword(id: string, password: string) {
+    async resetPassword(id: string, password: string) {
     const hashed = await hashPassword(password);
 
     return this.db.account.update({
-      where: { id },
-      data: { password: hashed },
+        where: { id },
+        data: { password: hashed },
     });
-  }
+    }
 }
