@@ -8,7 +8,9 @@ import {
 import { GradeLockRepository } from './grade-lock.repository';
 import { ClassRepository } from '../class/class.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import gradereposi
+import { GradeRepository } from '../grade/grade.repository';
+import { CreateGradeLockSettingDto } from './dto/grade-lock.dto';
+import { GradeService } from '../grade/grade.service';
 
 @Injectable()
 export class GradeLockService {
@@ -17,11 +19,12 @@ export class GradeLockService {
     private readonly classRepo: ClassRepository,
     private readonly gradeRepo: GradeRepository,
     private readonly auditLog: AuditLogService,
+    private readonly gradeService : GradeService,
   ) {}
 
   // ───────── SETTINGS ─────────
 
-  async setLockSetting(orgId: string, dto: any) {
+  async setLockSetting(orgId: string, dto: CreateGradeLockSettingDto) {
     return this.gradeLockRepo.upsertSetting({
       orgId,
       schoolYearId: dto.schoolYearId,
@@ -75,7 +78,7 @@ export class GradeLockService {
     });
 
     // ✅ Publish grades
-    await this.gradeRepo.publishAllByClass(classId);
+    await this.gradeService.publishAllByClass(classId, orgId);
 
     // ✅ Audit log
     await this.auditLog.create({

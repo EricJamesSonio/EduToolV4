@@ -309,15 +309,19 @@ is_correct    Boolean?
 //////////////////////
 
 model Grade {
-id          String  @id @default(uuid())
-org_id      String
-student_id  String
-class_id    String
-term_id     String
-final_score Float
-final_grade String
-is_locked   Boolean @default(false)
-locked_at   DateTime?
+  id          String  @id @default(uuid())
+  org_id      String
+  student_id  String
+  class_id    String
+  term_id     String
+
+  final_score Float
+  final_grade String
+
+  is_locked   Boolean @default(false)
+  locked_at   DateTime?
+
+  @@unique([org_id, student_id, class_id, term_id]) // ✅ ADD THIS
 }
 model GradeLock {
   id         String   @id @default(uuid())

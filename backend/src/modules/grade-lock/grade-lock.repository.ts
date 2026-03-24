@@ -4,9 +4,9 @@ import { DatabaseService } from 'src/core/database/database.provider';
 
 @Injectable()
 export class GradeLockRepository {
-  constructor(private db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) {}
 
-  // SETTINGS
+  // ───────── SETTINGS ─────────
 
   async upsertSetting(data: {
     orgId: string;
@@ -20,9 +20,7 @@ export class GradeLockRepository {
           school_year_id: data.schoolYearId,
         },
       },
-      update: {
-        lock_deadline: data.lockDeadline,
-      },
+      update: { lock_deadline: data.lockDeadline },
       create: {
         org_id: data.orgId,
         school_year_id: data.schoolYearId,
@@ -37,7 +35,17 @@ export class GradeLockRepository {
     });
   }
 
-  // CLASS LOCK
+  async findExpiredSettings(orgId: string) {
+    const now = new Date();
+    return this.db.gradeLockSetting.findMany({
+      where: {
+        org_id: orgId,
+        lock_deadline: { lte: now },
+      },
+    });
+  }
+
+  // ───────── CLASS LOCK ─────────
 
   async findByClassId(classId: string) {
     return this.db.gradeLock.findUnique({
@@ -45,25 +53,45 @@ export class GradeLockRepository {
     });
   }
 
-  async updateLock(classId: string, data: any) {
-    return this.db.gradeLock.update({
-      where: { class_id: classId },
-      data: {
-        is_locked: data.is_locked,
-        locked_by: data.locked_by,
-        locked_at: data.locked_at,
+  async upsert(data: {
+    orgId: string;
+    classId: string;
+    isLocked: boolean;
+    lockedBy: string;
+    lockedAt: Date | null;
+  }) {
+    return this.db.gradeLock.upsert({
+      where: { class_id: data.classId },
+      update: {
+        is_locked: data.isLocked,
+        locked_by: data.lockedBy,
+        locked_at: data.lockedAt,
+      },
+      create: {
+        org_id: data.orgId,
+        class_id: data.classId,
+        is_locked: data.isLocked,
+        locked_by: data.lockedBy,
+        locked_at: data.lockedAt,
       },
     });
   }
 
-  async getClassLocks(orgId: string, query: any) {
+  async updateLock(classId: string, data: {
+    is_locked: boolean;
+    locked_by: string;
+    locked_at: Date | null;
+  }) {
+    return this.db.gradeLock.update({
+      where: { class_id: classId },
+      data,
+    });
+  }
+
+  async getClassLocks(orgId: string) {
     return this.db.gradeLock.findMany({
-      where: {
-        org_id: orgId,
-      },
-      include: {
-        class: true,
-      },
+      where: { org_id: orgId },
+      include: { class: true },
     });
   }
 }
