@@ -5,7 +5,6 @@ import { PlatformService } from './platform.service';
 import { PlatformController } from './platform.controller';
 import { PlatformOwnerGuard } from './guards/platform-owner.guard';
 
-
 @Module({
   imports: [
     JwtModule.register({
