@@ -8,10 +8,11 @@ import { EducatorRepository } from './educator.repository';
 import { CreateEducatorDto, UpdateEducatorDto, QueryEducatorDto } from './dto/educator.dto';
 import { generateEducatorId, generateSystemPassword } from './educator.utils';
 import { hashPassword } from 'src/commons/utils/hash.util';
+import { ClassService } from '../class/class.service';
 
 @Injectable()
 export class EducatorService {
-  constructor(private readonly educatorRepository: EducatorRepository) {}
+  constructor(private readonly educatorRepository: EducatorRepository,private readonly classService: ClassService,) {}
 
   // ── POST /educators ─────────────────────────────────────────────────────────
 
@@ -110,8 +111,8 @@ export class EducatorService {
     }
 
     // Phase 3 hook: check for active classes
-    // const hasClasses = await this.classService.hasActiveClasses(id);
-    // if (hasClasses) throw new ConflictException('Reassign all active classes first.');
+  const hasClasses = await this.classService.hasActiveClasses(id, orgId);
+  if (hasClasses) throw new ConflictException('Reassign all active classes first.');
 
     await this.educatorRepository.softDelete(id);
   }

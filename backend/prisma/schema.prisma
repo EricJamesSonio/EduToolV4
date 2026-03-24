@@ -4,7 +4,6 @@ provider = "prisma-client-js"
 
 datasource db {
 provider = "postgresql"
-url      = env("DATABASE_URL")
 }
 
 //////////////////////
@@ -160,24 +159,29 @@ is_locked    Boolean @default(false)
 }
 
 model Class {
-id             String   @id @default(uuid())
-org_id         String
-subject_id     String
-educator_id    String
-section_id     String?
-school_year_id String
-semester_id    String
-capacity       Int
-created_at     DateTime @default(now())
+  id             String    @id @default(uuid())
+  org_id         String
+  subject_id     String
+  educator_id    String
+  section_id     String?
+  school_year_id String
+  semester_id    String
+  capacity       Int
+  created_at     DateTime  @default(now())
+  deleted_at     DateTime? // ← add this
+
+  schedules ClassSchedule[] // ← add this
 }
 
 model ClassSchedule {
-id         String   @id @default(uuid())
-org_id     String
-class_id   String
-weekday    Int
-start_time DateTime
-end_time   DateTime
+  id         String   @id @default(uuid())
+  org_id     String
+  class_id   String
+  weekday    Int
+  start_time DateTime
+  end_time   DateTime
+
+  class Class @relation(fields: [class_id], references: [id]) // ← add this
 }
 
 model Enrollment {

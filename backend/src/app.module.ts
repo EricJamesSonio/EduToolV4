@@ -8,8 +8,9 @@ import { envValidationSchema } from './configs/env.validation';
 
 import { AuthModule } from './modules/auth/auth.module';
 import { LevelModule } from './modules/level/level.module';
-import { DatabaseModule } from './core/database/database.module'; // ✅ ADD THIS
+import { DatabaseModule } from './core/database/database.module'; 
 import { HealthModule } from './modules/health/health.module';
+import { ClassModule } from './modules/class/class.module';
 
 @Module({
   imports: [
@@ -23,7 +24,8 @@ import { HealthModule } from './modules/health/health.module';
 
     AuthModule,
     LevelModule,
-    HealthModule
+    HealthModule,
+    ClassModule
   ],
 })
 export class AppModule {}
