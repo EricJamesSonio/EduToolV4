@@ -1,9 +1,11 @@
+// grade-lock.module.ts
 import { Module } from '@nestjs/common';
-import { GradeLockService } from './grade-lock.service';
 import { GradeLockController } from './grade-lock.controller';
+import { GradeLockService } from './grade-lock.service';
+import { GradeLockRepository } from './grade-lock.repository';
 
 @Module({
-  providers: [GradeLockService],
-  controllers: [GradeLockController]
+  controllers: [GradeLockController],
+  providers: [GradeLockService, GradeLockRepository],
 })
 export class GradeLockModule {}
