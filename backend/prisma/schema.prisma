@@ -318,6 +318,31 @@ final_grade String
 is_locked   Boolean @default(false)
 locked_at   DateTime?
 }
+model GradeLock {
+  id         String   @id @default(uuid())
+  org_id     String
+  class_id   String   @unique
+
+  is_locked  Boolean  @default(false)
+
+  locked_by  String?  // educatorId | adminId | 'system'
+  locked_at  DateTime?
+
+  created_at DateTime @default(now())
+}
+
+model GradeLockSetting {
+  id             String   @id @default(uuid())
+  org_id         String
+  school_year_id String
+
+  lock_deadline  DateTime
+
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@unique([org_id, school_year_id]) // one config per school year
+}
 
 //////////////////////
 // ATTENDANCE
