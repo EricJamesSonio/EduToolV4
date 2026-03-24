@@ -100,6 +100,12 @@ export class LevelRepository {
     return this.db.$transaction(ops);
   }
 
+    async findById(id: string, orgId: string) {
+    return this.db.level.findFirst({
+      where: { id, org_id: orgId },
+    });
+  }
+
   async update(id: string, orgId: string, data: { name?: string }) {
     return this.db.level.update({
       where: { id },

@@ -61,7 +61,7 @@ export class SchoolYearService {
       );
     }
 
-    return this.schoolYearRepository.updateName(id, dto.name);
+    return this.schoolYearRepository.updateName(id, dto.name!);
   }
 
   // ── PATCH /school-years/:id/activate ───────────────────────────────────────

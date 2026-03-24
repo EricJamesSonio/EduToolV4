@@ -98,10 +98,11 @@ type   String
 }
 
 model Level {
-id         String @id @default(uuid())
-org_id     String
-program_id String
-name       String
+  id             String  @id @default(uuid())
+  org_id         String
+  program_id     String
+  name           String
+  school_year_id String? // null = org default template; set = school year copy
 }
 
 model Section {
@@ -222,6 +223,7 @@ model Rubric {
   locked_at   DateTime?
   created_at  DateTime  @default(now())
 }
+
 //////////////////////
 // LESSONS
 //////////////////////
