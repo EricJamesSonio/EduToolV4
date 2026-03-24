@@ -27,7 +27,7 @@ export class SectionRepository {
       where: {
         org_id: orgId,
         ...(levelId ? { level_id: levelId } : {}),
-        isDeleted: false,
+        deleted_at: null, // ✅ FIXED (was isDeleted)
       },
       orderBy: [{ level_id: 'asc' }, { name: 'asc' }],
     });
@@ -35,7 +35,11 @@ export class SectionRepository {
 
   async findById(id: string, orgId: string) {
     return this.db.section.findFirst({
-      where: { id, org_id: orgId, isDeleted: false },
+      where: {
+        id,
+        org_id: orgId,
+        deleted_at: null, // ✅ FIXED
+      },
     });
   }
 

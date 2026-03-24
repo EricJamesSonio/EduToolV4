@@ -276,7 +276,7 @@ export class StudentService {
     }
 
     // All rows valid — create accounts
-    const created = [];
+    const created: any[] = [];
     for (const { data } of validRows) {
       const plainPassword = generateSystemPassword();
       const hashedPassword = await hashPassword(plainPassword);

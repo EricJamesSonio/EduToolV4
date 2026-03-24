@@ -57,7 +57,11 @@ export class LevelController {
     @CurrentUser('orgId') orgId: string,
     @Query() query: QueryLevelDto,
   ) {
-    return this.levelService.getBySchoolYear(orgId, query.schoolYearId);
+    if (!query.schoolYearId) {
+  throw new Error('schoolYearId is required');
+}
+
+return this.levelService.getBySchoolYear(orgId, query.schoolYearId);
   }
 
   /**

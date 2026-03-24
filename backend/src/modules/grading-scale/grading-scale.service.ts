@@ -200,7 +200,7 @@ export class GradingScaleService {
 
     if (!scale) return null;
 
-    const ranges = scale.ranges as GradeRangeDto[];
+    const ranges = scale.ranges as unknown as GradeRangeDto[];
     const match = ranges.find(
       (r) => percent >= r.minPercent && percent <= r.maxPercent,
     );

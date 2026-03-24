@@ -119,10 +119,9 @@ export class AuthService {
       email,
     };
 
-    const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('jwt.secret'),
-      expiresIn: this.configService.get<string>('jwt.expiresIn'),
-    });
+const accessToken = this.jwtService.sign(payload as any, {
+  expiresIn: (this.configService.get<string>('jwt.expiresIn') ?? '1h') as any,
+});
 
     // Refresh token is a longer-lived JWT; we only store its hash
     const refreshToken = this.jwtService.sign(payload, {
