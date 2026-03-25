@@ -212,6 +212,17 @@ export class ClassRepository {
     });
   }
 
+  // add this to class.repository.ts
+  async findBySchoolYear(schoolYearId: string, orgId: string) {
+    return this.db.class.findMany({
+      where: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        deleted_at: null,
+      },
+    });
+  }
+
   async countActiveEnrollments(classId: string): Promise<number> {
     return this.db.enrollment.count({
       where: { class_id: classId, status: 'active' },

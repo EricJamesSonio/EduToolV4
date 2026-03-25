@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { BadRequestException } from '@nestjs/common';
 import { GradeLockService } from './grade-lock.service';
 import { AuthGuard } from 'src/commons/guards/auth.guard';
 import { RolesGuard } from 'src/commons/guards/role.guard';
@@ -36,13 +37,19 @@ export class GradeLockController {
     return this.service.createSetting(orgId, dto);
   }
 
+  // grade-lock.controller.ts
   @Get('settings')
   getSetting(
     @CurrentUser('orgId') orgId: string,
     @Query() query: QueryGradeLockDto,
   ) {
+    if (!query.schoolYearId) {
+      throw new BadRequestException('schoolYearId is required.');
+    }
     return this.service.getSetting(orgId, query.schoolYearId);
   }
+
+  
 
   // ───────────────── LOCKING ─────────────────
 

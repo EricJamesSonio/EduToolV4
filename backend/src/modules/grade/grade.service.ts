@@ -1,5 +1,4 @@
 // src/modules/grade/grade.service.ts
-
 import { Injectable } from '@nestjs/common';
 import { GradeRepository } from './grade.repository';
 
@@ -23,7 +22,7 @@ export class GradeService {
     finalScore: number;
     finalGrade: string;
   }) {
-    return this.repo.upsertGrade(data);
+    return this.repo.upsert(data); // ✅ was repo.upsertGrade
   }
 
   async getClassGrades(classId: string, orgId: string) {

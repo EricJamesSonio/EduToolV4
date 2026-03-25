@@ -45,7 +45,7 @@ export class GradeRepository {
   }) {
     return this.db.grade.upsert({
       where: {
-        org_id_student_id_class_id_term_id: {
+        org_id_student_id_class_id_term_id: { // ✅ snake_case to match Prisma schema
           org_id: data.orgId,
           student_id: data.studentId,
           class_id: data.classId,

@@ -8,23 +8,21 @@ import {
 import { GradeLockRepository } from './grade-lock.repository';
 import { ClassRepository } from '../class/class.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import { GradeRepository } from '../grade/grade.repository';
-import { CreateGradeLockSettingDto } from './dto/grade-lock.dto';
 import { GradeService } from '../grade/grade.service';
+import { CreateGradeLockSettingDto, QueryGradeLockDto } from './dto/grade-lock.dto';
 
 @Injectable()
 export class GradeLockService {
   constructor(
     private readonly gradeLockRepo: GradeLockRepository,
     private readonly classRepo: ClassRepository,
-    private readonly gradeRepo: GradeRepository,
     private readonly auditLog: AuditLogService,
-    private readonly gradeService : GradeService,
+    private readonly gradeService: GradeService,
   ) {}
 
   // ───────── SETTINGS ─────────
 
-  async setLockSetting(orgId: string, dto: CreateGradeLockSettingDto) {
+  async createSetting(orgId: string, dto: CreateGradeLockSettingDto) {
     return this.gradeLockRepo.upsertSetting({
       orgId,
       schoolYearId: dto.schoolYearId,
@@ -32,7 +30,7 @@ export class GradeLockService {
     });
   }
 
-  async getLockSetting(orgId: string, schoolYearId: string) {
+  async getSetting(orgId: string, schoolYearId: string) {
     return this.gradeLockRepo.getSetting(orgId, schoolYearId);
   }
 
@@ -42,7 +40,6 @@ export class GradeLockService {
     const cls = await this.classRepo.findById(classId, user.orgId);
     if (!cls) throw new NotFoundException('Class not found.');
 
-    // ✅ Validate educator owns class
     if (cls.educator_id !== user.id) {
       throw new ForbiddenException('You do not own this class.');
     }
@@ -68,7 +65,6 @@ export class GradeLockService {
       throw new ForbiddenException('Class already locked.');
     }
 
-    // ✅ Lock
     await this.gradeLockRepo.upsert({
       orgId: user.orgId,
       classId,
@@ -77,11 +73,9 @@ export class GradeLockService {
       lockedAt: now,
     });
 
-    // ✅ Publish grades
-    await this.gradeService.publishAllByClass(classId, orgId);
+    await this.gradeService.publishAllByClass(classId, user.orgId);
 
-    // ✅ Audit log
-    await this.auditLog.create({
+    await this.auditLog.logAdminAction({
       orgId: user.orgId,
       actorId: user.id,
       action: 'GRADE_LOCK',
@@ -108,13 +102,15 @@ export class GradeLockService {
       throw new ForbiddenException('Class is not locked.');
     }
 
-    await this.gradeLockRepo.update(lock.id, {
+    await this.gradeLockRepo.upsert({
+      orgId: user.orgId,
+      classId,
       isLocked: false,
       lockedBy: user.id,
       lockedAt: null,
     });
 
-    await this.auditLog.create({
+    await this.auditLog.logAdminAction({
       orgId: user.orgId,
       actorId: user.id,
       action: 'GRADE_UNLOCK_OVERRIDE',
@@ -127,8 +123,8 @@ export class GradeLockService {
 
   // ───────── ADMIN VIEW ─────────
 
-  async getClassLocks(orgId: string, query: any) {
-    return this.gradeLockRepo.getClassLocks(orgId, query);
+  async getClassLocks(orgId: string, query: QueryGradeLockDto) {
+    return this.gradeLockRepo.getClassLocks(orgId);
   }
 
   // ───────── AUTO LOCK (CRON) ─────────
@@ -137,12 +133,15 @@ export class GradeLockService {
     const settings = await this.gradeLockRepo.findExpiredSettings(orgId);
 
     for (const setting of settings) {
-      const classes = await this.classRepo.findUnlockedClasses(
+      const classes = await this.classRepo.findBySchoolYear(
         setting.school_year_id,
         orgId,
       );
 
       for (const cls of classes) {
+        const existing = await this.gradeLockRepo.findByClassId(cls.id);
+        if (existing?.is_locked) continue;
+
         await this.gradeLockRepo.upsert({
           orgId,
           classId: cls.id,
@@ -151,9 +150,9 @@ export class GradeLockService {
           lockedAt: new Date(),
         });
 
-        await this.gradeRepo.publishAllByClass(cls.id);
+        await this.gradeService.publishAllByClass(cls.id, orgId);
 
-        await this.auditLog.create({
+        await this.auditLog.logAdminAction({
           orgId,
           actorId: 'system',
           action: 'AUTO_GRADE_LOCK',
