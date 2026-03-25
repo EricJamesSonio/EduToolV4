@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ClassRepository } from './class.repository';
 import { AttendanceService } from '../attendance/attendance.service';
@@ -249,6 +250,90 @@ export class ClassService {
       orgId,
     );
     return classes.length > 0;
+  }
+
+  // ── GET /student/classes ─────────────────────────────────────────────────────
+
+  async getStudentClasses(studentId: string, orgId: string) {
+    const enrollments = await this.classRepository.findEnrolledClassesByStudent(
+      studentId,
+      orgId,
+    );
+
+    // Enrich each enrollment with subject + educator name
+    const results = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        const cls = enrollment.class;
+        const { subject, educatorProfile } =
+          await this.classRepository.findSubjectWithEducator(
+            cls.subject_id,
+            cls.educator_id,
+            orgId,
+          );
+
+        return {
+          enrollmentId: enrollment.id,
+          enrollmentStatus: enrollment.status,
+          class: {
+            id: cls.id,
+            subjectId: cls.subject_id,
+            subjectName: subject?.name ?? null,
+            educatorId: cls.educator_id,
+            educatorName: educatorProfile?.full_name ?? null,
+            sectionId: cls.section_id,
+            schoolYearId: cls.school_year_id,
+            semesterId: cls.semester_id,
+            capacity: cls.capacity,
+            schedules: cls.schedules,
+          },
+        };
+      }),
+    );
+
+    return results;
+  }
+
+  // ── GET /student/classes/:classId ────────────────────────────────────────────
+
+  async getStudentClassById(
+    classId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    const enrollment = await this.classRepository.findEnrolledClassByStudent(
+      classId,
+      studentId,
+      orgId,
+    );
+
+    if (!enrollment) {
+      throw new ForbiddenException('You are not enrolled in this class.');
+    }
+
+    const cls = enrollment.class;
+    const { subject, educatorProfile } =
+      await this.classRepository.findSubjectWithEducator(
+        cls.subject_id,
+        cls.educator_id,
+        orgId,
+      );
+
+    return {
+      enrollmentId: enrollment.id,
+      enrollmentStatus: enrollment.status,
+      class: {
+        id: cls.id,
+        subjectId: cls.subject_id,
+        subjectName: subject?.name ?? null,
+        educatorId: cls.educator_id,
+        educatorName: educatorProfile?.full_name ?? null,
+        sectionId: cls.section_id,
+        schoolYearId: cls.school_year_id,
+        semesterId: cls.semester_id,
+        capacity: cls.capacity,
+        schedules: cls.schedules,
+      },
+    };
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────────

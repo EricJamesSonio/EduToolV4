@@ -1,14 +1,14 @@
 // @/modules/class/class.module.ts
 import { Module } from '@nestjs/common';
-import { ClassController } from './class.controller';
+import { ClassController, StudentClassController } from './class.controller';
 import { ClassService } from './class.service';
 import { ClassRepository } from './class.repository';
-import { AuditLogModule } from '../audit-log/audit-log.module';
 import { AttendanceModule } from '../attendance/attendance.module';
+import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
-  imports: [AuditLogModule, AttendanceModule],
-  controllers: [ClassController],
+  imports: [AttendanceModule, AuditLogModule],
+  controllers: [ClassController, StudentClassController],
   providers: [ClassService, ClassRepository],
   exports: [ClassService, ClassRepository],
 })
