@@ -8,6 +8,7 @@ import { LevelModule } from '@/modules/level/level.module';
 import { ProgramModule } from '@/modules/program/program.module';
 import { SectionModule } from '@/modules/section/section.module';
 import { SubjectModule } from '@/modules/subject/subject.module';
+import { TranscriptModule } from '@/modules/transcript/transcript.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SubjectModule } from '@/modules/subject/subject.module';
     ProgramModule,
     SectionModule,
     SubjectModule,
+    TranscriptModule
   ],
   exports: [
     AcademicCalendarModule,
@@ -27,6 +29,7 @@ import { SubjectModule } from '@/modules/subject/subject.module';
     ProgramModule,
     SectionModule,
     SubjectModule,
+    TranscriptModule
   ],
 })
 export class AcademicDomainModule {}
