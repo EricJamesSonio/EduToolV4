@@ -12,39 +12,39 @@ generator client {
 //////////////////////
 
 enum Role {
-platform_owner
-admin
-educator
-student
+  platform_owner
+  admin
+  educator
+  student
 }
 
 enum AccountStatus {
-active
-suspended
-pending
-dropped
-transferred
-graduated
+  active
+  suspended
+  pending
+  dropped
+  transferred
+  graduated
 }
 
 enum EnrollmentStatus {
-active
-pending
-removed
+  active
+  pending
+  removed
 }
 
 enum SubmissionStatus {
-draft
-submitted
-exempted
-custom
+  draft
+  submitted
+  exempted
+  custom
 }
 
 enum AttendanceStatus {
-present
-absent
-late
-excused
+  present
+  absent
+  late
+  excused
 }
 
 //////////////////////
@@ -52,40 +52,39 @@ excused
 //////////////////////
 
 model Organization {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
+  id               String   @id @default(uuid())
+  name             String
+  description      String?
+  admin_account_id String?  @unique
 
-  admin_account_id String? @unique
-
-  accounts    Account[]
+  accounts Account[]
 }
 
 model Account {
-id         String         @id @default(uuid())
-org_id     String?
-role       Role
-email      String
-password   String
-status     AccountStatus
-created_at DateTime       @default(now())
-updated_at DateTime       @updatedAt
-deleted_at DateTime?
+  id         String        @id @default(uuid())
+  org_id     String?
+  role       Role
+  email      String
+  password   String
+  status     AccountStatus
+  created_at DateTime      @default(now())
+  updated_at DateTime      @updatedAt
+  deleted_at DateTime?
 
-organization Organization? @relation(fields: [org_id], references: [id])
-profile      Profile?
+  organization Organization? @relation(fields: [org_id], references: [id])
+  profile      Profile?
 
-@@unique([org_id, email])
+  @@unique([org_id, email])
 }
 
 model Profile {
-id         String   @id @default(uuid())
-account_id String   @unique
-full_name  String
-metadata   Json?
-created_at DateTime @default(now())
+  id         String   @id @default(uuid())
+  account_id String   @unique
+  full_name  String
+  metadata   Json?
+  created_at DateTime @default(now())
 
-account Account @relation(fields: [account_id], references: [id])
+  account Account @relation(fields: [account_id], references: [id])
 }
 
 //////////////////////
@@ -93,10 +92,10 @@ account Account @relation(fields: [account_id], references: [id])
 //////////////////////
 
 model Program {
-id     String @id @default(uuid())
-org_id String
-name   String
-type   String
+  id     String @id @default(uuid())
+  org_id String
+  name   String
+  type   String
 }
 
 model Level {
@@ -104,7 +103,7 @@ model Level {
   org_id         String
   program_id     String
   name           String
-  school_year_id String? // null = org default template; set = school year copy
+  school_year_id String?
 }
 
 model Section {
@@ -117,10 +116,10 @@ model Section {
 }
 
 model SchoolYear {
-id     String @id @default(uuid())
-org_id String
-name   String
-status String
+  id     String @id @default(uuid())
+  org_id String
+  name   String
+  status String
 }
 
 model Semester {
@@ -131,19 +130,19 @@ model Semester {
   start_date     DateTime
   end_date       DateTime
 
-  terms Term[] // <-- add this
+  terms Term[]
 }
 
 model Term {
-  id           String   @id @default(uuid())
-  org_id       String
-  semester_id  String
-  name         String
-  order_index  Int
-  start_date   DateTime
-  end_date     DateTime
+  id          String   @id @default(uuid())
+  org_id      String
+  semester_id String
+  name        String
+  order_index Int
+  start_date  DateTime
+  end_date    DateTime
 
-  semester Semester @relation(fields: [semester_id], references: [id]) // <-- add this
+  semester Semester @relation(fields: [semester_id], references: [id])
 }
 
 //////////////////////
@@ -151,12 +150,12 @@ model Term {
 //////////////////////
 
 model Subject {
-id           String  @id @default(uuid())
-org_id       String
-name         String
-level_id     String
-educator_id  String?
-is_locked    Boolean @default(false)
+  id          String  @id @default(uuid())
+  org_id      String
+  name        String
+  level_id    String
+  educator_id String?
+  is_locked   Boolean @default(false)
 }
 
 model Class {
@@ -171,11 +170,13 @@ model Class {
   created_at     DateTime  @default(now())
   deleted_at     DateTime?
 
-  schedules      ClassSchedule[]
-  enrollments    Enrollment[]
-  gradeLock      GradeLock?
-  ownershipLogs  ClassOwnershipLog[]  // ← add this line
+  schedules     ClassSchedule[]
+  enrollments   Enrollment[]
+  gradeLock     GradeLock?
+  ownershipLogs ClassOwnershipLog[]
+  meetings      Meeting[]
 }
+
 model ClassSchedule {
   id         String   @id @default(uuid())
   org_id     String
@@ -184,7 +185,20 @@ model ClassSchedule {
   start_time DateTime
   end_time   DateTime
 
-  class Class @relation(fields: [class_id], references: [id]) // ← add this
+  class Class @relation(fields: [class_id], references: [id])
+}
+
+model ClassOwnershipLog {
+  id               String   @id @default(uuid())
+  org_id           String
+  class_id         String
+  from_educator_id String
+  to_educator_id   String
+  reason           String?
+  reassigned_at    DateTime @default(now())
+  reassigned_by    String
+
+  class Class @relation(fields: [class_id], references: [id])
 }
 
 model Enrollment {
@@ -203,7 +217,7 @@ model AcademicCalendar {
   org_id         String
   school_year_id String
   title          String
-  type           String   // holiday | no_class_day | exam_week | special_event
+  type           String
   start_date     DateTime
   end_date       DateTime
   description    String?
@@ -216,7 +230,7 @@ model GradingScale {
   level_id       String
   school_year_id String
   name           String
-  ranges         Json      // array of { minPercent, maxPercent, gradeValue, remark, isPassing }
+  ranges         Json
   is_locked      Boolean   @default(false)
   locked_at      DateTime?
   created_at     DateTime  @default(now())
@@ -229,7 +243,7 @@ model Rubric {
   class_id    String?
   name        String
   is_default  Boolean   @default(false)
-  categories  Json      // array of { name, type, weight, assessmentTypes? }
+  categories  Json
   is_locked   Boolean   @default(false)
   locked_at   DateTime?
   created_at  DateTime  @default(now())
@@ -240,37 +254,38 @@ model Rubric {
 //////////////////////
 
 model Lesson {
-  id           String   @id @default(uuid())
-  org_id       String
-  class_id     String
-  title        String
-  description  String?
-  detail       String?  // ← ADD THIS
-  week_number  Int
-  sub_index    Int
-  created_at   DateTime @default(now())
+  id          String   @id @default(uuid())
+  org_id      String
+  class_id    String
+  title       String
+  description String?
+  detail      String?
+  week_number Int
+  sub_index   Int
+  created_at  DateTime @default(now())
 }
 
 model LessonConcept {
-id         String   @id @default(uuid())
-org_id     String
-lesson_id  String
-content    Json
-created_at DateTime @default(now())
+  id         String   @id @default(uuid())
+  org_id     String
+  lesson_id  String
+  content    Json
+  created_at DateTime @default(now())
 }
 
 //////////////////////
 // ASSESSMENTS
 //////////////////////
+
 model ManualScore {
-  id          String   @id @default(uuid())
-  org_id      String
-  class_id    String
-  student_id  String
-  term_id     String
-  category    String
-  score       Float
-  updated_at  DateTime @updatedAt
+  id         String   @id @default(uuid())
+  org_id     String
+  class_id   String
+  student_id String
+  term_id    String
+  category   String
+  score      Float
+  updated_at DateTime @updatedAt
 
   @@unique([org_id, class_id, student_id, term_id, category])
 }
@@ -284,42 +299,43 @@ model Assessment {
   type         String
   total_items  Int
   release_date DateTime?
-  end_date     DateTime? // ← ADD
+  end_date     DateTime?
   is_published Boolean   @default(false)
   created_at   DateTime  @default(now())
-  deleted_at   DateTime? // ← ADD
+  deleted_at   DateTime?
+
   submissions Submission[]
 }
 
 model Question {
-id             String @id @default(uuid())
-org_id         String
-assessment_id  String
-type           String
-question_text  String
-correct_answer String?
+  id             String  @id @default(uuid())
+  org_id         String
+  assessment_id  String
+  type           String
+  question_text  String
+  correct_answer String?
 }
 
 model Submission {
-id            String           @id @default(uuid())
-org_id        String
-assessment_id String
-student_id    String
-status        SubmissionStatus
-score         Float?
-manual_score  Float?
-submitted_at  DateTime?
+  id            String           @id @default(uuid())
+  org_id        String
+  assessment_id String
+  student_id    String
+  status        SubmissionStatus
+  score         Float?
+  manual_score  Float?
+  submitted_at  DateTime?
 
-assessment Assessment @relation(fields: [assessment_id], references: [id])
+  assessment Assessment @relation(fields: [assessment_id], references: [id])
 }
 
 model SubmissionAnswer {
-id            String @id @default(uuid())
-org_id        String
-submission_id String
-question_id   String
-answer        String
-is_correct    Boolean?
+  id            String   @id @default(uuid())
+  org_id        String
+  submission_id String
+  question_id   String
+  answer        String
+  is_correct    Boolean?
 }
 
 //////////////////////
@@ -327,31 +343,28 @@ is_correct    Boolean?
 //////////////////////
 
 model Grade {
-  id          String  @id @default(uuid())
+  id          String    @id @default(uuid())
   org_id      String
   student_id  String
   class_id    String
   term_id     String
-
   final_score Float
   final_grade String
-
-  is_locked   Boolean @default(false)
+  is_locked   Boolean   @default(false)
   locked_at   DateTime?
 
-  @@unique([org_id, student_id, class_id, term_id]) // ✅ ADD THIS
+  @@unique([org_id, student_id, class_id, term_id])
 }
+
 model GradeLock {
-  id         String   @id @default(uuid())
-  org_id     String
-  class_id   String   @unique
-
-  is_locked  Boolean  @default(false)
-
-  locked_by  String?  // educatorId | adminId | 'system'
-  locked_at  DateTime?
-
+  id        String    @id @default(uuid())
+  org_id    String
+  class_id  String    @unique
+  is_locked Boolean   @default(false)
+  locked_by String?
+  locked_at DateTime?
   created_at DateTime @default(now())
+
   class Class @relation(fields: [class_id], references: [id])
 }
 
@@ -359,13 +372,11 @@ model GradeLockSetting {
   id             String   @id @default(uuid())
   org_id         String
   school_year_id String
-
   lock_deadline  DateTime
-
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
 
-  @@unique([org_id, school_year_id]) // one config per school year
+  @@unique([org_id, school_year_id])
 }
 
 //////////////////////
@@ -373,32 +384,65 @@ model GradeLockSetting {
 //////////////////////
 
 model AttendanceSession {
-id          String   @id @default(uuid())
-org_id      String
-class_id    String
-date        DateTime
-week_number Int
-sub_index   Int
-}
-model ClassOwnershipLog {
-  id                String   @id @default(uuid())
-  org_id            String
-  class_id          String
-  from_educator_id  String
-  to_educator_id    String
-  reason            String?
-  reassigned_at     DateTime @default(now())
-  reassigned_by     String
-
-  class Class @relation(fields: [class_id], references: [id])
+  id          String   @id @default(uuid())
+  org_id      String
+  class_id    String
+  date        DateTime
+  week_number Int
+  sub_index   Int
 }
 
 model AttendanceRecord {
-id         String           @id @default(uuid())
-org_id     String
-session_id String
-student_id String
-status     AttendanceStatus
+  id         String           @id @default(uuid())
+  org_id     String
+  session_id String
+  student_id String
+  status     AttendanceStatus
+}
+
+//////////////////////
+// MEETINGS
+//////////////////////
+
+model Meeting {
+  id          String    @id @default(uuid())
+  org_id      String
+  class_id    String
+  educator_id String
+  title       String
+  description String?
+  start_time  DateTime
+  status      String    @default("scheduled")
+  created_at  DateTime  @default(now())
+  deleted_at  DateTime?
+
+  class         Class                @relation(fields: [class_id], references: [id])
+  invites       MeetingInvite[]
+  join_requests MeetingJoinRequest[]
+}
+
+model MeetingInvite {
+  id         String @id @default(uuid())
+  org_id     String
+  meeting_id String
+  student_id String
+
+  meeting Meeting @relation(fields: [meeting_id], references: [id])
+
+  @@unique([meeting_id, student_id])
+}
+
+model MeetingJoinRequest {
+  id         String   @id @default(uuid())
+  org_id     String
+  meeting_id String
+  student_id String
+  status     String   @default("pending")
+  created_at DateTime @default(now())
+
+  meeting Meeting @relation(fields: [meeting_id], references: [id])
+
+  @@unique([meeting_id, student_id])
 }
 
 //////////////////////
@@ -406,23 +450,23 @@ status     AttendanceStatus
 //////////////////////
 
 model Notification {
-id          String   @id @default(uuid())
-org_id      String
-account_id  String
-type        String
-payload     Json
-read_at     DateTime?
-archived_at DateTime?
-created_at  DateTime @default(now())
+  id          String    @id @default(uuid())
+  org_id      String
+  account_id  String
+  type        String
+  payload     Json
+  read_at     DateTime?
+  archived_at DateTime?
+  created_at  DateTime  @default(now())
 }
 
 model AuditLog {
-id          String   @id @default(uuid())
-org_id      String
-actor_id    String
-action      String
-entity_type String
-entity_id   String
-metadata    Json?
-created_at  DateTime @default(now())
+  id          String   @id @default(uuid())
+  org_id      String
+  actor_id    String
+  action      String
+  entity_type String
+  entity_id   String
+  metadata    Json?
+  created_at  DateTime @default(now())
 }
