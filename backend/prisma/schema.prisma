@@ -264,16 +264,19 @@ created_at DateTime @default(now())
 //////////////////////
 
 model Assessment {
-id           String   @id @default(uuid())
-org_id       String
-class_id     String
-lesson_id    String?
-term_id      String
-type         String
-total_items  Int
-release_date DateTime?
-is_published Boolean  @default(false)
-created_at   DateTime @default(now())
+  id           String    @id @default(uuid())
+  org_id       String
+  class_id     String
+  lesson_id    String?
+  term_id      String
+  type         String
+  total_items  Int
+  release_date DateTime?
+  end_date     DateTime? // ← ADD
+  is_published Boolean   @default(false)
+  created_at   DateTime  @default(now())
+  deleted_at   DateTime? // ← ADD
+  submissions Submission[]
 }
 
 model Question {
@@ -294,6 +297,8 @@ status        SubmissionStatus
 score         Float?
 manual_score  Float?
 submitted_at  DateTime?
+
+assessment Assessment @relation(fields: [assessment_id], references: [id])
 }
 
 model SubmissionAnswer {
