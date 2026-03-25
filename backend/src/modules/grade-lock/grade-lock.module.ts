@@ -5,7 +5,7 @@ import { GradeLockRepository } from './grade-lock.repository';
 
 import { GradeModule } from '../grade/grade.module'; 
 import { ClassModule } from '../class/class.module';
-import { AuditLogModule } from '../audit-log/audit-log.module'; // ✅ ADD
+import { AuditLogModule } from '../audit-log/audit-log.module'; 
 
 @Module({
   imports: [

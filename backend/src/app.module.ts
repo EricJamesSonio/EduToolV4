@@ -23,7 +23,7 @@ import { HealthModule } from './modules/health/health.module';
     SystemDomainModule,
     PlatformDomainModule,
 
-    HealthModule, // keep separate (infra endpoint)
+    HealthModule, 
   ],
 })
 export class AppModule {}

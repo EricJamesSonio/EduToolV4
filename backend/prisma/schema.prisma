@@ -262,6 +262,18 @@ created_at DateTime @default(now())
 //////////////////////
 // ASSESSMENTS
 //////////////////////
+model ManualScore {
+  id          String   @id @default(uuid())
+  org_id      String
+  class_id    String
+  student_id  String
+  term_id     String
+  category    String
+  score       Float
+  updated_at  DateTime @updatedAt
+
+  @@unique([org_id, class_id, student_id, term_id, category])
+}
 
 model Assessment {
   id           String    @id @default(uuid())
