@@ -87,17 +87,17 @@ IMPLEMENTED FEATURES
   - Full audit log on bulk set + record override
 
 PATCHES APPLIED
-  - class.module.ts    — added AuditLogModule + AttendanceModule imports
-  - class.service.ts   — injects AttendanceService, calls generateSessionsForClass()
-                         after class creation
+  - class.module.ts      — added AuditLogModule + AttendanceModule imports
+  - class.service.ts     — injects AttendanceService, calls generateSessionsForClass()
+                           after class creation
   - assessment.module.ts — added AttendanceModule import
   - assessment.service.ts — injects AttendanceService, exposes
                             onSubmissionFinished() to trigger auto-present
+  - class-domain.module.ts — AttendanceModule registered                ✅
 
 REMAINING WIRING
-  - Add AttendanceModule to app.module.ts imports                     ← TODO
   - Call assessmentService.onSubmissionFinished() from SubmissionModule
-    when a student's submission status transitions to 'submitted'     ← TODO
+    when a student's submission status transitions to 'submitted'       ← TODO
 
 
 ================================================================================
@@ -157,12 +157,11 @@ SCHEMA ADDITIONS
   - Migration: npx prisma migrate dev --name add_manual_score         ✅
 
 PATCHES APPLIED
-  - grade.module.ts — added GradeController, exports GradeService + GradeRepository
-  - grade.service.ts — backward-compat methods retained
-    (publishAllByClass, unlockAllByClass, computeAndSaveGrade, getClassGrades)
-
-REMAINING WIRING
-  - Add GradeModule to app.module.ts imports                          ← TODO
+  - grade.module.ts         — added GradeController, exports GradeService + GradeRepository
+  - grade.service.ts        — backward-compat methods retained
+                              (publishAllByClass, unlockAllByClass, computeAndSaveGrade,
+                              getClassGrades)
+  - assessment-domain.module.ts — GradeModule registered              ✅
 
 
 ================================================================================
@@ -177,18 +176,18 @@ REMAINING WIRING
   AFTER THESE MODULES
 ================================================================================
 
-  Wire up app.module.ts to register all new modules:
-    - AttendanceModule                                                 ← TODO
-    - GradeModule                                                      ← TODO
+  App module wiring — all modules registered via domain modules:
+    - AttendanceModule → ClassDomainModule → AppModule               ✅
+    - GradeModule      → AssessmentDomainModule → AppModule          ✅
 
-  Finish remaining cross-module wiring:
-    - Call assessmentService.onSubmissionFinished() when a student's
-      submission status transitions to 'submitted'                    ← TODO
-
-  Then confirm existing modules are still wired correctly:
+  Existing modules confirmed wired correctly:
     - grade-lock.service.ts  — already calls gradeService.publishAllByClass ✅
     - notification           — already wired into lesson + assessment ✅
     - audit-log              — already wired into all modules ✅
+
+  ONE remaining cross-module wiring task:
+    - Call assessmentService.onSubmissionFinished() from SubmissionModule
+      when a student's submission status transitions to 'submitted'   ← TODO
 
   Remaining features (separate effort, not blocking):
     - meeting    — Agora RTC, real-time
@@ -196,5 +195,5 @@ REMAINING WIRING
 
 
 ================================================================================
-  EduTool • Educator Build Plan • v2.2
+  EduTool • Educator Build Plan • v2.3
 ================================================================================

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { SubmissionRepository } from './submission.repository';
 import { AssessmentRepository } from '../assessment/assessment.repository';
+import { AttendanceService } from '../attendance/attendance.service';
 import { SaveDraftDto, FinishSubmissionDto } from './dto/submission.dto';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class SubmissionService {
   constructor(
     private readonly submissionRepo: SubmissionRepository,
     private readonly assessmentRepo: AssessmentRepository,
+    private readonly attendanceService: AttendanceService,
   ) {}
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -23,6 +25,11 @@ export class SubmissionService {
     if (!assessment) throw new NotFoundException('Assessment not found.');
 
     const now = new Date();
+
+    // Must be published
+    if (!assessment.is_published) {
+      throw new ForbiddenException('Assessment is not published.');
+    }
 
     // Must be past release date
     if (!assessment.release_date || now < new Date(assessment.release_date)) {
@@ -124,7 +131,7 @@ export class SubmissionService {
     studentId: string,
     dto: FinishSubmissionDto,
   ) {
-    await this.assertAssessmentOpen(assessmentId, orgId);
+    const assessment = await this.assertAssessmentOpen(assessmentId, orgId);
 
     const submission = await this.submissionRepo.findByStudent(
       assessmentId,
@@ -187,6 +194,18 @@ export class SubmissionService {
       score,
       submittedAt: new Date(),
     });
+
+    // ── Fire-and-forget: auto-mark present ───────────────────────────────────
+    if (assessment.class_id) {
+      this.attendanceService
+        .markPresentFromSubmission({
+          orgId,
+          classId: assessment.class_id,
+          studentId,
+          submittedAt: updated.submitted_at ?? new Date(),
+        })
+        .catch(() => {}); // non-blocking, never throws
+    }
 
     return {
       submissionId: submission.id,
