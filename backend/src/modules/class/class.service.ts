@@ -220,7 +220,12 @@ export class ClassService {
 
   // ── POST /classes/:id/reassign-educator ──────────────────────────────────────
 
-  async reassignEducator(id: string, orgId: string, dto: ReassignEducatorDto) {
+  async reassignEducator(
+    id: string,
+    orgId: string,
+    dto: ReassignEducatorDto,
+    adminId: string,         // ← add this param
+  ) {
     const cls = await this.classRepository.findById(id, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
 
@@ -239,7 +244,25 @@ export class ClassService {
 
     await this.assertNoEducatorConflict(dto.educatorId, orgId, slots, id);
 
+    // Write ownership log before updating
+    await this.classRepository.createOwnershipLog({
+      orgId,
+      classId: id,
+      fromEducatorId: cls.educator_id,
+      toEducatorId: dto.educatorId,
+      reason: dto.reason,
+      reassignedBy: adminId,
+    });
+
     return this.classRepository.update(id, { educatorId: dto.educatorId });
+  }
+  // ── GET /classes/:id/ownership-history ───────────────────────────────────────
+
+  async getOwnershipHistory(id: string, orgId: string) {
+    const cls = await this.classRepository.findById(id, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
+
+    return this.classRepository.findOwnershipHistory(id, orgId);
   }
 
   // ── Utility ──────────────────────────────────────────────────────────────────

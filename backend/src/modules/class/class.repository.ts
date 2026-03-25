@@ -317,4 +317,33 @@ async removeEnrollment(enrollmentId: string) {
     data: { status: 'removed' as any },
   });
 }
+
+// ── Ownership log ─────────────────────────────────────────────────────────────
+
+async createOwnershipLog(data: {
+  orgId: string;
+  classId: string;
+  fromEducatorId: string;
+  toEducatorId: string;
+  reason?: string;
+  reassignedBy: string;
+}) {
+  return this.db.classOwnershipLog.create({
+    data: {
+      org_id: data.orgId,
+      class_id: data.classId,
+      from_educator_id: data.fromEducatorId,
+      to_educator_id: data.toEducatorId,
+      reason: data.reason ?? null,
+      reassigned_by: data.reassignedBy,
+    },
+  });
+}
+
+async findOwnershipHistory(classId: string, orgId: string) {
+  return this.db.classOwnershipLog.findMany({
+    where: { class_id: classId, org_id: orgId },
+    orderBy: { reassigned_at: 'asc' },
+  });
+}
 }

@@ -112,9 +112,10 @@ export class ClassController {
   async reassignEducator(
     @Param('id') id: string,
     @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') adminId: string,    // ← add this
     @Body() dto: ReassignEducatorDto,
   ) {
-    return this.classService.reassignEducator(id, orgId, dto);
+    return this.classService.reassignEducator(id, orgId, dto, adminId);  // ← pass adminId
   }
 }
 
@@ -160,5 +161,14 @@ export class StudentClassController {
     @CurrentUser('id') studentId: string,
   ) {
     return this.classService.getStudentClassById(classId, studentId, orgId);
+  }
+
+  @Get(':id/ownership-history')
+  @Roles('admin', 'educator')
+  async getOwnershipHistory(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+  ) {
+    return this.classService.getOwnershipHistory(id, orgId);
   }
 }

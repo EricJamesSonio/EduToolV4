@@ -171,10 +171,10 @@ model Class {
   created_at     DateTime  @default(now())
   deleted_at     DateTime?
 
-  schedules ClassSchedule[]
-
-  enrollments Enrollment[] // ← add this
-  gradeLock GradeLock?
+  schedules      ClassSchedule[]
+  enrollments    Enrollment[]
+  gradeLock      GradeLock?
+  ownershipLogs  ClassOwnershipLog[]  // ← add this line
 }
 model ClassSchedule {
   id         String   @id @default(uuid())
@@ -379,6 +379,18 @@ class_id    String
 date        DateTime
 week_number Int
 sub_index   Int
+}
+model ClassOwnershipLog {
+  id                String   @id @default(uuid())
+  org_id            String
+  class_id          String
+  from_educator_id  String
+  to_educator_id    String
+  reason            String?
+  reassigned_at     DateTime @default(now())
+  reassigned_by     String
+
+  class Class @relation(fields: [class_id], references: [id])
 }
 
 model AttendanceRecord {
