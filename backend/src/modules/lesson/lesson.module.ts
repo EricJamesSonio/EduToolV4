@@ -11,6 +11,6 @@ import { NotificationModule } from '../notification/notification.module';
   imports: [ClassModule, AuditLogModule, NotificationModule],
   controllers: [LessonController, StudentLessonController],
   providers: [LessonService, LessonRepository],
-  exports: [LessonService],
+  exports: [LessonService, LessonRepository],
 })
 export class LessonModule {}

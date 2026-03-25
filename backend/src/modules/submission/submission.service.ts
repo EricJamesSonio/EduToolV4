@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { SubmissionRepository } from './submission.repository';
-import { AssessmentRepository } from '../assessment/assessment.repository';
+import { AssessmentRepository } from '../assessment/core/assessment-core.repository';
 import { AttendanceService } from '../attendance/attendance.service';
 import { SaveDraftDto, FinishSubmissionDto } from './dto/submission.dto';
 

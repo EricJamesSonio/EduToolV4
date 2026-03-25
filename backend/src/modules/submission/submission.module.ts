@@ -4,10 +4,11 @@ import { SubmissionController } from './submission.controller';
 import { SubmissionService } from './submission.service';
 import { SubmissionRepository } from './submission.repository';
 import { AssessmentModule } from '../assessment/assessment.module';
+import { AssessmentCoreModule } from '../assessment/core/assessment-core.module';
 import { AttendanceModule } from '../attendance/attendance.module';
 
 @Module({
-  imports: [AssessmentModule, AttendanceModule],
+  imports: [AssessmentModule, AssessmentCoreModule, AttendanceModule],
   controllers: [SubmissionController],
   providers: [SubmissionService, SubmissionRepository],
   exports: [SubmissionService, SubmissionRepository],
