@@ -2,12 +2,14 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AssessmentCoreService } from '../core/assessment-core.service';
 import { ClassRepository } from '@/modules/class/class.repository';
+import { GradeRepository } from '@/modules/grade/grade.repository';
 
 @Injectable()
 export class AssessmentStudentService {
-  constructor(
+  constructor(  
     private readonly core: AssessmentCoreService,
     private readonly classRepo: ClassRepository,
+    private readonly gradeRepo: GradeRepository,
   ) {}
 
   private async assertStudentEnrolled(classId: string, studentId: string, orgId: string) {
@@ -48,7 +50,16 @@ export class AssessmentStudentService {
     const submission = await this.core.getSubmissionByStudent(assessmentId, studentId);
     if (!submission) throw new NotFoundException('No submission found.');
 
-    // TODO: wire real GradeLock
-    return this.core.buildResult(submission, assessment, false);
-  }
+      // TODO: wire real GradeLock
+      const grade = await this.gradeRepo.findByStudent(
+    studentId,
+    classId,
+    assessment.term_id,
+    orgId,
+  );
+
+  const isLocked = grade?.is_locked ?? false;
+
+  return this.core.buildResult(submission, assessment, isLocked);
+    }
 }
