@@ -1,0 +1,1 @@
+{"info":{"name":"EduTool - Health Module","_postman_id":"health-module","description":"Health check endpoint","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},"item":[{"name":"Health","item":[{"name":"Check API","request":{"method":"GET","url":{"raw":"{{baseUrl}}/check","host":["{{baseUrl}}"],"path":["check"]}}}]}]}

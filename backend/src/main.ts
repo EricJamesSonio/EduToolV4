@@ -1,7 +1,7 @@
+import 'dotenv/config'; // ← must be first, before anything else
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-
-import { ValidationPipe } from './commons/pipes/validation.pipe';
+import { ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './commons/filters/http-exception.filter';
 import { AllExceptionFilter } from './commons/filters/all-exception.filter';
 import { LoggingInterceptor } from './commons/interceptors/logging.interceptor';
@@ -22,8 +22,9 @@ async function bootstrap() {
     new ResponseInterceptor(),
   );
 
-  const PORT = process.env.PORT || 3000;
+  app.enableCors();
 
+  const PORT = Number(process.env.PORT) || 3000;
   await app.listen(PORT);
 }
 bootstrap();

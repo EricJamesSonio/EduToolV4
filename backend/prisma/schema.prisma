@@ -1,10 +1,10 @@
-generator client {
-provider = "prisma-client-js"
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-datasource db {
-provider = "postgresql"
-url      = env("DATABASE_URL")
+generator client {
+  provider = "prisma-client-js"
 }
 
 //////////////////////
@@ -160,33 +160,42 @@ is_locked    Boolean @default(false)
 }
 
 model Class {
-id             String   @id @default(uuid())
-org_id         String
-subject_id     String
-educator_id    String
-section_id     String?
-school_year_id String
-semester_id    String
-capacity       Int
-created_at     DateTime @default(now())
-}
+  id             String    @id @default(uuid())
+  org_id         String
+  subject_id     String
+  educator_id    String
+  section_id     String?
+  school_year_id String
+  semester_id    String
+  capacity       Int
+  created_at     DateTime  @default(now())
+  deleted_at     DateTime?
 
+  schedules ClassSchedule[]
+
+  enrollments Enrollment[] // ← add this
+  gradeLock GradeLock?
+}
 model ClassSchedule {
-id         String   @id @default(uuid())
-org_id     String
-class_id   String
-weekday    Int
-start_time DateTime
-end_time   DateTime
+  id         String   @id @default(uuid())
+  org_id     String
+  class_id   String
+  weekday    Int
+  start_time DateTime
+  end_time   DateTime
+
+  class Class @relation(fields: [class_id], references: [id]) // ← add this
 }
 
 model Enrollment {
-id         String           @id @default(uuid())
-org_id     String
-class_id   String
-student_id String
-status     EnrollmentStatus
-created_at DateTime         @default(now())
+  id         String           @id @default(uuid())
+  org_id     String
+  class_id   String
+  student_id String
+  status     EnrollmentStatus
+  created_at DateTime         @default(now())
+
+  class Class @relation(fields: [class_id], references: [id])
 }
 
 model AcademicCalendar {
@@ -231,14 +240,15 @@ model Rubric {
 //////////////////////
 
 model Lesson {
-id           String   @id @default(uuid())
-org_id       String
-class_id     String
-title        String
-description  String?
-week_number  Int
-sub_index    Int
-created_at   DateTime @default(now())
+  id           String   @id @default(uuid())
+  org_id       String
+  class_id     String
+  title        String
+  description  String?
+  detail       String?  // ← ADD THIS
+  week_number  Int
+  sub_index    Int
+  created_at   DateTime @default(now())
 }
 
 model LessonConcept {
@@ -254,16 +264,19 @@ created_at DateTime @default(now())
 //////////////////////
 
 model Assessment {
-id           String   @id @default(uuid())
-org_id       String
-class_id     String
-lesson_id    String?
-term_id      String
-type         String
-total_items  Int
-release_date DateTime?
-is_published Boolean  @default(false)
-created_at   DateTime @default(now())
+  id           String    @id @default(uuid())
+  org_id       String
+  class_id     String
+  lesson_id    String?
+  term_id      String
+  type         String
+  total_items  Int
+  release_date DateTime?
+  end_date     DateTime? // ← ADD
+  is_published Boolean   @default(false)
+  created_at   DateTime  @default(now())
+  deleted_at   DateTime? // ← ADD
+  submissions Submission[]
 }
 
 model Question {
@@ -284,6 +297,8 @@ status        SubmissionStatus
 score         Float?
 manual_score  Float?
 submitted_at  DateTime?
+
+assessment Assessment @relation(fields: [assessment_id], references: [id])
 }
 
 model SubmissionAnswer {
@@ -300,15 +315,45 @@ is_correct    Boolean?
 //////////////////////
 
 model Grade {
-id          String  @id @default(uuid())
-org_id      String
-student_id  String
-class_id    String
-term_id     String
-final_score Float
-final_grade String
-is_locked   Boolean @default(false)
-locked_at   DateTime?
+  id          String  @id @default(uuid())
+  org_id      String
+  student_id  String
+  class_id    String
+  term_id     String
+
+  final_score Float
+  final_grade String
+
+  is_locked   Boolean @default(false)
+  locked_at   DateTime?
+
+  @@unique([org_id, student_id, class_id, term_id]) // ✅ ADD THIS
+}
+model GradeLock {
+  id         String   @id @default(uuid())
+  org_id     String
+  class_id   String   @unique
+
+  is_locked  Boolean  @default(false)
+
+  locked_by  String?  // educatorId | adminId | 'system'
+  locked_at  DateTime?
+
+  created_at DateTime @default(now())
+  class Class @relation(fields: [class_id], references: [id])
+}
+
+model GradeLockSetting {
+  id             String   @id @default(uuid())
+  org_id         String
+  school_year_id String
+
+  lock_deadline  DateTime
+
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@unique([org_id, school_year_id]) // one config per school year
 }
 
 //////////////////////

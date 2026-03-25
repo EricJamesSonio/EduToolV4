@@ -1,0 +1,108 @@
+// src/modules/lesson/lesson.controller.ts
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { LessonService } from './lesson.service';
+import { CreateLessonDto, UpdateLessonDto, QueryLessonDto } from './dto/lesson.dto';
+import { AuthGuard } from 'src/commons/guards/auth.guard';
+import { RolesGuard } from 'src/commons/guards/role.guard';
+import { Roles } from 'src/commons/decorators/roles.decorator';
+import { CurrentUser } from 'src/commons/decorators/current-user.decorator';
+
+@Controller('classes/:classId/lessons')
+@UseGuards(AuthGuard, RolesGuard)
+export class LessonController {
+  constructor(private readonly lessonService: LessonService) {}
+
+  // POST /classes/:classId/lessons
+  @Post()
+  @Roles('educator')
+  create(
+    @Param('classId') classId: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') educatorId: string,
+    @Body() dto: CreateLessonDto,
+  ) {
+    return this.lessonService.create(classId, orgId, educatorId, dto);
+  }
+
+  // GET /classes/:classId/lessons
+  @Get()
+  @Roles('educator')
+  findAll(
+    @Param('classId') classId: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') educatorId: string,
+    @Query() query: QueryLessonDto,
+  ) {
+    return this.lessonService.findAll(classId, orgId, educatorId, query);
+  }
+
+  // GET /classes/:classId/lessons/:id
+  @Get(':id')
+  @Roles('educator')
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.lessonService.findOne(id, orgId, educatorId);
+  }
+
+  // PATCH /classes/:classId/lessons/:id
+  @Patch(':id')
+  @Roles('educator')
+  update(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') educatorId: string,
+    @Body() dto: UpdateLessonDto,
+  ) {
+    return this.lessonService.update(id, orgId, educatorId, dto);
+  }
+
+  // DELETE /classes/:classId/lessons/:id
+  @Delete(':id')
+  @Roles('educator')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async delete(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    await this.lessonService.delete(id, orgId, educatorId);
+  }
+
+  // GET /classes/:classId/lessons/:id/concept
+  @Get(':id/concept')
+  @Roles('educator')
+  getConcept(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.lessonService.getConcept(id, orgId, educatorId);
+  }
+
+  // POST /classes/:classId/lessons/:id/re-extract
+  @Post(':id/re-extract')
+  @Roles('educator')
+  reExtract(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') educatorId: string,
+    @Body('detail') detail: string,
+  ) {
+    return this.lessonService.reExtractConcept(id, orgId, educatorId, detail);
+  }
+}

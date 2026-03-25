@@ -5,8 +5,6 @@ import { PlatformService } from './platform.service';
 import { PlatformController } from './platform.controller';
 import { PlatformOwnerGuard } from './guards/platform-owner.guard';
 
-import { DatabaseService } from '@/core/database/database.provider';
-
 @Module({
   imports: [
     JwtModule.register({
@@ -15,6 +13,6 @@ import { DatabaseService } from '@/core/database/database.provider';
     }),
   ],
   controllers: [PlatformController],
-  providers: [PlatformService, PlatformOwnerGuard, DatabaseService],
+  providers: [PlatformService, PlatformOwnerGuard],
 })
 export class PlatformModule {}
