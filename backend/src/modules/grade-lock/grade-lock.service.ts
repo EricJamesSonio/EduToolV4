@@ -8,7 +8,7 @@ import {
 import { GradeLockRepository } from './grade-lock.repository';
 import { ClassRepository } from '../class/class.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import { GradeService } from '../grade/grade.service';
+import { GradeEducatorService } from '../grade/educator/grade-educator.service'; // 👈 updated
 import { CreateGradeLockSettingDto, QueryGradeLockDto } from './dto/grade-lock.dto';
 
 @Injectable()
@@ -17,7 +17,7 @@ export class GradeLockService {
     private readonly gradeLockRepo: GradeLockRepository,
     private readonly classRepo: ClassRepository,
     private readonly auditLog: AuditLogService,
-    private readonly gradeService: GradeService,
+    private readonly gradeService: GradeEducatorService, // 👈 updated
   ) {}
 
   // ───────── SETTINGS ─────────
