@@ -6,11 +6,12 @@ import { StudentController } from './student.controller';
 import { StudentService } from './student.service';
 import { StudentRepository } from './student.repository';
 import { SectionModule } from '@/modules/section/section.module';
+import { ClassModule } from '../class/class.module';
 
 @Module({
   imports: [
     MulterModule.register({ storage: memoryStorage() }),
-    SectionModule, // for section capacity enforcement
+    SectionModule, ClassModule
   ],
   controllers: [StudentController],
   providers: [StudentService, StudentRepository],
