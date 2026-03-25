@@ -120,7 +120,6 @@ export class GradeRepository {
   // ───────── RUBRIC (for weights) ─────────
 
   async findRubricForClass(classId: string, orgId: string) {
-    // Class-specific rubric first, then org default
     const classRubric = await this.db.rubric.findFirst({
       where: { class_id: classId, org_id: orgId },
     });
@@ -143,7 +142,7 @@ export class GradeRepository {
     });
   }
 
-  // ───────── CLASS INFO (level + school year for grading scale lookup) ─────────
+  // ───────── CLASS INFO ─────────
 
   async findClassWithSubject(classId: string, orgId: string) {
     return this.db.class.findFirst({
@@ -210,5 +209,15 @@ export class GradeRepository {
         score: data.score,
       },
     });
+  }
+
+  // ───────── TERMS ─────────
+
+  async findTermsBySemester(semesterId: string) {
+    const semester = await this.db.semester.findUnique({
+      where: { id: semesterId },
+      include: { terms: { orderBy: { order_index: 'asc' } } },
+    });
+    return semester?.terms ?? [];
   }
 }

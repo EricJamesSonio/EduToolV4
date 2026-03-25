@@ -1,6 +1,7 @@
+// src/modules/grade/student/grade-student.service.ts
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { GradeRepository } from '../grade.repository';
-import { ClassRepository } from '@/modules/class/class.repository';
+import { ClassRepository } from 'src/modules/class/class.repository';
 
 @Injectable()
 export class GradeStudentService {
@@ -9,12 +10,8 @@ export class GradeStudentService {
     private readonly classRepo: ClassRepository,
   ) {}
 
-  async getMyGrades(
-    classId: string,
-    studentId: string,
-    orgId: string,
-  ) {
-    // ✅ Guard: student must be enrolled
+  async getMyGrades(classId: string, studentId: string, orgId: string) {
+    // Guard: student must be enrolled in this class
     const enrollment = await this.classRepo.findEnrolledClassByStudent(
       classId,
       studentId,
@@ -25,18 +22,15 @@ export class GradeStudentService {
       throw new ForbiddenException('Not enrolled in this class.');
     }
 
-    // ✅ Get ALL term grades
     const grades = await this.gradeRepo.findByClass(classId, orgId);
 
-    // ✅ Filter only this student
-    const myGrades = grades.filter(g => g.student_id === studentId);
-
-    // ✅ Apply visibility rules
-    return myGrades.map(g => ({
-      termId: g.term_id,
-      finalScore: g.final_score,
-      finalGrade: g.is_locked ? g.final_grade : null, // 🔥 key rule
-      isReleased: g.is_locked,
-    }));
+    return grades
+      .filter((g) => g.student_id === studentId)
+      .map((g) => ({
+        termId: g.term_id,
+        finalScore: g.final_score,
+        finalGrade: g.is_locked ? g.final_grade : null, // 🔒 only visible when released
+        isReleased: g.is_locked,
+      }));
   }
 }

@@ -1,20 +1,24 @@
-import { Controller, Get, Param } from '@nestjs/common';
+// src/modules/grade/student/grade-student.controller.ts
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { GradeStudentService } from './grade-student.service';
-import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+import { AuthGuard } from 'src/commons/guards/auth.guard';
+import { RolesGuard } from 'src/commons/guards/role.guard';
+import { Roles } from 'src/commons/decorators/roles.decorator';
+import { CurrentUser } from 'src/commons/decorators/current-user.decorator';
 
 @Controller('student/classes/:classId/grades')
+@UseGuards(AuthGuard, RolesGuard)
 export class GradeStudentController {
   constructor(private readonly service: GradeStudentService) {}
 
+  // GET /student/classes/:classId/grades
   @Get()
-  async getMyGrades(
+  @Roles('student')
+  getMyGrades(
     @Param('classId') classId: string,
-    @CurrentUser() user: any,
+    @CurrentUser('id') studentId: string,
+    @CurrentUser('orgId') orgId: string,
   ) {
-    return this.service.getMyGrades(
-      classId,
-      user.id,
-      user.orgId,
-    );
+    return this.service.getMyGrades(classId, studentId, orgId);
   }
 }
