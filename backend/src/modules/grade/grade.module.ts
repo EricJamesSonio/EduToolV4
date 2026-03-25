@@ -1,4 +1,4 @@
-// src/modules/grade/grade.module.ts
+// @/modules/grade/grade.module.ts
 import { Module } from '@nestjs/common';
 import { GradeService } from './grade.service';
 import { GradeRepository } from './grade.repository';

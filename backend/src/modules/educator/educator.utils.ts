@@ -1,4 +1,4 @@
-// src/modules/educator/educator.utils.ts
+// @/modules/educator/educator.utils.ts
 
 /**
  * Generates a system educator ID.

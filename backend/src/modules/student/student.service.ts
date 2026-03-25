@@ -1,4 +1,4 @@
-// src/modules/student/student.service.ts
+// @/modules/student/student.service.ts
 import {
   Injectable,
   ConflictException,
@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { StudentRepository } from './student.repository';
-import { SectionService } from 'src/modules/section/section.service';
+import { SectionService } from '@/modules/section/section.service';
 import {
   CreateStudentDto,
   UpdateStudentDto,
@@ -19,7 +19,7 @@ import {
   parseCsv,
   buildCredentialsCsv,
 } from './student.utils';
-import { hashPassword } from 'src/commons/utils/hash.util';
+import { hashPassword } from '@/commons/utils/hash.util';
 
 // Transitions that require explicit Admin confirmation
 const IRREVERSIBLE_STATUSES: StudentStatus[] = [

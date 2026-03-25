@@ -1,4 +1,4 @@
-// src/modules/lesson/dto/lesson.dto.ts
+// @/modules/lesson/dto/lesson.dto.ts
 import {
   IsString,
   IsInt,

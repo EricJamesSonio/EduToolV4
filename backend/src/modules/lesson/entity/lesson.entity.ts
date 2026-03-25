@@ -1,4 +1,4 @@
-// src/modules/lesson/entity/lesson.entity.ts
+// @/modules/lesson/entity/lesson.entity.ts
 
 export class LessonConceptEntity {
   id: string;

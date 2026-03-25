@@ -1,4 +1,4 @@
-// src/modules/semester/dto/semester.dto.ts
+// @/modules/semester/dto/semester.dto.ts
 import {
   IsString,
   IsOptional,

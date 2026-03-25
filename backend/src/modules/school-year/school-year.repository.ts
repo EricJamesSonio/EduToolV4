@@ -1,6 +1,6 @@
-// src/modules/school-year/school-year.repository.ts
+// @/modules/school-year/school-year.repository.ts
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
 export class SchoolYearRepository {

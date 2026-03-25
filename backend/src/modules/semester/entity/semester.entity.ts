@@ -1,4 +1,4 @@
-// src/modules/semester/entity/semester.entity.ts
+// @/modules/semester/entity/semester.entity.ts
 
 export class TermEntity {
   id: string;

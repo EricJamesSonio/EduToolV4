@@ -1,4 +1,4 @@
-// src/modules/attendance/dto/attendance.dto.ts
+// @/modules/attendance/dto/attendance.dto.ts
 import {
   IsEnum,
   IsArray,

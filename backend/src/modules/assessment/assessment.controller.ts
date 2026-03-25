@@ -1,4 +1,4 @@
-// src/modules/assessment/assessment.controller.ts
+// @/modules/assessment/assessment.controller.ts
 import {
   Controller,
   Post,
@@ -22,10 +22,10 @@ import {
   GradeEssayDto,
   UpdateSubmissionStatusDto,
 } from './dto/assessment.dto';
-import { AuthGuard } from 'src/commons/guards/auth.guard';
-import { RolesGuard } from 'src/commons/guards/role.guard';
-import { Roles } from 'src/commons/decorators/roles.decorator';
-import { CurrentUser } from 'src/commons/decorators/current-user.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { Roles } from '@/commons/decorators/roles.decorator';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('classes/:classId/assessments')
 @UseGuards(AuthGuard, RolesGuard)

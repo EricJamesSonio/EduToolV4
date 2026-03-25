@@ -1,4 +1,4 @@
-// src/modules/school-year/school-year.service.ts
+// @/modules/school-year/school-year.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -6,8 +6,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { SchoolYearRepository } from './school-year.repository';
-import { LevelService } from 'src/modules/level/level.service';
-import { SubjectService } from 'src/modules/subject/subject.service';
+import { LevelService } from '@/modules/level/level.service';
+import { SubjectService } from '@/modules/subject/subject.service';
 import { CreateSchoolYearDto, UpdateSchoolYearDto } from './dto/school-year.dto';
 
 @Injectable()

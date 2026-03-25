@@ -1,6 +1,6 @@
-// src/modules/rubric/rubric.repository.ts
+// @/modules/rubric/rubric.repository.ts
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
 export class RubricRepository {

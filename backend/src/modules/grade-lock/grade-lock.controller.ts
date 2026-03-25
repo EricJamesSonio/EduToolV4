@@ -1,4 +1,4 @@
-// src/modules/grade-lock/grade-lock.controller.ts
+// @/modules/grade-lock/grade-lock.controller.ts
 import {
   Controller,
   Post,
@@ -11,10 +11,10 @@ import {
 
 import { BadRequestException } from '@nestjs/common';
 import { GradeLockService } from './grade-lock.service';
-import { AuthGuard } from 'src/commons/guards/auth.guard';
-import { RolesGuard } from 'src/commons/guards/role.guard';
-import { Roles } from 'src/commons/decorators/roles.decorator';
-import { CurrentUser } from 'src/commons/decorators/current-user.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { Roles } from '@/commons/decorators/roles.decorator';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 import {
   CreateGradeLockSettingDto,

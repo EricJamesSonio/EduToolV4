@@ -1,6 +1,6 @@
-// src/modules/audit-log/audit-log.repository.ts
+// @/modules/audit-log/audit-log.repository.ts
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 import { Prisma } from '@prisma/client';
 
 @Injectable()

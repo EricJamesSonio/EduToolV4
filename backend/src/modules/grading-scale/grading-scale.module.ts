@@ -1,4 +1,4 @@
-// src/modules/grading-scale/grading-scale.module.ts
+// @/modules/grading-scale/grading-scale.module.ts
 import { Module } from '@nestjs/common';
 import { GradingScaleController } from './grading-scale.controller';
 import { GradingScaleService } from './grading-scale.service';

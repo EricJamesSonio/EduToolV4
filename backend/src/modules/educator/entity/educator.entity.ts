@@ -1,4 +1,4 @@
-// src/modules/educator/entity/educator.entity.ts
+// @/modules/educator/entity/educator.entity.ts
 
 export class EducatorEntity {
   id: string;

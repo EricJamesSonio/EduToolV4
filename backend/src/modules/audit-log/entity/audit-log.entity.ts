@@ -1,4 +1,4 @@
-// src/modules/audit-log/entity/audit-log.entity.ts
+// @/modules/audit-log/entity/audit-log.entity.ts
 
 // ── Admin audit log action types ──────────────────────────────────────────────
 export type AdminActionType =

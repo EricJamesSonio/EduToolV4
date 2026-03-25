@@ -1,4 +1,4 @@
-// src/modules/class/class.module.ts
+// @/modules/class/class.module.ts
 import { Module } from '@nestjs/common';
 import { ClassController } from './class.controller';
 import { ClassService } from './class.service';

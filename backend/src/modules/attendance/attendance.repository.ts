@@ -1,6 +1,6 @@
-// src/modules/attendance/attendance.repository.ts
+// @/modules/attendance/attendance.repository.ts
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 import { AttendanceStatus } from './dto/attendance.dto';
 
 @Injectable()

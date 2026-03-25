@@ -1,4 +1,4 @@
-// src/modules/program/dto/program.dto.ts
+// @/modules/program/dto/program.dto.ts
 import {
   IsString,
   IsOptional,

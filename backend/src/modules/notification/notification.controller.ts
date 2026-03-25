@@ -1,4 +1,4 @@
-// src/modules/notification/notification.controller.ts
+// @/modules/notification/notification.controller.ts
 import {
   Controller,
   Get,
@@ -11,8 +11,8 @@ import {
 } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { QueryNotificationDto } from './dto/notification.dto';
-import { AuthGuard } from 'src/commons/guards/auth.guard';
-import { CurrentUser } from 'src/commons/decorators/current-user.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('notifications')
 @UseGuards(AuthGuard)

@@ -1,4 +1,4 @@
-// src/modules/organization/dto/organization.dto.ts
+// @/modules/organization/dto/organization.dto.ts
 import { IsString, IsOptional, MinLength, MaxLength } from 'class-validator';
 
 export class CreateOrganizationDto {

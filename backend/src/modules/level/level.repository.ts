@@ -1,6 +1,6 @@
-// src/modules/level/level.repository.ts
+// @/modules/level/level.repository.ts
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
 export class LevelRepository {

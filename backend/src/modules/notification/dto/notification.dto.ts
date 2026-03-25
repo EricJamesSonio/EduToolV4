@@ -1,4 +1,4 @@
-// src/modules/notification/dto/notification.dto.ts
+// @/modules/notification/dto/notification.dto.ts
 import { IsOptional, IsBoolean } from 'class-validator';
 
 // ── GET /notifications ────────────────────────────────────────────────────────

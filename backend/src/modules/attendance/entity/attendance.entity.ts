@@ -1,4 +1,4 @@
-// src/modules/attendance/entity/attendance.entity.ts
+// @/modules/attendance/entity/attendance.entity.ts
 
 export class AttendanceSessionEntity {
   id: string;

@@ -1,4 +1,4 @@
-// src/modules/submission/submission.module.ts
+// @/modules/submission/submission.module.ts
 import { Module } from '@nestjs/common';
 import { SubmissionController } from './submission.controller';
 import { SubmissionService } from './submission.service';

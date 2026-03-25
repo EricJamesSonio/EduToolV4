@@ -1,4 +1,4 @@
-// src/modules/attendance/attendance.module.ts
+// @/modules/attendance/attendance.module.ts
 import { Module } from '@nestjs/common';
 import { AttendanceController } from './attendance.controller';
 import { AttendanceService } from './attendance.service';

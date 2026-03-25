@@ -1,4 +1,4 @@
-// src/modules/grading-scale/grading-scale.service.ts
+// @/modules/grading-scale/grading-scale.service.ts
 import {
   Injectable,
   NotFoundException,

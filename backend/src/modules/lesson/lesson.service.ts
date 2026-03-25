@@ -1,4 +1,4 @@
-// src/modules/lesson/lesson.service.ts
+// @/modules/lesson/lesson.service.ts
 import {
   Injectable,
   NotFoundException,

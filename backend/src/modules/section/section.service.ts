@@ -1,4 +1,4 @@
-// src/modules/section/section.service.ts
+// @/modules/section/section.service.ts
 import {
   Injectable,
   NotFoundException,

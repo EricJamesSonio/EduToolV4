@@ -1,4 +1,4 @@
-// src/modules/program/entity/program.entity.ts
+// @/modules/program/entity/program.entity.ts
 import { ProgramType } from '../dto/program.dto';
 
 export class ProgramEntity {

@@ -1,6 +1,6 @@
-// src/modules/analytics/analytics.repository.ts
+// @/modules/analytics/analytics.repository.ts
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 import { GradeAnalyticsQueryDto } from './dto/analytics.dto';
 
 @Injectable()

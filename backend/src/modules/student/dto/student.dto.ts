@@ -1,4 +1,4 @@
-// src/modules/student/dto/student.dto.ts
+// @/modules/student/dto/student.dto.ts
 import {
   IsString,
   IsEmail,

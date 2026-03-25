@@ -1,4 +1,4 @@
-// src/modules/organization/organization.service.ts
+// @/modules/organization/organization.service.ts
 import {
   Injectable,
   ConflictException,

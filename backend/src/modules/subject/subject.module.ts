@@ -1,4 +1,4 @@
-// src/modules/subject/subject.module.ts
+// @/modules/subject/subject.module.ts
 import { Module } from '@nestjs/common';
 import { SubjectController } from './subject.controller';
 import { SubjectService } from './subject.service';

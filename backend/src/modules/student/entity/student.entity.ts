@@ -1,4 +1,4 @@
-// src/modules/student/entity/student.entity.ts
+// @/modules/student/entity/student.entity.ts
 
 export type StudentStatus =
   | 'active'

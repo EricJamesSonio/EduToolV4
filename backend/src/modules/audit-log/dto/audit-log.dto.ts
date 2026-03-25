@@ -1,4 +1,4 @@
-// src/modules/audit-log/dto/audit-log.dto.ts
+// @/modules/audit-log/dto/audit-log.dto.ts
 import { IsOptional, IsString, IsDateString, IsUUID } from 'class-validator';
 
 // ── GET /audit-log ────────────────────────────────────────────────────────────

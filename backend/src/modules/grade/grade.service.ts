@@ -1,4 +1,4 @@
-// src/modules/grade/grade.service.ts
+// @/modules/grade/grade.service.ts
 import { Injectable } from '@nestjs/common';
 import { GradeRepository } from './grade.repository';
 

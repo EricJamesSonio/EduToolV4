@@ -1,4 +1,4 @@
-// src/modules/assessment/entity/assessment.entity.ts
+// @/modules/assessment/entity/assessment.entity.ts
 
 export class QuestionEntity {
   id: string;

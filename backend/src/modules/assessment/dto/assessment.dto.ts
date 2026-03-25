@@ -1,4 +1,4 @@
-// src/modules/assessment/dto/assessment.dto.ts
+// @/modules/assessment/dto/assessment.dto.ts
 import {
   IsString,
   IsInt,

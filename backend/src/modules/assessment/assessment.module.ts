@@ -1,4 +1,4 @@
-// src/modules/assessment/assessment.module.ts
+// @/modules/assessment/assessment.module.ts
 import { Module } from '@nestjs/common';
 import { AssessmentController } from './assessment.controller';
 import { AssessmentService } from './assessment.service';

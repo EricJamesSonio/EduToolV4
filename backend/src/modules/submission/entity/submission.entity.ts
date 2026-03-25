@@ -1,4 +1,4 @@
-// src/modules/submission/entity/submission.entity.ts
+// @/modules/submission/entity/submission.entity.ts
 
 export class SubmissionAnswerEntity {
   id: string;

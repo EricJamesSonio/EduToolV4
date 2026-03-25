@@ -1,4 +1,4 @@
-// src/modules/grade-lock/grade-lock.module.ts
+// @/modules/grade-lock/grade-lock.module.ts
 import { Module } from '@nestjs/common';
 import { GradeLockController } from './grade-lock.controller';
 import { GradeLockService } from './grade-lock.service';

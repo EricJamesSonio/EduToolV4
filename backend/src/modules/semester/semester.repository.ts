@@ -1,6 +1,6 @@
-// src/modules/semester/semester.repository.ts
+// @/modules/semester/semester.repository.ts
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 
 
 @Injectable()

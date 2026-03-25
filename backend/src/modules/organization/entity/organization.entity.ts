@@ -1,4 +1,4 @@
-// src/modules/organization/entity/organization.entity.ts
+// @/modules/organization/entity/organization.entity.ts
 
 export class OrganizationEntity {
   id: string;

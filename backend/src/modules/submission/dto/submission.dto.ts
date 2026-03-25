@@ -1,4 +1,4 @@
-// src/modules/submission/dto/submission.dto.ts
+// @/modules/submission/dto/submission.dto.ts
 import {
   IsArray,
   IsString,

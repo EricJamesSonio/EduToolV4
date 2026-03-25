@@ -1,4 +1,4 @@
-// src/modules/level/level.service.ts
+// @/modules/level/level.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LevelRepository } from './level.repository';
 import { UpdateLevelDefaultsDto, UpdateLevelDto } from './dto/level.dto';

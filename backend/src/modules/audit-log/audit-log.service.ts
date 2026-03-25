@@ -1,4 +1,4 @@
-// src/modules/audit-log/audit-log.service.ts
+// @/modules/audit-log/audit-log.service.ts
 import { Injectable } from '@nestjs/common';
 import { AuditLogRepository } from './audit-log.repository';
 import { QueryAuditLogDto, QueryActivityLogDto } from './dto/audit-log.dto';

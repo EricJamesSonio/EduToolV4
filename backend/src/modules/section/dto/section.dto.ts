@@ -1,4 +1,4 @@
-// src/modules/section/dto/section.dto.ts
+// @/modules/section/dto/section.dto.ts
 import {
   IsString,
   IsOptional,

@@ -1,3 +1,4 @@
+// @/modules/attendance/attendance.controller.ts
 import {
   Controller,
   Get,
@@ -9,10 +10,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
-import { AuthGuard } from '../../commons/guards/auth.guard';
-import { RoleGuard } from '../../commons/guards/role.guard';
-import { Roles } from '../../commons/decorators/roles.decorator';
-import { CurrentUser } from '../../commons/decorators/current-user.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { Roles } from '@/commons/decorators/roles.decorator';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 import {
   BulkSetAttendanceDto,
   UpdateAttendanceRecordDto,
@@ -20,7 +21,7 @@ import {
 } from './dto/attendance.dto';
 
 @Controller('classes/:classId/attendance')
-@UseGuards(AuthGuard, RoleGuard)
+@UseGuards(AuthGuard, RolesGuard)
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 
@@ -30,9 +31,9 @@ export class AttendanceController {
   getSessions(
     @Param('classId') classId: string,
     @Query() query: GetSessionsQueryDto,
-    @CurrentUser() user: any,
+    @CurrentUser('orgId') orgId: string,
   ) {
-    return this.attendanceService.getSessions(classId, user.org_id, query.weekNumber);
+    return this.attendanceService.getSessions(classId, orgId, query.weekNumber);
   }
 
   // GET /classes/:classId/attendance/sessions/:sessionId
@@ -41,9 +42,9 @@ export class AttendanceController {
   getSession(
     @Param('classId') classId: string,
     @Param('sessionId') sessionId: string,
-    @CurrentUser() user: any,
+    @CurrentUser('orgId') orgId: string,
   ) {
-    return this.attendanceService.getSession(classId, sessionId, user.org_id);
+    return this.attendanceService.getSession(classId, sessionId, orgId);
   }
 
   // POST /classes/:classId/attendance/sessions/:sessionId/records
@@ -53,13 +54,14 @@ export class AttendanceController {
     @Param('classId') classId: string,
     @Param('sessionId') sessionId: string,
     @Body() dto: BulkSetAttendanceDto,
-    @CurrentUser() user: any,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') actorId: string,
   ) {
     return this.attendanceService.bulkSetAttendance(
       classId,
       sessionId,
-      user.org_id,
-      user.id,
+      orgId,
+      actorId,
       dto,
     );
   }
@@ -72,14 +74,15 @@ export class AttendanceController {
     @Param('sessionId') sessionId: string,
     @Param('recordId') recordId: string,
     @Body() dto: UpdateAttendanceRecordDto,
-    @CurrentUser() user: any,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') actorId: string,
   ) {
     return this.attendanceService.updateRecord(
       classId,
       sessionId,
       recordId,
-      user.org_id,
-      user.id,
+      orgId,
+      actorId,
       dto,
     );
   }

@@ -1,4 +1,4 @@
-// src/modules/semester/semester.service.ts
+// @/modules/semester/semester.service.ts
 import {
   Injectable,
   NotFoundException,

@@ -1,4 +1,4 @@
-// src/modules/rubric/rubric.service.ts
+// @/modules/rubric/rubric.service.ts
 import {
   Injectable,
   NotFoundException,

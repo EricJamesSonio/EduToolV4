@@ -1,4 +1,4 @@
-// src/modules/auth/auth.controller.ts
+// @/modules/auth/auth.controller.ts
 import {
   Controller,
   Post,
@@ -10,8 +10,8 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto, RefreshTokenDto } from './dto/auth.dto';
-import { AuthGuard } from 'src/commons/guards/auth.guard';
-import { CurrentUser } from 'src/commons/decorators/current-user.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {

@@ -1,4 +1,4 @@
-// src/modules/educator/educator.module.ts
+// @/modules/educator/educator.module.ts
 import { Module } from '@nestjs/common';
 import { EducatorController } from './educator.controller';
 import { EducatorService } from './educator.service';

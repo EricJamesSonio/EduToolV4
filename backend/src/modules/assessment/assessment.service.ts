@@ -1,4 +1,4 @@
-// src/modules/assessment/assessment.service.ts
+// @/modules/assessment/assessment.service.ts
 import {
   Injectable,
   NotFoundException,

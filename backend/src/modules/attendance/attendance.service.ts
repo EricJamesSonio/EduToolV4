@@ -1,10 +1,10 @@
-// src/modules/attendance/attendance.service.ts
+// @/modules/attendance/attendance.service.ts
 import {
   Injectable,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 import { AttendanceRepository } from './attendance.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import {

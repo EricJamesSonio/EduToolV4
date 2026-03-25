@@ -1,4 +1,4 @@
-// src/modules/submission/submission.service.ts
+// @/modules/submission/submission.service.ts
 import {
   Injectable,
   NotFoundException,

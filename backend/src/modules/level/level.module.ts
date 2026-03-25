@@ -1,4 +1,4 @@
-// src/modules/level/level.module.ts
+// @/modules/level/level.module.ts
 import { Module } from '@nestjs/common';
 import { LevelController } from './level.controller';
 import { LevelService } from './level.service';

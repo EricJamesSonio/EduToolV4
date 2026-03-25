@@ -1,4 +1,4 @@
-// src/modules/grade-lock/grade-lock.service.ts
+// @/modules/grade-lock/grade-lock.service.ts
 import {
   Injectable,
   NotFoundException,

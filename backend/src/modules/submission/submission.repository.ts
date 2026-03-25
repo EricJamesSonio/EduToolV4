@@ -1,6 +1,6 @@
-// src/modules/submission/submission.repository.ts
+// @/modules/submission/submission.repository.ts
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
 export class SubmissionRepository {
