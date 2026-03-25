@@ -184,4 +184,36 @@ export class StudentRepository {
       orderBy: { created_at: 'asc' },
     });
   }
+
+  // ── Enrollment (student-centric) ─────────────────────────────────────────────
+
+  async findEnrollments(studentId: string, orgId: string) {
+    return this.db.enrollment.findMany({
+      where: {
+        student_id: studentId,
+        org_id: orgId,
+        status: { not: 'removed' },
+        class: { deleted_at: null },
+      },
+      include: {
+        class: {
+          include: { schedules: true },
+        },
+      },
+      orderBy: { created_at: 'asc' },
+    });
+  }
+
+  async findEnrollmentById(id: string, orgId: string) {
+    return this.db.enrollment.findFirst({
+      where: { id, org_id: orgId },
+    });
+  }
+
+  async removeEnrollment(enrollmentId: string) {
+    return this.db.enrollment.update({
+      where: { id: enrollmentId },
+      data: { status: 'removed' as any },
+    });
+  }
 }

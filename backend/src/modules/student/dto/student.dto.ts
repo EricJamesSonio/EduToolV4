@@ -96,4 +96,10 @@ export class QueryStudentDto {
   @IsOptional()
   @IsUUID()
   sectionId?: string;
+
+
+}
+export class AddEnrollmentDto {
+  @IsUUID()
+  classId: string;
 }

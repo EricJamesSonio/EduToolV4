@@ -22,7 +22,7 @@ import {
   CreateStudentDto,
   UpdateStudentDto,
   UpdateStudentStatusDto,
-  QueryStudentDto,
+  QueryStudentDto,AddEnrollmentDto
 } from './dto/student.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -125,4 +125,35 @@ export class StudentController {
   ) {
     return this.studentService.resetPassword(id, orgId);
   }
+
+@Get(':id/enrollments')
+@Roles('admin')
+async getEnrollments(
+  @Param('id') id: string,
+  @CurrentUser('orgId') orgId: string,
+) {
+  return this.studentService.getEnrollments(id, orgId);
+}
+
+@Post(':id/enrollments')
+@Roles('admin')
+async addEnrollment(
+  @Param('id') id: string,
+  @CurrentUser('orgId') orgId: string,
+  @Body() dto: AddEnrollmentDto,
+) {
+  return this.studentService.addEnrollment(id, orgId, dto.classId);
+}
+
+@Delete(':id/enrollments/:enrollmentId')
+@Roles('admin')
+@HttpCode(HttpStatus.OK)
+async deleteEnrollment(
+  @Param('id') id: string,
+  @Param('enrollmentId') enrollmentId: string,
+  @CurrentUser('orgId') orgId: string,
+) {
+  return this.studentService.deleteEnrollment(id, enrollmentId, orgId);
+}
+
 }

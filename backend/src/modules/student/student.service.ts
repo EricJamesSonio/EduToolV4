@@ -423,5 +423,96 @@ export class StudentService {
     );
   }
 
+  // ── GET /students/:id/enrollments ───────────────────────────────────────────
+
+  async getEnrollments(studentId: string, orgId: string) {
+    const account = await this.studentRepository.findById(studentId, orgId);
+    if (!account) throw new NotFoundException('Student not found.');
+
+    return this.studentRepository.findEnrollments(studentId, orgId);
+  }
+
+  // ── POST /students/:id/enrollments ──────────────────────────────────────────
+
+  async addEnrollment(studentId: string, orgId: string, classId: string) {
+    const account = await this.studentRepository.findById(studentId, orgId);
+    if (!account) throw new NotFoundException('Student not found.');
+
+    if (account.status !== 'active') {
+      throw new BadRequestException(
+        'Only active students can be enrolled in a class.',
+      );
+    }
+
+    // Delegate to ClassRepository — reuses all existing validation logic
+    const cls = await this.classRepository.findById(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
+
+    const duplicate = await this.classRepository.findDuplicateEnrollment(
+      studentId,
+      cls.subject_id,
+      cls.semester_id,
+      orgId,
+    );
+    if (duplicate) {
+      throw new ConflictException(
+        'Student is already enrolled in a class for this subject in the same semester.',
+      );
+    }
+
+    const existing = await this.classRepository.findEnrollmentByStudent(
+      classId,
+      studentId,
+      orgId,
+    );
+    if (existing && existing.status !== 'removed') {
+      throw new ConflictException('Student is already enrolled in this class.');
+    }
+
+    if (cls.capacity > 0) {
+      const activeCount = await this.classRepository.countActiveEnrollments(classId);
+      if (activeCount >= cls.capacity) {
+        return {
+          overflow: true,
+          message: `Class is at full capacity (${cls.capacity} students).`,
+          classId,
+          studentId,
+        };
+      }
+    }
+
+    return this.classRepository.createEnrollment({
+      orgId,
+      classId,
+      studentId,
+      status: 'active',
+    });
+  }
+
+  // ── DELETE /students/:id/enrollments/:enrollmentId ───────────────────────────
+
+  async deleteEnrollment(
+    studentId: string,
+    enrollmentId: string,
+    orgId: string,
+  ) {
+    const account = await this.studentRepository.findById(studentId, orgId);
+    if (!account) throw new NotFoundException('Student not found.');
+
+    const enrollment = await this.studentRepository.findEnrollmentById(
+      enrollmentId,
+      orgId,
+    );
+
+    if (!enrollment || enrollment.student_id !== studentId) {
+      throw new NotFoundException('Enrollment not found.');
+    }
+
+    if (enrollment.status === 'removed') {
+      throw new ConflictException('Enrollment is already removed.');
+    }
+
+    return this.studentRepository.removeEnrollment(enrollmentId);
+  }
 
 }
