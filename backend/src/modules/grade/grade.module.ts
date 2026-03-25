@@ -1,14 +1,17 @@
 // src/modules/grade/grade.module.ts
 import { Module } from '@nestjs/common';
-import { GradeController } from './grade.controller';
-import { GradeService } from './grade.service';
 import { GradeRepository } from './grade.repository';
-import { AuditLogModule } from '../audit-log/audit-log.module';
+import { GradeCoreModule } from './core/grade-core.module';
+import { GradeEducatorModule } from './educator/grade-educator.module';
+import { GradeStudentModule } from './student/grade-student.module';
 
 @Module({
-  imports: [AuditLogModule],
-  controllers: [GradeController],
-  providers: [GradeService, GradeRepository],
-  exports: [GradeService, GradeRepository],
+  imports: [
+    GradeCoreModule,
+    GradeEducatorModule,
+    GradeStudentModule,
+  ],
+  providers: [GradeRepository],
+  exports: [GradeRepository, GradeCoreModule, GradeEducatorModule],
 })
 export class GradeModule {}
