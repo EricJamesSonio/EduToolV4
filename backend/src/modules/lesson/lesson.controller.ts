@@ -19,6 +19,8 @@ import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
+// ── Educator routes ───────────────────────────────────────────────────────────
+
 @Controller('classes/:classId/lessons')
 @UseGuards(AuthGuard, RolesGuard)
 export class LessonController {
@@ -104,5 +106,43 @@ export class LessonController {
     @Body('detail') detail: string,
   ) {
     return this.lessonService.reExtractConcept(id, orgId, educatorId, detail);
+  }
+}
+
+// ── Student routes ────────────────────────────────────────────────────────────
+
+@Controller('student/classes/:classId/lessons')
+@UseGuards(AuthGuard, RolesGuard)
+export class StudentLessonController {
+  constructor(private readonly lessonService: LessonService) {}
+
+  // GET /student/classes/:classId/lessons
+  // Optional ?weekNumber= filter
+  @Get()
+  @Roles('student')
+  getMyLessons(
+    @Param('classId') classId: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') studentId: string,
+    @Query('weekNumber') weekNumber?: number,
+  ) {
+    return this.lessonService.getStudentLessons(
+      classId,
+      studentId,
+      orgId,
+      weekNumber ? Number(weekNumber) : undefined,
+    );
+  }
+
+  // GET /student/classes/:classId/lessons/:lessonId
+  @Get(':lessonId')
+  @Roles('student')
+  getMyLesson(
+    @Param('classId') classId: string,
+    @Param('lessonId') lessonId: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') studentId: string,
+  ) {
+    return this.lessonService.getStudentLesson(classId, lessonId, studentId, orgId);
   }
 }

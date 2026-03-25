@@ -35,19 +35,16 @@ export class LessonService {
     educatorId: string,
     dto: CreateLessonDto,
   ) {
-    // Verify class exists and educator owns it
     const cls = await this.classRepo.findById(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
     if (cls.educator_id !== educatorId) {
       throw new ForbiddenException('You do not own this class.');
     }
 
-    // Validate detail word count
     if (countWords(dto.detail) < MIN_DETAIL_WORDS) {
       throw new BadRequestException('Lesson detail must be at least 10 words.');
     }
 
-    // Check for duplicate week+subIndex slot
     const existing = await this.lessonRepo.findByClassAndWeek(
       classId,
       orgId,
@@ -70,7 +67,6 @@ export class LessonService {
       detail: dto.detail,
     });
 
-    // Audit log
     await this.auditLog.logActivityEvent({
       orgId,
       actorId: educatorId,
@@ -80,15 +76,14 @@ export class LessonService {
       metadata: { lessonId: lesson.id, title: lesson.title },
     });
 
-    // Auto-trigger concept extraction in background (non-blocking)
     this.triggerConceptExtraction(lesson.id, orgId, educatorId, dto.detail).catch(
-      () => {}, // silent — notification handles completion
+      () => {},
     );
 
     return lesson;
   }
 
-  // ───────── FIND ALL ─────────
+  // ───────── FIND ALL (educator) ─────────
 
   async findAll(
     classId: string,
@@ -105,7 +100,7 @@ export class LessonService {
     return this.lessonRepo.findAll(classId, orgId, query.weekNumber);
   }
 
-  // ───────── FIND ONE ─────────
+  // ───────── FIND ONE (educator) ─────────
 
   async findOne(id: string, orgId: string, educatorId: string) {
     const lesson = await this.lessonRepo.findById(id, orgId);
@@ -141,7 +136,6 @@ export class LessonService {
       throw new BadRequestException('Lesson detail must be at least 10 words.');
     }
 
-    // Check slot conflict if week/subIndex is changing
     if (dto.weekNumber !== undefined || dto.subIndex !== undefined) {
       const newWeek = dto.weekNumber ?? lesson.week_number;
       const newSub = dto.subIndex ?? lesson.sub_index;
@@ -175,9 +169,6 @@ export class LessonService {
       entityId: lesson.class_id,
       metadata: { lessonId: id },
     });
-
-    // If detail updated, educator must manually re-trigger extraction
-    // (per planning doc — old build stays until manual re-extract)
 
     return updated;
   }
@@ -224,7 +215,7 @@ export class LessonService {
     return concept;
   }
 
-  // ───────── RE-EXTRACT CONCEPT (manual trigger) ─────────
+  // ───────── RE-EXTRACT CONCEPT ─────────
 
   async reExtractConcept(
     id: string,
@@ -244,7 +235,6 @@ export class LessonService {
       throw new BadRequestException('Lesson detail must be at least 10 words.');
     }
 
-    // Non-blocking background job
     this.triggerConceptExtraction(id, orgId, educatorId, detail).catch(() => {});
 
     await this.auditLog.logActivityEvent({
@@ -259,7 +249,66 @@ export class LessonService {
     return { success: true, message: 'Concept extraction started.' };
   }
 
-  // ───────── PRIVATE: EXTRACTION JOB ─────────
+  // ───────── STUDENT: GET LESSONS ─────────
+
+  /**
+   * Returns all lessons for a class the student is enrolled in.
+   * Concept data is intentionally excluded — educator-only.
+   * weekNumber filter is optional.
+   */
+  async getStudentLessons(
+    classId: string,
+    studentId: string,
+    orgId: string,
+    weekNumber?: number,
+  ) {
+    await this.assertStudentEnrolled(classId, studentId, orgId);
+    return this.lessonRepo.findAllForStudent(classId, orgId, weekNumber);
+  }
+
+  // ───────── STUDENT: GET LESSON DETAIL ─────────
+
+  /**
+   * Returns a single lesson for a student.
+   * Concept data is intentionally excluded — educator-only.
+   */
+  async getStudentLesson(
+    classId: string,
+    lessonId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    await this.assertStudentEnrolled(classId, studentId, orgId);
+
+    const lesson = await this.lessonRepo.findByIdForStudent(lessonId, orgId);
+
+    if (!lesson || lesson.class_id !== classId) {
+      throw new NotFoundException('Lesson not found.');
+    }
+
+    return lesson;
+  }
+
+  // ───────── PRIVATE HELPERS ─────────
+
+  /**
+   * Verifies the student has an active enrollment in the class.
+   * Throws ForbiddenException if not enrolled.
+   */
+  private async assertStudentEnrolled(
+    classId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    const enrollment = await this.classRepo.findEnrolledClassByStudent(
+      classId,
+      studentId,
+      orgId,
+    );
+    if (!enrollment) {
+      throw new ForbiddenException('You are not enrolled in this class.');
+    }
+  }
 
   private async triggerConceptExtraction(
     lessonId: string,
@@ -267,8 +316,6 @@ export class LessonService {
     educatorId: string,
     detail: string,
   ) {
-    // TODO: Replace with real AI extraction call when AI service is ready.
-    // For now, simulate extraction with a structured mock result.
     const mockContent = this.mockExtract(detail);
 
     await this.lessonRepo.upsertConcept({
@@ -277,13 +324,12 @@ export class LessonService {
       content: mockContent,
     });
 
-    // Notify educator on completion
     await this.notificationService.createNotification({
-        orgId,
-        accountId: educatorId,
-        type: 'concept_extraction_completed',
-        payload: { lessonId },
-        });
+      orgId,
+      accountId: educatorId,
+      type: 'concept_extraction_completed',
+      payload: { lessonId },
+    });
 
     await this.auditLog.logActivityEvent({
       orgId,
@@ -295,20 +341,20 @@ export class LessonService {
     });
   }
 
-    private mockExtract(detail: string): object {
+  private mockExtract(detail: string): object {
     const words = detail.trim().split(/\s+/);
     const chunkSize = Math.ceil(words.length / 3);
-    const sections: Array<{ name: string; summary: string; items: number }> = []; // ✅ typed
+    const sections: Array<{ name: string; summary: string; items: number }> = [];
 
     for (let i = 0; i < words.length; i += chunkSize) {
-        const chunk = words.slice(i, i + chunkSize).join(' ');
-        sections.push({
+      const chunk = words.slice(i, i + chunkSize).join(' ');
+      sections.push({
         name: `Section ${Math.floor(i / chunkSize) + 1}`,
         summary: chunk,
         items: Math.min(chunkSize, words.length - i),
-        });
+      });
     }
 
     return { sections, totalItems: words.length };
-    }
+  }
 }
