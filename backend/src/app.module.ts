@@ -1,5 +1,7 @@
 // src/app.module.ts
 import { Module } from '@nestjs/common';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 import { CoreModule } from '@/core/core.module';
 
@@ -14,6 +16,11 @@ import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
+    // 👇 ADD THIS
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+    }),
+
     CoreModule,
 
     AcademicDomainModule,
@@ -23,7 +30,7 @@ import { HealthModule } from './modules/health/health.module';
     SystemDomainModule,
     PlatformDomainModule,
 
-    HealthModule, 
+    HealthModule,
   ],
 })
 export class AppModule {}
