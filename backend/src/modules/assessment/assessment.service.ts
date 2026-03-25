@@ -10,6 +10,7 @@ import { LessonRepository } from '../lesson/lesson.repository';
 import { ClassRepository } from '../class/class.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { NotificationService } from '../notification/notification.service';
+import { AttendanceService } from '../attendance/attendance.service';
 import {
   CreateAssessmentDto,
   UpdateAssessmentDto,
@@ -28,11 +29,16 @@ export class AssessmentService {
     private readonly classRepo: ClassRepository,
     private readonly auditLog: AuditLogService,
     private readonly notificationService: NotificationService,
+    private readonly attendanceService: AttendanceService,
   ) {}
 
-  // ── Ownership guard helper ────────────────────────────────────────────────
+  // ── Ownership guard helpers ───────────────────────────────────────────────
 
-  private async assertEducatorOwnsClass(classId: string, orgId: string, educatorId: string) {
+  private async assertEducatorOwnsClass(
+    classId: string,
+    orgId: string,
+    educatorId: string,
+  ) {
     const cls = await this.classRepo.findById(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
     if (cls.educator_id !== educatorId) {
@@ -45,8 +51,10 @@ export class AssessmentService {
     const assessment = await this.assessmentRepo.findById(assessmentId, orgId);
     if (!assessment) throw new NotFoundException('Assessment not found.');
 
-    // Questions lock once release date has passed
-    if (assessment.release_date && new Date() >= new Date(assessment.release_date)) {
+    if (
+      assessment.release_date &&
+      new Date() >= new Date(assessment.release_date)
+    ) {
       throw new ForbiddenException(
         'Assessment has been released — questions are locked.',
       );
@@ -65,7 +73,6 @@ export class AssessmentService {
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
 
-    // Verify lesson exists and has a concept build
     const concept = await this.lessonRepo.findConcept(dto.lessonId);
     if (!concept) {
       throw new BadRequestException(
@@ -73,7 +80,6 @@ export class AssessmentService {
       );
     }
 
-    // Validate ranges don't exceed total items
     const rangeTotal = dto.ranges.reduce(
       (sum, r) => sum + (r.to - r.from + 1),
       0,
@@ -94,7 +100,6 @@ export class AssessmentService {
       releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
     });
 
-    // Trigger background generation (non-blocking)
     this.generateQuestions(assessment.id, orgId, educatorId, dto).catch(() => {});
 
     await this.auditLog.logActivityEvent({
@@ -228,7 +233,7 @@ export class AssessmentService {
     return this.assessmentRepo.findSubmissions(assessmentId, orgId);
   }
 
-  // ── UPDATE SUBMISSION STATUS (exempted / custom) ──────────────────────────
+  // ── UPDATE SUBMISSION STATUS ──────────────────────────────────────────────
 
   async updateSubmissionStatus(
     assessmentId: string,
@@ -332,6 +337,31 @@ export class AssessmentService {
     return { success: true };
   }
 
+  // ── FINISH SUBMISSION (student-facing) ────────────────────────────────────
+  // Called by SubmissionModule when a student finishes.
+  // Auto-marks the student present for today's attendance session.
+
+  async onSubmissionFinished(data: {
+    orgId: string;
+    classId: string;
+    studentId: string;
+    submittedAt: Date;
+  }) {
+    this.attendanceService
+      .markPresentFromSubmission({
+        orgId: data.orgId,
+        classId: data.classId,
+        studentId: data.studentId,
+        submittedAt: data.submittedAt,
+      })
+      .catch((err) => {
+        console.error(
+          `[AttendanceService] Failed to auto-mark present for student ${data.studentId}:`,
+          err,
+        );
+      });
+  }
+
   // ── PRIVATE: GENERATION JOB ───────────────────────────────────────────────
 
   private async generateQuestions(
@@ -340,7 +370,6 @@ export class AssessmentService {
     educatorId: string,
     dto: CreateAssessmentDto,
   ) {
-    // TODO: Replace with real AI generation call when AI service is ready.
     const questions: Array<{
       orgId: string;
       assessmentId: string;
@@ -360,7 +389,8 @@ export class AssessmentService {
           assessmentId,
           type: range.questionType,
           questionText: `[AI Generated] Item ${itemNumber} — ${range.questionType} from ${range.conceptSections.join(', ')}`,
-          correctAnswer: range.questionType !== 'essay' ? `Answer ${itemNumber}` : undefined,
+          correctAnswer:
+            range.questionType !== 'essay' ? `Answer ${itemNumber}` : undefined,
         });
         itemNumber++;
       }
@@ -368,7 +398,6 @@ export class AssessmentService {
 
     await this.assessmentRepo.createQuestions(questions);
 
-    // Notify educator
     await this.notificationService.createNotification({
       orgId,
       accountId: educatorId,
@@ -379,8 +408,8 @@ export class AssessmentService {
     await this.auditLog.logActivityEvent({
       orgId,
       actorId: educatorId,
-      action: 'assessment_created',
-      entityType: 'class',
+      action: 'assessment_questions_generated',
+      entityType: 'assessment',
       entityId: assessmentId,
       metadata: { assessmentId, questionsGenerated: questions.length },
     });

@@ -4,9 +4,9 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { ClassRepository } from './class.repository';
+import { AttendanceService } from '../attendance/attendance.service';
 import {
   CreateClassDto,
   UpdateClassDto,
@@ -39,17 +39,18 @@ function slotsOverlap(a: TimeSlot, b: TimeSlot): boolean {
 
 @Injectable()
 export class ClassService {
-  constructor(private readonly classRepository: ClassRepository) {}
+  constructor(
+    private readonly classRepository: ClassRepository,
+    private readonly attendanceService: AttendanceService,
+  ) {}
 
   // ── POST /classes ────────────────────────────────────────────────────────────
 
   async create(orgId: string, dto: CreateClassDto) {
     const slots = this.parseSlots(dto.schedules);
 
-    // Validate educator schedule conflicts
     await this.assertNoEducatorConflict(dto.educatorId, orgId, slots);
 
-    // Validate section schedule conflicts (if section provided)
     if (dto.sectionId) {
       await this.assertNoSectionConflict(dto.sectionId, orgId, slots);
     }
@@ -65,6 +66,17 @@ export class ClassService {
     });
 
     await this.classRepository.replaceSchedules(orgId, cls.id, slots);
+
+    // Auto-generate attendance sessions from class schedules + semester dates.
+    // Fire-and-forget — does not block the response.
+    this.attendanceService
+      .generateSessionsForClass(cls.id, orgId)
+      .catch((err) => {
+        console.error(
+          `[AttendanceService] Failed to generate sessions for class ${cls.id}:`,
+          err,
+        );
+      });
 
     return this.classRepository.findById(cls.id, orgId);
   }
@@ -85,9 +97,7 @@ export class ClassService {
 
   async findById(id: string, orgId: string) {
     const cls = await this.classRepository.findById(id, orgId);
-
     if (!cls) throw new NotFoundException('Class not found.');
-
     return cls;
   }
 
@@ -95,7 +105,6 @@ export class ClassService {
 
   async update(id: string, orgId: string, dto: UpdateClassDto) {
     const cls = await this.classRepository.findById(id, orgId);
-
     if (!cls) throw new NotFoundException('Class not found.');
 
     if (dto.schedules) {
@@ -123,9 +132,7 @@ export class ClassService {
 
   async archive(id: string, orgId: string) {
     const cls = await this.classRepository.findById(id, orgId);
-
     if (!cls) throw new NotFoundException('Class not found.');
-
     return this.classRepository.softDelete(id);
   }
 
@@ -133,10 +140,8 @@ export class ClassService {
 
   async enrollStudent(id: string, orgId: string, dto: EnrollStudentDto) {
     const cls = await this.classRepository.findById(id, orgId);
-
     if (!cls) throw new NotFoundException('Class not found.');
 
-    // Duplicate enrollment check — same subject, same semester
     const duplicate = await this.classRepository.findDuplicateEnrollment(
       dto.studentId,
       cls.subject_id,
@@ -150,7 +155,6 @@ export class ClassService {
       );
     }
 
-    // Existing enrollment in this exact class
     const existing = await this.classRepository.findEnrollmentByStudent(
       id,
       dto.studentId,
@@ -161,12 +165,10 @@ export class ClassService {
       throw new ConflictException('Student is already enrolled in this class.');
     }
 
-    // Capacity check (0 = unlimited)
     if (cls.capacity > 0) {
       const activeCount = await this.classRepository.countActiveEnrollments(id);
 
       if (activeCount >= cls.capacity) {
-        // Return overflow signal — controller/client handles the prompt
         return {
           overflow: true,
           message: `Class is at full capacity (${cls.capacity} students). Add a new parallel session or mark the student as pending enrollment.`,
@@ -176,23 +178,19 @@ export class ClassService {
       }
     }
 
-    const enrollment = await this.classRepository.createEnrollment({
+    return this.classRepository.createEnrollment({
       orgId,
       classId: id,
       studentId: dto.studentId,
       status: 'active',
     });
-
-    return enrollment;
   }
 
   // ── GET /classes/:id/enrollments ─────────────────────────────────────────────
 
   async getEnrollments(id: string, orgId: string) {
     const cls = await this.classRepository.findById(id, orgId);
-
     if (!cls) throw new NotFoundException('Class not found.');
-
     return this.classRepository.findEnrollments(id, orgId);
   }
 
@@ -221,18 +219,8 @@ export class ClassService {
 
   // ── POST /classes/:id/reassign-educator ──────────────────────────────────────
 
-  /**
-   * Reassigns the class to a new educator mid-semester.
-   * New educator inherits all class content.
-   * Every reassignment is permanent — audit trail logged externally.
-   */
-  async reassignEducator(
-    id: string,
-    orgId: string,
-    dto: ReassignEducatorDto,
-  ) {
+  async reassignEducator(id: string, orgId: string, dto: ReassignEducatorDto) {
     const cls = await this.classRepository.findById(id, orgId);
-
     if (!cls) throw new NotFoundException('Class not found.');
 
     if (cls.educator_id === dto.educatorId) {
@@ -241,7 +229,6 @@ export class ClassService {
       );
     }
 
-    // Validate new educator has no schedule conflict
     const existingSchedules = cls.schedules as any[];
     const slots: TimeSlot[] = existingSchedules.map((s) => ({
       weekday: s.weekday,
@@ -293,7 +280,6 @@ export class ClassService {
     );
 
     for (const existingSlot of existing) {
-      // Skip schedules belonging to the class being updated
       if (excludeClassId && existingSlot.class_id === excludeClassId) continue;
 
       const slot: TimeSlot = {

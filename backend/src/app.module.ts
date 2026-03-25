@@ -19,6 +19,7 @@ import { SubjectModule } from './modules/subject/subject.module';
 import { SemesterModule } from './modules/semester/semester.module';
 import { PlatformModule } from './modules/platform/platform.module';
 
+
 @Module({
   imports: [
     ConfigModule.forRoot({
