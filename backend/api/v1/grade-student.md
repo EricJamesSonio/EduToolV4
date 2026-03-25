@@ -1,0 +1,1 @@
+{"info":{"name":"Grade Student","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},"item":[{"name":"My Grades","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":{"raw":"{{baseUrl}}/student/classes/:classId/grades","host":["{{baseUrl}}"],"path":["student","classes",":classId","grades"]}}}]}

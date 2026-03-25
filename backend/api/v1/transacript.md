@@ -1,0 +1,1 @@
+{"info":{"name":"Transcript API","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},"item":[{"name":"Get My Transcript","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":{"raw":"{{baseUrl}}/student/transcript","host":["{{baseUrl}}"],"path":["student","transcript"]}}}]}
