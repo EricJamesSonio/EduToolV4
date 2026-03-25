@@ -26,11 +26,14 @@ import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+import { AssessmentStudentService } from './assessment.student.service';
 
 @Controller('classes/:classId/assessments')
 @UseGuards(AuthGuard, RolesGuard)
 export class AssessmentController {
-  constructor(private readonly assessmentService: AssessmentService) {}
+  constructor(private readonly assessmentService: AssessmentService,
+    private readonly assessmentStudentService: AssessmentStudentService,
+  ) {}
 
   // POST /classes/:classId/assessments
   @Post()
@@ -181,4 +184,6 @@ export class AssessmentController {
   ) {
     return this.assessmentService.unpublishScores(assessmentId, orgId, educatorId);
   }
+
+
 }

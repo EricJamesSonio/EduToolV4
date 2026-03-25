@@ -11,6 +11,7 @@ import { ClassRepository } from '../class/class.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { NotificationService } from '../notification/notification.service';
 import { AttendanceService } from '../attendance/attendance.service';
+import { AssessmentCoreService } from './assessment.core.service';
 import {
   CreateAssessmentDto,
   UpdateAssessmentDto,
@@ -30,6 +31,7 @@ export class AssessmentService {
     private readonly auditLog: AuditLogService,
     private readonly notificationService: NotificationService,
     private readonly attendanceService: AttendanceService,
+    private readonly core: AssessmentCoreService, // 👈 ADD
   ) {}
 
   // ── Ownership guard helpers ───────────────────────────────────────────────
@@ -133,12 +135,12 @@ export class AssessmentService {
   // ── FIND ONE ──────────────────────────────────────────────────────────────
 
   async findOne(id: string, orgId: string, educatorId: string) {
-    const assessment = await this.assessmentRepo.findById(id, orgId);
+    const assessment = await this.core.findAssessmentOrThrow(id, orgId);
     if (!assessment) throw new NotFoundException('Assessment not found.');
 
     await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
 
-    const questions = await this.assessmentRepo.findQuestions(id);
+    const questions = await this.core.getQuestions(id);
 
     return { ...assessment, questions };
   }
