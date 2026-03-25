@@ -11,6 +11,7 @@ import { LevelModule } from './modules/level/level.module';
 import { DatabaseModule } from './core/database/database.module'; 
 import { HealthModule } from './modules/health/health.module';
 import { ClassModule } from './modules/class/class.module';
+import { AssessmentModule } from './assessment/assessment.module';
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { ClassModule } from './modules/class/class.module';
     AuthModule,
     LevelModule,
     HealthModule,
-    ClassModule
+    ClassModule,
+    AssessmentModule
   ],
 })
 export class AppModule {}
