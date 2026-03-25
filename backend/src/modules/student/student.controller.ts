@@ -4,6 +4,7 @@ import {
   Post,
   Get,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -33,10 +34,6 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 export class StudentController {
   constructor(private readonly studentService: StudentService) {}
 
-  /**
-   * POST /students  @Roles(ADMIN)
-   * Admin creates a student account. Returns plain password once.
-   */
   @Post()
   @Roles('admin')
   async create(
@@ -46,11 +43,8 @@ export class StudentController {
     return this.studentService.create(orgId, dto);
   }
 
-  /**
-   * GET /students/credentials-csv  @Roles(ADMIN)
-   * Returns a CSV file of all student credentials.
-   * NOTE: must be defined BEFORE :id route to avoid route collision.
-   */
+  // NOTE: all static-path GET routes must come before /:id
+
   @Get('credentials-csv')
   @Roles('admin')
   async getCredentialsCsv(
@@ -58,20 +52,21 @@ export class StudentController {
     @Res() res: Response,
   ) {
     const csv = await this.studentService.getCredentialsCsv(orgId);
-
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader(
-      'Content-Disposition',
-      'attachment; filename="student-credentials.csv"',
-    );
+    res.setHeader('Content-Disposition', 'attachment; filename="student-credentials.csv"');
     res.send(csv);
   }
 
-  /**
-   * POST /students/import  @Roles(ADMIN)
-   * Bulk import students from a CSV file upload.
-   * Returns validation report if errors exist.
-   */
+  // ✅ #4 — GET /students/import-template
+  @Get('import-template')
+  @Roles('admin')
+  async getImportTemplate(@Res() res: Response) {
+    const csv = this.studentService.getImportTemplate();
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="student-import-template.csv"');
+    res.send(csv);
+  }
+
   @Post('import')
   @Roles('admin')
   @UseInterceptors(FileInterceptor('file'))
@@ -80,18 +75,11 @@ export class StudentController {
     @CurrentUser('orgId') orgId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    if (!file) {
-      throw new Error('No file uploaded.');
-    }
-
+    if (!file) throw new Error('No file uploaded.');
     const csvContent = file.buffer.toString('utf-8');
     return this.studentService.bulkImport(orgId, csvContent);
   }
 
-  /**
-   * GET /students
-   * Returns all students. Supports filters: ?search= ?status= ?levelId= ?sectionId=
-   */
   @Get()
   async findAll(
     @CurrentUser('orgId') orgId: string,
@@ -100,10 +88,6 @@ export class StudentController {
     return this.studentService.findAll(orgId, query);
   }
 
-  /**
-   * GET /students/:id
-   * Returns a single student's profile.
-   */
   @Get(':id')
   async findById(
     @Param('id') id: string,
@@ -112,10 +96,6 @@ export class StudentController {
     return this.studentService.findById(id, orgId);
   }
 
-  /**
-   * PATCH /students/:id  @Roles(ADMIN)
-   * Updates student profile fields.
-   */
   @Patch(':id')
   @Roles('admin')
   async update(
@@ -126,10 +106,6 @@ export class StudentController {
     return this.studentService.update(id, orgId, dto);
   }
 
-  /**
-   * PATCH /students/:id/status  @Roles(ADMIN)
-   * Changes student status. Irreversible transitions require a reason.
-   */
   @Patch(':id/status')
   @Roles('admin')
   async updateStatus(
@@ -140,10 +116,6 @@ export class StudentController {
     return this.studentService.updateStatus(id, orgId, dto);
   }
 
-  /**
-   * POST /students/:id/reset-password  @Roles(ADMIN)
-   * Generates a new system password. Returns plain once for distribution.
-   */
   @Post(':id/reset-password')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)

@@ -412,4 +412,30 @@ export class ClassService {
       }
     }
   }
+
+// ── DELETE /classes/:classId/enrollments/:enrollmentId ───────────────────────
+
+  async removeEnrollment(classId: string, enrollmentId: string, orgId: string) {
+    const cls = await this.classRepository.findById(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
+
+    const enrollment = await this.classRepository.findEnrollmentById(
+      enrollmentId,
+      orgId,
+    );
+
+    if (!enrollment || enrollment.class_id !== classId) {
+      throw new NotFoundException('Enrollment not found.');
+    }
+
+    if (enrollment.status === 'removed') {
+      throw new ConflictException('Enrollment has already been removed.');
+    }
+
+    return this.classRepository.removeEnrollment(enrollmentId);
+  }
+
+  async getEducatorClasses(educatorId: string, orgId: string) {
+    return this.classRepository.findActiveClassesByEducator(educatorId, orgId);
+  }
 }

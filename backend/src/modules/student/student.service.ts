@@ -20,6 +20,8 @@ import {
   buildCredentialsCsv,
 } from './student.utils';
 import { hashPassword } from '@/commons/utils/hash.util';
+import { ClassRepository } from '../class/class.repository';
+import { Class } from '@prisma/client';
 
 // Transitions that require explicit Admin confirmation
 const IRREVERSIBLE_STATUSES: StudentStatus[] = [
@@ -33,6 +35,7 @@ export class StudentService {
   constructor(
     private readonly studentRepository: StudentRepository,
     private readonly sectionService: SectionService,
+    private readonly classRepository: ClassRepository
   ) {}
 
   // ── POST /students ──────────────────────────────────────────────────────────
@@ -360,4 +363,65 @@ export class StudentService {
       createdAt: account.created_at,
     };
   }
+
+// ============================================================
+// ADD TO: student.service.ts  (after getCredentialsCsv)
+// ============================================================
+
+  // ── GET /students/import-template ───────────────────────────────────────────
+  getImportTemplate(): string {
+    const headers = ['Full Name', 'Student ID', 'Email', 'Level ID', 'Section ID'];
+    const example = [
+      'Juan Dela Cruz',
+      'STU-2024-001',
+      'juan@school.edu',
+      'level-uuid-here',
+      'section-uuid-here (optional)',
+    ];
+    return [headers.join(','), example.join(',')].join('\n');
+  }
+
+  // ── DELETE /classes/:classId/enrollments/:enrollmentId ───────────────────────
+  async removeEnrollment(classId: string, enrollmentId: string, orgId: string) {
+    const cls = await this.classRepository.findById(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
+
+    const enrollment = await this.classRepository.findEnrollmentById(enrollmentId, orgId);
+    if (!enrollment || enrollment.class_id !== classId) {
+      throw new NotFoundException('Enrollment not found.');
+    }
+
+    if (enrollment.status === 'removed') {
+      throw new BadRequestException('Enrollment is already removed.');
+    }
+
+    return this.classRepository.updateEnrollmentStatus(enrollmentId, 'removed');
+  }
+
+  // ── GET /educator/classes ────────────────────────────────────────────────────
+  async getEducatorClasses(educatorId: string, orgId: string) {
+    const classes = await this.classRepository.findAll(orgId, { educatorId });
+
+    return Promise.all(
+      classes.map(async (cls) => {
+        const { subject } = await this.classRepository.findSubjectWithEducator(
+          cls.subject_id,
+          cls.educator_id,
+          orgId,
+        );
+        return {
+          id: cls.id,
+          subjectId: cls.subject_id,
+          subjectName: subject?.name ?? null,
+          sectionId: cls.section_id,
+          schoolYearId: cls.school_year_id,
+          semesterId: cls.semester_id,
+          capacity: cls.capacity,
+          schedules: cls.schedules,
+        };
+      }),
+    );
+  }
+
+
 }

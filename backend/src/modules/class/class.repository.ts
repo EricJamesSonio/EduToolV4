@@ -311,4 +311,10 @@ export class ClassRepository {
 
     return { subject, educatorProfile };
   }
+async removeEnrollment(enrollmentId: string) {
+  return this.db.enrollment.update({
+    where: { id: enrollmentId },
+    data: { status: 'removed' as any },
+  });
+}
 }
