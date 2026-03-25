@@ -9,6 +9,7 @@ import { ProgramModule } from '@/modules/program/program.module';
 import { SectionModule } from '@/modules/section/section.module';
 import { SubjectModule } from '@/modules/subject/subject.module';
 import { TranscriptModule } from '@/modules/transcript/transcript.module';
+import { ExportModule } from '@/modules/export/export.module';
 
 @Module({
   imports: [
@@ -19,7 +20,8 @@ import { TranscriptModule } from '@/modules/transcript/transcript.module';
     ProgramModule,
     SectionModule,
     SubjectModule,
-    TranscriptModule
+    TranscriptModule,
+    ExportModule
   ],
   exports: [
     AcademicCalendarModule,
