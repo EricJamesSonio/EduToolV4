@@ -346,4 +346,20 @@ async findOwnershipHistory(classId: string, orgId: string) {
     orderBy: { reassigned_at: 'asc' },
   });
 }
+
+// ── Rubric ───────────────────────────────────────────────────────────────────
+
+async lockRubricForClass(classId: string, orgId: string) {
+  return this.db.rubric.updateMany({
+    where: {
+      class_id: classId,
+      org_id: orgId,
+      is_locked: false,
+    },
+    data: {
+      is_locked: true,
+      locked_at: new Date(),
+    },
+  });
+}
 }

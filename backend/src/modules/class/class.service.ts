@@ -179,12 +179,20 @@ export class ClassService {
       }
     }
 
-    return this.classRepository.createEnrollment({
+    const enrollment = await this.classRepository.createEnrollment({
       orgId,
       classId: id,
       studentId: dto.studentId,
       status: 'active',
     });
+
+    // Lock rubric on first enrolled student
+    const activeCount = await this.classRepository.countActiveEnrollments(id);
+    if (activeCount === 1) {
+      await this.classRepository.lockRubricForClass(id, orgId);
+    }
+
+    return enrollment;
   }
 
   // ── GET /classes/:id/enrollments ─────────────────────────────────────────────

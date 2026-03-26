@@ -1,195 +1,112 @@
-=== EDUTOOL — MISSING ENDPOINTS & MODULES (updated 03/25/2026) ===
+================================================================================
+  EDUTOOL — BACKEND COVERAGE REPORT
+  Based on code review of all shared service/repository files
+================================================================================
 
-------------------------------------------------------------
-STATUS KEY:  ✅ Done   ❌ Missing
-------------------------------------------------------------
 
-✅ 3. EDUCATOR SELF-VIEW — DONE
-   GET /educator/classes
-   Lives in: class.controller.ts → EducatorClassController
-   Service: getEducatorClasses(educatorId, orgId)
-   Repo:    findActiveClassesByEducator() — already existed
+================================================================================
+  CONFIRMED IMPLEMENTED ✓
+================================================================================
 
-✅ 4. CSV IMPORT TEMPLATE — DONE
-   GET /students/import-template
-   Lives in: student.controller.ts
-   Service: getImportTemplate() — already existed
+  Auth
+    - Login, refresh token, logout, me endpoint
 
-✅ 5. STUDENT-CENTRIC ENROLLMENTS — DONE
-   GET    /students/:id/enrollments
-   POST   /students/:id/enrollments
-   DELETE /students/:id/enrollments/:enrollmentId
-   Lives in: student.controller.ts + student.service.ts
-   New repo methods added: findEnrollments, findEnrollmentById, removeEnrollment
-   New DTO added: AddEnrollmentDto
+  Platform Owner
+    - Login via PLATFORM_SECRET_PASSWORD
+    - Create admin (returns plain password once)
+    - Get admins (paginated + searchable)
+    - Get single admin
+    - Block / unblock admin
+    - Reset admin password (returns plain password once)
+    - Audit log on all actions
 
-✅ 8. ENROLLMENT REMOVAL — DONE
-   DELETE /classes/:classId/enrollments/:enrollmentId
-   Lives in: class.controller.ts
-   Service: removeEnrollment(classId, enrollmentId, orgId)
-   Repo:    removeEnrollment(enrollmentId) → status = 'removed'
+  Organization
+    - Create, get own, update
 
-✅ 9. AUDIT LOG FILTERS — DONE (was already implemented)
-   GET /audit-log?from=&to=&action=&entityType=&entityId=&actorId=
-   GET /activity-log?classId=&from=&to=
-   DTO, service, and repo already had full filter support
+  School Year
+    - Create, get all, activate, end, update
 
-------------------------------------------------------------
+  Levels
+    - Get defaults, update defaults
+    - Get by school year, update level
 
-❌ 6. CLASS OWNERSHIP / REASSIGNMENT HISTORY (§10.5)
-   Module exists: src/modules/class/
-   Reassign endpoint exists: POST /classes/:id/reassign-educator ✅
+  Programs
+    - Create, find all, find one, update, delete
 
-   Needs new Prisma model:
-   model ClassOwnershipLog {
-     id              String   @id @default(uuid())
-     org_id          String
-     class_id        String
-     from_educator_id String
-     to_educator_id   String
-     reason          String?
-     reassigned_at   DateTime @default(now())
-     reassigned_by   String   // adminId
+  Sections
+    - Create, get, update, delete (soft)
+    - Capacity check on student create (sets Pending if full)
 
-     class Class @relation(fields: [class_id], references: [id])
-   }
+  Semester Settings
+    - Create, get, update, delete
+    - Terms per semester
 
-   Missing endpoint:
-   GET /classes/:id/ownership-history
+  Academic Calendar
+    - Create, get, update, delete events
+    - Holiday / no_class_day types recognized
+    - Session skipping on blocked dates (enforced in attendance session generation)
 
-   Files to touch:
-   - schema.prisma              ← add ClassOwnershipLog model
-   - class.repository.ts        ← add createOwnershipLog + findOwnershipHistory
-   - class.service.ts           ← write log on reassignEducator + new getOwnershipHistory
-   - class.controller.ts        ← add GET :id/ownership-history route
+  Subjects
+    - Create, get all, update
+    - Lock / unlock
 
-------------------------------------------------------------
+  Classes
+    - Create with schedule conflict validation (educator + section)
+    - Get all (filtered), get by ID, update, archive (soft delete)
+    - Attendance sessions auto-generated on class creation
+    - Holiday/no-class-day dates skipped in session generation
+    - Week number + sub_index computed correctly per spec
 
-❌ 7. GRADING SCALE ↔ LEVEL SECTION ASSIGNMENT (§17)
-   Module exists: src/modules/grading-scale/
-   CRUD exists on /grading-scales ✅
+  Class Enrollment
+    - Enroll student with duplicate prevention
+    - Capacity overflow returns structured prompt (overflow: true)
+    - Remove enrollment (soft — status = removed)
+    - Get enrollments
+    - Update enrollment status
+    - Rubric locks permanently on first student enrolled ✓ (FIXED)
 
-   Schema check — GradingScale already has level_id:
-   model GradingScale {
-     level_id       String   ← this IS the link to level section
-     school_year_id String
-     ...
-   }
+  Educator Reassignment
+    - Reassign educator with schedule conflict check
+    - Ownership log written on every reassignment
+    - Get ownership history
 
-   So no new table needed. What IS missing:
-   - GET /grading-scales?levelId= filter  (get scale for a level)
-   - GET /levels/:id/grading-scale        (get scale from level side)
+  Educators
+    - Create, get all, get one, update, delete
+    - Reset password
+    - Block if active classes exist
 
-   Files to touch:
-   - grading-scale.controller.ts   ← add levelId query param to GET
-   - grading-scale.service.ts      ← pass levelId filter through
-   - grading-scale.repository.ts   ← add levelId to findAll filter
-   - level.controller.ts           ← add GET :id/grading-scale route
-   - level.service.ts              ← add getGradingScale(levelId, orgId)
+  Students
+    - Create with section capacity check (Pending if full)
+    - Get all (filtered by status, level, section), get by ID
+    - Update profile
+    - Update status with irreversible transition guard (requires reason)
+    - Reset password
+    - Credentials CSV download
+    - Bulk import with per-row validation report before committing
+    - Import template download
+    - Add / remove subject enrollment from student view
+    - Get enrollments
 
-------------------------------------------------------------
+  Lessons
+    - Create, get all, get one, update, delete (soft)
+    - Concept extraction triggered async on create (mock implementation)
+    - Re-extraction replaces previous concept build
+    - In-app notification sent on extraction complete
+    - Activity log on all actions
+    - Student: get lessons, get lesson detail (concept excluded)
 
-❌ 2. GRADE EXPORT / CLASS CARDS (§18) — NEW MODULE NEEDED
-   No module exists under src/modules/
+  Assessments (Educator)
+    - Create, get all, get one, update, delete (soft)
+    - Update question
+    - Get submissions, update submission status, grade essay
+    - Publish / unpublish scores
 
-   No new Prisma model needed — reads from existing:
-   Grade, Enrollment, Assessment, Submission, Rubric, Class, Profile
+  Assessments (Student)
+    - Get assessments, get assessment detail, get result
 
-   Need to install: pdfkit (PDF generation)
-   npm install pdfkit
-   npm install --save-dev @types/pdfkit
-
-   Missing endpoints:
-   GET /classes/:classId/export/csv         (full class grades CSV)
-   GET /classes/:classId/students/:studentId/card  (PDF class card)
-
-   Files to create:
-   - src/modules/export/export.module.ts
-   - src/modules/export/export.controller.ts
-   - src/modules/export/export.service.ts
-
-------------------------------------------------------------
-
-❌ 1. MEETINGS (§19) — NEW MODULE NEEDED
-   No module exists under src/modules/
-
-   Needs new Prisma models:
-   model Meeting {
-     id           String    @id @default(uuid())
-     org_id       String
-     class_id     String
-     educator_id  String
-     title        String
-     description  String?
-     start_time   DateTime
-     status       String    // scheduled | active | ended
-     created_at   DateTime  @default(now())
-     deleted_at   DateTime?
-
-     class        Class     @relation(fields: [class_id], references: [id])
-     invites      MeetingInvite[]
-     join_requests MeetingJoinRequest[]
-   }
-
-   model MeetingInvite {
-     id         String @id @default(uuid())
-     org_id     String
-     meeting_id String
-     student_id String
-
-     meeting Meeting @relation(fields: [meeting_id], references: [id])
-   }
-
-   model MeetingJoinRequest {
-     id         String   @id @default(uuid())
-     org_id     String
-     meeting_id String
-     student_id String
-     status     String   // pending | accepted | declined
-     created_at DateTime @default(now())
-
-     meeting Meeting @relation(fields: [meeting_id], references: [id])
-   }
-
-   Missing endpoints:
-   POST   /classes/:classId/meetings
-   GET    /classes/:classId/meetings
-   GET    /classes/:classId/meetings/:id
-   PATCH  /classes/:classId/meetings/:id
-   DELETE /classes/:classId/meetings/:id
-   POST   /classes/:classId/meetings/:id/end
-   POST   /meetings/:id/join-request
-   PATCH  /meetings/:id/join-request/:reqId
-   GET    /student/classes/:classId/meetings
-   GET    /student/classes/:classId/meetings/:id
-
-   Files to create:
-   - src/modules/meeting/meeting.module.ts
-   - src/modules/meeting/meeting.controller.ts
-   - src/modules/meeting/meeting.service.ts
-   - src/modules/meeting/meeting.repository.ts
-   - src/modules/meeting/dto/meeting.dto.ts
-   - src/modules/meeting/entity/meeting.entity.ts
-
-------------------------------------------------------------
-
-=== SUMMARY ===
-
-✅ Done (5/9):
-   #3  Educator self-view
-   #4  CSV import template
-   #5  Student-centric enrollments
-   #8  Enrollment removal
-   #9  Audit log filters
-
-❌ Remaining (4/9):
-   #6  Ownership history    ← next, schema change + 4 file touches
-   #7  Grading scale assign ← no schema change, 5 file touches
-   #2  Grade export         ← new module, needs pdfkit
-   #1  Meetings             ← largest, new module + 3 schema models
-
-=== RECOMMENDED ORDER ===
-   Do #6 next  → small schema change, contained to class module
-   Then #7     → zero schema change, just filter wiring
-   Then #2     → new module, no schema change
-   Do #1 last  → schema changes + full new module
+  Submissions
+    - Start or resume (one active attempt enforced — no duplicate attempts)
+    - Save draft with question validation
+    - Finish with auto-grading of non-essay questions
+    - Essay flagged as pending
+    - Auto

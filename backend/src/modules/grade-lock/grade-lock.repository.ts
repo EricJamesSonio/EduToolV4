@@ -94,4 +94,40 @@ export class GradeLockRepository {
       include: { class: true },
     });
   }
+
+  // ───────── GRADING SCALE LOCK ─────────
+
+  async findLevelIdForClass(classId: string, orgId: string): Promise<string | null> {
+    const cls = await this.db.class.findFirst({
+      where: { id: classId, org_id: orgId, deleted_at: null },
+      select: { subject_id: true },
+    });
+    if (!cls) return null;
+
+    const subject = await this.db.subject.findFirst({
+      where: { id: cls.subject_id, org_id: orgId },
+      select: { level_id: true },
+    });
+
+    return subject?.level_id ?? null;
+  }
+
+  async lockGradingScale(
+    levelId: string,
+    schoolYearId: string,
+    orgId: string,
+  ) {
+    return this.db.gradingScale.updateMany({
+      where: {
+        org_id: orgId,
+        level_id: levelId,
+        school_year_id: schoolYearId,
+        is_locked: false,
+      },
+      data: {
+        is_locked: true,
+        locked_at: new Date(),
+      },
+    });
+  }
 }
