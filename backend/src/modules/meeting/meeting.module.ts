@@ -44,3 +44,5 @@ export const MeetingModuleDefinition = {
   ],
   exports: [MeetingService],
 };
+
+export class MeetingModule {}
