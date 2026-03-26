@@ -14,6 +14,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
     ClassModule,
     AuditLogModule,
   ],
+  exports : [GradeLockService],
   controllers: [GradeLockController],
   providers: [GradeLockService, GradeLockRepository],
 })
