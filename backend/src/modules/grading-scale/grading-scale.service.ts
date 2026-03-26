@@ -213,4 +213,7 @@ export class GradingScaleService {
         }
       : null;
   }
+  async unlockAllForSchoolYear(schoolYearId: string, orgId: string) {
+    await this.gradingScaleRepository.unlockAllForSchoolYear(schoolYearId, orgId);
+  }
 }

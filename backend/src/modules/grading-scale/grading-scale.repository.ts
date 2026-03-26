@@ -76,4 +76,11 @@ export class GradingScaleRepository {
       data: { is_locked: false, locked_at: null },
     });
   }
+
+  async unlockAllForSchoolYear(schoolYearId: string, orgId: string) {
+    return this.db.gradingScale.updateMany({
+      where: { school_year_id: schoolYearId, org_id: orgId },
+      data: { is_locked: false, locked_at: null },
+    });
+  }
 }

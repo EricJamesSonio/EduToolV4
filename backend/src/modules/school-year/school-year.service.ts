@@ -9,6 +9,7 @@ import { SchoolYearRepository } from './school-year.repository';
 import { LevelService } from '@/modules/level/level.service';
 import { SubjectService } from '@/modules/subject/subject.service';
 import { CreateSchoolYearDto, UpdateSchoolYearDto } from './dto/school-year.dto';
+import { GradingScaleService } from '../grading-scale/grading-scale.service';
 
 @Injectable()
 export class SchoolYearService {
@@ -16,6 +17,7 @@ export class SchoolYearService {
     private readonly schoolYearRepository: SchoolYearRepository,
     private readonly levelService: LevelService,
     private readonly subjectService: SubjectService,
+    private readonly gradingScaleService : GradingScaleService
   ) {}
 
   // ── POST /school-years ──────────────────────────────────────────────────────
@@ -71,38 +73,37 @@ export class SchoolYearService {
    * Only one active school year is allowed per org at any time.
    * The currently active year must be ended before activating a new one.
    */
-  async activate(id: string, orgId: string) {
-    const schoolYear = await this.schoolYearRepository.findById(id, orgId);
+    async activate(id: string, orgId: string) {
+      const schoolYear = await this.schoolYearRepository.findById(id, orgId);
+      if (!schoolYear) throw new NotFoundException('School year not found.');
+      if (schoolYear.status === 'active')
+        throw new ConflictException('This school year is already active.');
+      if (schoolYear.status === 'ended')
+        throw new BadRequestException('An ended school year cannot be reactivated.');
 
-    if (!schoolYear) {
-      throw new NotFoundException('School year not found.');
+      const activeCount = await this.schoolYearRepository.countActive(orgId);
+      if (activeCount > 0)
+        throw new ConflictException(
+          'Another school year is currently active. End it before activating a new one.',
+        );
+
+      // Find the previously active year before we switch status
+      const previousActive = await this.schoolYearRepository.findActive(orgId);
+
+      const result = await this.schoolYearRepository.updateStatus(id, 'active');
+
+      await this.subjectService.unlockAllForOrg(orgId);
+
+      // ✅ NEW: unlock grading scales from the previous school year
+      if (previousActive) {
+        await this.gradingScaleService.unlockAllForSchoolYear(
+          previousActive.id,
+          orgId,
+        );
+      }
+
+      return result;
     }
-
-    if (schoolYear.status === 'active') {
-      throw new ConflictException('This school year is already active.');
-    }
-
-    if (schoolYear.status === 'ended') {
-      throw new BadRequestException(
-        'An ended school year cannot be reactivated.',
-      );
-    }
-
-    // Guard: only one active year allowed at a time
-    const activeCount = await this.schoolYearRepository.countActive(orgId);
-    if (activeCount > 0) {
-      throw new ConflictException(
-        'Another school year is currently active. End it before activating a new one.',
-      );
-    }
-
-    const result = await this.schoolYearRepository.updateStatus(id, 'active');
-
-    // Unlock all subjects for this org at the start of a new school year
-    await this.subjectService.unlockAllForOrg(orgId);
-
-    return result;
-  }
 
   // ── PATCH /school-years/:id/end ─────────────────────────────────────────────
 

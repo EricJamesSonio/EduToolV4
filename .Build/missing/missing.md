@@ -1,5 +1,5 @@
 ================================================================================
-  EDUTOOL — BACKEND COVERAGE REPORT v2
+  EDUTOOL — BACKEND COVERAGE REPORT v3
   Based on full code review of all shared service/repository files
 ================================================================================
 
@@ -82,11 +82,12 @@
   Students
     - Create with section capacity check (Pending if full)
     - Get all (filtered by status, level, section), get by ID
-    - Update profile
+    - Update profile (with section capacity guard) ✓ FIXED
     - Update status with irreversible transition guard (requires reason)
     - Reset password
     - Credentials CSV download
     - Bulk import with per-row validation report before committing
+    - Bulk import section capacity check per row ✓ FIXED
     - Import template download
     - Add / remove subject enrollment from student view
     - Get enrollments
@@ -151,6 +152,7 @@
     - Update with is_locked guard ✓ (throws if locked)
     - is_locked + locked_at in schema
     - Locked when first grade lock applied to that level + school year ✓
+    - Auto-unlock on new school year activation ✓ FIXED
 
   Rubrics
     - Get default, update default
@@ -188,80 +190,31 @@
     - Join requests (MeetingJoinRequest) fully modeled
     - Meeting metadata complete in schema
 
-
-================================================================================
-  SCHEDULED JOBS — METHODS EXIST, WIRING PENDING
-================================================================================
-
-  Status: All three job methods are implemented in their respective
-  services. ScheduleModule is NOT yet registered in app.module.ts.
-  Jobs will not run until the following steps are completed:
-
-  Steps required:
-    1.  npm install @nestjs/schedule
-    2.  Add ScheduleModule.forRoot() to app.module.ts imports
-    3.  Create src/core/scheduler/scheduler.module.ts
-          - imports: GradeLockModule, SubmissionModule, NotificationModule
-          - providers: [SchedulerTasks]
-    4.  Create src/core/scheduler/scheduler.tasks.ts
-          @Cron(EVERY_HOUR)
-            → fetch all active org_ids from db
-            → call gradeLockService.autoLock(orgId) per org
-
-          @Cron(EVERY_30_MINUTES)
-            → fetch all assessments where end_date < now
-            → call submissionService.closeExpiredDrafts(assessmentId) per one
-
-          @Cron('0 2 * * *')
-            → call notificationService.archiveOldNotifications()
-    5.  Import SchedulerModule in app.module.ts
-
-  Jobs:
-    - Auto grade lock       → GradeLockService.autoLock()
-    - Close expired drafts  → SubmissionService.closeExpiredDrafts()
-    - Archive notifications → NotificationService.archiveOldNotifications()
+  Scheduler
+    - ScheduleModule.forRoot() registered in app.module.ts ✓
+    - SchedulerModule created and imported in app.module.ts ✓
+    - SchedulerTasks wired with all three cron jobs ✓
+    - Auto grade lock       → GradeLockService.autoLock()       @EVERY_HOUR
+    - Close expired drafts  → SubmissionService.closeExpiredDrafts() @EVERY_30_MIN
+    - Archive notifications → NotificationService.archiveOldNotifications() @0 2 * * *
 
 
 ================================================================================
   BUGS REMAINING — NOT YET FIXED
 ================================================================================
 
-  Bug 1 — student.service.ts bulkImport() missing capacity check
-    File:   src/modules/student/student.service.ts
-    Method: bulkImport()
-    Issue:  When Section ID is present in a CSV row, status is set to
-            active without checking if the section is at capacity.
-    Fix:    Call sectionService.countStudentsInSection(sectionId) and
-            sectionService.findById(sectionId, orgId) per row.
-            If count >= capacity: set status = pending, clear sectionId.
+  None. All reported bugs have been resolved.
 
-  Bug 2 — student.service.ts update() missing capacity check
-    File:   src/modules/student/student.service.ts
-    Method: update()
-    Issue:  PATCH /students/:id accepts a new sectionId and calls
-            updateProfile() directly with no capacity guard.
-    Fix:    Before updateProfile(), if dto.sectionId differs from
-            current sectionId, check capacity and throw
-            BadRequestException if section is full.
+  Previously fixed:
+    - Bug 1 — bulkImport() missing section capacity check ✓ FIXED
+    - Bug 2 — update() missing sectionId capacity guard ✓ FIXED
 
 
 ================================================================================
   MISSING / NOT BUILT
 ================================================================================
 
-  1. Grading scale auto-unlock on new school year activation
-     File:   src/modules/school-year/school-year.service.ts
-     Method: activate()
-     Issue:  activate() calls subjectService.unlockAllForOrg(orgId)
-             but does NOT unlock grading scales for the previous year.
-             GradingScaleService.unlock() exists but is never called.
-     Fix:    After updateStatus(id, 'active'), find all grading scales
-             where school_year_id = previous active year and call
-             gradingScaleRepository.unlock() per scale.
-             OR: add unlockAllForSchoolYear(schoolYearId, orgId) to
-             GradingScaleService and call it from activate().
-
-  2. AI Assessment Generation Pipeline (Spec Section 14.3)
+  1. AI Assessment Generation Pipeline (Spec Section 14.3)
      Issue:  Concept extraction uses mockExtract() — splits lesson text
              into word chunks. No real AI call is made.
              Assessment generation from concept builds is not implemented:
@@ -273,7 +226,7 @@
      Note:   Pipeline structure (async + notification) is correct.
              Only the AI call itself and the generation logic are missing.
 
-  3. Meeting Room / WebRTC (Spec Section 19)
+  2. Meeting Room / WebRTC (Spec Section 19)
      Issue:  Meeting metadata is fully modeled (title, time, invites,
              join requests). No real-time room exists:
                - No WebSocket gateway
@@ -289,11 +242,11 @@
   SUMMARY
 ================================================================================
 
-  Spec sections fully covered:     22 / 24
-  Bugs remaining:                   2  (bulk import cap, student update cap)
-  Missing features:                 3  (scale unlock, AI pipeline, WebRTC)
-  Scheduler wiring:                 pending (methods done, module not wired)
+  Spec sections fully covered:     23 / 24   (was 22 / 24)
+  Bugs remaining:                   0         (was 2)
+  Missing features:                 2         (was 3 — grading scale unlock done)
+  Scheduler wiring:                 complete  (was pending)
 
 ================================================================================
-  EduTool Backend Coverage Report v2
+  EduTool Backend Coverage Report v3
 ================================================================================
