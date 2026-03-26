@@ -470,3 +470,13 @@ model AuditLog {
   metadata    Json?
   created_at  DateTime @default(now())
 }
+
+ model MeetingChatMessage {
+   id          String   @id @default(uuid())
+   org_id      String
+   meeting_id  String
+   sender_id   String
+   sender_name String
+   message     String
+   created_at  DateTime @default(now())
+}
