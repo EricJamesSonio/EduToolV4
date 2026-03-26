@@ -55,3 +55,10 @@ Bulk Notifications
 Used for system-wide pushes
 Archive Old Notifications
 Auto cleanup (older than 90 days)
+
+NOTIFICATIONS
+Poll or use websocket (if available)
+Always support:
+unread filter
+dismiss action
+Payload is dynamic → render based on type

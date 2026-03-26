@@ -187,3 +187,14 @@ Response:
 Notes:
 
 Same restriction: must be enrolled
+
+LESSON FLOW
+Create lesson → AI extracts concept
+Fetch lesson → may not have concept yet
+Re-extract manually if needed
+
+Frontend must:
+
+Handle async concept generation
+Show loading / retry UI
+Enforce min 10 words in editor

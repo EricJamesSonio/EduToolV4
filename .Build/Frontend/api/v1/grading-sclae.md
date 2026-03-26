@@ -89,3 +89,19 @@ Notes:
 
 Disable editing if class already locked
 Sync with grade lock module behavior
+
+Grades Flow:
+Teacher inputs scores → compute → lock → students see grades
+Lock Behavior:
+When locked:
+Manual score editing disabled
+Grades visible to students
+Student UI:
+Show:
+finalScore always
+finalGrade only if isReleased = true
+Category Breakdown:
+Use for grading table UI (per category display)
+Compute Required:
+Grades are NOT auto-calculated
+Must call /compute endpoint

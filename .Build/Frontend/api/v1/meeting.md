@@ -151,3 +151,18 @@ Notes:
 Required before joining video call
 warning appears in dev mode only
 Use channel + token + uid for Agora SDK
+
+MEETING FLOW
+Educator creates meeting
+Students:
+invited → can join
+not invited → request access
+Educator accepts/declines
+Use /token to join call
+Educator ends meeting → final state
+
+Frontend must:
+
+Handle invitation vs request state
+Disable actions if meeting ended
+Always fetch token before joining

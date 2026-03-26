@@ -149,3 +149,17 @@ Notes:
 Same as create → password visible ONCE
 Must show + allow copy immediately
 Old password becomes invalid
+
+PLATFORM (SUPER ADMIN)
+Separate from normal auth system
+Highly restricted UI
+Includes:
+admin creation
+admin control (block/unblock)
+password resets
+
+Frontend must:
+
+Secure routes (platform-only)
+Handle one-time password display
+Implement pagination + search

@@ -79,3 +79,8 @@ Notes:
 
 Partial update allowed
 Reflect changes immediately in UI (e.g. header/org name)
+
+ORGANIZATION
+Single-org per admin model
+Load once → store globally (context/store)
+Used across modules (classes, users, etc.)

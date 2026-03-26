@@ -150,3 +150,16 @@ finalScore is always visible
 finalGrade is NULL if not released
 isReleased = true only when class is locked
 Hide grade label until released
+
+Teacher workflow:
+Input scores → Compute grades → Review → Lock grades
+Lock = critical state:
+Enables student visibility
+Disables ALL grade edits
+Freezes grading scale
+Frontend must handle:
+NULL values (not computed / not released)
+Locked vs unlocked UI states
+Manual vs computed scores
+Key UI States:
+Draft → Computed → Locked (Final)
