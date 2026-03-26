@@ -25,6 +25,6 @@ import { AiModule } from './ai/ai.module';
     LoggerModule,
     AiModule,
   ],
-  exports: [DatabaseModule, LoggerModule, ConfigModule],
+  exports: [DatabaseModule, LoggerModule, ConfigModule, AiModule],
 })
 export class CoreModule {}
