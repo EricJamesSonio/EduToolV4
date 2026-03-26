@@ -1,4 +1,4 @@
-// src/modules/school-year/dto/school-year.dto.ts
+// @/modules/school-year/dto/school-year.dto.ts
 import { IsString, MinLength, MaxLength, IsOptional } from 'class-validator';
 
 // ── POST /school-years ────────────────────────────────────────────────────────

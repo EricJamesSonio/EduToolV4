@@ -1,4 +1,4 @@
-// src/modules/rubric/dto/rubric.dto.ts
+// @/modules/rubric/dto/rubric.dto.ts
 import {
   IsString,
   IsOptional,

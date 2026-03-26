@@ -1,4 +1,4 @@
-// src/modules/student/student.service.ts
+// @/modules/student/student.service.ts
 import {
   Injectable,
   ConflictException,
@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { StudentRepository } from './student.repository';
-import { SectionService } from 'src/modules/section/section.service';
+import { SectionService } from '@/modules/section/section.service';
 import {
   CreateStudentDto,
   UpdateStudentDto,
@@ -19,7 +19,9 @@ import {
   parseCsv,
   buildCredentialsCsv,
 } from './student.utils';
-import { hashPassword } from 'src/commons/utils/hash.util';
+import { hashPassword } from '@/commons/utils/hash.util';
+import { ClassRepository } from '../class/class.repository';
+import { Class } from '@prisma/client';
 
 // Transitions that require explicit Admin confirmation
 const IRREVERSIBLE_STATUSES: StudentStatus[] = [
@@ -33,6 +35,7 @@ export class StudentService {
   constructor(
     private readonly studentRepository: StudentRepository,
     private readonly sectionService: SectionService,
+    private readonly classRepository: ClassRepository
   ) {}
 
   // ── POST /students ──────────────────────────────────────────────────────────
@@ -137,19 +140,26 @@ export class StudentService {
 
   async update(id: string, orgId: string, dto: UpdateStudentDto) {
     const account = await this.studentRepository.findById(id, orgId);
-
     if (!account) {
       throw new NotFoundException('Student not found.');
     }
 
     if (dto.email && dto.email !== account.email) {
-      const emailTaken = await this.studentRepository.findByEmail(
-        dto.email,
-        orgId,
-      );
+      const emailTaken = await this.studentRepository.findByEmail(dto.email, orgId);
       if (emailTaken) {
         throw new ConflictException(
           'An account with this email already exists in the organization.',
+        );
+      }
+    }
+
+    // ✅ NEW: validate sectionId capacity before updating
+    if (dto.sectionId) {
+      const section = await this.sectionService.findById(dto.sectionId, orgId);
+      const currentCount = await this.sectionService.countStudentsInSection(dto.sectionId);
+      if (currentCount >= section.capacity) {
+        throw new BadRequestException(
+          `Section has reached its capacity of ${section.capacity} students.`,
         );
       }
     }
@@ -280,19 +290,30 @@ export class StudentService {
     for (const { data } of validRows) {
       const plainPassword = generateSystemPassword();
       const hashedPassword = await hashPassword(plainPassword);
-      const status = data['Section ID'] ? 'active' : 'pending';
+      let rowStatus = StudentStatus.PENDING;
+      let sectionId: string | undefined = data['Section ID'] || undefined;
+
+      if (sectionId) {
+        const section = await this.sectionService.findById(sectionId, orgId);
+        const currentCount = await this.sectionService.countStudentsInSection(sectionId);
+        if (currentCount >= section.capacity) {
+          rowStatus = StudentStatus.PENDING;
+          sectionId = undefined;
+        } else {
+          rowStatus = StudentStatus.ACTIVE;
+        }
+      }
 
       const account = await this.studentRepository.create({
         orgId,
         email: data['Email'],
         hashedPassword,
-        status,
+        status: rowStatus,
         fullName: data['Full Name'],
         studentId: data['Student ID'],
         levelId: data['Level ID'],
-        sectionId: data['Section ID'] || undefined,
+        sectionId,  // may have been cleared if section was full
       });
-
       created.push({
         ...this.formatAccount(account),
         plainPassword,
@@ -360,4 +381,156 @@ export class StudentService {
       createdAt: account.created_at,
     };
   }
+
+// ============================================================
+// ADD TO: student.service.ts  (after getCredentialsCsv)
+// ============================================================
+
+  // ── GET /students/import-template ───────────────────────────────────────────
+  getImportTemplate(): string {
+    const headers = ['Full Name', 'Student ID', 'Email', 'Level ID', 'Section ID'];
+    const example = [
+      'Juan Dela Cruz',
+      'STU-2024-001',
+      'juan@school.edu',
+      'level-uuid-here',
+      'section-uuid-here (optional)',
+    ];
+    return [headers.join(','), example.join(',')].join('\n');
+  }
+
+  // ── DELETE /classes/:classId/enrollments/:enrollmentId ───────────────────────
+  async removeEnrollment(classId: string, enrollmentId: string, orgId: string) {
+    const cls = await this.classRepository.findById(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
+
+    const enrollment = await this.classRepository.findEnrollmentById(enrollmentId, orgId);
+    if (!enrollment || enrollment.class_id !== classId) {
+      throw new NotFoundException('Enrollment not found.');
+    }
+
+    if (enrollment.status === 'removed') {
+      throw new BadRequestException('Enrollment is already removed.');
+    }
+
+    return this.classRepository.updateEnrollmentStatus(enrollmentId, 'removed');
+  }
+
+  // ── GET /educator/classes ────────────────────────────────────────────────────
+  async getEducatorClasses(educatorId: string, orgId: string) {
+    const classes = await this.classRepository.findAll(orgId, { educatorId });
+
+    return Promise.all(
+      classes.map(async (cls) => {
+        const { subject } = await this.classRepository.findSubjectWithEducator(
+          cls.subject_id,
+          cls.educator_id,
+          orgId,
+        );
+        return {
+          id: cls.id,
+          subjectId: cls.subject_id,
+          subjectName: subject?.name ?? null,
+          sectionId: cls.section_id,
+          schoolYearId: cls.school_year_id,
+          semesterId: cls.semester_id,
+          capacity: cls.capacity,
+          schedules: cls.schedules,
+        };
+      }),
+    );
+  }
+
+  // ── GET /students/:id/enrollments ───────────────────────────────────────────
+
+  async getEnrollments(studentId: string, orgId: string) {
+    const account = await this.studentRepository.findById(studentId, orgId);
+    if (!account) throw new NotFoundException('Student not found.');
+
+    return this.studentRepository.findEnrollments(studentId, orgId);
+  }
+
+  // ── POST /students/:id/enrollments ──────────────────────────────────────────
+
+  async addEnrollment(studentId: string, orgId: string, classId: string) {
+    const account = await this.studentRepository.findById(studentId, orgId);
+    if (!account) throw new NotFoundException('Student not found.');
+
+    if (account.status !== 'active') {
+      throw new BadRequestException(
+        'Only active students can be enrolled in a class.',
+      );
+    }
+
+    // Delegate to ClassRepository — reuses all existing validation logic
+    const cls = await this.classRepository.findById(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
+
+    const duplicate = await this.classRepository.findDuplicateEnrollment(
+      studentId,
+      cls.subject_id,
+      cls.semester_id,
+      orgId,
+    );
+    if (duplicate) {
+      throw new ConflictException(
+        'Student is already enrolled in a class for this subject in the same semester.',
+      );
+    }
+
+    const existing = await this.classRepository.findEnrollmentByStudent(
+      classId,
+      studentId,
+      orgId,
+    );
+    if (existing && existing.status !== 'removed') {
+      throw new ConflictException('Student is already enrolled in this class.');
+    }
+
+    if (cls.capacity > 0) {
+      const activeCount = await this.classRepository.countActiveEnrollments(classId);
+      if (activeCount >= cls.capacity) {
+        return {
+          overflow: true,
+          message: `Class is at full capacity (${cls.capacity} students).`,
+          classId,
+          studentId,
+        };
+      }
+    }
+
+    return this.classRepository.createEnrollment({
+      orgId,
+      classId,
+      studentId,
+      status: 'active',
+    });
+  }
+
+  // ── DELETE /students/:id/enrollments/:enrollmentId ───────────────────────────
+
+  async deleteEnrollment(
+    studentId: string,
+    enrollmentId: string,
+    orgId: string,
+  ) {
+    const account = await this.studentRepository.findById(studentId, orgId);
+    if (!account) throw new NotFoundException('Student not found.');
+
+    const enrollment = await this.studentRepository.findEnrollmentById(
+      enrollmentId,
+      orgId,
+    );
+
+    if (!enrollment || enrollment.student_id !== studentId) {
+      throw new NotFoundException('Enrollment not found.');
+    }
+
+    if (enrollment.status === 'removed') {
+      throw new ConflictException('Enrollment is already removed.');
+    }
+
+    return this.studentRepository.removeEnrollment(enrollmentId);
+  }
+
 }

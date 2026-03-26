@@ -17,6 +17,16 @@ export class GradeRepository {
     });
   }
 
+  async findByClassAndTerm(classId: string, termId: string, orgId: string) {
+    return this.db.grade.findMany({
+      where: {
+        class_id: classId,
+        term_id: termId,
+        org_id: orgId,
+      },
+    });
+  }
+
   async findByStudent(
     studentId: string,
     classId: string,
@@ -33,7 +43,7 @@ export class GradeRepository {
     });
   }
 
-  // ───────── UPSERT ─────────
+  // ───────── UPSERT GRADE ─────────
 
   async upsert(data: {
     orgId: string;
@@ -45,7 +55,7 @@ export class GradeRepository {
   }) {
     return this.db.grade.upsert({
       where: {
-        org_id_student_id_class_id_term_id: { // ✅ snake_case to match Prisma schema
+        org_id_student_id_class_id_term_id: {
           org_id: data.orgId,
           student_id: data.studentId,
           class_id: data.classId,
@@ -71,27 +81,143 @@ export class GradeRepository {
 
   async publishByClass(classId: string, orgId: string) {
     return this.db.grade.updateMany({
-      where: {
-        class_id: classId,
-        org_id: orgId,
-      },
-      data: {
-        is_locked: true,
-        locked_at: new Date(),
-      },
+      where: { class_id: classId, org_id: orgId },
+      data: { is_locked: true, locked_at: new Date() },
     });
   }
 
   async unlockByClass(classId: string, orgId: string) {
     return this.db.grade.updateMany({
+      where: { class_id: classId, org_id: orgId },
+      data: { is_locked: false, locked_at: null },
+    });
+  }
+
+  // ───────── SUBMISSIONS (for computation) ─────────
+
+  async findSubmissionsForTerm(classId: string, termId: string, orgId: string) {
+    return this.db.submission.findMany({
       where: {
-        class_id: classId,
         org_id: orgId,
+        assessment: {
+          class_id: classId,
+          term_id: termId,
+        },
       },
-      data: {
-        is_locked: false,
-        locked_at: null,
+      include: {
+        assessment: {
+          select: {
+            id: true,
+            type: true,
+            total_items: true,
+            term_id: true,
+          },
+        },
       },
     });
+  }
+
+  // ───────── RUBRIC (for weights) ─────────
+
+  async findRubricForClass(classId: string, orgId: string) {
+    const classRubric = await this.db.rubric.findFirst({
+      where: { class_id: classId, org_id: orgId },
+    });
+    if (classRubric) return classRubric;
+
+    return this.db.rubric.findFirst({
+      where: { org_id: orgId, is_default: true },
+    });
+  }
+
+  // ───────── GRADING SCALE ─────────
+
+  async findGradingScale(levelId: string, schoolYearId: string, orgId: string) {
+    return this.db.gradingScale.findFirst({
+      where: {
+        org_id: orgId,
+        level_id: levelId,
+        school_year_id: schoolYearId,
+      },
+    });
+  }
+
+  // ───────── CLASS INFO ─────────
+
+  async findClassWithSubject(classId: string, orgId: string) {
+    return this.db.class.findFirst({
+      where: { id: classId, org_id: orgId, deleted_at: null },
+      include: {
+        enrollments: {
+          where: { status: 'active' },
+          select: { student_id: true },
+        },
+      },
+    });
+  }
+
+  async findSubjectLevel(subjectId: string, orgId: string) {
+    return this.db.subject.findFirst({
+      where: { id: subjectId, org_id: orgId },
+      select: { level_id: true },
+    });
+  }
+
+  // ───────── MANUAL SCORES ─────────
+
+  async findManualScores(
+    classId: string,
+    termId: string,
+    orgId: string,
+    studentId?: string,
+  ) {
+    return this.db.manualScore.findMany({
+      where: {
+        class_id: classId,
+        term_id: termId,
+        org_id: orgId,
+        ...(studentId ? { student_id: studentId } : {}),
+      },
+    });
+  }
+
+  async upsertManualScore(data: {
+    orgId: string;
+    classId: string;
+    studentId: string;
+    termId: string;
+    category: string;
+    score: number;
+  }) {
+    return this.db.manualScore.upsert({
+      where: {
+        org_id_class_id_student_id_term_id_category: {
+          org_id: data.orgId,
+          class_id: data.classId,
+          student_id: data.studentId,
+          term_id: data.termId,
+          category: data.category,
+        },
+      },
+      update: { score: data.score },
+      create: {
+        org_id: data.orgId,
+        class_id: data.classId,
+        student_id: data.studentId,
+        term_id: data.termId,
+        category: data.category,
+        score: data.score,
+      },
+    });
+  }
+
+  // ───────── TERMS ─────────
+
+  async findTermsBySemester(semesterId: string) {
+    const semester = await this.db.semester.findUnique({
+      where: { id: semesterId },
+      include: { terms: { orderBy: { order_index: 'asc' } } },
+    });
+    return semester?.terms ?? [];
   }
 }

@@ -1,4 +1,4 @@
-// src/modules/notification/notification.module.ts
+// @/modules/notification/notification.module.ts
 import { Module } from '@nestjs/common';
 import { NotificationController } from './notification.controller';
 import { NotificationService } from './notification.service';

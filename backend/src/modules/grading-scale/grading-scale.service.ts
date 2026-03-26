@@ -1,4 +1,4 @@
-// src/modules/grading-scale/grading-scale.service.ts
+// @/modules/grading-scale/grading-scale.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -212,5 +212,8 @@ export class GradingScaleService {
           isPassing: match.isPassing,
         }
       : null;
+  }
+  async unlockAllForSchoolYear(schoolYearId: string, orgId: string) {
+    await this.gradingScaleRepository.unlockAllForSchoolYear(schoolYearId, orgId);
   }
 }

@@ -1,9 +1,11 @@
+// @/modules/assessment/assessment.module.ts
 import { Module } from '@nestjs/common';
-import { AssessmentService } from './assessment.service';
-import { AssessmentController } from './assessment.controller';
+import { AssessmentEducatorModule } from './educator/assessment-educator.module';
+import { AssessmentStudentModule } from './student/assessment-student.module';
+import { AssessmentCoreModule } from './core/assessment-core.module';
 
 @Module({
-  providers: [AssessmentService],
-  controllers: [AssessmentController]
+  imports: [AssessmentCoreModule, AssessmentEducatorModule, AssessmentStudentModule],
+  exports: [AssessmentEducatorModule, AssessmentCoreModule],
 })
 export class AssessmentModule {}

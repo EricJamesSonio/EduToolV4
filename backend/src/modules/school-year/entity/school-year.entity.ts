@@ -1,4 +1,4 @@
-// src/modules/school-year/entity/school-year.entity.ts
+// @/modules/school-year/entity/school-year.entity.ts
 
 export type SchoolYearStatus = 'pending' | 'active' | 'ended';
 

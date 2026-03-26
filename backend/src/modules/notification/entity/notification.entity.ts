@@ -1,4 +1,4 @@
-// src/modules/notification/entity/notification.entity.ts
+// @/modules/notification/entity/notification.entity.ts
 
 export type NotificationType =
   | 'enrollment_created'

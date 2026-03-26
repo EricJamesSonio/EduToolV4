@@ -3,7 +3,7 @@ import { ConflictException, NotFoundException, UnauthorizedException } from '@ne
 import { JwtService } from '@nestjs/jwt';
 
 import { PlatformService } from './platform.service';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 

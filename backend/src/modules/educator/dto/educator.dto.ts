@@ -1,4 +1,4 @@
-// src/modules/educator/dto/educator.dto.ts
+// @/modules/educator/dto/educator.dto.ts
 import {
   IsString,
   IsEmail,

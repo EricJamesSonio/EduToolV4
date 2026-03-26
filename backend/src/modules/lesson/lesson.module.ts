@@ -1,6 +1,6 @@
-// src/modules/lesson/lesson.module.ts
+// @/modules/lesson/lesson.module.ts
 import { Module } from '@nestjs/common';
-import { LessonController } from './lesson.controller';
+import { LessonController, StudentLessonController } from './lesson.controller';
 import { LessonService } from './lesson.service';
 import { LessonRepository } from './lesson.repository';
 import { ClassModule } from '../class/class.module';
@@ -9,8 +9,8 @@ import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [ClassModule, AuditLogModule, NotificationModule],
-  controllers: [LessonController],
+  controllers: [LessonController, StudentLessonController],
   providers: [LessonService, LessonRepository],
-  exports: [LessonService, LessonRepository], // exported for assessment module
+  exports: [LessonService, LessonRepository],
 })
 export class LessonModule {}

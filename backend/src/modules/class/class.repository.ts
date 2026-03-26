@@ -1,6 +1,6 @@
-// src/modules/class/class.repository.ts
+// @/modules/class/class.repository.ts
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
 export class ClassRepository {
@@ -111,9 +111,6 @@ export class ClassRepository {
     });
   }
 
-  /**
-   * Find all schedules for a given educator to detect time conflicts.
-   */
   async findEducatorSchedules(educatorId: string, orgId: string) {
     return this.db.classSchedule.findMany({
       where: {
@@ -127,9 +124,6 @@ export class ClassRepository {
     });
   }
 
-  /**
-   * Find all schedules for a given section to detect time conflicts.
-   */
   async findSectionSchedules(sectionId: string, orgId: string) {
     return this.db.classSchedule.findMany({
       where: {
@@ -188,10 +182,6 @@ export class ClassRepository {
     });
   }
 
-  /**
-   * Check if a student is already enrolled in any class for the same subject
-   * in the same semester — prevents duplicate enrollment.
-   */
   async findDuplicateEnrollment(
     studentId: string,
     subjectId: string,
@@ -212,7 +202,6 @@ export class ClassRepository {
     });
   }
 
-  // add this to class.repository.ts
   async findBySchoolYear(schoolYearId: string, orgId: string) {
     return this.db.class.findMany({
       where: {
@@ -236,10 +225,6 @@ export class ClassRepository {
     });
   }
 
-  /**
-   * Find all active classes for an educator.
-   * Used before allowing educator removal.
-   */
   async findActiveClassesByEducator(educatorId: string, orgId: string) {
     return this.db.class.findMany({
       where: {
@@ -250,14 +235,131 @@ export class ClassRepository {
     });
   }
 
-  /**
-   * Check whether a class has any active enrollments.
-   * Used before archiving.
-   */
   async hasActiveEnrollments(classId: string): Promise<boolean> {
     const count = await this.db.enrollment.count({
       where: { class_id: classId, status: 'active' },
     });
     return count > 0;
   }
+
+  // ── Student-facing ───────────────────────────────────────────────────────────
+
+  /**
+   * Returns all active classes a student is enrolled in,
+   * enriched with subject name, educator name, section, and schedules.
+   */
+  async findEnrolledClassesByStudent(studentId: string, orgId: string) {
+    return this.db.enrollment.findMany({
+      where: {
+        student_id: studentId,
+        org_id: orgId,
+        status: 'active',
+        class: { deleted_at: null },
+      },
+      include: {
+        class: {
+          include: {
+            schedules: true,
+          },
+        },
+      },
+      orderBy: { created_at: 'asc' },
+    });
+  }
+
+  /**
+   * Returns a single active enrollment with full class detail.
+   * Used to verify the student is enrolled before returning class data.
+   */
+  async findEnrolledClassByStudent(
+    classId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    return this.db.enrollment.findFirst({
+      where: {
+        class_id: classId,
+        student_id: studentId,
+        org_id: orgId,
+        status: 'active',
+        class: { deleted_at: null },
+      },
+      include: {
+        class: {
+          include: {
+            schedules: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Resolves subject + educator profile for display in student class view.
+   */
+  async findSubjectWithEducator(subjectId: string, educatorId: string, orgId: string) {
+    const [subject, educatorProfile] = await Promise.all([
+      this.db.subject.findFirst({
+        where: { id: subjectId, org_id: orgId },
+        select: { id: true, name: true, level_id: true },
+      }),
+      this.db.profile.findFirst({
+        where: { account: { id: educatorId } },
+        select: { full_name: true },
+      }),
+    ]);
+
+    return { subject, educatorProfile };
+  }
+async removeEnrollment(enrollmentId: string) {
+  return this.db.enrollment.update({
+    where: { id: enrollmentId },
+    data: { status: 'removed' as any },
+  });
+}
+
+// ── Ownership log ─────────────────────────────────────────────────────────────
+
+async createOwnershipLog(data: {
+  orgId: string;
+  classId: string;
+  fromEducatorId: string;
+  toEducatorId: string;
+  reason?: string;
+  reassignedBy: string;
+}) {
+  return this.db.classOwnershipLog.create({
+    data: {
+      org_id: data.orgId,
+      class_id: data.classId,
+      from_educator_id: data.fromEducatorId,
+      to_educator_id: data.toEducatorId,
+      reason: data.reason ?? null,
+      reassigned_by: data.reassignedBy,
+    },
+  });
+}
+
+async findOwnershipHistory(classId: string, orgId: string) {
+  return this.db.classOwnershipLog.findMany({
+    where: { class_id: classId, org_id: orgId },
+    orderBy: { reassigned_at: 'asc' },
+  });
+}
+
+// ── Rubric ───────────────────────────────────────────────────────────────────
+
+async lockRubricForClass(classId: string, orgId: string) {
+  return this.db.rubric.updateMany({
+    where: {
+      class_id: classId,
+      org_id: orgId,
+      is_locked: false,
+    },
+    data: {
+      is_locked: true,
+      locked_at: new Date(),
+    },
+  });
+}
 }

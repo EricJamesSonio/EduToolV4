@@ -1,4 +1,4 @@
-// src/modules/educator/educator.service.ts
+// @/modules/educator/educator.service.ts
 import {
   Injectable,
   ConflictException,
@@ -7,7 +7,7 @@ import {
 import { EducatorRepository } from './educator.repository';
 import { CreateEducatorDto, UpdateEducatorDto, QueryEducatorDto } from './dto/educator.dto';
 import { generateEducatorId, generateSystemPassword } from './educator.utils';
-import { hashPassword } from 'src/commons/utils/hash.util';
+import { hashPassword } from '@/commons/utils/hash.util';
 import { ClassService } from '../class/class.service';
 
 @Injectable()

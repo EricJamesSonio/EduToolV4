@@ -1,4 +1,4 @@
-// src/modules/class/entity/class.entity.ts
+// @/modules/class/entity/class.entity.ts
 
 export class ClassScheduleEntity {
   id: string;

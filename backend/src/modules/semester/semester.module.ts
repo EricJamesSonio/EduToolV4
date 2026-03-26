@@ -1,4 +1,4 @@
-// src/modules/semester/semester.module.ts
+// @/modules/semester/semester.module.ts
 import { Module } from '@nestjs/common';
 import { SemesterController } from './semester.controller';
 import { SemesterService } from './semester.service';

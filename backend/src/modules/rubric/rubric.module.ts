@@ -1,4 +1,4 @@
-// src/modules/rubric/rubric.module.ts
+// @/modules/rubric/rubric.module.ts
 import { Module } from '@nestjs/common';
 import { RubricController } from './rubric.controller';
 import { RubricService } from './rubric.service';

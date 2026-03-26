@@ -13,7 +13,7 @@ import { PlatformService } from './platform.service';
 import { LoginPlatformDto } from './dto/login-platform.dto';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { GetAdminsDto } from './dto/get-admins.dto';
-import { AuthGuard } from 'src/commons/guards/auth.guard';
+import { AuthGuard } from '@/commons/guards/auth.guard';
 import { PlatformOwnerGuard } from './guards/platform-owner.guard';
 
 @Controller('platform')

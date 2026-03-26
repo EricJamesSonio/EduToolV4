@@ -1,4 +1,4 @@
-// src/modules/grading-scale/entity/grading-scale.entity.ts
+// @/modules/grading-scale/entity/grading-scale.entity.ts
 
 export class GradeRangeEntity {
   minPercent: number;

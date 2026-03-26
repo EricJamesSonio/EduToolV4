@@ -1,4 +1,4 @@
-// src/modules/program/program.service.ts
+// @/modules/program/program.service.ts
 import {
   Injectable,
   NotFoundException,

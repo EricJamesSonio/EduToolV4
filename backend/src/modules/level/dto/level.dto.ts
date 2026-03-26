@@ -1,4 +1,4 @@
-// src/modules/level/dto/level.dto.ts
+// @/modules/level/dto/level.dto.ts
 import {
   IsString,
   IsOptional,

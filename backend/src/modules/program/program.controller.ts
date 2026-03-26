@@ -1,4 +1,4 @@
-// src/modules/program/program.controller.ts
+// @/modules/program/program.controller.ts
 import {
   Controller,
   Post,
@@ -13,10 +13,10 @@ import {
 } from '@nestjs/common';
 import { ProgramService } from './program.service';
 import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto';
-import { AuthGuard } from 'src/commons/guards/auth.guard';
-import { RolesGuard } from 'src/commons/guards/role.guard';
-import { Roles } from 'src/commons/decorators/roles.decorator';
-import { CurrentUser } from 'src/commons/decorators/current-user.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { Roles } from '@/commons/decorators/roles.decorator';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('programs')
 @UseGuards(AuthGuard, RolesGuard)

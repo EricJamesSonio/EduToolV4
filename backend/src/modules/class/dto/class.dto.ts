@@ -1,4 +1,4 @@
-// src/modules/class/dto/class.dto.ts
+// @/modules/class/dto/class.dto.ts
 import {
   IsString,
   IsUUID,

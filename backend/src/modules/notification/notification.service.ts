@@ -1,4 +1,4 @@
-// src/modules/notification/notification.service.ts
+// @/modules/notification/notification.service.ts
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { NotificationRepository } from './notification.repository';
 import { QueryNotificationDto } from './dto/notification.dto';

@@ -1,4 +1,4 @@
-// src/modules/rubric/entity/rubric.entity.ts
+// @/modules/rubric/entity/rubric.entity.ts
 
 export type RubricCategoryType = 'assessment_linked' | 'manual_entry';
 

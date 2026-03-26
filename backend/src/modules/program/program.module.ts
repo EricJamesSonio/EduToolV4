@@ -1,4 +1,4 @@
-// src/modules/program/program.module.ts
+// @/modules/program/program.module.ts
 import { Module } from '@nestjs/common';
 import { ProgramController } from './program.controller';
 import { ProgramService } from './program.service';

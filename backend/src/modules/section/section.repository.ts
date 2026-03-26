@@ -1,6 +1,6 @@
-// src/modules/section/section.repository.ts
+// @/modules/section/section.repository.ts
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
 export class SectionRepository {

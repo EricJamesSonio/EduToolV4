@@ -1,4 +1,4 @@
-// src/modules/student/dto/student.dto.ts
+// @/modules/student/dto/student.dto.ts
 import {
   IsString,
   IsEmail,
@@ -96,4 +96,10 @@ export class QueryStudentDto {
   @IsOptional()
   @IsUUID()
   sectionId?: string;
+
+
+}
+export class AddEnrollmentDto {
+  @IsUUID()
+  classId: string;
 }

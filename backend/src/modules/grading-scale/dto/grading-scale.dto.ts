@@ -1,4 +1,4 @@
-// src/modules/grading-scale/dto/grading-scale.dto.ts
+// @/modules/grading-scale/dto/grading-scale.dto.ts
 import {
   IsString,
   IsOptional,

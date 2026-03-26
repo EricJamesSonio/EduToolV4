@@ -1,4 +1,4 @@
-// src/modules/subject/entity/subject.entity.ts
+// @/modules/subject/entity/subject.entity.ts
 
 export class SubjectEntity {
   id: string;

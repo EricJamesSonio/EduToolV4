@@ -1,4 +1,4 @@
-// src/modules/student/student.utils.ts
+// @/modules/student/student.utils.ts
 
 /**
  * Generates a system password — 10 alphanumeric characters.

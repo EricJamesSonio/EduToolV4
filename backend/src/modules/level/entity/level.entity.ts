@@ -1,4 +1,4 @@
-// src/modules/level/entity/level.entity.ts
+// @/modules/level/entity/level.entity.ts
 
 export class LevelEntity {
   id: string;

@@ -1,4 +1,4 @@
-// src/modules/analytics/dto/analytics.dto.ts
+// @/modules/analytics/dto/analytics.dto.ts
 import { IsOptional, IsUUID } from 'class-validator';
 
 export class GradeAnalyticsQueryDto {

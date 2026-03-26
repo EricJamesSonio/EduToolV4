@@ -1,4 +1,4 @@
-// src/modules/auth/auth.service.ts
+// @/modules/auth/auth.service.ts
 import {
   Injectable,
   UnauthorizedException,
@@ -11,7 +11,7 @@ import { AccountStatus } from '@prisma/client';
 import { AuthRepository } from './auth.repository';
 import { LoginDto } from './dto/auth.dto';
 import { AuthTokens, TokenPayload } from './entity/auth.entity';
-import { comparePassword, hashPassword } from 'src/commons/utils/hash.util';
+import { comparePassword, hashPassword } from '@/commons/utils/hash.util';
 
 @Injectable()
 export class AuthService {

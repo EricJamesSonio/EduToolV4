@@ -1,0 +1,78 @@
+// src/modules/grade/educator/grade-educator.controller.ts
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
+import { GradeEducatorService } from './grade-educator.service';
+import { SetManualScoreDto } from './dto/grade-educator.dto';
+import { AuthGuard } from 'src/commons/guards/auth.guard';
+import { RolesGuard } from 'src/commons/guards/role.guard';
+import { Roles } from 'src/commons/decorators/roles.decorator';
+import { CurrentUser } from 'src/commons/decorators/current-user.decorator';
+
+@Controller('classes/:classId/grades')
+@UseGuards(AuthGuard, RolesGuard)
+export class GradeEducatorController {
+  constructor(private readonly service: GradeEducatorService) {}
+
+  // GET /classes/:classId/grades
+  @Get()
+  @Roles('educator', 'admin')
+  getGradesByClass(
+    @Param('classId') classId: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.service.getGradesByClass(classId, orgId, educatorId);
+  }
+
+  // GET /classes/:classId/grades/:termId
+  @Get(':termId')
+  @Roles('educator', 'admin')
+  getGradesByTerm(
+    @Param('classId') classId: string,
+    @Param('termId') termId: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.service.getGradesByTerm(classId, termId, orgId, educatorId);
+  }
+
+  // POST /classes/:classId/grades/:termId/compute
+  @Post(':termId/compute')
+  @Roles('educator', 'admin')
+  computeGrades(
+    @Param('classId') classId: string,
+    @Param('termId') termId: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.service.computeGrades(classId, termId, orgId, educatorId);
+  }
+
+  // PATCH /classes/:classId/grades/:termId/students/:studentId/manual
+  @Patch(':termId/students/:studentId/manual')
+  @Roles('educator', 'admin')
+  setManualScore(
+    @Param('classId') classId: string,
+    @Param('termId') termId: string,
+    @Param('studentId') studentId: string,
+    @Body() dto: SetManualScoreDto,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.service.setManualScore(
+      classId,
+      termId,
+      studentId,
+      orgId,
+      educatorId,
+      dto,
+    );
+  }
+}

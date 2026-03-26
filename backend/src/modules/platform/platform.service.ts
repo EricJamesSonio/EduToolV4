@@ -7,11 +7,11 @@ import {
 
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { GetAdminsDto } from './dto/get-admins.dto';
-import { hashPassword } from 'src/commons/utils/hash.util';
-import { generatePassword } from 'src/commons/utils/password.util';
+import { hashPassword } from '@/commons/utils/hash.util';
+import { generatePassword } from '@/commons/utils/password.util';
 
 const ADMIN_SAFE_SELECT = {
   id: true,

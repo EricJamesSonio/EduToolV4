@@ -1,4 +1,4 @@
-// src/modules/class/class.service.ts
+// @/modules/class/class.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -7,6 +7,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { ClassRepository } from './class.repository';
+import { AttendanceService } from '../attendance/attendance.service';
 import {
   CreateClassDto,
   UpdateClassDto,
@@ -39,17 +40,18 @@ function slotsOverlap(a: TimeSlot, b: TimeSlot): boolean {
 
 @Injectable()
 export class ClassService {
-  constructor(private readonly classRepository: ClassRepository) {}
+  constructor(
+    private readonly classRepository: ClassRepository,
+    private readonly attendanceService: AttendanceService,
+  ) {}
 
   // ── POST /classes ────────────────────────────────────────────────────────────
 
   async create(orgId: string, dto: CreateClassDto) {
     const slots = this.parseSlots(dto.schedules);
 
-    // Validate educator schedule conflicts
     await this.assertNoEducatorConflict(dto.educatorId, orgId, slots);
 
-    // Validate section schedule conflicts (if section provided)
     if (dto.sectionId) {
       await this.assertNoSectionConflict(dto.sectionId, orgId, slots);
     }
@@ -65,6 +67,17 @@ export class ClassService {
     });
 
     await this.classRepository.replaceSchedules(orgId, cls.id, slots);
+
+    // Auto-generate attendance sessions from class schedules + semester dates.
+    // Fire-and-forget — does not block the response.
+    this.attendanceService
+      .generateSessionsForClass(cls.id, orgId)
+      .catch((err) => {
+        console.error(
+          `[AttendanceService] Failed to generate sessions for class ${cls.id}:`,
+          err,
+        );
+      });
 
     return this.classRepository.findById(cls.id, orgId);
   }
@@ -85,9 +98,7 @@ export class ClassService {
 
   async findById(id: string, orgId: string) {
     const cls = await this.classRepository.findById(id, orgId);
-
     if (!cls) throw new NotFoundException('Class not found.');
-
     return cls;
   }
 
@@ -95,7 +106,6 @@ export class ClassService {
 
   async update(id: string, orgId: string, dto: UpdateClassDto) {
     const cls = await this.classRepository.findById(id, orgId);
-
     if (!cls) throw new NotFoundException('Class not found.');
 
     if (dto.schedules) {
@@ -123,9 +133,7 @@ export class ClassService {
 
   async archive(id: string, orgId: string) {
     const cls = await this.classRepository.findById(id, orgId);
-
     if (!cls) throw new NotFoundException('Class not found.');
-
     return this.classRepository.softDelete(id);
   }
 
@@ -133,10 +141,8 @@ export class ClassService {
 
   async enrollStudent(id: string, orgId: string, dto: EnrollStudentDto) {
     const cls = await this.classRepository.findById(id, orgId);
-
     if (!cls) throw new NotFoundException('Class not found.');
 
-    // Duplicate enrollment check — same subject, same semester
     const duplicate = await this.classRepository.findDuplicateEnrollment(
       dto.studentId,
       cls.subject_id,
@@ -150,7 +156,6 @@ export class ClassService {
       );
     }
 
-    // Existing enrollment in this exact class
     const existing = await this.classRepository.findEnrollmentByStudent(
       id,
       dto.studentId,
@@ -161,12 +166,10 @@ export class ClassService {
       throw new ConflictException('Student is already enrolled in this class.');
     }
 
-    // Capacity check (0 = unlimited)
     if (cls.capacity > 0) {
       const activeCount = await this.classRepository.countActiveEnrollments(id);
 
       if (activeCount >= cls.capacity) {
-        // Return overflow signal — controller/client handles the prompt
         return {
           overflow: true,
           message: `Class is at full capacity (${cls.capacity} students). Add a new parallel session or mark the student as pending enrollment.`,
@@ -183,6 +186,12 @@ export class ClassService {
       status: 'active',
     });
 
+    // Lock rubric on first enrolled student
+    const activeCount = await this.classRepository.countActiveEnrollments(id);
+    if (activeCount === 1) {
+      await this.classRepository.lockRubricForClass(id, orgId);
+    }
+
     return enrollment;
   }
 
@@ -190,9 +199,7 @@ export class ClassService {
 
   async getEnrollments(id: string, orgId: string) {
     const cls = await this.classRepository.findById(id, orgId);
-
     if (!cls) throw new NotFoundException('Class not found.');
-
     return this.classRepository.findEnrollments(id, orgId);
   }
 
@@ -221,18 +228,13 @@ export class ClassService {
 
   // ── POST /classes/:id/reassign-educator ──────────────────────────────────────
 
-  /**
-   * Reassigns the class to a new educator mid-semester.
-   * New educator inherits all class content.
-   * Every reassignment is permanent — audit trail logged externally.
-   */
   async reassignEducator(
     id: string,
     orgId: string,
     dto: ReassignEducatorDto,
+    adminId: string,         // ← add this param
   ) {
     const cls = await this.classRepository.findById(id, orgId);
-
     if (!cls) throw new NotFoundException('Class not found.');
 
     if (cls.educator_id === dto.educatorId) {
@@ -241,7 +243,6 @@ export class ClassService {
       );
     }
 
-    // Validate new educator has no schedule conflict
     const existingSchedules = cls.schedules as any[];
     const slots: TimeSlot[] = existingSchedules.map((s) => ({
       weekday: s.weekday,
@@ -251,7 +252,25 @@ export class ClassService {
 
     await this.assertNoEducatorConflict(dto.educatorId, orgId, slots, id);
 
+    // Write ownership log before updating
+    await this.classRepository.createOwnershipLog({
+      orgId,
+      classId: id,
+      fromEducatorId: cls.educator_id,
+      toEducatorId: dto.educatorId,
+      reason: dto.reason,
+      reassignedBy: adminId,
+    });
+
     return this.classRepository.update(id, { educatorId: dto.educatorId });
+  }
+  // ── GET /classes/:id/ownership-history ───────────────────────────────────────
+
+  async getOwnershipHistory(id: string, orgId: string) {
+    const cls = await this.classRepository.findById(id, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
+
+    return this.classRepository.findOwnershipHistory(id, orgId);
   }
 
   // ── Utility ──────────────────────────────────────────────────────────────────
@@ -262,6 +281,90 @@ export class ClassService {
       orgId,
     );
     return classes.length > 0;
+  }
+
+  // ── GET /student/classes ─────────────────────────────────────────────────────
+
+  async getStudentClasses(studentId: string, orgId: string) {
+    const enrollments = await this.classRepository.findEnrolledClassesByStudent(
+      studentId,
+      orgId,
+    );
+
+    // Enrich each enrollment with subject + educator name
+    const results = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        const cls = enrollment.class;
+        const { subject, educatorProfile } =
+          await this.classRepository.findSubjectWithEducator(
+            cls.subject_id,
+            cls.educator_id,
+            orgId,
+          );
+
+        return {
+          enrollmentId: enrollment.id,
+          enrollmentStatus: enrollment.status,
+          class: {
+            id: cls.id,
+            subjectId: cls.subject_id,
+            subjectName: subject?.name ?? null,
+            educatorId: cls.educator_id,
+            educatorName: educatorProfile?.full_name ?? null,
+            sectionId: cls.section_id,
+            schoolYearId: cls.school_year_id,
+            semesterId: cls.semester_id,
+            capacity: cls.capacity,
+            schedules: cls.schedules,
+          },
+        };
+      }),
+    );
+
+    return results;
+  }
+
+  // ── GET /student/classes/:classId ────────────────────────────────────────────
+
+  async getStudentClassById(
+    classId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    const enrollment = await this.classRepository.findEnrolledClassByStudent(
+      classId,
+      studentId,
+      orgId,
+    );
+
+    if (!enrollment) {
+      throw new ForbiddenException('You are not enrolled in this class.');
+    }
+
+    const cls = enrollment.class;
+    const { subject, educatorProfile } =
+      await this.classRepository.findSubjectWithEducator(
+        cls.subject_id,
+        cls.educator_id,
+        orgId,
+      );
+
+    return {
+      enrollmentId: enrollment.id,
+      enrollmentStatus: enrollment.status,
+      class: {
+        id: cls.id,
+        subjectId: cls.subject_id,
+        subjectName: subject?.name ?? null,
+        educatorId: cls.educator_id,
+        educatorName: educatorProfile?.full_name ?? null,
+        sectionId: cls.section_id,
+        schoolYearId: cls.school_year_id,
+        semesterId: cls.semester_id,
+        capacity: cls.capacity,
+        schedules: cls.schedules,
+      },
+    };
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────────
@@ -293,7 +396,6 @@ export class ClassService {
     );
 
     for (const existingSlot of existing) {
-      // Skip schedules belonging to the class being updated
       if (excludeClassId && existingSlot.class_id === excludeClassId) continue;
 
       const slot: TimeSlot = {
@@ -340,5 +442,31 @@ export class ClassService {
         }
       }
     }
+  }
+
+// ── DELETE /classes/:classId/enrollments/:enrollmentId ───────────────────────
+
+  async removeEnrollment(classId: string, enrollmentId: string, orgId: string) {
+    const cls = await this.classRepository.findById(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
+
+    const enrollment = await this.classRepository.findEnrollmentById(
+      enrollmentId,
+      orgId,
+    );
+
+    if (!enrollment || enrollment.class_id !== classId) {
+      throw new NotFoundException('Enrollment not found.');
+    }
+
+    if (enrollment.status === 'removed') {
+      throw new ConflictException('Enrollment has already been removed.');
+    }
+
+    return this.classRepository.removeEnrollment(enrollmentId);
+  }
+
+  async getEducatorClasses(educatorId: string, orgId: string) {
+    return this.classRepository.findActiveClassesByEducator(educatorId, orgId);
   }
 }

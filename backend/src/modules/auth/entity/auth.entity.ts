@@ -1,4 +1,4 @@
-// src/modules/auth/entity/auth.entity.ts
+// @/modules/auth/entity/auth.entity.ts
 import { Role, AccountStatus } from '@prisma/client';
 
 export class AuthEntity {

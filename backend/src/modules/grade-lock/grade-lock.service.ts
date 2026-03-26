@@ -1,4 +1,3 @@
-// src/modules/grade-lock/grade-lock.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -8,7 +7,7 @@ import {
 import { GradeLockRepository } from './grade-lock.repository';
 import { ClassRepository } from '../class/class.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import { GradeService } from '../grade/grade.service';
+import { GradeEducatorService } from '../grade/educator/grade-educator.service';
 import { CreateGradeLockSettingDto, QueryGradeLockDto } from './dto/grade-lock.dto';
 
 @Injectable()
@@ -17,7 +16,7 @@ export class GradeLockService {
     private readonly gradeLockRepo: GradeLockRepository,
     private readonly classRepo: ClassRepository,
     private readonly auditLog: AuditLogService,
-    private readonly gradeService: GradeService,
+    private readonly gradeService: GradeEducatorService,
   ) {}
 
   // ───────── SETTINGS ─────────
@@ -60,7 +59,6 @@ export class GradeLockService {
     }
 
     const existing = await this.gradeLockRepo.findByClassId(classId);
-
     if (existing?.is_locked) {
       throw new ForbiddenException('Class already locked.');
     }
@@ -74,6 +72,19 @@ export class GradeLockService {
     });
 
     await this.gradeService.publishAllByClass(classId, user.orgId);
+
+    // Lock the grading scale for this class's level + school year
+    const levelId = await this.gradeLockRepo.findLevelIdForClass(
+      classId,
+      user.orgId,
+    );
+    if (levelId) {
+      await this.gradeLockRepo.lockGradingScale(
+        levelId,
+        cls.school_year_id,
+        user.orgId,
+      );
+    }
 
     await this.auditLog.logAdminAction({
       orgId: user.orgId,
@@ -97,7 +108,6 @@ export class GradeLockService {
     }
 
     const lock = await this.gradeLockRepo.findByClassId(classId);
-
     if (!lock || !lock.is_locked) {
       throw new ForbiddenException('Class is not locked.');
     }
@@ -151,6 +161,19 @@ export class GradeLockService {
         });
 
         await this.gradeService.publishAllByClass(cls.id, orgId);
+
+        // Lock the grading scale for this class's level + school year
+        const levelId = await this.gradeLockRepo.findLevelIdForClass(
+          cls.id,
+          orgId,
+        );
+        if (levelId) {
+          await this.gradeLockRepo.lockGradingScale(
+            levelId,
+            cls.school_year_id,
+            orgId,
+          );
+        }
 
         await this.auditLog.logAdminAction({
           orgId,

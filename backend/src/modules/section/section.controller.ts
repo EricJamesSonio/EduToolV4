@@ -1,4 +1,4 @@
-// src/modules/section/section.controller.ts
+// @/modules/section/section.controller.ts
 import {
   Controller,
   Post,
@@ -14,10 +14,10 @@ import {
 } from '@nestjs/common';
 import { SectionService } from './section.service';
 import { CreateSectionDto, UpdateSectionDto, QuerySectionDto } from './dto/section.dto';
-import { AuthGuard } from 'src/commons/guards/auth.guard';
-import { RolesGuard } from 'src/commons/guards/role.guard';
-import { Roles } from 'src/commons/decorators/roles.decorator';
-import { CurrentUser } from 'src/commons/decorators/current-user.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { Roles } from '@/commons/decorators/roles.decorator';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('sections')
 @UseGuards(AuthGuard, RolesGuard)

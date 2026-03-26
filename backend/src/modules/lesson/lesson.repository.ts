@@ -1,34 +1,34 @@
-// src/modules/lesson/lesson.repository.ts
+// @/modules/lesson/lesson.repository.ts
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from 'src/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
 export class LessonRepository {
   constructor(private readonly db: DatabaseService) {}
 
-    // ───────── CREATE ─────────
-    // lesson.repository.ts — create()
-    async create(data: {
+  // ───────── CREATE ─────────
+
+  async create(data: {
     orgId: string;
     classId: string;
     title: string;
     description?: string;
     weekNumber: number;
     subIndex: number;
-    detail: string; // ✅ add to signature
-    }) {
+    detail: string;
+  }) {
     return this.db.lesson.create({
-        data: {
+      data: {
         org_id: data.orgId,
         class_id: data.classId,
         title: data.title,
         description: data.description ?? null,
-        detail: data.detail,        // ✅ persist it
+        detail: data.detail,
         week_number: data.weekNumber,
         sub_index: data.subIndex,
-        },
+      },
     });
-    }
+  }
 
   // ───────── FIND ─────────
 
@@ -107,7 +107,6 @@ export class LessonRepository {
     lessonId: string;
     content: object;
   }) {
-    // Delete old concept first (re-extraction replaces entirely)
     await this.db.lessonConcept.deleteMany({
       where: { lesson_id: data.lessonId },
     });
@@ -117,6 +116,53 @@ export class LessonRepository {
         org_id: data.orgId,
         lesson_id: data.lessonId,
         content: data.content,
+      },
+    });
+  }
+
+  // ───────── STUDENT-FACING ─────────
+
+  /**
+   * Returns all lessons for a class, ordered by week + sub_index.
+   * Used for student list view — no concept data included.
+   */
+  async findAllForStudent(classId: string, orgId: string, weekNumber?: number) {
+    return this.db.lesson.findMany({
+      where: {
+        class_id: classId,
+        org_id: orgId,
+        ...(weekNumber ? { week_number: weekNumber } : {}),
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        detail: true,
+        week_number: true,
+        sub_index: true,
+        created_at: true,
+        // Intentionally excludes LessonConcept — educator-only
+      },
+      orderBy: [{ week_number: 'asc' }, { sub_index: 'asc' }],
+    });
+  }
+
+  /**
+   * Returns a single lesson for student view.
+   * No concept data returned.
+   */
+  async findByIdForStudent(id: string, orgId: string) {
+    return this.db.lesson.findFirst({
+      where: { id, org_id: orgId },
+      select: {
+        id: true,
+        class_id: true,
+        title: true,
+        description: true,
+        detail: true,
+        week_number: true,
+        sub_index: true,
+        created_at: true,
       },
     });
   }
