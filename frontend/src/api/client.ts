@@ -1,7 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "@/config/api.config";
 
-// Extend config to track retry state
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
@@ -13,25 +12,47 @@ const apiClient = axios.create({
   },
 });
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("accessToken");
+}
+
+function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("refreshToken");
+}
+
+function saveTokens(accessToken: string, refreshToken: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("accessToken", accessToken);
+  localStorage.setItem("refreshToken", refreshToken);
+}
+
+function clearTokens(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+}
+
+export { getAccessToken, getRefreshToken, saveTokens, clearTokens };
+
 // ─── Request interceptor ──────────────────────────────────────────────────────
-// Attaches Bearer token from localStorage on every outgoing request
+
 apiClient.interceptors.request.use(
   (config) => {
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
+    const token = getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-
     return config;
   },
   (error) => Promise.reject(error)
 );
 
 // ─── Response interceptor ─────────────────────────────────────────────────────
-// On 401: attempt token refresh, retry original request once
-// On refresh failure: clear auth state and redirect to /login
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -45,28 +66,23 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshResponse = await apiClient.post<{ token: string }>(
-          "/auth/refresh"
-        );
-        const newToken = refreshResponse.data.token;
+        const refreshToken = getRefreshToken();
+        if (!refreshToken) throw new Error("No refresh token");
 
-        if (typeof window !== "undefined") {
-          localStorage.setItem("token", newToken);
-        }
+        const { data } = await apiClient.post<{
+          accessToken: string;
+          refreshToken: string;
+        }>("/auth/refresh", { refreshToken });
 
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        saveTokens(data.accessToken, data.refreshToken);
+
+        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
         return apiClient(originalRequest);
       } catch {
-        // Refresh failed — clear auth state and send user to login
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("token");
-        }
-
-        // Small delay so any in-flight toasts can show before redirect
+        clearTokens();
         setTimeout(() => {
           window.location.href = "/login";
         }, 100);
-
         return Promise.reject(error);
       }
     }

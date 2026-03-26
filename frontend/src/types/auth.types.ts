@@ -1,19 +1,35 @@
 export type Role = "platform_owner" | "admin" | "educator" | "student";
 
+export type AccountStatus =
+  | "active"
+  | "blocked"
+  | "suspended"
+  | "pending"
+  | "dropped"
+  | "transferred"
+  | "graduated";
+
 export interface AuthUser {
   id: string;
-  email: string;
+  orgId: string | null;
   role: Role;
-  orgId: string;
-  name: string;
+  email: string;
+  status: AccountStatus;
+  fullName: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
 }
 
 export interface TokenPayload {
   sub: string;
-  email: string;
+  orgId: string | null;
   role: Role;
-  orgId: string;
-  name: string;
+  email: string;
   iat: number;
   exp: number;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
 }
