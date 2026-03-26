@@ -1,4 +1,3 @@
-// @/modules/lesson/lesson.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -10,8 +9,8 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 import { NotificationService } from '../notification/notification.service';
 import { CreateLessonDto, UpdateLessonDto, QueryLessonDto } from './dto/lesson.dto';
 import { ClassRepository } from '../class/class.repository';
+import { AiService } from '@/core/ai/ai.service'; // 👈 NEW
 
-// Minimum word count for concept extraction to be triggered
 const MIN_DETAIL_WORDS = 10;
 
 function countWords(text: string): number {
@@ -25,9 +24,8 @@ export class LessonService {
     private readonly classRepo: ClassRepository,
     private readonly auditLog: AuditLogService,
     private readonly notificationService: NotificationService,
+    private readonly aiService: AiService, // 👈 NEW
   ) {}
-
-  // ───────── CREATE ─────────
 
   async create(
     classId: string,
@@ -76,14 +74,11 @@ export class LessonService {
       metadata: { lessonId: lesson.id, title: lesson.title },
     });
 
-    this.triggerConceptExtraction(lesson.id, orgId, educatorId, dto.detail).catch(
-      () => {},
-    );
+    // Fire-and-forget — real AI extraction
+    this.triggerConceptExtraction(lesson.id, orgId, educatorId, dto.detail).catch(() => {});
 
     return lesson;
   }
-
-  // ───────── FIND ALL (educator) ─────────
 
   async findAll(
     classId: string,
@@ -96,27 +91,19 @@ export class LessonService {
     if (cls.educator_id !== educatorId) {
       throw new ForbiddenException('You do not own this class.');
     }
-
     return this.lessonRepo.findAll(classId, orgId, query.weekNumber);
   }
-
-  // ───────── FIND ONE (educator) ─────────
 
   async findOne(id: string, orgId: string, educatorId: string) {
     const lesson = await this.lessonRepo.findById(id, orgId);
     if (!lesson) throw new NotFoundException('Lesson not found.');
-
     const cls = await this.classRepo.findById(lesson.class_id, orgId);
     if (cls?.educator_id !== educatorId) {
       throw new ForbiddenException('You do not own this class.');
     }
-
     const concept = await this.lessonRepo.findConcept(id);
-
     return { ...lesson, concept: concept ?? null };
   }
-
-  // ───────── UPDATE ─────────
 
   async update(
     id: string,
@@ -126,7 +113,6 @@ export class LessonService {
   ) {
     const lesson = await this.lessonRepo.findById(id, orgId);
     if (!lesson) throw new NotFoundException('Lesson not found.');
-
     const cls = await this.classRepo.findById(lesson.class_id, orgId);
     if (cls?.educator_id !== educatorId) {
       throw new ForbiddenException('You do not own this class.');
@@ -139,14 +125,12 @@ export class LessonService {
     if (dto.weekNumber !== undefined || dto.subIndex !== undefined) {
       const newWeek = dto.weekNumber ?? lesson.week_number;
       const newSub = dto.subIndex ?? lesson.sub_index;
-
       const conflict = await this.lessonRepo.findByClassAndWeek(
         lesson.class_id,
         orgId,
         newWeek,
         newSub,
       );
-
       if (conflict && conflict.id !== id) {
         throw new BadRequestException(
           `A lesson already exists at Week ${newWeek}, Sub-index ${newSub}.`,
@@ -173,19 +157,14 @@ export class LessonService {
     return updated;
   }
 
-  // ───────── DELETE ─────────
-
   async delete(id: string, orgId: string, educatorId: string) {
     const lesson = await this.lessonRepo.findById(id, orgId);
     if (!lesson) throw new NotFoundException('Lesson not found.');
-
     const cls = await this.classRepo.findById(lesson.class_id, orgId);
     if (cls?.educator_id !== educatorId) {
       throw new ForbiddenException('You do not own this class.');
     }
-
     await this.lessonRepo.delete(id);
-
     await this.auditLog.logActivityEvent({
       orgId,
       actorId: educatorId,
@@ -194,28 +173,20 @@ export class LessonService {
       entityId: lesson.class_id,
       metadata: { lessonId: id, action: 'deleted' },
     });
-
     return { success: true };
   }
-
-  // ───────── GET CONCEPT ─────────
 
   async getConcept(id: string, orgId: string, educatorId: string) {
     const lesson = await this.lessonRepo.findById(id, orgId);
     if (!lesson) throw new NotFoundException('Lesson not found.');
-
     const cls = await this.classRepo.findById(lesson.class_id, orgId);
     if (cls?.educator_id !== educatorId) {
       throw new ForbiddenException('You do not own this class.');
     }
-
     const concept = await this.lessonRepo.findConcept(id);
     if (!concept) throw new NotFoundException('No concept build found for this lesson.');
-
     return concept;
   }
-
-  // ───────── RE-EXTRACT CONCEPT ─────────
 
   async reExtractConcept(
     id: string,
@@ -225,12 +196,10 @@ export class LessonService {
   ) {
     const lesson = await this.lessonRepo.findById(id, orgId);
     if (!lesson) throw new NotFoundException('Lesson not found.');
-
     const cls = await this.classRepo.findById(lesson.class_id, orgId);
     if (cls?.educator_id !== educatorId) {
       throw new ForbiddenException('You do not own this class.');
     }
-
     if (countWords(detail) < MIN_DETAIL_WORDS) {
       throw new BadRequestException('Lesson detail must be at least 10 words.');
     }
@@ -249,13 +218,6 @@ export class LessonService {
     return { success: true, message: 'Concept extraction started.' };
   }
 
-  // ───────── STUDENT: GET LESSONS ─────────
-
-  /**
-   * Returns all lessons for a class the student is enrolled in.
-   * Concept data is intentionally excluded — educator-only.
-   * weekNumber filter is optional.
-   */
   async getStudentLessons(
     classId: string,
     studentId: string,
@@ -266,12 +228,6 @@ export class LessonService {
     return this.lessonRepo.findAllForStudent(classId, orgId, weekNumber);
   }
 
-  // ───────── STUDENT: GET LESSON DETAIL ─────────
-
-  /**
-   * Returns a single lesson for a student.
-   * Concept data is intentionally excluded — educator-only.
-   */
   async getStudentLesson(
     classId: string,
     lessonId: string,
@@ -279,22 +235,15 @@ export class LessonService {
     orgId: string,
   ) {
     await this.assertStudentEnrolled(classId, studentId, orgId);
-
     const lesson = await this.lessonRepo.findByIdForStudent(lessonId, orgId);
-
     if (!lesson || lesson.class_id !== classId) {
       throw new NotFoundException('Lesson not found.');
     }
-
     return lesson;
   }
 
-  // ───────── PRIVATE HELPERS ─────────
+  // ── Private helpers ──────────────────────────────────────────────────────────
 
-  /**
-   * Verifies the student has an active enrollment in the class.
-   * Throws ForbiddenException if not enrolled.
-   */
   private async assertStudentEnrolled(
     classId: string,
     studentId: string,
@@ -310,18 +259,19 @@ export class LessonService {
     }
   }
 
+  // 👇 REPLACED: was mockExtract(), now calls real AI
   private async triggerConceptExtraction(
     lessonId: string,
     orgId: string,
     educatorId: string,
     detail: string,
   ) {
-    const mockContent = this.mockExtract(detail);
+    const conceptBuild = await this.aiService.extractConcepts(detail);
 
     await this.lessonRepo.upsertConcept({
       orgId,
       lessonId,
-      content: mockContent,
+      content: conceptBuild as any,
     });
 
     await this.notificationService.createNotification({
@@ -339,22 +289,5 @@ export class LessonService {
       entityId: lessonId,
       metadata: { lessonId },
     });
-  }
-
-  private mockExtract(detail: string): object {
-    const words = detail.trim().split(/\s+/);
-    const chunkSize = Math.ceil(words.length / 3);
-    const sections: Array<{ name: string; summary: string; items: number }> = [];
-
-    for (let i = 0; i < words.length; i += chunkSize) {
-      const chunk = words.slice(i, i + chunkSize).join(' ');
-      sections.push({
-        name: `Section ${Math.floor(i / chunkSize) + 1}`,
-        summary: chunk,
-        items: Math.min(chunkSize, words.length - i),
-      });
-    }
-
-    return { sections, totalItems: words.length };
   }
 }

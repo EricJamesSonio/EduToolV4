@@ -1,0 +1,399 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface ConceptSection {
+  name: string;
+  summary?: string;
+  questionCapacity: number;
+}
+
+export interface ConceptItem {
+  name: string;
+  section: string;
+  definition: string;
+  properties: string[];
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
+export interface ConceptBuild {
+  sections: string[];
+  keywords: string[];
+  questionCapacity: Record<string, number>;
+  concepts: ConceptItem[];
+}
+
+export interface QuestionBlueprint {
+  type: 'identification' | 'true_false' | 'multiple_choice' | 'essay' | 'enumeration';
+  sections: string[];
+  numbers: string; // e.g. "1-5"
+  count: number;
+}
+
+export interface GeneratedQuestion {
+  number: number;
+  type: string;
+  section: string;
+  question: string;
+  answer?: string;
+  choices?: string[];
+  correct_answer?: string;
+}
+
+// ── Token budget constants (matching Python pipeline) ─────────────────────────
+
+const TOKEN_COST: Record<string, number> = {
+  identification: 120,
+  true_false: 80,
+  multiple_choice: 280,
+  enumeration: 150,
+  essay: 100,
+};
+const SAFE_OUTPUT_BUDGET = 1400;
+const ENVELOPE_OVERHEAD = 20;
+
+// ── System prompts ────────────────────────────────────────────────────────────
+
+const CONCEPT_SYSTEM = `You are an educational content analyzer. Extract structured learning concepts from lesson text. Return ONLY valid JSON. No markdown. No explanation. Start with { end with }`;
+
+const QUESTION_SYSTEM = `You are an assessment question generator. Generate questions ONLY from the provided lesson content. Return ONLY valid JSON. No markdown. No explanation. Start with { end with }`;
+
+@Injectable()
+export class AiService {
+  private readonly logger = new Logger(AiService.name);
+  private readonly apiKey: string;
+  private readonly model: string;
+  private readonly apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+
+  constructor(private readonly config: ConfigService) {
+    this.apiKey = this.config.get<string>('OPENROUTER_API_KEY') ?? '';
+    this.model = this.config.get<string>('AI_MODEL') ?? 'meta-llama/llama-3.3-70b-instruct:free';
+  }
+
+  // ── Core caller ─────────────────────────────────────────────────────────────
+
+  async callAi(
+    systemPrompt: string,
+    userPrompt: string,
+    maxTokens = 2000,
+  ): Promise<string> {
+    this.logger.log(`[AI] Calling model: ${this.model} | max_tokens: ${maxTokens}`);
+
+    const response = await fetch(this.apiUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'http://localhost:3000',
+        'X-Title': 'EduTool AI',
+      },
+      body: JSON.stringify({
+        model: this.model,
+        max_tokens: maxTokens,
+        temperature: 0.3,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OpenRouter API error ${response.status}: ${errorText.slice(0, 500)}`);
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(`OpenRouter error: ${data.error?.message ?? JSON.stringify(data.error)}`);
+    }
+
+    const content: string = data?.choices?.[0]?.message?.content ?? '';
+    this.logger.log(`[AI] Response received (${content.length} chars)`);
+    return content;
+  }
+
+  // ── JSON parser (handles markdown fences + fallback extraction) ──────────────
+
+  parseJson<T = any>(raw: string): T {
+    let text = raw.trim();
+
+    // Strip ```json ... ``` or ``` ... ``` fences
+    if (text.startsWith('```')) {
+      const lines = text.split('\n').slice(1);
+      if (lines.at(-1)?.trim() === '```') lines.pop();
+      text = lines.join('\n').trim();
+    }
+
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      // Fallback: extract first { ... }
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}') + 1;
+      if (start !== -1 && end > start) {
+        try {
+          return JSON.parse(text.slice(start, end)) as T;
+        } catch {
+          // fall through
+        }
+      }
+      throw new Error(`Could not parse AI response as JSON. Raw: ${text.slice(0, 200)}`);
+    }
+  }
+
+  // ── Concept extraction ───────────────────────────────────────────────────────
+
+  async extractConcepts(lessonDetail: string): Promise<ConceptBuild> {
+    const prompt = `Analyze this lesson and extract teachable concepts.
+
+Lesson: ${lessonDetail}
+
+Return ONLY this JSON (no markdown, no explanation):
+{
+  "sections": ["Section Name 1", "Section Name 2"],
+  "keywords": ["keyword1", "keyword2"],
+  "question_capacity": {"Section Name 1": 10, "Section Name 2": 8},
+  "concepts": [
+    {
+      "name": "Concept Name",
+      "section": "Section Name",
+      "definition": "One-sentence definition",
+      "properties": ["property1", "property2"],
+      "difficulty": "easy"
+    }
+  ]
+}
+
+Rules:
+- sections = main topic headings in the lesson
+- question_capacity = how many questions each section can support
+- difficulty = easy, medium, or hard
+- Return JSON ONLY. Start with { end with }`;
+
+    const raw = await this.callAi(CONCEPT_SYSTEM, prompt, 2000);
+    const parsed = this.parseJson<any>(raw);
+
+    // Normalise + apply defaults (mirrors parse_concept_response)
+    const sections: string[] = parsed.sections ?? [];
+    const keywords: string[] = parsed.keywords ?? [];
+    const concepts: ConceptItem[] = (parsed.concepts ?? []).map((c: any, i: number) => ({
+      name: c.name ?? `Concept ${i + 1}`,
+      section: c.section ?? sections[0] ?? 'General',
+      definition: c.definition ?? '',
+      properties: c.properties ?? [],
+      difficulty: ['easy', 'medium', 'hard'].includes(c.difficulty) ? c.difficulty : 'medium',
+    }));
+
+    let questionCapacity: Record<string, number> = parsed.question_capacity ?? {};
+    if (!Object.keys(questionCapacity).length) {
+      questionCapacity = Object.fromEntries(sections.map((s) => [s, 10]));
+    } else {
+      for (const s of sections) {
+        questionCapacity[s] ??= 10;
+      }
+    }
+
+    this.logger.log(
+      `[Concept] Extracted ${sections.length} sections, ${concepts.length} concepts`,
+    );
+
+    return { sections, keywords, questionCapacity, concepts };
+  }
+
+  // ── Question generation ──────────────────────────────────────────────────────
+
+  async generateQuestions(
+    lessonDetail: string,
+    blueprints: QuestionBlueprint[],
+  ): Promise<GeneratedQuestion[]> {
+    // 1. Expand each blueprint into token-safe chunks
+    const allChunks: QuestionBlueprint[] = [];
+    for (const bp of blueprints) {
+      allChunks.push(...this.splitByTokenBudget(bp));
+    }
+
+    this.logger.log(`[Generate] ${blueprints.length} blueprints → ${allChunks.length} chunks`);
+
+    // 2. Fire in batches of 15 (free tier: 20 req/min, leave headroom)
+    const BATCH_SIZE = 15;
+    const BATCH_DELAY_MS = 5000;
+    const allQuestions: GeneratedQuestion[] = [];
+
+    for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
+      const batch = allChunks.slice(i, i + BATCH_SIZE);
+      this.logger.log(
+        `[Generate] Batch ${Math.floor(i / BATCH_SIZE) + 1} — ${batch.length} chunks`,
+      );
+
+      const results = await Promise.allSettled(
+        batch.map((chunk) => this.generateChunk(lessonDetail, chunk)),
+      );
+
+      const failed: string[] = [];
+      for (let j = 0; j < results.length; j++) {
+        const r = results[j];
+        if (r.status === 'fulfilled') {
+          allQuestions.push(...r.value);
+        } else {
+          failed.push(`Chunk ${batch[j].numbers}: ${r.reason}`);
+          this.logger.error(`[Generate] Chunk ${batch[j].numbers} failed: ${r.reason}`);
+        }
+      }
+
+      if (failed.length) {
+        throw new Error(`Question generation failed:\n${failed.join('\n')}`);
+      }
+
+      // Pause between batches (not after the last one)
+      if (i + BATCH_SIZE < allChunks.length) {
+        await new Promise((res) => setTimeout(res, BATCH_DELAY_MS));
+      }
+    }
+
+    allQuestions.sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
+    this.logger.log(`[Generate] Complete — ${allQuestions.length} questions`);
+    return allQuestions;
+  }
+
+  // ── Private: token-budget splitter ───────────────────────────────────────────
+
+  private splitByTokenBudget(bp: QuestionBlueprint): QuestionBlueprint[] {
+    const [startStr, endStr] = bp.numbers.split('-');
+    const start = parseInt(startStr, 10);
+    const end = parseInt(endStr, 10);
+
+    const costPerQ = TOKEN_COST[bp.type] ?? 150;
+    const maxPerChunk = Math.max(1, Math.floor((SAFE_OUTPUT_BUDGET - ENVELOPE_OVERHEAD) / costPerQ));
+
+    const chunks: QuestionBlueprint[] = [];
+    let cursor = start;
+    while (cursor <= end) {
+      const chunkEnd = Math.min(cursor + maxPerChunk - 1, end);
+      chunks.push({
+        ...bp,
+        numbers: `${cursor}-${chunkEnd}`,
+        count: chunkEnd - cursor + 1,
+      });
+      cursor = chunkEnd + 1;
+    }
+
+    if (chunks.length > 1) {
+      this.logger.log(
+        `[Split] ${bp.numbers} (${bp.type}) → ${chunks.length} chunks`,
+      );
+    }
+
+    return chunks;
+  }
+
+  // ── Private: single chunk generation with retries ────────────────────────────
+
+  private async generateChunk(
+    lessonDetail: string,
+    chunk: QuestionBlueprint,
+    maxRetries = 4,
+  ): Promise<GeneratedQuestion[]> {
+    const { type, sections, numbers, count } = chunk;
+    const [startStr] = numbers.split('-');
+    const startNum = parseInt(startStr, 10);
+    const numList = Array.from({ length: count }, (_, i) => startNum + i);
+
+    const maxTokens = Math.min(
+      (TOKEN_COST[type] ?? 150) * count + ENVELOPE_OVERHEAD + 50,
+      2000,
+    );
+
+    const prompt = this.buildChunkPrompt(lessonDetail, type, sections, numbers, count, numList);
+
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const raw = await this.callAi(QUESTION_SYSTEM, prompt, maxTokens);
+        if (!raw?.trim()) throw new Error('Empty response from AI');
+
+        const data = this.parseJson<{ questions: any[] }>(raw);
+        const questions: any[] = data?.questions;
+
+        if (!Array.isArray(questions) || questions.length === 0) {
+          throw new Error(`'questions' missing or empty`);
+        }
+        if (typeof questions[0] !== 'object') {
+          throw new Error('AI returned plain strings instead of question objects');
+        }
+
+        this.logger.log(`[Chunk ${numbers}] ✓ ${questions.length} questions`);
+        return questions as GeneratedQuestion[];
+      } catch (err) {
+        lastError = err;
+        this.logger.warn(`[Chunk ${numbers}] Attempt ${attempt}/${maxRetries} failed: ${err}`);
+
+        if (attempt < maxRetries) {
+          const isRateLimit = String(err).includes('429');
+          await new Promise((res) => setTimeout(res, isRateLimit ? 65_000 : 2_000));
+        }
+      }
+    }
+
+    throw new Error(`Chunk ${numbers} failed after ${maxRetries} attempts: ${lastError}`);
+  }
+
+  // ── Private: prompt builders ─────────────────────────────────────────────────
+
+  private buildChunkPrompt(
+    lessonDetail: string,
+    type: string,
+    sections: string[],
+    numbers: string,
+    count: number,
+    numList: number[],
+  ): string {
+    const exampleAndRules: Record<string, { example: string; rules: string }> = {
+      identification: {
+        example: `{"number": N, "type": "identification", "section": "...", "question": "...", "answer": "short correct answer"}`,
+        rules: '"answer" must be a short specific correct answer, not empty',
+      },
+      multiple_choice: {
+        example: `{"number": N, "type": "multiple_choice", "section": "...", "question": "...", "choices": ["Option A", "Option B", "Option C", "Option D"], "correct_answer": "Option A"}`,
+        rules: '"choices" must be exactly 4 options. "correct_answer" must exactly match one of the 4 choices',
+      },
+      true_false: {
+        example: `{"number": N, "type": "true_false", "section": "...", "question": "...", "answer": "True"}`,
+        rules: '"answer" must be exactly "True" or "False" — nothing else',
+      },
+      essay: {
+        example: `{"number": N, "type": "essay", "section": "...", "question": "..."}`,
+        rules: 'Essay questions have no answer field',
+      },
+      enumeration: {
+        example: `{"number": N, "type": "enumeration", "section": "...", "question": "List the ...", "answer": "item1, item2, item3"}`,
+        rules: '"answer" must be a comma-separated list of correct items',
+      },
+    };
+
+    const { example, rules } = exampleAndRules[type] ?? exampleAndRules.identification;
+
+    return `Generate exactly ${count} ${type} questions from the lesson below.
+Use ONLY content from these sections: ${sections.join(', ')}
+Number the questions: ${JSON.stringify(numList)}
+
+=== LESSON ===
+${lessonDetail}
+=== END LESSON ===
+
+Each question MUST be a JSON object in this exact format:
+${example}
+
+IMPORTANT RULES:
+- Every item in "questions" must be a JSON object — NOT a plain string
+- Generate exactly ${count} questions numbered ${numList[0]} to ${numList.at(-1)}
+- Use ONLY the sections listed above
+- Do NOT repeat questions
+- ${rules}
+
+Return ONLY valid JSON. Start with { and end with }. No markdown. No explanation:
+{"questions": [/* exactly ${count} question objects here */]}`;
+  }
+}

@@ -11,6 +11,7 @@ import { envValidationSchema } from '../configs/env.validation';
 // infra
 import { DatabaseModule } from './database/database.module';
 import { LoggerModule } from './logger/logger.module';
+import { AiModule } from './ai/ai.module';
 
 @Global()
 @Module({
@@ -22,6 +23,7 @@ import { LoggerModule } from './logger/logger.module';
     }),
     DatabaseModule,
     LoggerModule,
+    AiModule,
   ],
   exports: [DatabaseModule, LoggerModule, ConfigModule],
 })
