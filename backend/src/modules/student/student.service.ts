@@ -140,19 +140,26 @@ export class StudentService {
 
   async update(id: string, orgId: string, dto: UpdateStudentDto) {
     const account = await this.studentRepository.findById(id, orgId);
-
     if (!account) {
       throw new NotFoundException('Student not found.');
     }
 
     if (dto.email && dto.email !== account.email) {
-      const emailTaken = await this.studentRepository.findByEmail(
-        dto.email,
-        orgId,
-      );
+      const emailTaken = await this.studentRepository.findByEmail(dto.email, orgId);
       if (emailTaken) {
         throw new ConflictException(
           'An account with this email already exists in the organization.',
+        );
+      }
+    }
+
+    // ✅ NEW: validate sectionId capacity before updating
+    if (dto.sectionId) {
+      const section = await this.sectionService.findById(dto.sectionId, orgId);
+      const currentCount = await this.sectionService.countStudentsInSection(dto.sectionId);
+      if (currentCount >= section.capacity) {
+        throw new BadRequestException(
+          `Section has reached its capacity of ${section.capacity} students.`,
         );
       }
     }
@@ -283,19 +290,30 @@ export class StudentService {
     for (const { data } of validRows) {
       const plainPassword = generateSystemPassword();
       const hashedPassword = await hashPassword(plainPassword);
-      const status = data['Section ID'] ? 'active' : 'pending';
+      let rowStatus = StudentStatus.PENDING;
+      let sectionId: string | undefined = data['Section ID'] || undefined;
+
+      if (sectionId) {
+        const section = await this.sectionService.findById(sectionId, orgId);
+        const currentCount = await this.sectionService.countStudentsInSection(sectionId);
+        if (currentCount >= section.capacity) {
+          rowStatus = StudentStatus.PENDING;
+          sectionId = undefined;
+        } else {
+          rowStatus = StudentStatus.ACTIVE;
+        }
+      }
 
       const account = await this.studentRepository.create({
         orgId,
         email: data['Email'],
         hashedPassword,
-        status,
+        status: rowStatus,
         fullName: data['Full Name'],
         studentId: data['Student ID'],
         levelId: data['Level ID'],
-        sectionId: data['Section ID'] || undefined,
+        sectionId,  // may have been cleared if section was full
       });
-
       created.push({
         ...this.formatAccount(account),
         plainPassword,
