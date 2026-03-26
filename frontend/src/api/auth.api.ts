@@ -1,32 +1,40 @@
-import apiClient from "@/api/client";
-import type { AuthTokens, AuthUser } from "@/types/auth.types";
+import client from "./client";
+import type { AuthUser } from "@/types/auth.types";
 
-interface LoginDto {
+export interface LoginRequest {
   email: string;
   password: string;
 }
 
-interface RefreshDto {
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface RefreshResponse {
+  accessToken: string;
   refreshToken: string;
 }
 
 export const authApi = {
-  login: async (dto: LoginDto): Promise<AuthTokens> => {
-    const { data } = await apiClient.post<AuthTokens>("/auth/login", dto);
-    return data;
-  },
-
-  refresh: async (dto: RefreshDto): Promise<AuthTokens> => {
-    const { data } = await apiClient.post<AuthTokens>("/auth/refresh", dto);
-    return data;
+  login: async (data: LoginRequest): Promise<LoginResponse> => {
+    const res = await client.post<LoginResponse>("/auth/login", data);
+    return res.data;
   },
 
   logout: async (): Promise<void> => {
-    await apiClient.post("/auth/logout");
+    await client.post("/auth/logout");
+  },
+
+  refresh: async (refreshToken: string): Promise<RefreshResponse> => {
+    const res = await client.post<RefreshResponse>("/auth/refresh", {
+      refreshToken,
+    });
+    return res.data;
   },
 
   getMe: async (): Promise<AuthUser> => {
-    const { data } = await apiClient.get<AuthUser>("/auth/me");
-    return data;
+    const res = await client.get<AuthUser>("/auth/me");
+    return res.data;
   },
 };
