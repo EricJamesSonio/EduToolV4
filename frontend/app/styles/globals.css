@@ -1,0 +1,385 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   EDUTOOL — GLOBAL STYLES
+   shadcn/ui CSS variables + EduTool custom tokens
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* ---- shadcn/ui core tokens (light mode) ---- */
+    --background:   0 0% 98%;
+    --foreground:   222 47% 11%;
+
+    --card:           0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover:           0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary:           221 83% 53%;    /* brand-500 blue */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary:           214 32% 91%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted:           214 32% 91%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent:           214 32% 91%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive:           0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input:  214 32% 91%;
+    --ring:   221 83% 53%;
+
+    --radius: 0.5rem;
+
+    /* ---- Chart colors ---- */
+    --chart-1: 221 83% 53%;
+    --chart-2: 142 76% 36%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 0 84% 60%;
+
+    /* ---- EduTool Sidebar tokens (light) ---- */
+    --sidebar-bg:          222 47% 11%;   /* deep navy */
+    --sidebar-border:      222 40% 18%;
+    --sidebar-text:        214 32% 91%;
+    --sidebar-text-muted:  215 16% 57%;
+    --sidebar-active:      221 83% 53%;   /* brand blue */
+    --sidebar-active-text: 0 0% 100%;
+    --sidebar-hover:       222 40% 18%;
+
+    /* ---- EduTool Surface tokens (light) ---- */
+    --surface:         0 0% 100%;
+    --surface-raised:  0 0% 98%;
+    --surface-overlay: 0 0% 100%;
+
+    /* ---- Topbar ---- */
+    --topbar-height: 56px;
+
+    /* ---- Sidebar widths ---- */
+    --sidebar-width:           240px;
+    --sidebar-width-collapsed:  64px;
+  }
+
+  .dark {
+    /* ---- shadcn/ui core tokens (dark mode) ---- */
+    --background:   222 47% 8%;
+    --foreground:   213 31% 91%;
+
+    --card:           222 47% 11%;
+    --card-foreground: 213 31% 91%;
+
+    --popover:           222 47% 11%;
+    --popover-foreground: 213 31% 91%;
+
+    --primary:           221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary:           222 40% 18%;
+    --secondary-foreground: 213 31% 91%;
+
+    --muted:           222 40% 18%;
+    --muted-foreground: 215 16% 57%;
+
+    --accent:           222 40% 18%;
+    --accent-foreground: 213 31% 91%;
+
+    --destructive:           0 63% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 40% 18%;
+    --input:  222 40% 18%;
+    --ring:   221 83% 53%;
+
+    /* ---- EduTool Sidebar tokens (dark — same as light sidebar) ---- */
+    --sidebar-bg:          222 47% 7%;
+    --sidebar-border:      222 40% 14%;
+    --sidebar-text:        214 32% 85%;
+    --sidebar-text-muted:  215 16% 50%;
+    --sidebar-active:      221 83% 53%;
+    --sidebar-active-text: 0 0% 100%;
+    --sidebar-hover:       222 40% 14%;
+
+    /* ---- EduTool Surface tokens (dark) ---- */
+    --surface:         222 47% 11%;
+    --surface-raised:  222 47% 14%;
+    --surface-overlay: 222 47% 13%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Focus ring — accessible, consistent */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Remove default focus on non-keyboard navigation */
+  :focus:not(:focus-visible) {
+    @apply outline-none;
+  }
+}
+
+/* ============================================================
+   SCROLLBAR STYLING (webkit)
+   ============================================================ */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground));
+  }
+
+  /* Hide scrollbar but keep scroll behavior */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================================================
+   PORTAL LAYOUT UTILITY CLASSES
+   ============================================================ */
+@layer components {
+  /* Main shell wrapper — used in each portal layout.tsx */
+  .portal-shell {
+    @apply flex h-screen overflow-hidden bg-background;
+  }
+
+  /* Sidebar container */
+  .portal-sidebar {
+    @apply flex h-full flex-col overflow-y-auto overflow-x-hidden
+           bg-sidebar-bg border-r border-sidebar-border
+           transition-[width] duration-200 ease-in-out;
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+  }
+
+  .portal-sidebar.collapsed {
+    width: var(--sidebar-width-collapsed);
+  }
+
+  /* Main content area (right of sidebar) */
+  .portal-content {
+    @apply flex flex-1 flex-col overflow-hidden;
+  }
+
+  /* Topbar strip */
+  .portal-topbar {
+    @apply flex items-center justify-between
+           border-b border-border bg-background px-6
+           flex-shrink-0;
+    height: var(--topbar-height);
+  }
+
+  /* Scrollable page area below topbar */
+  .portal-page {
+    @apply flex-1 overflow-y-auto scrollbar-thin;
+  }
+
+  /* Inner page padding wrapper */
+  .page-container {
+    @apply mx-auto max-w-screen-xl px-6 py-6;
+  }
+}
+
+/* ============================================================
+   SIDEBAR NAV ITEM STYLES
+   ============================================================ */
+@layer components {
+  .sidebar-nav-item {
+    @apply flex items-center gap-3 rounded-md px-3 py-2
+           text-sm font-medium text-sidebar-text
+           transition-colors duration-150
+           hover:bg-sidebar-hover hover:text-sidebar-active-text;
+  }
+
+  .sidebar-nav-item.active {
+    @apply bg-sidebar-active text-sidebar-active-text;
+  }
+
+  .sidebar-nav-item .nav-icon {
+    @apply h-4 w-4 flex-shrink-0;
+  }
+
+  .sidebar-nav-item .nav-label {
+    @apply truncate;
+  }
+
+  /* Collapsed state — hide label */
+  .portal-sidebar.collapsed .nav-label {
+    @apply hidden;
+  }
+
+  .portal-sidebar.collapsed .sidebar-nav-item {
+    @apply justify-center px-0;
+  }
+}
+
+/* ============================================================
+   PAGE HEADER
+   ============================================================ */
+@layer components {
+  .page-header {
+    @apply mb-6 flex items-start justify-between gap-4;
+  }
+
+  .page-header-left {
+    @apply flex flex-col gap-1;
+  }
+
+  .page-header-breadcrumb {
+    @apply flex items-center gap-1.5 text-xs text-muted-foreground;
+  }
+
+  .page-header-title {
+    @apply text-2xl font-semibold tracking-tight text-foreground;
+  }
+
+  .page-header-actions {
+    @apply flex flex-shrink-0 items-center gap-2;
+  }
+}
+
+/* ============================================================
+   STATUS BADGE COLORS
+   ============================================================ */
+@layer components {
+  /* Base badge reset (extends shadcn Badge) */
+  .status-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5
+           text-xs font-medium;
+  }
+
+  .status-active     { @apply bg-green-100  text-green-800  dark:bg-green-900/30  dark:text-green-400; }
+  .status-pending    { @apply bg-amber-100  text-amber-800  dark:bg-amber-900/30  dark:text-amber-400; }
+  .status-blocked    { @apply bg-red-100    text-red-800    dark:bg-red-900/30    dark:text-red-400; }
+  .status-dropped    { @apply bg-red-100    text-red-800    dark:bg-red-900/30    dark:text-red-400; }
+  .status-suspended  { @apply bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400; }
+  .status-graduated  { @apply bg-slate-100  text-slate-600  dark:bg-slate-800     dark:text-slate-400; }
+  .status-transferred{ @apply bg-blue-100   text-blue-700   dark:bg-blue-900/30   dark:text-blue-400; }
+  .status-ended      { @apply bg-slate-100  text-slate-600  dark:bg-slate-800     dark:text-slate-400; }
+  .status-draft      { @apply bg-amber-100  text-amber-800  dark:bg-amber-900/30  dark:text-amber-400; }
+  .status-submitted  { @apply bg-green-100  text-green-800  dark:bg-green-900/30  dark:text-green-400; }
+  .status-locked     { @apply bg-slate-100  text-slate-600  dark:bg-slate-800     dark:text-slate-400; }
+  .status-unlocked   { @apply bg-green-100  text-green-800  dark:bg-green-900/30  dark:text-green-400; }
+  .status-late       { @apply bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400; }
+  .status-absent     { @apply bg-red-100    text-red-800    dark:bg-red-900/30    dark:text-red-400; }
+  .status-present    { @apply bg-green-100  text-green-800  dark:bg-green-900/30  dark:text-green-400; }
+  .status-excused    { @apply bg-blue-100   text-blue-700   dark:bg-blue-900/30   dark:text-blue-400; }
+}
+
+/* ============================================================
+   TABLE UTILITIES
+   ============================================================ */
+@layer components {
+  .data-table-container {
+    @apply rounded-lg border border-border bg-card overflow-hidden;
+  }
+
+  .data-table-toolbar {
+    @apply flex items-center justify-between gap-4 p-4 border-b border-border;
+  }
+
+  .data-table-footer {
+    @apply flex items-center justify-between p-4 border-t border-border;
+  }
+}
+
+/* ============================================================
+   CARD VARIANTS
+   ============================================================ */
+@layer components {
+  .stat-card {
+    @apply rounded-lg border border-border bg-card p-5
+           flex flex-col gap-2 transition-shadow
+           hover:shadow-sm;
+  }
+
+  .stat-card-value {
+    @apply text-3xl font-bold tracking-tight text-foreground;
+  }
+
+  .stat-card-label {
+    @apply text-sm text-muted-foreground;
+  }
+}
+
+/* ============================================================
+   FORM UTILITIES
+   ============================================================ */
+@layer components {
+  .form-section {
+    @apply rounded-lg border border-border bg-card p-6 space-y-4;
+  }
+
+  .form-section-title {
+    @apply text-sm font-semibold text-foreground pb-2 border-b border-border;
+  }
+
+  .form-field-group {
+    @apply grid gap-4;
+  }
+
+  .form-field-group-2 {
+    @apply grid grid-cols-1 gap-4 sm:grid-cols-2;
+  }
+
+  .form-field-group-3 {
+    @apply grid grid-cols-1 gap-4 sm:grid-cols-3;
+  }
+}
+
+/* ============================================================
+   ANIMATION UTILITIES
+   ============================================================ */
+@layer utilities {
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out both;
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.25s ease-out both;
+  }
+}
