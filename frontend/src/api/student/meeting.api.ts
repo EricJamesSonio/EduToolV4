@@ -1,6 +1,6 @@
-import apiClient from "@/api/client";
+import client from "@/api/client";
 
-export interface StudentMeetingItem {
+export interface StudentMeeting {
   id: string;
   title: string;
   startTime: string;
@@ -12,7 +12,7 @@ export interface StudentMeetingItem {
   } | null;
 }
 
-export interface MeetingToken {
+export interface MeetingTokenResponse {
   token: string;
   channel: string;
   appId: string;
@@ -21,24 +21,28 @@ export interface MeetingToken {
 }
 
 export const studentMeetingApi = {
-  getAll: async (classId: string): Promise<StudentMeetingItem[]> => {
-    const { data } = await apiClient.get(
+  getAll: async (classId: string): Promise<StudentMeeting[]> => {
+    const res = await client.get<StudentMeeting[]>(
       `/student/classes/${classId}/meetings`
     );
-    return data;
+    return res.data;
   },
-
-  requestJoin: async (
-    meetingId: string
-  ): Promise<{ id: string; status: "pending" }> => {
-    const { data } = await apiClient.post(
+  getOne: async (classId: string, meetingId: string): Promise<StudentMeeting> => {
+    const res = await client.get<StudentMeeting>(
+      `/student/classes/${classId}/meetings/${meetingId}`
+    );
+    return res.data;
+  },
+  requestJoin: async (meetingId: string): Promise<{ id: string; status: "pending" }> => {
+    const res = await client.post<{ id: string; status: "pending" }>(
       `/meetings/${meetingId}/join-request`
     );
-    return data;
+    return res.data;
   },
-
-  getToken: async (meetingId: string): Promise<MeetingToken> => {
-    const { data } = await apiClient.get(`/meetings/${meetingId}/token`);
-    return data;
+  getToken: async (meetingId: string): Promise<MeetingTokenResponse> => {
+    const res = await client.get<MeetingTokenResponse>(
+      `/meetings/${meetingId}/token`
+    );
+    return res.data;
   },
 };
