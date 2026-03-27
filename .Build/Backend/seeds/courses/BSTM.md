@@ -35,4 +35,3 @@ Minor / General Education Subjects (shared with other courses):
 
 ---
 
-Note: BS Tourism focuses on travel, tourism operations, and hospitality services, while sharing the same general education subjects required by the Commission on Higher Education.
