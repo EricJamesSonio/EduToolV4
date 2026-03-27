@@ -1,97 +1,117 @@
+BS Hospitality Management (BSHM)
 
----
+MAJOR SUBJECTS (CORE HOSPITALITY)
 
-## **BS Hospitality Management (BSHM)**
+1. Introduction to Hospitality Industry
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
-### **Major Subjects (Core Hospitality)**
+2. Food and Beverage Service Operations
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: Introduction to Hospitality Industry
 
-1. **Introduction to Hospitality Industry** – 1st Year, 1st Sem
-   *Prerequisite:* None
+3. Housekeeping Operations
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: Introduction to Hospitality Industry
 
-2. **Food and Beverage Service Operations** – 1st Year, 2nd Sem
-   *Prerequisite:* Introduction to Hospitality Industry
+4. Front Office Operations
+   Year/Term: 2nd Year, 1st Semester
+   Prerequisite: Introduction to Hospitality Industry
 
-3. **Housekeeping Operations** – 1st Year, 2nd Sem
-   *Prerequisite:* Introduction to Hospitality Industry
+5. Hospitality Marketing
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: Introduction to Hospitality Industry, Front Office Operations
 
-4. **Front Office Operations** – 2nd Year, 1st Sem
-   *Prerequisite:* Introduction to Hospitality Industry
+6. Hospitality Financial Management
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: Food and Beverage Service Operations
 
-5. **Hospitality Marketing** – 2nd Year, 2nd Sem
-   *Prerequisite:* Introduction to Hospitality Industry, Front Office Operations
+7. Tourism Planning and Development
+   Year/Term: 3rd Year, 1st Semester
+   Prerequisite: Introduction to Hospitality Industry
 
-6. **Hospitality Financial Management** – 2nd Year, 2nd Sem
-   *Prerequisite:* Food and Beverage Service Operations
+8. Event Management
+   Year/Term: 3rd Year, 2nd Semester
+   Prerequisite: Hospitality Marketing
 
-7. **Tourism Planning and Development** – 3rd Year, 1st Sem
-   *Prerequisite:* Introduction to Hospitality Industry
+9. Culinary Arts / Basic Cooking
+   Year/Term: 2nd Year, 1st Semester
+   Prerequisite: Food and Beverage Service Operations
 
-8. **Event Management** – 3rd Year, 2nd Sem
-   *Prerequisite:* Hospitality Marketing
+10. Food Safety and Sanitation
+    Year/Term: 2nd Year, 2nd Semester
+    Prerequisite: Culinary Arts / Basic Cooking
 
-9. **Culinary Arts / Basic Cooking** – 2nd Year, 1st Sem
-   *Prerequisite:* Food and Beverage Service Operations
+11. Hotel and Restaurant Management
+    Year/Term: 3rd Year, 1st Semester
+    Prerequisite: Front Office Operations, Housekeeping Operations
 
-10. **Food Safety and Sanitation** – 2nd Year, 2nd Sem
-    *Prerequisite:* Culinary Arts / Basic Cooking
+12. Hospitality Law
+    Year/Term: 2nd Year, 2nd Semester
+    Prerequisite: None
 
-11. **Hotel and Restaurant Management** – 3rd Year, 1st Sem
-    *Prerequisite:* Front Office Operations, Housekeeping Operations
+13. Customer Service Management
+    Year/Term: 2nd Year, 2nd Semester
+    Prerequisite: Front Office Operations, Food and Beverage Service Operations
 
-12. **Hospitality Law** – 2nd Year, 2nd Sem
-    *Prerequisite:* None
+14. Beverage Management (Bar and Drinks)
+    Year/Term: 3rd Year, 1st Semester
+    Prerequisite: Food and Beverage Service Operations
 
-13. **Customer Service Management** – 2nd Year, 2nd Sem
-    *Prerequisite:* Front Office Operations, Food and Beverage Service Operations
+15. Banquet and Catering Management
+    Year/Term: 3rd Year, 2nd Semester
+    Prerequisite: Food and Beverage Service Operations, Event Management
 
-14. **Beverage Management (Bar and Drinks)** – 3rd Year, 1st Sem
-    *Prerequisite:* Food and Beverage Service Operations
+16. Entrepreneurship in Hospitality
+    Year/Term: 4th Year, 1st Semester
+    Prerequisite: Hospitality Marketing, Hotel and Restaurant Management
 
-15. **Banquet and Catering Management** – 3rd Year, 2nd Sem
-    *Prerequisite:* Food and Beverage Service Operations, Event Management
+17. Internship / On-the-Job Training (OJT)
+    Year/Term: 4th Year, 2nd Semester
+    Prerequisite: Completion of all core hospitality subjects
 
-16. **Entrepreneurship in Hospitality** – 4th Year, 1st Sem
-    *Prerequisite:* Hospitality Marketing, Hotel and Restaurant Management
+MINOR / GENERAL EDUCATION SUBJECTS
 
-17. **Internship / On-the-Job Training (OJT)** – 4th Year, 2nd Sem
-    *Prerequisite:* Completion of all core hospitality subjects
+1. Mathematics in the Modern World
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
----
+2. Purposive Communication
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
-### **Minor / General Education Subjects**
+3. Understanding the Self
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
-1. **Mathematics in the Modern World** – 1st Year, 1st Sem
-   *Prerequisite:* None
+4. Readings in Philippine History
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: None
 
-2. **Purposive Communication** – 1st Year, 1st Sem
-   *Prerequisite:* None
+5. The Contemporary World
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: None
 
-3. **Understanding the Self** – 1st Year, 1st Sem
-   *Prerequisite:* None
+6. Ethics
+   Year/Term: 2nd Year, 1st Semester
+   Prerequisite: Understanding the Self
 
-4. **Readings in Philippine History** – 1st Year, 2nd Sem
-   *Prerequisite:* None
+7. Art Appreciation
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: None
 
-5. **The Contemporary World** – 1st Year, 2nd Sem
-   *Prerequisite:* None
+8. Science, Technology, and Society
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: None
 
-6. **Ethics** – 2nd Year, 1st Sem
-   *Prerequisite:* Understanding the Self
+9. Life and Works of Jose Rizal
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: None
 
-7. **Art Appreciation** – 2nd Year, 2nd Sem
-   *Prerequisite:* None
+10. Physical Education (PE 1 and 2)
+    Year/Term: 1st Year, Both Semesters
+    Prerequisite: None
 
-8. **Science, Technology, and Society** – 2nd Year, 2nd Sem
-   *Prerequisite:* None
-
-9. **Life and Works of José Rizal** – 1st Year, 2nd Sem
-   *Prerequisite:* None
-
-10. **Physical Education (PE 1 & 2)** – 1st Year, both semesters
-    *Prerequisite:* None
-
-11. **National Service Training Program (NSTP 1 & 2)** – 2nd Year, both semesters
-    *Prerequisite:* None
-
----
-
+11. National Service Training Program (NSTP 1 and 2)
+    Year/Term: 2nd Year, Both Semesters
+    Prerequisite: None

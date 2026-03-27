@@ -1,88 +1,105 @@
+BS Tourism Management (BSTM)
 
----
+MAJOR SUBJECTS (CORE TOURISM)
 
-## **BS Tourism Management (BSTM)**
+1. Principles of Tourism
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
-### **Major Subjects (Core Tourism)**
+2. Tourism Planning and Development
+   Year/Term: 2nd Year, 1st Semester
+   Prerequisite: Principles of Tourism
 
-1. **Principles of Tourism** – 1st Year, 1st Sem
-   *Prerequisite:* None
+3. Travel Agency Operations
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: Principles of Tourism
 
-2. **Tourism Planning and Development** – 2nd Year, 1st Sem
-   *Prerequisite:* Principles of Tourism
+4. Tour Guiding and Tour Operations
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: Principles of Tourism
 
-3. **Travel Agency Operations** – 2nd Year, 2nd Sem
-   *Prerequisite:* Principles of Tourism
+5. Tourism Marketing and Promotion
+   Year/Term: 3rd Year, 1st Semester
+   Prerequisite: Tourism Planning and Development
 
-4. **Tour Guiding and Tour Operations** – 2nd Year, 2nd Sem
-   *Prerequisite:* Principles of Tourism
+6. Hospitality and Tourism Law
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: Principles of Tourism
 
-5. **Tourism Marketing and Promotion** – 3rd Year, 1st Sem
-   *Prerequisite:* Tourism Planning and Development
+7. Sustainable Tourism
+   Year/Term: 3rd Year, 2nd Semester
+   Prerequisite: Tourism Planning and Development
 
-6. **Hospitality and Tourism Law** – 2nd Year, 2nd Sem
-   *Prerequisite:* Principles of Tourism
+8. Event and Convention Management
+   Year/Term: 3rd Year, 1st Semester
+   Prerequisite: Tourism Marketing and Promotion
 
-7. **Sustainable Tourism** – 3rd Year, 2nd Sem
-   *Prerequisite:* Tourism Planning and Development
+9. Tourism Research and Statistics
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: None
 
-8. **Event and Convention Management** – 3rd Year, 1st Sem
-   *Prerequisite:* Tourism Marketing and Promotion
+10. Cultural and Heritage Tourism
+    Year/Term: 3rd Year, 2nd Semester
+    Prerequisite: Tourism Planning and Development
 
-9. **Tourism Research and Statistics** – 2nd Year, 2nd Sem
-   *Prerequisite:* None
+11. Tourism Policy and Governance
+    Year/Term: 3rd Year, 2nd Semester
+    Prerequisite: Principles of Tourism, Sustainable Tourism
 
-10. **Cultural and Heritage Tourism** – 3rd Year, 2nd Sem
-    *Prerequisite:* Tourism Planning and Development
+12. Airline and Cruise Management
+    Year/Term: 4th Year, 1st Semester
+    Prerequisite: Travel Agency Operations
 
-11. **Tourism Policy and Governance** – 3rd Year, 2nd Sem
-    *Prerequisite:* Principles of Tourism, Sustainable Tourism
+13. Tourism Entrepreneurship
+    Year/Term: 4th Year, 1st Semester
+    Prerequisite: Tourism Marketing and Promotion
 
-12. **Airline and Cruise Management** – 4th Year, 1st Sem
-    *Prerequisite:* Travel Agency Operations
+14. Internship / On-the-Job Training (OJT)
+    Year/Term: 4th Year, 2nd Semester
+    Prerequisite: Completion of all core tourism subjects
 
-13. **Tourism Entrepreneurship** – 4th Year, 1st Sem
-    *Prerequisite:* Tourism Marketing and Promotion
+MINOR / GENERAL EDUCATION SUBJECTS
 
-14. **Internship / On-the-Job Training (OJT)** – 4th Year, 2nd Sem
-    *Prerequisite:* Completion of all core tourism subjects
+1. Mathematics in the Modern World
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
----
+2. Purposive Communication
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
-### **Minor / General Education Subjects**
+3. Understanding the Self
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
-1. **Mathematics in the Modern World** – 1st Year, 1st Sem
-   *Prerequisite:* None
+4. Readings in Philippine History
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: None
 
-2. **Purposive Communication** – 1st Year, 1st Sem
-   *Prerequisite:* None
+5. The Contemporary World
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: None
 
-3. **Understanding the Self** – 1st Year, 1st Sem
-   *Prerequisite:* None
+6. Ethics
+   Year/Term: 2nd Year, 1st Semester
+   Prerequisite: Understanding the Self
 
-4. **Readings in Philippine History** – 1st Year, 2nd Sem
-   *Prerequisite:* None
+7. Art Appreciation
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: None
 
-5. **The Contemporary World** – 1st Year, 2nd Sem
-   *Prerequisite:* None
+8. Science, Technology, and Society
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: None
 
-6. **Ethics** – 2nd Year, 1st Sem
-   *Prerequisite:* Understanding the Self
+9. Life and Works of Jose Rizal
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: None
 
-7. **Art Appreciation** – 2nd Year, 2nd Sem
-   *Prerequisite:* None
+10. Physical Education (PE 1 and 2)
+    Year/Term: 1st Year, Both Semesters
+    Prerequisite: None
 
-8. **Science, Technology, and Society** – 2nd Year, 2nd Sem
-   *Prerequisite:* None
-
-9. **Life and Works of José Rizal** – 1st Year, 2nd Sem
-   *Prerequisite:* None
-
-10. **Physical Education (PE 1 & 2)** – 1st Year, both semesters
-    *Prerequisite:* None
-
-11. **National Service Training Program (NSTP 1 & 2)** – 2nd Year, both semesters
-    *Prerequisite:* None
-
----
-
+11. National Service Training Program (NSTP 1 and 2)
+    Year/Term: 2nd Year, Both Semesters
+    Prerequisite: None

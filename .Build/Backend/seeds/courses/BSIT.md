@@ -1,89 +1,105 @@
+BS Information Technology (BSIT)
 
----
+MAJOR SUBJECTS (CORE IT)
 
-## **BS Information Technology (BSIT)**
+1. Introduction to Computing
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
-### **Major Subjects (Core IT)**
+2. Computer Programming 1
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: Introduction to Computing
 
-1. **Introduction to Computing** – 1st Year, 1st Sem
-   *Prerequisite:* None
+3. Computer Programming 2 (Object-Oriented Programming)
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: Computer Programming 1
 
-2. **Computer Programming 1** – 1st Year, 1st Sem
-   *Prerequisite:* Introduction to Computing
+4. Data Structures and Algorithms
+   Year/Term: 2nd Year, 1st Semester
+   Prerequisite: Computer Programming 2
 
-3. **Computer Programming 2 (Object-Oriented Programming)** – 1st Year, 2nd Sem
-   *Prerequisite:* Computer Programming 1
+5. Database Management Systems
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: Data Structures and Algorithms
 
-4. **Data Structures and Algorithms** – 2nd Year, 1st Sem
-   *Prerequisite:* Computer Programming 2
+6. Web Systems and Technologies
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: Computer Programming 2
 
-5. **Database Management Systems** – 2nd Year, 2nd Sem
-   *Prerequisite:* Data Structures and Algorithms
+7. Software Engineering
+   Year/Term: 3rd Year, 1st Semester
+   Prerequisite: Data Structures and Algorithms
 
-6. **Web Systems and Technologies** – 2nd Year, 2nd Sem
-   *Prerequisite:* Computer Programming 2
+8. Human-Computer Interaction
+   Year/Term: 3rd Year, 2nd Semester
+   Prerequisite: Software Engineering
 
-7. **Software Engineering** – 3rd Year, 1st Sem
-   *Prerequisite:* Data Structures and Algorithms
+9. Operating Systems
+   Year/Term: 3rd Year, 1st Semester
+   Prerequisite: Data Structures and Algorithms, Computer Architecture / Intro Computing
 
-8. **Human-Computer Interaction** – 3rd Year, 2nd Sem
-   *Prerequisite:* Software Engineering
+10. Computer Networks
+    Year/Term: 3rd Year, 2nd Semester
+    Prerequisite: Operating Systems
 
-9. **Operating Systems** – 3rd Year, 1st Sem
-   *Prerequisite:* Data Structures and Algorithms, Computer Architecture/Intro Computing
+11. Information Assurance and Security
+    Year/Term: 3rd Year, 2nd Semester
+    Prerequisite: Computer Networks
 
-10. **Computer Networks** – 3rd Year, 2nd Sem
-    *Prerequisite:* Operating Systems
+12. Systems Analysis and Design
+    Year/Term: 3rd Year, 1st Semester
+    Prerequisite: Software Engineering
 
-11. **Information Assurance and Security** – 3rd Year, 2nd Sem
-    *Prerequisite:* Computer Networks
+13. IT Project Management
+    Year/Term: 4th Year, 1st Semester
+    Prerequisite: Systems Analysis and Design
 
-12. **Systems Analysis and Design** – 3rd Year, 1st Sem
-    *Prerequisite:* Software Engineering
+14. Capstone Project / Thesis
+    Year/Term: 4th Year, 2nd Semester
+    Prerequisite: Completion of all core IT subjects
 
-13. **IT Project Management** – 4th Year, 1st Sem
-    *Prerequisite:* Systems Analysis and Design
+MINOR / GENERAL EDUCATION SUBJECTS
 
-14. **Capstone Project / Thesis** – 4th Year, 2nd Sem
-    *Prerequisite:* Completion of all core IT subjects
+1. Mathematics in the Modern World
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
----
+2. Purposive Communication
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
-### **Minor / General Education Subjects**
+3. Understanding the Self
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
-1. **Mathematics in the Modern World** – 1st Year, 1st Sem
-   *Prerequisite:* None
+4. Readings in Philippine History
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: None
 
-2. **Purposive Communication** – 1st Year, 1st Sem
-   *Prerequisite:* None
+5. The Contemporary World
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: None
 
-3. **Understanding the Self** – 1st Year, 1st Sem
-   *Prerequisite:* None
+6. Ethics
+   Year/Term: 2nd Year, 1st Semester
+   Prerequisite: Understanding the Self
 
-4. **Readings in Philippine History** – 1st Year, 2nd Sem
-   *Prerequisite:* None
+7. Art Appreciation
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: None
 
-5. **The Contemporary World** – 1st Year, 2nd Sem
-   *Prerequisite:* None
+8. Science, Technology, and Society
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: None
 
-6. **Ethics** – 2nd Year, 1st Sem
-   *Prerequisite:* Understanding the Self
+9. Life and Works of Jose Rizal
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: None
 
-7. **Art Appreciation** – 2nd Year, 2nd Sem
-   *Prerequisite:* None
+10. Physical Education (PE 1 and 2)
+    Year/Term: 1st Year, Both Semesters
+    Prerequisite: None
 
-8. **Science, Technology, and Society** – 2nd Year, 2nd Sem
-   *Prerequisite:* None
-
-9. **Life and Works of José Rizal** – 1st Year, 2nd Sem
-   *Prerequisite:* None
-
-10. **Physical Education (PE 1 & 2)** – 1st Year, both semesters
-    *Prerequisite:* None
-
-11. **National Service Training Program (NSTP 1 & 2)** – 2nd Year, both semesters
-    *Prerequisite:* None
-
----
-
-
+11. National Service Training Program (NSTP 1 and 2)
+    Year/Term: 2nd Year, Both Semesters
+    Prerequisite: None

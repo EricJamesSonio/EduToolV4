@@ -1,118 +1,129 @@
+Bachelor of Secondary Education (BSED)
 
----
+MAJOR SUBJECTS (CORE EDUCATION)
 
-## **Bachelor of Secondary Education (BSED)**
+1. The Teaching Profession
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
-### **Major Subjects (Core Education)**
+2. Foundations of Education
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: The Teaching Profession
 
-1. **The Teaching Profession** – 1st Year, 1st Sem
-   *Prerequisite:* None
+3. Child and Adolescent Development
+   Year/Term: 2nd Year, 1st Semester
+   Prerequisite: Foundations of Education
 
-2. **Foundations of Education** – 1st Year, 2nd Sem
-   *Prerequisite:* The Teaching Profession
+4. Principles of Teaching
+   Year/Term: 2nd Year, 1st Semester
+   Prerequisite: The Teaching Profession, Foundations of Education
 
-3. **Child and Adolescent Development** – 2nd Year, 1st Sem
-   *Prerequisite:* Foundations of Education
+5. Facilitating Learner-Centered Teaching
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: Principles of Teaching, Child and Adolescent Development
 
-4. **Principles of Teaching** – 2nd Year, 1st Sem
-   *Prerequisite:* The Teaching Profession, Foundations of Education
+6. Assessment of Learning 1
+   Year/Term: 3rd Year, 1st Semester
+   Prerequisite: Facilitating Learner-Centered Teaching
 
-5. **Facilitating Learner-Centered Teaching** – 2nd Year, 2nd Sem
-   *Prerequisite:* Principles of Teaching, Child and Adolescent Development
+7. Assessment of Learning 2
+   Year/Term: 3rd Year, 2nd Semester
+   Prerequisite: Assessment of Learning 1
 
-6. **Assessment of Learning 1** – 3rd Year, 1st Sem
-   *Prerequisite:* Facilitating Learner-Centered Teaching
+8. Curriculum Development
+   Year/Term: 3rd Year, 2nd Semester
+   Prerequisite: Foundations of Education
 
-7. **Assessment of Learning 2** – 3rd Year, 2nd Sem
-   *Prerequisite:* Assessment of Learning 1
+9. Educational Technology
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: Facilitating Learner-Centered Teaching
 
-8. **Curriculum Development** – 3rd Year, 2nd Sem
-   *Prerequisite:* Foundations of Education
+10. Field Study (Practice Teaching Preparation)
+    Year/Term: 3rd Year, 2nd Semester
+    Prerequisite: Assessment of Learning 1, Facilitating Learner-Centered Teaching
 
-9. **Educational Technology** – 2nd Year, 2nd Sem
-   *Prerequisite:* Facilitating Learner-Centered Teaching
+11. Practice Teaching / Internship
+    Year/Term: 4th Year, 1st & 2nd Semesters
+    Prerequisite: Field Study (Practice Teaching Preparation)
 
-10. **Field Study (Practice Teaching Preparation)** – 3rd Year, 2nd Sem
-    *Prerequisite:* Assessment of Learning 1, Facilitating Learner-Centered Teaching
+SPECIALIZATION SUBJECTS (DEPENDING ON MAJOR)
 
-11. **Practice Teaching / Internship** – 4th Year, 1st & 2nd Sem
-    *Prerequisite:* Field Study (Practice Teaching Preparation)
+English Track (2nd & 3rd Years)
 
----
+* Grammar: Prerequisite: None
+* Literature: Prerequisite: Grammar
+* Language Teaching: Prerequisite: Literature
 
-### **Specialization Subjects (depending on major)**
+Mathematics Track (2nd & 3rd Years)
 
-**English Track** – 2nd & 3rd Years:
+* Algebra: Prerequisite: None
+* Geometry: Prerequisite: Algebra
+* Statistics: Prerequisite: Algebra
 
-* Grammar – Prerequisite: None
-* Literature – Prerequisite: Grammar
-* Language Teaching – Prerequisite: Literature
+Science Track (2nd & 3rd Years)
 
-**Mathematics Track** – 2nd & 3rd Years:
+* Biology: Prerequisite: None
+* Chemistry: Prerequisite: Biology
+* Physics: Prerequisite: Chemistry
 
-* Algebra – Prerequisite: None
-* Geometry – Prerequisite: Algebra
-* Statistics – Prerequisite: Algebra
+Social Studies Track (2nd & 3rd Years)
 
-**Science Track** – 2nd & 3rd Years:
+* History: Prerequisite: None
+* Economics: Prerequisite: History
+* Politics: Prerequisite: Economics
 
-* Biology – Prerequisite: None
-* Chemistry – Prerequisite: Biology
-* Physics – Prerequisite: Chemistry
+Filipino Track (2nd & 3rd Years)
 
-**Social Studies Track** – 2nd & 3rd Years:
+* Wika: Prerequisite: None
+* Panitikan: Prerequisite: Wika
 
-* History – Prerequisite: None
-* Economics – Prerequisite: History
-* Politics – Prerequisite: Economics
+TLE Track (2nd & 3rd Years)
 
-**Filipino Track** – 2nd & 3rd Years:
+* Technology: Prerequisite: None
+* Livelihood Education: Prerequisite: Technology
 
-* Wika – Prerequisite: None
-* Panitikan – Prerequisite: Wika
+MINOR / GENERAL EDUCATION SUBJECTS
 
-**TLE Track** – 2nd & 3rd Years:
+1. Mathematics in the Modern World
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
-* Technology – Prerequisite: None
-* Livelihood Education – Prerequisite: Technology
+2. Purposive Communication
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
----
+3. Understanding the Self
+   Year/Term: 1st Year, 1st Semester
+   Prerequisite: None
 
-### **Minor / General Education Subjects**
+4. Readings in Philippine History
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: None
 
-1. **Mathematics in the Modern World** – 1st Year, 1st Sem
-   *Prerequisite:* None
+5. The Contemporary World
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: None
 
-2. **Purposive Communication** – 1st Year, 1st Sem
-   *Prerequisite:* None
+6. Ethics
+   Year/Term: 2nd Year, 1st Semester
+   Prerequisite: Understanding the Self
 
-3. **Understanding the Self** – 1st Year, 1st Sem
-   *Prerequisite:* None
+7. Art Appreciation
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: None
 
-4. **Readings in Philippine History** – 1st Year, 2nd Sem
-   *Prerequisite:* None
+8. Science, Technology, and Society
+   Year/Term: 2nd Year, 2nd Semester
+   Prerequisite: None
 
-5. **The Contemporary World** – 1st Year, 2nd Sem
-   *Prerequisite:* None
+9. Life and Works of Jose Rizal
+   Year/Term: 1st Year, 2nd Semester
+   Prerequisite: None
 
-6. **Ethics** – 2nd Year, 1st Sem
-   *Prerequisite:* Understanding the Self
+10. Physical Education (PE 1 and 2)
+    Year/Term: 1st Year, Both Semesters
+    Prerequisite: None
 
-7. **Art Appreciation** – 2nd Year, 2nd Sem
-   *Prerequisite:* None
-
-8. **Science, Technology, and Society** – 2nd Year, 2nd Sem
-   *Prerequisite:* None
-
-9. **Life and Works of José Rizal** – 1st Year, 2nd Sem
-   *Prerequisite:* None
-
-10. **Physical Education (PE 1 & 2)** – 1st Year, both semesters
-    *Prerequisite:* None
-
-11. **National Service Training Program (NSTP 1 & 2)** – 2nd Year, both semesters
-    *Prerequisite:* None
-
----
-
-
+11. National Service Training Program (NSTP 1 and 2)
+    Year/Term: 2nd Year, Both Semesters
+    Prerequisite: None
