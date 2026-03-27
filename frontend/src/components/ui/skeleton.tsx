@@ -1,7 +1,12 @@
-import { cn } from "@/lib/utils"
-import React from "react"
+"use client"
 
-function Skeleton({ className, ...props }: React.ComponentProps<"div"> {
+import * as React from "react"
+import { cn } from "@/lib/utils"
+
+function Skeleton({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="skeleton"
