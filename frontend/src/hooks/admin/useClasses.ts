@@ -1,15 +1,24 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
 import { classApi } from "@/api/admin/class.api";
-import type { GetClassesQuery } from "@/api/admin/class.api";
+import type {
+  GetClassesQuery,
+  CreateClassRequest,
+  UpdateClassRequest,
+  EnrollmentResponse,
+  EnrollOverflowResponse,
+} from "@/api/admin/class.api";
+import type { Class } from "@/types/admin/class.types";
 
-export const useClasses = (query?: GetClassesQuery) => {
+// Fetch all classes
+export const useClasses = (query?: GetClassesQuery): UseQueryResult<Class[], Error> => {
   return useQuery({
     queryKey: ["classes", query],
     queryFn: () => classApi.getAll(query),
   });
 };
 
-export const useClass = (id: string) => {
+// Fetch single class by ID
+export const useClass = (id: string): UseQueryResult<Class, Error> => {
   return useQuery({
     queryKey: ["classes", id],
     queryFn: () => classApi.getOne(id),
@@ -17,7 +26,8 @@ export const useClass = (id: string) => {
   });
 };
 
-export const useCreateClass = () => {
+// Create a class
+export const useCreateClass = (): UseMutationResult<Class, Error, CreateClassRequest> => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -28,19 +38,24 @@ export const useCreateClass = () => {
   });
 };
 
-export const useUpdateClass = () => {
+// Update a class
+export const useUpdateClass = (): UseMutationResult<
+  Class,
+  Error,
+  { id: string; data: UpdateClassRequest }
+> => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
-      classApi.update(id, data),
+    mutationFn: ({ id, data }) => classApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["classes"] });
     },
   });
 };
 
-export const useArchiveClass = () => {
+// Archive a class
+export const useArchiveClass = (): UseMutationResult<void, Error, string> => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -51,7 +66,8 @@ export const useArchiveClass = () => {
   });
 };
 
-export const useClassEnrollments = (classId: string) => {
+// Get enrollments for a class
+export const useClassEnrollments = (classId: string): UseQueryResult<EnrollmentResponse[], Error> => {
   return useQuery({
     queryKey: ["classes", classId, "enrollments"],
     queryFn: () => classApi.getEnrollments(classId),
@@ -59,18 +75,16 @@ export const useClassEnrollments = (classId: string) => {
   });
 };
 
-export const useEnrollStudent = () => {
+// Enroll a student in a class
+export const useEnrollStudent = (): UseMutationResult<
+  EnrollmentResponse | EnrollOverflowResponse,
+  Error,
+  { classId: string; studentId: string }
+> => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      classId,
-      studentId,
-    }: {
-      classId: string;
-      studentId: string;
-    }) => classApi.enroll(classId, studentId),
-
+    mutationFn: ({ classId, studentId }) => classApi.enroll(classId, studentId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["classes", variables.classId, "enrollments"],
@@ -79,20 +93,17 @@ export const useEnrollStudent = () => {
   });
 };
 
-export const useUpdateEnrollment = () => {
+// Update enrollment status
+export const useUpdateEnrollment = (): UseMutationResult<
+  EnrollmentResponse,
+  Error,
+  { classId: string; enrollmentId: string; status: "active" | "pending" | "removed" }
+> => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      classId,
-      enrollmentId,
-      status,
-    }: {
-      classId: string;
-      enrollmentId: string;
-      status: "active" | "pending" | "removed";
-    }) => classApi.updateEnrollment(classId, enrollmentId, status),
-
+    mutationFn: ({ classId, enrollmentId, status }) =>
+      classApi.updateEnrollment(classId, enrollmentId, status),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["classes", variables.classId, "enrollments"],
@@ -101,18 +112,16 @@ export const useUpdateEnrollment = () => {
   });
 };
 
-export const useRemoveEnrollment = () => {
+// Remove an enrollment
+export const useRemoveEnrollment = (): UseMutationResult<
+  { success: true },
+  Error,
+  { classId: string; enrollmentId: string }
+> => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      classId,
-      enrollmentId,
-    }: {
-      classId: string;
-      enrollmentId: string;
-    }) => classApi.removeEnrollment(classId, enrollmentId),
-
+    mutationFn: ({ classId, enrollmentId }) => classApi.removeEnrollment(classId, enrollmentId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["classes", variables.classId, "enrollments"],
