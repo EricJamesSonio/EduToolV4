@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import AgoraRTC, {
+import AgoraRTC from "agora-rtc-sdk-ng";
+import type {
   IAgoraRTCClient,
   ILocalAudioTrack,
   ILocalVideoTrack,
-  IRemoteUser,
+  IAgoraRTCRemoteUser,
 } from "agora-rtc-sdk-ng";
+
 
 interface UseAgoraRTCProps {
   appId: string;
@@ -23,12 +25,9 @@ export const useAgoraRTC = ({
 
   const [localAudio, setLocalAudio] = useState<ILocalAudioTrack | null>(null);
   const [localVideo, setLocalVideo] = useState<ILocalVideoTrack | null>(null);
-  const [remoteUsers, setRemoteUsers] = useState<IRemoteUser[]>([]);
+  const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([]);;
   const [joined, setJoined] = useState(false);
 
-  // ==============================
-  // Init + Join
-  // ==============================
   useEffect(() => {
     if (!appId || !channel || !token) return;
 
@@ -68,7 +67,11 @@ export const useAgoraRTC = ({
         user.audioTrack?.play();
       }
 
-      setRemoteUsers((prev) => [...prev, user]);
+      setRemoteUsers((prev) => {
+        const exists = prev.find((u) => u.uid === user.uid);
+        if (exists) return prev;
+        return [...prev, user];
+      });
     });
 
     client.on("user-unpublished", (user) => {
@@ -93,10 +96,6 @@ export const useAgoraRTC = ({
       cleanup();
     };
   }, [appId, channel, token, uid]);
-
-  // ==============================
-  // Controls
-  // ==============================
 
   const toggleMic = async () => {
     if (!localAudio) return;
