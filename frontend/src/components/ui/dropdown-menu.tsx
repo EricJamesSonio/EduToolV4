@@ -6,6 +6,14 @@ import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 import { cn } from "@/lib/utils"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 
+type DropdownMenuContentProps = MenuPrimitive.Popup.Props &
+  Pick <
+    MenuPrimitive.Positioner.Props,
+    "align" | "alignOffset" | "side" | "sideOffset"
+  > & {
+    className?: string
+  }
+
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props): React.JSX.Element {
   return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />
 }
@@ -25,11 +33,7 @@ function DropdownMenuContent({
   sideOffset = 4,
   className,
   ...props
-}: MenuPrimitive.Popup.Props &
-  Pick<
-    MenuPrimitive.Positioner.Props,
-    "align" | "alignOffset" | "side" | "sideOffset"
-  >): React.JSX.Element {
+}: DropdownMenuContentProps): React.JSX.Element {
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
@@ -131,7 +135,7 @@ function DropdownMenuSubContent({
   sideOffset = 0,
   className,
   ...props
-}: React.ComponentProps<typeof DropdownMenuContent>): React.JSX.Element {
+}: DropdownMenuContentProps): React.JSX.Element {
   return (
     <DropdownMenuContent
       data-slot="dropdown-menu-sub-content"

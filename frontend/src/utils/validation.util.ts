@@ -15,7 +15,7 @@ export const nameSchema = z
   .string()
   .min(1, "Name is required")
   .max(100, "Name must be 100 characters or fewer")
-  .regex(/^[\p{L}\s'\-\.]+$/u, "Name contains invalid characters");
+ .regex(/^[\p{L}\s'\-.]+$/u, "Name contains invalid characters");
 
 export const uuidSchema = z
   .string()
