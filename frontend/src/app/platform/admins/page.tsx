@@ -1,242 +1,179 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { platformApi } from "@/api/platform.api";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { SearchInput } from "@/components/shared/SearchInput";
+import { Pagination } from "@/components/shared/Pagination";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { AdminCredentialsCard } from "@/components/platform/AdminCredentialsCard";
-import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { formatDate } from "@/utils/date.util";
-import { KeyRound, ShieldOff, ShieldCheck, Eye, EyeOff, Copy, Check } from "lucide-react";
+import { AdminTable } from "@/components/platform/AdminTable";
+import { CreateAdminDialog } from "@/components/platform/CreateAdminDialog";
+import { AdminCredentialsCard } from "@/components/platform/AdminCredentialsCard";
+import { platformApi } from "@/api/platform.api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Plus } from "lucide-react";
+import type { AdminAccount } from "@/types/platform.types";
 
-export default function AdminDetailPage() {
-  const { id } = useParams<{ id: string }>();
+export default function PlatformAdminsPage() {
   const queryClient = useQueryClient();
 
-  const [confirmType, setConfirmType] = useState<"reset" | "block" | "unblock" | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordCopied, setPasswordCopied] = useState(false);
+  // Filters & pagination
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  // Dialog states
+  const [createOpen, setCreateOpen] = useState(false);
+
+  // Confirm dialog state
+  const [confirmState, setConfirmState] = useState<{
+    type: "reset" | "block" | "unblock";
+    admin: AdminAccount;
+  } | null>(null);
+
+  // Credentials to show after reset
   const [resetCredentials, setResetCredentials] = useState<{
     fullName: string;
     email: string;
     password: string;
   } | null>(null);
 
-  const { data: admin, isLoading } = useQuery({
-    queryKey: ["platform", "admins", id],
-    queryFn: () => platformApi.getAdmin(id),
-    enabled: !!id,
+  // Fetch admins
+  const { data, isLoading } = useQuery({
+    queryKey: ["platform", "admins", { search, page, limit }],
+    queryFn: () => platformApi.getAdmins({ search: search || undefined, page, limit }),
   });
 
+  const admins = data?.data ?? [];
+  const total = data?.total ?? 0;
+
+  // Mutations
   const resetMutation = useMutation({
-    mutationFn: () => platformApi.resetAdminPassword(id),
+    mutationFn: (id: string) => platformApi.resetAdminPassword(id),
     onSuccess: (result) => {
-      toast.success("Password reset successfully.");
+      toast.success("Password reset. New credentials ready.");
       setResetCredentials({
-        fullName: admin?.fullName ?? "",
+        fullName: confirmState?.admin.fullName ?? "",
         email: result.email,
         password: result.password,
       });
-      setConfirmType(null);
+      setConfirmState(null);
     },
     onError: () => toast.error("Failed to reset password."),
   });
 
   const blockMutation = useMutation({
-    mutationFn: () => platformApi.blockAdmin(id),
+    mutationFn: (id: string) => platformApi.blockAdmin(id),
     onSuccess: () => {
       toast.success("Admin blocked.");
-      queryClient.invalidateQueries({ queryKey: ["platform", "admins", id] });
-      setConfirmType(null);
+      queryClient.invalidateQueries({ queryKey: ["platform", "admins"] });
+      setConfirmState(null);
     },
     onError: () => toast.error("Failed to block admin."),
   });
 
   const unblockMutation = useMutation({
-    mutationFn: () => platformApi.unblockAdmin(id),
+    mutationFn: (id: string) => platformApi.unblockAdmin(id),
     onSuccess: () => {
       toast.success("Admin unblocked.");
-      queryClient.invalidateQueries({ queryKey: ["platform", "admins", id] });
-      setConfirmType(null);
+      queryClient.invalidateQueries({ queryKey: ["platform", "admins"] });
+      setConfirmState(null);
     },
     onError: () => toast.error("Failed to unblock admin."),
   });
 
   const handleConfirm = () => {
-    if (confirmType === "reset") resetMutation.mutate();
-    if (confirmType === "block") blockMutation.mutate();
-    if (confirmType === "unblock") unblockMutation.mutate();
+    if (!confirmState) return;
+    const { type, admin } = confirmState;
+    if (type === "reset") resetMutation.mutate(admin.id);
+    if (type === "block") blockMutation.mutate(admin.id);
+    if (type === "unblock") unblockMutation.mutate(admin.id);
   };
 
   const isMutating =
-    resetMutation.isPending || blockMutation.isPending || unblockMutation.isPending;
+    resetMutation.isPending ||
+    blockMutation.isPending ||
+    unblockMutation.isPending;
 
-  const handleCopyPassword = async () => {
-    const pwd = admin?.password;
-    if (!pwd) return;
-    await navigator.clipboard.writeText(pwd);
-    setPasswordCopied(true);
-    toast.success("Password copied.");
-    setTimeout(() => setPasswordCopied(false), 2000);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  if (!admin) {
-    return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
-        Admin not found.
-      </div>
-    );
-  }
-
-  const isBlocked = admin.status === "blocked";
-
-  const confirmCopy =
-    confirmType === "reset"
-      ? {
+  // Confirm dialog copy
+  const confirmCopy = confirmState
+    ? {
+        reset: {
           title: "Reset password?",
-          message: `Reset password for ${admin.fullName ?? admin.email}? A new password will be generated.`,
+          message: `Reset password for ${confirmState.admin.fullName ?? confirmState.admin.email}? A new password will be generated.`,
           confirmLabel: "Reset Password",
           destructive: false,
-        }
-      : confirmType === "block"
-      ? {
+        },
+        block: {
           title: "Block admin?",
-          message: `Block ${admin.fullName ?? admin.email}? They will no longer be able to log in.`,
+          message: `Block ${confirmState.admin.fullName ?? confirmState.admin.email}? They will no longer be able to log in.`,
           confirmLabel: "Block",
           destructive: true,
-        }
-      : confirmType === "unblock"
-      ? {
+        },
+        unblock: {
           title: "Unblock admin?",
-          message: `Unblock ${admin.fullName ?? admin.email}? They will regain login access.`,
+          message: `Unblock ${confirmState.admin.fullName ?? confirmState.admin.email}? They will regain login access.`,
           confirmLabel: "Unblock",
           destructive: false,
-        }
-      : null;
+        },
+      }[confirmState.type]
+    : null;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        breadcrumbs={[
-          { label: "Admins", href: "/platform/admins" },
-          { label: admin.fullName ?? admin.email },
-        ]}
-        title={admin.fullName ?? admin.email}
+        title="Admin Accounts"
         actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirmType("reset")}
-            >
-              <KeyRound className="mr-2 h-4 w-4" />
-              Reset Password
-            </Button>
-            {isBlocked ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-green-600 border-green-200 hover:bg-green-50"
-                onClick={() => setConfirmType("unblock")}
-              >
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                Unblock
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                onClick={() => setConfirmType("block")}
-              >
-                <ShieldOff className="mr-2 h-4 w-4" />
-                Block
-              </Button>
-            )}
-          </div>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Admin
+          </Button>
         }
       />
 
-      <div className="grid gap-4 max-w-2xl">
-        {/* Info Card */}
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <InfoRow label="Full Name" value={admin.fullName ?? "—"} />
-            <Separator />
-            <InfoRow label="Email" value={admin.email} />
-            <Separator />
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Status</span>
-              <StatusBadge status={admin.status} />
-            </div>
-            <Separator />
-            <InfoRow label="Created Date" value={formatDate(admin.createdAt)} />
-          </CardContent>
-        </Card>
+      {/* Search */}
+      <SearchInput
+        value={search}
+        onChange={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        placeholder="Search by name or email..."
+        className="max-w-sm"
+      />
 
-        {/* Password section */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium">Current Password</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowPassword((v) => !v)}
-              >
-                {showPassword ? (
-                  <><EyeOff className="mr-1.5 h-4 w-4" /> Hide</>
-                ) : (
-                  <><Eye className="mr-1.5 h-4 w-4" /> Show Password</>
-                )}
-              </Button>
-            </div>
+      {/* Table */}
+      <AdminTable
+        data={admins}
+        isLoading={isLoading}
+        onResetPassword={(admin) => setConfirmState({ type: "reset", admin })}
+        onBlock={(admin) => setConfirmState({ type: "block", admin })}
+        onUnblock={(admin) => setConfirmState({ type: "unblock", admin })}
+      />
 
-            {showPassword && (
-              <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
-                <span className="flex-1 font-mono text-sm select-all">
-                  {admin.password ?? "••••••••••••"}
-                </span>
-                <button
-                  onClick={handleCopyPassword}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label="Copy password"
-                >
-                  {passwordCopied ? (
-                    <Check className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-            )}
+      {/* Pagination */}
+      {total > 0 && (
+        <Pagination
+          page={page}
+          limit={limit}
+          total={total}
+          onPageChange={setPage}
+          onLimitChange={(l) => { setLimit(l); setPage(1); }}
+        />
+      )}
 
-            {!showPassword && (
-              <p className="text-sm text-muted-foreground">
-                Click &ldquo;Show Password&rdquo; to reveal the stored plain-text password.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {/* Create Admin dialog */}
+      <CreateAdminDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() =>
+          queryClient.invalidateQueries({ queryKey: ["platform", "admins"] })
+        }
+      />
 
-      {/* Confirm Dialog */}
-      {confirmType && confirmCopy && (
+      {/* Confirm dialog */}
+      {confirmState && confirmCopy && (
         <ConfirmDialog
           open
           title={confirmCopy.title}
@@ -245,28 +182,24 @@ export default function AdminDetailPage() {
           destructive={confirmCopy.destructive}
           isLoading={isMutating}
           onConfirm={handleConfirm}
-          onOpenChange={(open) => { if (!open) setConfirmType(null); }}
+          onOpenChange={(open) => {
+  if (!open) setConfirmState(null);
+}}
         />
       )}
 
-      {/* Credentials after reset */}
+      {/* Reset password credentials card */}
       {resetCredentials && (
         <AdminCredentialsCard
           open
           credentials={resetCredentials}
           title="Password reset successfully"
-          onClose={() => setResetCredentials(null)}
+          onClose={() => {
+            setResetCredentials(null);
+            queryClient.invalidateQueries({ queryKey: ["platform", "admins"] });
+          }}
         />
       )}
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium">{value}</span>
     </div>
   );
 }
