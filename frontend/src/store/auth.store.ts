@@ -4,13 +4,14 @@ import type { AuthUser } from "@/types/auth.types";
 
 interface AuthState {
   user: AuthUser | null;
-  token: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
   isLoading: boolean;
 }
 
 interface AuthActions {
   setUser: (user: AuthUser | null) => void;
-  setToken: (token: string | null) => void;
+  setTokens: (accessToken: string, refreshToken: string) => void;
   setLoading: (loading: boolean) => void;
   clearAuth: () => void;
 }
@@ -20,26 +21,36 @@ type AuthStore = AuthState & AuthActions;
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
-      // ─── State ───────────────────────────────────────────────────────────
+      // ─── State ─────────────────────────────────────────────────────────
       user: null,
-      token: null,
-      isLoading: true, // true on mount until session is verified
+      accessToken: null,
+      refreshToken: null,
+      isLoading: true,
 
-      // ─── Actions ─────────────────────────────────────────────────────────
+      // ─── Actions ───────────────────────────────────────────────────────
       setUser: (user) => set({ user }),
 
-      setToken: (token) => set({ token }),
+      setTokens: (accessToken, refreshToken) =>
+        set({ accessToken, refreshToken }),
 
       setLoading: (isLoading) => set({ isLoading }),
 
-      clearAuth: () => set({ user: null, token: null, isLoading: false }),
+      clearAuth: () =>
+        set({
+          user: null,
+          accessToken: null,
+          refreshToken: null,
+          isLoading: false,
+        }),
     }),
     {
       name: "edutool-auth",
       storage: createJSONStorage(() => localStorage),
-      // Only persist the token — user is re-fetched from /auth/me on mount.
-      // This avoids serving stale user data from storage.
-      partialize: (state) => ({ token: state.token }),
+      // Persist both tokens; user is re-fetched from /auth/me on mount
+      partialize: (state) => ({
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+      }),
     }
   )
 );

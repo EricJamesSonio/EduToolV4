@@ -1418,8 +1418,8 @@
   Frontend Phase 1        [ ] completed
   Frontend Phase 2        [ ] completed
   Frontend Phase 3        [ ] completed
-  Frontend Phase 4        [ ] not started
-  Frontend Phase 5        [ ] not started
+  Frontend Phase 4        [ ] completed
+  Frontend Phase 5        [ ] completed
   Frontend Phase 6        [ ] not started
   Frontend Phase 7        [ ] not started
   Frontend Phase 8        [ ] not started
