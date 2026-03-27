@@ -1,41 +1,72 @@
-import { useQueries } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studentClassApi } from "@/api/student/class.api";
 import { studentGradeApi } from "@/api/student/grade.api";
 
+// ==============================
+// Types
+// ==============================
+
+export interface TranscriptItem {
+  classId: string;
+  subjectName: string | null;
+  educatorName: string | null;
+  grades: Awaited<ReturnType<typeof studentGradeApi.getOwn>>;
+}
+
+// ==============================
+// Hook
+// ==============================
+
 export const useTranscript = () => {
-  // 1. Get all classes
-  const classesQuery = useQueries({
-    queries: [
-      {
-        queryKey: ["student", "classes"],
-        queryFn: studentClassApi.getAll,
-      },
-    ],
-  })[0];
+  return useQuery({
+    queryKey: ["student", "transcript"],
 
-  const classes = classesQuery.data || [];
+    queryFn: async (): Promise<TranscriptItem[]> => {
+      // 1. Get all enrolled classes
+      const classes = await studentClassApi.getAll();
 
-  // 2. Fetch grades per class
-  const gradesQueries = useQueries({
-    queries: classes.map((cls) => ({
-      queryKey: ["student", "grades", cls.class.id],
-      queryFn: () => studentGradeApi.getOwn(cls.class.id),
-      enabled: !!cls.class.id,
-    })),
+      if (!classes.length) return [];
+
+      // 2. Fetch all grades in parallel
+      const gradesResults = await Promise.all(
+        classes.map((cls) =>
+          studentGradeApi.getOwn(cls.class.id)
+        )
+      );
+
+      // 3. Merge into transcript structure
+      return classes.map((cls, index) => ({
+        classId: cls.class.id,
+        subjectName: cls.class.subjectName,
+        educatorName: cls.class.educatorName,
+        grades: gradesResults[index] || [],
+      }));
+    },
+
+    // ==============================
+    // Performance / UX tuning
+    // ==============================
+
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
+    gcTime: 1000 * 60 * 10,   // cache cleanup (React Query v5)
+
+    retry: 1, // avoid spamming API if something fails
+
+    // smoother UI when refetching
+    placeholderData: (previousData) => previousData ?? [],
   });
+};
 
-  // 3. Combine
-  const transcript = classes.map((cls, index) => ({
-    class: cls.class,
-    grades: gradesQueries[index]?.data || [],
-    isLoading: gradesQueries[index]?.isLoading,
-  }));
+// ==============================
+// Optional helper (VERY USEFUL)
+// ==============================
 
-  return {
-    classes,
-    transcript,
-    isLoading:
-      classesQuery.isLoading ||
-      gradesQueries.some((q) => q.isLoading),
+export const useInvalidateTranscript = () => {
+  const queryClient = useQueryClient();
+
+  return () => {
+    queryClient.invalidateQueries({
+      queryKey: ["student", "transcript"],
+    });
   };
 };
