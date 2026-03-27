@@ -1,14 +1,17 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { semesterApi } from "@/api/admin/semester.api";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { semesterApi, CreateSemesterRequest, UpdateSemesterRequest } from "@/api/admin/semester.api";
+import type { Semester } from "@/types/admin/semester.types";
 
-export const useSemesters = () => {
+// Fetch all semesters
+export const useSemesters = (): UseQueryResult<Semester[], unknown> => {
   return useQuery({
     queryKey: ["semesters"],
     queryFn: semesterApi.getAll,
   });
 };
 
-export const useCreateSemester = () => {
+// Create a new semester
+export const useCreateSemester = (): UseMutationResult<Semester, unknown, CreateSemesterRequest> => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -19,11 +22,16 @@ export const useCreateSemester = () => {
   });
 };
 
-export const useUpdateSemester = () => {
+// Update an existing semester
+export const useUpdateSemester = (): UseMutationResult<
+  Semester,
+  unknown,
+  { id: string; data: UpdateSemesterRequest }
+> => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdateSemesterRequest }) =>
       semesterApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["semesters"] });
@@ -31,7 +39,8 @@ export const useUpdateSemester = () => {
   });
 };
 
-export const useDeleteSemester = () => {
+// Delete a semester
+export const useDeleteSemester = (): UseMutationResult<void, unknown, string> => {
   const queryClient = useQueryClient();
 
   return useMutation({
