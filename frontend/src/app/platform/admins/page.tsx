@@ -79,7 +79,7 @@ export default function AdminDetailPage() {
     resetMutation.isPending || blockMutation.isPending || unblockMutation.isPending;
 
   const handleCopyPassword = async () => {
-    const pwd = (admin as any)?.password;
+    const pwd = admin?.password;
     if (!pwd) return;
     await navigator.clipboard.writeText(pwd);
     setPasswordCopied(true);
@@ -210,7 +210,7 @@ export default function AdminDetailPage() {
             {showPassword && (
               <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
                 <span className="flex-1 font-mono text-sm select-all">
-                  {(admin as any).password ?? "••••••••••••"}
+                  {admin.password ?? "••••••••••••"}
                 </span>
                 <button
                   onClick={handleCopyPassword}
@@ -228,7 +228,7 @@ export default function AdminDetailPage() {
 
             {!showPassword && (
               <p className="text-sm text-muted-foreground">
-                Click "Show Password" to reveal the stored plain-text password.
+                Click &ldquo;Show Password&rdquo; to reveal the stored plain-text password.
               </p>
             )}
           </CardContent>
@@ -245,7 +245,7 @@ export default function AdminDetailPage() {
           destructive={confirmCopy.destructive}
           isLoading={isMutating}
           onConfirm={handleConfirm}
-          onCancel={() => setConfirmType(null)}
+          onOpenChange={(open) => { if (!open) setConfirmType(null); }}
         />
       )}
 

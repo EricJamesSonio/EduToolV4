@@ -182,7 +182,9 @@ export default function PlatformAdminsPage() {
           destructive={confirmCopy.destructive}
           isLoading={isMutating}
           onConfirm={handleConfirm}
-          onCancel={() => setConfirmState(null)}
+          onOpenChange={(open) => {
+  if (!open) setConfirmState(null);
+}}
         />
       )}
 
