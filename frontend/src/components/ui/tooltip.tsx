@@ -1,13 +1,9 @@
-"use client"
-
+import React from "react"
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
-
 import { cn } from "@/lib/utils"
 
-function TooltipProvider({
-  delay = 0,
-  ...props
-}: TooltipPrimitive.Provider.Props) {
+// Tooltip Provider
+const TooltipProvider: React.FC<TooltipPrimitive.Provider.Props> = ({ delay = 0, ...props }) => {
   return (
     <TooltipPrimitive.Provider
       data-slot="tooltip-provider"
@@ -17,15 +13,24 @@ function TooltipProvider({
   )
 }
 
-function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
-}
+// Tooltip Root
+const Tooltip: React.FC<TooltipPrimitive.Root.Props> = (props) => (
+  <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+)
 
-function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
-}
+// Tooltip Trigger
+const TooltipTrigger: React.FC<TooltipPrimitive.Trigger.Props> = (props) => (
+  <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+)
 
-function TooltipContent({
+// Tooltip Content
+const TooltipContent: React.FC<
+  TooltipPrimitive.Popup.Props &
+    Pick<
+      TooltipPrimitive.Positioner.Props,
+      "align" | "alignOffset" | "side" | "sideOffset"
+    >
+> = ({
   className,
   side = "top",
   sideOffset = 4,
@@ -33,11 +38,7 @@ function TooltipContent({
   alignOffset = 0,
   children,
   ...props
-}: TooltipPrimitive.Popup.Props &
-  Pick<
-    TooltipPrimitive.Positioner.Props,
-    "align" | "alignOffset" | "side" | "sideOffset"
-  >) {
+}) => {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Positioner

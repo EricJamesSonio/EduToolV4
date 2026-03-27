@@ -72,8 +72,8 @@ export function TopBar({ className }: TopBarProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/profile" className="cursor-pointer">
+            <DropdownMenuItem>
+              <Link href="/profile" className="flex items-center cursor-pointer w-full">
                 <User className="mr-2 h-4 w-4" />
                 My Profile
               </Link>
