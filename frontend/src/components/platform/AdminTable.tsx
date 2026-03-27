@@ -62,12 +62,13 @@ export function AdminTable({
 
         return (
           <div className="flex items-center justify-end gap-1">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href={`/platform/admins/${admin.id}`}>
-                <Eye className="mr-1.5 h-3.5 w-3.5" />
-                View
-              </Link>
-            </Button>
+            <Link
+              href={`/platform/admins/${admin.id}`}
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              View
+            </Link>
 
             <Button
               variant="ghost"
