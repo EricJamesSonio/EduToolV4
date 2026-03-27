@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 
 import { authApi } from "@/api/auth.api";
 import { saveTokens, clearTokens } from "@/api/client";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore } from "@/store/auth.store";
 import { getRoleHomePath } from "@/utils/role.util";
 import type { AuthUser, AuthTokens } from "@/types/auth.types";
 
