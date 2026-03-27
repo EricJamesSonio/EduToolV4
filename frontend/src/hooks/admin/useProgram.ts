@@ -1,14 +1,16 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
 import { programApi } from "@/api/admin/program.api";
+import type { CreateProgramRequest, UpdateProgramRequest } from "@/api/admin/program.api";
+import type { Program } from "@/types/admin/program.types";
 
-export const usePrograms = () => {
+export const usePrograms = (): UseQueryResult<Program[], Error> => {
   return useQuery({
     queryKey: ["programs"],
     queryFn: programApi.getAll,
   });
 };
 
-export const useCreateProgram = () => {
+export const useCreateProgram = (): UseMutationResult<Program, Error, CreateProgramRequest> => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -19,11 +21,11 @@ export const useCreateProgram = () => {
   });
 };
 
-export const useUpdateProgram = () => {
+export const useUpdateProgram = (): UseMutationResult<Program, Error, { id: string; data: UpdateProgramRequest }> => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdateProgramRequest }) =>
       programApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["programs"] });
@@ -31,7 +33,7 @@ export const useUpdateProgram = () => {
   });
 };
 
-export const useDeleteProgram = () => {
+export const useDeleteProgram = (): UseMutationResult<void, Error, string> => {
   const queryClient = useQueryClient();
 
   return useMutation({

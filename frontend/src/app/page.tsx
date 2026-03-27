@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { getRoleHomePath } from "@/utils/role.util";
+import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 
 export default function RootPage() {
   const { user, isLoading } = useAuth();
@@ -19,6 +20,10 @@ export default function RootPage() {
     }
   }, [user, isLoading, router]);
 
-  // Render nothing — this page is purely a redirect
-  return null;
+  // Show spinner while auth resolves
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <LoadingSpinner size="lg" />
+    </div>
+  );
 }

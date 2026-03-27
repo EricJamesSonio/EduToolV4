@@ -1,7 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, UseQueryResult } from "@tanstack/react-query";
 import { studentAssessmentApi } from "@/api/student/assessment.api";
 
-export const useStudentAssessments = (classId: string) => {
+import type {
+  StudentAssessmentItem,
+  StudentAssessmentDetail,
+  AssessmentResult,
+} from "@/api/student/assessment.api";
+
+// 🔹 Get all assessments
+export const useStudentAssessments = (
+  classId: string
+): UseQueryResult<StudentAssessmentItem[], Error> => {
   return useQuery({
     queryKey: ["student", "assessments", classId],
     queryFn: () => studentAssessmentApi.getAll(classId),
@@ -9,10 +18,11 @@ export const useStudentAssessments = (classId: string) => {
   });
 };
 
+// 🔹 Get single assessment
 export const useStudentAssessment = (
   classId: string,
   assessmentId: string
-) => {
+): UseQueryResult<StudentAssessmentDetail, Error> => {
   return useQuery({
     queryKey: ["student", "assessment", classId, assessmentId],
     queryFn: () =>
@@ -21,10 +31,11 @@ export const useStudentAssessment = (
   });
 };
 
+// 🔹 Get result
 export const useAssessmentResult = (
   classId: string,
   assessmentId: string
-) => {
+): UseQueryResult<AssessmentResult, Error> => {
   return useQuery({
     queryKey: ["student", "assessment", "result", classId, assessmentId],
     queryFn: () =>

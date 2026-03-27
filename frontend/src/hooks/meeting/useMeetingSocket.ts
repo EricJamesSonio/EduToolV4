@@ -1,86 +1,82 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
+import type { MeetingParticipant, ChatMessage } from "@/types/meeting/socket.types";
 
 interface UseMeetingSocketProps {
   meetingId: string;
-  token: string; // JWT
+  token: string;
+}
+
+interface UseMeetingSocketReturn {
+  socket: Socket | null;
+  connected: boolean;
+  participants: MeetingParticipant[];
+  chat: ChatMessage[];
+  currentSlide: number;
+  isPresenting: boolean;
+  sendChat: (message: string) => void;
+  raiseHand: () => void;
+  lowerHand: () => void;
+  sendReaction: (emoji: string) => void;
+  changeSlide: (slide: number) => void;
+  startPresentation: () => void;
+  stopPresentation: () => void;
 }
 
 export const useMeetingSocket = ({
   meetingId,
   token,
-}: UseMeetingSocketProps) => {
+}: UseMeetingSocketProps): UseMeetingSocketReturn => {
   const socketRef = useRef<Socket | null>(null);
 
   const [connected, setConnected] = useState(false);
-  const [participants, setParticipants] = useState<any[]>([]);
-  const [chat, setChat] = useState<any[]>([]);
+  const [participants, setParticipants] = useState<MeetingParticipant[]>([]);
+  const [chat, setChat] = useState<ChatMessage[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPresenting, setIsPresenting] = useState(false);
 
-  // ==============================
-  // Connect
-  // ==============================
   useEffect(() => {
     if (!meetingId || !token) return;
 
-    const socket = io(
-      `${process.env.NEXT_PUBLIC_WS_URL}/meeting`,
-      {
-        auth: { token },
-        query: { meetingId },
-        transports: ["websocket"],
-      }
-    );
+    const socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
+      auth: { token },
+      query: { meetingId },
+      transports: ["websocket"],
+    });
 
     socketRef.current = socket;
 
     socket.on("connect", () => setConnected(true));
     socket.on("disconnect", () => setConnected(false));
 
-    // ==============================
-    // Initial state
-    // ==============================
-    socket.on("room:state", (data) => {
+    socket.on("room:state", (data: { participants: MeetingParticipant[]; chatHistory: ChatMessage[]; currentSlide: number; isPresenting: boolean }) => {
       setParticipants(data.participants || []);
       setChat(data.chatHistory || []);
       setCurrentSlide(data.currentSlide ?? 0);
       setIsPresenting(data.isPresenting ?? false);
     });
 
-    // ==============================
-    // Participants
-    // ==============================
-    socket.on("room:participant_joined", (data) => {
+    socket.on("room:participant_joined", (data: { participants: MeetingParticipant[] }) => {
       setParticipants(data.participants);
     });
 
-    socket.on("room:participant_left", (data) => {
+    socket.on("room:participant_left", (data: { participants: MeetingParticipant[] }) => {
       setParticipants(data.participants);
     });
 
-    // ==============================
-    // Chat
-    // ==============================
-    socket.on("chat:message", (msg) => {
+    socket.on("chat:message", (msg: ChatMessage) => {
       setChat((prev) => [...prev, msg]);
     });
 
-    // ==============================
-    // Hand raise
-    // ==============================
-    socket.on("hand:update", (data) => {
+    socket.on("hand:update", (data: { participants: MeetingParticipant[] }) => {
       setParticipants(data.participants);
     });
 
-    // ==============================
-    // Slides
-    // ==============================
-    socket.on("lesson:slide_sync", (data) => {
+    socket.on("lesson:slide_sync", (data: { slide: number }) => {
       setCurrentSlide(data.slide);
     });
 
-    socket.on("lesson:presentation_started", (data) => {
+    socket.on("lesson:presentation_started", (data: { currentSlide: number }) => {
       setIsPresenting(true);
       setCurrentSlide(data.currentSlide);
     });
@@ -94,47 +90,41 @@ export const useMeetingSocket = ({
     };
   }, [meetingId, token]);
 
-  // ==============================
-  // Emit helpers
-  // ==============================
-
-  const sendChat = useCallback((message: string) => {
+  const sendChat = useCallback((message: string): void => {
     socketRef.current?.emit("chat:send", { message });
   }, []);
 
-  const raiseHand = useCallback(() => {
+  const raiseHand = useCallback((): void => {
     socketRef.current?.emit("hand:raise");
   }, []);
 
-  const lowerHand = useCallback(() => {
+  const lowerHand = useCallback((): void => {
     socketRef.current?.emit("hand:lower");
   }, []);
 
-  const sendReaction = useCallback((emoji: string) => {
+  const sendReaction = useCallback((emoji: string): void => {
     socketRef.current?.emit("reaction:send", { emoji });
   }, []);
 
-  const changeSlide = useCallback((slide: number) => {
+  const changeSlide = useCallback((slide: number): void => {
     socketRef.current?.emit("lesson:slide_change", { slide });
   }, []);
 
-  const startPresentation = useCallback(() => {
+  const startPresentation = useCallback((): void => {
     socketRef.current?.emit("lesson:presentation_start");
   }, []);
 
-  const stopPresentation = useCallback(() => {
+  const stopPresentation = useCallback((): void => {
     socketRef.current?.emit("lesson:presentation_stop");
   }, []);
 
   return {
     socket: socketRef.current,
     connected,
-
     participants,
     chat,
     currentSlide,
     isPresenting,
-
     sendChat,
     raiseHand,
     lowerHand,

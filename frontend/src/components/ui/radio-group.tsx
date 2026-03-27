@@ -1,11 +1,16 @@
 "use client"
 
+import * as React from "react"
 import { Radio as RadioPrimitive } from "@base-ui/react/radio"
 import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group"
 
 import { cn } from "@/lib/utils"
 
-function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
+// ✅ FIXED: removed JSX.Element + fixed syntax
+function RadioGroup({
+  className,
+  ...props
+}: RadioGroupPrimitive.Props) {
   return (
     <RadioGroupPrimitive
       data-slot="radio-group"
@@ -15,7 +20,11 @@ function RadioGroup({ className, ...props }: RadioGroupPrimitive.Props) {
   )
 }
 
-function RadioGroupItem({ className, ...props }: RadioPrimitive.Root.Props) {
+// ✅ FIXED: removed JSX.Element + fixed syntax
+function RadioGroupItem({
+  className,
+  ...props
+}: RadioPrimitive.Root.Props) {
   return (
     <RadioPrimitive.Root
       data-slot="radio-group-item"

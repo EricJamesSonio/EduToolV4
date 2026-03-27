@@ -1,45 +1,46 @@
-// src/hooks/educator/useMeetings.ts
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { meetingApi, CreateMeetingDto, UpdateMeetingDto } from "@/api/educator/meeting.api";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { meetingApi, CreateMeetingDto, UpdateMeetingDto, Meeting } from "@/api/educator/meeting.api";
 
 const MEETINGS_KEY = "meetings";
 
 // Fetch all meetings
-export const useMeetings = (classId: string) => {
-  return useQuery({
+export const useMeetings = (classId: string): UseQueryResult<Meeting[]> => {
+  return useQuery<Meeting[]>({
     queryKey: [MEETINGS_KEY, classId],
-    queryFn: () => meetingApi.getAll(classId),
+    queryFn: (): Promise<Meeting[]> => meetingApi.getAll(classId),
     enabled: !!classId,
   });
 };
 
 // Fetch one meeting
-export const useMeeting = (classId: string, meetingId: string) => {
-  return useQuery({
+export const useMeeting = (classId: string, meetingId: string): UseQueryResult<Meeting> => {
+  return useQuery<Meeting>({
     queryKey: [MEETINGS_KEY, classId, meetingId],
-    queryFn: () => meetingApi.getOne(classId, meetingId),
+    queryFn: (): Promise<Meeting> => meetingApi.getOne(classId, meetingId),
     enabled: !!classId && !!meetingId,
   });
 };
 
 // Create a meeting
-export const useCreateMeeting = (classId: string) => {
+export const useCreateMeeting = (classId: string): UseMutationResult<Meeting, unknown, CreateMeetingDto> => {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (dto: CreateMeetingDto) => meetingApi.create(classId, dto),
-    onSuccess: () => {
+  return useMutation<Meeting, unknown, CreateMeetingDto>({
+    mutationFn: (dto: CreateMeetingDto): Promise<Meeting> => meetingApi.create(classId, dto),
+    onSuccess: (): void => {
       qc.invalidateQueries({ queryKey: [MEETINGS_KEY, classId] });
     },
   });
 };
 
 // Update a meeting
-export const useUpdateMeeting = (classId: string) => {
+export const useUpdateMeeting = (
+  classId: string
+): UseMutationResult<Meeting, unknown, { meetingId: string; dto: UpdateMeetingDto }> => {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ meetingId, dto }: { meetingId: string; dto: UpdateMeetingDto }) =>
+  return useMutation<Meeting, unknown, { meetingId: string; dto: UpdateMeetingDto }>({
+    mutationFn: ({ meetingId, dto }: { meetingId: string; dto: UpdateMeetingDto }): Promise<Meeting> =>
       meetingApi.update(classId, meetingId, dto),
-    onSuccess: (_, vars) => {
+    onSuccess: (_, vars): void => {
       qc.invalidateQueries({ queryKey: [MEETINGS_KEY, classId] });
       qc.invalidateQueries({ queryKey: [MEETINGS_KEY, classId, vars.meetingId] });
     },
@@ -47,11 +48,11 @@ export const useUpdateMeeting = (classId: string) => {
 };
 
 // End a meeting
-export const useEndMeeting = (classId: string) => {
+export const useEndMeeting = (classId: string): UseMutationResult<{ success: true; message: string }, unknown, string> => {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (meetingId: string) => meetingApi.end(classId, meetingId),
-    onSuccess: () => {
+  return useMutation<{ success: true; message: string }, unknown, string>({
+    mutationFn: (meetingId: string): Promise<{ success: true; message: string }> => meetingApi.end(classId, meetingId),
+    onSuccess: (): void => {
       qc.invalidateQueries({ queryKey: [MEETINGS_KEY, classId] });
     },
   });

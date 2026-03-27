@@ -1,14 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { levelApi } from "@/api/admin/level.api";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { levelApi, UpdateDefaultLevelsRequest } from "@/api/admin/level.api";
+import type { LevelDefault, SchoolYearLevel } from "@/types/admin/level.types";
 
-export const useDefaultLevels = () => {
+export const useDefaultLevels = (): UseQueryResult<LevelDefault[], Error> => {
   return useQuery({
     queryKey: ["levels", "defaults"],
     queryFn: levelApi.getDefaults,
   });
 };
 
-export const useUpdateDefaultLevels = () => {
+export const useUpdateDefaultLevels = (): UseMutationResult<LevelDefault[], Error, UpdateDefaultLevelsRequest> => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -19,7 +20,7 @@ export const useUpdateDefaultLevels = () => {
   });
 };
 
-export const useLevelsByYear = (schoolYearId: string) => {
+export const useLevelsByYear = (schoolYearId: string): UseQueryResult<SchoolYearLevel[], Error> => {
   return useQuery({
     queryKey: ["levels", schoolYearId],
     queryFn: () => levelApi.getByYear(schoolYearId),
@@ -27,7 +28,7 @@ export const useLevelsByYear = (schoolYearId: string) => {
   });
 };
 
-export const useUpdateLevel = () => {
+export const useUpdateLevel = (): UseMutationResult<SchoolYearLevel, Error, { id: string; name: string }> => {
   const queryClient = useQueryClient();
 
   return useMutation({

@@ -1,31 +1,49 @@
 // src/hooks/educator/useRubricLibrary.ts
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { educatorRubricApi, RubricCategoryInput } from "@/api/educator/rubric.api";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  UseQueryResult,
+  UseMutationResult,
+} from "@tanstack/react-query";
+
+import {
+  educatorRubricApi,
+  RubricCategoryInput,
+  ClassRubric,          // ← add this import
+} from "@/api/educator/rubric.api";
+
+import type { Rubric } from "@/types/admin/rubric.types";  // RubricTemplate removed
 
 const RUBRIC_KEY = "rubrics";
 
-// Fetch all rubric templates
-export const useRubricLibrary = () => {
+// 🔹 Fetch all rubric templates (backend returns Rubric[], not RubricTemplate[])
+export const useRubricLibrary = (): UseQueryResult<Rubric[], Error> => {
   return useQuery({
     queryKey: [RUBRIC_KEY, "library"],
     queryFn: () => educatorRubricApi.getLibrary(),
   });
 };
 
-// Assign rubric to a class
-export const useAssignRubricToClass = (classId: string) => {
+// 🔹 Assign rubric to a class
+export const useAssignRubricToClass = (
+  classId: string
+): UseMutationResult<ClassRubric, Error, string> => {  // ← was void
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (rubricId: string) => educatorRubricApi.assignToClass(classId, rubricId),
+    mutationFn: (rubricId: string) =>
+      educatorRubricApi.assignToClass(classId, rubricId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [RUBRIC_KEY, classId] });
     },
   });
 };
 
-// Update rubric categories for a class
-export const useUpdateClassRubric = (classId: string) => {
+// 🔹 Update rubric categories
+export const useUpdateClassRubric = (
+  classId: string
+): UseMutationResult<ClassRubric, Error, RubricCategoryInput[]> => {  // ← was void
   const qc = useQueryClient();
 
   return useMutation({
@@ -37,8 +55,10 @@ export const useUpdateClassRubric = (classId: string) => {
   });
 };
 
-// Fetch assigned rubric for a class
-export const useClassRubric = (classId: string) => {
+// 🔹 Fetch class rubric
+export const useClassRubric = (
+  classId: string
+): UseQueryResult<ClassRubric, Error> => {  // ← was Rubric, now ClassRubric for consistency
   return useQuery({
     queryKey: [RUBRIC_KEY, classId],
     queryFn: () => educatorRubricApi.getClassRubric(classId),

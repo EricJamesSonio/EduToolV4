@@ -1,17 +1,25 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
 import { organizationApi } from "@/api/admin/organization.api";
+import type { Organization } from "@/types/admin/organization.types";
+import type { UpdateOrganizationRequest } from "@/api/admin/organization.api";
 
-export const useOrganization = () => {
-  return useQuery({
+// Hook for fetching organization data
+export const useOrganization = (): UseQueryResult<Organization, unknown> => {
+  return useQuery<Organization>({
     queryKey: ["organization"],
     queryFn: organizationApi.getOrg,
   });
 };
 
-export const useUpdateOrganization = () => {
+// Hook for updating organization data
+export const useUpdateOrganization = (): UseMutationResult<
+  Organization,
+  unknown,
+  UpdateOrganizationRequest
+> => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<Organization, unknown, UpdateOrganizationRequest>({
     mutationFn: organizationApi.updateOrg,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organization"] });

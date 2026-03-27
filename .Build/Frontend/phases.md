@@ -1420,8 +1420,8 @@
   Frontend Phase 3        [ ] completed
   Frontend Phase 4        [ ] completed
   Frontend Phase 5        [ ] completed
-  Frontend Phase 6        [ ] not started
-  Frontend Phase 7        [ ] not started
+  Frontend Phase 6        [ ] completed
+  Frontend Phase 7        [ ] completed
   Frontend Phase 8        [ ] not started
   Frontend Phase 9        [ ] not started
   Frontend Phase 10       [ ] not started

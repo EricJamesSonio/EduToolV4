@@ -1,31 +1,17 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, UseMutationResult } from "@tanstack/react-query";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
-import type { GetGradingScalesQuery } from "@/api/admin/grading-scale.api";
+import type { GradingScale } from "@/types/admin/grading-scale.types";
+import type { CreateGradingScaleRequest } from "@/api/admin/grading-scale.api"; // make sure you export this
 
-export const useGradingScales = (query?: GetGradingScalesQuery) => {
-  return useQuery({
-    queryKey: ["gradingScales", query],
-    queryFn: () => gradingScaleApi.getAll(query),
-  });
-};
-
-export const useCreateGradingScale = () => {
+export const useCreateGradingScale = (): UseMutationResult<
+  GradingScale,
+  unknown,
+  CreateGradingScaleRequest
+> => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<GradingScale, unknown, CreateGradingScaleRequest>({
     mutationFn: gradingScaleApi.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gradingScales"] });
-    },
-  });
-};
-
-export const useUpdateGradingScale = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
-      gradingScaleApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["gradingScales"] });
     },

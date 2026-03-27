@@ -1,18 +1,25 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { gradeLockApi } from "@/api/admin/grade-lock.api";
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import { gradeLockApi } from "@/api/admin/grade-lock.api"; // API functions
+import type { GradeLockSetting, GradeLock } from "@/types/admin/grade-lock.types"; // types
 
-export const useGradeLockSetting = (schoolYearId: string) => {
-  return useQuery({
+// Hook to fetch grade lock setting for a school year
+export const useGradeLockSetting = (schoolYearId: string): UseQueryResult<GradeLockSetting, unknown> => {
+  return useQuery<GradeLockSetting>({
     queryKey: ["gradeLock", "setting", schoolYearId],
     queryFn: () => gradeLockApi.getSetting(schoolYearId),
     enabled: !!schoolYearId,
   });
 };
 
-export const useCreateGradeLockSetting = () => {
+// Hook to create a grade lock setting
+export const useCreateGradeLockSetting = (): UseMutationResult<
+  GradeLockSetting, 
+  unknown, 
+  { schoolYearId: string; lockDeadline: string }
+> => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<GradeLockSetting, unknown, { schoolYearId: string; lockDeadline: string }>({
     mutationFn: gradeLockApi.createSetting,
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
@@ -22,18 +29,17 @@ export const useCreateGradeLockSetting = () => {
   });
 };
 
-export const useUpdateGradeLockSetting = () => {
+// Hook to update a grade lock setting
+export const useUpdateGradeLockSetting = (): UseMutationResult<
+  GradeLockSetting,
+  unknown,
+  { schoolYearId: string; lockDeadline: string }
+> => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({
-      schoolYearId,
-      lockDeadline,
-    }: {
-      schoolYearId: string;
-      lockDeadline: string;
-    }) => gradeLockApi.updateSetting(schoolYearId, lockDeadline),
-
+  return useMutation<GradeLockSetting, unknown, { schoolYearId: string; lockDeadline: string }>({
+    mutationFn: ({ schoolYearId, lockDeadline }) =>
+      gradeLockApi.updateSetting(schoolYearId, lockDeadline),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["gradeLock", "setting", variables.schoolYearId],
@@ -42,25 +48,23 @@ export const useUpdateGradeLockSetting = () => {
   });
 };
 
-export const useGradeLocks = () => {
-  return useQuery({
+// Hook to fetch all grade locks
+export const useGradeLocks = (): UseQueryResult<GradeLock[], unknown> => {
+  return useQuery<GradeLock[]>({
     queryKey: ["gradeLock", "classes"],
     queryFn: gradeLockApi.getLocks,
   });
 };
 
-export const useUnlockOverride = () => {
+export const useUnlockOverride = (): UseMutationResult<
+  { success: true }, // ✅ return type matches API
+  unknown,
+  { classId: string; reason: string }
+> => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({
-      classId,
-      reason,
-    }: {
-      classId: string;
-      reason: string;
-    }) => gradeLockApi.unlockOverride(classId, reason),
-
+  return useMutation<{ success: true }, unknown, { classId: string; reason: string }>({
+    mutationFn: ({ classId, reason }) => gradeLockApi.unlockOverride(classId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["gradeLock"] });
     },

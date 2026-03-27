@@ -1,6 +1,6 @@
 "use client";
 
-import {
+import React, {
   createContext,
   useContext,
   useEffect,
@@ -11,11 +11,9 @@ import { useRouter } from "next/navigation";
 
 import { authApi } from "@/api/auth.api";
 import { saveTokens, clearTokens } from "@/api/client";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore } from "@/store/auth.store";
 import { getRoleHomePath } from "@/utils/role.util";
 import type { AuthUser, AuthTokens } from "@/types/auth.types";
-
-// ─── Context shape ────────────────────────────────────────────────────────────
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -25,20 +23,15 @@ interface AuthContextValue {
   logout: () => Promise<void>;
 }
 
-// ─── Context ──────────────────────────────────────────────────────────────────
-
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
-
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const router = useRouter();
   const { user, accessToken, setUser, setTokens, setLoading, clearAuth } =
     useAuthStore();
 
-  // ── Bootstrap: on mount, if we have an accessToken, fetch the current user ──
   useEffect(() => {
-    const bootstrap = async () => {
+    const bootstrap = async (): Promise<void> => {
       if (!accessToken) {
         setLoading(false);
         return;
@@ -48,8 +41,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const me = await authApi.getMe();
         setUser(me);
       } catch {
-        // Token is invalid or expired and refresh already failed in the
-        // Axios interceptor — clear everything and let the user log in again
         clearAuth();
         clearTokens();
       } finally {
@@ -58,33 +49,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     bootstrap();
-    // Only run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Login ──────────────────────────────────────────────────────────────────
-
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string): Promise<void> => {
       const tokens: AuthTokens = await authApi.login({ email, password });
 
-      // Persist tokens in localStorage (via client helpers) and store
       saveTokens(tokens.accessToken, tokens.refreshToken);
       setTokens(tokens.accessToken, tokens.refreshToken);
 
-      // Fetch the full user profile
       const me = await authApi.getMe();
       setUser(me);
 
-      // Redirect to role home
       router.push(getRoleHomePath(me.role));
     },
     [router, setTokens, setUser]
   );
 
-  // ── Logout ─────────────────────────────────────────────────────────────────
-
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (): Promise<void> => {
     try {
       await authApi.logout();
     } catch {
@@ -96,8 +78,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [clearAuth, router]);
 
-  // ── Value ──────────────────────────────────────────────────────────────────
-
   const value: AuthContextValue = {
     user,
     isLoading: useAuthStore((s) => s.isLoading),
@@ -108,8 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAuthContext(): AuthContextValue {
   const ctx = useContext(AuthContext);
