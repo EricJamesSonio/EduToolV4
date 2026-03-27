@@ -1,5 +1,5 @@
 import client from "@/api/client";
-import type { AnalyticsOverview, EnrollmentBreakdown } from "@/types/admin/analytics.types";
+import type { AnalyticsOverview, EnrollmentBreakdownRow } from "@/types/admin/analytics.types";
 
 export interface GradeAnalyticsResponse {
   passingRate: number;
@@ -11,8 +11,8 @@ export const analyticsApi = {
     const res = await client.get<AnalyticsOverview>("/analytics/overview");
     return res.data;
   },
-  getEnrollmentBreakdown: async (): Promise<EnrollmentBreakdown> => {
-    const res = await client.get<EnrollmentBreakdown>("/analytics/enrollment");
+  getEnrollmentBreakdown: async (): Promise<EnrollmentBreakdownRow[]> => {
+    const res = await client.get<EnrollmentBreakdownRow[]>("/analytics/enrollment");
     return res.data;
   },
   getGradeAnalytics: async (classId?: string, termId?: string): Promise<GradeAnalyticsResponse> => {
