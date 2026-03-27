@@ -24,7 +24,7 @@ export function PlatformSidebar() {
       header={
         <div className="space-y-0.5">
           <p className="text-xs text-muted-foreground">Platform Owner</p>
-          <p className="font-medium truncate">{user?.name ?? "—"}</p>
+          <p className="font-medium truncate">{user?.fullName ?? "—"}</p>
         </div>
       }
       groups={GROUPS}

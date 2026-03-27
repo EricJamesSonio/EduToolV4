@@ -45,7 +45,7 @@ function NavLink({
 }: {
   item: NavItem;
   collapsed: boolean;
-}) {
+}): React.JSX.Element {
   const isActive = useIsActive(item.href, item.exact);
   const Icon = item.icon;
 
@@ -55,9 +55,7 @@ function NavLink({
       className={cn(
         "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
         "hover:bg-muted hover:text-foreground",
-        isActive
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground",
+        isActive ? "bg-primary/10 text-primary" : "text-muted-foreground",
         collapsed && "justify-center px-2"
       )}
     >
@@ -74,7 +72,7 @@ function NavLink({
   if (collapsed) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipTrigger render={link} />
         <TooltipContent side="right">{item.label}</TooltipContent>
       </Tooltip>
     );
@@ -87,7 +85,7 @@ export function SidebarShell({ header, groups, className }: SidebarShellProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <TooltipProvider delayDuration={200}>
+    <TooltipProvider delay={200}>
       <aside
         className={cn(
           "fixed left-0 top-14 bottom-0 z-40 flex flex-col border-r bg-background transition-all duration-200",
