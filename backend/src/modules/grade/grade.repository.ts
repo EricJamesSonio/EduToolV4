@@ -117,16 +117,18 @@ export class GradeRepository {
     });
   }
 
-  // ───────── RUBRIC (for weights) ─────────
+  // ───────── GRADING SCHEME (for weights) ─────────
 
-  async findRubricForClass(classId: string, orgId: string) {
-    const classRubric = await this.db.rubric.findFirst({
+  async findGradingSchemeForClass(classId: string, orgId: string) {
+    const classScheme = await this.db.gradingScheme.findFirst({
       where: { class_id: classId, org_id: orgId },
+      include: { components: true },
     });
-    if (classRubric) return classRubric;
+    if (classScheme) return classScheme;
 
-    return this.db.rubric.findFirst({
+    return this.db.gradingScheme.findFirst({
       where: { org_id: orgId, is_default: true },
+      include: { components: true },
     });
   }
 

@@ -105,8 +105,8 @@ model Course {
   id         String  @id @default(uuid())
   org_id     String
   program_id String
-  name       String  // e.g. "BS Computer Science"
-  code       String? // e.g. "BSCS"
+  name       String
+  code       String?
 
   program  Program   @relation(fields: [program_id], references: [id])
   subjects Subject[]
@@ -116,7 +116,7 @@ model Strand {
   id         String @id @default(uuid())
   org_id     String
   program_id String
-  name       String // e.g. "STEM", "ABM", "HUMSS"
+  name       String
 
   program  Program   @relation(fields: [program_id], references: [id])
   subjects Subject[]
@@ -178,15 +178,15 @@ model Subject {
   org_id      String
   name        String
   level_id    String
-  course_id   String? // NULL = open/minor (any course), set = course-coupled major
-  strand_id   String? // for SHS strands
+  course_id   String?
+  strand_id   String?
   educator_id String?
   is_locked   Boolean @default(false)
-  year_level  String? // e.g. "1st Year", "Grade 11"
-  term_label  String? // e.g. "1st Sem"
+  year_level  String?
+  term_label  String?
 
-  course    Course?               @relation(fields: [course_id], references: [id])
-  strand    Strand?               @relation(fields: [strand_id], references: [id])
+  course        Course?               @relation(fields: [course_id], references: [id])
+  strand        Strand?               @relation(fields: [strand_id], references: [id])
   prerequisites SubjectPrerequisite[] @relation("SubjectPrereqs")
   prereqFor     SubjectPrerequisite[] @relation("PrereqFor")
 }
@@ -194,8 +194,8 @@ model Subject {
 model SubjectPrerequisite {
   id              String @id @default(uuid())
   org_id          String
-  subject_id      String // the subject being enrolled into
-  prerequisite_id String // the subject that must be passed first
+  subject_id      String
+  prerequisite_id String
 
   subject      Subject @relation("SubjectPrereqs", fields: [subject_id], references: [id])
   prerequisite Subject @relation("PrereqFor", fields: [prerequisite_id], references: [id])
@@ -215,12 +215,13 @@ model Class {
   created_at     DateTime  @default(now())
   deleted_at     DateTime?
 
-  schedules     ClassSchedule[]
-  enrollments   Enrollment[]
-  gradeLock     GradeLock?
-  ownershipLogs ClassOwnershipLog[]
-  meetings      Meeting[]
-  grades Grade[]
+  schedules       ClassSchedule[]
+  enrollments     Enrollment[]
+  gradeLock       GradeLock?
+  ownershipLogs   ClassOwnershipLog[]
+  meetings        Meeting[]
+  grades          Grade[]
+  gradingSchemes  GradingScheme[]
 }
 
 model ClassSchedule {
@@ -282,17 +283,36 @@ model GradingScale {
   created_at     DateTime  @default(now())
 }
 
-model Rubric {
+//////////////////////
+// GRADING SCHEME
+//////////////////////
+
+model GradingScheme {
   id          String    @id @default(uuid())
   org_id      String
   educator_id String?
   class_id    String?
   name        String
   is_default  Boolean   @default(false)
-  categories  Json
   is_locked   Boolean   @default(false)
   locked_at   DateTime?
   created_at  DateTime  @default(now())
+
+  components GradingSchemeComponent[]
+  class      Class?                   @relation(fields: [class_id], references: [id])
+}
+
+model GradingSchemeComponent {
+  id                String   @id @default(uuid())
+  org_id            String
+  grading_scheme_id String
+  name              String
+  weight            Float
+  max_score         Float?
+  is_optional       Boolean  @default(false)
+  created_at        DateTime @default(now())
+
+  gradingScheme GradingScheme @relation(fields: [grading_scheme_id], references: [id])
 }
 
 //////////////////////
@@ -399,7 +419,7 @@ model Grade {
   is_locked   Boolean   @default(false)
   locked_at   DateTime?
 
-  class Class @relation(fields: [class_id], references: [id])  // add this
+  class Class @relation(fields: [class_id], references: [id])
 
   @@unique([org_id, student_id, class_id, term_id])
 }
