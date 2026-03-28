@@ -1,6 +1,19 @@
-Bachelor of Secondary Education (BSED)
+# Bachelor of Secondary Education (BSED)
 
-MAJOR SUBJECTS (CORE EDUCATION)
+PROGRAM STRUCTURE
+- Program: BSED
+- Courses (Majors):
+  * BSED-ENG
+  * BSED-MATH
+  * BSED-SCI
+  * BSED-SS
+  * BSED-FIL
+  * BSED-TLE
+
+---
+
+CORE EDUCATION SUBJECTS (ALL MAJORS)
+(course_id = null)
 
 1. The Teaching Profession
    Year/Term: 1st Year, 1st Semester
@@ -46,43 +59,64 @@ MAJOR SUBJECTS (CORE EDUCATION)
     Year/Term: 4th Year, 1st & 2nd Semesters
     Prerequisite: Field Study (Practice Teaching Preparation)
 
-SPECIALIZATION SUBJECTS (DEPENDING ON MAJOR)
+---
 
-English Track (2nd & 3rd Years)
+SPECIALIZATION SUBJECTS (BY COURSE / MAJOR)
 
-* Grammar: Prerequisite: None
-* Literature: Prerequisite: Grammar
-* Language Teaching: Prerequisite: Literature
+BSED-ENG (English Major)
+(course_id = BSED-ENG)
+* Grammar
+  Prerequisite: None
+* Literature
+  Prerequisite: Grammar
+* Language Teaching
+  Prerequisite: Literature
 
-Mathematics Track (2nd & 3rd Years)
+BSED-MATH (Mathematics Major)
+(course_id = BSED-MATH)
+* Algebra
+  Prerequisite: None
+* Geometry
+  Prerequisite: Algebra
+* Statistics
+  Prerequisite: Algebra
 
-* Algebra: Prerequisite: None
-* Geometry: Prerequisite: Algebra
-* Statistics: Prerequisite: Algebra
+BSED-SCI (Science Major)
+(course_id = BSED-SCI)
+* Biology
+  Prerequisite: None
+* Chemistry
+  Prerequisite: Biology
+* Physics
+  Prerequisite: Chemistry
 
-Science Track (2nd & 3rd Years)
+BSED-SS (Social Studies Major)
+(course_id = BSED-SS)
+* History
+  Prerequisite: None
+* Economics
+  Prerequisite: History
+* Politics
+  Prerequisite: Economics
 
-* Biology: Prerequisite: None
-* Chemistry: Prerequisite: Biology
-* Physics: Prerequisite: Chemistry
+BSED-FIL (Filipino Major)
+(course_id = BSED-FIL)
+* Wika
+  Prerequisite: None
+* Panitikan
+  Prerequisite: Wika
 
-Social Studies Track (2nd & 3rd Years)
+BSED-TLE (TLE Major)
+(course_id = BSED-TLE)
+* Technology
+  Prerequisite: None
+* Livelihood Education
+  Prerequisite: Technology
 
-* History: Prerequisite: None
-* Economics: Prerequisite: History
-* Politics: Prerequisite: Economics
+---
 
-Filipino Track (2nd & 3rd Years)
-
-* Wika: Prerequisite: None
-* Panitikan: Prerequisite: Wika
-
-TLE Track (2nd & 3rd Years)
-
-* Technology: Prerequisite: None
-* Livelihood Education: Prerequisite: Technology
-
-MINOR / GENERAL EDUCATION SUBJECTS
+GENERAL EDUCATION (GE) SUBJECTS
+(course_id = null)
 
 1. Mathematics in the Modern World
    Year/Term: 1st Year, 1st Semester
