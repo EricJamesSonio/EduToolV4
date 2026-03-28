@@ -1,109 +1,50 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { educatorGradingSchemeApi } from '@/api/educator/grading-scheme.api'
 import type {
-  CreateGradingSchemeRequest,
-  UpdateGradingSchemeRequest,
-  GetGradingSchemesQuery,
-  CreateGradingSchemeComponentRequest,
-  UpdateGradingSchemeComponentRequest,
-} from '@/api/educator/grading-scheme.api'
+  CreateGradingSchemeDto,
+  UpdateGradingSchemeDto,
+} from '@/types/admin/grading-scheme.types'
 
 const KEYS = {
-  all: (q?: GetGradingSchemesQuery) => ['educator', 'grading-schemes', q] as const,
-  one: (id: string)                 => ['educator', 'grading-schemes', id] as const,
+  default: ['grading-scheme', 'default']          as const,
+  library: ['grading-scheme', 'educator-library'] as const,
 }
 
-// ── Queries ───────────────────────────────────────────────────────────────────
-
-export function useEducatorGradingSchemes(query?: GetGradingSchemesQuery) {
+// GET /grading-schemes/default — the org default (read-only for educators)
+export const useDefaultGradingScheme = () => {
   return useQuery({
-    queryKey: KEYS.all(query),
-    queryFn:  () => educatorGradingSchemeApi.getAll(query),
+    queryKey: KEYS.default,
+    queryFn:  educatorGradingSchemeApi.getDefault,
   })
 }
 
-export function useEducatorGradingScheme(id: string) {
+// GET /grading-schemes — educator's own custom schemes
+export const useGradingSchemeLibrary = () => {
   return useQuery({
-    queryKey: KEYS.one(id),
-    queryFn:  () => educatorGradingSchemeApi.getOne(id),
-    enabled:  !!id,
+    queryKey: KEYS.library,
+    queryFn:  educatorGradingSchemeApi.getAll,
   })
 }
 
-// ── Mutations ─────────────────────────────────────────────────────────────────
-
-export function useCreateEducatorGradingScheme() {
-  const qc = useQueryClient()
+// POST /grading-schemes
+export const useCreateGradingScheme = () => {
+  const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: CreateGradingSchemeRequest) => educatorGradingSchemeApi.create(data),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ['educator', 'grading-schemes'] }),
+    mutationFn: (data: CreateGradingSchemeDto) => educatorGradingSchemeApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.library })
+    },
   })
 }
 
-export function useUpdateEducatorGradingScheme() {
-  const qc = useQueryClient()
+// PATCH /grading-schemes/:id
+export const useUpdateGradingScheme = () => {
+  const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateGradingSchemeRequest }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdateGradingSchemeDto }) =>
       educatorGradingSchemeApi.update(id, data),
-    onSuccess: (_, { id }) => {
-      qc.invalidateQueries({ queryKey: ['educator', 'grading-schemes'] })
-      qc.invalidateQueries({ queryKey: KEYS.one(id) })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.library })
     },
-  })
-}
-
-export function useDeleteEducatorGradingScheme() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => educatorGradingSchemeApi.delete(id),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ['educator', 'grading-schemes'] }),
-  })
-}
-
-export function useAssignGradingSchemeToClass() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, classId }: { id: string; classId: string }) =>
-      educatorGradingSchemeApi.assignToClass(id, classId),
-    onSuccess: (_, { id }) => {
-      qc.invalidateQueries({ queryKey: ['educator', 'grading-schemes'] })
-      qc.invalidateQueries({ queryKey: KEYS.one(id) })
-    },
-  })
-}
-
-// ── Component mutations ───────────────────────────────────────────────────────
-
-export function useAddEducatorGradingSchemeComponent() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ schemeId, data }: { schemeId: string; data: CreateGradingSchemeComponentRequest }) =>
-      educatorGradingSchemeApi.addComponent(schemeId, data),
-    onSuccess: (_, { schemeId }) => qc.invalidateQueries({ queryKey: KEYS.one(schemeId) }),
-  })
-}
-
-export function useUpdateEducatorGradingSchemeComponent() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({
-      schemeId,
-      componentId,
-      data,
-    }: {
-      schemeId:    string
-      componentId: string
-      data:        UpdateGradingSchemeComponentRequest
-    }) => educatorGradingSchemeApi.updateComponent(schemeId, componentId, data),
-    onSuccess: (_, { schemeId }) => qc.invalidateQueries({ queryKey: KEYS.one(schemeId) }),
-  })
-}
-
-export function useDeleteEducatorGradingSchemeComponent() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ schemeId, componentId }: { schemeId: string; componentId: string }) =>
-      educatorGradingSchemeApi.deleteComponent(schemeId, componentId),
-    onSuccess: (_, { schemeId }) => qc.invalidateQueries({ queryKey: KEYS.one(schemeId) }),
   })
 }
