@@ -29,7 +29,7 @@ const db = new PrismaClient();
 /** Org id injected at runtime — replace or pass as env var */
 const ORG_ID = process.env.SEED_ORG_ID ?? 'ORG_ID_PLACEHOLDER';
 
-function id() { return uuid(); }
+function id() { return uuid() }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. PROGRAMS
@@ -43,6 +43,14 @@ const PROGRAMS = [
   { key: 'shs',         name: 'Senior High School',      type: 'shs' },
   { key: 'college',     name: 'College / University',    type: 'college' },
 ];
+
+const SELECTED_PROGRAMS = process.env.SEED_PROGRAMS
+  ? new Set(process.env.SEED_PROGRAMS.split(',').map((s) => s.trim()))
+  : null // null = seed everything
+
+  function shouldSeed(programKey: string): boolean {
+  return SELECTED_PROGRAMS === null || SELECTED_PROGRAMS.has(programKey)
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. LEVELS + SECTIONS
@@ -822,13 +830,13 @@ function allSubjects(): SubjectDef[] {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('🌱 Starting seed for org:', ORG_ID);
+  console.log('🌱 Starting seed for org:', ORG_ID)
+  console.log('  → Programs:', SELECTED_PROGRAMS ? [...SELECTED_PROGRAMS].join(', ') : 'all')
 
-  // ── 1. Programs ────────────────────────────────────────────────────────────
-  console.log('  → Programs');
-  const programMap: Record<string, string> = {}; // key → id
-
+  // Programs — only seed selected ones
+  const programMap: Record<string, string> = {}
   for (const p of PROGRAMS) {
+    if (!shouldSeed(p.key)) continue
     const rec = await db.program.upsert({
       where: { id: `seed-prog-${p.key}-${ORG_ID}` },
       update: {},
@@ -838,70 +846,69 @@ async function main() {
         name:   p.name,
         type:   p.type,
       },
-    });
-    programMap[p.key] = rec.id;
+    })
+    programMap[p.key] = rec.id
   }
 
-  // ── 2. Courses (college) ───────────────────────────────────────────────────
-  console.log('  → Courses');
-  const courseMap: Record<string, string> = {}; // code → id
-
-  for (const c of COLLEGE_COURSES) {
-    const rec = await db.course.upsert({
-      where: { id: `seed-course-${c.code}-${ORG_ID}` },
-      update: {},
-      create: {
-        id:         `seed-course-${c.code}-${ORG_ID}`,
-        org_id:     ORG_ID,
-        program_id: programMap['college'],
-        name:       c.name,
-        code:       c.code,
-      },
-    });
-    courseMap[c.code] = rec.id;
+  // Courses — only if college was selected
+  const courseMap: Record<string, string> = {}
+  if (shouldSeed('college') && programMap['college']) {
+    console.log('  → Courses')
+    for (const c of COLLEGE_COURSES) {
+      const rec = await db.course.upsert({
+        where: { id: `seed-course-${c.code}-${ORG_ID}` },
+        update: {},
+        create: {
+          id:         `seed-course-${c.code}-${ORG_ID}`,
+          org_id:     ORG_ID,
+          program_id: programMap['college'],
+          name:       c.name,
+          code:       c.code,
+        },
+      })
+      courseMap[c.code] = rec.id
+    }
+    for (const m of BSED_MAJORS) {
+      const rec = await db.course.upsert({
+        where: { id: `seed-course-${m.code}-${ORG_ID}` },
+        update: {},
+        create: {
+          id:         `seed-course-${m.code}-${ORG_ID}`,
+          org_id:     ORG_ID,
+          program_id: programMap['college'],
+          name:       m.name,
+          code:       m.code,
+        },
+      })
+      courseMap[m.code] = rec.id
+    }
   }
 
-  // BSED majors as sub-courses
-  for (const m of BSED_MAJORS) {
-    const rec = await db.course.upsert({
-      where: { id: `seed-course-${m.code}-${ORG_ID}` },
-      update: {},
-      create: {
-        id:         `seed-course-${m.code}-${ORG_ID}`,
-        org_id:     ORG_ID,
-        program_id: programMap['college'],
-        name:       m.name,
-        code:       m.code,
-      },
-    });
-    courseMap[m.code] = rec.id;
+  // Strands — only if shs was selected
+  const strandMap: Record<string, string> = {}
+  if (shouldSeed('shs') && programMap['shs']) {
+    console.log('  → Strands')
+    for (const s of SHS_STRAND_DEFS) {
+      const rec = await db.strand.upsert({
+        where: { id: `seed-strand-${s.name.replace(/\s+/g, '-')}-${ORG_ID}` },
+        update: {},
+        create: {
+          id:         `seed-strand-${s.name.replace(/\s+/g, '-')}-${ORG_ID}`,
+          org_id:     ORG_ID,
+          program_id: programMap['shs'],
+          name:       s.name,
+        },
+      })
+      strandMap[s.name] = rec.id
+    }
   }
 
-  // ── 3. Strands (SHS) ───────────────────────────────────────────────────────
-  console.log('  → Strands');
-  const strandMap: Record<string, string> = {}; // name → id
-
-  for (const s of SHS_STRAND_DEFS) {
-    const rec = await db.strand.upsert({
-      where: { id: `seed-strand-${s.name.replace(/\s+/g, '-')}-${ORG_ID}` },
-      update: {},
-      create: {
-        id:         `seed-strand-${s.name.replace(/\s+/g, '-')}-${ORG_ID}`,
-        org_id:     ORG_ID,
-        program_id: programMap['shs'],
-        name:       s.name,
-      },
-    });
-    strandMap[s.name] = rec.id;
-  }
-
-  // ── 4. Levels + Sections ───────────────────────────────────────────────────
-  console.log('  → Levels and Sections');
-  const levelDefs = buildLevelDefs();
-  const levelMap: Record<string, string> = {}; // levelName → id
-
+  // Levels + Sections — only for selected programs
+  console.log('  → Levels and Sections')
+  const levelDefs = buildLevelDefs().filter((lvl) => shouldSeed(lvl.programKey))
+  const levelMap: Record<string, string> = {}
   for (const lvl of levelDefs) {
-    const levelKey = `${lvl.programKey}-${lvl.name}`.replace(/\s+/g, '-');
+    const levelKey = `${lvl.programKey}-${lvl.name}`.replace(/\s+/g, '-')
     const rec = await db.level.upsert({
       where: { id: `seed-level-${levelKey}-${ORG_ID}` },
       update: {},
@@ -911,11 +918,10 @@ async function main() {
         program_id: programMap[lvl.programKey],
         name:       lvl.name,
       },
-    });
-    levelMap[lvl.name] = rec.id;
-
+    })
+    levelMap[lvl.name] = rec.id
     for (const sec of lvl.sections) {
-      const sectionKey = `${levelKey}-${sec.name}`.replace(/\s+/g, '-');
+      const sectionKey = `${levelKey}-${sec.name}`.replace(/\s+/g, '-')
       await db.section.upsert({
         where: { id: `seed-section-${sectionKey}-${ORG_ID}` },
         update: {},
@@ -926,43 +932,18 @@ async function main() {
           name:     sec.name,
           capacity: sec.capacity,
         },
-      });
+      })
     }
   }
 
-  // ── 5. Grading Scales ──────────────────────────────────────────────────────
-  console.log('  → Grading Scales');
-
-  type ScaleAssignment = { programKey: string; levelName: string; scaleName: string; ranges: object };
-  const scaleAssignments: ScaleAssignment[] = [];
-
-  // Daycare + Kinder → Pass/Fail
-  for (const name of ['Daycare 1', 'Daycare 2', 'Kinder 1', 'Kinder 2']) {
-    scaleAssignments.push({ programKey: name.startsWith('D') ? 'daycare' : 'kinder', levelName: name, scaleName: 'Pass/Fail Scale', ranges: SCALE_PASSFAIL });
-  }
-  // Elementary + JHS + SHS → K-12
-  for (let g = 1; g <= 6; g++) {
-    scaleAssignments.push({ programKey: 'elementary', levelName: `Grade ${g}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 });
-  }
-  for (let g = 7; g <= 10; g++) {
-    scaleAssignments.push({ programKey: 'jhs', levelName: `Grade ${g}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 });
-  }
-  for (const strand of SHS_STRANDS) {
-    for (const g of [11, 12]) {
-      scaleAssignments.push({ programKey: 'shs', levelName: `Grade ${g} – ${strand}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 });
-    }
-  }
-  // College → 1.0–5.0
-  for (const course of COLLEGE_COURSES) {
-    for (let y = 1; y <= course.years; y++) {
-      scaleAssignments.push({ programKey: 'college', levelName: `${course.code} – ${YEAR_LABELS[y - 1]}`, scaleName: 'College Numeric Scale (1.0–5.0)', ranges: SCALE_COLLEGE });
-    }
-  }
-
-  for (const sa of scaleAssignments) {
-    const levelId = levelMap[sa.levelName];
-    if (!levelId) continue;
-    const scaleKey = `${sa.levelName}-${sa.scaleName}`.replace(/\s+/g, '-');
+  // Grading Scales — filter to selected programs
+  console.log('  → Grading Scales')
+  const allScaleAssignments = buildScaleAssignments()
+  for (const sa of allScaleAssignments) {
+    if (!shouldSeed(sa.programKey)) continue
+    const levelId = levelMap[sa.levelName]
+    if (!levelId) continue
+    const scaleKey = `${sa.levelName}-${sa.scaleName}`.replace(/\s+/g, '-')
     await db.gradingScale.upsert({
       where: { id: `seed-scale-${scaleKey}-${ORG_ID}` },
       update: {},
@@ -970,36 +951,33 @@ async function main() {
         id:             `seed-scale-${scaleKey}-${ORG_ID}`,
         org_id:         ORG_ID,
         level_id:       levelId,
-        school_year_id: '', // placeholder — admin links to real SY on setup
+        school_year_id: '',
         name:           sa.scaleName,
         ranges:         sa.ranges,
         is_locked:      false,
       },
-    });
+    })
   }
 
-  // ── 6. Grading Schemes (presets) ───────────────────────────────────────────
-  console.log('  → Grading Scheme Presets');
-
+  // Grading Schemes — always seed all presets, they're org-level not program-level
+  console.log('  → Grading Scheme Presets')
   for (const preset of SCHEME_PRESETS) {
-    const schemeKey = preset.name.replace(/\s+/g, '-');
+    const schemeKey = preset.name.replace(/\s+/g, '-')
     const existing = await db.gradingScheme.findFirst({
       where: { org_id: ORG_ID, name: preset.name },
-    });
-    if (existing) continue;
-
+    })
+    if (existing) continue
     const scheme = await db.gradingScheme.create({
       data: {
-        id:          `seed-scheme-${schemeKey}-${ORG_ID}`,
-        org_id:      ORG_ID,
-        name:        preset.name,
-        is_default:  false,
-        is_locked:   false,
+        id:         `seed-scheme-${schemeKey}-${ORG_ID}`,
+        org_id:     ORG_ID,
+        name:       preset.name,
+        is_default: false,
+        is_locked:  false,
       },
-    });
-
+    })
     await db.gradingSchemeComponent.createMany({
-      data: preset.components.map(c => ({
+      data: preset.components.map((c) => ({
         id:                id(),
         org_id:            ORG_ID,
         grading_scheme_id: scheme.id,
@@ -1008,32 +986,42 @@ async function main() {
         weight:            c.weight,
         is_optional:       c.isOptional,
       })),
-    });
+    })
   }
 
-  // ── 7. Subjects + Prerequisites ───────────────────────────────────────────
-  console.log('  → Subjects');
-  const subjectDefs = allSubjects();
-  const subjectNameToId: Record<string, string> = {}; // name → id (for prereq lookup)
+  // Subjects — only for selected programs
+  console.log('  → Subjects')
+  const subjectDefs = allSubjects().filter((s) => {
+    // derive programKey from levelName
+    const programKey = deriveProgramKey(s.levelName)
+    return shouldSeed(programKey)
+  })
 
+  const subjectNameToId: Record<string, string> = {}
   for (const s of subjectDefs) {
-    const levelId = levelMap[s.levelName];
+    const levelId = levelMap[s.levelName]
     if (!levelId) {
-      console.warn(`    ⚠ Level not found: "${s.levelName}" for subject "${s.name}"`);
-      continue;
+      console.warn(`    ⚠ Level not found: "${s.levelName}" for subject "${s.name}"`)
+      continue
     }
+    const courseId = s.courseCode ? courseMap[s.courseCode] : null
+    const strandId = s.strandName ? strandMap[s.strandName] : null
+    const subjectKey = `${s.levelName}-${s.courseCode ?? 'none'}-${s.strandName ?? 'none'}-${s.name}`
+      .replace(/\s+/g, '-')
 
-    const courseId  = s.courseCode  ? courseMap[s.courseCode]                             : null;
-    const strandId  = s.strandName  ? strandMap[s.strandName]                             : null;
-
-    const subjectKey = `${s.levelName}-${s.courseCode ?? 'none'}-${s.strandName ?? 'none'}-${s.name}`.replace(/\s+/g, '-');
     const existing = await db.subject.findFirst({
-      where: { org_id: ORG_ID, name: s.name, level_id: levelId, course_id: courseId ?? undefined, strand_id: strandId ?? undefined },
-    });
+      where: {
+        org_id:    ORG_ID,
+        name:      s.name,
+        level_id:  levelId,
+        course_id: courseId ?? undefined,
+        strand_id: strandId ?? undefined,
+      },
+    })
 
-    let subjectId: string;
+    let subjectId: string
     if (existing) {
-      subjectId = existing.id;
+      subjectId = existing.id
     } else {
       const rec = await db.subject.create({
         data: {
@@ -1047,34 +1035,28 @@ async function main() {
           term_label: s.termLabel,
           is_locked:  false,
         },
-      });
-      subjectId = rec.id;
+      })
+      subjectId = rec.id
     }
-
-    // Index by name for prereq resolution (use just the subject name, not level-qualified)
-    subjectNameToId[s.name] = subjectId;
+    subjectNameToId[s.name] = subjectId
   }
 
-  // ── 7b. Prerequisites ──────────────────────────────────────────────────────
-  console.log('  → Prerequisites');
+  // Prerequisites — only for seeded subjects
+  console.log('  → Prerequisites')
   for (const s of subjectDefs) {
-    if (s.prereqNames.length === 0) continue;
-
-    const levelId = levelMap[s.levelName];
-    if (!levelId) continue;
-
-    const subjectId = subjectNameToId[s.name];
-    if (!subjectId) continue;
+    if (s.prereqNames.length === 0) continue
+    const levelId = levelMap[s.levelName]
+    if (!levelId) continue
+    const subjectId = subjectNameToId[s.name]
+    if (!subjectId) continue
 
     for (const prereqName of s.prereqNames) {
-      // Strip level qualifiers like "(Daycare 1)" from prereq name
-      const cleanName = prereqName.replace(/\s*\(.*?\)\s*$/, '').trim();
-      const prereqId = subjectNameToId[cleanName];
+      const cleanName = prereqName.replace(/\s*\(.*?\)\s*$/, '').trim()
+      const prereqId = subjectNameToId[cleanName]
       if (!prereqId) {
-        console.warn(`    ⚠ Prereq not found: "${cleanName}" for subject "${s.name}"`);
-        continue;
+        console.warn(`    ⚠ Prereq not found: "${cleanName}" for subject "${s.name}"`)
+        continue
       }
-
       await db.subjectPrerequisite.upsert({
         where: {
           subject_id_prerequisite_id: {
@@ -1084,16 +1066,54 @@ async function main() {
         },
         update: {},
         create: {
-          id:             id(),
-          org_id:         ORG_ID,
-          subject_id:     subjectId,
+          id:              id(),
+          org_id:          ORG_ID,
+          subject_id:      subjectId,
           prerequisite_id: prereqId,
         },
-      });
+      })
     }
   }
 
-  console.log('✅ Seed complete.');
+  console.log('✅ Seed complete.')
+}
+
+function buildScaleAssignments() {
+  const out: { programKey: string; levelName: string; scaleName: string; ranges: object }[] = []
+  for (const name of ['Daycare 1', 'Daycare 2']) {
+    out.push({ programKey: 'daycare', levelName: name, scaleName: 'Pass/Fail Scale', ranges: SCALE_PASSFAIL })
+  }
+  for (const name of ['Kinder 1', 'Kinder 2']) {
+    out.push({ programKey: 'kinder', levelName: name, scaleName: 'Pass/Fail Scale', ranges: SCALE_PASSFAIL })
+  }
+  for (let g = 1; g <= 6; g++) {
+    out.push({ programKey: 'elementary', levelName: `Grade ${g}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
+  }
+  for (let g = 7; g <= 10; g++) {
+    out.push({ programKey: 'jhs', levelName: `Grade ${g}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
+  }
+  for (const strand of SHS_STRANDS) {
+    for (const g of [11, 12]) {
+      out.push({ programKey: 'shs', levelName: `Grade ${g} – ${strand}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
+    }
+  }
+  for (const course of COLLEGE_COURSES) {
+    for (let y = 1; y <= course.years; y++) {
+      out.push({ programKey: 'college', levelName: `${course.code} – ${YEAR_LABELS[y - 1]}`, scaleName: 'College Numeric Scale (1.0–5.0)', ranges: SCALE_COLLEGE })
+    }
+  }
+  return out
+}
+function deriveProgramKey(levelName: string): string {
+  if (levelName.startsWith('Daycare'))  return 'daycare'
+  if (levelName.startsWith('Kinder'))   return 'kinder'
+  if (levelName.startsWith('Grade 1') || levelName.startsWith('Grade 2') ||
+      levelName.startsWith('Grade 3') || levelName.startsWith('Grade 4') ||
+      levelName.startsWith('Grade 5') || levelName.startsWith('Grade 6'))  return 'elementary'
+  if (levelName.startsWith('Grade 7')  || levelName.startsWith('Grade 8') ||
+      levelName.startsWith('Grade 9')  || levelName.startsWith('Grade 10')) return 'jhs'
+  if (levelName.startsWith('Grade 11') || levelName.startsWith('Grade 12')) return 'shs'
+  return 'college'
 }
 
 main()

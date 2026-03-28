@@ -275,7 +275,7 @@ model GradingScale {
   id             String    @id @default(uuid())
   org_id         String
   level_id       String
-  school_year_id String
+  school_year_id String?
   name           String
   ranges         Json
   is_locked      Boolean   @default(false)
