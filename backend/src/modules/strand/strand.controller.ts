@@ -12,11 +12,11 @@ import {
 import { StrandService } from './strand.service'
 import { CreateStrandDto, UpdateStrandDto, StrandQueryDto } from './dto/strand.dto'
 import { AuthGuard } from '@/commons/guards/auth.guard'
-import { RoleGuard } from '@/commons/guards/role.guard'
+import { RolesGuard } from '@/commons/guards/role.guard'
 import { Roles } from '@/commons/decorators/roles.decorator'
 import { CurrentUser } from '@/commons/decorators/current-user.decorator'
 
-@UseGuards(AuthGuard, RoleGuard)
+@UseGuards(AuthGuard, RolesGuard)
 @Controller('strands')
 export class StrandController {
   constructor(private readonly strandService: StrandService) {}
