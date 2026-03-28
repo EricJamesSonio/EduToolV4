@@ -11,10 +11,10 @@ import {
 } from '@nestjs/common'
 import { CourseService } from './course.service'
 import { CreateCourseDto, UpdateCourseDto, CourseQueryDto } from './dto/course.dto'
-import { AuthGuard } from '@commons/guards/auth.guard'
-import { RoleGuard } from '@commons/guards/role.guard'
-import { Roles } from '@commons/decorators/roles.decorator'
-import { CurrentUser } from '@commons/decorators/current-user.decorator'
+import { AuthGuard } from '@/commons/guards/auth.guard'
+import { RoleGuard } from '@/commons/guards/role.guard'
+import { Roles } from '@/commons/decorators/roles.decorator'
+import { CurrentUser } from '@/commons/decorators/current-user.decorator'
 
 @UseGuards(AuthGuard, RoleGuard)
 @Controller('courses')

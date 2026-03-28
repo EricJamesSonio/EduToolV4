@@ -11,10 +11,10 @@ import {
 } from '@nestjs/common'
 import { StrandService } from './strand.service'
 import { CreateStrandDto, UpdateStrandDto, StrandQueryDto } from './dto/strand.dto'
-import { AuthGuard } from '@commons/guards/auth.guard'
-import { RoleGuard } from '@commons/guards/role.guard'
-import { Roles } from '@commons/decorators/roles.decorator'
-import { CurrentUser } from '@commons/decorators/current-user.decorator'
+import { AuthGuard } from '@/commons/guards/auth.guard'
+import { RoleGuard } from '@/commons/guards/role.guard'
+import { Roles } from '@/commons/decorators/roles.decorator'
+import { CurrentUser } from '@/commons/decorators/current-user.decorator'
 
 @UseGuards(AuthGuard, RoleGuard)
 @Controller('strands')

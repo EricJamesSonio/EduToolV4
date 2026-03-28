@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common'
-import { DatabaseProvider } from '@core/database/database.provider'
+import { DatabaseService } from '@/core/database/database.provider'
 import { CreateStrandDto, UpdateStrandDto } from './dto/strand.dto'
 
 @Injectable()
 export class StrandRepository {
-  constructor(private readonly db: DatabaseProvider) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async create(dto: CreateStrandDto) {
     return this.db.strand.create({
