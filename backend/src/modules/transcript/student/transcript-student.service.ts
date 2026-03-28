@@ -3,6 +3,23 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { GradeRepository } from '@/modules/grade/grade.repository';
 import { ClassRepository } from '@/modules/class/class.repository';
+import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
+
+type TranscriptEntry = {
+  classId: string;
+  subject: { id: string | null; name: string };
+  educator: string;
+  schoolYear: { id: string | null; name: string; status: string };
+  semester: { id: string | null; name: string };
+  termGrades: {
+    termId: string;
+    termName: string;
+    orderIndex: number;
+    finalScore: number | null;
+    finalGrade: string | null;
+    isReleased: boolean;
+  }[];
+};
 
 @Injectable()
 export class TranscriptStudentService {
@@ -10,23 +27,21 @@ export class TranscriptStudentService {
     private readonly db: DatabaseService,
     private readonly gradeRepo: GradeRepository,
     private readonly classRepo: ClassRepository,
+    private readonly enrollmentRepo: EnrollmentRepository,
   ) {}
 
   async getMyTranscript(studentId: string, orgId: string) {
-    // 1. Get all active enrollments with full class context
-    const enrollments = await this.classRepo.findEnrolledClassesByStudent(
+    const enrollments = await this.enrollmentRepo.findByStudentAcrossOrg(
       studentId,
       orgId,
     );
 
     if (enrollments.length === 0) return [];
 
-    // 2. For each enrollment, gather all grades + term/semester/school-year context
-    const classEntries = await Promise.all(
+    const classEntries: TranscriptEntry[] = await Promise.all(
       enrollments.map(async (enrollment) => {
         const cls = enrollment.class;
 
-        // Parallel: subject, educator profile, semester (with terms), school year, grades
         const [subject, educatorProfile, semester, schoolYear, grades] =
           await Promise.all([
             this.db.subject.findFirst({
@@ -48,14 +63,12 @@ export class TranscriptStudentService {
             this.gradeRepo.findByClass(cls.id, orgId),
           ]);
 
-        // 3. Map grades by term_id for O(1) lookup
         const gradeByTerm = new Map(
           grades
             .filter((g) => g.student_id === studentId)
             .map((g) => [g.term_id, g]),
         );
 
-        // 4. Build per-term grade rows
         const termGrades = (semester?.terms ?? []).map((term) => {
           const grade = gradeByTerm.get(term.id) ?? null;
           return {
@@ -63,7 +76,7 @@ export class TranscriptStudentService {
             termName: term.name,
             orderIndex: term.order_index,
             finalScore: grade?.final_score ?? null,
-            finalGrade: grade?.is_locked ? grade.final_grade : null, // 🔒 visibility rule
+            finalGrade: grade?.is_locked ? grade.final_grade : null,
             isReleased: grade?.is_locked ?? false,
           };
         });
@@ -89,17 +102,10 @@ export class TranscriptStudentService {
       }),
     );
 
-    // 5. Group by school year → semester
-    const grouped = this.groupTranscript(classEntries);
-
-    return grouped;
+    return this.groupTranscript(classEntries);
   }
 
-  // ── Group: schoolYear → semester → [classes] ─────────────────────────────
-
-  private groupTranscript(
-    entries: Awaited<ReturnType<typeof this.flatEntries>>,
-  ) {
+  private groupTranscript(entries: TranscriptEntry[]) {
     const schoolYearMap = new Map<
       string,
       {
@@ -111,7 +117,7 @@ export class TranscriptStudentService {
           {
             semesterId: string;
             semesterName: string;
-            classes: typeof entries;
+            classes: TranscriptEntry[];
           }
         >;
       }
@@ -143,7 +149,6 @@ export class TranscriptStudentService {
       sy.semesters.get(semId)!.classes.push(entry);
     }
 
-    // Serialize Maps → arrays
     return Array.from(schoolYearMap.values()).map((sy) => ({
       schoolYearId: sy.schoolYearId,
       schoolYearName: sy.schoolYearName,
@@ -159,24 +164,5 @@ export class TranscriptStudentService {
         })),
       })),
     }));
-  }
-
-  // dummy type helper for groupTranscript param inference
-  private flatEntries() {
-    return [] as {
-      classId: string;
-      subject: { id: string | null; name: string };
-      educator: string;
-      schoolYear: { id: string | null; name: string; status: string };
-      semester: { id: string | null; name: string };
-      termGrades: {
-        termId: string;
-        termName: string;
-        orderIndex: number;
-        finalScore: number | null;
-        finalGrade: string | null;
-        isReleased: boolean;
-      }[];
-    }[];
   }
 }

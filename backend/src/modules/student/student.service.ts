@@ -21,7 +21,7 @@ import {
 } from './student.utils';
 import { hashPassword } from '@/commons/utils/hash.util';
 import { ClassRepository } from '../class/class.repository';
-import { Class } from '@prisma/client';
+import { EnrollmentRepository } from '../enrollment/enrollment.repository';
 
 // Transitions that require explicit Admin confirmation
 const IRREVERSIBLE_STATUSES: StudentStatus[] = [
@@ -35,7 +35,8 @@ export class StudentService {
   constructor(
     private readonly studentRepository: StudentRepository,
     private readonly sectionService: SectionService,
-    private readonly classRepository: ClassRepository
+    private readonly classRepository: ClassRepository,
+    private readonly enrollmentRepo: EnrollmentRepository,
   ) {}
 
   // ── POST /students ──────────────────────────────────────────────────────────
@@ -153,7 +154,6 @@ export class StudentService {
       }
     }
 
-    // ✅ NEW: validate sectionId capacity before updating
     if (dto.sectionId) {
       const section = await this.sectionService.findById(dto.sectionId, orgId);
       const currentCount = await this.sectionService.countStudentsInSection(dto.sectionId);
@@ -186,10 +186,6 @@ export class StudentService {
     const currentStatus = account.status as StudentStatus;
     const newStatus = dto.status;
 
-    // Block reversing irreversible statuses back to active without confirmation
-    // The confirmation flag is handled at the controller/client level —
-    // here we enforce the rule that dropped/transferred/graduated are terminal
-    // unless the caller explicitly includes a reason (Phase 4 will log this)
     if (
       IRREVERSIBLE_STATUSES.includes(currentStatus) &&
       newStatus === StudentStatus.ACTIVE
@@ -201,11 +197,6 @@ export class StudentService {
         );
       }
     }
-
-    // Phase 4 hook: emit STUDENT_STATUS_CHANGED event for audit log
-    // this.eventService.emit(EVENTS.STUDENT_STATUS_CHANGED, {
-    //   studentId: id, orgId, oldStatus: currentStatus, newStatus, reason: dto.reason,
-    // });
 
     const updated = await this.studentRepository.updateStatus(id, newStatus);
     return this.formatAccount(updated);
@@ -231,11 +222,10 @@ export class StudentService {
       data: Record<string, string>;
     }> = [];
 
-    // Validate each row
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const errors: string[] = [];
-      const rowNum = i + 2; // +2 for header row + 1-based index
+      const rowNum = i + 2;
 
       if (!row['Full Name']) errors.push('Full Name is required.');
       if (!row['Student ID']) errors.push('Student ID is required.');
@@ -246,7 +236,6 @@ export class StudentService {
         errors.push('Email format is invalid.');
       }
 
-      // Check email uniqueness within org
       if (row['Email']) {
         const emailTaken = await this.studentRepository.findByEmail(
           row['Email'],
@@ -255,7 +244,6 @@ export class StudentService {
         if (emailTaken) errors.push(`Email "${row['Email']}" already exists.`);
       }
 
-      // Check studentId uniqueness within org
       if (row['Student ID']) {
         const idTaken = await this.studentRepository.findByStudentId(
           row['Student ID'],
@@ -272,7 +260,6 @@ export class StudentService {
       }
     }
 
-    // Return validation report before creating — Admin reviews first
     if (validationReport.length > 0) {
       return {
         status: 'validation_failed',
@@ -285,7 +272,6 @@ export class StudentService {
       };
     }
 
-    // All rows valid — create accounts
     const created: any[] = [];
     for (const { data } of validRows) {
       const plainPassword = generateSystemPassword();
@@ -312,7 +298,7 @@ export class StudentService {
         fullName: data['Full Name'],
         studentId: data['Student ID'],
         levelId: data['Level ID'],
-        sectionId,  // may have been cleared if section was full
+        sectionId,
       });
       created.push({
         ...this.formatAccount(account),
@@ -355,7 +341,7 @@ export class StudentService {
         fullName: a.profile?.full_name ?? '',
         studentId: meta.studentId ?? '',
         email: a.email,
-        plainPassword: '••••••••••', // passwords not re-exposed in CSV export
+        plainPassword: '••••••••••',
         levelId: meta.levelId ?? '',
         sectionId: meta.sectionId ?? '',
         status: a.status,
@@ -365,28 +351,8 @@ export class StudentService {
     return buildCredentialsCsv(rows);
   }
 
-  // ── Utility ─────────────────────────────────────────────────────────────────
-
-  formatAccount(account: any) {
-    const meta = (account.profile?.metadata as Record<string, any>) ?? {};
-    return {
-      id: account.id,
-      orgId: account.org_id,
-      email: account.email,
-      status: account.status,
-      fullName: account.profile?.full_name ?? null,
-      studentId: meta.studentId ?? null,
-      levelId: meta.levelId ?? null,
-      sectionId: meta.sectionId ?? null,
-      createdAt: account.created_at,
-    };
-  }
-
-// ============================================================
-// ADD TO: student.service.ts  (after getCredentialsCsv)
-// ============================================================
-
   // ── GET /students/import-template ───────────────────────────────────────────
+
   getImportTemplate(): string {
     const headers = ['Full Name', 'Student ID', 'Email', 'Level ID', 'Section ID'];
     const example = [
@@ -400,11 +366,12 @@ export class StudentService {
   }
 
   // ── DELETE /classes/:classId/enrollments/:enrollmentId ───────────────────────
+
   async removeEnrollment(classId: string, enrollmentId: string, orgId: string) {
     const cls = await this.classRepository.findById(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
 
-    const enrollment = await this.classRepository.findEnrollmentById(enrollmentId, orgId);
+    const enrollment = await this.enrollmentRepo.findById(enrollmentId, orgId);
     if (!enrollment || enrollment.class_id !== classId) {
       throw new NotFoundException('Enrollment not found.');
     }
@@ -413,10 +380,11 @@ export class StudentService {
       throw new BadRequestException('Enrollment is already removed.');
     }
 
-    return this.classRepository.updateEnrollmentStatus(enrollmentId, 'removed');
+    return this.enrollmentRepo.updateStatus(enrollmentId, 'removed');
   }
 
   // ── GET /educator/classes ────────────────────────────────────────────────────
+
   async getEducatorClasses(educatorId: string, orgId: string) {
     const classes = await this.classRepository.findAll(orgId, { educatorId });
 
@@ -447,7 +415,7 @@ export class StudentService {
     const account = await this.studentRepository.findById(studentId, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
-    return this.studentRepository.findEnrollments(studentId, orgId);
+    return this.enrollmentRepo.findByStudentAcrossOrg(studentId, orgId);
   }
 
   // ── POST /students/:id/enrollments ──────────────────────────────────────────
@@ -462,11 +430,10 @@ export class StudentService {
       );
     }
 
-    // Delegate to ClassRepository — reuses all existing validation logic
     const cls = await this.classRepository.findById(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
 
-    const duplicate = await this.classRepository.findDuplicateEnrollment(
+    const duplicate = await this.enrollmentRepo.findDuplicate(
       studentId,
       cls.subject_id,
       cls.semester_id,
@@ -478,7 +445,7 @@ export class StudentService {
       );
     }
 
-    const existing = await this.classRepository.findEnrollmentByStudent(
+    const existing = await this.enrollmentRepo.findByStudent(
       classId,
       studentId,
       orgId,
@@ -488,7 +455,7 @@ export class StudentService {
     }
 
     if (cls.capacity > 0) {
-      const activeCount = await this.classRepository.countActiveEnrollments(classId);
+      const activeCount = await this.enrollmentRepo.countActive(classId);
       if (activeCount >= cls.capacity) {
         return {
           overflow: true,
@@ -499,7 +466,7 @@ export class StudentService {
       }
     }
 
-    return this.classRepository.createEnrollment({
+    return this.enrollmentRepo.create({
       orgId,
       classId,
       studentId,
@@ -517,10 +484,7 @@ export class StudentService {
     const account = await this.studentRepository.findById(studentId, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
-    const enrollment = await this.studentRepository.findEnrollmentById(
-      enrollmentId,
-      orgId,
-    );
+    const enrollment = await this.enrollmentRepo.findById(enrollmentId, orgId);
 
     if (!enrollment || enrollment.student_id !== studentId) {
       throw new NotFoundException('Enrollment not found.');
@@ -530,7 +494,23 @@ export class StudentService {
       throw new ConflictException('Enrollment is already removed.');
     }
 
-    return this.studentRepository.removeEnrollment(enrollmentId);
+    return this.enrollmentRepo.updateStatus(enrollmentId, 'removed');
   }
 
+  // ── Utility ─────────────────────────────────────────────────────────────────
+
+  formatAccount(account: any) {
+    const meta = (account.profile?.metadata as Record<string, any>) ?? {};
+    return {
+      id: account.id,
+      orgId: account.org_id,
+      email: account.email,
+      status: account.status,
+      fullName: account.profile?.full_name ?? null,
+      studentId: meta.studentId ?? null,
+      levelId: meta.levelId ?? null,
+      sectionId: meta.sectionId ?? null,
+      createdAt: account.created_at,
+    };
+  }
 }

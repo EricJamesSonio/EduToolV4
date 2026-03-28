@@ -14,44 +14,30 @@ import {
 // Minimum passing grade — adjust to match your org's grading scale
 const PASSING_SCORE = 75
 
-@Injectable()
-export class SubjectPrerequisiteService {
-  constructor(
-    private readonly prereqRepository: SubjectPrerequisiteRepository,
-  ) {}
+  @Injectable()
+  export class SubjectPrerequisiteService {
+    constructor(
+      private readonly prereqRepository: SubjectPrerequisiteRepository,
+    ) {}
 
-  async create(dto: CreatePrerequisiteDto) {
+  async create(orgId: string, dto: CreatePrerequisiteDto) {
     if (dto.subject_id === dto.prerequisite_id) {
       throw new BadRequestException('A subject cannot be a prerequisite of itself')
     }
-
-    const existing = await this.prereqRepository.findOne(
-      dto.subject_id,
-      dto.prerequisite_id,
-      dto.org_id,
-    )
+    const existing = await this.prereqRepository.findOne(dto.subject_id, dto.prerequisite_id, orgId)
     if (existing) {
       throw new ConflictException('This prerequisite link already exists')
     }
-
-    return this.prereqRepository.create(dto)
+    return this.prereqRepository.create(orgId, dto)
   }
 
-  async bulkCreate(dto: BulkCreatePrerequisiteDto) {
+  async bulkCreate(orgId: string, dto: BulkCreatePrerequisiteDto) {
     if (dto.prerequisite_ids.includes(dto.subject_id)) {
       throw new BadRequestException('A subject cannot be a prerequisite of itself')
     }
-
-    // Clear existing prereqs for this subject then re-seed — clean replace
-    await this.prereqRepository.deleteAllForSubject(dto.subject_id, dto.org_id)
-
-    return this.prereqRepository.bulkCreate(
-      dto.org_id,
-      dto.subject_id,
-      dto.prerequisite_ids,
-    )
+    await this.prereqRepository.deleteAllForSubject(dto.subject_id, orgId)
+    return this.prereqRepository.bulkCreate(orgId, dto.subject_id, dto.prerequisite_ids)
   }
-
   async findBySubject(subject_id: string, org_id: string) {
     return this.prereqRepository.findBySubject(subject_id, org_id)
   }

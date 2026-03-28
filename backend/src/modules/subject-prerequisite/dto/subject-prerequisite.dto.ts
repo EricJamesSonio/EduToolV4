@@ -1,26 +1,15 @@
-import { IsString, IsNotEmpty, IsArray } from 'class-validator'
+import { IsString, IsNotEmpty, IsArray, IsUUID } from 'class-validator'
 
 export class CreatePrerequisiteDto {
-  @IsString()
-  @IsNotEmpty()
-  org_id: string
-
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   subject_id: string
 
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   prerequisite_id: string
 }
 
 export class BulkCreatePrerequisiteDto {
-  @IsString()
-  @IsNotEmpty()
-  org_id: string
-
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   subject_id: string
 
   @IsArray()
@@ -29,12 +18,10 @@ export class BulkCreatePrerequisiteDto {
 }
 
 export class PrerequisiteCheckDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   subject_id: string
 
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   student_id: string
 }
 

@@ -6,10 +6,10 @@ import { CreatePrerequisiteDto } from './dto/subject-prerequisite.dto'
 export class SubjectPrerequisiteRepository {
   constructor(private readonly db: DatabaseService) {}
 
-  async create(dto: CreatePrerequisiteDto) {
+  async create(orgId: string, dto: CreatePrerequisiteDto) {
     return this.db.subjectPrerequisite.create({
       data: {
-        org_id: dto.org_id,
+        org_id: orgId,
         subject_id: dto.subject_id,
         prerequisite_id: dto.prerequisite_id,
       },

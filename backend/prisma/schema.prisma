@@ -220,6 +220,7 @@ model Class {
   gradeLock     GradeLock?
   ownershipLogs ClassOwnershipLog[]
   meetings      Meeting[]
+  grades Grade[]
 }
 
 model ClassSchedule {
@@ -397,6 +398,8 @@ model Grade {
   final_grade String
   is_locked   Boolean   @default(false)
   locked_at   DateTime?
+
+  class Class @relation(fields: [class_id], references: [id])  // add this
 
   @@unique([org_id, student_id, class_id, term_id])
 }

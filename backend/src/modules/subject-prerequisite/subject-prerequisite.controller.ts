@@ -25,57 +25,50 @@ export class SubjectPrerequisiteController {
     private readonly prerequisiteService: SubjectPrerequisiteService,
   ) {}
 
-  // Add a single prerequisite link
-  @Post()
-  @Roles('admin', 'platform_owner')
-  create(@Body() dto: CreatePrerequisiteDto) {
-    return this.prerequisiteService.create(dto)
-  }
+@Post()
+@Roles('admin', 'platform_owner')
+create(
+  @CurrentUser('orgId') orgId: string,
+  @Body() dto: CreatePrerequisiteDto,
+) {
+  return this.prerequisiteService.create(orgId, dto)
+}
 
-  // Replace all prerequisites for a subject in one call (used during seeding/setup)
-  @Post('bulk')
-  @Roles('admin', 'platform_owner')
-  bulkCreate(@Body() dto: BulkCreatePrerequisiteDto) {
-    return this.prerequisiteService.bulkCreate(dto)
-  }
+@Post('bulk')
+@Roles('admin', 'platform_owner')
+bulkCreate(
+  @CurrentUser('orgId') orgId: string,
+  @Body() dto: BulkCreatePrerequisiteDto,
+) {
+  return this.prerequisiteService.bulkCreate(orgId, dto)
+}
 
-  // List all prerequisites for a given subject
-  @Get()
-  @Roles('admin', 'educator', 'platform_owner')
-  findBySubject(
-    @CurrentUser() user: any,
-    @Query('subject_id') subject_id: string,
-  ) {
-    return this.prerequisiteService.findBySubject(subject_id, user.org_id)
-  }
+@Get()
+@Roles('admin', 'educator', 'platform_owner')
+findBySubject(
+  @CurrentUser('orgId') orgId: string,
+  @Query('subject_id') subject_id: string,
+) {
+  return this.prerequisiteService.findBySubject(subject_id, orgId)
+}
 
-  // Check if a student is eligible to enroll in a subject
-  @Get('check')
-  @Roles('admin', 'platform_owner')
-  checkEligibility(
-    @CurrentUser() user: any,
-    @Query('subject_id') subject_id: string,
-    @Query('student_id') student_id: string,
-  ) {
-    return this.prerequisiteService.checkEligibility(
-      subject_id,
-      student_id,
-      user.org_id,
-    )
-  }
+@Get('check')
+@Roles('admin', 'platform_owner')
+checkEligibility(
+  @CurrentUser('orgId') orgId: string,
+  @Query('subject_id') subject_id: string,
+  @Query('student_id') student_id: string,
+) {
+  return this.prerequisiteService.checkEligibility(subject_id, student_id, orgId)
+}
 
-  // Remove a single prerequisite link by prerequisite_id
-  @Delete(':prerequisite_id')
-  @Roles('admin', 'platform_owner')
-  remove(
-    @Param('prerequisite_id') prerequisite_id: string,
-    @Query('subject_id') subject_id: string,
-    @CurrentUser() user: any,
-  ) {
-    return this.prerequisiteService.remove(
-      prerequisite_id,
-      subject_id,
-      user.org_id,
-    )
-  }
+@Delete(':prerequisite_id')
+@Roles('admin', 'platform_owner')
+remove(
+  @CurrentUser('orgId') orgId: string,
+  @Param('prerequisite_id') prerequisite_id: string,
+  @Query('subject_id') subject_id: string,
+) {
+  return this.prerequisiteService.remove(prerequisite_id, subject_id, orgId)
+}
 }

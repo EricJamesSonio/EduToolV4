@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { MeetingRepository } from './meeting.repository';
 import { ClassRepository } from '../class/class.repository';
+import { EnrollmentRepository } from '../enrollment/enrollment.repository';
 import { NotificationService } from '../notification/notification.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import {
@@ -20,6 +21,7 @@ export class MeetingService {
   constructor(
     private readonly meetingRepo: MeetingRepository,
     private readonly classRepo: ClassRepository,
+    private readonly enrollmentRepo: EnrollmentRepository,
     private readonly notificationService: NotificationService,
     private readonly auditLog: AuditLogService,
   ) {}
@@ -51,7 +53,7 @@ export class MeetingService {
     // If none provided → invite all active enrollments
     let invitedIds = dto.invitedStudentIds ?? [];
     if (invitedIds.length === 0) {
-      const enrollments = await this.classRepo.findEnrollments(classId, orgId);
+      const enrollments = await this.enrollmentRepo.findByClass(classId, orgId);
       invitedIds = enrollments.map((e: any) => e.student_id);
     }
 
@@ -342,7 +344,7 @@ export class MeetingService {
     studentId: string,
     orgId: string,
   ) {
-    const enrollment = await this.classRepo.findEnrolledClassByStudent(
+    const enrollment = await this.enrollmentRepo.findOneByStudentAndClass(
       classId, studentId, orgId,
     );
     if (!enrollment) {
