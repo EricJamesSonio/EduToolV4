@@ -4,10 +4,11 @@ import { GradeStudentController } from './grade-student.controller';
 import { GradeStudentService } from './grade-student.service';
 import { GradeRepository } from '../grade.repository';
 import { ClassModule } from 'src/modules/class/class.module';
+import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
 
 @Module({
   imports: [ClassModule],
   controllers: [GradeStudentController],
-  providers: [GradeStudentService, GradeRepository],
+  providers: [GradeStudentService, GradeRepository, EnrollmentRepository],
 })
 export class GradeStudentModule {}

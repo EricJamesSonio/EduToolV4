@@ -7,6 +7,7 @@ import { StudentService } from './student.service';
 import { StudentRepository } from './student.repository';
 import { SectionModule } from '@/modules/section/section.module';
 import { ClassModule } from '../class/class.module';
+import { EnrollmentRepository } from '../enrollment/enrollment.repository';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { ClassModule } from '../class/class.module';
     SectionModule, ClassModule
   ],
   controllers: [StudentController],
-  providers: [StudentService, StudentRepository],
+  providers: [StudentService, StudentRepository, EnrollmentRepository],
   exports: [StudentService],
 })
 export class StudentModule {}
