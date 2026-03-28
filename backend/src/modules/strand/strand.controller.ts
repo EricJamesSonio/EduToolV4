@@ -23,8 +23,11 @@ export class StrandController {
 
   @Post()
   @Roles('admin', 'platform_owner')
-  create(@Body() dto: CreateStrandDto) {
-    return this.strandService.create(dto)
+  create(
+    @CurrentUser('orgId') orgId: string,
+    @Body() dto: CreateStrandDto,
+  ) {
+    return this.strandService.create(orgId, dto)
   }
 
   @Get()

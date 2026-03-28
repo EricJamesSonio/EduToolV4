@@ -6,10 +6,10 @@ import { CreateStrandDto, UpdateStrandDto } from './dto/strand.dto'
 export class StrandRepository {
   constructor(private readonly db: DatabaseService) {}
 
-  async create(dto: CreateStrandDto) {
+  async create(orgId: string, dto: CreateStrandDto) {
     return this.db.strand.create({
       data: {
-        org_id: dto.org_id,
+        org_id: orgId,
         program_id: dto.program_id,
         name: dto.name,
       },

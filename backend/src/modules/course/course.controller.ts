@@ -12,19 +12,22 @@ import {
 import { CourseService } from './course.service'
 import { CreateCourseDto, UpdateCourseDto, CourseQueryDto } from './dto/course.dto'
 import { AuthGuard } from '@/commons/guards/auth.guard'
-import { RoleGuard } from '@/commons/guards/role.guard'
+import { RolesGuard } from '@/commons/guards/role.guard'
 import { Roles } from '@/commons/decorators/roles.decorator'
 import { CurrentUser } from '@/commons/decorators/current-user.decorator'
 
-@UseGuards(AuthGuard, RoleGuard)
+@UseGuards(AuthGuard, RolesGuard)
 @Controller('courses')
 export class CourseController {
   constructor(private readonly courseService: CourseService) {}
 
   @Post()
   @Roles('admin', 'platform_owner')
-  create(@Body() dto: CreateCourseDto) {
-    return this.courseService.create(dto)
+  create(
+    @CurrentUser('orgId') orgId: string,
+    @Body() dto: CreateCourseDto,
+  ) {
+    return this.courseService.create(orgId, dto)
   }
 
   @Get()

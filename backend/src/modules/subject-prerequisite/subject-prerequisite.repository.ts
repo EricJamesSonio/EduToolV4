@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common'
-import { DatabaseProvider } from '@core/database/database.provider'
+import { DatabaseService } from '@/core/database/database.provider'
 import { CreatePrerequisiteDto } from './dto/subject-prerequisite.dto'
 
 @Injectable()
 export class SubjectPrerequisiteRepository {
-  constructor(private readonly db: DatabaseProvider) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async create(dto: CreatePrerequisiteDto) {
     return this.db.subjectPrerequisite.create({

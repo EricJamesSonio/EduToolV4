@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common'
-import { DatabaseProvider } from '@core/database/database.provider'
+import { DatabaseService } from '@/core/database/database.provider'
 import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto'
 
 @Injectable()
 export class CourseRepository {
-  constructor(private readonly db: DatabaseProvider) {}
+  constructor(private readonly db: DatabaseService) {}
 
-  async create(dto: CreateCourseDto) {
+  async create(orgId: string, dto: CreateCourseDto) {
     return this.db.course.create({
       data: {
-        org_id: dto.org_id,
+        org_id: orgId,
         program_id: dto.program_id,
         name: dto.name,
         code: dto.code ?? null,
@@ -71,4 +71,7 @@ export class CourseRepository {
     })
     return !!record
   }
+
+
 }
+

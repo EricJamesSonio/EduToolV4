@@ -6,8 +6,8 @@ import { CreateCourseDto, UpdateCourseDto, CourseQueryDto } from './dto/course.d
 export class CourseService {
   constructor(private readonly courseRepository: CourseRepository) {}
 
-  async create(dto: CreateCourseDto) {
-    return this.courseRepository.create(dto)
+  async create(orgId: string, dto: CreateCourseDto) {
+    return this.courseRepository.create(orgId, dto)
   }
 
   async findAll(org_id: string, query: CourseQueryDto) {

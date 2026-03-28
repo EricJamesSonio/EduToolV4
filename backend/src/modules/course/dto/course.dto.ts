@@ -1,12 +1,7 @@
-import { IsString, IsOptional, IsNotEmpty } from 'class-validator'
+import { IsString, IsOptional, IsNotEmpty, IsUUID } from 'class-validator'
 
 export class CreateCourseDto {
-  @IsString()
-  @IsNotEmpty()
-  org_id: string
-
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   program_id: string
 
   @IsString()

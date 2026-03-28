@@ -1,23 +1,30 @@
 // @/modules/attendance/student/attendance-student.service.ts
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { AttendanceRepository } from '../attendance.repository';
-import { ClassRepository } from '@/modules/class/class.repository';
+import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository'; // ✅ changed
 
 @Injectable()
 export class AttendanceStudentService {
   constructor(
     private readonly attendanceRepo: AttendanceRepository,
-    private readonly classRepo: ClassRepository,
+    private readonly enrollmentRepo: EnrollmentRepository, // ✅ changed
   ) {}
 
-  async getMyAttendance(classId: string, studentId: string, orgId: string) {
+  async getMyAttendance(
+    classId: string,
+    studentId: string,
+    orgId: string,
+  ) {
     // Guard: student must be enrolled
-    const enrollment = await this.classRepo.findEnrolledClassByStudent(
+    const enrollment = await this.enrollmentRepo.findOneByStudentAndClass(
       classId,
       studentId,
       orgId,
     );
-    if (!enrollment) throw new ForbiddenException('Not enrolled in this class.');
+
+    if (!enrollment) {
+      throw new ForbiddenException('Not enrolled in this class.');
+    }
 
     // Fetch all sessions for the class
     const sessions = await this.attendanceRepo.findSessionsByClass(classId);
@@ -25,7 +32,10 @@ export class AttendanceStudentService {
     // Fetch all records for this student across all sessions
     const allRecords = await Promise.all(
       sessions.map((s) =>
-        this.attendanceRepo.findRecordBySessionAndStudent(s.id, studentId),
+        this.attendanceRepo.findRecordBySessionAndStudent(
+          s.id,
+          studentId,
+        ),
       ),
     );
 
@@ -40,6 +50,7 @@ export class AttendanceStudentService {
 
     // Summary counts
     const recorded = allRecords.filter(Boolean);
+
     const summary = {
       total: sessions.length,
       present: recorded.filter((r) => r!.status === 'present').length,

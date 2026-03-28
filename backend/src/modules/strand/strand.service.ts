@@ -6,8 +6,8 @@ import { CreateStrandDto, UpdateStrandDto, StrandQueryDto } from './dto/strand.d
 export class StrandService {
   constructor(private readonly strandRepository: StrandRepository) {}
 
-  async create(dto: CreateStrandDto) {
-    return this.strandRepository.create(dto)
+  async create(orgId: string, dto: CreateStrandDto) {
+    return this.strandRepository.create(orgId, dto)
   }
 
   async findAll(org_id: string, query: StrandQueryDto) {
