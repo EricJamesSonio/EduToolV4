@@ -6,11 +6,12 @@ import { LessonRepository } from './lesson.repository';
 import { ClassModule } from '../class/class.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { NotificationModule } from '../notification/notification.module';
+import { EnrollmentRepository } from '../enrollment/enrollment.repository';
 
 @Module({
   imports: [ClassModule, AuditLogModule, NotificationModule],
   controllers: [LessonController, StudentLessonController],
-  providers: [LessonService, LessonRepository],
+  providers: [LessonService, LessonRepository, EnrollmentRepository],
   exports: [LessonService, LessonRepository],
 })
 export class LessonModule {}

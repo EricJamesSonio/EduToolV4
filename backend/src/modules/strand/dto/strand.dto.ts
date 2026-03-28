@@ -1,0 +1,22 @@
+import { IsString, IsOptional, IsNotEmpty, IsUUID } from 'class-validator'
+
+export class CreateStrandDto {
+  @IsUUID()
+  program_id: string
+
+  @IsString()
+  @IsNotEmpty()
+  name: string
+}
+
+export class UpdateStrandDto {
+  @IsString()
+  @IsOptional()
+  name?: string
+}
+
+export class StrandQueryDto {
+  @IsString()
+  @IsOptional()
+  program_id?: string
+}

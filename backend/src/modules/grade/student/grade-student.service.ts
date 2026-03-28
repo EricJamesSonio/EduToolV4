@@ -1,18 +1,16 @@
-// src/modules/grade/student/grade-student.service.ts
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { GradeRepository } from '../grade.repository';
-import { ClassRepository } from 'src/modules/class/class.repository';
+import { EnrollmentRepository } from 'src/modules/enrollment/enrollment.repository';
 
 @Injectable()
 export class GradeStudentService {
   constructor(
     private readonly gradeRepo: GradeRepository,
-    private readonly classRepo: ClassRepository,
+    private readonly enrollmentRepo: EnrollmentRepository,
   ) {}
 
   async getMyGrades(classId: string, studentId: string, orgId: string) {
-    // Guard: student must be enrolled in this class
-    const enrollment = await this.classRepo.findEnrolledClassByStudent(
+    const enrollment = await this.enrollmentRepo.findOneByStudentAndClass(
       classId,
       studentId,
       orgId,
@@ -29,7 +27,7 @@ export class GradeStudentService {
       .map((g) => ({
         termId: g.term_id,
         finalScore: g.final_score,
-        finalGrade: g.is_locked ? g.final_grade : null, // 🔒 only visible when released
+        finalGrade: g.is_locked ? g.final_grade : null,
         isReleased: g.is_locked,
       }));
   }

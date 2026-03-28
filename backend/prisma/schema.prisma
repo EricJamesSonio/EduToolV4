@@ -96,6 +96,30 @@ model Program {
   org_id String
   name   String
   type   String
+
+  courses Course[]
+  strands Strand[]
+}
+
+model Course {
+  id         String  @id @default(uuid())
+  org_id     String
+  program_id String
+  name       String  // e.g. "BS Computer Science"
+  code       String? // e.g. "BSCS"
+
+  program  Program   @relation(fields: [program_id], references: [id])
+  subjects Subject[]
+}
+
+model Strand {
+  id         String @id @default(uuid())
+  org_id     String
+  program_id String
+  name       String // e.g. "STEM", "ABM", "HUMSS"
+
+  program  Program   @relation(fields: [program_id], references: [id])
+  subjects Subject[]
 }
 
 model Level {
@@ -154,8 +178,29 @@ model Subject {
   org_id      String
   name        String
   level_id    String
+  course_id   String? // NULL = open/minor (any course), set = course-coupled major
+  strand_id   String? // for SHS strands
   educator_id String?
   is_locked   Boolean @default(false)
+  year_level  String? // e.g. "1st Year", "Grade 11"
+  term_label  String? // e.g. "1st Sem"
+
+  course    Course?               @relation(fields: [course_id], references: [id])
+  strand    Strand?               @relation(fields: [strand_id], references: [id])
+  prerequisites SubjectPrerequisite[] @relation("SubjectPrereqs")
+  prereqFor     SubjectPrerequisite[] @relation("PrereqFor")
+}
+
+model SubjectPrerequisite {
+  id              String @id @default(uuid())
+  org_id          String
+  subject_id      String // the subject being enrolled into
+  prerequisite_id String // the subject that must be passed first
+
+  subject      Subject @relation("SubjectPrereqs", fields: [subject_id], references: [id])
+  prerequisite Subject @relation("PrereqFor", fields: [prerequisite_id], references: [id])
+
+  @@unique([subject_id, prerequisite_id])
 }
 
 model Class {
@@ -175,6 +220,7 @@ model Class {
   gradeLock     GradeLock?
   ownershipLogs ClassOwnershipLog[]
   meetings      Meeting[]
+  grades Grade[]
 }
 
 model ClassSchedule {
@@ -353,17 +399,19 @@ model Grade {
   is_locked   Boolean   @default(false)
   locked_at   DateTime?
 
+  class Class @relation(fields: [class_id], references: [id])  // add this
+
   @@unique([org_id, student_id, class_id, term_id])
 }
 
 model GradeLock {
-  id        String    @id @default(uuid())
-  org_id    String
-  class_id  String    @unique
-  is_locked Boolean   @default(false)
-  locked_by String?
-  locked_at DateTime?
-  created_at DateTime @default(now())
+  id         String    @id @default(uuid())
+  org_id     String
+  class_id   String    @unique
+  is_locked  Boolean   @default(false)
+  locked_by  String?
+  locked_at  DateTime?
+  created_at DateTime  @default(now())
 
   class Class @relation(fields: [class_id], references: [id])
 }
@@ -471,12 +519,12 @@ model AuditLog {
   created_at  DateTime @default(now())
 }
 
- model MeetingChatMessage {
-   id          String   @id @default(uuid())
-   org_id      String
-   meeting_id  String
-   sender_id   String
-   sender_name String
-   message     String
-   created_at  DateTime @default(now())
+model MeetingChatMessage {
+  id          String   @id @default(uuid())
+  org_id      String
+  meeting_id  String
+  sender_id   String
+  sender_name String
+  message     String
+  created_at  DateTime @default(now())
 }

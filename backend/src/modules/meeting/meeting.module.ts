@@ -17,6 +17,7 @@ import { AgoraTokenService } from './agora-token.service';
 import { ClassModule } from '../class/class.module';
 import { NotificationModule } from '../notification/notification.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { EnrollmentRepository } from '../enrollment/enrollment.repository';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
     MeetingRepository,
     MeetingGateway,
     AgoraTokenService,
+    EnrollmentRepository
   ],
   exports: [MeetingService],
 })

@@ -9,7 +9,8 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 import { NotificationService } from '../notification/notification.service';
 import { CreateLessonDto, UpdateLessonDto, QueryLessonDto } from './dto/lesson.dto';
 import { ClassRepository } from '../class/class.repository';
-import { AiService } from '@/core/ai/ai.service'; // 👈 NEW
+import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
+import { AiService } from '@/core/ai/ai.service';
 
 const MIN_DETAIL_WORDS = 10;
 
@@ -22,9 +23,10 @@ export class LessonService {
   constructor(
     private readonly lessonRepo: LessonRepository,
     private readonly classRepo: ClassRepository,
+    private readonly enrollmentRepo: EnrollmentRepository,
     private readonly auditLog: AuditLogService,
     private readonly notificationService: NotificationService,
-    private readonly aiService: AiService, // 👈 NEW
+    private readonly aiService: AiService,
   ) {}
 
   async create(
@@ -74,7 +76,6 @@ export class LessonService {
       metadata: { lessonId: lesson.id, title: lesson.title },
     });
 
-    // Fire-and-forget — real AI extraction
     this.triggerConceptExtraction(lesson.id, orgId, educatorId, dto.detail).catch(() => {});
 
     return lesson;
@@ -242,14 +243,12 @@ export class LessonService {
     return lesson;
   }
 
-  // ── Private helpers ──────────────────────────────────────────────────────────
-
   private async assertStudentEnrolled(
     classId: string,
     studentId: string,
     orgId: string,
   ) {
-    const enrollment = await this.classRepo.findEnrolledClassByStudent(
+    const enrollment = await this.enrollmentRepo.findOneByStudentAndClass(
       classId,
       studentId,
       orgId,
@@ -259,7 +258,6 @@ export class LessonService {
     }
   }
 
-  // 👇 REPLACED: was mockExtract(), now calls real AI
   private async triggerConceptExtraction(
     lessonId: string,
     orgId: string,

@@ -5,10 +5,11 @@ import { AssessmentStudentService } from './assessment-student.service';
 import { AssessmentCoreModule } from '../core/assessment-core.module';
 import { ClassModule } from '@/modules/class/class.module';
 import { GradeRepository } from '@/modules/grade/grade.repository'; // 👈 add
+import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
 
 @Module({
   imports: [AssessmentCoreModule, ClassModule],
   controllers: [AssessmentStudentController],
-  providers: [AssessmentStudentService, GradeRepository], // 👈 add
+  providers: [AssessmentStudentService, GradeRepository, EnrollmentRepository], // 👈 add
 })
 export class AssessmentStudentModule {}

@@ -1,21 +1,18 @@
-// @/modules/class/class.repository.ts
-import { Injectable } from '@nestjs/common';
-import { DatabaseService } from '@/core/database/database.provider';
+import { Injectable } from '@nestjs/common'
+import { DatabaseService } from '@/core/database/database.provider'
 
 @Injectable()
 export class ClassRepository {
   constructor(private readonly db: DatabaseService) {}
 
-  // ── Class CRUD ───────────────────────────────────────────────────────────────
-
   async create(data: {
-    orgId: string;
-    subjectId: string;
-    educatorId: string;
-    sectionId?: string;
-    schoolYearId: string;
-    semesterId: string;
-    capacity: number;
+    orgId: string
+    subjectId: string
+    educatorId: string
+    sectionId?: string
+    schoolYearId: string
+    semesterId: string
+    capacity: number
   }) {
     return this.db.class.create({
       data: {
@@ -28,17 +25,17 @@ export class ClassRepository {
         capacity: data.capacity,
       },
       include: { schedules: true },
-    });
+    })
   }
 
   async findAll(
     orgId: string,
     filters: {
-      schoolYearId?: string;
-      semesterId?: string;
-      educatorId?: string;
-      subjectId?: string;
-      sectionId?: string;
+      schoolYearId?: string
+      semesterId?: string
+      educatorId?: string
+      subjectId?: string
+      sectionId?: string
     },
   ) {
     return this.db.class.findMany({
@@ -53,22 +50,22 @@ export class ClassRepository {
       },
       include: { schedules: true },
       orderBy: { created_at: 'desc' },
-    });
+    })
   }
 
   async findById(id: string, orgId: string) {
     return this.db.class.findFirst({
       where: { id, org_id: orgId, deleted_at: null },
       include: { schedules: true },
-    });
+    })
   }
 
   async update(
     id: string,
     data: {
-      educatorId?: string;
-      sectionId?: string | null;
-      capacity?: number;
+      educatorId?: string
+      sectionId?: string | null
+      capacity?: number
     },
   ) {
     return this.db.class.update({
@@ -79,27 +76,23 @@ export class ClassRepository {
         ...(data.capacity !== undefined ? { capacity: data.capacity } : {}),
       },
       include: { schedules: true },
-    });
+    })
   }
 
   async softDelete(id: string) {
     return this.db.class.update({
       where: { id },
       data: { deleted_at: new Date() },
-    });
+    })
   }
-
-  // ── Schedules ────────────────────────────────────────────────────────────────
 
   async replaceSchedules(
     orgId: string,
     classId: string,
     slots: Array<{ weekday: number; startTime: Date; endTime: Date }>,
   ) {
-    await this.db.classSchedule.deleteMany({ where: { class_id: classId } });
-
-    if (slots.length === 0) return [];
-
+    await this.db.classSchedule.deleteMany({ where: { class_id: classId } })
+    if (slots.length === 0) return []
     return this.db.classSchedule.createMany({
       data: slots.map((s) => ({
         org_id: orgId,
@@ -108,196 +101,46 @@ export class ClassRepository {
         start_time: s.startTime,
         end_time: s.endTime,
       })),
-    });
+    })
   }
 
   async findEducatorSchedules(educatorId: string, orgId: string) {
     return this.db.classSchedule.findMany({
       where: {
         org_id: orgId,
-        class: {
-          educator_id: educatorId,
-          deleted_at: null,
-        },
+        class: { educator_id: educatorId, deleted_at: null },
       },
       include: { class: true },
-    });
+    })
   }
 
   async findSectionSchedules(sectionId: string, orgId: string) {
     return this.db.classSchedule.findMany({
       where: {
         org_id: orgId,
-        class: {
-          section_id: sectionId,
-          deleted_at: null,
-        },
+        class: { section_id: sectionId, deleted_at: null },
       },
       include: { class: true },
-    });
-  }
-
-  // ── Enrollment ───────────────────────────────────────────────────────────────
-
-  async createEnrollment(data: {
-    orgId: string;
-    classId: string;
-    studentId: string;
-    status: string;
-  }) {
-    return this.db.enrollment.create({
-      data: {
-        org_id: data.orgId,
-        class_id: data.classId,
-        student_id: data.studentId,
-        status: data.status as any,
-      },
-    });
-  }
-
-  async findEnrollments(classId: string, orgId: string) {
-    return this.db.enrollment.findMany({
-      where: {
-        class_id: classId,
-        org_id: orgId,
-        status: { not: 'removed' },
-      },
-      orderBy: { created_at: 'asc' },
-    });
-  }
-
-  async findEnrollmentById(id: string, orgId: string) {
-    return this.db.enrollment.findFirst({
-      where: { id, org_id: orgId },
-    });
-  }
-
-  async findEnrollmentByStudent(
-    classId: string,
-    studentId: string,
-    orgId: string,
-  ) {
-    return this.db.enrollment.findFirst({
-      where: { class_id: classId, student_id: studentId, org_id: orgId },
-    });
-  }
-
-  async findDuplicateEnrollment(
-    studentId: string,
-    subjectId: string,
-    semesterId: string,
-    orgId: string,
-  ) {
-    return this.db.enrollment.findFirst({
-      where: {
-        org_id: orgId,
-        student_id: studentId,
-        status: { not: 'removed' },
-        class: {
-          subject_id: subjectId,
-          semester_id: semesterId,
-          deleted_at: null,
-        },
-      },
-    });
-  }
-
-  async findBySchoolYear(schoolYearId: string, orgId: string) {
-    return this.db.class.findMany({
-      where: {
-        org_id: orgId,
-        school_year_id: schoolYearId,
-        deleted_at: null,
-      },
-    });
-  }
-
-  async countActiveEnrollments(classId: string): Promise<number> {
-    return this.db.enrollment.count({
-      where: { class_id: classId, status: 'active' },
-    });
-  }
-
-  async updateEnrollmentStatus(id: string, status: string) {
-    return this.db.enrollment.update({
-      where: { id },
-      data: { status: status as any },
-    });
+    })
   }
 
   async findActiveClassesByEducator(educatorId: string, orgId: string) {
     return this.db.class.findMany({
-      where: {
-        org_id: orgId,
-        educator_id: educatorId,
-        deleted_at: null,
-      },
-    });
+      where: { org_id: orgId, educator_id: educatorId, deleted_at: null },
+    })
   }
 
-  async hasActiveEnrollments(classId: string): Promise<boolean> {
-    const count = await this.db.enrollment.count({
-      where: { class_id: classId, status: 'active' },
-    });
-    return count > 0;
+  async findBySchoolYear(schoolYearId: string, orgId: string) {
+    return this.db.class.findMany({
+      where: { org_id: orgId, school_year_id: schoolYearId, deleted_at: null },
+    })
   }
 
-  // ── Student-facing ───────────────────────────────────────────────────────────
-
-  /**
-   * Returns all active classes a student is enrolled in,
-   * enriched with subject name, educator name, section, and schedules.
-   */
-  async findEnrolledClassesByStudent(studentId: string, orgId: string) {
-    return this.db.enrollment.findMany({
-      where: {
-        student_id: studentId,
-        org_id: orgId,
-        status: 'active',
-        class: { deleted_at: null },
-      },
-      include: {
-        class: {
-          include: {
-            schedules: true,
-          },
-        },
-      },
-      orderBy: { created_at: 'asc' },
-    });
-  }
-
-  /**
-   * Returns a single active enrollment with full class detail.
-   * Used to verify the student is enrolled before returning class data.
-   */
-  async findEnrolledClassByStudent(
-    classId: string,
-    studentId: string,
+  async findSubjectWithEducator(
+    subjectId: string,
+    educatorId: string,
     orgId: string,
   ) {
-    return this.db.enrollment.findFirst({
-      where: {
-        class_id: classId,
-        student_id: studentId,
-        org_id: orgId,
-        status: 'active',
-        class: { deleted_at: null },
-      },
-      include: {
-        class: {
-          include: {
-            schedules: true,
-          },
-        },
-      },
-    });
-  }
-
-  /**
-   * Resolves subject + educator profile for display in student class view.
-   */
-  async findSubjectWithEducator(subjectId: string, educatorId: string, orgId: string) {
     const [subject, educatorProfile] = await Promise.all([
       this.db.subject.findFirst({
         where: { id: subjectId, org_id: orgId },
@@ -307,59 +150,41 @@ export class ClassRepository {
         where: { account: { id: educatorId } },
         select: { full_name: true },
       }),
-    ]);
-
-    return { subject, educatorProfile };
+    ])
+    return { subject, educatorProfile }
   }
-async removeEnrollment(enrollmentId: string) {
-  return this.db.enrollment.update({
-    where: { id: enrollmentId },
-    data: { status: 'removed' as any },
-  });
-}
 
-// ── Ownership log ─────────────────────────────────────────────────────────────
+  async createOwnershipLog(data: {
+    orgId: string
+    classId: string
+    fromEducatorId: string
+    toEducatorId: string
+    reason?: string
+    reassignedBy: string
+  }) {
+    return this.db.classOwnershipLog.create({
+      data: {
+        org_id: data.orgId,
+        class_id: data.classId,
+        from_educator_id: data.fromEducatorId,
+        to_educator_id: data.toEducatorId,
+        reason: data.reason ?? null,
+        reassigned_by: data.reassignedBy,
+      },
+    })
+  }
 
-async createOwnershipLog(data: {
-  orgId: string;
-  classId: string;
-  fromEducatorId: string;
-  toEducatorId: string;
-  reason?: string;
-  reassignedBy: string;
-}) {
-  return this.db.classOwnershipLog.create({
-    data: {
-      org_id: data.orgId,
-      class_id: data.classId,
-      from_educator_id: data.fromEducatorId,
-      to_educator_id: data.toEducatorId,
-      reason: data.reason ?? null,
-      reassigned_by: data.reassignedBy,
-    },
-  });
-}
+  async findOwnershipHistory(classId: string, orgId: string) {
+    return this.db.classOwnershipLog.findMany({
+      where: { class_id: classId, org_id: orgId },
+      orderBy: { reassigned_at: 'asc' },
+    })
+  }
 
-async findOwnershipHistory(classId: string, orgId: string) {
-  return this.db.classOwnershipLog.findMany({
-    where: { class_id: classId, org_id: orgId },
-    orderBy: { reassigned_at: 'asc' },
-  });
-}
-
-// ── Rubric ───────────────────────────────────────────────────────────────────
-
-async lockRubricForClass(classId: string, orgId: string) {
-  return this.db.rubric.updateMany({
-    where: {
-      class_id: classId,
-      org_id: orgId,
-      is_locked: false,
-    },
-    data: {
-      is_locked: true,
-      locked_at: new Date(),
-    },
-  });
-}
+  async lockRubricForClass(classId: string, orgId: string) {
+    return this.db.rubric.updateMany({
+      where: { class_id: classId, org_id: orgId, is_locked: false },
+      data: { is_locked: true, locked_at: new Date() },
+    })
+  }
 }
