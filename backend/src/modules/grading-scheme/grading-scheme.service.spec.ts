@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { RubricService } from './rubric.service';
+import { GradingSchemeService } from './grading-scheme.service';
 
-describe('RubricService', () => {
-  let service: RubricService;
+describe('GradingSchemeService', () => {
+  let service: GradingSchemeService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [RubricService],
+      providers: [GradingSchemeService],
     }).compile();
 
-    service = module.get<RubricService>(RubricService);
+    service = module.get<GradingSchemeService>(GradingSchemeService);
   });
 
   it('should be defined', () => {

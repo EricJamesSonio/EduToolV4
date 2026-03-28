@@ -3,7 +3,6 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common'
 import { ClassRepository } from './class.repository'
 import { EnrollmentService } from '../enrollment/enrollment.service'
@@ -44,8 +43,6 @@ export class ClassService {
     private readonly attendanceService: AttendanceService,
   ) {}
 
-  // ── Class CRUD ──────────────────────────────────────────────────────────
-
   async create(orgId: string, dto: CreateClassDto) {
     const slots = this.parseSlots(dto.schedules)
     await this.assertNoEducatorConflict(dto.educatorId, orgId, slots)
@@ -65,7 +62,6 @@ export class ClassService {
 
     await this.classRepository.replaceSchedules(orgId, cls.id, slots)
 
-    // Fire-and-forget — failure here should not block class creation
     this.attendanceService
       .generateSessionsForClass(cls.id, orgId)
       .catch((err) => {
@@ -107,7 +103,6 @@ export class ClassService {
       if (sectionId) {
         await this.assertNoSectionConflict(sectionId, orgId, slots, id)
       }
-
       await this.classRepository.replaceSchedules(orgId, id, slots)
     }
 
@@ -124,17 +119,10 @@ export class ClassService {
     return this.classRepository.softDelete(id)
   }
 
-  // ── Enrollment — delegated to EnrollmentService ─────────────────────────
-
   async enrollStudent(id: string, orgId: string, dto: EnrollStudentDto) {
     const cls = await this.classRepository.findById(id, orgId)
     if (!cls) throw new NotFoundException('Class not found.')
 
-    // EnrollmentService.enroll() runs the full gate:
-    //   1. prerequisite check  (new)
-    //   2. duplicate subject+semester check
-    //   3. duplicate class check
-    //   4. capacity check
     const result = await this.enrollmentService.enroll(
       id,
       cls.subject_id,
@@ -144,11 +132,10 @@ export class ClassService {
       orgId,
     )
 
-    // Lock rubric on first active enrollment
     if (!('overflow' in result)) {
       const activeCount = await this.enrollmentService.countActive(id)
       if (activeCount === 1) {
-        await this.classRepository.lockRubricForClass(id, orgId)
+        await this.classRepository.lockGradingSchemeForClass(id, orgId)
       }
     }
 
@@ -177,8 +164,6 @@ export class ClassService {
     if (!cls) throw new NotFoundException('Class not found.')
     return this.enrollmentService.remove(classId, enrollmentId, orgId)
   }
-
-  // ── Educator reassignment ───────────────────────────────────────────────
 
   async reassignEducator(
     id: string,
@@ -222,8 +207,6 @@ export class ClassService {
     return this.classRepository.findOwnershipHistory(id, orgId)
   }
 
-  // ── Educator/Student views ───────────────────────────────────────────────
-
   async hasActiveClasses(educatorId: string, orgId: string): Promise<boolean> {
     const classes = await this.classRepository.findActiveClassesByEducator(
       educatorId,
@@ -251,7 +234,6 @@ export class ClassService {
             cls.educator_id,
             orgId,
           )
-
         return {
           enrollmentId: enrollment.id,
           enrollmentStatus: enrollment.status,
@@ -308,8 +290,6 @@ export class ClassService {
       },
     }
   }
-
-  // ── Private helpers ──────────────────────────────────────────────────────
 
   private parseSlots(schedules: ScheduleSlotDto[]): TimeSlot[] {
     return schedules.map((s) => {

@@ -1,33 +1,23 @@
-# Elementary School
+# Junior High School
 
 Default Section Capacity: 40
 
-- Grade 1:
+- Grade 7:
   - Section A (Capacity: 40)
   - Section B (Capacity: 40)
   - Section C (Capacity: 40)
 
-- Grade 2:
+- Grade 8:
   - Section A (Capacity: 40)
   - Section B (Capacity: 40)
   - Section C (Capacity: 40)
 
-- Grade 3:
+- Grade 9:
   - Section A (Capacity: 40)
   - Section B (Capacity: 40)
   - Section C (Capacity: 40)
 
-- Grade 4:
-  - Section A (Capacity: 40)
-  - Section B (Capacity: 40)
-  - Section C (Capacity: 40)
-
-- Grade 5:
-  - Section A (Capacity: 40)
-  - Section B (Capacity: 40)
-  - Section C (Capacity: 40)
-
-- Grade 6:
+- Grade 10:
   - Section A (Capacity: 40)
   - Section B (Capacity: 40)
   - Section C (Capacity: 40)

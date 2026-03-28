@@ -1,9 +1,23 @@
-// src/modules/grade/educator/grade-educator.service.ts
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { GradeRepository } from '../grade.repository';
-import { GradeCoreService, RubricCategory, GradeRange } from '../core/grade-core.service';
+import { GradeCoreService, GradeRange } from '../core/grade-core.service';
 import { AuditLogService } from 'src/modules/audit-log/audit-log.service';
 import { SetManualScoreDto } from './dto/grade-educator.dto';
+
+// TODO: Add a `type` column to GradingSchemeComponent in schema.prisma
+// (e.g. type String @default("manual")) so components can map to assessment.type.
+// Until then, component.name.toLowerCase() is used as the type discriminator.
+function componentsToCategories(components: any[]) {
+  return components.map((c) => ({
+    name: c.name,
+    type: c.type ?? c.name.toLowerCase(),
+    weight: c.weight,
+  }));
+}
 
 @Injectable()
 export class GradeEducatorService {
@@ -13,8 +27,6 @@ export class GradeEducatorService {
     private readonly auditLog: AuditLogService,
   ) {}
 
-  // ── Called by GradeLockService (existing contract) ────────────────────────
-
   async publishAllByClass(classId: string, orgId: string) {
     return this.repo.publishByClass(classId, orgId);
   }
@@ -22,8 +34,6 @@ export class GradeEducatorService {
   async unlockAllByClass(classId: string, orgId: string) {
     return this.repo.unlockByClass(classId, orgId);
   }
-
-  // ── Kept for internal backward-compat ────────────────────────────────────
 
   async computeAndSaveGrade(data: {
     orgId: string;
@@ -40,22 +50,15 @@ export class GradeEducatorService {
     return this.repo.findByClass(classId, orgId);
   }
 
-  // ── GET /classes/:classId/grades ──────────────────────────────────────────
-
   async getGradesByClass(classId: string, orgId: string, educatorId: string) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-
     const cls = await this.repo.findClassWithSubject(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
-
     const terms = await this.repo.findTermsBySemester(cls.semester_id);
-
     return Promise.all(
       terms.map((term) => this.buildTermResult(classId, term.id, orgId, cls)),
     );
   }
-
-  // ── GET /classes/:classId/grades/:termId ──────────────────────────────────
 
   async getGradesByTerm(
     classId: string,
@@ -64,14 +67,10 @@ export class GradeEducatorService {
     educatorId: string,
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-
     const cls = await this.repo.findClassWithSubject(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
-
     return this.buildTermResult(classId, termId, orgId, cls);
   }
-
-  // ── POST /classes/:classId/grades/:termId/compute ─────────────────────────
 
   async computeGrades(
     classId: string,
@@ -80,7 +79,6 @@ export class GradeEducatorService {
     educatorId: string,
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-
     const cls = await this.repo.findClassWithSubject(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
 
@@ -89,9 +87,9 @@ export class GradeEducatorService {
       return { computed: 0, message: 'No active enrollments.' };
     }
 
-    const rubric = await this.repo.findRubricForClass(classId, orgId);
-    if (!rubric) throw new NotFoundException('No rubric found for this class.');
-    const categories = rubric.categories as unknown as RubricCategory[];
+    const scheme = await this.repo.findGradingSchemeForClass(classId, orgId);
+    if (!scheme) throw new NotFoundException('No grading scheme found for this class.');
+    const categories = componentsToCategories(scheme.components);
 
     const gradingScale = await this.resolveGradingScale(cls, orgId);
     if (!gradingScale) throw new NotFoundException('No grading scale found for this class.');
@@ -101,7 +99,6 @@ export class GradeEducatorService {
     const manualScores = await this.repo.findManualScores(classId, termId, orgId);
 
     let computed = 0;
-
     for (const studentId of enrolledStudentIds) {
       const studentSubmissions = submissions.filter((s: any) => s.student_id === studentId);
       const studentManuals = manualScores.filter((m: any) => m.student_id === studentId);
@@ -111,7 +108,6 @@ export class GradeEducatorService {
         studentManuals,
         categories,
       );
-
       const finalGrade = this.core.resolveGrade(finalScore, ranges);
 
       await this.repo.upsert({ orgId, studentId, classId, termId, finalScore, finalGrade });
@@ -129,8 +125,6 @@ export class GradeEducatorService {
 
     return { computed, message: `Grades computed for ${computed} student(s).` };
   }
-
-  // ── PATCH /classes/:classId/grades/:termId/students/:studentId/manual ─────
 
   async setManualScore(
     classId: string,
@@ -170,8 +164,6 @@ export class GradeEducatorService {
     return saved;
   }
 
-  // ── Private helpers ───────────────────────────────────────────────────────
-
   private async buildTermResult(
     classId: string,
     termId: string,
@@ -180,14 +172,14 @@ export class GradeEducatorService {
   ) {
     const enrolledStudentIds: string[] = cls.enrollments.map((e: any) => e.student_id);
 
-    const [submissions, grades, manualScores, rubric] = await Promise.all([
+    const [submissions, grades, manualScores, scheme] = await Promise.all([
       this.repo.findSubmissionsForTerm(classId, termId, orgId),
       this.repo.findByClassAndTerm(classId, termId, orgId),
       this.repo.findManualScores(classId, termId, orgId),
-      this.repo.findRubricForClass(classId, orgId),
+      this.repo.findGradingSchemeForClass(classId, orgId),
     ]);
 
-    const categories = (rubric?.categories ?? []) as unknown as RubricCategory[];
+    const categories = scheme ? componentsToCategories(scheme.components) : [];
     const gradeMap = new Map(grades.map((g) => [g.student_id, g]));
 
     const students = enrolledStudentIds.map((studentId) => {

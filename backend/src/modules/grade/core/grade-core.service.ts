@@ -1,15 +1,17 @@
-// src/modules/grade/core/grade-core.service.ts
 import { Injectable } from '@nestjs/common';
 
-// ── Rubric category shape from Rubric.categories JSON ────────────────────────
-export interface RubricCategory {
-  name: string;   // e.g. "Quiz", "Exam", "Activity", "Attendance"
-  type: string;   // direct match to assessment.type: quiz | exam | activity | custom
-                  // for manual-only categories (attendance, behavior) type = 'manual'
-  weight: number; // e.g. 0.3 = 30%
+// TODO: Add a `type` column to GradingSchemeComponent in schema.prisma
+// so components can explicitly map to assessment.type (quiz | exam | activity | manual).
+// Until then, callers derive `type` from component.name.toLowerCase().
+export interface SchemeCategory {
+  name: string;    // e.g. "Quiz", "Exam", "Activity"
+  type: string;    // maps to assessment.type: quiz | exam | activity | manual
+  weight: number;  // e.g. 0.3 = 30%
 }
 
-// ── GradingScale range shape ──────────────────────────────────────────────────
+// Keep RubricCategory as a deprecated alias so any remaining imports don't break
+export type RubricCategory = SchemeCategory;
+
 export interface GradeRange {
   minPercent: number;
   maxPercent: number;
@@ -20,15 +22,10 @@ export interface GradeRange {
 
 @Injectable()
 export class GradeCoreService {
-  /**
-   * Compute weighted final score across all rubric categories.
-   * Handles both assessment-backed and manual-only categories.
-   * Returns 0 if no categories contribute (graceful degradation).
-   */
   computeWeightedScore(
     submissions: any[],
     manualScores: any[],
-    categories: RubricCategory[],
+    categories: SchemeCategory[],
   ): number {
     let totalWeightedScore = 0;
     let totalWeight = 0;
@@ -37,7 +34,6 @@ export class GradeCoreService {
       const weight = category.weight;
 
       if (category.type === 'manual') {
-        // Manual-only category (e.g. attendance, behavior)
         const manual = manualScores.find(
           (m) => m.category.toLowerCase() === category.name.toLowerCase(),
         );
@@ -46,11 +42,9 @@ export class GradeCoreService {
           totalWeight += weight;
         }
       } else {
-        // Assessment-backed category: type match (quiz→quiz, exam→exam, etc.)
         const categorySubs = submissions.filter(
           (s) => s.assessment.type === category.type,
         );
-
         if (categorySubs.length === 0) continue;
 
         const percentages = categorySubs.map((s) => {
@@ -58,10 +52,8 @@ export class GradeCoreService {
           const totalItems = s.assessment.total_items;
           return totalItems > 0 ? (rawScore / totalItems) * 100 : 0;
         });
-
         const average =
           percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
-
         totalWeightedScore += average * weight;
         totalWeight += weight;
       }
@@ -71,14 +63,10 @@ export class GradeCoreService {
     return Math.round((totalWeightedScore / totalWeight) * 100) / 100;
   }
 
-  /**
-   * Build per-category breakdown for display purposes.
-   * Returns weight, rawAverage, manualScore, and weightedScore per category.
-   */
   buildCategoryBreakdown(
     submissions: any[],
     manualScores: any[],
-    categories: RubricCategory[],
+    categories: SchemeCategory[],
   ) {
     return categories.map((category) => {
       let rawAverage = 0;
@@ -94,7 +82,6 @@ export class GradeCoreService {
         const categorySubs = submissions.filter(
           (s) => s.assessment.type === category.type,
         );
-
         if (categorySubs.length > 0) {
           const percentages = categorySubs.map((s) => {
             const rawScore = s.manual_score ?? s.score ?? 0;
@@ -117,9 +104,6 @@ export class GradeCoreService {
     });
   }
 
-  /**
-   * Resolve final letter grade from a numeric score using grading scale ranges.
-   */
   resolveGrade(score: number, ranges: GradeRange[]): string {
     const match = ranges.find(
       (r) => score >= r.minPercent && score <= r.maxPercent,

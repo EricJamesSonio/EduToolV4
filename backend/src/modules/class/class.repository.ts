@@ -181,8 +181,8 @@ export class ClassRepository {
     })
   }
 
-  async lockRubricForClass(classId: string, orgId: string) {
-    return this.db.rubric.updateMany({
+  async lockGradingSchemeForClass(classId: string, orgId: string) {
+    return this.db.gradingScheme.updateMany({
       where: { class_id: classId, org_id: orgId, is_locked: false },
       data: { is_locked: true, locked_at: new Date() },
     })
