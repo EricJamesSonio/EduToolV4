@@ -64,7 +64,7 @@ model Account {
   id         String        @id @default(uuid())
   org_id     String?
   role       Role
-  email      String
+  email      String        @unique 
   password   String
   status     AccountStatus
   created_at DateTime      @default(now())
