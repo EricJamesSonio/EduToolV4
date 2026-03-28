@@ -306,10 +306,13 @@ model GradingSchemeComponent {
   id                String   @id @default(uuid())
   org_id            String
   grading_scheme_id String
+
   name              String
+  type              String   //
   weight            Float
   max_score         Float?
   is_optional       Boolean  @default(false)
+
   created_at        DateTime @default(now())
 
   gradingScheme GradingScheme @relation(fields: [grading_scheme_id], references: [id])
