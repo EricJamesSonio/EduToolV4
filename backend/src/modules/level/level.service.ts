@@ -1,7 +1,7 @@
 // @/modules/level/level.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LevelRepository } from './level.repository';
-import { UpdateLevelDefaultsDto, UpdateLevelDto } from './dto/level.dto';
+import { UpdateLevelDefaultsDto, UpdateLevelDto, CreateLevelDto } from './dto/level.dto';
 
 @Injectable()
 export class LevelService {
@@ -54,5 +54,15 @@ export class LevelService {
     }
 
     return this.levelRepository.update(id, orgId, { name: dto.name });
+  }
+
+  async createOne(orgId: string, dto: CreateLevelDto) {
+    return this.levelRepository.create(orgId, dto);
+  }
+
+  async deleteOne(id: string, orgId: string) {
+    const existing = await this.levelRepository.findById(id, orgId);
+    if (!existing) throw new NotFoundException('Level not found.');
+    return this.levelRepository.delete(id, orgId);
   }
 }

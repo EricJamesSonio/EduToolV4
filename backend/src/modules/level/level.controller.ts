@@ -1,8 +1,9 @@
-// @/modules/level/level.controller.ts
 import {
   Controller,
   Get,
+  Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -13,11 +14,13 @@ import {
   UpdateLevelDefaultsDto,
   UpdateLevelDto,
   QueryLevelDto,
+  CreateLevelDto,
 } from './dto/level.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+// ← remove the duplicate `import { Post, Delete } from '@nestjs/common'` line
 
 @Controller('levels')
 @UseGuards(AuthGuard, RolesGuard)
@@ -46,6 +49,24 @@ export class LevelController {
     @Body() dto: UpdateLevelDefaultsDto,
   ) {
     return this.levelService.updateDefaults(orgId, dto);
+  }
+
+  @Post()
+  @Roles('admin')
+  async createOne(
+    @CurrentUser('orgId') orgId: string,
+    @Body() dto: CreateLevelDto,
+  ) {
+    return this.levelService.createOne(orgId, dto);
+  }
+
+  @Delete(':id')
+  @Roles('admin')
+  async deleteOne(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+  ) {
+    return this.levelService.deleteOne(id, orgId);
   }
 
   /**

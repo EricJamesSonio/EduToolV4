@@ -39,6 +39,19 @@ export class UpdateLevelDefaultsDto {
   levels: LevelItemDto[];
 }
 
+export class CreateLevelDto {
+  @IsUUID()
+  programId: string;
+
+  @IsUUID()
+  schoolYearId: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name: string;
+}
+
 // ── PATCH /levels/:id ─────────────────────────────────────────────────────────
 
 export class UpdateLevelDto {

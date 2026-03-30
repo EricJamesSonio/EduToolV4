@@ -112,4 +112,20 @@ export class LevelRepository {
       data,
     });
   }
+async create(orgId: string, data: { programId: string; schoolYearId: string; name: string }) {
+  return this.db.level.create({
+    data: {
+      org_id: orgId,
+      program_id: data.programId,
+      school_year_id: data.schoolYearId,
+      name: data.name,
+    },
+  });
+}
+
+async delete(id: string, orgId: string) {
+  return this.db.level.delete({
+    where: { id, org_id: orgId },
+  });
+}
 }
