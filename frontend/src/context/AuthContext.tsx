@@ -31,27 +31,31 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const { user, accessToken, setUser, setTokens, setLoading, clearAuth } =
     useAuthStore();
 
-  useEffect(() => {
-    const bootstrap = async (): Promise<void> => {
-      if (!accessToken) {
-        setLoading(false);
-        return;
-      }
+useEffect(() => {
+  const bootstrap = async (): Promise<void> => {
+    // Wait for persist rehydration to complete before reading accessToken
+    await useAuthStore.persist.rehydrate();
 
-      try {
-        // accessToken already in localStorage, interceptor picks it up fine here
-        const me = await authApi.getMe();
-        setUser(me);
-      } catch {
-        clearAuth();
-        clearTokens();
-      } finally {
-        setLoading(false);
-      }
-    };
+    const token = useAuthStore.getState().accessToken;
 
-    bootstrap();
-  }, []);
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const me = await authApi.getMe();
+      setUser(me);
+    } catch {
+      clearAuth();
+      clearTokens();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  bootstrap();
+}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = useCallback(
     async (email: string, password: string): Promise<void> => {
