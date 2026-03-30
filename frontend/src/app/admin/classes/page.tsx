@@ -22,6 +22,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Subject } from "@/types/admin/subject.types";
+import { SchoolYear } from "@/types/admin/school-year.types";
+import { Semester } from "@/types/admin/semester.types";
+
 import {
   Dialog,
   DialogContent,
@@ -108,32 +112,32 @@ function CreateClassDialog({
     queryKey: ["admin", "subjects"],
     queryFn: () => subjectApi.getAll(),
   });
-  const subjects = toArray(subjectsRaw);
+  const subjects = toArray<Subject>(subjectsRaw);
 
   const { data: educatorsRaw } = useQuery({
     queryKey: ["admin", "educators", "all"],
     queryFn: () => educatorApi.getAll(),
   });
-  const educators = toArray(educatorsRaw);
+  const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
   const { data: sectionsRaw } = useQuery({
     queryKey: ["admin", "sections"],
     queryFn: () => sectionApi.getAll(),
   });
-  const sections = toArray(sectionsRaw);
+  const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 
   const { data: schoolYearsRaw } = useQuery({
     queryKey: ["admin", "school-years"],
     queryFn: () => schoolYearApi.getAll(),
   });
-  const schoolYears = toArray(schoolYearsRaw);
+const schoolYears = toArray<{ id: string; name: string }>(schoolYearsRaw);
 
   const { data: semestersRaw } = useQuery({
     queryKey: ["admin", "semesters", selectedSchoolYearId],
-    queryFn: () => semesterApi.getAll(selectedSchoolYearId),
+    queryFn: () => semesterApi.getAll(),
     enabled: !!selectedSchoolYearId,
   });
-  const semesters = toArray(semestersRaw);
+  const semesters = toArray<{ id: string; name: string }>(semestersRaw);  
 
   const mutation = useMutation({
     mutationFn: (values: CreateClassForm) => {
@@ -337,7 +341,7 @@ function CreateClassDialog({
                 <Select
                   value={watch(`schedules.${index}.weekday`)}
                   onValueChange={(v) =>
-                    setValue(`schedules.${index}.weekday`, v)
+                    setValue(`schedules.${index}.weekday`, v ?? "")
                   }
                 >
                   <SelectTrigger className="w-24 h-8 text-xs">
@@ -411,7 +415,7 @@ export default function ClassesPage(): React.JSX.Element {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
 
-  const defaultSubjectId = searchParams.get("subjectId") ?? undefined;
+  const defaultSubjectId: string | undefined = searchParams.get("subjectId") ?? undefined;
 
   const [filterSchoolYearId, setFilterSchoolYearId] = useState<string>("all");
   const [filterSemesterId, setFilterSemesterId] = useState<string>("all");
@@ -426,21 +430,25 @@ export default function ClassesPage(): React.JSX.Element {
     queryFn: () => schoolYearApi.getAll(),
   });
   // ✅ toArray guards every list against a stale non-array cache entry
-  const schoolYears = toArray(schoolYearsRaw);
+  const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
 
   const { data: educatorsRaw } = useQuery({
     queryKey: ["admin", "educators", "all"],
     queryFn: () => educatorApi.getAll(),
   });
-  const educators = toArray(educatorsRaw);
+  const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
+
 
   const { data: semestersRaw } = useQuery({
     queryKey: ["admin", "semesters", filterSchoolYearId],
     queryFn: () => semesterApi.getAll(),
     enabled: filterSchoolYearId !== "all",
   });
-  const semesters = toArray(semestersRaw);
+  const semesters = toArray<Semester>(semestersRaw);
 
+    function toArray<T>(data: unknown): T[] {
+  return Array.isArray(data) ? (data as T[]) : []
+}
   const query = useMemo(
     () => ({
       schoolYearId:

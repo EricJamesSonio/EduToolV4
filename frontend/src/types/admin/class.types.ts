@@ -24,18 +24,20 @@ export interface Class {
   id: string;
   orgId: string;
   subjectId: string;
-  subjectName?: string;     // joined field from backend response
+  subjectName?: string;
   sectionId: string | null;
-  sectionName?: string;     // joined field
+  sectionName?: string;
   semesterId: string;
-  semesterName?: string;    // joined field
+  semesterName?: string;
   schoolYearId: string;
-  schoolYearTitle?: string; // joined field
+  schoolYearTitle?: string;
   educatorId: string;
-  educatorName?: string;    // joined field
+  educatorName?: string;
   capacity: number;
   enrolledCount: number;
   status: ClassStatus;
+  isArchived?: boolean;      // ← add this
+  title?: string;            // ← add this (derived/joined from backend)
   schedules: ClassSchedule[];
   createdAt: string;
   updatedAt?: string;
