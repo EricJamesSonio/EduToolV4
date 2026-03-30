@@ -33,4 +33,9 @@ export const levelApi = {
   deleteOne: async (id: string): Promise<void> => {
     await client.delete(`/levels/${id}`);
   },
+
+  getAll: async (): Promise<Level[]> => {
+    const res = await client.get<{ success: boolean; data: Level[] }>("/levels");
+    return res.data.data;
+  },
 };
