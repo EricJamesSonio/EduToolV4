@@ -1,25 +1,20 @@
 import client from "@/api/client";
-import type { LevelDefault, SchoolYearLevel } from "@/types/admin/level.types";
-
-export interface UpdateDefaultLevelsRequest {
-  levels: Array<{ id?: string; programId: string; name: string }>;
-}
+import type { Level } from "@/types/admin/level.types";
 
 export const levelApi = {
-  getDefaults: async (): Promise<LevelDefault[]> => {
-    const res = await client.get<LevelDefault[]>("/levels/defaults");
-    return res.data;
+  getBySchoolYear: async (schoolYearId: string): Promise<Level[]> => {
+    const res = await client.get<{ success: boolean; data: Level[] }>(
+      "/levels",
+      { params: { schoolYearId } }
+    );
+    return res.data.data;
   },
-  updateDefaults: async (data: UpdateDefaultLevelsRequest): Promise<LevelDefault[]> => {
-    const res = await client.patch<LevelDefault[]>("/levels/defaults", data);
-    return res.data;
-  },
-  getByYear: async (schoolYearId: string): Promise<SchoolYearLevel[]> => {
-    const res = await client.get<SchoolYearLevel[]>("/levels", { params: { schoolYearId } });
-    return res.data;
-  },
-  update: async (id: string, name: string): Promise<SchoolYearLevel> => {
-    const res = await client.patch<SchoolYearLevel>(`/levels/${id}`, { name });
-    return res.data;
+
+  updateOne: async (id: string, name: string): Promise<Level> => {
+    const res = await client.patch<{ success: boolean; data: Level }>(
+      `/levels/${id}`,
+      { name }
+    );
+    return res.data.data;
   },
 };

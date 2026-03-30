@@ -6,16 +6,13 @@ export type CalendarEventType =
 
 export interface CalendarEvent {
   id: string;
-  schoolYearId: string;
-  date: string;
-  type: CalendarEventType;
+  org_id: string;
+  school_year_id: string;
   title: string;
-  notes: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AcademicCalendar {
-  schoolYearId: string;
-  events: CalendarEvent[];
+  type: CalendarEventType;
+  start_date: string;
+  end_date: string;
+  description: string | null;
+  created_at: string;
+  warning?: string | null;
 }

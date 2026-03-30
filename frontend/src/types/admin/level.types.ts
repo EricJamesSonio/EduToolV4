@@ -1,27 +1,7 @@
-export type LevelSection =
-  | "elementary"
-  | "junior_high"
-  | "senior_high"
-  | "college"
-  | "custom";
-
-export interface GradeLevel {
+export interface Level {
   id: string;
-  name: string;       // e.g. "Grade 7", "Year 1"
-  order: number;
-}
-
-export interface LevelDefault {
-  id: string;
-  orgId: string;
-  levelSection: LevelSection;
-  gradeLevels: GradeLevel[];
-  updatedAt: string;
-}
-
-export interface SchoolYearLevel {
-  id: string;
-  schoolYearId: string;
-  levelSection: LevelSection;
-  gradeLevels: GradeLevel[];
+  org_id: string;
+  program_id: string;
+  name: string;
+  school_year_id?: string | null;
 }
