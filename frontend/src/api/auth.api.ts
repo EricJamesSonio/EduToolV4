@@ -1,3 +1,4 @@
+// frontend/src/api/auth.api.ts
 import client from "./client";
 import type { AuthUser } from "@/types/auth.types";
 
@@ -18,23 +19,27 @@ export interface RefreshResponse {
 
 export const authApi = {
   login: async (data: LoginRequest): Promise<LoginResponse> => {
-    const res = await client.post<LoginResponse>("/auth/login", data);
-    return res.data;
+    const res = await client.post<{ success: boolean; data: LoginResponse }>("/auth/login", data);
+    return res.data.data; // unwrap the ResponseInterceptor wrapper
+  },
+
+  getMe: async (accessToken?: string): Promise<AuthUser> => {
+    const res = await client.get<{ success: boolean; data: AuthUser }>("/auth/me", {
+      headers: accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : undefined,
+    });
+    return res.data.data; // unwrap
+  },
+
+  refresh: async (refreshToken: string): Promise<RefreshResponse> => {
+    const res = await client.post<{ success: boolean; data: RefreshResponse }>("/auth/refresh", {
+      refreshToken,
+    });
+    return res.data.data; // unwrap
   },
 
   logout: async (): Promise<void> => {
     await client.post("/auth/logout");
-  },
-
-  refresh: async (refreshToken: string): Promise<RefreshResponse> => {
-    const res = await client.post<RefreshResponse>("/auth/refresh", {
-      refreshToken,
-    });
-    return res.data;
-  },
-
-  getMe: async (): Promise<AuthUser> => {
-    const res = await client.get<AuthUser>("/auth/me");
-    return res.data;
   },
 };

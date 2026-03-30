@@ -13,7 +13,6 @@ import { relativeTime } from "@/utils/date.util";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "./EmptyState";
 
-// Maps notification type → icon
 const TYPE_ICON: Record<string, React.ElementType> = {
   info: Info,
   warning: AlertCircle,
@@ -21,28 +20,26 @@ const TYPE_ICON: Record<string, React.ElementType> = {
   lesson: BookOpen,
 };
 
-export function NotificationDropdown() {
+export function NotificationDropdown(): React.JSX.Element {
   const { notifications, unreadCount } = useNotificationStore();
 
   return (
     <Popover>
-      <PopoverTrigger>
-        <Button variant="ghost" size="icon" className="relative h-9 w-9">
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground leading-none">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
-          )}
-          <span className="sr-only">Notifications</span>
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button variant="ghost" size="icon" className="relative h-9 w-9" />
+        }
+      >
+        <Bell className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground leading-none">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+        <span className="sr-only">Notifications</span>
       </PopoverTrigger>
 
-      <PopoverContent
-        align="end"
-        sideOffset={8}
-        className="w-80 p-0"
-      >
+      <PopoverContent align="end" sideOffset={8} className="w-80 p-0">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <h3 className="text-sm font-semibold">Notifications</h3>
@@ -62,7 +59,7 @@ export function NotificationDropdown() {
             className="py-8"
           />
         ) : (
-          <ScrollArea className="max-h-[360px]">
+          <ScrollArea className="max-h-90">
             <div className="divide-y">
               {notifications.map((n) => {
                 const Icon = TYPE_ICON[n.type ?? "info"] ?? Info;

@@ -1,3 +1,4 @@
+// frontend/src/context/AuthContext.tsx
 "use client";
 
 import React, {
@@ -38,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       }
 
       try {
+        // accessToken already in localStorage, interceptor picks it up fine here
         const me = await authApi.getMe();
         setUser(me);
       } catch {
@@ -55,10 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     async (email: string, password: string): Promise<void> => {
       const tokens: AuthTokens = await authApi.login({ email, password });
 
+      // Save to localStorage first
       saveTokens(tokens.accessToken, tokens.refreshToken);
       setTokens(tokens.accessToken, tokens.refreshToken);
 
-      const me = await authApi.getMe();
+      // Pass token explicitly to avoid race condition where
+      // interceptor hasn't picked up the newly saved localStorage token yet
+      const me = await authApi.getMe(tokens.accessToken);
       setUser(me);
 
       router.push(getRoleHomePath(me.role));
