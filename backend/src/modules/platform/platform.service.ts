@@ -154,16 +154,32 @@ async getAdmins(query: GetAdminsDto) {
   // ─── GET ADMIN ────────────────────────────────────────────────────────────
 
   async getAdmin(id: string) {
-    const admin = await this.db.account.findUnique({
+    const account = await this.db.account.findUnique({
       where: { id },
-      select: ADMIN_SAFE_SELECT,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        created_at: true,
+        profile: {
+          select: { full_name: true },
+        },
+      },
     });
 
-    if (!admin || admin.role !== 'admin') {
+    if (!account || account.role !== 'admin') {
       throw new NotFoundException('Admin not found');
     }
 
-    return admin;
+    return {
+      id: account.id,
+      email: account.email,
+      role: account.role,
+      status: account.status,
+      createdAt: account.created_at,
+      fullName: account.profile?.full_name ?? null,
+    };
   }
 
   // ─── BLOCK ────────────────────────────────────────────────────────────────
