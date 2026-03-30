@@ -18,16 +18,15 @@ import type { useClassFilters } from "@/hooks/admin/useClassFilters";
 
 type ClassFiltersState = ReturnType<typeof useClassFilters>;
 
-interface ClassesFilterBarProps
-  extends Pick<
-    ClassFiltersState,
-    | "filterSchoolYearId"
-    | "filterSemesterId"
-    | "filterEducatorId"
-    | "handleSchoolYearChange"
-    | "setFilterSemesterId"
-    | "setFilterEducatorId"
-  > {}
+type ClassesFilterBarProps = Pick<
+  ClassFiltersState,
+  | "filterSchoolYearId"
+  | "filterSemesterId"
+  | "filterEducatorId"
+  | "handleSchoolYearChange"
+  | "setFilterSemesterId"
+  | "setFilterEducatorId"
+>;
 
 export function ClassesFilterBar({
   filterSchoolYearId,
@@ -59,7 +58,7 @@ export function ClassesFilterBar({
   return (
     <div className="flex items-center gap-3 flex-wrap">
       {/* School Year */}
-      <Select value={filterSchoolYearId} onValueChange={handleSchoolYearChange}>
+      <Select value={filterSchoolYearId} onValueChange={(v) => handleSchoolYearChange(v ?? "all")}>
         <SelectTrigger className="w-52">
           <SelectValue placeholder="All School Years" />
         </SelectTrigger>
