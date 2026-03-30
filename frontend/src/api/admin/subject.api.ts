@@ -1,6 +1,7 @@
 import client from "@/api/client";
 import type { Subject } from "@/types/admin/subject.types";
 
+
 export interface CreateSubjectRequest {
   name: string;
   levelId: string;
@@ -19,11 +20,44 @@ export interface GetSubjectsQuery {
   search?: string;
 }
 
+interface SubjectResponse {
+  id: string;
+  orgId: string;
+  name: string;
+  levelId: string;
+  programName?: string;
+  courseId: string | null;
+  educatorId?: string | null;
+  educatorName?: string | null;
+  isLocked: boolean;
+  yearLevel?: string | null;
+  termLabel?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export const subjectApi = {
-  getAll: async (query?: GetSubjectsQuery): Promise<Subject[]> => {
-    const res = await client.get<Subject[]>("/subjects", { params: query });
-    return res.data;
-  },
+getAll: async (params?: GetSubjectsQuery): Promise<Subject[]> => {
+  const res = await client.get<SubjectResponse[]>("/subjects", { params });
+
+  return res.data.map((s: SubjectResponse) => ({
+    id: s.id,
+    orgId: s.orgId,
+    title: s.name,
+    gradeLevel: s.yearLevel ?? "",
+    programId: s.levelId,
+    programName: s.programName ?? "",
+    courseId: s.courseId,
+    courseName: null,
+    educatorId: s.educatorId ?? null,
+    educatorName: s.educatorName ?? null,
+    gradingSystemId: null,
+    gradingSystemName: null,
+    lockStatus: s.isLocked ? "locked" : "unlocked",
+    createdAt: s.createdAt ?? "",
+    updatedAt: s.updatedAt ?? "",
+  }));
+},
   getOne: async (id: string): Promise<Subject> => {
     const res = await client.get<Subject>(`/subjects/${id}`);
     return res.data;

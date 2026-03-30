@@ -1,4 +1,4 @@
-import { LevelSection } from "./level.types";
+import { Level } from "./level.types";
 
 export type StudentStatus =
   | "pending"
@@ -15,7 +15,7 @@ export interface Student {
   email: string;
   studentCode: string;
   status: StudentStatus;
-  levelSection: LevelSection;
+  levelSection: Level;
   gradeLevel: string;
   sectionId: string | null;
   sectionName: string | null;
@@ -38,7 +38,7 @@ export interface BulkImportRow {
   fullName: string;
   studentCode: string;
   email: string;
-  levelSection: LevelSection;
+  levelSection: Level;
   gradeLevel: string;
   section: string;
   strand: string | null;

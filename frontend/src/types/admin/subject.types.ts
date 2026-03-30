@@ -17,3 +17,19 @@ export interface Subject {
   createdAt: string;
   updatedAt: string;
 }
+
+interface SubjectResponse {
+  id: string;
+  orgId: string;
+  name: string;
+  levelId: string;
+  programName?: string;
+  courseId: string | null;
+  educatorId?: string | null;
+  educatorName?: string | null;
+  isLocked: boolean;
+  yearLevel?: string | null;
+  termLabel?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
