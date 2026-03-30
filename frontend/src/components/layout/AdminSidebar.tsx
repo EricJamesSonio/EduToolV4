@@ -1,21 +1,11 @@
 "use client";
 
 import { SidebarShell } from "./SidebarShell";
+import { LogoutButton } from "./LogoutButton";
 import {
-  LayoutDashboard,
-  Building2,
-  CalendarDays,
-  BookOpen,
-  Layers,
-  FlaskConical,
-  CalendarClock,
-  BarChart3,
-  ClipboardList,
-  GraduationCap,
-  Users,
-  UserSquare2,
-  Lock,
-  ScrollText,
+  LayoutDashboard, Building2, CalendarDays, BookOpen, Layers,
+  FlaskConical, CalendarClock, BarChart3, ClipboardList,
+  GraduationCap, Users, UserSquare2, Lock, ScrollText,
 } from "lucide-react";
 
 const GROUPS = [
@@ -39,7 +29,7 @@ const GROUPS = [
   },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar(): React.JSX.Element {
   return (
     <SidebarShell
       header={
@@ -48,6 +38,7 @@ export function AdminSidebar() {
         </p>
       }
       groups={GROUPS}
+      footer={<LogoutButton />}
     />
   );
 }
