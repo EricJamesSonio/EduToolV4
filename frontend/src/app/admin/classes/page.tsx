@@ -6,10 +6,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { classApi } from "@/api/admin/class.api";
-import type {
-  CreateClassRequest,
-  ScheduleSlot,
-} from "@/api/admin/class.api";
+import type { CreateClassRequest, ScheduleSlot } from "@/api/admin/class.api";
 import { subjectApi } from "@/api/admin/subject.api";
 import { educatorApi } from "@/api/admin/educator.api";
 import { sectionApi } from "@/api/admin/section.api";
@@ -59,6 +56,11 @@ interface CreateClassForm {
   schedules: ScheduleSlotForm[];
 }
 
+// Helper: guarantee we always have an array regardless of what the API/cache returns
+function toArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 function CreateClassDialog({
   open,
   onClose,
@@ -101,31 +103,37 @@ function CreateClassDialog({
   const selectedSchoolYearId = watch("schoolYearId");
   const selectedSemesterId = watch("semesterId");
 
-  const { data: subjects = [] } = useQuery({
+  // ✅ Use select: toArray to guard against non-array cache hits
+  const { data: subjectsRaw } = useQuery({
     queryKey: ["admin", "subjects"],
     queryFn: () => subjectApi.getAll(),
   });
+  const subjects = toArray(subjectsRaw);
 
-  const { data: educators = [] } = useQuery({
+  const { data: educatorsRaw } = useQuery({
     queryKey: ["admin", "educators", "all"],
     queryFn: () => educatorApi.getAll(),
   });
+  const educators = toArray(educatorsRaw);
 
-  const { data: sections = [] } = useQuery({
+  const { data: sectionsRaw } = useQuery({
     queryKey: ["admin", "sections"],
     queryFn: () => sectionApi.getAll(),
   });
+  const sections = toArray(sectionsRaw);
 
-  const { data: schoolYears = [] } = useQuery({
+  const { data: schoolYearsRaw } = useQuery({
     queryKey: ["admin", "school-years"],
     queryFn: () => schoolYearApi.getAll(),
   });
+  const schoolYears = toArray(schoolYearsRaw);
 
-  const { data: semesters = [] } = useQuery({
+  const { data: semestersRaw } = useQuery({
     queryKey: ["admin", "semesters", selectedSchoolYearId],
     queryFn: () => semesterApi.getAll(selectedSchoolYearId),
     enabled: !!selectedSchoolYearId,
   });
+  const semesters = toArray(semestersRaw);
 
   const mutation = useMutation({
     mutationFn: (values: CreateClassForm) => {
@@ -169,7 +177,6 @@ function CreateClassDialog({
         <DialogHeader>
           <DialogTitle>New Class</DialogTitle>
         </DialogHeader>
-
         <form
           onSubmit={handleSubmit((v) => mutation.mutate(v))}
           className="space-y-4 mt-1"
@@ -186,8 +193,9 @@ function CreateClassDialog({
               </SelectTrigger>
               <SelectContent>
                 {subjects.map((s) => (
+                  // ✅ Subject uses .title (not .name)
                   <SelectItem key={s.id} value={s.id}>
-                    {s.name}
+                    {s.title}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -275,13 +283,11 @@ function CreateClassDialog({
                 <SelectValue placeholder="Select semester" />
               </SelectTrigger>
               <SelectContent>
-                {semesters.map(
-                  (sem: { id: string; name: string }) => (
-                    <SelectItem key={sem.id} value={sem.id}>
-                      {sem.name}
-                    </SelectItem>
-                  )
-                )}
+                {semesters.map((sem: { id: string; name: string }) => (
+                  <SelectItem key={sem.id} value={sem.id}>
+                    {sem.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -312,7 +318,11 @@ function CreateClassDialog({
               <button
                 type="button"
                 onClick={() =>
-                  append({ weekday: "1", startTime: "08:00", endTime: "09:00" })
+                  append({
+                    weekday: "1",
+                    startTime: "08:00",
+                    endTime: "09:00",
+                  })
                 }
                 className="text-xs text-primary hover:underline"
               >
@@ -406,38 +416,46 @@ export default function ClassesPage(): React.JSX.Element {
   const [filterSchoolYearId, setFilterSchoolYearId] = useState<string>("all");
   const [filterSemesterId, setFilterSemesterId] = useState<string>("all");
   const [filterEducatorId, setFilterEducatorId] = useState<string>("all");
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(
+    defaultSubjectId !== undefined ? true : false
+  );
   const [archiveTarget, setArchiveTarget] = useState<Class | null>(null);
 
-  const { data: schoolYears = [] } = useQuery({
+  const { data: schoolYearsRaw } = useQuery({
     queryKey: ["admin", "school-years"],
     queryFn: () => schoolYearApi.getAll(),
   });
+  // ✅ toArray guards every list against a stale non-array cache entry
+  const schoolYears = toArray(schoolYearsRaw);
 
-  const { data: educators = [] } = useQuery({
+  const { data: educatorsRaw } = useQuery({
     queryKey: ["admin", "educators", "all"],
     queryFn: () => educatorApi.getAll(),
   });
+  const educators = toArray(educatorsRaw);
 
-  const { data: semesters = [] } = useQuery({
+  const { data: semestersRaw } = useQuery({
     queryKey: ["admin", "semesters", filterSchoolYearId],
     queryFn: () => semesterApi.getAll(),
     enabled: filterSchoolYearId !== "all",
   });
+  const semesters = toArray(semestersRaw);
 
   const query = useMemo(
     () => ({
-      schoolYearId: filterSchoolYearId !== "all" ? filterSchoolYearId : undefined,
+      schoolYearId:
+        filterSchoolYearId !== "all" ? filterSchoolYearId : undefined,
       semesterId: filterSemesterId !== "all" ? filterSemesterId : undefined,
       educatorId: filterEducatorId !== "all" ? filterEducatorId : undefined,
     }),
     [filterSchoolYearId, filterSemesterId, filterEducatorId]
   );
 
-  const { data: classes = [], isLoading } = useQuery({
+  const { data: classesRaw, isLoading } = useQuery({
     queryKey: ["admin", "classes", query],
     queryFn: () => classApi.getAll(query),
   });
+  const classes = toArray(classesRaw);
 
   const archiveMutation = useMutation({
     mutationFn: (id: string) => classApi.archive(id),
@@ -635,16 +653,8 @@ export default function ClassesPage(): React.JSX.Element {
           icon={GraduationCap}
           title="No classes found"
           description="Create your first class to get started."
-          action={
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              New Class
-            </Button>
-          }
+          // ✅ EmptyState.action expects { label, onClick }, not a ReactElement
+          action={{ label: "New Class", onClick: () => setCreateOpen(true) }}
         />
       ) : (
         <DataTable columns={columns} data={classes} />

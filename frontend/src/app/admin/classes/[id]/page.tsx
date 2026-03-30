@@ -1,16 +1,12 @@
 "use client";
 
-import { use, useState, useMemo } from "react";
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { use, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import Link from "next/link";
 import { classApi } from "@/api/admin/class.api";
-import type { UpdateClassRequest, ScheduleSlot } from "@/api/admin/class.api";
+import type { UpdateClassRequest, ScheduleSlot, EnrollmentResponse } from "@/api/admin/class.api";
 import { studentApi } from "@/api/admin/student.api";
 import { educatorApi } from "@/api/admin/educator.api";
 import { sectionApi } from "@/api/admin/section.api";
@@ -49,6 +45,11 @@ import type { AxiosError } from "axios";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+// ✅ Guard every list against a stale non-array React Query cache entry
+function toArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 interface EditClassForm {
   educatorId: string;
   sectionId: string;
@@ -67,15 +68,17 @@ function EditClassDialog({
 }): React.JSX.Element {
   const queryClient = useQueryClient();
 
-  const { data: educators = [] } = useQuery({
+  const { data: educatorsRaw } = useQuery({
     queryKey: ["admin", "educators", "all"],
     queryFn: () => educatorApi.getAll(),
   });
+  const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
-  const { data: sections = [] } = useQuery({
+  const { data: sectionsRaw } = useQuery({
     queryKey: ["admin", "sections"],
     queryFn: () => sectionApi.getAll(),
   });
+  const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 
   const {
     register,
@@ -88,7 +91,7 @@ function EditClassDialog({
   } = useForm<EditClassForm>({
     defaultValues: {
       educatorId: cls.educatorId ?? "",
-      sectionId: cls.sectionId ?? "",
+      sectionId: cls.sectionId ?? "",  // sectionId is string | null; ?? "" coerces null → ""
       capacity: String(cls.capacity),
       schedules:
         cls.schedules?.map((s) => ({
@@ -241,7 +244,7 @@ function EditClassDialog({
                 <Select
                   value={watch(`schedules.${index}.weekday`)}
                   onValueChange={(v) =>
-                    setValue(`schedules.${index}.weekday`, v)
+                    setValue(`schedules.${index}.weekday`, v ?? "1")
                   }
                 >
                   <SelectTrigger className="w-24 h-8 text-xs">
@@ -313,11 +316,17 @@ function EnrollStudentDialog({
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
 
-  const { data: students = [], isLoading } = useQuery({
+  const { data: studentsRaw, isLoading } = useQuery({
     queryKey: ["admin", "students", "search", search],
     queryFn: () => studentApi.getAll({ search: search || undefined }),
     enabled: search.length >= 2,
   });
+  const students = toArray<{
+    id: string;
+    fullName: string;
+    studentId?: string;
+    status?: string;
+  }>(studentsRaw);
 
   const enrollMutation = useMutation({
     mutationFn: (studentId: string) => classApi.enroll(classId, studentId),
@@ -386,13 +395,7 @@ function EnrollStudentDialog({
               </div>
             ) : (
               <div className="divide-y">
-                {students.map(
-                  (student: {
-                    id: string;
-                    fullName: string;
-                    studentId?: string;
-                    status?: string;
-                  }) => (
+                {students.map((student) => (
                     <button
                       key={student.id}
                       onClick={() => enrollMutation.mutate(student.id)}
@@ -413,13 +416,15 @@ function EnrollStudentDialog({
                         )}
                       </div>
                       {student.status && student.status !== "active" && (
-                        <Badge variant="secondary" className="text-xs shrink-0">
+                        <Badge
+                          variant="secondary"
+                          className="text-xs shrink-0"
+                        >
                           {student.status}
                         </Badge>
                       )}
                     </button>
-                  )
-                )}
+                ))}
               </div>
             )}
           </div>
@@ -456,11 +461,12 @@ export default function ClassDetailPage({
     queryFn: () => classApi.getOne(id),
   });
 
-  const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery({
+  const { data: enrollmentsRaw, isLoading: enrollmentsLoading } = useQuery({
     queryKey: ["admin", "classes", id, "enrollments"],
     queryFn: () => classApi.getEnrollments(id),
     enabled: !!id,
   });
+  const enrollments = toArray<EnrollmentResponse>(enrollmentsRaw);
 
   const archiveMutation = useMutation({
     mutationFn: () => classApi.archive(id),
@@ -496,7 +502,8 @@ export default function ClassDetailPage({
 
   const enrolledCount = cls?.enrolledCount ?? enrollments.length;
   const capacity = cls?.capacity ?? 0;
-  const fillPercent = capacity > 0 ? Math.min((enrolledCount / capacity) * 100, 100) : 0;
+  const fillPercent =
+    capacity > 0 ? Math.min((enrolledCount / capacity) * 100, 100) : 0;
 
   const formatSchedule = (
     schedules: Class["schedules"] | undefined
@@ -526,7 +533,7 @@ export default function ClassDetailPage({
     );
   }
 
-  const isArchived = cls.isArchived;
+  const isArchived = cls.status === "archived";
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -678,65 +685,55 @@ export default function ClassDetailPage({
           </div>
         ) : (
           <div className="rounded-lg border bg-card overflow-hidden divide-y">
-            {enrollments.map(
-              (enrollment: {
-                id: string;
-                student_id: string;
-                studentName?: string;
-                studentIdNumber?: string;
-                status: string;
-              }) => (
-                <div
-                  key={enrollment.id}
-                  className="flex items-center justify-between gap-3 px-4 py-2.5 group hover:bg-muted/20 transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {enrollment.studentName ?? enrollment.student_id}
-                      </p>
-                      {enrollment.studentIdNumber && (
-                        <p className="text-xs text-muted-foreground">
-                          ID: {enrollment.studentIdNumber}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge
-                      variant={
-                        enrollment.status === "active" ? "default" : "secondary"
-                      }
-                      className="text-xs font-normal capitalize"
-                    >
-                      {enrollment.status}
-                    </Badge>
-                    {!isArchived && (
-                      <button
-                        onClick={() =>
-                          setRemoveTarget({
-                            enrollmentId: enrollment.id,
-                            studentName:
-                              enrollment.studentName ?? enrollment.student_id,
-                          })
-                        }
-                        className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                        title="Remove student"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+            {enrollments.map((enrollment: EnrollmentResponse) => (
+              <div
+                key={enrollment.id}
+                className="flex items-center justify-between gap-3 px-4 py-2.5 group hover:bg-muted/20 transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {enrollment.student_id}
+                    </p>
                   </div>
                 </div>
-              )
-            )}
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge
+                    variant={
+                      enrollment.status === "active" ? "default" : "secondary"
+                    }
+                    className="text-xs font-normal capitalize"
+                  >
+                    {enrollment.status}
+                  </Badge>
+                  {!isArchived && (
+                    <button
+                      onClick={() =>
+                        setRemoveTarget({
+                          enrollmentId: enrollment.id,
+                          studentName: enrollment.student_id,
+                        })
+                      }
+                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                      title="Remove student"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
       {/* Edit dialog */}
       {editOpen && (
-        <EditClassDialog cls={cls} open={editOpen} onClose={() => setEditOpen(false)} />
+        <EditClassDialog
+          cls={cls}
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+        />
       )}
 
       {/* Enroll dialog */}
