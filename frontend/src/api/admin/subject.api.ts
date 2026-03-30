@@ -1,6 +1,6 @@
 import client from "@/api/client";
 import type { Subject } from "@/types/admin/subject.types";
-
+import type { AxiosResponse } from "axios";
 
 export interface CreateSubjectRequest {
   name: string;
@@ -20,62 +20,77 @@ export interface GetSubjectsQuery {
   search?: string;
 }
 
+// Backend Subject DTO
 interface SubjectResponse {
   id: string;
   orgId: string;
-  name: string;
-  levelId: string;
+  title: string;
+  programId: string;
   programName?: string;
   courseId: string | null;
   educatorId?: string | null;
   educatorName?: string | null;
-  isLocked: boolean;
+  lockStatus: "locked" | "unlocked";
   yearLevel?: string | null;
   termLabel?: string | null;
+  strandId?: string | null;
+  prerequisites?: unknown[];
+  prereqFor?: unknown[];
   createdAt?: string;
   updatedAt?: string;
 }
 
-export const subjectApi = {
-getAll: async (params?: GetSubjectsQuery): Promise<Subject[]> => {
-  const res = await client.get<SubjectResponse[]>("/subjects", { params });
+// Wrapper for getAll response
+interface GetSubjectsResponse {
+  success: boolean;
+  data: SubjectResponse[];
+}
 
-  return res.data.map((s: SubjectResponse) => ({
-    id: s.id,
-    orgId: s.orgId,
-    title: s.name,
-    gradeLevel: s.yearLevel ?? "",
-    programId: s.levelId,
-    programName: s.programName ?? "",
-    courseId: s.courseId,
-    courseName: null,
-    educatorId: s.educatorId ?? null,
-    educatorName: s.educatorName ?? null,
-    gradingSystemId: null,
-    gradingSystemName: null,
-    lockStatus: s.isLocked ? "locked" : "unlocked",
-    createdAt: s.createdAt ?? "",
-    updatedAt: s.updatedAt ?? "",
-  }));
-},
+export const subjectApi = {
+  getAll: async (params?: GetSubjectsQuery): Promise<Subject[]> => {
+    const res: AxiosResponse<GetSubjectsResponse> = await client.get("/subjects", { params });
+
+    return res.data.data.map((s) => ({
+      id: s.id,
+      orgId: s.orgId,
+      title: s.title,
+      gradeLevel: s.yearLevel ?? "",
+      programId: s.programId,
+      programName: s.programName ?? "",
+      courseId: s.courseId,
+      courseName: null,
+      educatorId: s.educatorId ?? null,
+      educatorName: s.educatorName ?? null,
+      gradingSystemId: null,
+      gradingSystemName: null,
+      lockStatus: s.lockStatus,
+      createdAt: s.createdAt ?? "",
+      updatedAt: s.updatedAt ?? "",
+    }));
+  },
+
   getOne: async (id: string): Promise<Subject> => {
-    const res = await client.get<Subject>(`/subjects/${id}`);
+    const res: AxiosResponse<Subject> = await client.get(`/subjects/${id}`);
     return res.data;
   },
+
   create: async (data: CreateSubjectRequest): Promise<Subject> => {
-    const res = await client.post<Subject>("/subjects", data);
+    const res: AxiosResponse<Subject> = await client.post("/subjects", data);
     return res.data;
   },
+
   update: async (id: string, data: UpdateSubjectRequest): Promise<Subject> => {
-    const res = await client.patch<Subject>(`/subjects/${id}`, data);
+    const res: AxiosResponse<Subject> = await client.patch(`/subjects/${id}`, data);
     return res.data;
   },
+
   lock: async (id: string): Promise<{ success: true }> => {
-    const res = await client.patch<{ success: true }>(`/subjects/${id}/lock`);
+    const res: AxiosResponse<{ success: true }> = await client.patch(`/subjects/${id}/lock`);
     return res.data;
   },
+
   unlock: async (id: string): Promise<{ success: true }> => {
-    const res = await client.patch<{ success: true }>(`/subjects/${id}/unlock`);
+    const res: AxiosResponse<{ success: true }> = await client.patch(`/subjects/${id}/unlock`);
     return res.data;
   },
 };

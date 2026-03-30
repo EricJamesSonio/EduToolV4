@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { ColumnDef } from "@tanstack/react-table";
 import { subjectApi } from "@/api/admin/subject.api";
 import type {
   CreateSubjectRequest,
@@ -240,7 +241,11 @@ export default function SubjectsPage(): React.JSX.Element {
     queryFn: () => educatorApi.getAll(),
     select: (data) => (Array.isArray(data) ? data : []),
   });
-const { data: subjects = [] } = useQuery<Subject[]>({
+const {
+  data: subjects = [],
+  isLoading: subjectsLoading,
+  error: subjectsError,
+} = useQuery<Subject[]>({
   queryKey: ["admin", "subjects", filterLevelId],
   queryFn: () =>
     subjectApi.getAll(
@@ -277,86 +282,86 @@ const { data: subjects = [] } = useQuery<Subject[]>({
   });
 
   const isLoading = levelsLoading || educatorsLoading;
-
-const columns = [
+const columns: ColumnDef<Subject>[] = [
   {
     header: "Title",
-    accessor: (row: Subject) => (
-      <span className="font-medium">{row.title}</span>
-    ),
+    accessorKey: "title",
+    cell: (info) => <span className="font-medium">{info.getValue<string>()}</span>,
   },
   {
     header: "Level",
-    accessor: (row: Subject) => (
+    accessorKey: "programName",
+    cell: (info) => (
       <Badge variant="secondary">
-        {row.gradeLevel ?? row.programName ?? "—"}
+        {info.row.original.gradeLevel ?? info.getValue<string>() ?? "—"}
       </Badge>
     ),
   },
   {
-    header: "Educator",  // ← keep only ONE educator column
-    accessor: (row: Subject) => (
+    header: "Educator",
+    accessorKey: "educatorName",
+    cell: (info) => (
       <span className="text-sm text-muted-foreground">
-        {row.educatorName ?? "Unassigned"}
+        {info.getValue<string>() ?? "Unassigned"}
       </span>
     ),
   },
   {
     header: "Lock Status",
-    accessor: (row: Subject) => (
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full",
-          row.lockStatus === "locked"
-            ? "bg-muted text-muted-foreground"
-            : "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400"
-        )}
-      >
-        {row.lockStatus === "locked" ? (
-          <Lock className="h-3 w-3" />
-        ) : (
-          <LockOpen className="h-3 w-3" />
-        )}
-        {row.lockStatus === "locked" ? "Locked" : "Unlocked"}
-      </span>
-    ),
+    accessorKey: "lockStatus",
+    cell: (info) => {
+      const status = info.getValue<string>();
+      return (
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full",
+            status === "locked"
+              ? "bg-muted text-muted-foreground"
+              : "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400"
+          )}
+        >
+          {status === "locked" ? <Lock className="h-3 w-3" /> : <LockOpen className="h-3 w-3" />}
+          {status === "locked" ? "Locked" : "Unlocked"}
+        </span>
+      );
+    },
   },
   {
     header: "Actions",
-    accessor: (row: Subject) => (
-      <div className="flex items-center gap-1">
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2 text-xs"
-          onClick={() => router.push(`/admin/subjects/${row.id}`)}
-        >
-          <Eye className="mr-1 h-3.5 w-3.5" />
-          View
-        </Button>
-        {row.lockStatus === "locked" ? (
+    cell: (info) => {
+      const row = info.row.original;
+      return (
+        <div className="flex items-center gap-1">
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => setUnlockTarget(row)}
+            className="h-7 px-2 text-xs"
+            onClick={() => router.push(`/admin/subjects/${row.id}`)}
           >
-            <LockOpen className="mr-1 h-3.5 w-3.5" />
-            Unlock
+            <Eye className="mr-1 h-3.5 w-3.5" /> View
           </Button>
-        ) : (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => setLockTarget(row)}
-          >
-            <Lock className="mr-1 h-3.5 w-3.5" />
-            Lock
-          </Button>
-        )}
-      </div>
-    ),
+          {row.lockStatus === "locked" ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setUnlockTarget(row)}
+            >
+              <LockOpen className="mr-1 h-3.5 w-3.5" /> Unlock
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setLockTarget(row)}
+            >
+              <Lock className="mr-1 h-3.5 w-3.5" /> Lock
+            </Button>
+          )}
+        </div>
+      );
+    },
   },
 ];
 
@@ -412,7 +417,7 @@ const columns = [
           action={{ label: "New Subject", onClick: () => setCreateOpen(true) }}
         />
       ) : (
-        <DataTable columns={columns} data={subjects} />
+<DataTable columns={columns} data={subjects} />
       )}
 
       {/* Create dialog */}
