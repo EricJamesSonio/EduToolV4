@@ -17,14 +17,14 @@ const SALT_ROUNDS = 10
 
 const PLATFORM_OWNER = {
   email:    'platform@edutool.dev',
-  password: 'Platform@123',
+  password: 'platform123',
   fullName: 'Platform Owner',
 }
 
 const ADMINS = [
-  { email: 'admin1@edutool.dev', password: 'Admin@1234', fullName: 'Admin One' },
-  { email: 'admin2@edutool.dev', password: 'Admin@1234', fullName: 'Admin Two' },
-  { email: 'admin3@edutool.dev', password: 'Admin@1234', fullName: 'Admin Three' },
+  { email: 'admin1@edutool.dev', password: 'admin123', fullName: 'Admin One' },
+  { email: 'admin2@edutool.dev', password: 'admin123', fullName: 'Admin Two' },
+  { email: 'admin3@edutool.dev', password: 'admin123', fullName: 'Admin Three' },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

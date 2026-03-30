@@ -16,26 +16,45 @@ const apiClient = axios.create({
 
 function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("accessToken");
+  try {
+    const raw = localStorage.getItem("edutool-auth");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.state?.accessToken ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function getRefreshToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("refreshToken");
+  try {
+    const raw = localStorage.getItem("edutool-auth");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.state?.refreshToken ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function saveTokens(accessToken: string, refreshToken: string): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem("accessToken", accessToken);
-  localStorage.setItem("refreshToken", refreshToken);
+  try {
+    const raw = localStorage.getItem("edutool-auth");
+    const existing = raw ? JSON.parse(raw) : { state: {} };
+    existing.state.accessToken = accessToken;
+    existing.state.refreshToken = refreshToken;
+    localStorage.setItem("edutool-auth", JSON.stringify(existing));
+  } catch {
+    // ignore localStorage errors (e.g. private browsing quota)
+  }
 }
 
 function clearTokens(): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("edutool-auth");
 }
-
 export { getAccessToken, getRefreshToken, saveTokens, clearTokens };
 
 // ─── Request interceptor ──────────────────────────────────────────────────────

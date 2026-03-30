@@ -41,12 +41,15 @@ export class AuthRepository {
    * but you could add a dedicated column if preferred.
    */
   async saveRefreshToken(accountId: string, hashedToken: string) {
-    return this.db.profile.update({
+    return this.db.profile.upsert({
       where: { account_id: accountId },
-      data: {
-        metadata: {
-          refreshToken: hashedToken,
-        },
+      update: {
+        metadata: { refreshToken: hashedToken },
+      },
+      create: {
+        account_id: accountId,
+        full_name: '',
+        metadata: { refreshToken: hashedToken },
       },
     });
   }
