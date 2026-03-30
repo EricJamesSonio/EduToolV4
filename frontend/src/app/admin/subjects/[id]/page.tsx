@@ -224,9 +224,10 @@ export default function SubjectDetailPage({
     queryFn: () => levelApi.getAll(),
   });
 
-  const { data: educators = [] } = useQuery({
+  const { data: educators = [], isLoading: educatorsLoading } = useQuery({
     queryKey: ["admin", "educators", "all"],
     queryFn: () => educatorApi.getAll(),
+    select: (data) => (Array.isArray(data) ? data : []),
   });
 
   const lockMutation = useMutation({

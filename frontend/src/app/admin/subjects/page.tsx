@@ -238,6 +238,7 @@ export default function SubjectsPage(): React.JSX.Element {
   const { data: educators = [], isLoading: educatorsLoading } = useQuery({
     queryKey: ["admin", "educators", "all"],
     queryFn: () => educatorApi.getAll(),
+    select: (data) => (Array.isArray(data) ? data : []),
   });
 
   const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
