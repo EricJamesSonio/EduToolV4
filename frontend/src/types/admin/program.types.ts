@@ -1,19 +1,26 @@
-export type ProgramType = "built_in" | "custom";
+export type ProgramType =
+  | "elementary"
+  | "high_school"
+  | "senior_high"
+  | "college"
+  | "custom";
 
-export interface Course {
+export interface CourseSnapshot {
   id: string;
   name: string;
-  description: string | null;
-  maxYearLevel: number;
+  code: string | null;
+}
+
+export interface StrandSnapshot {
+  id: string;
+  name: string;
 }
 
 export interface Program {
   id: string;
   orgId: string;
   name: string;
-  description: string | null;
   type: ProgramType;
-  courses: Course[];
-  createdAt: string;
-  updatedAt: string;
+  courses: CourseSnapshot[];
+  strands: StrandSnapshot[];
 }
