@@ -74,15 +74,11 @@ export class LevelController {
    * Returns levels scoped to a school year within the org.
    */
   @Get()
-  async getBySchoolYear(
-    @CurrentUser('orgId') orgId: string,
-    @Query() query: QueryLevelDto,
-  ) {
-    if (!query.schoolYearId) {
-  throw new Error('schoolYearId is required');
-}
-
-return this.levelService.getBySchoolYear(orgId, query.schoolYearId);
+  async getBySchoolYear(@CurrentUser('orgId') orgId: string, @Query() query: QueryLevelDto) {
+    if (query.schoolYearId) {
+      return this.levelService.getBySchoolYear(orgId, query.schoolYearId);
+    }
+    return this.levelService.getAll(orgId); // ← add this method
   }
 
   /**

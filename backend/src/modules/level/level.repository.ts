@@ -128,4 +128,10 @@ async delete(id: string, orgId: string) {
     where: { id, org_id: orgId },
   });
 }
+async findAll(orgId: string) {
+  return this.db.level.findMany({
+    where: { org_id: orgId },
+    orderBy: [{ program_id: 'asc' }, { name: 'asc' }],
+  });
+}
 }

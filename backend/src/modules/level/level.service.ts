@@ -9,6 +9,10 @@ export class LevelService {
 
   // ── GET /levels/defaults ──────────────────────────────────────────────────
 
+async getAll(orgId: string) {
+  return this.levelRepository.findAll(orgId);
+}
+
   async getDefaults(orgId: string) {
     return this.levelRepository.findDefaultsByOrgId(orgId);
   }
