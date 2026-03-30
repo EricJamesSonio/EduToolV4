@@ -10,19 +10,19 @@ export class CourseRepository {
     return this.db.course.create({
       data: {
         org_id: orgId,
-        program_id: dto.program_id,
+        program_id: dto.programId,  // ← was dto.program_id
         name: dto.name,
         code: dto.code ?? null,
       },
     })
   }
 
-  async findAll(org_id: string, program_id?: string) {
-    return this.db.course.findMany({
-      where: {
-        org_id,
-        ...(program_id ? { program_id } : {}),
-      },
+async findAll(org_id: string, programId?: string) {  // ← renamed param
+  return this.db.course.findMany({
+    where: {
+      org_id,
+      ...(programId ? { program_id: programId } : {}),  // ← updated
+    },
       include: {
         subjects: {
           where: { is_locked: false },

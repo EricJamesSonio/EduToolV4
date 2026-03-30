@@ -11,7 +11,7 @@ export class CourseService {
   }
 
   async findAll(org_id: string, query: CourseQueryDto) {
-    return this.courseRepository.findAll(org_id, query.program_id)
+    return this.courseRepository.findAll(org_id, query.programId)
   }
 
   async findOne(id: string, org_id: string) {

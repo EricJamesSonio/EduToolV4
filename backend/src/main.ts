@@ -13,11 +13,16 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(new IoAdapter(app));                   // 👈 add
 
+// main.ts
 app.useGlobalPipes(new ValidationPipe({ 
   transform: true,
   whitelist: true,
   forbidNonWhitelisted: true,
+  transformOptions: {
+    enableImplicitConversion: true,
+  },
 }));
+
   app.useGlobalFilters(
     new HttpExceptionFilter(),
     new AllExceptionFilter(),

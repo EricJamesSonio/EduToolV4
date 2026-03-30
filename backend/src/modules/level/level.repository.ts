@@ -116,7 +116,7 @@ async create(orgId: string, data: { programId: string; schoolYearId: string; nam
   return this.db.level.create({
     data: {
       org_id: orgId,
-      program_id: data.programId,
+      program_id: data.programId,      // ← camelCase in, snake_case to DB
       school_year_id: data.schoolYearId,
       name: data.name,
     },
