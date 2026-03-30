@@ -56,9 +56,18 @@ export class AuthService {
 
   // ─── Refresh ──────────────────────────────────────────────────────────────
 
-  async refresh(accountId: string, incomingRefreshToken: string): Promise<AuthTokens> {
-    const storedHash = await this.authRepository.getRefreshToken(accountId);
+  async refresh(incomingRefreshToken: string): Promise<AuthTokens> {
+    // decode without verifying to extract the subject
+    let accountId: string;
+    try {
+      const payload = this.jwtService.decode(incomingRefreshToken) as { sub: string };
+      if (!payload?.sub) throw new Error();
+      accountId = payload.sub;
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
 
+    const storedHash = await this.authRepository.getRefreshToken(accountId);
     if (!storedHash) {
       throw new UnauthorizedException('No active session');
     }
@@ -73,8 +82,7 @@ export class AuthService {
       throw new UnauthorizedException('Account not found');
     }
 
-    const tokens = await this.generateTokens(account.id, account.org_id, account.role, account.email);
-    return tokens;
+    return this.generateTokens(account.id, account.org_id, account.role, account.email);
   }
 
   // ─── Logout ───────────────────────────────────────────────────────────────

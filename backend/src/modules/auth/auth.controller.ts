@@ -35,12 +35,8 @@ export class AuthController {
    */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard)
-  async refresh(
-    @CurrentUser('id') accountId: string,
-    @Body() dto: RefreshTokenDto,
-  ) {
-    return this.authService.refresh(accountId, dto.refreshToken);
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto.refreshToken);
   }
 
   /**
