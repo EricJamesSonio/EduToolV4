@@ -5,7 +5,7 @@ import {
   Get,
   Patch,
   Body,
-  UseGuards,
+  UseGuards, NotFoundException
 } from '@nestjs/common';
 import { OrganizationService } from './organization.service';
 import { CreateOrganizationDto, UpdateOrganizationDto } from './dto/organization.dto';
@@ -38,8 +38,10 @@ export class OrganizationController {
    */
   @Get()
   @Roles('admin')
-  async getOwn(@CurrentUser('orgId') orgId: string) {
-    return this.orgService.getOwn(orgId);
+  async getOwn(@CurrentUser('orgId') orgId: string | null) {
+    const org = await this.orgService.getOwn(orgId);
+    if (!org) throw new NotFoundException('Organization not found.');
+    return org;
   }
 
   /**
