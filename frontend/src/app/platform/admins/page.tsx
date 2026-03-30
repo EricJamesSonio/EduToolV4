@@ -46,7 +46,7 @@ export default function PlatformAdminsPage() {
   });
 
   const admins = data?.data ?? [];
-  const total = data?.total ?? 0;
+  const total = data?.meta?.total ?? 0;
 
   // Mutations
   const resetMutation = useMutation({

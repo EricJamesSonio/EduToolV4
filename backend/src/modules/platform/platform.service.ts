@@ -65,53 +65,92 @@ export class PlatformService {
         role: 'admin',
         status: 'active',
         org_id: null,
+        profile: {
+          create: {
+            full_name: dto.fullName ?? dto.email,
+            metadata: Prisma.JsonNull, // ✅ correct null for Json field
+          },
+        },
       },
-      select: ADMIN_SAFE_SELECT,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        created_at: true,
+        profile: {          // ✅ explicitly select profile here, not via spread
+          select: { full_name: true },
+        },
+      },
     });
 
     await this.logAction('platform_owner', 'CREATE_ADMIN', 'account', admin.id);
 
     return {
       ...admin,
-      password: rawPassword, // ⚠ one-time only, not stored
+      fullName: admin.profile?.full_name ?? null,
+      password: rawPassword,
     };
   }
 
   // ─── GET ADMINS (paginated + searchable) ──────────────────────────────────
 
-  async getAdmins(query: GetAdminsDto) {
-    const { search, page = 1, limit = 20 } = query;
-    const skip = (page - 1) * limit;
+async getAdmins(query: GetAdminsDto) {
+  const { search, page = 1, limit = 20 } = query;
+  const skip = (page - 1) * limit;
 
-    const where: Prisma.AccountWhereInput = {
-      role: 'admin',
-      ...(search
-        ? { email: { contains: search, mode: 'insensitive' } }
-        : {}),
-    };
+  const where: Prisma.AccountWhereInput = {
+    role: 'admin',
+    ...(search
+      ? {
+          OR: [
+            { email: { contains: search, mode: 'insensitive' } },
+            { profile: { full_name: { contains: search, mode: 'insensitive' } } },
+          ],
+        }
+      : {}),
+  };
 
-    const [data, total] = await Promise.all([
-      this.db.account.findMany({
-        where,
-        select: ADMIN_SAFE_SELECT,
-        orderBy: { created_at: 'desc' },
-        skip,
-        take: limit,
-      }),
-      this.db.account.count({ where }),
-    ]);
-
-    return {
-      data,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+  const [accounts, total] = await Promise.all([
+    this.db.account.findMany({
+      where,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        created_at: true,
+        profile: {
+          select: { full_name: true },
+        },
       },
-    };
-  }
+      orderBy: { created_at: 'desc' },
+      skip,
+      take: limit,
+    }),
+    this.db.account.count({ where }),
+  ]);
 
+  // normalize to camelCase to match frontend types
+  const data = accounts.map((a) => ({
+    id: a.id,
+    email: a.email,
+    role: a.role,
+    status: a.status,
+    createdAt: a.created_at,
+    fullName: a.profile?.full_name ?? null,
+  }));
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
   // ─── GET ADMIN ────────────────────────────────────────────────────────────
 
   async getAdmin(id: string) {

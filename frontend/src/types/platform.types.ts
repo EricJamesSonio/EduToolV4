@@ -1,14 +1,12 @@
-export type AccountStatus = "active" | "blocked";
+export type AccountStatus = "active" | "suspended";
 
 export interface AdminAccount {
   id: string;
-  fullName: string;
   email: string;
+  role: string;
   status: AccountStatus;
   createdAt: string;
-  lastLogin: string | null;
-  /** Only present immediately after creation or password reset */
-  password?: string;
+  fullName: string | null;
 }
 
 export interface AdminCredentials {
