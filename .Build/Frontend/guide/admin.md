@@ -84,7 +84,7 @@ LAYOUT: Topbar + Sidebar + Content area
     List of SchoolYearCards (one per year)
       Each card:
         - Title (e.g. "School Year 2026-2027")
-        - Status badge: Pending / Active / Ended
+        - Status badge: Pending / Active / Ended  
         - Date range
         - Actions row:
             "View"  → /admin/school-years/[id]
