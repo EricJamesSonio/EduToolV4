@@ -160,7 +160,7 @@ const levelId = watch("levelId");
               <Label>School Year</Label>
               <Select
                 value={schoolYearId}
-                onValueChange={(v) => setValue("schoolYearId", v)}
+                onValueChange={(v) => setValue("schoolYearId", v ?? "")}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select school year" />
@@ -182,7 +182,7 @@ const levelId = watch("levelId");
               <Label>Level</Label>
               <Select
                 value={levelId}
-                onValueChange={(v) => setValue("levelId", v)}
+                onValueChange={(v) => setValue("levelId", v ?? "")}
                 disabled={!schoolYearId}
               >
                 <SelectTrigger>

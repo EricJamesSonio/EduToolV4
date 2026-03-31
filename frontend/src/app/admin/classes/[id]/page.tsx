@@ -243,9 +243,7 @@ function EditClassDialog({
               >
                 <Select
                   value={watch(`schedules.${index}.weekday`)}
-                  onValueChange={(v) =>
-                    setValue(`schedules.${index}.weekday`, v)
-                  }
+onValueChange={(v) => setValue(`schedules.${index}.weekday`, v ?? "")}
                 >
                   <SelectTrigger className="w-24 h-8 text-xs">
                     <SelectValue />

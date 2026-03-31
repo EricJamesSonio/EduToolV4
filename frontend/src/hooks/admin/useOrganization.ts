@@ -4,8 +4,8 @@ import type { Organization } from "@/types/admin/organization.types";
 import type { UpdateOrganizationRequest } from "@/api/admin/organization.api";
 
 // Hook for fetching organization data
-export const useOrganization = (): UseQueryResult<Organization, unknown> => {
-  return useQuery<Organization>({
+export const useOrganization = (): UseQueryResult<Organization | null, unknown> => {
+  return useQuery<Organization | null>({
     queryKey: ["organization"],
     queryFn: organizationApi.getOrg,
   });
