@@ -1,12 +1,11 @@
-// Unified Level type using camelCase to match backend response shape
+// frontend/src/types/admin/level.types.ts
 export interface Level {
   id: string;
-  orgId: string;
-  programId: string;
+  org_id: string;
+  program_id: string;       // ← snake_case, matches Prisma output
   name: string;
-  schoolYearId?: string | null;
+  school_year_id?: string | null;
 }
 
-// Alias types for semantic clarity
 export type LevelDefault = Level;
 export type SchoolYearLevel = Level;

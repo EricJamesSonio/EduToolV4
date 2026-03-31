@@ -1,3 +1,4 @@
+// frontend/src/api/admin/level.api.ts
 import client from "@/api/client";
 import type { Level, LevelDefault } from "@/types/admin/level.types";
 
@@ -6,19 +7,16 @@ export interface UpdateDefaultLevelsRequest {
 }
 
 export const levelApi = {
-  // ✅ Added missing getDefaults
   getDefaults: async (): Promise<LevelDefault[]> => {
     const res = await client.get<{ success: boolean; data: LevelDefault[] }>("/levels/defaults");
     return res.data.data;
   },
 
-  // ✅ Added missing updateDefaults
   updateDefaults: async (data: UpdateDefaultLevelsRequest): Promise<LevelDefault[]> => {
     const res = await client.patch<{ success: boolean; data: LevelDefault[] }>("/levels/defaults", data);
     return res.data.data;
   },
 
-  // ✅ Renamed getByYear → getBySchoolYear for consistency
   getBySchoolYear: async (schoolYearId: string): Promise<Level[]> => {
     const res = await client.get<{ success: boolean; data: Level[] }>("/levels", {
       params: { schoolYearId },
@@ -31,7 +29,6 @@ export const levelApi = {
     return res.data.data;
   },
 
-  // ✅ Renamed updateOne → update for hook compatibility (or keep updateOne, just align)
   updateOne: async (id: string, name: string): Promise<Level> => {
     const res = await client.patch<{ success: boolean; data: Level }>(`/levels/${id}`, { name });
     return res.data.data;

@@ -143,7 +143,7 @@ function ProgramGroup({
   isEnded: boolean;
   onUpdate: (id: string, name: string) => void;
   onDelete: (level: Level) => void;
-  onAdd: (programId: string, name: string) => void;
+  onAdd: (program_id: string, name: string) => void;
   isUpdating: boolean;
   isAdding: boolean;
   updatingId: string | null;

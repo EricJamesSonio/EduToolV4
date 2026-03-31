@@ -71,8 +71,9 @@ export function CreateGradingScaleDialog({
     defaultValues: { name: "", schoolYearId: "", levelId: "" },
   });
 
-  const schoolYearId = watch("schoolYearId");
-  const levelId = watch("levelId");
+const schoolYearId = watch("schoolYearId");
+const levelId = watch("levelId");
+
 
   // Reset on close
   useEffect(() => {
@@ -90,11 +91,11 @@ export function CreateGradingScaleDialog({
     enabled: open,
   });
 
-  const { data: levels = [] } = useQuery({
+    const { data: levels = [] } = useQuery({
     queryKey: ["admin", "levels", schoolYearId],
-    queryFn: () => levelApi.getBySchoolYear(schoolYearId),
+    queryFn: () => levelApi.getBySchoolYear(schoolYearId!),
     enabled: open && !!schoolYearId,
-  });
+    });
 
   // Reset levelId when school year changes
   useEffect(() => {
