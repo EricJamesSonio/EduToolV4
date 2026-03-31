@@ -1,18 +1,31 @@
-import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
-import { levelApi, UpdateDefaultLevelsRequest } from "@/api/admin/level.api";
-import type { LevelDefault, SchoolYearLevel } from "@/types/admin/level.types";
+// frontend/src/hooks/admin/useLevels.ts
 
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  UseQueryResult,
+  UseMutationResult,
+} from "@tanstack/react-query";
+import { levelApi, UpdateDefaultLevelsRequest } from "@/api/admin/level.api";
+import type { Level, LevelDefault } from "@/types/admin/level.types";
+
+// ── GET default levels ───────────────────────────────────────────────────────
 export const useDefaultLevels = (): UseQueryResult<LevelDefault[], Error> => {
-  return useQuery({
+  return useQuery<LevelDefault[], Error>({
     queryKey: ["levels", "defaults"],
     queryFn: levelApi.getDefaults,
   });
 };
 
-export const useUpdateDefaultLevels = (): UseMutationResult<LevelDefault[], Error, UpdateDefaultLevelsRequest> => {
+// ── UPDATE default levels ────────────────────────────────────────────────────
+export const useUpdateDefaultLevels = (): UseMutationResult<
+  LevelDefault[],
+  Error,
+  UpdateDefaultLevelsRequest
+> => {
   const queryClient = useQueryClient();
-
-  return useMutation({
+  return useMutation<LevelDefault[], Error, UpdateDefaultLevelsRequest>({
     mutationFn: levelApi.updateDefaults,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["levels"] });
@@ -20,20 +33,24 @@ export const useUpdateDefaultLevels = (): UseMutationResult<LevelDefault[], Erro
   });
 };
 
-export const useLevelsByYear = (schoolYearId: string): UseQueryResult<SchoolYearLevel[], Error> => {
-  return useQuery({
+// ── GET levels by school year ────────────────────────────────────────────────
+export const useLevelsByYear = (schoolYearId: string): UseQueryResult<Level[], Error> => {
+  return useQuery<Level[], Error>({
     queryKey: ["levels", schoolYearId],
-    queryFn: () => levelApi.getByYear(schoolYearId),
+    queryFn: () => levelApi.getBySchoolYear(schoolYearId),
     enabled: !!schoolYearId,
   });
 };
 
-export const useUpdateLevel = (): UseMutationResult<SchoolYearLevel, Error, { id: string; name: string }> => {
+// ── UPDATE single level ─────────────────────────────────────────────────────
+export const useUpdateLevel = (): UseMutationResult<
+  Level,
+  Error,
+  { id: string; name: string }
+> => {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      levelApi.update(id, name),
+  return useMutation<Level, Error, { id: string; name: string }>({
+    mutationFn: ({ id, name }) => levelApi.updateOne(id, name),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["levels"] });
     },
