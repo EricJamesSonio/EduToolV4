@@ -8,21 +8,54 @@ const COMPONENTS_INCLUDE = {
   },
 };
 
+// ── MAPPERS (snake_case → camelCase) ───────────────────────────────────────
+
+function mapComponent(c: any) {
+  return {
+    id: c.id,
+    orgId: c.org_id,
+    gradingSchemeId: c.grading_scheme_id,
+    name: c.name,
+    type: c.type,
+    weight: c.weight,
+    maxScore: c.max_score,
+    isOptional: c.is_optional,
+    createdAt: c.created_at,
+  };
+}
+
+function mapScheme(s: any) {
+  return {
+    id: s.id,
+    orgId: s.org_id,
+    educatorId: s.educator_id,
+    classId: s.class_id,
+    name: s.name,
+    isDefault: s.is_default,
+    isLocked: s.is_locked,
+    lockedAt: s.locked_at,
+    createdAt: s.created_at,
+    components: s.components?.map(mapComponent) ?? [],
+  };
+}
+
 @Injectable()
 export class GradingSchemeRepository {
   constructor(private readonly db: DatabaseService) {}
 
-  // ── Default (org-level, admin-managed) ───────────────────────────────────
+  // ── Default (org-level) ──────────────────────────────────────────────────
 
   async findDefault(orgId: string) {
-    return this.db.gradingScheme.findFirst({
+    const scheme = await this.db.gradingScheme.findFirst({
       where: { org_id: orgId, is_default: true },
       include: COMPONENTS_INCLUDE,
     });
+
+    return scheme ? mapScheme(scheme) : null;
   }
 
   async createDefault(orgId: string, name: string) {
-    return this.db.gradingScheme.create({
+    const scheme = await this.db.gradingScheme.create({
       data: {
         org_id: orgId,
         name,
@@ -34,20 +67,21 @@ export class GradingSchemeRepository {
       },
       include: COMPONENTS_INCLUDE,
     });
+
+    return mapScheme(scheme);
   }
 
-  /**
-   * Replace all components on the default scheme.
-   * Uses a transaction: delete existing → create new.
-   */
   async updateDefault(
     orgId: string,
     data: { name?: string; components?: GradingSchemeComponentDto[] },
   ) {
-    const scheme = await this.findDefault(orgId);
+    const scheme = await this.db.gradingScheme.findFirst({
+      where: { org_id: orgId, is_default: true },
+    });
+
     if (!scheme) return null;
 
-    return this.db.$transaction(async (tx) => {
+    const updated = await this.db.$transaction(async (tx) => {
       if (data.name !== undefined) {
         await tx.gradingScheme.update({
           where: { id: scheme.id },
@@ -59,6 +93,7 @@ export class GradingSchemeRepository {
         await tx.gradingSchemeComponent.deleteMany({
           where: { grading_scheme_id: scheme.id },
         });
+
         await tx.gradingSchemeComponent.createMany({
           data: data.components.map((c) => ({
             org_id: orgId,
@@ -66,8 +101,8 @@ export class GradingSchemeRepository {
             name: c.name,
             type: c.type,
             weight: c.weight,
-            max_score: c.max_score ?? null,
-            is_optional: c.is_optional ?? false,
+            max_score: c.maxScore ?? null,     // ✅ FIXED
+            is_optional: c.isOptional ?? false // ✅ FIXED
           })),
         });
       }
@@ -77,9 +112,11 @@ export class GradingSchemeRepository {
         include: COMPONENTS_INCLUDE,
       });
     });
+
+    return updated ? mapScheme(updated) : null;
   }
 
-  // ── Educator personal library ─────────────────────────────────────────────
+  // ── Educator personal library ────────────────────────────────────────────
 
   async create(
     orgId: string,
@@ -87,7 +124,7 @@ export class GradingSchemeRepository {
     name: string,
     components: GradingSchemeComponentDto[],
   ) {
-    return this.db.gradingScheme.create({
+    const scheme = await this.db.gradingScheme.create({
       data: {
         org_id: orgId,
         educator_id: educatorId,
@@ -102,40 +139,42 @@ export class GradingSchemeRepository {
             name: c.name,
             type: c.type,
             weight: c.weight,
-            max_score: c.max_score ?? null,
-            is_optional: c.is_optional ?? false,
+            max_score: c.maxScore ?? null,     // ✅ FIXED
+            is_optional: c.isOptional ?? false // ✅ FIXED
           })),
         },
       },
       include: COMPONENTS_INCLUDE,
     });
+
+    return mapScheme(scheme);
   }
 
   async findByEducator(orgId: string, educatorId: string) {
-    return this.db.gradingScheme.findMany({
+    const schemes = await this.db.gradingScheme.findMany({
       where: { org_id: orgId, educator_id: educatorId, is_default: false },
       include: COMPONENTS_INCLUDE,
       orderBy: { created_at: 'desc' },
     });
+
+    return schemes.map(mapScheme);
   }
 
   async findById(id: string, orgId: string) {
-    return this.db.gradingScheme.findFirst({
+    const scheme = await this.db.gradingScheme.findFirst({
       where: { id, org_id: orgId },
       include: COMPONENTS_INCLUDE,
     });
+
+    return scheme ? mapScheme(scheme) : null;
   }
 
-  /**
-   * Replace all components on an educator scheme.
-   * Uses a transaction: delete existing → create new.
-   */
   async update(
     id: string,
     orgId: string,
     data: { name?: string; components?: GradingSchemeComponentDto[] },
   ) {
-    return this.db.$transaction(async (tx) => {
+    const updated = await this.db.$transaction(async (tx) => {
       if (data.name !== undefined) {
         await tx.gradingScheme.update({
           where: { id },
@@ -147,6 +186,7 @@ export class GradingSchemeRepository {
         await tx.gradingSchemeComponent.deleteMany({
           where: { grading_scheme_id: id },
         });
+
         await tx.gradingSchemeComponent.createMany({
           data: data.components.map((c) => ({
             org_id: orgId,
@@ -154,8 +194,8 @@ export class GradingSchemeRepository {
             name: c.name,
             type: c.type,
             weight: c.weight,
-            max_score: c.max_score ?? null,
-            is_optional: c.is_optional ?? false,
+            max_score: c.maxScore ?? null,     // ✅ FIXED
+            is_optional: c.isOptional ?? false // ✅ FIXED
           })),
         });
       }
@@ -165,38 +205,46 @@ export class GradingSchemeRepository {
         include: COMPONENTS_INCLUDE,
       });
     });
+
+    return updated ? mapScheme(updated) : null;
   }
 
-  // ── Class assignment & locking ────────────────────────────────────────────
+  // ── Class assignment & locking ───────────────────────────────────────────
 
   async findForClass(classId: string, orgId: string) {
-    // Class-specific scheme first, fall back to org default
     const classScheme = await this.db.gradingScheme.findFirst({
       where: { class_id: classId, org_id: orgId },
       include: COMPONENTS_INCLUDE,
     });
-    if (classScheme) return classScheme;
 
-    return this.db.gradingScheme.findFirst({
+    if (classScheme) return mapScheme(classScheme);
+
+    const defaultScheme = await this.db.gradingScheme.findFirst({
       where: { org_id: orgId, is_default: true },
       include: COMPONENTS_INCLUDE,
     });
+
+    return defaultScheme ? mapScheme(defaultScheme) : null;
   }
 
   async assignToClass(id: string, classId: string) {
-    return this.db.gradingScheme.update({
+    const scheme = await this.db.gradingScheme.update({
       where: { id },
       data: { class_id: classId },
       include: COMPONENTS_INCLUDE,
     });
+
+    return mapScheme(scheme);
   }
 
   async lockById(id: string) {
-    return this.db.gradingScheme.update({
+    const scheme = await this.db.gradingScheme.update({
       where: { id },
       data: { is_locked: true, locked_at: new Date() },
       include: COMPONENTS_INCLUDE,
     });
+
+    return mapScheme(scheme);
   }
 
   async lockByClassId(classId: string) {

@@ -13,9 +13,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-// Mirrors GradingSchemeComponent.type values
-// 'manual' = manually entered score (old manual_entry)
-// everything else matches Assessment.type: 'quiz' | 'activity' | 'exam' | 'custom'
 export enum ComponentType {
   QUIZ = 'quiz',
   ACTIVITY = 'activity',
@@ -41,14 +38,14 @@ export class GradingSchemeComponentDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  max_score?: number;
+  maxScore?: number; // ✅ FIXED
 
   @IsOptional()
   @IsBoolean()
-  is_optional?: boolean;
+  isOptional?: boolean; // ✅ FIXED
 }
 
-// ── Create (educator personal library) ───────────────────────────────────────
+// ── Create ─────────────────────────────────────────
 
 export class CreateGradingSchemeDto {
   @IsString()
@@ -62,7 +59,7 @@ export class CreateGradingSchemeDto {
   components: GradingSchemeComponentDto[];
 }
 
-// ── Update (educator personal library) ───────────────────────────────────────
+// ── Update ─────────────────────────────────────────
 
 export class UpdateGradingSchemeDto {
   @IsOptional()
@@ -78,7 +75,7 @@ export class UpdateGradingSchemeDto {
   components?: GradingSchemeComponentDto[];
 }
 
-// ── Update default (admin-managed org default) ────────────────────────────────
+// ── Update Default ─────────────────────────────────
 
 export class UpdateDefaultGradingSchemeDto {
   @IsOptional()
