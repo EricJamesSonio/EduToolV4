@@ -1,4 +1,5 @@
-// @/modules/grading-scale/grading-scale.service.ts
+// backend/src/modules/grading-scale/grading-scale.service.ts
+
 import {
   Injectable,
   NotFoundException,
@@ -12,25 +13,33 @@ import {
   QueryGradingScaleDto,
   GradeRangeDto,
 } from './dto/grading-scale.dto';
+import { GradingScaleEntity, GradeRangeEntity } from './entity/grading-scale.entity';
 
 @Injectable()
 export class GradingScaleService {
   constructor(private readonly gradingScaleRepository: GradingScaleRepository) {}
 
-  // ── Range validation ────────────────────────────────────────────────────────
+  // Maps raw Prisma snake_case record → camelCase entity
+  private mapToEntity(scale: Record<string, unknown>): GradingScaleEntity {
+    return {
+      id: scale.id as string,
+      orgId: scale.org_id as string,
+      levelId: scale.level_id as string,
+      schoolYearId: scale.school_year_id as string,
+      name: scale.name as string,
+      ranges: scale.ranges as GradeRangeEntity[],
+      isLocked: scale.is_locked as boolean,
+      lockedAt: (scale.locked_at as Date) ?? null,
+      createdAt: scale.created_at as Date,
+      updatedAt: scale.updated_at as Date,
+    };
+  }
 
-  /**
-   * Validates that ranges:
-   * 1. Cover 0–100 exactly with no gaps
-   * 2. Have no overlapping boundaries
-   * 3. Have at least one passing range
-   */
   private validateRanges(ranges: GradeRangeDto[]): void {
     if (ranges.length === 0) {
       throw new BadRequestException('At least one grade range is required.');
     }
 
-    // Check individual ranges
     for (const range of ranges) {
       if (range.minPercent >= range.maxPercent) {
         throw new BadRequestException(
@@ -39,10 +48,8 @@ export class GradingScaleService {
       }
     }
 
-    // Sort by minPercent
     const sorted = [...ranges].sort((a, b) => a.minPercent - b.minPercent);
 
-    // Must start at 0
     if (sorted[0].minPercent !== 0) {
       throw new BadRequestException(
         'Ranges must start at 0%. Current lowest range starts at ' +
@@ -50,7 +57,6 @@ export class GradingScaleService {
       );
     }
 
-    // Must end at 100
     if (sorted[sorted.length - 1].maxPercent !== 100) {
       throw new BadRequestException(
         'Ranges must end at 100%. Current highest range ends at ' +
@@ -58,7 +64,6 @@ export class GradingScaleService {
       );
     }
 
-    // Check for gaps and overlaps between consecutive ranges
     for (let i = 1; i < sorted.length; i++) {
       const prev = sorted[i - 1];
       const curr = sorted[i];
@@ -78,7 +83,6 @@ export class GradingScaleService {
       }
     }
 
-    // Must have at least one passing range
     const hasPassingRange = ranges.some((r) => r.isPassing);
     if (!hasPassingRange) {
       throw new BadRequestException(
@@ -87,10 +91,7 @@ export class GradingScaleService {
     }
   }
 
-  // ── POST /grading-scales ────────────────────────────────────────────────────
-
-  async create(orgId: string, dto: CreateGradingScaleDto) {
-    // One scale per level per school year
+  async create(orgId: string, dto: CreateGradingScaleDto): Promise<GradingScaleEntity> {
     const existing = await this.gradingScaleRepository.findByLevelAndYear(
       orgId,
       dto.levelId,
@@ -105,28 +106,32 @@ export class GradingScaleService {
 
     this.validateRanges(dto.ranges);
 
-    return this.gradingScaleRepository.create({
+    const scale = await this.gradingScaleRepository.create({
       orgId,
       levelId: dto.levelId,
       schoolYearId: dto.schoolYearId,
       name: dto.name,
       ranges: dto.ranges,
     });
+
+    return this.mapToEntity(scale as Record<string, unknown>);
   }
 
-  // ── GET /grading-scales ─────────────────────────────────────────────────────
-
-  async findAll(orgId: string, query: QueryGradingScaleDto) {
-    return this.gradingScaleRepository.findAll(
+  async findAll(orgId: string, query: QueryGradingScaleDto): Promise<GradingScaleEntity[]> {
+    const scales = await this.gradingScaleRepository.findAll(
       orgId,
       query.levelId,
       query.schoolYearId,
     );
+
+    return scales.map((s) => this.mapToEntity(s as Record<string, unknown>));
   }
 
-  // ── PATCH /grading-scales/:id ───────────────────────────────────────────────
-
-  async update(id: string, orgId: string, dto: UpdateGradingScaleDto) {
+  async update(
+    id: string,
+    orgId: string,
+    dto: UpdateGradingScaleDto,
+  ): Promise<GradingScaleEntity> {
     const scale = await this.gradingScaleRepository.findById(id, orgId);
 
     if (!scale) {
@@ -144,48 +149,40 @@ export class GradingScaleService {
       this.validateRanges(dto.ranges);
     }
 
-    return this.gradingScaleRepository.update(id, {
+    const updated = await this.gradingScaleRepository.update(id, {
       name: dto.name,
       ranges: dto.ranges,
     });
+
+    return this.mapToEntity(updated as Record<string, unknown>);
   }
 
-  // ── Utility (called by grade module in Phase 3) ─────────────────────────────
-
-  /**
-   * Locks the grading scale permanently for the current school year.
-   * Triggered when the first grade is locked in this level section.
-   */
-  async lock(id: string, orgId: string) {
+  async lock(id: string, orgId: string): Promise<GradingScaleEntity> {
     const scale = await this.gradingScaleRepository.findById(id, orgId);
 
     if (!scale) {
       throw new NotFoundException('Grading scale not found.');
     }
 
-    if (scale.is_locked) return scale; // idempotent
+    if (scale.is_locked) {
+      return this.mapToEntity(scale as Record<string, unknown>); // idempotent
+    }
 
-    return this.gradingScaleRepository.lock(id);
+    const locked = await this.gradingScaleRepository.lock(id);
+    return this.mapToEntity(locked as Record<string, unknown>);
   }
 
-  /**
-   * Unlocks the grading scale for a new school year.
-   * Triggered at the start of each new school year.
-   */
-  async unlock(id: string, orgId: string) {
+  async unlock(id: string, orgId: string): Promise<GradingScaleEntity> {
     const scale = await this.gradingScaleRepository.findById(id, orgId);
 
     if (!scale) {
       throw new NotFoundException('Grading scale not found.');
     }
 
-    return this.gradingScaleRepository.unlock(id);
+    const unlocked = await this.gradingScaleRepository.unlock(id);
+    return this.mapToEntity(unlocked as Record<string, unknown>);
   }
 
-  /**
-   * Resolve the grade value and remark for a given percentage score.
-   * Used by grade computation in Phase 3.
-   */
   async resolveGrade(
     orgId: string,
     levelId: string,
@@ -206,14 +203,11 @@ export class GradingScaleService {
     );
 
     return match
-      ? {
-          gradeValue: match.gradeValue,
-          remark: match.remark,
-          isPassing: match.isPassing,
-        }
+      ? { gradeValue: match.gradeValue, remark: match.remark, isPassing: match.isPassing }
       : null;
   }
-  async unlockAllForSchoolYear(schoolYearId: string, orgId: string) {
+
+  async unlockAllForSchoolYear(schoolYearId: string, orgId: string): Promise<void> {
     await this.gradingScaleRepository.unlockAllForSchoolYear(schoolYearId, orgId);
   }
 }

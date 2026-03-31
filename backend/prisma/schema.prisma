@@ -281,6 +281,7 @@ model GradingScale {
   is_locked      Boolean   @default(false)
   locked_at      DateTime?
   created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
 }
 
 //////////////////////
