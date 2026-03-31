@@ -1,17 +1,10 @@
-import client from "@/api/client";
+// frontend/src/api/admin/audit-log.api.ts
 
-export interface AuditLog {
-  id: string;
-  action: string;
-  entityType: string;
-  entityId: string;
-  actorId: string;
-  metadata?: Record<string, unknown>;
-  createdAt: string;
-}
+import client from "@/api/client";
+import type { AuditLog, ActivityLog } from "@/types/admin/audit-log.types";
 
 export interface GetAuditLogQuery {
-  from?: string;
+  from?: string;       // ISO date string
   to?: string;
   action?: string;
   entityType?: string;
@@ -19,9 +12,22 @@ export interface GetAuditLogQuery {
   actorId?: string;
 }
 
+export interface GetActivityLogQuery {
+  classId?: string;
+  from?: string;       // ISO date string
+  to?: string;
+}
+
 export const auditLogApi = {
   getAll: async (query?: GetAuditLogQuery): Promise<AuditLog[]> => {
     const res = await client.get<AuditLog[]>("/audit-log", { params: query });
+    return res.data;
+  },
+};
+
+export const activityLogApi = {
+  getAll: async (query?: GetActivityLogQuery): Promise<ActivityLog[]> => {
+    const res = await client.get<ActivityLog[]>("/activity-log", { params: query });
     return res.data;
   },
 };
