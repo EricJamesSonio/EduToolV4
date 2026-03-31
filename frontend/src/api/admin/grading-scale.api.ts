@@ -35,4 +35,7 @@ export const gradingScaleApi = {
     const res = await client.patch<GradingScale>(`/grading-scales/${id}`, data);
     return res.data;
   },
+  delete: async (id: string): Promise<void> => {
+  await client.delete(`/grading-scales/${id}`);
+},
 };
