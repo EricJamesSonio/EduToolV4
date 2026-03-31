@@ -50,8 +50,8 @@ const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
 
 const PROGRAM_TYPE_OPTIONS: { value: ProgramType; label: string }[] = [
   { value: "elementary", label: "Elementary" },
-  { value: "high_school", label: "High School" },
-  { value: "senior_high", label: "Senior High" },
+  { value: "high_school", label: "Junior High School" },
+  { value: "senior_high", label: "Senior High School" },
   { value: "college", label: "College" },
   { value: "custom", label: "Custom" },
 ];

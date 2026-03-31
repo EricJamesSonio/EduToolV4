@@ -6,9 +6,10 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import Link from "next/link";
 import { programApi } from "@/api/admin/program.api";
+import { strandApi } from "@/api/admin/strand.api";      // ✅ import real strand api
+import { courseApi } from "@/api/admin/course.api";       // ✅ import real course api
 import type { ProgramType } from "@/api/admin/program.api";
 import type { CourseSnapshot, StrandSnapshot } from "@/types/admin/program.types";
-import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,6 @@ import {
   Layers,
   GraduationCap,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { AxiosError } from "axios";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -50,10 +50,7 @@ const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
   custom: "Custom",
 };
 
-// ─── Course API (inferred from backend) ───────────────────────────────────────
-// These call /courses endpoints — add to course.api.ts when you create it
-
-import client from "@/api/client";
+// ─── Local detail types (used only inside this page) ─────────────────────────
 
 interface CourseDetail {
   id: string;
@@ -65,59 +62,6 @@ interface StrandDetail {
   id: string;
   name: string;
 }
-
-const courseApi = {
-  create: async (data: {
-    programId: string;
-    name: string;
-    code?: string;
-  }): Promise<CourseDetail> => {
-    const res = await client.post<{ success: boolean; data: CourseDetail }>(
-      "/courses",
-      data
-    );
-    return res.data.data;
-  },
-  update: async (
-    id: string,
-    data: { name?: string; code?: string }
-  ): Promise<CourseDetail> => {
-    const res = await client.patch<{ success: boolean; data: CourseDetail }>(
-      `/courses/${id}`,
-      data
-    );
-    return res.data.data;
-  },
-  delete: async (id: string): Promise<void> => {
-    await client.delete(`/courses/${id}`);
-  },
-};
-
-const strandApi = {
-  create: async (data: {
-    programId: string;
-    name: string;
-  }): Promise<StrandDetail> => {
-    const res = await client.post<{ success: boolean; data: StrandDetail }>(
-      "/strands",
-      data
-    );
-    return res.data.data;
-  },
-  update: async (
-    id: string,
-    data: { name?: string }
-  ): Promise<StrandDetail> => {
-    const res = await client.patch<{ success: boolean; data: StrandDetail }>(
-      `/strands/${id}`,
-      data
-    );
-    return res.data.data;
-  },
-  delete: async (id: string): Promise<void> => {
-    await client.delete(`/strands/${id}`);
-  },
-};
 
 // ─── Edit Program Dialog ──────────────────────────────────────────────────────
 
@@ -212,7 +156,7 @@ function EditProgramDialog({
   );
 }
 
-// ─── Course / Strand Dialog ───────────────────────────────────────────────────
+// ─── Course Dialog ────────────────────────────────────────────────────────────
 
 interface CourseForm {
   name: string;
@@ -247,7 +191,7 @@ function CourseDialog({
     mutationFn: (values: CourseForm) =>
       isEdit
         ? courseApi.update(course!.id, { name: values.name, code: values.code || undefined })
-        : courseApi.create({ programId, name: values.name, code: values.code || undefined }),
+        : courseApi.create({ programId: programId, name: values.name, code: values.code || undefined }),
     onSuccess: () => {
       toast.success(isEdit ? "Course updated." : "Course added.");
       onSaved();
@@ -278,8 +222,7 @@ function CourseDialog({
           </div>
           <div className="space-y-1.5">
             <Label>
-              Code{" "}
-              <span className="text-muted-foreground font-normal">(optional)</span>
+              Code <span className="text-muted-foreground font-normal">(optional)</span>
             </Label>
             <Input placeholder="e.g. BSIT" {...register("code")} />
           </div>
@@ -296,6 +239,8 @@ function CourseDialog({
     </Dialog>
   );
 }
+
+// ─── Strand Dialog ────────────────────────────────────────────────────────────
 
 interface StrandForm {
   name: string;
@@ -329,7 +274,7 @@ function StrandDialog({
     mutationFn: (values: StrandForm) =>
       isEdit
         ? strandApi.update(strand!.id, { name: values.name })
-        : strandApi.create({ programId, name: values.name }),
+        : strandApi.create({ program_id: programId, name: values.name }),  // ✅ snake_case
     onSuccess: () => {
       toast.success(isEdit ? "Strand updated." : "Strand added.");
       onSaved();
@@ -390,7 +335,7 @@ function CoursesSection({
   const [deleteTarget, setDeleteTarget] = useState<CourseSnapshot | null>(null);
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => courseApi.delete(id),
+    mutationFn: (id: string) => courseApi.remove(id),  // ✅ matches courseApi.remove
     onSuccess: () => {
       toast.success("Course deleted.");
       onRefresh();
@@ -405,7 +350,6 @@ function CoursesSection({
   return (
     <>
       <div className="rounded-lg border bg-card overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
           <div className="flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-muted-foreground" />
@@ -425,7 +369,6 @@ function CoursesSection({
           </Button>
         </div>
 
-        {/* Rows */}
         {courses.length === 0 ? (
           <div className="px-4 py-8 text-center">
             <p className="text-sm text-muted-foreground">No courses yet.</p>
@@ -460,14 +403,12 @@ function CoursesSection({
                       })
                     }
                     className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                    title="Edit course"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => setDeleteTarget(course)}
                     className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                    title="Delete course"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -522,7 +463,7 @@ function StrandsSection({
   const [deleteTarget, setDeleteTarget] = useState<StrandSnapshot | null>(null);
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => strandApi.delete(id),
+    mutationFn: (id: string) => strandApi.remove(id),  // ✅ matches strandApi.remove
     onSuccess: () => {
       toast.success("Strand deleted.");
       onRefresh();
@@ -537,7 +478,6 @@ function StrandsSection({
   return (
     <>
       <div className="rounded-lg border bg-card overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-muted-foreground" />
@@ -557,7 +497,6 @@ function StrandsSection({
           </Button>
         </div>
 
-        {/* Rows */}
         {strands.length === 0 ? (
           <div className="px-4 py-8 text-center">
             <p className="text-sm text-muted-foreground">No strands yet.</p>
@@ -585,14 +524,12 @@ function StrandsSection({
                       })
                     }
                     className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                    title="Edit strand"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => setDeleteTarget(strand)}
                     className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                    title="Delete strand"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -673,7 +610,6 @@ export default function ProgramDetailPage({
 
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* Breadcrumb */}
       <Link
         href="/admin/programs"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -682,7 +618,6 @@ export default function ProgramDetailPage({
         Programs
       </Link>
 
-      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
@@ -695,17 +630,12 @@ export default function ProgramDetailPage({
             </Badge>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setEditOpen(true)}
-        >
+        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
           <Pencil className="mr-1.5 h-3.5 w-3.5" />
           Edit
         </Button>
       </div>
 
-      {/* Info card */}
       <div className="rounded-lg border bg-card divide-y">
         <div className="flex items-center gap-4 px-4 py-3">
           <span className="w-32 text-sm text-muted-foreground shrink-0">Name</span>
@@ -731,7 +661,6 @@ export default function ProgramDetailPage({
         )}
       </div>
 
-      {/* Courses (College only) */}
       {showCourses && (
         <CoursesSection
           programId={id}
@@ -740,7 +669,6 @@ export default function ProgramDetailPage({
         />
       )}
 
-      {/* Strands (Senior High only) */}
       {showStrands && (
         <StrandsSection
           programId={id}
@@ -749,7 +677,6 @@ export default function ProgramDetailPage({
         />
       )}
 
-      {/* Neither courses nor strands */}
       {!showCourses && !showStrands && (
         <div className="rounded-lg border bg-card px-6 py-8 text-center">
           <p className="text-sm text-muted-foreground">
@@ -758,7 +685,6 @@ export default function ProgramDetailPage({
         </div>
       )}
 
-      {/* Edit dialog */}
       {editOpen && (
         <EditProgramDialog
           program={program}
