@@ -1,4 +1,5 @@
-// @/modules/student/student.repository.ts
+// backend/src/modules/student/student.repository.ts
+
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 
@@ -95,8 +96,6 @@ export class StudentRepository {
   }
 
   async findByStudentId(studentId: string, orgId: string) {
-    // studentId is stored in profile.metadata — filter in app layer after fetch
-    // Full JSON path query for uniqueness check
     return this.db.profile.findFirst({
       where: {
         metadata: {
@@ -129,13 +128,17 @@ export class StudentRepository {
         });
       }
 
-      // Build metadata patch
       const current = await tx.profile.findUnique({
         where: { account_id: accountId },
         select: { metadata: true, full_name: true },
       });
 
-      const currentMeta = (current?.metadata as Record<string, any>) ?? {};
+      const currentMeta =
+        current?.metadata &&
+        typeof current.metadata === 'object' &&
+        !Array.isArray(current.metadata)
+          ? (current.metadata as Record<string, any>)
+          : {};
 
       await tx.profile.update({
         where: { account_id: accountId },
@@ -173,10 +176,6 @@ export class StudentRepository {
     });
   }
 
-  /**
-   * Fetch all active students in the org for credentials CSV export.
-   * Returns accounts with their profiles.
-   */
   async findAllForExport(orgId: string) {
     return this.db.account.findMany({
       where: { org_id: orgId, role: 'student', deleted_at: null },
@@ -184,8 +183,6 @@ export class StudentRepository {
       orderBy: { created_at: 'asc' },
     });
   }
-
-  // ── Enrollment (student-centric) ─────────────────────────────────────────────
 
   async findEnrollments(studentId: string, orgId: string) {
     return this.db.enrollment.findMany({
@@ -196,9 +193,7 @@ export class StudentRepository {
         class: { deleted_at: null },
       },
       include: {
-        class: {
-          include: { schedules: true },
-        },
+        class: { include: { schedules: true } },
       },
       orderBy: { created_at: 'asc' },
     });
@@ -215,5 +210,55 @@ export class StudentRepository {
       where: { id: enrollmentId },
       data: { status: 'removed' as any },
     });
+  }
+
+  /**
+   * Returns the subset of emails (from the given list) that already exist in the org.
+   * Used for batch duplicate checking during bulk import.
+   */
+  async findEmailsInBatch(emails: string[], orgId: string): Promise<string[]> {
+    if (emails.length === 0) return [];
+
+    const accounts = await this.db.account.findMany({
+      where: {
+        email: { in: emails },
+        org_id: orgId,
+        deleted_at: null,
+      },
+      select: { email: true },
+    });
+
+    return accounts.map((a) => a.email);
+  }
+
+  /**
+   * Returns the subset of studentIds (from the given list) that already exist in the org.
+   * Pulls all profiles and filters in JS — Prisma Json path filter does not support `in`.
+   */
+  async findStudentIdsInBatch(
+    studentIds: string[],
+    orgId: string,
+  ): Promise<string[]> {
+    if (studentIds.length === 0) return [];
+
+    const profiles = await this.db.profile.findMany({
+      where: {
+        account: { org_id: orgId, deleted_at: null },
+      },
+      select: { metadata: true },
+    });
+
+    const existingSet = new Set(
+      profiles
+        .map((p) => {
+          const meta = p.metadata as Record<string, unknown> | null;
+          return typeof meta?.['studentId'] === 'string'
+            ? meta['studentId']
+            : null;
+        })
+        .filter((id): id is string => id !== null),
+    );
+
+    return studentIds.filter((id) => existingSet.has(id));
   }
 }

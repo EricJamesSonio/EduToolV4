@@ -1,4 +1,5 @@
-// @/modules/student/student.service.ts
+// backend/src/modules/student/student.service.ts
+
 import {
   Injectable,
   ConflictException,
@@ -23,7 +24,6 @@ import { hashPassword } from '@/commons/utils/hash.util';
 import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '../enrollment/enrollment.repository';
 
-// Transitions that require explicit Admin confirmation
 const IRREVERSIBLE_STATUSES: StudentStatus[] = [
   StudentStatus.DROPPED,
   StudentStatus.TRANSFERRED,
@@ -39,10 +39,29 @@ export class StudentService {
     private readonly enrollmentRepo: EnrollmentRepository,
   ) {}
 
-  // ── POST /students ──────────────────────────────────────────────────────────
+  // Safe metadata extraction — guards against null, non-object, or array JSON values
+  private extractMeta(account: Record<string, any>): Record<string, any> {
+    const raw = account?.profile?.metadata;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    return raw as Record<string, any>;
+  }
+
+  formatAccount(account: Record<string, any>) {
+    const meta = this.extractMeta(account);
+    return {
+      id: account.id as string,
+      orgId: account.org_id as string,
+      email: account.email as string,
+      status: account.status as string,
+      fullName: (account.profile?.full_name ?? null) as string | null,
+      studentId: (meta['studentId'] ?? null) as string | null,
+      levelId: (meta['levelId'] ?? null) as string | null,
+      sectionId: (meta['sectionId'] ?? null) as string | null,
+      createdAt: account.created_at as Date,
+    };
+  }
 
   async create(orgId: string, dto: CreateStudentDto) {
-    // Guard: email unique within org
     const emailTaken = await this.studentRepository.findByEmail(
       dto.email,
       orgId,
@@ -53,7 +72,6 @@ export class StudentService {
       );
     }
 
-    // Guard: studentId unique within org
     const idTaken = await this.studentRepository.findByStudentId(
       dto.studentId,
       orgId,
@@ -64,20 +82,18 @@ export class StudentService {
       );
     }
 
-    // Section capacity check
     let status = StudentStatus.ACTIVE;
+
     if (dto.sectionId) {
       const section = await this.sectionService.findById(dto.sectionId, orgId);
-      const currentCount = await this.sectionService.countStudentsInSection(dto.sectionId);
-
+      const currentCount = await this.sectionService.countStudentsInSection(
+        dto.sectionId,
+      );
       if (currentCount >= section.capacity) {
-        // Section is full — student created as Pending, no section assigned
-        // Admin must resolve: create new section or leave as Pending
         status = StudentStatus.PENDING;
         dto.sectionId = undefined;
       }
     } else {
-      // No section assigned — student starts as pending
       status = StudentStatus.PENDING;
     }
 
@@ -95,13 +111,12 @@ export class StudentService {
       sectionId: dto.sectionId,
     });
 
+    // plainPassword returned once for admin to distribute — never persisted or logged
     return {
       ...this.formatAccount(account),
-      plainPassword, // returned once for Admin to distribute
+      plainPassword,
     };
   }
-
-  // ── GET /students ───────────────────────────────────────────────────────────
 
   async findAll(orgId: string, query: QueryStudentDto) {
     const accounts = await this.studentRepository.findAll(orgId, {
@@ -111,8 +126,9 @@ export class StudentService {
       sectionId: query.sectionId,
     });
 
-    // Filter by levelId / sectionId from metadata if provided
-    let results = accounts.map((a) => this.formatAccount(a));
+    let results = accounts.map((a) =>
+      this.formatAccount(a as Record<string, any>),
+    );
 
     if (query.levelId) {
       results = results.filter((s) => s.levelId === query.levelId);
@@ -125,19 +141,13 @@ export class StudentService {
     return results;
   }
 
-  // ── GET /students/:id ───────────────────────────────────────────────────────
-
   async findById(id: string, orgId: string) {
     const account = await this.studentRepository.findById(id, orgId);
-
     if (!account) {
       throw new NotFoundException('Student not found.');
     }
-
-    return this.formatAccount(account);
+    return this.formatAccount(account as Record<string, any>);
   }
-
-  // ── PATCH /students/:id ─────────────────────────────────────────────────────
 
   async update(id: string, orgId: string, dto: UpdateStudentDto) {
     const account = await this.studentRepository.findById(id, orgId);
@@ -146,7 +156,10 @@ export class StudentService {
     }
 
     if (dto.email && dto.email !== account.email) {
-      const emailTaken = await this.studentRepository.findByEmail(dto.email, orgId);
+      const emailTaken = await this.studentRepository.findByEmail(
+        dto.email,
+        orgId,
+      );
       if (emailTaken) {
         throw new ConflictException(
           'An account with this email already exists in the organization.',
@@ -156,7 +169,9 @@ export class StudentService {
 
     if (dto.sectionId) {
       const section = await this.sectionService.findById(dto.sectionId, orgId);
-      const currentCount = await this.sectionService.countStudentsInSection(dto.sectionId);
+      const currentCount = await this.sectionService.countStudentsInSection(
+        dto.sectionId,
+      );
       if (currentCount >= section.capacity) {
         throw new BadRequestException(
           `Section has reached its capacity of ${section.capacity} students.`,
@@ -171,14 +186,11 @@ export class StudentService {
       sectionId: dto.sectionId,
     });
 
-    return this.formatAccount(updated);
+    return this.formatAccount(updated as Record<string, any>);
   }
-
-  // ── PATCH /students/:id/status ──────────────────────────────────────────────
 
   async updateStatus(id: string, orgId: string, dto: UpdateStudentStatusDto) {
     const account = await this.studentRepository.findById(id, orgId);
-
     if (!account) {
       throw new NotFoundException('Student not found.');
     }
@@ -199,10 +211,8 @@ export class StudentService {
     }
 
     const updated = await this.studentRepository.updateStatus(id, newStatus);
-    return this.formatAccount(updated);
+    return this.formatAccount(updated as Record<string, any>);
   }
-
-  // ── POST /students/import ───────────────────────────────────────────────────
 
   async bulkImport(orgId: string, csvContent: string) {
     const rows = parseCsv(csvContent);
@@ -211,16 +221,25 @@ export class StudentService {
       throw new BadRequestException('CSV file is empty or malformed.');
     }
 
+    // Batch duplicate checks — avoids N×2 individual DB queries
+    const emails = rows.map((r) => r['Email']).filter(Boolean);
+    const studentIds = rows.map((r) => r['Student ID']).filter(Boolean);
+
+    const [existingEmails, existingStudentIds] = await Promise.all([
+      this.studentRepository.findEmailsInBatch(emails, orgId),
+      this.studentRepository.findStudentIdsInBatch(studentIds, orgId),
+    ]);
+
+    const takenEmailSet = new Set(existingEmails);
+    const takenIdSet = new Set(existingStudentIds);
+
     const validationReport: Array<{
       row: number;
       data: Record<string, string>;
       errors: string[];
     }> = [];
 
-    const validRows: Array<{
-      row: number;
-      data: Record<string, string>;
-    }> = [];
+    const validRows: Array<{ row: number; data: Record<string, string> }> = [];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -236,21 +255,12 @@ export class StudentService {
         errors.push('Email format is invalid.');
       }
 
-      if (row['Email']) {
-        const emailTaken = await this.studentRepository.findByEmail(
-          row['Email'],
-          orgId,
-        );
-        if (emailTaken) errors.push(`Email "${row['Email']}" already exists.`);
+      if (row['Email'] && takenEmailSet.has(row['Email'])) {
+        errors.push(`Email "${row['Email']}" already exists.`);
       }
 
-      if (row['Student ID']) {
-        const idTaken = await this.studentRepository.findByStudentId(
-          row['Student ID'],
-          orgId,
-        );
-        if (idTaken)
-          errors.push(`Student ID "${row['Student ID']}" already exists.`);
+      if (row['Student ID'] && takenIdSet.has(row['Student ID'])) {
+        errors.push(`Student ID "${row['Student ID']}" already exists.`);
       }
 
       if (errors.length > 0) {
@@ -272,7 +282,8 @@ export class StudentService {
       };
     }
 
-    const created: any[] = [];
+    const created: Array<ReturnType<typeof this.formatAccount> & { plainPassword: string }> = [];
+
     for (const { data } of validRows) {
       const plainPassword = generateSystemPassword();
       const hashedPassword = await hashPassword(plainPassword);
@@ -281,7 +292,8 @@ export class StudentService {
 
       if (sectionId) {
         const section = await this.sectionService.findById(sectionId, orgId);
-        const currentCount = await this.sectionService.countStudentsInSection(sectionId);
+        const currentCount =
+          await this.sectionService.countStudentsInSection(sectionId);
         if (currentCount >= section.capacity) {
           rowStatus = StudentStatus.PENDING;
           sectionId = undefined;
@@ -300,58 +312,46 @@ export class StudentService {
         levelId: data['Level ID'],
         sectionId,
       });
-      created.push({
-        ...this.formatAccount(account),
-        plainPassword,
-      });
+
+      // plainPassword is for admin distribution only — never persisted or logged
+      created.push({ ...this.formatAccount(account), plainPassword });
     }
 
-    return {
-      status: 'success',
-      totalCreated: created.length,
-      students: created,
-    };
+    return { status: 'success', totalCreated: created.length, students: created };
   }
-
-  // ── POST /students/:id/reset-password ───────────────────────────────────────
 
   async resetPassword(id: string, orgId: string) {
     const account = await this.studentRepository.findById(id, orgId);
-
     if (!account) {
       throw new NotFoundException('Student not found.');
     }
 
     const plainPassword = generateSystemPassword();
     const hashedPassword = await hashPassword(plainPassword);
-
     await this.studentRepository.updatePassword(id, hashedPassword);
 
+    // plainPassword returned once for admin — never persisted or logged
     return { id, plainPassword };
   }
-
-  // ── GET /students/credentials-csv ───────────────────────────────────────────
 
   async getCredentialsCsv(orgId: string): Promise<string> {
     const accounts = await this.studentRepository.findAllForExport(orgId);
 
     const rows = accounts.map((a) => {
-      const meta = (a.profile?.metadata as Record<string, any>) ?? {};
+      const meta = this.extractMeta(a as Record<string, any>);
       return {
         fullName: a.profile?.full_name ?? '',
-        studentId: meta.studentId ?? '',
+        studentId: (meta['studentId'] ?? '') as string,
         email: a.email,
         plainPassword: '••••••••••',
-        levelId: meta.levelId ?? '',
-        sectionId: meta.sectionId ?? '',
+        levelId: (meta['levelId'] ?? '') as string,
+        sectionId: (meta['sectionId'] ?? '') as string,
         status: a.status,
       };
     });
 
     return buildCredentialsCsv(rows);
   }
-
-  // ── GET /students/import-template ───────────────────────────────────────────
 
   getImportTemplate(): string {
     const headers = ['Full Name', 'Student ID', 'Email', 'Level ID', 'Section ID'];
@@ -365,60 +365,11 @@ export class StudentService {
     return [headers.join(','), example.join(',')].join('\n');
   }
 
-  // ── DELETE /classes/:classId/enrollments/:enrollmentId ───────────────────────
-
-  async removeEnrollment(classId: string, enrollmentId: string, orgId: string) {
-    const cls = await this.classRepository.findById(classId, orgId);
-    if (!cls) throw new NotFoundException('Class not found.');
-
-    const enrollment = await this.enrollmentRepo.findById(enrollmentId, orgId);
-    if (!enrollment || enrollment.class_id !== classId) {
-      throw new NotFoundException('Enrollment not found.');
-    }
-
-    if (enrollment.status === 'removed') {
-      throw new BadRequestException('Enrollment is already removed.');
-    }
-
-    return this.enrollmentRepo.updateStatus(enrollmentId, 'removed');
-  }
-
-  // ── GET /educator/classes ────────────────────────────────────────────────────
-
-  async getEducatorClasses(educatorId: string, orgId: string) {
-    const classes = await this.classRepository.findAll(orgId, { educatorId });
-
-    return Promise.all(
-      classes.map(async (cls) => {
-        const { subject } = await this.classRepository.findSubjectWithEducator(
-          cls.subject_id,
-          cls.educator_id,
-          orgId,
-        );
-        return {
-          id: cls.id,
-          subjectId: cls.subject_id,
-          subjectName: subject?.name ?? null,
-          sectionId: cls.section_id,
-          schoolYearId: cls.school_year_id,
-          semesterId: cls.semester_id,
-          capacity: cls.capacity,
-          schedules: cls.schedules,
-        };
-      }),
-    );
-  }
-
-  // ── GET /students/:id/enrollments ───────────────────────────────────────────
-
   async getEnrollments(studentId: string, orgId: string) {
     const account = await this.studentRepository.findById(studentId, orgId);
     if (!account) throw new NotFoundException('Student not found.');
-
     return this.enrollmentRepo.findByStudentAcrossOrg(studentId, orgId);
   }
-
-  // ── POST /students/:id/enrollments ──────────────────────────────────────────
 
   async addEnrollment(studentId: string, orgId: string, classId: string) {
     const account = await this.studentRepository.findById(studentId, orgId);
@@ -474,8 +425,6 @@ export class StudentService {
     });
   }
 
-  // ── DELETE /students/:id/enrollments/:enrollmentId ───────────────────────────
-
   async deleteEnrollment(
     studentId: string,
     enrollmentId: string,
@@ -485,7 +434,6 @@ export class StudentService {
     if (!account) throw new NotFoundException('Student not found.');
 
     const enrollment = await this.enrollmentRepo.findById(enrollmentId, orgId);
-
     if (!enrollment || enrollment.student_id !== studentId) {
       throw new NotFoundException('Enrollment not found.');
     }
@@ -497,20 +445,43 @@ export class StudentService {
     return this.enrollmentRepo.updateStatus(enrollmentId, 'removed');
   }
 
-  // ── Utility ─────────────────────────────────────────────────────────────────
+  async getEducatorClasses(educatorId: string, orgId: string) {
+    const classes = await this.classRepository.findAll(orgId, { educatorId });
 
-  formatAccount(account: any) {
-    const meta = (account.profile?.metadata as Record<string, any>) ?? {};
-    return {
-      id: account.id,
-      orgId: account.org_id,
-      email: account.email,
-      status: account.status,
-      fullName: account.profile?.full_name ?? null,
-      studentId: meta.studentId ?? null,
-      levelId: meta.levelId ?? null,
-      sectionId: meta.sectionId ?? null,
-      createdAt: account.created_at,
-    };
+    return Promise.all(
+      classes.map(async (cls) => {
+        const { subject } = await this.classRepository.findSubjectWithEducator(
+          cls.subject_id,
+          cls.educator_id,
+          orgId,
+        );
+        return {
+          id: cls.id,
+          subjectId: cls.subject_id,
+          subjectName: subject?.name ?? null,
+          sectionId: cls.section_id,
+          schoolYearId: cls.school_year_id,
+          semesterId: cls.semester_id,
+          capacity: cls.capacity,
+          schedules: cls.schedules,
+        };
+      }),
+    );
+  }
+
+  async removeEnrollment(classId: string, enrollmentId: string, orgId: string) {
+    const cls = await this.classRepository.findById(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
+
+    const enrollment = await this.enrollmentRepo.findById(enrollmentId, orgId);
+    if (!enrollment || enrollment.class_id !== classId) {
+      throw new NotFoundException('Enrollment not found.');
+    }
+
+    if (enrollment.status === 'removed') {
+      throw new BadRequestException('Enrollment is already removed.');
+    }
+
+    return this.enrollmentRepo.updateStatus(enrollmentId, 'removed');
   }
 }
