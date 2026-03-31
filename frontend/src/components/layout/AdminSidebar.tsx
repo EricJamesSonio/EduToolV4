@@ -19,7 +19,7 @@ const GROUPS = [
       { label: "Subjects",          href: "/admin/subjects",          icon: FlaskConical },
       { label: "Semester Settings", href: "/admin/semester-settings", icon: CalendarClock },
       { label: "Grading Scales",    href: "/admin/grading-scales",    icon: BarChart3 },
-      { label: "Rubric",            href: "/admin/rubric",            icon: ClipboardList },
+      { label: "Grading Schemes",            href: "/admin/grading-schemes",            icon: ClipboardList },
       { label: "Classes",           href: "/admin/classes",           icon: GraduationCap },
       { label: "Educators",         href: "/admin/educators",         icon: UserSquare2 },
       { label: "Students",          href: "/admin/students",          icon: Users },

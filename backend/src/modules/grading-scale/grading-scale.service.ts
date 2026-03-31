@@ -64,24 +64,26 @@ export class GradingScaleService {
       );
     }
 
-    for (let i = 1; i < sorted.length; i++) {
-      const prev = sorted[i - 1];
-      const curr = sorted[i];
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const curr = sorted[i];
 
-      if (curr.minPercent < prev.maxPercent) {
-        throw new BadRequestException(
-          `Ranges "${prev.gradeValue}" and "${curr.gradeValue}" overlap.`,
-        );
-      }
-
-      if (curr.minPercent > prev.maxPercent) {
-        throw new BadRequestException(
-          `There is a gap between ranges "${prev.gradeValue}" ` +
-            `(ends at ${prev.maxPercent}%) and "${curr.gradeValue}" ` +
-            `(starts at ${curr.minPercent}%).`,
-        );
-      }
+    // Overlap
+    if (curr.minPercent <= prev.maxPercent) {
+      throw new BadRequestException(
+        `Ranges "${prev.gradeValue}" and "${curr.gradeValue}" overlap.`,
+      );
     }
+
+    // Gap (FIXED)
+    if (curr.minPercent !== prev.maxPercent + 1) {
+      throw new BadRequestException(
+        `There is a gap between ranges "${prev.gradeValue}" ` +
+        `(ends at ${prev.maxPercent}%) and "${curr.gradeValue}" ` +
+        `(starts at ${curr.minPercent}%).`,
+      );
+    }
+  }
 
     const hasPassingRange = ranges.some((r) => r.isPassing);
     if (!hasPassingRange) {

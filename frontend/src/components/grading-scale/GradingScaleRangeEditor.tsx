@@ -23,7 +23,6 @@ export function validateRanges(ranges: GradeRange[]): RangeValidationError[] {
     return errors;
   }
 
-  // Per-row validation
   ranges.forEach((r, i) => {
     if (r.minPercent < 0 || r.maxPercent > 100) {
       errors.push({ index: i, message: "Values must be between 0 and 100." });
@@ -38,7 +37,6 @@ export function validateRanges(ranges: GradeRange[]): RangeValidationError[] {
 
   if (errors.length > 0) return errors;
 
-  // Sort by minPercent for gap/overlap checks
   const sorted = [...ranges].sort((a, b) => a.minPercent - b.minPercent);
 
   if (sorted[0].minPercent !== 0) {
@@ -51,15 +49,29 @@ export function validateRanges(ranges: GradeRange[]): RangeValidationError[] {
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1];
     const curr = sorted[i];
-    if (curr.minPercent < prev.maxPercent) {
-      errors.push({ message: `Overlap detected between "${prev.gradeValue}" and "${curr.gradeValue}".` });
-    } else if (curr.minPercent > prev.maxPercent) {
-      errors.push({ message: `Gap detected between "${prev.gradeValue}" and "${curr.gradeValue}".` });
+
+    if (curr.minPercent <= prev.maxPercent) {
+      errors.push({
+        message: `Overlap detected between "${prev.gradeValue}" and "${curr.gradeValue}".`,
+      });
+    } else if (curr.minPercent !== prev.maxPercent + 1) {
+      errors.push({
+        message: `Gap detected between "${prev.gradeValue}" and "${curr.gradeValue}".`,
+      });
     }
   }
 
   return errors;
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Strips leading zeros, clamps to 0–100
+const sanitizePercent = (value: string): number => {
+  const num = Number(value.replace(/^0+/, ""));
+  if (isNaN(num)) return 0;
+  return Math.max(0, Math.min(100, num));
+};
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -78,17 +90,33 @@ export function GradingScaleRangeEditor({
   disabled = false,
   errors = [],
 }: GradingScaleRangeEditorProps) {
-  const update = useCallback(
+  // ✅ Smart update: auto-adjust neighbors when min/max changes
+  const updateSmart = useCallback(
     (index: number, patch: Partial<GradeRange>) => {
-      onChange(ranges.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+      const updated = ranges.map((r) => ({ ...r })); // deep-ish clone
+      updated[index] = { ...updated[index], ...patch };
+
+      // If max changed → push next row's min up
+      if (patch.maxPercent !== undefined && updated[index + 1]) {
+        updated[index + 1].minPercent = patch.maxPercent + 1;
+      }
+
+      // If min changed → pull previous row's max down
+      if (patch.minPercent !== undefined && updated[index - 1]) {
+        updated[index - 1].maxPercent = patch.minPercent - 1;
+      }
+
+      onChange(updated);
     },
     [ranges, onChange]
   );
 
+  // ✅ Fixed: newMin = last.maxPercent + 1 (no off-by-one)
   const addRange = useCallback(() => {
     const last = ranges[ranges.length - 1];
-    const newMin = last ? last.maxPercent : 0;
-    const newMax = Math.min(newMin + 10, 100);
+    const newMin = last ? last.maxPercent + 1 : 0;
+    const newMax = Math.min(newMin + 9, 100);
+
     onChange([
       ...ranges,
       {
@@ -140,10 +168,11 @@ export function GradingScaleRangeEditor({
               <div
                 className={cn(
                   "grid grid-cols-[80px_80px_120px_1fr_80px_32px] gap-2 items-center",
-                  rowErrs.length > 0 && "ring-1 ring-destructive/40 rounded-md p-1"
+                  rowErrs.length > 0 &&
+                    "ring-1 ring-destructive/40 rounded-md p-1"
                 )}
               >
-                {/* Min */}
+                {/* Min — sanitized, auto-adjusts prev max */}
                 <Input
                   type="number"
                   min={0}
@@ -152,10 +181,10 @@ export function GradingScaleRangeEditor({
                   disabled={disabled}
                   className="h-8 text-sm"
                   onChange={(e) =>
-                    update(i, { minPercent: Number(e.target.value) })
+                    updateSmart(i, { minPercent: sanitizePercent(e.target.value) })
                   }
                 />
-                {/* Max */}
+                {/* Max — sanitized, auto-adjusts next min */}
                 <Input
                   type="number"
                   min={0}
@@ -164,7 +193,7 @@ export function GradingScaleRangeEditor({
                   disabled={disabled}
                   className="h-8 text-sm"
                   onChange={(e) =>
-                    update(i, { maxPercent: Number(e.target.value) })
+                    updateSmart(i, { maxPercent: sanitizePercent(e.target.value) })
                   }
                 />
                 {/* Grade Value */}
@@ -173,7 +202,7 @@ export function GradingScaleRangeEditor({
                   value={range.gradeValue}
                   disabled={disabled}
                   className="h-8 text-sm"
-                  onChange={(e) => update(i, { gradeValue: e.target.value })}
+                  onChange={(e) => updateSmart(i, { gradeValue: e.target.value })}
                 />
                 {/* Remark */}
                 <Input
@@ -181,13 +210,13 @@ export function GradingScaleRangeEditor({
                   value={range.remark}
                   disabled={disabled}
                   className="h-8 text-sm"
-                  onChange={(e) => update(i, { remark: e.target.value })}
+                  onChange={(e) => updateSmart(i, { remark: e.target.value })}
                 />
                 {/* Passing toggle */}
                 <button
                   type="button"
                   disabled={disabled}
-                  onClick={() => update(i, { isPassing: !range.isPassing })}
+                  onClick={() => updateSmart(i, { isPassing: !range.isPassing })}
                   className="flex justify-start"
                 >
                   <Badge
@@ -216,7 +245,9 @@ export function GradingScaleRangeEditor({
                 </Button>
               </div>
               {rowErrs.length > 0 && (
-                <p className="text-xs text-destructive pl-1">{rowErrs.join(" · ")}</p>
+                <p className="text-xs text-destructive pl-1">
+                  {rowErrs.join(" · ")}
+                </p>
               )}
             </div>
           );
@@ -227,7 +258,10 @@ export function GradingScaleRangeEditor({
       {globalErrors.length > 0 && (
         <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 space-y-0.5">
           {globalErrors.map((e, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs text-destructive">
+            <div
+              key={i}
+              className="flex items-center gap-2 text-xs text-destructive"
+            >
               <AlertCircle className="h-3 w-3 shrink-0" />
               {e}
             </div>
@@ -249,7 +283,7 @@ export function GradingScaleRangeEditor({
         </Button>
       )}
 
-      {/* Visual 0–100 bar */}
+      {/* Visual 0–100 coverage bar */}
       {ranges.length > 0 && (
         <div className="space-y-1 pt-1">
           <p className="text-xs text-muted-foreground">Coverage preview</p>
