@@ -22,18 +22,18 @@ export interface GetGradingScalesQuery {
 
 export const gradingScaleApi = {
   getAll: async (query?: GetGradingScalesQuery): Promise<GradingScale[]> => {
-    const res = await client.get<GradingScale[]>("/grading-scales", { params: query });
-    return res.data;
+    const res = await client.get<{ success: boolean; data: GradingScale[] }>("/grading-scales", { params: query });
+    return res.data.data;  // ← unwrap the actual array
   },
 
   create: async (data: CreateGradingScaleRequest): Promise<GradingScale> => {
-    const res = await client.post<GradingScale>("/grading-scales", data);
-    return res.data;
+    const res = await client.post<{ success: boolean; data: GradingScale }>("/grading-scales", data);
+    return res.data.data;
   },
 
   update: async (id: string, data: UpdateGradingScaleRequest): Promise<GradingScale> => {
-    const res = await client.patch<GradingScale>(`/grading-scales/${id}`, data);
-    return res.data;
+    const res = await client.patch<{ success: boolean; data: GradingScale }>(`/grading-scales/${id}`, data);
+    return res.data.data;
   },
   delete: async (id: string): Promise<void> => {
   await client.delete(`/grading-scales/${id}`);
