@@ -6,6 +6,8 @@ import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
+// backend/src/modules/level/level.controller.ts
+
 @Controller('levels')
 @UseGuards(AuthGuard, RolesGuard)
 export class LevelController {
@@ -13,8 +15,7 @@ export class LevelController {
 
   @Get('defaults')
   async getDefaults(@CurrentUser('orgId') orgId: string) {
-    const data = await this.levelService.getDefaults(orgId);
-    return { success: true, data };
+    return this.levelService.getDefaults(orgId); // interceptor wraps this
   }
 
   @Patch('defaults')
@@ -23,8 +24,7 @@ export class LevelController {
     @CurrentUser('orgId') orgId: string,
     @Body() dto: UpdateLevelDefaultsDto,
   ) {
-    const data = await this.levelService.updateDefaults(orgId, dto);
-    return { success: true, data };
+    return this.levelService.updateDefaults(orgId, dto);
   }
 
   @Get()
@@ -32,10 +32,10 @@ export class LevelController {
     @CurrentUser('orgId') orgId: string,
     @Query() query: QueryLevelDto,
   ) {
-    const data = query.schoolYearId
-      ? await this.levelService.getBySchoolYear(orgId, query.schoolYearId)
-      : await this.levelService.getAll(orgId);
-    return { success: true, data };
+    if (query.schoolYearId) {
+      return this.levelService.getBySchoolYear(orgId, query.schoolYearId);
+    }
+    return this.levelService.getAll(orgId);
   }
 
   @Post()
@@ -44,8 +44,7 @@ export class LevelController {
     @CurrentUser('orgId') orgId: string,
     @Body() dto: CreateLevelDto,
   ) {
-    const data = await this.levelService.createOne(orgId, dto);
-    return { success: true, data };
+    return this.levelService.createOne(orgId, dto);
   }
 
   @Patch(':id')
@@ -55,8 +54,7 @@ export class LevelController {
     @CurrentUser('orgId') orgId: string,
     @Body() dto: UpdateLevelDto,
   ) {
-    const data = await this.levelService.updateOne(id, orgId, dto);
-    return { success: true, data };
+    return this.levelService.updateOne(id, orgId, dto);
   }
 
   @Delete(':id')
@@ -66,6 +64,6 @@ export class LevelController {
     @CurrentUser('orgId') orgId: string,
   ) {
     await this.levelService.deleteOne(id, orgId);
-    return { success: true, data: null };
+    return null; // interceptor wraps to { success: true, data: null }
   }
 }
