@@ -72,13 +72,13 @@ export const semesterApi = {
   },
 
   create: async (data: CreateSemesterRequest): Promise<Semester> => {
-    const res = await client.post<SemesterResponse>("/semester-settings", data);
-    return mapSemester(res.data);
+    const res = await client.post<ApiListResponse<SemesterResponse>>("/semester-settings", data);
+    return mapSemester(res.data.data);  // ← unwrap
   },
 
   update: async (id: string, data: UpdateSemesterRequest): Promise<Semester> => {
-    const res = await client.patch<SemesterResponse>(`/semester-settings/${id}`, data);
-    return mapSemester(res.data);
+    const res = await client.patch<ApiListResponse<SemesterResponse>>(`/semester-settings/${id}`, data);
+    return mapSemester(res.data.data);  // ← unwrap
   },
 
   delete: async (id: string): Promise<void> => {

@@ -43,7 +43,7 @@ export function CreateEducatorDialog({ open, onClose }: CreateEducatorDialogProp
           setCredentials({
             fullName:     result.fullName,
             email:        result.email,
-            educatorCode: result.educatorCode,
+            educatorCode: result.educatorId ?? result.educatorCode,
             password:     result.plainPassword,
           });
           setFullName("");
