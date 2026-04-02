@@ -1,5 +1,3 @@
-// filepath: frontend/src/api/educator/lesson.api.ts
-
 import apiClient from "@/api/client";
 import { Lesson } from "@/types/educator/lesson.types";
 
@@ -7,6 +5,7 @@ export interface CreateLessonRequest {
   title: string;
   description?: string;
   weekNumber: number;
+  subIndex: number; // ← added
   detail: string;
 }
 
@@ -14,6 +13,7 @@ export interface UpdateLessonRequest {
   title?: string;
   description?: string;
   weekNumber?: number;
+  subIndex?: number; // ← added
   detail?: string;
 }
 
@@ -22,7 +22,8 @@ export const lessonApi = {
     const { data } = await apiClient.get(`/educator/classes/${classId}/lessons`, {
       params: weekNumber !== undefined ? { weekNumber } : undefined,
     });
-    return data;
+    // If backend wraps in { data: [...] }, unwrap it
+    return Array.isArray(data) ? data : (data.data ?? []);
   },
 
   getOne: async (classId: string, lessonId: string): Promise<Lesson> => {
@@ -58,7 +59,7 @@ export const lessonApi = {
 
   triggerExtraction: async (classId: string, lessonId: string): Promise<void> => {
     await apiClient.post(
-      `/educator/classes/${classId}/lessons/${lessonId}/extract-concepts`
+      `/educator/classes/${classId}/lessons/${lessonId}/re-extract` // ← fixed
     );
   },
 };

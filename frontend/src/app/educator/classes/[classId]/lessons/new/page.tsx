@@ -1,5 +1,3 @@
-// filepath: frontend/src/app/educator/classes/[classId]/lessons/new/page.tsx
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -7,7 +5,6 @@ import { toast } from "sonner";
 import { LessonForm } from "@/components/educator/lesson/LessonForm";
 import { useCreateLesson } from "@/hooks/educator/useLessons";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
-import { lessonApi } from "@/api/educator/lesson.api";
 import { CreateLessonRequest } from "@/api/educator/lesson.api";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -21,14 +18,9 @@ export default function NewLessonPage(): React.JSX.Element {
   const { mutateAsync: createLesson, isPending } = useCreateLesson(classId);
 
   async function handleSubmit(data: CreateLessonRequest): Promise<void> {
-    const lesson = await createLesson(data);
+    await createLesson(data);
     toast.success("Lesson saved. Concept extraction running...");
-
-    // fire-and-forget extraction — result arrives via in-app notification
-    lessonApi.triggerExtraction(classId, lesson.id).catch(() => {
-      // extraction failure is surfaced via notification channel, not toast
-    });
-
+    // No need to call triggerExtraction manually — backend fires it on create
     router.push(`/educator/classes/${classId}/lessons`);
   }
 

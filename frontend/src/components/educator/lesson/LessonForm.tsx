@@ -1,5 +1,3 @@
-// filepath: frontend/src/components/educator/lesson/LessonForm.tsx
-
 "use client";
 
 import { useState } from "react";
@@ -28,7 +26,7 @@ interface LessonFormProps {
   isLoading: boolean;
 }
 
-const MIN_DETAIL_WORDS = 10;
+const MIN_DETAIL_WORDS = 5;
 
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
@@ -45,21 +43,34 @@ export function LessonForm({
 
   const [title, setTitle] = useState(lesson?.title ?? "");
   const [description, setDescription] = useState(lesson?.description ?? "");
-  const [weekNumber, setWeekNumber] = useState<number>(
-    lesson?.weekNumber ?? availableWeeks[0]?.value ?? 1
+
+  // selectedSlot holds the full WeekSlot so we get both weekNumber and subIndex
+  const defaultSlot = availableWeeks[0] ?? { label: "1", value: 1 };
+  const [selectedSlotValue, setSelectedSlotValue] = useState<number>(
+    lesson?.weekNumber ?? defaultSlot.value
   );
+
   const [detail, setDetail] = useState(lesson?.detail ?? "");
 
   const wordCount = countWords(detail);
   const detailValid = wordCount >= MIN_DETAIL_WORDS;
   const formValid = title.trim().length > 0 && detailValid;
 
+  const selectedSlot =
+    availableWeeks.find((w) => w.value === selectedSlotValue) ?? defaultSlot;
+
   async function handleSubmit(): Promise<void> {
     if (!formValid) return;
+
+    // Derive weekNumber from the slot label (e.g. "1.2" → week 1, subIndex = slot.value)
+    const rawWeek = selectedSlot.label.split(".")[0];
+    const weekNumber = parseInt(rawWeek, 10);
+
     await onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
       weekNumber,
+      subIndex: selectedSlot.value, // ← auto-derived, no manual input needed
       detail: detail.trim(),
     });
   }
@@ -96,8 +107,8 @@ export function LessonForm({
           Week Assignment <span className="text-destructive">*</span>
         </Label>
         <Select
-          value={String(weekNumber)}
-          onValueChange={(v) => setWeekNumber(Number(v))}
+          value={String(selectedSlotValue)}
+          onValueChange={(v) => setSelectedSlotValue(Number(v))}
         >
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Select week" />
