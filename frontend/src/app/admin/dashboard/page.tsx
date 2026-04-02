@@ -279,18 +279,19 @@ export default function AdminDashboardPage(): React.JSX.Element {
   const { data: org, isLoading: orgLoading } = useQuery({
     queryKey: ["admin", "organization"],
     queryFn: organizationApi.getOrg,
+    retry: false, // don't retry 404s
   });
 
   const { data: overview, isLoading: overviewLoading } = useQuery({
     queryKey: ["admin", "analytics", "overview"],
     queryFn: analyticsApi.getOverview,
-    enabled: !!org,
+    enabled: org !== null && org !== undefined,
   });
 
   const { data: enrollment, isLoading: enrollmentLoading } = useQuery({
     queryKey: ["admin", "analytics", "enrollment"],
     queryFn: analyticsApi.getEnrollmentBreakdown,
-    enabled: !!org,
+    enabled: org !== null && org !== undefined,
   });
 
   useEffect(() => {
