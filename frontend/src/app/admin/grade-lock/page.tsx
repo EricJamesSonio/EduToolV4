@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
 import { Lock, Unlock, Settings, AlertTriangle, Calendar } from "lucide-react";
@@ -8,7 +8,6 @@ import { toast } from "sonner";
 
 import { DataTable } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -36,12 +35,12 @@ import type { GradeLock, GradeLockStatus } from "@/types/admin/grade-lock.types"
 
 function lockStatusVariant(
   status: GradeLockStatus
-): "default" | "success" | "destructive" | "secondary" | "warning" {
+): "default" | "destructive" | "secondary" | "outline" {
   switch (status) {
     case "locked":
       return "destructive";
     case "auto_locked":
-      return "warning";
+      return "outline";
     default:
       return "secondary";
   }
@@ -72,7 +71,7 @@ function GradeLockSettingModal({
   onClose,
   schoolYearId,
   existingDeadline,
-}: GradeLockSettingModalProps) {
+}: GradeLockSettingModalProps): React.ReactElement {
   const isEdit = !!existingDeadline;
   const [deadline, setDeadline] = useState(
     existingDeadline
@@ -84,7 +83,7 @@ function GradeLockSettingModal({
   const updateMutation = useUpdateGradeLockSetting();
   const isPending = createMutation.isPending || updateMutation.isPending;
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<void> => {
     if (!deadline) return;
     try {
       if (isEdit) {
@@ -153,11 +152,11 @@ function GradeLockOverrideDialog({
   open,
   onClose,
   gradeLock,
-}: GradeLockOverrideDialogProps) {
+}: GradeLockOverrideDialogProps): React.ReactElement {
   const [reason, setReason] = useState("");
   const unlockMutation = useUnlockOverride();
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (): Promise<void> => {
     if (!gradeLock || !reason.trim()) return;
     try {
       await unlockMutation.mutateAsync({ classId: gradeLock.classId, reason });
@@ -169,7 +168,7 @@ function GradeLockOverrideDialog({
     }
   };
 
-  const handleClose = () => {
+  const handleClose = (): void => {
     setReason("");
     onClose();
   };
@@ -234,14 +233,12 @@ function GradeLockOverrideDialog({
 const ACTIVE_SCHOOL_YEAR_ID = "active-school-year-id";
 const ACTIVE_SCHOOL_YEAR_LABEL = "S.Y. 2024–2025";
 
-export default function GradeLockPage() {
+export default function GradeLockPage(): React.ReactElement {
   const [settingModalOpen, setSettingModalOpen] = useState(false);
   const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null);
 
   const { data: gradeLocks, isLoading } = useGradeLocks();
   const { data: setting } = useGradeLockSetting(ACTIVE_SCHOOL_YEAR_ID);
-
-  // ── table columns ──────────────────────────────────────────────────────────
 
   const columns = useMemo<ColumnDef<GradeLock>[]>(
     () => [
@@ -323,8 +320,6 @@ export default function GradeLockPage() {
     []
   );
 
-  // ── summary counts ─────────────────────────────────────────────────────────
-
   const counts = useMemo(() => {
     const all = Array.isArray(gradeLocks) ? gradeLocks : [];
     return {
@@ -337,22 +332,17 @@ export default function GradeLockPage() {
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
       <PageHeader
         title="Grade Lock"
         description="Manage grade submission deadlines and lock status per class."
         actions={
-          <Button
-            onClick={() => setSettingModalOpen(true)}
-            className="gap-2"
-          >
+          <Button onClick={() => setSettingModalOpen(true)} className="gap-2">
             <Settings className="h-4 w-4" />
             {setting ? "Update Lock Window" : "Open Lock Window"}
           </Button>
         }
       />
 
-      {/* Active school year + lock window info */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
           <span className="text-muted-foreground">Active School Year</span>
@@ -369,7 +359,6 @@ export default function GradeLockPage() {
         )}
       </div>
 
-      {/* Summary stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: "Total Classes", value: counts.total, colorClass: "" },
@@ -377,17 +366,13 @@ export default function GradeLockPage() {
           { label: "Locked", value: counts.locked, colorClass: "text-destructive" },
           { label: "Auto-Locked", value: counts.autoLocked, colorClass: "text-amber-600 dark:text-amber-400" },
         ].map(({ label, value, colorClass }) => (
-          <div
-            key={label}
-            className="rounded-md bg-muted/40 p-4"
-          >
+          <div key={label} className="rounded-md bg-muted/40 p-4">
             <p className="text-xs text-muted-foreground">{label}</p>
             <p className={`mt-1 text-2xl font-medium ${colorClass}`}>{value}</p>
           </div>
         ))}
       </div>
 
-      {/* Class lock table */}
       <DataTable
         columns={columns}
         data={Array.isArray(gradeLocks) ? gradeLocks : []}
@@ -396,7 +381,6 @@ export default function GradeLockPage() {
         emptyDescription="No grade lock records exist yet. Open a lock window to get started."
       />
 
-      {/* Modals */}
       <GradeLockSettingModal
         open={settingModalOpen}
         onClose={() => setSettingModalOpen(false)}

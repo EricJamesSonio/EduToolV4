@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
 import {
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 
 import { useAuditLogs } from "@/hooks/admin/useAuditLog";
-import type { AuditLog, AdminActionType } from "@/types/admin/audit-log.types";
+import type { AuditLog } from "@/types/admin/audit-log.types";
 import type { GetAuditLogQuery } from "@/api/admin/audit-log.api";
 
 // ─── constants ─────────────────────────────────────────────────────────────────
@@ -62,12 +62,12 @@ const ENTITY_TYPE_OPTIONS: { value: string; label: string }[] = [
 
 function actionBadgeVariant(
   action: string
-): "default" | "destructive" | "secondary" | "warning" | "success" {
+): "default" | "destructive" | "secondary" | "outline" {
   if (action.toLowerCase().includes("unlock") || action.toLowerCase().includes("override"))
     return "destructive";
-  if (action.toLowerCase().includes("lock")) return "warning";
+  if (action.toLowerCase().includes("lock")) return "outline";
   if (action.toLowerCase().includes("created") || action.toLowerCase().includes("started"))
-    return "success";
+    return "default";
   if (action.toLowerCase().includes("removed") || action.toLowerCase().includes("deleted"))
     return "destructive";
   return "secondary";
@@ -106,7 +106,7 @@ function exportToCsv(logs: AuditLog[]) {
 
 // ─── ExpandableMetadata ────────────────────────────────────────────────────────
 
-function ExpandableMetadata({ metadata }: { metadata: Record<string, unknown> | null }) {
+function ExpandableMetadata({ metadata }: { metadata: Record<string, unknown> | null }): React.ReactElement | null {
   const [expanded, setExpanded] = useState(false);
 
   if (!metadata || Object.keys(metadata).length === 0) {
@@ -217,7 +217,7 @@ export default function AuditLogPage() {
                   system
                 </Badge>
               ) : (
-                <span className="font-mono text-xs truncate max-w-[120px]" title={id}>
+                <span className="font-mono text-xs truncate max-w-30" title={id}>
                   {id.length > 12 ? `${id.slice(0, 8)}…` : id}
                 </span>
               )}
@@ -324,7 +324,7 @@ export default function AuditLogPage() {
           {/* Action type */}
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Action Type</label>
-            <Select value={action} onValueChange={(v) => { setAction(v); setPage(1); }}>
+            <Select value={action} onValueChange={(v: string | null) => { setAction(v ?? "all"); setPage(1); }}>
               <SelectTrigger>
                 <SelectValue placeholder="All Actions" />
               </SelectTrigger>
@@ -341,7 +341,7 @@ export default function AuditLogPage() {
           {/* Entity type */}
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Entity Type</label>
-            <Select value={entityType} onValueChange={(v) => { setEntityType(v); setPage(1); }}>
+            <Select value={entityType} onValueChange={(v: string | null) => { setEntityType(v ?? "all"); setPage(1); }}>
               <SelectTrigger>
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>

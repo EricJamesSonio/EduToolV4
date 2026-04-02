@@ -63,7 +63,7 @@ function SectionDialog({
     formState: { errors },
   } = useForm<SectionFormValues>({
     defaultValues: {
-      levelId: section?.levelId ?? "",
+      levelId: section?.level_id ?? "",
       name: section?.name ?? "",
       capacity: section?.capacity ?? 30,
     },

@@ -68,7 +68,7 @@ export function StudentFilterBar({
         value={filters.levelId ?? "all"}
         onValueChange={(v) =>
           set({
-            levelId: v === "all" ? undefined : v,
+            levelId: v === "all" ? undefined : v ?? "",
             sectionId: undefined, // reset dependent
           })
         }
@@ -89,7 +89,7 @@ export function StudentFilterBar({
       <Select
         value={filters.sectionId ?? "all"}
         onValueChange={(v) =>
-          set({ sectionId: v === "all" ? undefined : v })
+          set({ sectionId: v === "all" ? undefined : v ?? ""})
         }
         disabled={!filters.levelId || sections.length === 0}
       >
