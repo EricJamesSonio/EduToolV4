@@ -79,7 +79,10 @@ export default function AssessmentsPage(): React.JSX.Element {
 
       {/* Filters */}
       <div className="flex items-center gap-3">
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
+       <Select
+  value={typeFilter}
+  onValueChange={(value) => setTypeFilter(value ?? "all")}
+>
           <SelectTrigger className="w-36">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
@@ -178,7 +181,7 @@ export default function AssessmentsPage(): React.JSX.Element {
                         </Button>
                       </Link>
                       <AlertDialog>
-                        <AlertDialogTrigger asChild>
+                        <AlertDialogTrigger>
                           <Button
                             variant="ghost"
                             size="sm"
