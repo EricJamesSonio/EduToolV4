@@ -29,7 +29,7 @@ import type { AxiosError } from "axios";
 interface SemesterFormDialogProps {
   open: boolean;
   onClose: () => void;
-  semester?: Semester; // present = edit mode
+  semester?: Semester;
 }
 
 const EMPTY_DRAFT: SemesterDraft = {
@@ -38,6 +38,25 @@ const EMPTY_DRAFT: SemesterDraft = {
   endDate: "",
   terms: [],
 };
+
+/**
+ * Normalise any date string the backend might return into YYYY-MM-DD,
+ * which is what <input type="date"> requires.
+ *
+ * Handles:
+ *   "2024-08-01T00:00:00.000Z"  → "2024-08-01"
+ *   "2024-08-01"                → "2024-08-01"  (no-op)
+ *   ""  | null | undefined      → ""
+ */
+function toDateInput(value: string | null | undefined): string {
+  if (!value) return "";
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  // ISO datetime — slice the date part
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
 
 export function SemesterFormDialog({
   open,
@@ -50,31 +69,33 @@ export function SemesterFormDialog({
   const [draft, setDraft] = useState<SemesterDraft>(EMPTY_DRAFT);
   const [errors, setErrors] = useState<ReturnType<typeof validateSemester>>({});
   const [submitted, setSubmitted] = useState(false);
-
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   // Seed draft on open
   useEffect(() => {
     if (open) {
-      const savedDraft = localStorage.getItem("semesterDraft");
-      if (savedDraft && !isEdit) {
-        setDraft(JSON.parse(savedDraft));
+      if (!isEdit) {
+        const savedDraft = localStorage.getItem("semesterDraft");
+        if (savedDraft) {
+          setDraft(JSON.parse(savedDraft));
+        } else {
+          setDraft(EMPTY_DRAFT);
+        }
       } else if (semester) {
+        // Normalise dates → YYYY-MM-DD so <input type="date"> shows them correctly
         setDraft({
           id: semester.id,
           name: semester.name,
-          startDate: semester.startDate,
-          endDate: semester.endDate,
+          startDate: toDateInput(semester.startDate),
+          endDate: toDateInput(semester.endDate),
           terms: semester.terms.map((t) => ({
             id: t.id,
             name: t.name,
             orderIndex: t.orderIndex,
-            startDate: t.startDate,
-            endDate: t.endDate,
+            startDate: toDateInput(t.startDate),
+            endDate: toDateInput(t.endDate),
           })),
         });
-      } else {
-        setDraft(EMPTY_DRAFT);
       }
       setErrors({});
       setSubmitted(false);
@@ -93,8 +114,6 @@ export function SemesterFormDialog({
     const next = { ...draft, [key]: value } as SemesterDraft;
     setDraft(next);
     if (submitted) setErrors(validateSemester(next));
-
-    // auto-save draft for new semesters
     if (!isEdit) localStorage.setItem("semesterDraft", JSON.stringify(next));
   };
 
@@ -109,7 +128,7 @@ export function SemesterFormDialog({
       }),
     onSuccess: () => {
       toast.success("Semester created.");
-      localStorage.removeItem("semesterDraft"); // clear saved draft
+      localStorage.removeItem("semesterDraft");
       queryClient.invalidateQueries({ queryKey: ["semesters"] });
       onClose();
     },
@@ -157,8 +176,8 @@ export function SemesterFormDialog({
   };
 
   const handleCloseClick = () => {
-    // Only prompt for new semesters if form has data
-    const hasData = draft.name || draft.startDate || draft.endDate || draft.terms.length > 0;
+    const hasData =
+      draft.name || draft.startDate || draft.endDate || draft.terms.length > 0;
     if (!isEdit && hasData) {
       setShowCloseConfirm(true);
     } else {
@@ -187,7 +206,10 @@ export function SemesterFormDialog({
             {!isEdit && (
               <div className="space-y-1.5">
                 <Label>School Year</Label>
-                <Select value={schoolYearId} onValueChange={(v) => setSchoolYearId(v ?? "")}>
+                <Select
+                  value={schoolYearId}
+                  onValueChange={(v) => setSchoolYearId(v ?? "")}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select school year">
                       {schoolYearId
@@ -204,7 +226,9 @@ export function SemesterFormDialog({
                   </SelectContent>
                 </Select>
                 {submitted && !schoolYearId && (
-                  <p className="text-xs text-destructive">School year is required.</p>
+                  <p className="text-xs text-destructive">
+                    School year is required.
+                  </p>
                 )}
               </div>
             )}
@@ -265,11 +289,20 @@ export function SemesterFormDialog({
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="outline" onClick={handleCloseClick} disabled={isPending}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseClick}
+                disabled={isPending}
+              >
                 Cancel
               </Button>
               <Button onClick={handleSubmit} disabled={isPending}>
-                {isPending ? "Saving..." : isEdit ? "Save Changes" : "Create Semester"}
+                {isPending
+                  ? "Saving..."
+                  : isEdit
+                  ? "Save Changes"
+                  : "Create Semester"}
               </Button>
             </div>
           </div>
@@ -284,9 +317,13 @@ export function SemesterFormDialog({
               <DialogTitle>Save Draft?</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-2">
-              <p>You have unsaved changes. Do you want to save them as a draft?</p>
+              <p>
+                You have unsaved changes. Do you want to save them as a draft?
+              </p>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => confirmClose(false)}>Discard</Button>
+                <Button variant="outline" onClick={() => confirmClose(false)}>
+                  Discard
+                </Button>
                 <Button onClick={() => confirmClose(true)}>Save Draft</Button>
               </div>
             </div>
