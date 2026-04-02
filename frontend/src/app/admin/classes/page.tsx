@@ -21,9 +21,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useClassFilters } from "@/hooks/admin/useClassFilters";
 import { toArray } from "@/utils/classes.utils";
-import { ClassesFilterBar } from "@/components/class/ClassesFilterBar";
-import { ClassesTable } from "@/components/class/ClassesTable";
-import { CreateClassDialog } from "@/components/class/CreateClassDialog";
+import { ClassesFilterBar } from "@/components/admin/class/ClassesFilterBar";
+import { ClassesTable } from "@/components/admin/class/ClassesTable";
+import { CreateClassDialog } from "@/components/admin/class/CreateClassDialog";
 
 function ClassesPageInner(): React.JSX.Element {
   const searchParams = useSearchParams();

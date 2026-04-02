@@ -10,7 +10,7 @@ import type { GradeRange } from "@/types/admin/grading-scale.types";
 import {
   GradingScaleRangeEditor,
   validateRanges,
-} from "@/components/grading-scale/GradingScaleRangeEditor";
+} from "@/components/admin/grading-scale/GradingScaleRangeEditor";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

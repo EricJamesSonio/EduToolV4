@@ -8,7 +8,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
 import { useGradingScales } from "@/hooks/admin/useGradingScales";
 import type { GradingScale } from "@/types/admin/grading-scale.types";
-import { CreateGradingScaleDialog } from "@/components/grading-scale/CreateGradingScaleDialog";
+import { CreateGradingScaleDialog } from "@/components/admin/grading-scale/CreateGradingScaleDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";

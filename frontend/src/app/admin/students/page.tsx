@@ -17,9 +17,9 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { toArray } from "@/utils/classes.utils";
-import { StudentFilterBar } from "@/components/student/StudentFilterBar";
-import { StudentTable } from "@/components/student/StudentTable";
-import { CreateStudentDialog } from "@/components/student/CreateStudentDialog";
+import { StudentFilterBar } from "@/components/admin/student/StudentFilterBar";
+import { StudentTable } from "@/components/admin/student/StudentTable";
+import { CreateStudentDialog } from "@/components/admin/student/CreateStudentDialog";
 
 function StudentsPageInner(): React.JSX.Element {
   const router = useRouter();

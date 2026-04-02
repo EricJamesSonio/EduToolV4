@@ -10,13 +10,13 @@ import { sectionApi } from "@/api/admin/section.api";
 import { toArray } from "@/utils/classes.utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { StudentDetailHeader } from "@/components/student/detail/StudentDetailHeader";
-import { StudentInfoCard } from "@/components/student/detail/StudentInfoCard";
-import { StudentEnrollmentsList } from "@/components/student/detail/StudentEnrollmentsList";
-import { EditStudentDialog } from "@/components/student/detail/EditStudentDialog";
-import { UpdateStatusDialog } from "@/components/student/detail/UpdateStatusDialog";
-import { ResetPasswordDialog } from "@/components/student/detail/ResetPasswordDialog";
-import { EnrollStudentInClassDialog } from "@/components/student/detail/EnrollStudentInClassDialog";
+import { StudentDetailHeader } from "@/components/admin/student/detail/StudentDetailHeader";
+import { StudentInfoCard } from "@/components/admin/student/detail/StudentInfoCard";
+import { StudentEnrollmentsList } from "@/components/admin/student/detail/StudentEnrollmentsList";
+import { EditStudentDialog } from "@/components/admin/student/detail/EditStudentDialog";
+import { UpdateStatusDialog } from "@/components/admin/student/detail/UpdateStatusDialog";
+import { ResetPasswordDialog } from "@/components/admin/student/detail/ResetPasswordDialog";
+import { EnrollStudentInClassDialog } from "@/components/admin/student/detail/EnrollStudentInClassDialog";
 
 // Normalised shapes — snake_case from API converted once here, used everywhere
 export interface NormalisedLevel {

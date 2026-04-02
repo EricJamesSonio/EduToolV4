@@ -17,11 +17,11 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toArray } from "@/utils/classes.utils";
 
-import { ClassDetailHeader } from "@/components/class/detail/ClassDetailHeader";
-import { ClassInfoCard } from "@/components/class/detail/ClassInfoCard";
-import { EnrolledStudentsList } from "@/components/class/detail/EnrolledStudentsList";
-import { EditClassDialog } from "@/components/class/detail/EditClassDialog";
-import { EnrollStudentDialog } from "@/components/class/detail/EnrollStudentDialog";
+import { ClassDetailHeader } from "@/components/admin/class/detail/ClassDetailHeader";
+import { ClassInfoCard } from "@/components/admin/class/detail/ClassInfoCard";
+import { EnrolledStudentsList } from "@/components/admin/class/detail/EnrolledStudentsList";
+import { EditClassDialog } from "@/components/admin/class/detail/EditClassDialog";
+import { EnrollStudentDialog } from "@/components/admin/class/detail/EnrollStudentDialog";
 
 export default function ClassDetailPage({
   params,
