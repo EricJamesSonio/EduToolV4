@@ -18,7 +18,7 @@ export interface EducatorClass {
   semester_id: string;
   capacity: number; // 0 = unlimited
   deleted_at: string | null;
-  schedules: EducatorClassSchedule[];
+  schedules: EducatorClassSchedule[] | undefined;
 }
 
 // Enriched shape built on the frontend by joining lookup data
@@ -34,8 +34,8 @@ export const WEEKDAY_LABELS = [
   "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
 ] as const;
 
-export function formatSchedules(schedules: EducatorClassSchedule[]): string {
-  if (!schedules.length) return "No schedule";
+export function formatSchedules(schedules: EducatorClassSchedule[] | undefined | null): string {
+  if (!schedules?.length) return "No schedule";
   return schedules
     .map((s) => {
       const day = WEEKDAY_LABELS[s.weekday] ?? "?";
