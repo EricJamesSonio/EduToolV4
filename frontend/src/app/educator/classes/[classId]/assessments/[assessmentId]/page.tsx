@@ -88,7 +88,7 @@ export default function AssessmentDetailPage(): React.JSX.Element {
             </Button>
           </Link>
           <AlertDialog>
-            <AlertDialogTrigger asChild>
+            <AlertDialogTrigger>
               <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5">
                 <Trash2 className="h-3.5 w-3.5" />Delete
               </Button>

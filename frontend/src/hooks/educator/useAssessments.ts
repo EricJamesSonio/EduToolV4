@@ -4,7 +4,7 @@ import {
   useMutation,
   useQueryClient,
   UseQueryResult,
-  UseMutationResult,
+  UseMutationResult, Query
 } from "@tanstack/react-query";
 import {
   assessmentApi,
@@ -34,7 +34,9 @@ export const useAssessments = (
 export const useAssessment = (
   classId: string,
   assessmentId: string,
-  options?: { refetchInterval?: number },
+  options?: {
+  refetchInterval?: number | false | ((query: Query<Assessment, Error>) => number | false);
+},
 ): UseQueryResult<Assessment, Error> => {
   return useQuery({
     queryKey: [ASSESSMENTS_KEY, classId, assessmentId],

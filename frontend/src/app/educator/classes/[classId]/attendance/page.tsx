@@ -7,14 +7,12 @@ import { useAttendanceSessions } from "@/hooks/educator/useAttendance";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import type { WeekSessions } from "@/api/educator/attendance.api";
 
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAY_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function formatSessionDate(dateStr: string) {
   const d = new Date(dateStr);
   return {
     weekday: WEEKDAY_FULL[d.getDay()],
-    short: WEEKDAY_LABELS[d.getDay()],
     date: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
   };
 }
@@ -26,14 +24,15 @@ export default function AttendancePage() {
 
   const { data: rawData, isLoading } = useAttendanceSessions(classId);
 
-  // The API returns WeekSessions[] but defensively normalize in case the shape differs
+  // Normalize: API returns WeekSessions[] but defensively guard against
+  // any unexpected shape (object, undefined, etc.) during loading transitions
   const weekGroups: WeekSessions[] = Array.isArray(rawData) ? rawData : [];
 
   const maxWeek = weekGroups.length
     ? Math.max(...weekGroups.map((w) => w.week_number))
     : 1;
 
-  // On first load, jump to the first available week instead of defaulting to 1
+  // Jump to first available week once data loads
   useEffect(() => {
     if (weekGroups.length > 0) {
       setCurrentWeek(weekGroups[0].week_number);
@@ -47,7 +46,6 @@ export default function AttendancePage() {
 
   return (
     <div className="min-h-screen bg-[#0f0f11]">
-      {/* Top accent bar */}
       <div className="h-[3px] bg-gradient-to-r from-violet-500 via-fuchsia-500 to-indigo-500" />
 
       <div className="max-w-4xl mx-auto px-6 py-10">
@@ -121,7 +119,6 @@ export default function AttendancePage() {
                   className="w-full group flex items-center justify-between bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800 hover:border-violet-500/40 rounded-2xl px-6 py-5 transition-all duration-200"
                 >
                   <div className="flex items-center gap-5">
-                    {/* Date badge */}
                     <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-zinc-700 flex flex-col items-center justify-center shrink-0">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-violet-400">
                         {new Date(session.date).toLocaleDateString("en-US", { month: "short" })}
