@@ -10,6 +10,7 @@ import { useLesson, useUpdateLesson, useDeleteLesson, useTriggerExtraction } fro
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import { LessonForm } from "@/components/educator/lesson/LessonForm";
 import { ConceptBuildViewer } from "@/components/educator/lesson/ConceptBuildViewer";
+
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,

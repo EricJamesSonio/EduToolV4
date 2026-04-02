@@ -1,3 +1,5 @@
+// frontend/src/types/educator/lesson.types.ts
+
 export type ConceptBuildStatus = "none" | "building" | "ready" | "outdated";
 
 export interface ConceptSection {
@@ -22,6 +24,7 @@ export interface Lesson {
   description: string | null;
   detail: string;
   weekNumber: number;
+  subIndex: number;        // ← add this
   conceptBuild: LessonConcept | null;
   createdAt: string;
   updatedAt: string;
