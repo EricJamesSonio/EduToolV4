@@ -1,159 +1,225 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, ArrowRight } from "lucide-react";
-import { useAttendanceSessions } from "@/hooks/educator/useAttendance";
-import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
-import type { WeekSessions } from "@/api/educator/attendance.api";
+// filepath: frontend/src/app/educator/classes/[classId]/assessments/page.tsx
 
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const WEEKDAY_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import {
+  useAssessments,
+  useDeleteAssessment,
+} from "@/hooks/educator/useAssessments";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Plus, Loader2, Eye, Users, Trash2 } from "lucide-react";
+import type { AssessmentType } from "@/types/educator/assessment.types";
 
-function formatSessionDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return {
-    weekday: WEEKDAY_FULL[d.getDay()],
-    short: WEEKDAY_LABELS[d.getDay()],
-    date: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-  };
-}
+const STATUS_COLORS = {
+  upcoming: "bg-blue-50 text-blue-700 border-blue-200",
+  open: "bg-green-50 text-green-700 border-green-200",
+  closed: "bg-zinc-100 text-zinc-600 border-zinc-200",
+} as const;
 
-export default function AttendancePage() {
-  const { classId } = useParams<{ classId: string }>();
-  const router = useRouter();
-  const [currentWeek, setCurrentWeek] = useState<number>(1);
+const TYPE_LABELS: Record<AssessmentType, string> = {
+  quiz: "Quiz",
+  activity: "Activity",
+  exam: "Exam",
+  custom: "Custom",
+};
 
-  const { data: rawData, isLoading } = useAttendanceSessions(classId);
+export default function AssessmentsPage(): React.JSX.Element {
+  const params = useParams();
+  const classId = params.classId as string;
 
-  // The API returns WeekSessions[] but defensively normalize in case the shape differs
-  const weekGroups: WeekSessions[] = Array.isArray(rawData) ? rawData : [];
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
-  const maxWeek = weekGroups.length
-    ? Math.max(...weekGroups.map((w) => w.week_number))
-    : 1;
+  const { data: assessments, isLoading } = useAssessments(classId, {
+    type: typeFilter === "all" ? undefined : typeFilter,
+  });
+  const { mutateAsync: deleteAssessment, isPending: isDeleting } =
+    useDeleteAssessment(classId);
 
-  // On first load, jump to the first available week instead of defaulting to 1
-  useEffect(() => {
-    if (weekGroups.length > 0) {
-      setCurrentWeek(weekGroups[0].week_number);
-    }
-  }, [weekGroups.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const currentGroup = weekGroups.find((w) => w.week_number === currentWeek);
-
-  const handlePrev = () => setCurrentWeek((w) => Math.max(1, w - 1));
-  const handleNext = () => setCurrentWeek((w) => Math.min(maxWeek, w + 1));
+  async function handleDelete(assessmentId: string): Promise<void> {
+    await deleteAssessment(assessmentId);
+    toast.success("Assessment deleted. Submitted scores have been removed.");
+  }
 
   return (
-    <div className="min-h-screen bg-[#0f0f11]">
-      {/* Top accent bar */}
-      <div className="h-[3px] bg-gradient-to-r from-violet-500 via-fuchsia-500 to-indigo-500" />
-
-      <div className="max-w-4xl mx-auto px-6 py-10">
-        {/* Header */}
-        <div className="mb-10">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-violet-500/20 border border-violet-500/30 flex items-center justify-center">
-              <CalendarDays className="w-4 h-4 text-violet-400" />
-            </div>
-            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-violet-400">
-              Educator Portal
-            </p>
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Attendance</h1>
-          <p className="text-sm text-zinc-500 mt-1">Manage session records by week</p>
-        </div>
-
-        {/* Week Navigator */}
-        <div className="flex items-center justify-between mb-8 bg-zinc-900/60 border border-zinc-800 rounded-2xl px-6 py-4">
-          <button
-            onClick={handlePrev}
-            disabled={currentWeek <= 1}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Previous
-          </button>
-
-          <div className="text-center">
-            <span className="text-xs uppercase tracking-widest text-zinc-500 font-semibold">Current</span>
-            <div className="flex items-center gap-3 mt-1">
-              <span className="text-2xl font-bold text-white">Week {currentWeek}</span>
-              <span className="text-xs bg-violet-500/20 text-violet-300 border border-violet-500/30 px-2 py-0.5 rounded-full font-medium">
-                of {maxWeek}
-              </span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleNext}
-            disabled={currentWeek >= maxWeek}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            Next
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Session List */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-24">
-            <LoadingSpinner />
-          </div>
-        ) : !currentGroup || currentGroup.sessions.length === 0 ? (
-          <div className="text-center py-24 text-zinc-600">
-            <CalendarDays className="w-10 h-10 mx-auto mb-3 opacity-40" />
-            <p className="text-sm">No sessions found for Week {currentWeek}</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {currentGroup.sessions.map((session, idx) => {
-              const { weekday, date } = formatSessionDate(session.date);
-              const label = `Session ${session.weekNumber ?? currentWeek}.${session.sessionNumber ?? idx + 1}`;
-
-              return (
-                <button
-                  key={session.id}
-                  onClick={() =>
-                    router.push(`/educator/classes/${classId}/attendance/${session.id}`)
-                  }
-                  className="w-full group flex items-center justify-between bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800 hover:border-violet-500/40 rounded-2xl px-6 py-5 transition-all duration-200"
-                >
-                  <div className="flex items-center gap-5">
-                    {/* Date badge */}
-                    <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-zinc-700 flex flex-col items-center justify-center shrink-0">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-violet-400">
-                        {new Date(session.date).toLocaleDateString("en-US", { month: "short" })}
-                      </span>
-                      <span className="text-lg font-bold text-white leading-none">
-                        {new Date(session.date).getDate()}
-                      </span>
-                    </div>
-
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-white">{label}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Clock className="w-3 h-3 text-zinc-500" />
-                        <span className="text-xs text-zinc-500">{weekday} · {date}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-medium text-zinc-500 group-hover:text-violet-400 transition-colors">
-                      View / Edit
-                    </span>
-                    <div className="w-7 h-7 rounded-lg bg-zinc-800 group-hover:bg-violet-500/20 border border-zinc-700 group-hover:border-violet-500/40 flex items-center justify-center transition-all">
-                      <ArrowRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-violet-400 transition-colors" />
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Assessments</h1>
+        <Link href={`/educator/classes/${classId}/assessments/new`}>
+          <Button size="sm" className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            New Assessment
+          </Button>
+        </Link>
       </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3">
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="quiz">Quiz</SelectItem>
+            <SelectItem value="activity">Activity</SelectItem>
+            <SelectItem value="exam">Exam</SelectItem>
+            <SelectItem value="custom">Custom</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading assessments...
+        </div>
+      ) : !assessments || assessments.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+          <p className="text-sm">No assessments yet.</p>
+          <Link href={`/educator/classes/${classId}/assessments/new`}>
+            <Button variant="outline" size="sm">
+              Create your first assessment
+            </Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="rounded-lg border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 border-b">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Title</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Release Date</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">End Date</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Submitted</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Essays</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {assessments.map((a) => (
+                <tr key={a.id} className="hover:bg-muted/20 transition-colors">
+                  <td className="px-4 py-3 font-medium">{a.title}</td>
+                  <td className="px-4 py-3">
+                    <Badge variant="outline">{TYPE_LABELS[a.type]}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {a.releaseDate
+                      ? format(new Date(a.releaseDate), "MMM d, yyyy")
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {a.endDate
+                      ? format(new Date(a.endDate), "MMM d, yyyy")
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_COLORS[a.status]}`}
+                    >
+                      {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {a.submittedCount}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {a.pendingEssayCount > 0 ? (
+                      <span className="text-amber-600 font-medium">
+                        {a.pendingEssayCount} pending
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 justify-end">
+                      <Link
+                        href={`/educator/classes/${classId}/assessments/${a.id}`}
+                      >
+                        <Button variant="ghost" size="sm" className="gap-1.5">
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </Button>
+                      </Link>
+                      <Link
+                        href={`/educator/classes/${classId}/assessments/${a.id}/submissions`}
+                      >
+                        <Button variant="ghost" size="sm" className="gap-1.5">
+                          <Users className="h-3.5 w-3.5" />
+                          Submissions
+                        </Button>
+                      </Link>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1.5 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete this assessment?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete all submitted scores.
+                              Final grades will recompute. This action cannot be
+                              undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(a.id)}
+                              disabled={isDeleting}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              {isDeleting && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              )}
+                              Delete Assessment
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,9 +8,6 @@ import { GradeCoreService, GradeRange } from '../core/grade-core.service';
 import { AuditLogService } from 'src/modules/audit-log/audit-log.service';
 import { SetManualScoreDto } from './dto/grade-educator.dto';
 
-// TODO: Add a `type` column to GradingSchemeComponent in schema.prisma
-// (e.g. type String @default("manual")) so components can map to assessment.type.
-// Until then, component.name.toLowerCase() is used as the type discriminator.
 function componentsToCategories(components: any[]) {
   return components.map((c) => ({
     name: c.name,
@@ -56,7 +53,9 @@ export class GradeEducatorService {
     if (!cls) throw new NotFoundException('Class not found.');
     const terms = await this.repo.findTermsBySemester(cls.semester_id);
     return Promise.all(
-      terms.map((term) => this.buildTermResult(classId, term.id, orgId, cls)),
+      terms.map((term) =>
+        this.buildTermResult(classId, term.id, term.name, orgId, cls),
+      ),
     );
   }
 
@@ -69,7 +68,12 @@ export class GradeEducatorService {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
     const cls = await this.repo.findClassWithSubject(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
-    return this.buildTermResult(classId, termId, orgId, cls);
+
+    const terms = await this.repo.findTermsBySemester(cls.semester_id);
+    const term = terms.find((t) => t.id === termId);
+    const termName = term?.name ?? '';
+
+    return this.buildTermResult(classId, termId, termName, orgId, cls);
   }
 
   async computeGrades(
@@ -167,22 +171,26 @@ export class GradeEducatorService {
   private async buildTermResult(
     classId: string,
     termId: string,
+    termName: string,
     orgId: string,
     cls: any,
   ) {
     const enrolledStudentIds: string[] = cls.enrollments.map((e: any) => e.student_id);
 
-    const [submissions, grades, manualScores, scheme] = await Promise.all([
-      this.repo.findSubmissionsForTerm(classId, termId, orgId),
-      this.repo.findByClassAndTerm(classId, termId, orgId),
-      this.repo.findManualScores(classId, termId, orgId),
-      this.repo.findGradingSchemeForClass(classId, orgId),
-    ]);
+    const [submissions, grades, manualScores, scheme, studentProfiles] =
+      await Promise.all([
+        this.repo.findSubmissionsForTerm(classId, termId, orgId),
+        this.repo.findByClassAndTerm(classId, termId, orgId),
+        this.repo.findManualScores(classId, termId, orgId),
+        this.repo.findGradingSchemeForClass(classId, orgId),
+        this.repo.findStudentProfiles(enrolledStudentIds),
+      ]);
 
     const categories = scheme ? componentsToCategories(scheme.components) : [];
     const gradeMap = new Map(grades.map((g) => [g.student_id, g]));
 
     const students = enrolledStudentIds.map((studentId) => {
+      const profile = studentProfiles.get(studentId);
       const studentSubs = submissions.filter((s: any) => s.student_id === studentId);
       const studentManuals = manualScores.filter((m: any) => m.student_id === studentId);
 
@@ -203,13 +211,15 @@ export class GradeEducatorService {
 
       return {
         studentId,
+        studentName: profile?.name ?? 'Unknown',
+        studentCode: profile?.code ?? '',
         grade: gradeMap.get(studentId) ?? null,
         assessmentScores,
         categoryBreakdown,
       };
     });
 
-    return { termId, students };
+    return { termId, termName, students };
   }
 
   private async resolveGradingScale(cls: any, orgId: string) {
