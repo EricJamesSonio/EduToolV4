@@ -147,12 +147,16 @@ export function EditStudentDialog({
             <Select
               value={selectedLevelId}
               onValueChange={(v) => {
-                setValue("levelId", v ?? "");
+                setValue("levelId", v);
                 setValue("sectionId", NONE); // reset section when level changes
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select level" />
+                <span>
+                  {levels.find((l) => l.id === selectedLevelId)?.name ?? (
+                    <span className="text-muted-foreground">Select level</span>
+                  )}
+                </span>
               </SelectTrigger>
               <SelectContent>
                 {levels.map((l) => (
@@ -168,11 +172,20 @@ export function EditStudentDialog({
             <Label>Section</Label>
             <Select
               value={watch("sectionId")}
-              onValueChange={(v) => setValue("sectionId", v ?? "")}
+              onValueChange={(v) => setValue("sectionId", v)}
               disabled={!selectedLevelId || filteredSections.length === 0}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select section (optional)" />
+                <span>
+                  {(() => {
+                    const val = watch("sectionId");
+                    if (!val || val === NONE)
+                      return <span className="text-muted-foreground">Select section (optional)</span>;
+                    return filteredSections.find((s) => s.id === val)?.name
+                      ?? sections.find((s) => s.id === val)?.name
+                      ?? <span className="text-muted-foreground">Select section (optional)</span>;
+                  })()}
+                </span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE}>None</SelectItem>
