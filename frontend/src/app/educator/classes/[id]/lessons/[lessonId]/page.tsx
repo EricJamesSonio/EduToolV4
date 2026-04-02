@@ -102,12 +102,10 @@ export default function LessonDetailPage(): React.JSX.Element {
           </Button>
 
           <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive">
-                <Trash2 className="h-3.5 w-3.5" />
-                Delete
-              </Button>
-            </AlertDialogTrigger>
+        <AlertDialogTrigger className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium text-destructive hover:bg-muted transition-colors">
+          <Trash2 className="h-3.5 w-3.5" />
+          Delete
+        </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete this lesson?</AlertDialogTitle>

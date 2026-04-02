@@ -22,11 +22,10 @@ import { Loader2 } from "lucide-react";
 interface LessonFormProps {
   classId: string;
   availableWeeks: number[];
-  lesson?: Lesson;                          // present = edit mode
-  onSubmit: (data: CreateLessonRequest | UpdateLessonRequest) => Promise<void>;
+  lesson?: Lesson;
+  onSubmit: (data: CreateLessonRequest) => Promise<void>;
   isLoading: boolean;
 }
-
 const MIN_DETAIL_WORDS = 10;
 
 function countWords(text: string): number {
