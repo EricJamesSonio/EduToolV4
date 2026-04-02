@@ -1,70 +1,86 @@
 import client from "@/api/client";
-import type { Class, ClassSchedule } from "@/types/admin/class.types";
+import type { Class } from "@/types/admin/class.types";
 
 export interface ScheduleSlot {
-  weekday: number;
+  weekday:   number;
   startTime: string;
-  endTime: string;
+  endTime:   string;
 }
 
 export interface CreateClassRequest {
-  subjectId: string;
-  educatorId: string;
-  sectionId?: string;
+  subjectId:    string;
+  educatorId:   string;
+  sectionId?:   string;
   schoolYearId: string;
-  semesterId: string;
-  capacity: number;
-  schedules: ScheduleSlot[];
+  semesterId:   string;
+  capacity:     number;
+  schedules:    ScheduleSlot[];
 }
 
 export interface UpdateClassRequest {
   educatorId?: string;
-  sectionId?: string;
-  capacity?: number;
-  schedules?: ScheduleSlot[];
+  sectionId?:  string;
+  capacity?:   number;
+  schedules?:  ScheduleSlot[];
 }
 
 export interface GetClassesQuery {
   schoolYearId?: string;
-  semesterId?: string;
-  educatorId?: string;
-  subjectId?: string;
-  sectionId?: string;
+  semesterId?:   string;
+  educatorId?:   string;
+  subjectId?:    string;
+  sectionId?:    string;
 }
 
 export interface EnrollmentResponse {
-  id: string;
-  class_id: string;
+  id:         string;
+  class_id:   string;
   student_id: string;
-  status: "active" | "pending" | "removed";
+  status:     "active" | "pending" | "removed";
 }
 
 export interface EnrollOverflowResponse {
-  overflow: true;
-  message: string;
-  classId: string;
+  overflow:  true;
+  message:   string;
+  classId:   string;
   studentId: string;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data:    T;
+}
+
+function unwrap<T>(res: { data: ApiResponse<T> | T }): T {
+  const d = res.data as ApiResponse<T>;
+  return d?.data !== undefined ? d.data : (res.data as T);
+}
+
+function unwrapList<T>(res: { data: ApiResponse<T[]> | T[] }): T[] {
+  if (Array.isArray(res.data)) return res.data;
+  const d = res.data as ApiResponse<T[]>;
+  return Array.isArray(d?.data) ? d.data : [];
 }
 
 export const classApi = {
   getAll: async (query?: GetClassesQuery): Promise<Class[]> => {
-    const res = await client.get<Class[]>("/classes", { params: query });
-    return res.data;
+    const res = await client.get<ApiResponse<Class[]> | Class[]>("/classes", { params: query });
+    return unwrapList<Class>(res);
   },
 
   getOne: async (id: string): Promise<Class> => {
-    const res = await client.get<Class>(`/classes/${id}`);
-    return res.data;
+    const res = await client.get<ApiResponse<Class> | Class>(`/classes/${id}`);
+    return unwrap<Class>(res);
   },
 
   create: async (data: CreateClassRequest): Promise<Class> => {
-    const res = await client.post<Class>("/classes", data);
-    return res.data;
+    const res = await client.post<ApiResponse<Class> | Class>("/classes", data);
+    return unwrap<Class>(res);
   },
 
   update: async (id: string, data: UpdateClassRequest): Promise<Class> => {
-    const res = await client.patch<Class>(`/classes/${id}`, data);
-    return res.data;
+    const res = await client.patch<ApiResponse<Class> | Class>(`/classes/${id}`, data);
+    return unwrap<Class>(res);
   },
 
   archive: async (id: string): Promise<void> => {
@@ -72,21 +88,21 @@ export const classApi = {
   },
 
   getEnrollments: async (classId: string): Promise<EnrollmentResponse[]> => {
-    const res = await client.get<EnrollmentResponse[]>(
+    const res = await client.get<ApiResponse<EnrollmentResponse[]> | EnrollmentResponse[]>(
       `/classes/${classId}/enrollments`
     );
-    return res.data;
+    return unwrapList<EnrollmentResponse>(res);
   },
 
   enroll: async (
     classId: string,
     studentId: string
   ): Promise<EnrollmentResponse | EnrollOverflowResponse> => {
-    const res = await client.post<EnrollmentResponse | EnrollOverflowResponse>(
+    const res = await client.post<ApiResponse<EnrollmentResponse | EnrollOverflowResponse> | EnrollmentResponse | EnrollOverflowResponse>(
       `/classes/${classId}/enroll`,
       { studentId }
     );
-    return res.data;
+    return unwrap<EnrollmentResponse | EnrollOverflowResponse>(res);
   },
 
   updateEnrollment: async (
@@ -94,11 +110,11 @@ export const classApi = {
     enrollmentId: string,
     status: "active" | "pending" | "removed"
   ): Promise<EnrollmentResponse> => {
-    const res = await client.patch<EnrollmentResponse>(
+    const res = await client.patch<ApiResponse<EnrollmentResponse> | EnrollmentResponse>(
       `/classes/${classId}/enrollments/${enrollmentId}`,
       { status }
     );
-    return res.data;
+    return unwrap<EnrollmentResponse>(res);
   },
 
   removeEnrollment: async (

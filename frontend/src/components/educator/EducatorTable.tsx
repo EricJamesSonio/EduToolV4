@@ -31,7 +31,7 @@ export function EducatorTable({ data, isLoading, onResetPassword }: EducatorTabl
       header: "Educator ID",
       cell: ({ row }) => (
         <Badge variant="outline" className="font-mono text-xs">
-          {row.original.educatorCode}
+          {row.original.educatorId ?? row.original.educatorCode}
         </Badge>
       ),
     },

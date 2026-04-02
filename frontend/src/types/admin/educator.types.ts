@@ -3,11 +3,12 @@ export interface Educator {
   orgId:        string;
   fullName:     string;
   email:        string;
-  educatorCode: string;  // may come as educatorId from backend
-  educatorId?:  string;  // backend field name alias
+  educatorId?:  string;  // backend field: "EDU-XXXXXXXX"
+  educatorCode?: string; // alias, may not be present
   classCount:   number;
+  status?:      string;
   createdAt:    string;
-  updatedAt:    string;
+  updatedAt?:   string;
   password?:    string;
 }
 
