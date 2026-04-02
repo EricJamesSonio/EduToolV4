@@ -11,9 +11,9 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { EducatorTable } from "@/components/educator/EducatorTable";
-import { CreateEducatorDialog } from "@/components/educator/CreateEducatorDialog";
-import { EducatorCredentialsCard } from "@/components/educator/EducatorCredentialsCard";
+import { EducatorTable } from "@/components/admin/educator/EducatorTable";
+import { CreateEducatorDialog } from "@/components/admin/educator/CreateEducatorDialog";
+import { EducatorCredentialsCard } from "@/components/admin/educator/EducatorCredentialsCard";
 import type { AxiosError } from "axios";
 
 export default function EducatorsPage(): React.JSX.Element {
