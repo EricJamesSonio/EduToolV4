@@ -1,7 +1,6 @@
 import client from "@/api/client";
 import type { Semester } from "@/types/admin/semester.types";
 
-// ✅ Request types
 export interface TermInput {
   id?: string;
   name: string;
@@ -25,9 +24,6 @@ export interface UpdateSemesterRequest {
   terms?: TermInput[];
 }
 
-//
-// ✅ 🔥 Backend Response Types (FIX FOR ESLINT)
-//
 interface TermResponse {
   id: string;
   name: string;
@@ -45,28 +41,34 @@ interface SemesterResponse {
   terms: TermResponse[];
 }
 
-//
-// ✅ 🔥 MAPPER (NOW FULLY TYPED)
-//
+// API wraps responses in { success, data }
+interface ApiListResponse<T> {
+  success: boolean;
+  data: T;
+}
+
 const mapSemester = (data: SemesterResponse): Semester => ({
   id: data.id,
   schoolYearId: data.school_year_id,
   name: data.name,
   startDate: data.start_date,
   endDate: data.end_date,
-  terms: data.terms?.map((t) => ({
-    id: t.id,
-    name: t.name,
-    orderIndex: t.order_index,
-    startDate: t.start_date,
-    endDate: t.end_date,
-  })) ?? [],
+  terms:
+    data.terms?.map((t) => ({
+      id: t.id,
+      name: t.name,
+      orderIndex: t.order_index,
+      startDate: t.start_date,
+      endDate: t.end_date,
+    })) ?? [],
 });
 
 export const semesterApi = {
   getAll: async (): Promise<Semester[]> => {
-    const res = await client.get<SemesterResponse[]>("/semester-settings");
-    return res.data.map(mapSemester);
+    const res = await client.get<ApiListResponse<SemesterResponse[]>>("/semester-settings");
+    // Response shape: { success: true, data: [...] }
+    const list = res.data.data ?? res.data;
+    return (Array.isArray(list) ? list : []).map(mapSemester);
   },
 
   create: async (data: CreateSemesterRequest): Promise<Semester> => {
