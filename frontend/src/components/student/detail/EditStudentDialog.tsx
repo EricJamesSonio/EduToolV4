@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { studentApi, type UpdateStudentRequest } from "@/api/admin/student.api";
 import type { Student } from "@/types/admin/student.types";
+import type { NormalisedLevel, NormalisedSection } from "@/app/admin/students/[id]/page";
 import {
   Dialog,
   DialogContent,
@@ -28,8 +29,8 @@ import {
 interface Props {
   open: boolean;
   student: Student;
-  levels: { id: string; name: string }[];
-  sections: { id: string; name: string; level_id: string }[];
+  levels: NormalisedLevel[];
+  sections: NormalisedSection[]; // all sections, already normalised (levelId = camelCase)
   onClose: () => void;
 }
 
@@ -51,19 +52,27 @@ export function EditStudentDialog({
 }: Props): React.JSX.Element {
   const queryClient = useQueryClient();
 
-  const { register, handleSubmit, watch, setValue, reset, formState: { errors } } =
-    useForm<FormValues>({
-      defaultValues: {
-        fullName: student.fullName,
-        email: student.email,
-        levelId: student.levelId ?? "",
-        sectionId: student.sectionId ?? NONE,
-      },
-    });
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
+    defaultValues: {
+      fullName: student.fullName,
+      email: student.email,
+      levelId: student.levelId ?? "",
+      sectionId: student.sectionId ?? NONE,
+    },
+  });
 
   const selectedLevelId = watch("levelId");
+
+  // sections already have levelId (camelCase) — filter correctly
   const filteredSections = sections.filter(
-    (s) => s.level_id === selectedLevelId,
+    (s) => s.levelId === selectedLevelId,
   );
 
   useEffect(() => {
@@ -80,7 +89,9 @@ export function EditStudentDialog({
       studentApi.update(student.id, data),
     onSuccess: () => {
       toast.success("Student updated.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "students", student.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "students", student.id],
+      });
       queryClient.invalidateQueries({ queryKey: ["admin", "students"] });
       onClose();
     },
@@ -113,7 +124,9 @@ export function EditStudentDialog({
               {...register("fullName", { required: "Full name is required" })}
             />
             {errors.fullName && (
-              <p className="text-xs text-destructive">{errors.fullName.message}</p>
+              <p className="text-xs text-destructive">
+                {errors.fullName.message}
+              </p>
             )}
           </div>
 
@@ -134,8 +147,8 @@ export function EditStudentDialog({
             <Select
               value={selectedLevelId}
               onValueChange={(v) => {
-                setValue("levelId", v);
-                setValue("sectionId", NONE);
+                setValue("levelId", v ?? "");
+                setValue("sectionId", NONE); // reset section when level changes
               }}
             >
               <SelectTrigger>
@@ -155,7 +168,7 @@ export function EditStudentDialog({
             <Label>Section</Label>
             <Select
               value={watch("sectionId")}
-              onValueChange={(v) => setValue("sectionId", v)}
+              onValueChange={(v) => setValue("sectionId", v ?? "")}
               disabled={!selectedLevelId || filteredSections.length === 0}
             >
               <SelectTrigger>
@@ -174,10 +187,17 @@ export function EditStudentDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={mutation.isPending}>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={mutation.isPending}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit(onSubmit)} disabled={mutation.isPending}>
+          <Button
+            onClick={handleSubmit(onSubmit)}
+            disabled={mutation.isPending}
+          >
             {mutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>

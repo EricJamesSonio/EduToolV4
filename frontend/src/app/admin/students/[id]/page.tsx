@@ -18,6 +18,18 @@ import { UpdateStatusDialog } from "@/components/student/detail/UpdateStatusDial
 import { ResetPasswordDialog } from "@/components/student/detail/ResetPasswordDialog";
 import { EnrollStudentInClassDialog } from "@/components/student/detail/EnrollStudentInClassDialog";
 
+// Normalised shapes — snake_case from API converted once here, used everywhere
+export interface NormalisedLevel {
+  id: string;
+  name: string;
+}
+
+export interface NormalisedSection {
+  id: string;
+  name: string;
+  levelId: string; // normalised from level_id
+}
+
 export default function StudentDetailPage({
   params,
 }: {
@@ -32,6 +44,7 @@ export default function StudentDetailPage({
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<StudentEnrollment | null>(null);
 
+  // ── fetching ──────────────────────────────────────────────────────────────
   const { data: student, isLoading: studentLoading } = useQuery({
     queryKey: ["admin", "students", id],
     queryFn: () => studentApi.getOne(id),
@@ -53,20 +66,41 @@ export default function StudentDetailPage({
     queryFn: () => sectionApi.getAll(),
   });
 
+  // ── normalise: convert snake_case API fields → camelCase once ─────────────
+  // /levels returns: { id, name, org_id, program_id, school_year_id }
+  const levels = useMemo<NormalisedLevel[]>(() => {
+    return toArray<{ id: string; name: string }>(levelsRaw).map((l) => ({
+      id: l.id,
+      name: l.name,
+    }));
+  }, [levelsRaw]);
+
+  // /sections returns: { id, name, org_id, level_id, capacity, deleted_at }
+  const sections = useMemo<NormalisedSection[]>(() => {
+    return toArray<{ id: string; name: string; level_id: string }>(
+      sectionsRaw,
+    ).map((s) => ({
+      id: s.id,
+      name: s.name,
+      levelId: s.level_id, // ← the key fix: level_id → levelId
+    }));
+  }, [sectionsRaw]);
+
   const enrollments = toArray<StudentEnrollment>(enrollmentsRaw);
-  const levels = toArray<{ id: string; name: string }>(levelsRaw);
-  const sections = toArray<{ id: string; name: string; level_id: string }>(sectionsRaw);
 
-  const levelName = useMemo(() => {
-    if (!student?.levelId) return undefined;
-    return levels.find((l) => l.id === student.levelId)?.name;
-  }, [student, levels]);
+  // ── lookup names for display ───────────────────────────────────────────────
+  // student.levelId / student.sectionId come back camelCase from formatAccount()
+  const levelName = useMemo(
+    () => levels.find((l) => l.id === student?.levelId)?.name,
+    [student, levels],
+  );
 
-  const sectionName = useMemo(() => {
-    if (!student?.sectionId) return undefined;
-    return sections.find((s) => s.id === student.sectionId)?.name;
-  }, [student, sections]);
+  const sectionName = useMemo(
+    () => sections.find((s) => s.id === student?.sectionId)?.name,
+    [student, sections],
+  );
 
+  // ── mutations ─────────────────────────────────────────────────────────────
   const removeEnrollmentMutation = useMutation({
     mutationFn: (enrollmentId: string) =>
       studentApi.removeEnrollment(id, enrollmentId),
@@ -78,11 +112,14 @@ export default function StudentDetailPage({
       setRemoveTarget(null);
     },
     onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to remove enrollment.");
+      toast.error(
+        err?.response?.data?.message ?? "Failed to remove enrollment.",
+      );
       setRemoveTarget(null);
     },
   });
 
+  // ── render ────────────────────────────────────────────────────────────────
   if (studentLoading) {
     return (
       <div className="space-y-4 max-w-4xl">
@@ -163,12 +200,14 @@ export default function StudentDetailPage({
         <ConfirmDialog
           open
           title="Remove enrollment?"
-          message={`Remove this student from class "${removeTarget.classId}"? This cannot be undone.`}
+          message="Remove this student from this class? This cannot be undone."
           confirmLabel="Remove"
           destructive
           isLoading={removeEnrollmentMutation.isPending}
           onConfirm={() => removeEnrollmentMutation.mutate(removeTarget.id)}
-          onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}
+          onOpenChange={(o) => {
+            if (!o) setRemoveTarget(null);
+          }}
         />
       )}
     </div>
