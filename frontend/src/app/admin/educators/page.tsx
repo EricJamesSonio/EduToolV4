@@ -35,7 +35,7 @@ export default function EducatorsPage(): React.JSX.Element {
         setNewCredentials({
           fullName:     resetTarget.fullName,
           email:        resetTarget.email,
-          educatorCode: resetTarget.educatorCode,
+          educatorCode: resetTarget.educatorId ?? resetTarget.educatorCode ?? "",
           password:     result.plainPassword,
         });
       },

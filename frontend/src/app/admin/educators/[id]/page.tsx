@@ -39,7 +39,7 @@ export default function EducatorDetailPage(): React.JSX.Element {
         setNewCredentials({
           fullName:     educator.fullName,
           email:        educator.email,
-          educatorCode: educator.educatorCode,
+          educatorCode: educator.educatorId ?? educator.educatorCode ?? "",
           password:     result.plainPassword,
         });
       },
@@ -124,7 +124,7 @@ export default function EducatorDetailPage(): React.JSX.Element {
         <h2 className="text-sm font-semibold">Profile</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <ProfileField icon={User}  label="Full Name"   value={educator.fullName} />
-          <ProfileField icon={Hash}  label="Educator ID" value={educator.educatorCode} mono />
+          <ProfileField icon={Hash}  label="Educator ID" value={educator.educatorId ?? educator.educatorCode ?? ""} mono />
           <ProfileField icon={Mail}  label="Email"       value={educator.email} />
         </div>
       </div>
