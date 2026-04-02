@@ -1,12 +1,14 @@
 "use client";
-import { useState, useMemo } from "react";
+
+import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
-
 import { sectionApi } from "@/api/admin/section.api";
 import { levelApi } from "@/api/admin/level.api";
+import { programApi } from "@/api/admin/program.api";
+import type { Program } from "@/types/admin/program.types";
 import type { Section } from "@/types/admin/section.types";
 import type { Level } from "@/types/admin/level.types";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -33,6 +35,31 @@ import {
 import { Plus, Pencil, Trash2, Layers } from "lucide-react";
 import type { AxiosError } from "axios";
 
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * The levels API returns only program_id (no program name).
+ * We fetch programs separately and join them client-side.
+ */
+type EnrichedLevel = Level & { programName: string };
+
+function groupLevelsByProgram(
+  levels: EnrichedLevel[]
+): { programName: string; levels: EnrichedLevel[] }[] {
+  const map = new Map<string, EnrichedLevel[]>();
+  for (const level of levels) {
+    const key = level.programName;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(level);
+  }
+  return Array.from(map.entries()).map(([programName, levels]) => ({
+    programName,
+    levels,
+  }));
+}
+
+// ─── SectionDialog ─────────────────────────────────────────────────────────────
+
 interface SectionFormValues {
   levelId: string;
   name: string;
@@ -47,13 +74,14 @@ function SectionDialog({
   onSaved,
 }: {
   section?: Section;
-  levels: Level[];
+  levels: EnrichedLevel[];
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
 }): React.JSX.Element {
   const isEdit = !!section;
   const queryClient = useQueryClient();
+
   const {
     register,
     handleSubmit,
@@ -70,6 +98,9 @@ function SectionDialog({
   });
 
   const selectedLevelId = watch("levelId");
+  const selectedLevel = levels.find((l) => l.id === selectedLevelId) as EnrichedLevel | undefined;
+
+  const grouped = useMemo(() => groupLevelsByProgram(levels as EnrichedLevel[]), [levels]);
 
   const mutation = useMutation({
     mutationFn: (values: SectionFormValues) =>
@@ -109,28 +140,54 @@ function SectionDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Section" : "New Section"}</DialogTitle>
         </DialogHeader>
+
         <form
           onSubmit={handleSubmit((v) => mutation.mutate(v))}
           className="space-y-4 mt-1"
         >
+          {/* Level picker — grouped by program */}
           {!isEdit && (
             <div className="space-y-1.5">
               <Label>Level</Label>
               <Select
                 value={selectedLevelId}
-                onValueChange={(v) => setValue("levelId", v ?? "")}
+                onValueChange={(v: string | null) =>
+                  setValue("levelId", v ?? "")
+                }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a level" />
+                  <SelectValue placeholder="Select a level">
+                    {selectedLevel
+                      ? buildLevelLabel(selectedLevel)
+                      : "Select a level"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {levels.map((level) => (
-                    <SelectItem key={level.id} value={level.id}>
-                      {level.name}
-                    </SelectItem>
+                  {grouped.map(({ programName, levels: groupLevels }) => (
+                    <div key={programName}>
+                      {/* Program group header */}
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b mb-1">
+                        {programName}
+                      </div>
+                      {groupLevels.map((level) => (
+                        <SelectItem key={level.id} value={level.id}>
+                          {level.name}
+                        </SelectItem>
+                      ))}
+                    </div>
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Contextual hint showing selected level's program */}
+              {selectedLevel?.programName && (
+                <p className="text-xs text-muted-foreground">
+                  Program:{" "}
+                  <span className="font-medium text-foreground">
+                    {selectedLevel.programName}
+                  </span>
+                </p>
+              )}
               {!selectedLevelId && (
                 <p className="text-xs text-muted-foreground">
                   Select a level for this section.
@@ -139,6 +196,7 @@ function SectionDialog({
             </div>
           )}
 
+          {/* Section name */}
           <div className="space-y-1.5">
             <Label>Section Name</Label>
             <Input
@@ -154,6 +212,7 @@ function SectionDialog({
             )}
           </div>
 
+          {/* Capacity */}
           <div className="space-y-1.5">
             <Label>Capacity</Label>
             <Input
@@ -187,7 +246,9 @@ function SectionDialog({
             </Button>
             <Button
               type="submit"
-              disabled={mutation.isPending || (!isEdit && !selectedLevelId)}
+              disabled={
+                mutation.isPending || (!isEdit && !selectedLevelId)
+              }
             >
               {mutation.isPending
                 ? "Saving..."
@@ -202,6 +263,8 @@ function SectionDialog({
   );
 }
 
+// ─── Main Page ─────────────────────────────────────────────────────────────────
+
 export default function SectionsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const [filterLevelId, setFilterLevelId] = useState<string>("all");
@@ -209,10 +272,26 @@ export default function SectionsPage(): React.JSX.Element {
   const [editTarget, setEditTarget] = useState<Section | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Section | null>(null);
 
-  const { data: levels = [], isLoading: levelsLoading } = useQuery({
+  const { data: rawLevels = [], isLoading: levelsLoading } = useQuery({
     queryKey: ["admin", "levels", "all"],
     queryFn: () => levelApi.getAll(),
   });
+
+  const { data: programs = [], isLoading: programsLoading } = useQuery({
+    queryKey: ["admin", "programs", "all"],
+    queryFn: () => programApi.getAll(),
+  });
+
+  // Join levels with program names client-side (API only returns program_id)
+  const levels = useMemo<EnrichedLevel[]>(() => {
+    const programMap = Object.fromEntries(
+      (programs as Program[]).map((p) => [p.id, p.name])
+    );
+    return rawLevels.map((l) => ({
+      ...l,
+      programName: programMap[l.program_id] ?? "Unknown Program",
+    }));
+  }, [rawLevels, programs]);
 
   const { data: sections = [], isLoading: sectionsLoading } = useQuery({
     queryKey: ["admin", "sections", filterLevelId],
@@ -233,13 +312,23 @@ export default function SectionsPage(): React.JSX.Element {
     },
   });
 
+  // Build a lookup: levelId → { name, programName }
   const levelMap = useMemo(
-    () => Object.fromEntries(levels.map((l) => [l.id, l.name])),
+    () =>
+      Object.fromEntries(
+        levels.map((l) => [
+          l.id,
+          { name: l.name, programName: l.programName },
+        ])
+      ),
     [levels]
   );
 
-  const isLoading = levelsLoading || sectionsLoading;
+  const grouped = useMemo(() => groupLevelsByProgram(levels as EnrichedLevel[]), [levels]);
 
+  const isLoading = levelsLoading || sectionsLoading || programsLoading;
+
+  // ── table columns ──────────────────────────────────────────────────────────
   const columns: ColumnDef<Section>[] = [
     {
       header: "Name",
@@ -250,12 +339,23 @@ export default function SectionsPage(): React.JSX.Element {
     },
     {
       header: "Level",
-      accessorFn: (row) => levelMap[row.level_id] ?? "—",
-      cell: ({ getValue }) => (
-        <Badge variant="secondary" className="font-normal">
-          {getValue<string>()}
-        </Badge>
-      ),
+      id: "level",
+      cell: ({ row }) => {
+        const info = levelMap[row.original.level_id];
+        if (!info) return <span className="text-muted-foreground text-xs">—</span>;
+        return (
+          <div className="flex flex-col gap-0.5">
+            <Badge variant="secondary" className="font-normal w-fit">
+              {info.name}
+            </Badge>
+            {info.programName && (
+              <span className="text-xs text-muted-foreground">
+                {info.programName}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       header: "Capacity",
@@ -329,23 +429,58 @@ export default function SectionsPage(): React.JSX.Element {
         }
       />
 
+      {/* Level filter — grouped by program */}
       <div className="flex items-center gap-3">
         <Select
           value={filterLevelId}
-          onValueChange={(v) => setFilterLevelId(v ?? "all")}
+          onValueChange={(v: string | null) =>
+            setFilterLevelId(v ?? "all")
+          }
         >
-          <SelectTrigger className="w-52">
-            <SelectValue placeholder="All Levels" />
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="All Levels">
+              {filterLevelId === "all"
+                ? "All Levels"
+                : (() => {
+                    const info = levelMap[filterLevelId];
+                    return info
+                      ? info.programName
+                        ? `${info.name} — ${info.programName}`
+                        : info.name
+                      : "All Levels";
+                  })()}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Levels</SelectItem>
-            {levels.map((level) => (
-              <SelectItem key={level.id} value={level.id}>
-                {level.name}
-              </SelectItem>
+            {grouped.map(({ programName, levels: groupLevels }) => (
+              <div key={programName}>
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b mb-1 mt-1">
+                  {programName}
+                </div>
+                {groupLevels.map((level) => (
+                  <SelectItem key={level.id} value={level.id}>
+                    {level.name}
+                  </SelectItem>
+                ))}
+              </div>
             ))}
           </SelectContent>
         </Select>
+
+        {/* Show currently filtered program context */}
+        {filterLevelId !== "all" && levelMap[filterLevelId]?.programName && (
+          <p className="text-sm text-muted-foreground">
+            Showing sections for{" "}
+            <span className="font-medium text-foreground">
+              {levelMap[filterLevelId].name}
+            </span>{" "}
+            in{" "}
+            <span className="font-medium text-foreground">
+              {levelMap[filterLevelId].programName}
+            </span>
+          </p>
+        )}
       </div>
 
       {isLoading ? (
