@@ -1,8 +1,10 @@
+// filepath: frontend/src/types/educator/assessment.types.ts
+
 export type AssessmentType = "quiz" | "activity" | "exam" | "custom";
 
 export type QuestionType =
   | "multiple_choice"
-  | "true_false"
+  | "true_or_false"
   | "identification"
   | "enumeration"
   | "essay";
@@ -18,10 +20,10 @@ export interface Question {
   order: number;
   type: QuestionType;
   text: string;
-  choices: Choice[] | null;         // MCQ only
-  correctAnswer: string | null;     // MCQ/TF/Identification/Enumeration
+  choices: Choice[] | null;
+  correctAnswer: string | null;
   points: number;
-  isLocked: boolean;                // true after release date
+  isLocked: boolean;
 }
 
 export interface ItemRange {
@@ -44,10 +46,11 @@ export interface Assessment {
   termId: string;
   termName: string;
   totalItems: number;
-  releaseDate: string;
-  endDate: string;
+  releaseDate: string | null;
+  endDate: string | null;
   status: AssessmentStatus;
-  assignedStudentIds: string[] | null;  // null = all enrolled
+  isPublished: boolean;
+  assignedStudentIds: string[] | null;
   submittedCount: number;
   pendingEssayCount: number;
   questions: Question[];
