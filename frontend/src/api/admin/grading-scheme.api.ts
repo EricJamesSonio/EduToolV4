@@ -4,16 +4,19 @@ import type {
   UpdateDefaultGradingSchemeDto,
 } from '@/types/admin/grading-scheme.types'
 
+interface ApiResponse<T> {
+  success: boolean
+  data: T
+}
+
 export const adminGradingSchemeApi = {
-  // GET /grading-schemes/default
   getDefault: async (): Promise<GradingScheme> => {
-    const res = await client.get<GradingScheme>('/grading-schemes/default')
-    return res.data
+    const res = await client.get<ApiResponse<GradingScheme>>('/grading-schemes/default')
+    return res.data.data
   },
 
-  // PATCH /grading-schemes/default  (admin only)
   updateDefault: async (data: UpdateDefaultGradingSchemeDto): Promise<GradingScheme> => {
-    const res = await client.patch<GradingScheme>('/grading-schemes/default', data)
-    return res.data
+    const res = await client.patch<ApiResponse<GradingScheme>>('/grading-schemes/default', data)
+    return res.data.data
   },
 }
