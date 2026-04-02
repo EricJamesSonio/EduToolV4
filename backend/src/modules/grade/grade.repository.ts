@@ -222,4 +222,21 @@ export class GradeRepository {
     });
     return semester?.terms ?? [];
   }
+
+  async findStudentProfiles(studentIds: string[]): Promise<Map<string, { name: string; code: string }>> {
+    const accounts = await this.db.account.findMany({
+      where: { id: { in: studentIds } },
+      include: { profile: true },
+    });
+
+    const map = new Map<string, { name: string; code: string }>();
+    for (const account of accounts) {
+      const meta = (account.profile?.metadata ?? {}) as Record<string, any>;
+      map.set(account.id, {
+        name: account.profile?.full_name ?? 'Unknown',
+        code: meta.studentId ?? '',
+      });
+    }
+    return map;
+  }
 }
