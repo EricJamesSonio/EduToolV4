@@ -13,6 +13,13 @@ interface EnrolledStudentsListProps {
   onRemove: (target: { enrollmentId: string; studentName: string }) => void;
 }
 
+// Prefer student name → student code → truncated UUID (never show full UUID)
+function getStudentLabel(enrollment: EnrollmentResponse): string {
+  if (enrollment.studentName) return enrollment.studentName;
+  if (enrollment.studentCode) return enrollment.studentCode;
+  return enrollment.student_id.slice(0, 8) + "…";
+}
+
 export function EnrolledStudentsList({
   enrollments,
   isLoading,
@@ -59,41 +66,48 @@ export function EnrolledStudentsList({
         </div>
       ) : (
         <div className="rounded-lg border bg-card overflow-hidden divide-y">
-          {enrollments.map((enrollment) => (
-            <div
-              key={enrollment.id}
-              className="flex items-center justify-between gap-3 px-4 py-2.5 group hover:bg-muted/20 transition-colors"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {enrollment.student_id}
-                </p>
-              </div>
+          {enrollments.map((enrollment) => {
+            const label = getStudentLabel(enrollment);
+            return (
+              <div
+                key={enrollment.id}
+                className="flex items-center justify-between gap-3 px-4 py-2.5 group hover:bg-muted/20 transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{label}</p>
+                  {/* Show student code as subtitle when we also have a full name */}
+                  {enrollment.studentName && enrollment.studentCode && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {enrollment.studentCode}
+                    </p>
+                  )}
+                </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge
-                  variant={enrollment.status === "active" ? "default" : "secondary"}
-                  className="text-xs font-normal capitalize"
-                >
-                  {enrollment.status}
-                </Badge>
-                {!isArchived && (
-                  <button
-                    onClick={() =>
-                      onRemove({
-                        enrollmentId: enrollment.id,
-                        studentName: enrollment.student_id,
-                      })
-                    }
-                    className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                    title="Remove student"
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge
+                    variant={enrollment.status === "active" ? "default" : "secondary"}
+                    className="text-xs font-normal capitalize"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
+                    {enrollment.status}
+                  </Badge>
+                  {!isArchived && (
+                    <button
+                      onClick={() =>
+                        onRemove({
+                          enrollmentId: enrollment.id,
+                          studentName: label,
+                        })
+                      }
+                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                      title="Remove student"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

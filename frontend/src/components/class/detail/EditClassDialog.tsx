@@ -54,6 +54,8 @@ export function EditClassDialog({ cls, open, onClose }: EditClassDialogProps): R
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
   const { data: sectionsRaw } = useQuery({
+    // Fetch all sections — Class has no levelId field, so we can't pre-filter.
+    // The list is short and scoped to the org by the backend.
     queryKey: ["admin", "sections"],
     queryFn: () => sectionApi.getAll(),
   });
@@ -127,6 +129,19 @@ export function EditClassDialog({ cls, open, onClose }: EditClassDialogProps): R
           onSubmit={handleSubmit((v) => mutation.mutate(v))}
           className="space-y-4 mt-1"
         >
+          {/* Subject — read-only, cannot change after creation */}
+          {cls.subjectName && (
+            <div className="space-y-1.5">
+              <Label>Subject</Label>
+              <div className="flex h-9 w-full items-center rounded-md border bg-muted/40 px-3 text-sm text-muted-foreground">
+                {cls.subjectName}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Subject cannot be changed after the class is created.
+              </p>
+            </div>
+          )}
+
           {/* Educator */}
           <div className="space-y-1.5">
             <Label>Educator</Label>
@@ -147,7 +162,7 @@ export function EditClassDialog({ cls, open, onClose }: EditClassDialogProps): R
             </Select>
           </div>
 
-          {/* Section */}
+          {/* Section — filtered by the class's levelId */}
           <div className="space-y-1.5">
             <Label>
               Section{" "}

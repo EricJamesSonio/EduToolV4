@@ -12,21 +12,30 @@ export interface UpdateSectionRequest {
   capacity?: number;
 }
 
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+}
+
 export const sectionApi = {
   getAll: async (levelId?: string): Promise<Section[]> => {
-    const res = await client.get<Section[]>("/sections", {
+    const res = await client.get<ApiResponse<Section[]>>("/sections", {
       params: levelId ? { levelId } : undefined,
     });
-    return res.data;
+    // Backend returns { success: true, data: [...] }
+    return res.data.data ?? [];
   },
+
   create: async (data: CreateSectionRequest): Promise<Section> => {
-    const res = await client.post<Section>("/sections", data);
-    return res.data;
+    const res = await client.post<ApiResponse<Section>>("/sections", data);
+    return res.data.data;
   },
+
   update: async (id: string, data: UpdateSectionRequest): Promise<Section> => {
-    const res = await client.patch<Section>(`/sections/${id}`, data);
-    return res.data;
+    const res = await client.patch<ApiResponse<Section>>(`/sections/${id}`, data);
+    return res.data.data;
   },
+
   delete: async (id: string): Promise<void> => {
     await client.delete(`/sections/${id}`);
   },

@@ -33,10 +33,12 @@ export interface GetClassesQuery {
 }
 
 export interface EnrollmentResponse {
-  id:         string;
-  class_id:   string;
-  student_id: string;
-  status:     "active" | "pending" | "removed";
+  id:           string;
+  class_id:     string;
+  student_id:   string;           // UUID — do not display directly
+  studentName?: string;           // e.g. "Juan dela Cruz" — prefer this
+  studentCode?: string;           // e.g. "2024-00123" — show as subtitle
+  status:       "active" | "pending" | "removed";
 }
 
 export interface EnrollOverflowResponse {
@@ -98,10 +100,11 @@ export const classApi = {
     classId: string,
     studentId: string
   ): Promise<EnrollmentResponse | EnrollOverflowResponse> => {
-    const res = await client.post<ApiResponse<EnrollmentResponse | EnrollOverflowResponse> | EnrollmentResponse | EnrollOverflowResponse>(
-      `/classes/${classId}/enroll`,
-      { studentId }
-    );
+    const res = await client.post<
+      ApiResponse<EnrollmentResponse | EnrollOverflowResponse> |
+      EnrollmentResponse |
+      EnrollOverflowResponse
+    >(`/classes/${classId}/enroll`, { studentId });
     return unwrap<EnrollmentResponse | EnrollOverflowResponse>(res);
   },
 
