@@ -55,7 +55,7 @@ export default function NewLessonPage(): React.JSX.Element {
 
       <LessonForm
         classId={classId}
-        availableWeeks={weeks ?? [1]}
+        availableWeeks={weeks ?? [{ label: "1", value: 1 }]}
         isLoading={isPending}
         onSubmit={handleSubmit}
       />

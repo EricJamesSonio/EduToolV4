@@ -1,4 +1,4 @@
-// filepath: frontend/src/app/educator/classes/[id]/page.tsx
+// filepath: frontend/src/app/educator/classes/[classId]/page.tsx
 
 "use client";
 
@@ -98,9 +98,9 @@ function InfoRow({
 export default function EducatorClassOverviewPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ classId: string }>;
 }): React.JSX.Element {
-  const { id } = use(params);
+  const { classId: id } = use(params);
   const router = useRouter();
   const base = `/educator/classes/${id}`;
 

@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { UpdateLessonRequest } from "@/api/educator/lesson.api";
+import { UpdateLessonRequest, CreateLessonRequest } from "@/api/educator/lesson.api";
 import { Pencil, Trash2, Loader2, ArrowLeft, RotateCcw } from "lucide-react";
 
 export default function LessonDetailPage(): React.JSX.Element {
@@ -40,7 +40,7 @@ export default function LessonDetailPage(): React.JSX.Element {
   const { mutateAsync: deleteLesson, isPending: isDeleting } = useDeleteLesson(classId);
   const { mutateAsync: triggerExtraction, isPending: isExtracting } = useTriggerExtraction(classId);
 
-  async function handleUpdate(data: UpdateLessonRequest): Promise<void> {
+  async function handleUpdate(data: CreateLessonRequest): Promise<void> {
     const detailChanged = data.detail !== undefined && data.detail !== lesson?.detail;
     const hasExistingBuild = lesson?.conceptBuild !== null;
 
@@ -170,7 +170,7 @@ export default function LessonDetailPage(): React.JSX.Element {
       {isEditing ? (
         <LessonForm
           classId={classId}
-          availableWeeks={weeks ?? [lesson.weekNumber]}
+          availableWeeks={weeks ?? [{ label: String(lesson.weekNumber), value: lesson.weekNumber }]}
           lesson={lesson}
           isLoading={isUpdating}
           onSubmit={handleUpdate}

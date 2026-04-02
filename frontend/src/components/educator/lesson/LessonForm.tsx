@@ -1,11 +1,12 @@
-// filepath: frontend/src/components/educator/lessons/LessonForm.tsx
+// filepath: frontend/src/components/educator/lesson/LessonForm.tsx
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lesson } from "@/types/educator/lesson.types";
-import { CreateLessonRequest, UpdateLessonRequest } from "@/api/educator/lesson.api";
+import { CreateLessonRequest } from "@/api/educator/lesson.api";
+import type { WeekSlot } from "@/hooks/educator/useClassWeeks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,11 +22,12 @@ import { Loader2 } from "lucide-react";
 
 interface LessonFormProps {
   classId: string;
-  availableWeeks: number[];
+  availableWeeks: WeekSlot[];
   lesson?: Lesson;
   onSubmit: (data: CreateLessonRequest) => Promise<void>;
   isLoading: boolean;
 }
+
 const MIN_DETAIL_WORDS = 10;
 
 function countWords(text: string): number {
@@ -44,7 +46,7 @@ export function LessonForm({
   const [title, setTitle] = useState(lesson?.title ?? "");
   const [description, setDescription] = useState(lesson?.description ?? "");
   const [weekNumber, setWeekNumber] = useState<number>(
-    lesson?.weekNumber ?? availableWeeks[0] ?? 1
+    lesson?.weekNumber ?? availableWeeks[0]?.value ?? 1
   );
   const [detail, setDetail] = useState(lesson?.detail ?? "");
 
@@ -102,8 +104,8 @@ export function LessonForm({
           </SelectTrigger>
           <SelectContent>
             {availableWeeks.map((w) => (
-              <SelectItem key={w} value={String(w)}>
-                Week {w}
+              <SelectItem key={w.value} value={String(w.value)}>
+                Week {w.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -118,7 +120,9 @@ export function LessonForm({
           </Label>
           <span
             className={
-              detailValid ? "text-xs text-green-600" : "text-xs text-muted-foreground"
+              detailValid
+                ? "text-xs text-green-600"
+                : "text-xs text-muted-foreground"
             }
           >
             {wordCount} / {MIN_DETAIL_WORDS} words min
