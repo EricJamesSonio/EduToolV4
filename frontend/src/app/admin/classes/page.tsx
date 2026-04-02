@@ -35,13 +35,11 @@ function ClassesPageInner(): React.JSX.Element {
 
   const filters = useClassFilters();
 
-  // ── Primary data ──────────────────────────────────────────────────────────
   const { data: classesRaw, isLoading } = useQuery({
     queryKey: ["admin", "classes", filters.query],
     queryFn: () => classApi.getAll(filters.query),
   });
 
-  // ── Lookup data (all cached; no extra network cost after first load) ──────
   const { data: subjectsRaw } = useQuery({
     queryKey: ["admin", "subjects"],
     queryFn: () => subjectApi.getAll(),
@@ -59,7 +57,6 @@ function ClassesPageInner(): React.JSX.Element {
     queryFn: () => semesterApi.getAll(),
   });
 
-  // ── Build lookup maps ─────────────────────────────────────────────────────
   const subjectMap = useMemo(() => {
     const map = new Map<string, string>();
     toArray<{ id: string; title: string }>(subjectsRaw).forEach((s) =>
@@ -92,20 +89,17 @@ function ClassesPageInner(): React.JSX.Element {
     return map;
   }, [semestersRaw]);
 
-  // ── Enrich classes with resolved names ───────────────────────────────────
   const classes = useMemo<Class[]>(() => {
     return toArray<Class>(classesRaw).map((cls) => ({
       ...cls,
-      subjectName:     subjectMap.get(cls.subjectId)   ?? cls.subjectName,
-      educatorName:    educatorMap.get(cls.educatorId)  ?? cls.educatorName,
-      schoolYearTitle: schoolYearMap.get(cls.schoolYearId) ?? cls.schoolYearTitle,
-      semesterName:    semesterMap.get(cls.semesterId)  ?? cls.semesterName,
-      // Derive title from the now-resolved subjectName
-      title:           subjectMap.get(cls.subjectId)   ?? cls.subjectName ?? cls.subjectId,
+      subjectName:     subjectMap.get(cls.subjectId)       ?? cls.subjectName,
+      educatorName:    educatorMap.get(cls.educatorId)      ?? cls.educatorName,
+      schoolYearTitle: schoolYearMap.get(cls.schoolYearId)  ?? cls.schoolYearTitle,
+      semesterName:    semesterMap.get(cls.semesterId)      ?? cls.semesterName,
+      title:           subjectMap.get(cls.subjectId)        ?? cls.subjectName ?? cls.subjectId,
     }));
   }, [classesRaw, subjectMap, educatorMap, schoolYearMap, semesterMap]);
 
-  // ── Archive mutation ──────────────────────────────────────────────────────
   const archiveMutation = useMutation({
     mutationFn: (id: string) => classApi.archive(id),
     onSuccess: () => {
@@ -118,6 +112,14 @@ function ClassesPageInner(): React.JSX.Element {
       setArchiveTarget(null);
     },
   });
+
+  // ── DEBUG (remove after fix) ──────────────────────────────────────────────
+  console.log("classesRaw", classesRaw);
+  console.log("classes after enrich", classes);
+  console.log("isLoading", isLoading);
+  console.log("subjectsRaw", subjectsRaw);
+  console.log("subjectMap size", subjectMap.size);
+  // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">

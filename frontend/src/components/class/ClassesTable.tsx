@@ -1,7 +1,7 @@
 "use client";
-
 import { useRouter } from "next/navigation";
 import { Eye, Archive } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/DataTable";
@@ -16,88 +16,100 @@ interface ClassesTableProps {
 export function ClassesTable({ data, onArchive }: ClassesTableProps): React.JSX.Element {
   const router = useRouter();
 
-  const columns = [
+  const columns: ColumnDef<Class>[] = [
     {
       header: "Title",
-      accessor: (row: Class) => (
-        <span className="font-medium">{row.title ?? "Unnamed"}</span>
+      accessorFn: (row) => row.title ?? row.subjectName ?? row.subjectId,
+      cell: ({ getValue }) => (
+        <span className="font-medium">{getValue<string>()}</span>
       ),
     },
     {
       header: "Section",
-      accessor: (row: Class) => (
-        <span className="text-sm text-muted-foreground">{row.sectionName ?? "—"}</span>
+      accessorFn: (row) => row.sectionName ?? "—",
+      cell: ({ getValue }) => (
+        <span className="text-sm text-muted-foreground">{getValue<string>()}</span>
       ),
     },
     {
       header: "Semester",
-      accessor: (row: Class) => (
-        <span className="text-sm text-muted-foreground">{row.semesterName ?? "—"}</span>
+      accessorFn: (row) => row.semesterName ?? "—",
+      cell: ({ getValue }) => (
+        <span className="text-sm text-muted-foreground">{getValue<string>()}</span>
       ),
     },
     {
       header: "Educator",
-      accessor: (row: Class) => (
-        <span className="text-sm text-muted-foreground">{row.educatorName ?? "—"}</span>
+      accessorFn: (row) => row.educatorName ?? "—",
+      cell: ({ getValue }) => (
+        <span className="text-sm text-muted-foreground">{getValue<string>()}</span>
       ),
     },
     {
       header: "Schedule",
-      accessor: (row: Class) => (
+      accessorFn: (row) => formatSchedule(row.schedules),
+      cell: ({ getValue }) => (
         <span className="text-sm text-muted-foreground tabular-nums">
-          {formatSchedule(row.schedules)}
+          {getValue<string>()}
         </span>
       ),
     },
     {
       header: "Enrolled",
-      accessor: (row: Class) => (
-        <div className="flex items-center gap-2">
-          <span className="text-sm tabular-nums">
-            {row.enrolledCount ?? 0} / {row.capacity}
-          </span>
-          <div className="w-14 h-1.5 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full rounded-full bg-primary transition-all"
-              style={{
-                width: `${Math.min(((row.enrolledCount ?? 0) / row.capacity) * 100, 100)}%`,
-              }}
-            />
+      accessorFn: (row) => row.enrolledCount ?? 0,
+      cell: ({ row }) => {
+        const cls = row.original;
+        const count = cls.enrolledCount ?? 0;
+        const pct = Math.min((count / cls.capacity) * 100, 100);
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-sm tabular-nums">
+              {count} / {cls.capacity}
+            </span>
+            <div className="w-14 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       header: "Actions",
-      accessor: (row: Class) => (
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs"
-            onClick={() => router.push(`/admin/classes/${row.id}`)}
-          >
-            <Eye className="mr-1 h-3.5 w-3.5" />
-            View
-          </Button>
-
-          {!row.isArchived ? (
+      id: "actions",
+      cell: ({ row }) => {
+        const cls = row.original;
+        return (
+          <div className="flex items-center gap-1">
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              onClick={() => onArchive(row)}
+              className="h-7 px-2 text-xs"
+              onClick={() => router.push(`/admin/classes/${cls.id}`)}
             >
-              <Archive className="mr-1 h-3.5 w-3.5" />
-              Archive
+              <Eye className="mr-1 h-3.5 w-3.5" />
+              View
             </Button>
-          ) : (
-            <Badge variant="secondary" className="text-xs font-normal">
-              Archived
-            </Badge>
-          )}
-        </div>
-      ),
+            {!cls.isArchived ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={() => onArchive(cls)}
+              >
+                <Archive className="mr-1 h-3.5 w-3.5" />
+                Archive
+              </Button>
+            ) : (
+              <Badge variant="secondary" className="text-xs font-normal">
+                Archived
+              </Badge>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
