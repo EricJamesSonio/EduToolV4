@@ -10,6 +10,7 @@ import { subjectApi } from "@/api/admin/subject.api";
 import { educatorApi } from "@/api/admin/educator.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { semesterApi } from "@/api/admin/semester.api";
+import { sectionApi } from "@/api/admin/section.api";
 import type { EnrollmentResponse } from "@/api/admin/class.api";
 import type { Class } from "@/types/admin/class.types";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -50,7 +51,7 @@ export default function ClassDetailPage({
   });
   const enrollments = toArray<EnrollmentResponse>(enrollmentsRaw);
 
-  // ── Lookup queries (served from cache; no extra network cost) ─────────────
+  // ── Lookup queries ────────────────────────────────────────────────────────
   const { data: subjectsRaw } = useQuery({
     queryKey: ["admin", "subjects"],
     queryFn: () => subjectApi.getAll(),
@@ -67,8 +68,12 @@ export default function ClassDetailPage({
     queryKey: ["admin", "semesters"],
     queryFn: () => semesterApi.getAll(),
   });
+  const { data: sectionsRaw } = useQuery({
+    queryKey: ["admin", "sections"],
+    queryFn: () => sectionApi.getAll(),
+  });
 
-  // ── Enrich cls with resolved names ────────────────────────────────────────
+  // ── Enrich cls ────────────────────────────────────────────────────────────
   const enrichedCls = useMemo<Class | undefined>(() => {
     if (!cls) return undefined;
     const subjectName     = toArray<{ id: string; title: string }>(subjectsRaw)
@@ -79,16 +84,21 @@ export default function ClassDetailPage({
                               .find((sy) => sy.id === cls.schoolYearId)?.name;
     const semesterName    = toArray<{ id: string; name: string }>(semestersRaw)
                               .find((sem) => sem.id === cls.semesterId)?.name;
+    const sectionName     = cls.sectionId
+                              ? toArray<{ id: string; name: string }>(sectionsRaw)
+                                  .find((s) => s.id === cls.sectionId)?.name
+                              : undefined;
     return {
       ...cls,
       subjectName:     subjectName     ?? cls.subjectName,
       educatorName:    educatorName    ?? cls.educatorName,
       schoolYearTitle: schoolYearTitle ?? cls.schoolYearTitle,
       semesterName:    semesterName    ?? cls.semesterName,
+      sectionName:     sectionName     ?? cls.sectionName,
       title:           subjectName     ?? cls.subjectName ?? cls.subjectId,
       isArchived:      cls.status === "archived",
     };
-  }, [cls, subjectsRaw, educatorsRaw, schoolYearsRaw, semestersRaw]);
+  }, [cls, subjectsRaw, educatorsRaw, schoolYearsRaw, semestersRaw, sectionsRaw]);
 
   const archiveMutation = useMutation({
     mutationFn: () => classApi.archive(id),
