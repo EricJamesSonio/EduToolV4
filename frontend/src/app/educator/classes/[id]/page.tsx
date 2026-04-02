@@ -1,3 +1,5 @@
+// filepath: frontend/src/app/educator/classes/[id]/page.tsx
+
 "use client";
 
 import { use, useMemo } from "react";
@@ -21,30 +23,26 @@ import { subjectApi } from "@/api/admin/subject.api";
 import { sectionApi } from "@/api/admin/section.api";
 import { semesterApi } from "@/api/admin/semester.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
-import { educatorClassApi } from "@/api/educator/class.api";
 import { toArray } from "@/utils/classes.utils";
 import { formatSchedules } from "@/types/educator/class.types";
 import type { EnrollmentResponse } from "@/api/admin/class.api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
-// ── Weekday helper ────────────────────────────────────────────────────────────
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function formatClassSchedules(
-  schedules: { weekday: number; startTime: string; endTime: string }[],
+  schedules: { weekday: number; startTime: string; endTime: string }[]
 ): string {
   if (!schedules?.length) return "No schedule";
   return schedules
     .map((s) => {
       const day = WEEKDAY_LABELS[s.weekday] ?? "?";
-      // startTime/endTime are already "HH:mm" from classApi.mapSchedule
       return `${day} ${s.startTime}–${s.endTime}`;
     })
     .join(", ");
 }
 
-// ── Sub-page quick-link card ──────────────────────────────────────────────────
 interface QuickLinkProps {
   icon: React.ElementType;
   label: string;
@@ -77,7 +75,6 @@ function QuickLink({
   );
 }
 
-// ── Info row ──────────────────────────────────────────────────────────────────
 function InfoRow({
   icon: Icon,
   label,
@@ -98,76 +95,77 @@ function InfoRow({
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
 export default function EducatorClassOverviewPage({
   params,
 }: {
-  params: Promise<{ classId: string }>;
+  params: Promise<{ id: string }>;
 }): React.JSX.Element {
-  const { classId } = use(params);
+  const { id } = use(params);
   const router = useRouter();
+  const base = `/educator/classes/${id}`;
 
-  const base = `/educator/classes/${classId}`;
-
-  // ── Fetch class (uses shared classApi — educator role has GET /classes/:id access)
   const { data: cls, isLoading: clsLoading } = useQuery({
-    queryKey: ["educator", "classes", classId],
-    queryFn: () => classApi.getOne(classId),
+    queryKey: ["educator", "classes", id],
+    queryFn: () => classApi.getOne(id),
   });
 
-  // ── Fetch enrollments for student count
   const { data: enrollmentsRaw, isLoading: enrollmentsLoading } = useQuery({
-    queryKey: ["educator", "classes", classId, "enrollments"],
-    queryFn: () => classApi.getEnrollments(classId),
-    enabled: !!classId,
+    queryKey: ["educator", "classes", id, "enrollments"],
+    queryFn: () => classApi.getEnrollments(id),
+    enabled: !!id,
   });
+
   const enrollments = toArray<EnrollmentResponse>(enrollmentsRaw).filter(
-    (e) => e.status === "active",
+    (e) => e.status === "active"
   );
 
-  // ── Lookup data
   const { data: subjectsRaw } = useQuery({
     queryKey: ["admin", "subjects"],
     queryFn: () => subjectApi.getAll(),
   });
+
   const { data: sectionsRaw } = useQuery({
     queryKey: ["admin", "sections"],
     queryFn: () => sectionApi.getAll(),
   });
+
   const { data: semestersRaw } = useQuery({
     queryKey: ["admin", "semesters"],
     queryFn: () => semesterApi.getAll(),
   });
+
   const { data: schoolYearsRaw } = useQuery({
     queryKey: ["admin", "school-years"],
     queryFn: () => schoolYearApi.getAll(),
   });
 
-  // ── Enrich
   const enriched = useMemo(() => {
     if (!cls) return undefined;
+
     const subjectName =
       toArray<{ id: string; title: string }>(subjectsRaw).find(
-        (s) => s.id === cls.subjectId,
+        (s) => s.id === cls.subjectId
       )?.title ?? cls.subjectName;
+
     const sectionName = cls.sectionId
       ? toArray<{ id: string; name: string }>(sectionsRaw).find(
-          (s) => s.id === cls.sectionId,
+          (s) => s.id === cls.sectionId
         )?.name ?? cls.sectionName
       : null;
+
     const semesterName =
       toArray<{ id: string; name: string }>(semestersRaw).find(
-        (s) => s.id === cls.semesterId,
+        (s) => s.id === cls.semesterId
       )?.name ?? cls.semesterName;
+
     const schoolYearName =
       toArray<{ id: string; name: string }>(schoolYearsRaw).find(
-        (s) => s.id === cls.schoolYearId,
+        (s) => s.id === cls.schoolYearId
       )?.name ?? cls.schoolYearTitle;
 
     return { ...cls, subjectName, sectionName, semesterName, schoolYearName };
   }, [cls, subjectsRaw, sectionsRaw, semestersRaw, schoolYearsRaw]);
 
-  // ── Loading
   if (clsLoading) {
     return (
       <div className="space-y-4 max-w-4xl">
@@ -269,13 +267,13 @@ export default function EducatorClassOverviewPage({
         <InfoRow
           icon={Users}
           label="Section"
-          value={enriched.sectionName ?? <span className="text-muted-foreground">—</span>}
+          value={
+            enriched.sectionName ?? (
+              <span className="text-muted-foreground">—</span>
+            )
+          }
         />
-        <InfoRow
-          icon={Clock}
-          label="Schedule"
-          value={schedule}
-        />
+        <InfoRow icon={Clock} label="Schedule" value={schedule} />
         <InfoRow
           icon={Hash}
           label="Capacity"
@@ -284,7 +282,10 @@ export default function EducatorClassOverviewPage({
               {activeCount !== null ? (
                 <>
                   <span className="text-foreground">{activeCount}</span>
-                  <span className="text-muted-foreground"> / {capacityLabel} enrolled</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    / {capacityLabel} enrolled
+                  </span>
                 </>
               ) : (
                 capacityLabel
