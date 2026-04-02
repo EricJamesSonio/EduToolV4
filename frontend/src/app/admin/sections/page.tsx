@@ -58,6 +58,12 @@ function groupLevelsByProgram(
   }));
 }
 
+function buildLevelLabel(level: EnrichedLevel): string {
+  return level.programName
+    ? `${level.name} — ${level.programName}`
+    : level.name;
+}
+
 // ─── SectionDialog ─────────────────────────────────────────────────────────────
 
 interface SectionFormValues {
