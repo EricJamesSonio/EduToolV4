@@ -1,7 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/shared/PageHeader";
-import { GradingSchemeEditor } from "@/components/grading-scheme/GradingSchemeEditor";
+import { GradingSchemeEditor } from "@/components/admin/grading-scheme/GradingSchemeEditor";
 
 export default function GradingSchemesPage(): React.JSX.Element {
   return (
