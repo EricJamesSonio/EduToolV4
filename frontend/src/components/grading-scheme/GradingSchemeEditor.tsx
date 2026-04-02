@@ -8,7 +8,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { GradingSchemeComponentRow } from "./GradingSchemeComponentRow";
 import { useGradingScheme, useUpdateGradingScheme } from "@/hooks/admin/useGradingSchemes";
 import { cn } from "@/lib/utils";
-import type { ComponentType, GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
+import type { GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
 import type { AxiosError } from "axios";
 
 const DEFAULT_ROW = (): GradingSchemeComponentDto => ({
@@ -25,7 +25,6 @@ export function GradingSchemeEditor() {
   const [rows, setRows]               = useState<GradingSchemeComponentDto[]>([]);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
-  // Sync from server once loaded
   useEffect(() => {
     if (scheme) {
       setRows(
@@ -42,9 +41,8 @@ export function GradingSchemeEditor() {
 
   const totalWeight = rows.reduce((sum, r) => sum + (Number(r.weight) || 0), 0);
   const isLocked    = scheme?.isLocked ?? false;
-  const canSave     = !isLocked && totalWeight === 100 && !updateMutation.isPending;
+  const canSave     = !isLocked && totalWeight === 100 && rows.length > 0 && !updateMutation.isPending;
 
-  // ── row handlers ──────────────────────────────────────────────
   const handleChange = (
     index: number,
     field: keyof GradingSchemeComponentDto,
@@ -63,7 +61,6 @@ export function GradingSchemeEditor() {
     setDeleteIndex(null);
   };
 
-  // ── save ──────────────────────────────────────────────────────
   const handleSave = () => {
     updateMutation.mutate(
       { components: rows },
@@ -77,7 +74,6 @@ export function GradingSchemeEditor() {
     );
   };
 
-  // ── loading skeleton ──────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -101,13 +97,15 @@ export function GradingSchemeEditor() {
         </div>
       )}
 
-      {/* Column headers */}
-      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-0.5">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Category Name</span>
-        <span className="w-[140px] text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</span>
-        <span className="w-[96px] text-xs font-medium text-muted-foreground uppercase tracking-wide">Weight</span>
-        <span className="w-8" />
-      </div>
+      {/* Column headers — only when rows exist */}
+      {rows.length > 0 && (
+        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-0.5">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Category Name</span>
+          <span className="w-[140px] text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</span>
+          <span className="w-[96px] text-xs font-medium text-muted-foreground uppercase tracking-wide">Weight</span>
+          <span className="w-8" />
+        </div>
+      )}
 
       {/* Rows */}
       <div className="space-y-3">
@@ -123,9 +121,14 @@ export function GradingSchemeEditor() {
         ))}
 
         {rows.length === 0 && (
-          <p className="text-sm text-muted-foreground py-4 text-center">
-            No components yet. Add one below.
-          </p>
+          <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed py-10 text-center">
+            <p className="text-sm font-medium text-muted-foreground">
+              No grading scheme configured yet
+            </p>
+            <p className="text-xs text-muted-foreground max-w-xs">
+              Click <strong>Add Category</strong> below to define how grades are weighted for this school.
+            </p>
+          </div>
         )}
       </div>
 
@@ -155,7 +158,7 @@ export function GradingSchemeEditor() {
           >
             {totalWeight}% / 100%
           </span>
-          {totalWeight !== 100 && (
+          {rows.length > 0 && totalWeight !== 100 && (
             <span className="text-xs text-muted-foreground">
               (must equal 100% to save)
             </span>
