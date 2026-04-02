@@ -250,7 +250,7 @@ export default function SectionsPage(): React.JSX.Element {
     },
     {
       header: "Level",
-      accessorFn: (row) => levelMap[row.levelId] ?? "—",
+      accessorFn: (row) => levelMap[row.level_id] ?? "—",
       cell: ({ getValue }) => (
         <Badge variant="secondary" className="font-normal">
           {getValue<string>()}

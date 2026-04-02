@@ -1,12 +1,14 @@
 "use client";
+
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { AxiosError } from "axios";
 
 import { studentApi } from "@/api/admin/student.api";
-import type { CreateStudentRequest, CreateStudentResponse } from "@/api/admin/student.api";
+import type { CreateStudentRequest } from "@/api/admin/student.api";
+import type { Section } from "@/types/admin/section.types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +27,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Shown once after creation
 interface CredentialsPreview {
   fullName: string;
   email: string;
@@ -46,7 +47,7 @@ interface CreateStudentDialogProps {
   onClose: () => void;
   onCreated: () => void;
   levels: { id: string; name: string }[];
-  sections: { id: string; name: string }[];
+  sections: Section[];
 }
 
 export function CreateStudentDialog({
@@ -75,8 +76,14 @@ export function CreateStudentDialog({
     },
   });
 
-  const selectedLevelId = watch("levelId");
+  const selectedLevelId  = watch("levelId");
   const selectedSectionId = watch("sectionId");
+
+  // Only show sections that belong to the selected level
+  const filteredSections = useMemo(() => {
+    if (!selectedLevelId) return [];
+    return sections.filter((s) => s.level_id === selectedLevelId);
+  }, [sections, selectedLevelId]);
 
   const mutation = useMutation({
     mutationFn: (values: CreateStudentForm) => {
@@ -87,13 +94,13 @@ export function CreateStudentDialog({
         levelId:   values.levelId,
         sectionId: values.sectionId || undefined,
       };
-      return studentApi.create(payload);
+      return studentApi.create(payload).then((res) => ({ res, values }));
     },
-    onSuccess: (res: CreateStudentResponse) => {
+    onSuccess: ({ res, values }) => {
       setCredentials({
-        fullName:  res.fullName,
-        email:     res.email,
-        studentId: res.studentId,
+        fullName:  values.fullName,
+        email:     values.email,
+        studentId: values.studentId,
         password:  res.plainPassword,
       });
       onCreated();
@@ -109,7 +116,6 @@ export function CreateStudentDialog({
     onClose();
   }
 
-  // ── Credentials preview shown after success ───────────────────────────────
   if (credentials) {
     return (
       <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
@@ -119,7 +125,7 @@ export function CreateStudentDialog({
           </DialogHeader>
           <div className="space-y-3 mt-1">
             <p className="text-sm text-muted-foreground">
-              Save these credentials — the password won't be shown again.
+              Save these credentials — the password won&apost be shown again.
             </p>
             <div className="rounded-lg border bg-muted/40 p-4 space-y-2 text-sm font-mono">
               <div><span className="text-muted-foreground">Name: </span>{credentials.fullName}</div>
@@ -186,7 +192,7 @@ export function CreateStudentDialog({
               value={selectedLevelId}
               onValueChange={(v) => {
                 setValue("levelId", v ?? "");
-                setValue("sectionId", "");
+                setValue("sectionId", ""); // reset section when level changes
               }}
             >
               <SelectTrigger>
@@ -213,14 +219,14 @@ export function CreateStudentDialog({
             <Select
               value={selectedSectionId}
               onValueChange={(v) => setValue("sectionId", v ?? "")}
-              disabled={!selectedLevelId || sections.length === 0}
+              disabled={!selectedLevelId || filteredSections.length === 0}
             >
               <SelectTrigger>
                 <SelectValue placeholder="No section" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">No section</SelectItem>
-                {sections.map((s) => (
+                {filteredSections.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.name}
                   </SelectItem>

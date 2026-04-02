@@ -1,8 +1,7 @@
 "use client";
+
 import { Suspense, useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import type { AxiosError } from "axios";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Users, Plus, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -10,6 +9,7 @@ import { studentApi } from "@/api/admin/student.api";
 import { levelApi } from "@/api/admin/level.api";
 import { sectionApi } from "@/api/admin/section.api";
 import type { Student } from "@/types/admin/student.types";
+import type { Section } from "@/types/admin/section.types";
 import type { GetStudentsQuery } from "@/api/admin/student.api";
 
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -17,7 +17,6 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { toArray } from "@/utils/classes.utils";
-
 import { StudentFilterBar } from "@/components/student/StudentFilterBar";
 import { StudentTable } from "@/components/student/StudentTable";
 import { CreateStudentDialog } from "@/components/student/CreateStudentDialog";
@@ -25,44 +24,54 @@ import { CreateStudentDialog } from "@/components/student/CreateStudentDialog";
 function StudentsPageInner(): React.JSX.Element {
   const router = useRouter();
   const queryClient = useQueryClient();
-
   const [createOpen, setCreateOpen] = useState(false);
   const [filters, setFilters] = useState<GetStudentsQuery>({});
 
-  // ── Primary data ──────────────────────────────────────────────────────────
   const { data: studentsRaw, isLoading } = useQuery({
     queryKey: ["admin", "students", filters],
     queryFn: () => studentApi.getAll(filters),
   });
 
-  // ── Lookup data ───────────────────────────────────────────────────────────
   const { data: levelsRaw } = useQuery({
     queryKey: ["admin", "levels", "all"],
     queryFn: () => levelApi.getAll(),
   });
+
   const { data: sectionsRaw } = useQuery({
     queryKey: ["admin", "sections"],
     queryFn: () => sectionApi.getAll(),
   });
 
-  // ── Lookup maps ───────────────────────────────────────────────────────────
+  const levels = useMemo(
+    () => toArray<{ id: string; name: string }>(levelsRaw),
+    [levelsRaw],
+  );
+
+  const allSections = useMemo(
+    () => toArray<Section>(sectionsRaw),
+    [sectionsRaw],
+  );
+
+  // Filter sections shown in the filter bar by selected level
+  const filteredSections = useMemo(() => {
+    if (!filters.levelId) return allSections;
+    return allSections.filter((s) => s.level_id === filters.levelId);
+  }, [allSections, filters.levelId]);
+
+  // Filter sections shown in create dialog by selected level
+  // (passed down; dialog handles its own selected level internally)
   const levelMap = useMemo(() => {
     const map = new Map<string, string>();
-    toArray<{ id: string; name: string }>(levelsRaw).forEach((l) =>
-      map.set(l.id, l.name)
-    );
+    levels.forEach((l) => map.set(l.id, l.name));
     return map;
-  }, [levelsRaw]);
+  }, [levels]);
 
   const sectionMap = useMemo(() => {
     const map = new Map<string, string>();
-    toArray<{ id: string; name: string }>(sectionsRaw).forEach((s) =>
-      map.set(s.id, s.name)
-    );
+    allSections.forEach((s) => map.set(s.id, s.name));
     return map;
-  }, [sectionsRaw]);
+  }, [allSections]);
 
-  // ── Enrich students ───────────────────────────────────────────────────────
   const students = useMemo<(Student & { levelName?: string; sectionName?: string })[]>(() => {
     return toArray<Student>(studentsRaw).map((s) => ({
       ...s,
@@ -81,11 +90,7 @@ function StudentsPageInner(): React.JSX.Element {
         title="Students"
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadCredentials}
-            >
+            <Button variant="outline" size="sm" onClick={handleDownloadCredentials}>
               <Download className="mr-1.5 h-4 w-4" />
               Download Credentials
             </Button>
@@ -107,8 +112,8 @@ function StudentsPageInner(): React.JSX.Element {
       <StudentFilterBar
         filters={filters}
         onChange={setFilters}
-        levels={toArray<{ id: string; name: string }>(levelsRaw)}
-        sections={toArray<{ id: string; name: string }>(sectionsRaw)}
+        levels={levels}
+        sections={filteredSections}
       />
 
       {isLoading ? (
@@ -138,8 +143,8 @@ function StudentsPageInner(): React.JSX.Element {
           onCreated={() => {
             queryClient.invalidateQueries({ queryKey: ["admin", "students"] });
           }}
-          levels={toArray<{ id: string; name: string }>(levelsRaw)}
-          sections={toArray<{ id: string; name: string }>(sectionsRaw)}
+          levels={levels}
+          sections={allSections}
         />
       )}
     </div>
