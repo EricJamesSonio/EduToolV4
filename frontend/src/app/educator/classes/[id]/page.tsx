@@ -21,7 +21,7 @@ import { subjectApi } from "@/api/admin/subject.api";
 import { sectionApi } from "@/api/admin/section.api";
 import { semesterApi } from "@/api/admin/semester.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
-import { classApi as educatorClassApi } from "@/api/educator/class.api";
+import { educatorClassApi } from "@/api/educator/class.api";
 import { toArray } from "@/utils/classes.utils";
 import { formatSchedules } from "@/types/educator/class.types";
 import type { EnrollmentResponse } from "@/api/admin/class.api";

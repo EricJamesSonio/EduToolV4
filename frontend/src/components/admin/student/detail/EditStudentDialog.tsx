@@ -147,7 +147,7 @@ export function EditStudentDialog({
             <Select
               value={selectedLevelId}
               onValueChange={(v) => {
-                setValue("levelId", v);
+                setValue("levelId", v ?? '');
                 setValue("sectionId", NONE); // reset section when level changes
               }}
             >
@@ -172,7 +172,7 @@ export function EditStudentDialog({
             <Label>Section</Label>
             <Select
               value={watch("sectionId")}
-              onValueChange={(v) => setValue("sectionId", v)}
+              onValueChange={(v) => setValue("sectionId", v ?? "")}
               disabled={!selectedLevelId || filteredSections.length === 0}
             >
               <SelectTrigger>
