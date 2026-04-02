@@ -19,19 +19,20 @@ export interface SessionWithRecords extends AttendanceSession {
 }
 
 export const attendanceApi = {
-  getSessions: async (classId: string, weekNumber?: number): Promise<WeekSessions[]> => {
-    const res = await client.get<WeekSessions[]>(
-      `/classes/${classId}/attendance/sessions`,
-      { params: weekNumber ? { weekNumber } : undefined }
-    );
-    return res.data;
-  },
-  getSession: async (classId: string, sessionId: string): Promise<SessionWithRecords> => {
-    const res = await client.get<SessionWithRecords>(
-      `/classes/${classId}/attendance/sessions/${sessionId}`
-    );
-    return res.data;
-  },
+getSessions: async (classId: string, weekNumber?: number): Promise<WeekSessions[]> => {
+  const res = await client.get<{ success: boolean; data: WeekSessions[] }>(
+    `/classes/${classId}/attendance/sessions`,
+    { params: weekNumber ? { weekNumber } : undefined }
+  );
+  return res.data.data;  // unwrap envelope
+},
+
+getSession: async (classId: string, sessionId: string): Promise<SessionWithRecords> => {
+  const res = await client.get<{ success: boolean; data: SessionWithRecords }>(
+    `/classes/${classId}/attendance/sessions/${sessionId}`
+  );
+  return res.data.data;  // unwrap envelope
+},
   bulkSet: async (
     classId: string,
     sessionId: string,

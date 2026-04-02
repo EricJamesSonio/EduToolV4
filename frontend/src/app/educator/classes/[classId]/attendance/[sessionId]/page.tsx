@@ -11,7 +11,6 @@ import {
 import { toast } from "sonner";
 import { useAttendanceSession, useBulkSetAttendance } from "@/hooks/educator/useAttendance";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import type { AttendanceStatus } from "@/types/educator/attendance.types";
 
 interface RowState {
