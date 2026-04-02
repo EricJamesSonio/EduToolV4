@@ -60,13 +60,17 @@ export function GradingSchemeComponentRow({
       {/* Weight */}
       <div className="flex items-center gap-1.5">
         <Input
-          type="number"
-          min={0}
-          max={100}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
           value={row.weight}
           disabled={disabled}
           className="w-[72px] tabular-nums"
-          onChange={(e) => onChange(index, "weight", Number(e.target.value))}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => {
+            const raw = e.target.value.replace(/[^0-9]/g, "");
+            onChange(index, "weight", raw === "" ? 0 : Math.min(100, Number(raw)));
+          }}
         />
         <span className="text-sm text-muted-foreground">%</span>
       </div>

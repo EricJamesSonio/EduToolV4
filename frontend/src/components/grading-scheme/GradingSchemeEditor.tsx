@@ -29,7 +29,7 @@ export function GradingSchemeEditor() {
   useEffect(() => {
     if (scheme) {
       setRows(
-        scheme.components.map((c) => ({
+        (scheme.components ?? []).map((c) => ({
           name:       c.name,
           type:       c.type,
           weight:     c.weight,
