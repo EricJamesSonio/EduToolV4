@@ -1,9 +1,10 @@
 "use client";
-
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import type { ColumnDef } from "@tanstack/react-table";
+
 import { sectionApi } from "@/api/admin/section.api";
 import { levelApi } from "@/api/admin/level.api";
 import type { Section } from "@/types/admin/section.types";
@@ -32,8 +33,6 @@ import {
 import { Plus, Pencil, Trash2, Layers } from "lucide-react";
 import type { AxiosError } from "axios";
 
-// ─── Section Form Dialog ──────────────────────────────────────────────────────
-
 interface SectionFormValues {
   levelId: string;
   name: string;
@@ -55,7 +54,6 @@ function SectionDialog({
 }): React.JSX.Element {
   const isEdit = !!section;
   const queryClient = useQueryClient();
-
   const {
     register,
     handleSubmit,
@@ -115,7 +113,6 @@ function SectionDialog({
           onSubmit={handleSubmit((v) => mutation.mutate(v))}
           className="space-y-4 mt-1"
         >
-          {/* Level — only shown when creating */}
           {!isEdit && (
             <div className="space-y-1.5">
               <Label>Level</Label>
@@ -142,7 +139,6 @@ function SectionDialog({
             </div>
           )}
 
-          {/* Name */}
           <div className="space-y-1.5">
             <Label>Section Name</Label>
             <Input
@@ -158,7 +154,6 @@ function SectionDialog({
             )}
           </div>
 
-          {/* Capacity */}
           <div className="space-y-1.5">
             <Label>Capacity</Label>
             <Input
@@ -207,8 +202,6 @@ function SectionDialog({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function SectionsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const [filterLevelId, setFilterLevelId] = useState<string>("all");
@@ -216,13 +209,11 @@ export default function SectionsPage(): React.JSX.Element {
   const [editTarget, setEditTarget] = useState<Section | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Section | null>(null);
 
-  // ── Fetch all levels across all school years ───────────────────────────────
   const { data: levels = [], isLoading: levelsLoading } = useQuery({
     queryKey: ["admin", "levels", "all"],
     queryFn: () => levelApi.getAll(),
   });
 
-  // ── Fetch sections (optionally filtered by level) ──────────────────────────
   const { data: sections = [], isLoading: sectionsLoading } = useQuery({
     queryKey: ["admin", "sections", filterLevelId],
     queryFn: () =>
@@ -242,7 +233,6 @@ export default function SectionsPage(): React.JSX.Element {
     },
   });
 
-  // ── Level name lookup map ──────────────────────────────────────────────────
   const levelMap = useMemo(
     () => Object.fromEntries(levels.map((l) => [l.id, l.name])),
     [levels]
@@ -250,73 +240,80 @@ export default function SectionsPage(): React.JSX.Element {
 
   const isLoading = levelsLoading || sectionsLoading;
 
-  // ── Table columns ──────────────────────────────────────────────────────────
-  const columns = [
+  const columns: ColumnDef<Section>[] = [
     {
       header: "Name",
-      accessor: (row: Section) => (
-        <span className="font-medium">{row.name}</span>
+      accessorKey: "name",
+      cell: ({ getValue }) => (
+        <span className="font-medium">{getValue<string>()}</span>
       ),
     },
     {
       header: "Level",
-      accessor: (row: Section) => (
+      accessorFn: (row) => levelMap[row.levelId] ?? "—",
+      cell: ({ getValue }) => (
         <Badge variant="secondary" className="font-normal">
-          {levelMap[row.levelId] ?? "—"}
+          {getValue<string>()}
         </Badge>
       ),
     },
     {
       header: "Capacity",
-      accessor: (row: Section) => (
-        <span className="text-sm">{row.capacity}</span>
+      accessorKey: "capacity",
+      cell: ({ getValue }) => (
+        <span className="text-sm">{getValue<number>()}</span>
       ),
     },
     {
       header: "Students",
-      accessor: (row: Section) => (
-        <div className="flex items-center gap-2">
-          <span className="text-sm tabular-nums">
-            {row.studentCount ?? 0} / {row.capacity}
-          </span>
-          <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full rounded-full bg-primary transition-all"
-              style={{
-                width: `${Math.min(
-                  (((row.studentCount ?? 0) / row.capacity) * 100),
-                  100
-                )}%`,
-              }}
-            />
+      id: "students",
+      cell: ({ row }) => {
+        const s = row.original;
+        const count = s.studentCount ?? 0;
+        const pct = Math.min((count / s.capacity) * 100, 100);
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-sm tabular-nums">
+              {count} / {s.capacity}
+            </span>
+            <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       header: "Actions",
-      accessor: (row: Section) => (
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 w-7 p-0"
-            onClick={() => setEditTarget(row)}
-            title="Edit section"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={() => setDeleteTarget(row)}
-            title="Delete section"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      ),
+      id: "actions",
+      cell: ({ row }) => {
+        const s = row.original;
+        return (
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              onClick={() => setEditTarget(s)}
+              title="Edit section"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setDeleteTarget(s)}
+              title="Delete section"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -332,7 +329,6 @@ export default function SectionsPage(): React.JSX.Element {
         }
       />
 
-      {/* Filter bar */}
       <div className="flex items-center gap-3">
         <Select
           value={filterLevelId}
@@ -352,7 +348,6 @@ export default function SectionsPage(): React.JSX.Element {
         </Select>
       </div>
 
-      {/* Table */}
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3, 4].map((i) => (
@@ -384,7 +379,6 @@ export default function SectionsPage(): React.JSX.Element {
         <DataTable columns={columns} data={sections} />
       )}
 
-      {/* Create dialog */}
       {createOpen && (
         <SectionDialog
           levels={levels}
@@ -396,7 +390,6 @@ export default function SectionsPage(): React.JSX.Element {
         />
       )}
 
-      {/* Edit dialog */}
       {editTarget && (
         <SectionDialog
           section={editTarget}
@@ -409,7 +402,6 @@ export default function SectionsPage(): React.JSX.Element {
         />
       )}
 
-      {/* Delete confirm */}
       {deleteTarget && (
         <ConfirmDialog
           open
