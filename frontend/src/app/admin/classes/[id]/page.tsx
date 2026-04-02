@@ -1,22 +1,26 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 
 import { classApi } from "@/api/admin/class.api";
+import { subjectApi } from "@/api/admin/subject.api";
+import { educatorApi } from "@/api/admin/educator.api";
+import { schoolYearApi } from "@/api/admin/school-year.api";
+import { semesterApi } from "@/api/admin/semester.api";
 import type { EnrollmentResponse } from "@/api/admin/class.api";
 import type { Class } from "@/types/admin/class.types";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toArray } from "@/utils/classes.utils";
 
 import { ClassDetailHeader } from "@/components/class/detail/ClassDetailHeader";
 import { ClassInfoCard } from "@/components/class/detail/ClassInfoCard";
 import { EnrolledStudentsList } from "@/components/class/detail/EnrolledStudentsList";
 import { EditClassDialog } from "@/components/class/detail/EditClassDialog";
 import { EnrollStudentDialog } from "@/components/class/detail/EnrollStudentDialog";
-import { toArray } from "@/components/class/utils/classDetail.utils";
 
 export default function ClassDetailPage({
   params,
@@ -45,6 +49,46 @@ export default function ClassDetailPage({
     enabled: !!id,
   });
   const enrollments = toArray<EnrollmentResponse>(enrollmentsRaw);
+
+  // ── Lookup queries (served from cache; no extra network cost) ─────────────
+  const { data: subjectsRaw } = useQuery({
+    queryKey: ["admin", "subjects"],
+    queryFn: () => subjectApi.getAll(),
+  });
+  const { data: educatorsRaw } = useQuery({
+    queryKey: ["admin", "educators", "all"],
+    queryFn: () => educatorApi.getAll(),
+  });
+  const { data: schoolYearsRaw } = useQuery({
+    queryKey: ["admin", "school-years"],
+    queryFn: () => schoolYearApi.getAll(),
+  });
+  const { data: semestersRaw } = useQuery({
+    queryKey: ["admin", "semesters"],
+    queryFn: () => semesterApi.getAll(),
+  });
+
+  // ── Enrich cls with resolved names ────────────────────────────────────────
+  const enrichedCls = useMemo<Class | undefined>(() => {
+    if (!cls) return undefined;
+    const subjectName     = toArray<{ id: string; title: string }>(subjectsRaw)
+                              .find((s) => s.id === cls.subjectId)?.title;
+    const educatorName    = toArray<{ id: string; fullName: string }>(educatorsRaw)
+                              .find((e) => e.id === cls.educatorId)?.fullName;
+    const schoolYearTitle = toArray<{ id: string; name: string }>(schoolYearsRaw)
+                              .find((sy) => sy.id === cls.schoolYearId)?.name;
+    const semesterName    = toArray<{ id: string; name: string }>(semestersRaw)
+                              .find((sem) => sem.id === cls.semesterId)?.name;
+    return {
+      ...cls,
+      subjectName:     subjectName     ?? cls.subjectName,
+      educatorName:    educatorName    ?? cls.educatorName,
+      schoolYearTitle: schoolYearTitle ?? cls.schoolYearTitle,
+      semesterName:    semesterName    ?? cls.semesterName,
+      title:           subjectName     ?? cls.subjectName ?? cls.subjectId,
+      isArchived:      cls.status === "archived",
+    };
+  }, [cls, subjectsRaw, educatorsRaw, schoolYearsRaw, semestersRaw]);
 
   const archiveMutation = useMutation({
     mutationFn: () => classApi.archive(id),
@@ -87,7 +131,7 @@ export default function ClassDetailPage({
     );
   }
 
-  if (!cls) {
+  if (!enrichedCls) {
     return (
       <p className="text-sm text-muted-foreground py-12 text-center">
         Class not found.
@@ -95,18 +139,18 @@ export default function ClassDetailPage({
     );
   }
 
-  const isArchived = cls.status === "archived";
-  const enrolledCount = cls.enrolledCount ?? enrollments.length;
+  const isArchived = enrichedCls.status === "archived";
+  const enrolledCount = enrichedCls.enrolledCount ?? enrollments.length;
 
   return (
     <div className="space-y-6 max-w-4xl">
       <ClassDetailHeader
-        cls={cls}
+        cls={enrichedCls}
         onEdit={() => setEditOpen(true)}
         onArchive={() => setArchiveConfirm(true)}
       />
 
-      <ClassInfoCard cls={cls} enrolledCount={enrolledCount} />
+      <ClassInfoCard cls={enrichedCls} enrolledCount={enrolledCount} />
 
       <EnrolledStudentsList
         enrollments={enrollments}
@@ -119,7 +163,7 @@ export default function ClassDetailPage({
 
       {editOpen && (
         <EditClassDialog
-          cls={cls}
+          cls={enrichedCls}
           open={editOpen}
           onClose={() => setEditOpen(false)}
         />

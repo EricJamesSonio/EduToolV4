@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import { Suspense, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -8,24 +7,26 @@ import type { AxiosError } from "axios";
 import { GraduationCap, Plus } from "lucide-react";
 
 import { classApi } from "@/api/admin/class.api";
-import type { Class } from "@/types/admin/class.types";
+import { subjectApi } from "@/api/admin/subject.api";
+import { educatorApi } from "@/api/admin/educator.api";
+import { schoolYearApi } from "@/api/admin/school-year.api";
+import { semesterApi } from "@/api/admin/semester.api";
 
+import type { Class } from "@/types/admin/class.types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-
 import { useClassFilters } from "@/hooks/admin/useClassFilters";
 import { toArray } from "@/utils/classes.utils";
 import { ClassesFilterBar } from "@/components/class/ClassesFilterBar";
 import { ClassesTable } from "@/components/class/ClassesTable";
 import { CreateClassDialog } from "@/components/class/CreateClassDialog";
 
-export default function ClassesPage(): React.JSX.Element {
+function ClassesPageInner(): React.JSX.Element {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-
   const defaultSubjectId: string | undefined =
     searchParams.get("subjectId") ?? undefined;
 
@@ -34,16 +35,77 @@ export default function ClassesPage(): React.JSX.Element {
 
   const filters = useClassFilters();
 
-  // ─── Data ──────────────────────────────────────────────────────────────────
-
+  // ── Primary data ──────────────────────────────────────────────────────────
   const { data: classesRaw, isLoading } = useQuery({
     queryKey: ["admin", "classes", filters.query],
     queryFn: () => classApi.getAll(filters.query),
   });
-  const classes = toArray<Class>(classesRaw);
 
-  // ─── Archive ───────────────────────────────────────────────────────────────
+  // ── Lookup data (all cached; no extra network cost after first load) ──────
+  const { data: subjectsRaw } = useQuery({
+    queryKey: ["admin", "subjects"],
+    queryFn: () => subjectApi.getAll(),
+  });
+  const { data: educatorsRaw } = useQuery({
+    queryKey: ["admin", "educators", "all"],
+    queryFn: () => educatorApi.getAll(),
+  });
+  const { data: schoolYearsRaw } = useQuery({
+    queryKey: ["admin", "school-years"],
+    queryFn: () => schoolYearApi.getAll(),
+  });
+  const { data: semestersRaw } = useQuery({
+    queryKey: ["admin", "semesters"],
+    queryFn: () => semesterApi.getAll(),
+  });
 
+  // ── Build lookup maps ─────────────────────────────────────────────────────
+  const subjectMap = useMemo(() => {
+    const map = new Map<string, string>();
+    toArray<{ id: string; title: string }>(subjectsRaw).forEach((s) =>
+      map.set(s.id, s.title)
+    );
+    return map;
+  }, [subjectsRaw]);
+
+  const educatorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    toArray<{ id: string; fullName: string }>(educatorsRaw).forEach((e) =>
+      map.set(e.id, e.fullName)
+    );
+    return map;
+  }, [educatorsRaw]);
+
+  const schoolYearMap = useMemo(() => {
+    const map = new Map<string, string>();
+    toArray<{ id: string; name: string }>(schoolYearsRaw).forEach((sy) =>
+      map.set(sy.id, sy.name)
+    );
+    return map;
+  }, [schoolYearsRaw]);
+
+  const semesterMap = useMemo(() => {
+    const map = new Map<string, string>();
+    toArray<{ id: string; name: string }>(semestersRaw).forEach((sem) =>
+      map.set(sem.id, sem.name)
+    );
+    return map;
+  }, [semestersRaw]);
+
+  // ── Enrich classes with resolved names ───────────────────────────────────
+  const classes = useMemo<Class[]>(() => {
+    return toArray<Class>(classesRaw).map((cls) => ({
+      ...cls,
+      subjectName:     subjectMap.get(cls.subjectId)   ?? cls.subjectName,
+      educatorName:    educatorMap.get(cls.educatorId)  ?? cls.educatorName,
+      schoolYearTitle: schoolYearMap.get(cls.schoolYearId) ?? cls.schoolYearTitle,
+      semesterName:    semesterMap.get(cls.semesterId)  ?? cls.semesterName,
+      // Derive title from the now-resolved subjectName
+      title:           subjectMap.get(cls.subjectId)   ?? cls.subjectName ?? cls.subjectId,
+    }));
+  }, [classesRaw, subjectMap, educatorMap, schoolYearMap, semesterMap]);
+
+  // ── Archive mutation ──────────────────────────────────────────────────────
   const archiveMutation = useMutation({
     mutationFn: (id: string) => classApi.archive(id),
     onSuccess: () => {
@@ -57,8 +119,6 @@ export default function ClassesPage(): React.JSX.Element {
     },
   });
 
-  // ─── Render ────────────────────────────────────────────────────────────────
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -70,7 +130,6 @@ export default function ClassesPage(): React.JSX.Element {
           </Button>
         }
       />
-
       <ClassesFilterBar {...filters} />
 
       {isLoading ? (
@@ -102,14 +161,35 @@ export default function ClassesPage(): React.JSX.Element {
         <ConfirmDialog
           open
           title="Archive this class?"
-          message={`Archive "${archiveTarget.subjectName ?? "this class"}"? It will become read-only and hidden from active views.`}
+          message={`Archive "${archiveTarget.title ?? archiveTarget.subjectName ?? "this class"}"? It will become read-only and hidden from active views.`}
           confirmLabel="Archive Class"
           destructive
           isLoading={archiveMutation.isPending}
           onConfirm={() => archiveMutation.mutate(archiveTarget.id)}
-          onOpenChange={(o) => { if (!o) setArchiveTarget(null); }}
+          onOpenChange={(o) => {
+            if (!o) setArchiveTarget(null);
+          }}
         />
       )}
     </div>
+  );
+}
+
+export default function ClassesPage(): React.JSX.Element {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-48" />
+          <div className="space-y-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      }
+    >
+      <ClassesPageInner />
+    </Suspense>
   );
 }
