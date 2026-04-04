@@ -61,9 +61,7 @@ export default function StudentLessonsPage(): React.JSX.Element {
             Week {week}
           </h2>
           <div className="space-y-2">
-            {byWeek[week]
-              .sort((a, b) => a.subIndex - b.subIndex)
-              .map((lesson) => (
+            {byWeek[week]?.sort((a, b) => (a.subIndex ?? 0) - (b.subIndex ?? 0)).map((lesson) => (
                 <div
                   key={lesson.id}
                   className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-card px-4 py-3"
