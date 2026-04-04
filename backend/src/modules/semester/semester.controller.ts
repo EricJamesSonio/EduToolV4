@@ -1,4 +1,4 @@
-// @/modules/semester/semester.controller.ts
+// backend/src/modules/semester/semester.controller.ts
 import {
   Controller,
   Post,
@@ -18,16 +18,15 @@ import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Controller('semester-settings')
 @UseGuards(AuthGuard, RolesGuard)
 export class SemesterController {
   constructor(private readonly semesterService: SemesterService) {}
 
-  /**
-   * POST /semester-settings  @Roles(ADMIN)
-   * Creates a semester with its terms. Max 3 per school year.
-   * Validates non-overlapping date ranges.
-   */
   @Post()
   @Roles('admin')
   async create(
@@ -37,21 +36,11 @@ export class SemesterController {
     return this.semesterService.create(orgId, dto);
   }
 
-  /**
-   * GET /semester-settings
-   * Returns all semesters with their terms for the org.
-   * All authenticated roles can view.
-   */
   @Get()
   async findAll(@CurrentUser('orgId') orgId: string) {
     return this.semesterService.findAll(orgId);
   }
 
-  /**
-   * PATCH /semester-settings/:id  @Roles(ADMIN)
-   * Updates a semester name, dates, or terms.
-   * Re-validates overlap on every update.
-   */
   @Patch(':id')
   @Roles('admin')
   async update(
@@ -62,10 +51,6 @@ export class SemesterController {
     return this.semesterService.update(id, orgId, dto);
   }
 
-  /**
-   * DELETE /semester-settings/:id  @Roles(ADMIN)
-   * Deletes the semester and all its terms.
-   */
   @Delete(':id')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -74,5 +59,32 @@ export class SemesterController {
     @CurrentUser('orgId') orgId: string,
   ) {
     await this.semesterService.remove(id, orgId);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Student
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Controller('student/semesters')
+@UseGuards(AuthGuard, RolesGuard)
+export class StudentSemesterController {
+  constructor(private readonly semesterService: SemesterService) {}
+
+  /**
+   * GET /student/semesters
+   * Returns slim semester list for the student's org — used for client-side
+   * filtering on the My Classes page.
+   */
+  @Get()
+  @Roles('student')
+  async findAll(@CurrentUser('orgId') orgId: string) {
+    const semesters = await this.semesterService.findAll(orgId);
+    return semesters.map((s) => ({
+      id: s.id,
+      name: s.name,
+      startDate: s.start_date,
+      endDate: s.end_date,
+    }));
   }
 }

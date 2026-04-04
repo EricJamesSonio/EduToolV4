@@ -1,27 +1,11 @@
-export type LevelSection =
-  | "elementary"
-  | "junior_high"
-  | "senior_high"
-  | "college"
-  | "custom";
-
-export interface GradeLevel {
+// frontend/src/types/admin/level.types.ts
+export interface Level {
   id: string;
-  name: string;       // e.g. "Grade 7", "Year 1"
-  order: number;
+  org_id: string;
+  program_id: string;       // ← snake_case, matches Prisma output
+  name: string;
+  school_year_id?: string | null;
 }
 
-export interface LevelDefault {
-  id: string;
-  orgId: string;
-  levelSection: LevelSection;
-  gradeLevels: GradeLevel[];
-  updatedAt: string;
-}
-
-export interface SchoolYearLevel {
-  id: string;
-  schoolYearId: string;
-  levelSection: LevelSection;
-  gradeLevels: GradeLevel[];
-}
+export type LevelDefault = Level;
+export type SchoolYearLevel = Level;

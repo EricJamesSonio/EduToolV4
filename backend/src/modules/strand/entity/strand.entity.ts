@@ -1,7 +1,25 @@
+// backend/src/modules/strand/entity/strand.entity.ts
+
+export class StrandSubjectPrerequisiteEntity {
+  prerequisite: {
+    id: string;
+    name: string;
+  };
+}
+
+export class StrandSubjectEntity {
+  id: string;
+  name: string;
+  yearLevel: number;
+  termLabel: string;
+  prerequisites?: StrandSubjectPrerequisiteEntity[];
+}
+
 export class StrandEntity {
-  id: string
-  org_id: string
-  program_id: string
-  name: string
-  created_at?: Date
+  id: string;
+  orgId: string;
+  programId: string;
+  name: string;
+  createdAt?: Date;
+  subjects?: StrandSubjectEntity[];
 }

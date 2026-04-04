@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,60 +7,65 @@
 /* ============================================================
    EDUTOOL — GLOBAL STYLES
    shadcn/ui CSS variables + EduTool custom tokens
+   Redesigned: Sora + DM Sans | Refined Indigo-Teal palette
    ============================================================ */
 
 @layer base {
   :root {
+    /* ---- Typography ---- */
+    --font-display: 'Sora', sans-serif;
+    --font-body:    'DM Sans', sans-serif;
+
     /* ---- shadcn/ui core tokens (light mode) ---- */
-    --background:   0 0% 98%;
-    --foreground:   222 47% 11%;
+    --background:   210 20% 98%;        /* warm off-white, not stark white */
+    --foreground:   220 25% 14%;        /* deep warm slate */
 
     --card:           0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 220 25% 14%;
 
     --popover:           0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 220 25% 14%;
 
-    --primary:           221 83% 53%;    /* brand-500 blue */
+    --primary:           234 89% 60%;   /* indigo-500 — trustworthy, modern */
     --primary-foreground: 0 0% 100%;
 
-    --secondary:           214 32% 91%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary:           210 16% 93%;
+    --secondary-foreground: 220 25% 25%;
 
-    --muted:           214 32% 91%;
-    --muted-foreground: 215 16% 47%;
+    --muted:           210 16% 93%;
+    --muted-foreground: 215 14% 52%;
 
-    --accent:           214 32% 91%;
-    --accent-foreground: 222 47% 11%;
+    --accent:           172 66% 42%;    /* teal accent — education, growth */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive:           0 84% 60%;
+    --destructive:           4 86% 58%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input:  214 32% 91%;
-    --ring:   221 83% 53%;
+    --border: 214 20% 88%;
+    --input:  214 20% 88%;
+    --ring:   234 89% 60%;
 
-    --radius: 0.5rem;
+    --radius: 0.625rem;
 
     /* ---- Chart colors ---- */
-    --chart-1: 221 83% 53%;
-    --chart-2: 142 76% 36%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 0 84% 60%;
+    --chart-1: 234 89% 60%;   /* indigo */
+    --chart-2: 172 66% 42%;   /* teal */
+    --chart-3: 38 92% 52%;    /* amber */
+    --chart-4: 262 60% 62%;   /* violet */
+    --chart-5: 4 86% 58%;     /* red */
 
     /* ---- EduTool Sidebar tokens (light) ---- */
-    --sidebar-bg:          222 47% 11%;   /* deep navy */
-    --sidebar-border:      222 40% 18%;
-    --sidebar-text:        214 32% 91%;
-    --sidebar-text-muted:  215 16% 57%;
-    --sidebar-active:      221 83% 53%;   /* brand blue */
+    --sidebar-bg:          225 30% 13%;   /* deep indigo-slate — authoritative */
+    --sidebar-border:      225 22% 20%;
+    --sidebar-text:        220 18% 80%;
+    --sidebar-text-muted:  220 12% 52%;
+    --sidebar-active:      234 89% 60%;   /* indigo brand */
     --sidebar-active-text: 0 0% 100%;
-    --sidebar-hover:       222 40% 18%;
+    --sidebar-hover:       225 22% 20%;
 
     /* ---- EduTool Surface tokens (light) ---- */
     --surface:         0 0% 100%;
-    --surface-raised:  0 0% 98%;
+    --surface-raised:  210 20% 98%;
     --surface-overlay: 0 0% 100%;
 
     /* ---- Topbar ---- */
@@ -71,47 +78,47 @@
 
   .dark {
     /* ---- shadcn/ui core tokens (dark mode) ---- */
-    --background:   222 47% 8%;
-    --foreground:   213 31% 91%;
+    --background:   224 28% 9%;
+    --foreground:   218 22% 90%;
 
-    --card:           222 47% 11%;
-    --card-foreground: 213 31% 91%;
+    --card:           224 24% 12%;
+    --card-foreground: 218 22% 90%;
 
-    --popover:           222 47% 11%;
-    --popover-foreground: 213 31% 91%;
+    --popover:           224 24% 12%;
+    --popover-foreground: 218 22% 90%;
 
-    --primary:           221 83% 53%;
+    --primary:           234 89% 65%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary:           222 40% 18%;
-    --secondary-foreground: 213 31% 91%;
+    --secondary:           224 18% 18%;
+    --secondary-foreground: 218 22% 85%;
 
-    --muted:           222 40% 18%;
-    --muted-foreground: 215 16% 57%;
+    --muted:           224 18% 18%;
+    --muted-foreground: 218 12% 54%;
 
-    --accent:           222 40% 18%;
-    --accent-foreground: 213 31% 91%;
+    --accent:           172 58% 46%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive:           0 63% 50%;
+    --destructive:           4 72% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 222 40% 18%;
-    --input:  222 40% 18%;
-    --ring:   221 83% 53%;
+    --border: 224 18% 20%;
+    --input:  224 18% 20%;
+    --ring:   234 89% 65%;
 
-    /* ---- EduTool Sidebar tokens (dark — same as light sidebar) ---- */
-    --sidebar-bg:          222 47% 7%;
-    --sidebar-border:      222 40% 14%;
-    --sidebar-text:        214 32% 85%;
-    --sidebar-text-muted:  215 16% 50%;
-    --sidebar-active:      221 83% 53%;
+    /* ---- EduTool Sidebar tokens (dark) ---- */
+    --sidebar-bg:          224 28% 7%;
+    --sidebar-border:      224 22% 14%;
+    --sidebar-text:        218 16% 76%;
+    --sidebar-text-muted:  218 10% 46%;
+    --sidebar-active:      234 89% 65%;
     --sidebar-active-text: 0 0% 100%;
-    --sidebar-hover:       222 40% 14%;
+    --sidebar-hover:       224 22% 14%;
 
     /* ---- EduTool Surface tokens (dark) ---- */
-    --surface:         222 47% 11%;
-    --surface-raised:  222 47% 14%;
-    --surface-overlay: 222 47% 13%;
+    --surface:         224 24% 12%;
+    --surface-raised:  224 24% 15%;
+    --surface-overlay: 224 24% 13%;
   }
 }
 
@@ -122,19 +129,37 @@
 
   html {
     @apply antialiased;
+    font-family: var(--font-body);
   }
 
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: var(--font-body);
+    font-size: 0.9375rem;          /* 15px — slightly tighter for dashboard density */
+    line-height: 1.6;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
+  /* Headings use Sora display font */
+  h1, h2, h3, h4, h5, h6,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+
+  h1 { font-size: 2rem;    line-height: 1.2; }
+  h2 { font-size: 1.5rem;  line-height: 1.3; }
+  h3 { font-size: 1.25rem; line-height: 1.35; }
+  h4 { font-size: 1.125rem; line-height: 1.4; }
 
   /* Focus ring — accessible, consistent */
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
-  /* Remove default focus on non-keyboard navigation */
   :focus:not(:focus-visible) {
     @apply outline-none;
   }
@@ -150,8 +175,8 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
@@ -160,14 +185,13 @@
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: hsl(var(--border));
-    border-radius: 3px;
+    border-radius: 4px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background-color: hsl(var(--muted-foreground));
   }
 
-  /* Hide scrollbar but keep scroll behavior */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -182,16 +206,15 @@
    PORTAL LAYOUT UTILITY CLASSES
    ============================================================ */
 @layer components {
-  /* Main shell wrapper — used in each portal layout.tsx */
   .portal-shell {
     @apply flex h-screen overflow-hidden bg-background;
   }
 
-  /* Sidebar container */
   .portal-sidebar {
     @apply flex h-full flex-col overflow-y-auto overflow-x-hidden
-           bg-sidebar-bg border-r border-sidebar-border
+           border-r border-sidebar-border
            transition-[width] duration-200 ease-in-out;
+    background-color: hsl(var(--sidebar-bg));
     width: var(--sidebar-width);
     flex-shrink: 0;
   }
@@ -200,25 +223,21 @@
     width: var(--sidebar-width-collapsed);
   }
 
-  /* Main content area (right of sidebar) */
   .portal-content {
     @apply flex flex-1 flex-col overflow-hidden;
   }
 
-  /* Topbar strip */
   .portal-topbar {
     @apply flex items-center justify-between
-           border-b border-border bg-background px-6
+           border-b border-border bg-card px-6
            flex-shrink-0;
     height: var(--topbar-height);
   }
 
-  /* Scrollable page area below topbar */
   .portal-page {
-    @apply flex-1 overflow-y-auto scrollbar-thin;
+    @apply flex-1 overflow-y-auto scrollbar-thin bg-background;
   }
 
-  /* Inner page padding wrapper */
   .page-container {
     @apply mx-auto max-w-screen-xl px-6 py-6;
   }
@@ -229,14 +248,23 @@
    ============================================================ */
 @layer components {
   .sidebar-nav-item {
-    @apply flex items-center gap-3 rounded-md px-3 py-2
-           text-sm font-medium text-sidebar-text
-           transition-colors duration-150
-           hover:bg-sidebar-hover hover:text-sidebar-active-text;
+    @apply flex items-center gap-3 rounded-lg px-3 py-2
+           text-sm font-medium
+           transition-all duration-150 cursor-pointer;
+    color: hsl(var(--sidebar-text));
+  }
+
+  .sidebar-nav-item:hover {
+    background-color: hsl(var(--sidebar-hover));
+    color: hsl(var(--sidebar-active-text));
   }
 
   .sidebar-nav-item.active {
-    @apply bg-sidebar-active text-sidebar-active-text;
+    background-color: hsl(var(--sidebar-active) / 0.18);
+    color: hsl(var(--sidebar-active));
+    font-weight: 600;
+    /* Subtle left accent bar */
+    box-shadow: inset 3px 0 0 hsl(var(--sidebar-active));
   }
 
   .sidebar-nav-item .nav-icon {
@@ -245,15 +273,34 @@
 
   .sidebar-nav-item .nav-label {
     @apply truncate;
+    font-family: var(--font-body);
+    letter-spacing: 0;
   }
 
-  /* Collapsed state — hide label */
   .portal-sidebar.collapsed .nav-label {
     @apply hidden;
   }
 
   .portal-sidebar.collapsed .sidebar-nav-item {
     @apply justify-center px-0;
+    box-shadow: none;
+  }
+
+  .portal-sidebar.collapsed .sidebar-nav-item.active {
+    background-color: hsl(var(--sidebar-active) / 0.2);
+    color: hsl(var(--sidebar-active));
+  }
+
+  /* Sidebar section label */
+  .sidebar-section-label {
+    @apply px-3 pt-5 pb-1 text-[10px] font-semibold uppercase tracking-widest;
+    color: hsl(var(--sidebar-text-muted));
+    font-family: var(--font-display);
+    letter-spacing: 0.1em;
+  }
+
+  .portal-sidebar.collapsed .sidebar-section-label {
+    @apply hidden;
   }
 }
 
@@ -270,11 +317,18 @@
   }
 
   .page-header-breadcrumb {
-    @apply flex items-center gap-1.5 text-xs text-muted-foreground;
+    @apply flex items-center gap-1.5 text-xs text-muted-foreground mb-0.5;
+    font-family: var(--font-body);
   }
 
   .page-header-title {
     @apply text-2xl font-semibold tracking-tight text-foreground;
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+  }
+
+  .page-header-subtitle {
+    @apply text-sm text-muted-foreground mt-0.5;
   }
 
   .page-header-actions {
@@ -286,28 +340,28 @@
    STATUS BADGE COLORS
    ============================================================ */
 @layer components {
-  /* Base badge reset (extends shadcn Badge) */
   .status-badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5
-           text-xs font-medium;
+           text-[11px] font-semibold tracking-wide;
+    font-family: var(--font-body);
   }
 
-  .status-active     { @apply bg-green-100  text-green-800  dark:bg-green-900/30  dark:text-green-400; }
-  .status-pending    { @apply bg-amber-100  text-amber-800  dark:bg-amber-900/30  dark:text-amber-400; }
-  .status-blocked    { @apply bg-red-100    text-red-800    dark:bg-red-900/30    dark:text-red-400; }
-  .status-dropped    { @apply bg-red-100    text-red-800    dark:bg-red-900/30    dark:text-red-400; }
-  .status-suspended  { @apply bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400; }
-  .status-graduated  { @apply bg-slate-100  text-slate-600  dark:bg-slate-800     dark:text-slate-400; }
-  .status-transferred{ @apply bg-blue-100   text-blue-700   dark:bg-blue-900/30   dark:text-blue-400; }
-  .status-ended      { @apply bg-slate-100  text-slate-600  dark:bg-slate-800     dark:text-slate-400; }
-  .status-draft      { @apply bg-amber-100  text-amber-800  dark:bg-amber-900/30  dark:text-amber-400; }
-  .status-submitted  { @apply bg-green-100  text-green-800  dark:bg-green-900/30  dark:text-green-400; }
-  .status-locked     { @apply bg-slate-100  text-slate-600  dark:bg-slate-800     dark:text-slate-400; }
-  .status-unlocked   { @apply bg-green-100  text-green-800  dark:bg-green-900/30  dark:text-green-400; }
-  .status-late       { @apply bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400; }
-  .status-absent     { @apply bg-red-100    text-red-800    dark:bg-red-900/30    dark:text-red-400; }
-  .status-present    { @apply bg-green-100  text-green-800  dark:bg-green-900/30  dark:text-green-400; }
-  .status-excused    { @apply bg-blue-100   text-blue-700   dark:bg-blue-900/30   dark:text-blue-400; }
+  .status-active     { @apply bg-emerald-50  text-emerald-700  ring-1 ring-emerald-200  dark:bg-emerald-900/20 dark:text-emerald-400 dark:ring-emerald-800; }
+  .status-pending    { @apply bg-amber-50    text-amber-700    ring-1 ring-amber-200    dark:bg-amber-900/20  dark:text-amber-400  dark:ring-amber-800; }
+  .status-blocked    { @apply bg-red-50      text-red-700      ring-1 ring-red-200      dark:bg-red-900/20    dark:text-red-400    dark:ring-red-800; }
+  .status-dropped    { @apply bg-red-50      text-red-700      ring-1 ring-red-200      dark:bg-red-900/20    dark:text-red-400    dark:ring-red-800; }
+  .status-suspended  { @apply bg-orange-50   text-orange-700   ring-1 ring-orange-200   dark:bg-orange-900/20 dark:text-orange-400 dark:ring-orange-800; }
+  .status-graduated  { @apply bg-slate-100   text-slate-600    ring-1 ring-slate-200    dark:bg-slate-800     dark:text-slate-400  dark:ring-slate-700; }
+  .status-transferred{ @apply bg-indigo-50   text-indigo-700   ring-1 ring-indigo-200   dark:bg-indigo-900/20 dark:text-indigo-400 dark:ring-indigo-800; }
+  .status-ended      { @apply bg-slate-100   text-slate-600    ring-1 ring-slate-200    dark:bg-slate-800     dark:text-slate-400  dark:ring-slate-700; }
+  .status-draft      { @apply bg-amber-50    text-amber-700    ring-1 ring-amber-200    dark:bg-amber-900/20  dark:text-amber-400  dark:ring-amber-800; }
+  .status-submitted  { @apply bg-teal-50     text-teal-700     ring-1 ring-teal-200     dark:bg-teal-900/20   dark:text-teal-400   dark:ring-teal-800; }
+  .status-locked     { @apply bg-slate-100   text-slate-600    ring-1 ring-slate-200    dark:bg-slate-800     dark:text-slate-400  dark:ring-slate-700; }
+  .status-unlocked   { @apply bg-emerald-50  text-emerald-700  ring-1 ring-emerald-200  dark:bg-emerald-900/20 dark:text-emerald-400 dark:ring-emerald-800; }
+  .status-late       { @apply bg-orange-50   text-orange-700   ring-1 ring-orange-200   dark:bg-orange-900/20 dark:text-orange-400 dark:ring-orange-800; }
+  .status-absent     { @apply bg-red-50      text-red-700      ring-1 ring-red-200      dark:bg-red-900/20    dark:text-red-400    dark:ring-red-800; }
+  .status-present    { @apply bg-emerald-50  text-emerald-700  ring-1 ring-emerald-200  dark:bg-emerald-900/20 dark:text-emerald-400 dark:ring-emerald-800; }
+  .status-excused    { @apply bg-indigo-50   text-indigo-700   ring-1 ring-indigo-200   dark:bg-indigo-900/20 dark:text-indigo-400 dark:ring-indigo-800; }
 }
 
 /* ============================================================
@@ -315,15 +369,16 @@
    ============================================================ */
 @layer components {
   .data-table-container {
-    @apply rounded-lg border border-border bg-card overflow-hidden;
+    @apply rounded-xl border border-border bg-card overflow-hidden
+           shadow-sm;
   }
 
   .data-table-toolbar {
-    @apply flex items-center justify-between gap-4 p-4 border-b border-border;
+    @apply flex items-center justify-between gap-4 p-4 border-b border-border bg-card;
   }
 
   .data-table-footer {
-    @apply flex items-center justify-between p-4 border-t border-border;
+    @apply flex items-center justify-between px-4 py-3 border-t border-border bg-card;
   }
 }
 
@@ -332,17 +387,36 @@
    ============================================================ */
 @layer components {
   .stat-card {
-    @apply rounded-lg border border-border bg-card p-5
-           flex flex-col gap-2 transition-shadow
-           hover:shadow-sm;
+    @apply rounded-xl border border-border bg-card p-5
+           flex flex-col gap-2 transition-all duration-150
+           hover:shadow-md hover:-translate-y-px;
   }
 
   .stat-card-value {
     @apply text-3xl font-bold tracking-tight text-foreground;
+    font-family: var(--font-display);
+    letter-spacing: -0.03em;
   }
 
   .stat-card-label {
     @apply text-sm text-muted-foreground;
+    font-family: var(--font-body);
+  }
+
+  /* Accent stat card variant */
+  .stat-card-accent {
+    @apply rounded-xl p-5 flex flex-col gap-2 transition-all duration-150
+           hover:shadow-md hover:-translate-y-px;
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(234 89% 52%) 100%);
+    color: white;
+  }
+
+  .stat-card-accent .stat-card-value {
+    @apply text-white;
+  }
+
+  .stat-card-accent .stat-card-label {
+    color: hsl(234 100% 90%);
   }
 }
 
@@ -351,11 +425,13 @@
    ============================================================ */
 @layer components {
   .form-section {
-    @apply rounded-lg border border-border bg-card p-6 space-y-4;
+    @apply rounded-xl border border-border bg-card p-6 space-y-5;
   }
 
   .form-section-title {
-    @apply text-sm font-semibold text-foreground pb-2 border-b border-border;
+    @apply text-sm font-semibold text-foreground pb-3 border-b border-border;
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
   }
 
   .form-field-group {
@@ -376,10 +452,29 @@
    ============================================================ */
 @layer utilities {
   .animate-fade-in {
-    animation: fade-in 0.2s ease-out both;
+    animation: fade-in 0.18s ease-out both;
   }
 
   .animate-slide-in-right {
-    animation: slide-in-right 0.25s ease-out both;
+    animation: slide-in-right 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
+
+  .animate-slide-up {
+    animation: slide-up 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }

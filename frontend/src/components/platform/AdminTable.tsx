@@ -58,7 +58,7 @@ export function AdminTable({
       header: "",
       cell: ({ row }) => {
         const admin = row.original;
-        const isBlocked = admin.status === "blocked";
+        const isBlocked = admin.status === "suspended";
 
         return (
           <div className="flex items-center justify-end gap-1">

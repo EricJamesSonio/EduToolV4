@@ -1,51 +1,44 @@
 export type ClassStatus = "active" | "archived";
 
-export type Weekday =
-  | "monday"
-  | "tuesday"
-  | "wednesday"
-  | "thursday"
-  | "friday"
-  | "saturday";
-
 export interface ClassSchedule {
-  days: Weekday[];
-  startTime: string;  // "HH:mm"
-  endTime: string;    // "HH:mm"
+  id: string;
+  classId: string;
+  weekday: number; // 0=Sun, 1=Mon, ..., 6=Sat
+  startTime: string; // "HH:mm"
+  endTime: string;   // "HH:mm"
 }
 
-export type EnrollmentStatus = "active" | "dropped";
+export type EnrollmentStatus = "active" | "pending" | "removed";
 
 export interface Enrollment {
   id: string;
   classId: string;
   studentId: string;
-  studentName: string;
-  studentCode: string;
+  studentName?: string;
+  studentIdNumber?: string;
   status: EnrollmentStatus;
-  enrolledAt: string;
+  enrolledAt?: string;
 }
 
 export interface Class {
   id: string;
   orgId: string;
-  title: string;
   subjectId: string;
-  subjectTitle: string;
-  sectionId: string;
-  sectionName: string;
+  subjectName?: string;
+  sectionId: string | null;
+  sectionName?: string;
   semesterId: string;
-  semesterName: string;
-  termId: string;
-  termName: string;
+  semesterName?: string;
+  schoolYearId: string;
+  schoolYearTitle?: string;
   educatorId: string;
-  educatorName: string;
-  schedule: ClassSchedule;
+  educatorName?: string;
   capacity: number;
   enrolledCount: number;
   status: ClassStatus;
-  schoolYearId: string;
-  schoolYearTitle: string;
+  isArchived?: boolean;      // ← add this
+  title?: string;            // ← add this (derived/joined from backend)
+  schedules: ClassSchedule[];
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }

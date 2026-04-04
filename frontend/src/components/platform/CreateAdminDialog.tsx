@@ -43,7 +43,7 @@ export function CreateAdminDialog({
     setError(null);
     setIsLoading(true);
     try {
-      const result = await platformApi.createAdmin({ fullName, email });
+      const result = await platformApi.createAdmin({ email });
       setCredentials({
         fullName: result.fullName ?? fullName,
         email: result.email,

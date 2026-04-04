@@ -1,12 +1,12 @@
-import client from "@/api/client";
-import type { Lesson, LessonConcept } from "@/types/educator/lesson.types";
+import apiClient from "@/api/client";
+import { Lesson } from "@/types/educator/lesson.types";
 
 export interface CreateLessonRequest {
   title: string;
   description?: string;
   weekNumber: number;
   subIndex: number;
-  detail: string; // min 10 words
+  detail: string;
 }
 
 export interface UpdateLessonRequest {
@@ -17,52 +17,70 @@ export interface UpdateLessonRequest {
   detail?: string;
 }
 
+function unwrap<T>(data: T | { data: T }): T {
+  return data !== null && typeof data === "object" && "data" in (data as object)
+    ? (data as { data: T }).data
+    : (data as T);
+}
+
+function mapLesson(raw: Record<string, unknown>): Lesson {
+  return {
+    id: raw.id as string,
+    classId: (raw.class_id ?? raw.classId) as string,
+    title: raw.title as string,
+    description: (raw.description ?? null) as string | null,
+    detail: raw.detail as string,
+    weekNumber: (raw.week_number ?? raw.weekNumber) as number,
+    subIndex: (raw.sub_index ?? raw.subIndex) as number,
+    conceptBuild: (raw.conceptBuild ?? null) as Lesson["conceptBuild"],
+    createdAt: (raw.created_at ?? raw.createdAt) as string,
+    updatedAt: (raw.updated_at ?? raw.updatedAt ?? raw.createdAt) as string,
+  };
+}
+
 export const lessonApi = {
   getAll: async (classId: string, weekNumber?: number): Promise<Lesson[]> => {
-    const res = await client.get<Lesson[]>(`/classes/${classId}/lessons`, {
-      params: weekNumber ? { weekNumber } : undefined,
+    const { data } = await apiClient.get(`/educator/classes/${classId}/lessons`, {
+      params: weekNumber !== undefined ? { weekNumber } : undefined,
     });
-    return res.data;
+    const list = unwrap<Record<string, unknown>[]>(data);
+    return list.map(mapLesson);
   },
+
   getOne: async (classId: string, lessonId: string): Promise<Lesson> => {
-    const res = await client.get<Lesson>(
-      `/classes/${classId}/lessons/${lessonId}`
+    const { data } = await apiClient.get(
+      `/educator/classes/${classId}/lessons/${lessonId}`
     );
-    return res.data;
+    return mapLesson(unwrap<Record<string, unknown>>(data));
   },
-  create: async (classId: string, data: CreateLessonRequest): Promise<Lesson> => {
-    const res = await client.post<Lesson>(`/classes/${classId}/lessons`, data);
-    return res.data;
+
+  create: async (classId: string, body: CreateLessonRequest): Promise<Lesson> => {
+    const { data } = await apiClient.post(
+      `/educator/classes/${classId}/lessons`,
+      body
+    );
+    return mapLesson(unwrap<Record<string, unknown>>(data));
   },
+
   update: async (
     classId: string,
     lessonId: string,
-    data: UpdateLessonRequest
+    body: UpdateLessonRequest
   ): Promise<Lesson> => {
-    const res = await client.patch<Lesson>(
-      `/classes/${classId}/lessons/${lessonId}`,
-      data
+    const { data } = await apiClient.patch(
+      `/educator/classes/${classId}/lessons/${lessonId}`,
+      body
     );
-    return res.data;
+    return mapLesson(unwrap<Record<string, unknown>>(data));
   },
+
   delete: async (classId: string, lessonId: string): Promise<void> => {
-    await client.delete(`/classes/${classId}/lessons/${lessonId}`);
+    await apiClient.delete(`/educator/classes/${classId}/lessons/${lessonId}`);
   },
-  getConcept: async (classId: string, lessonId: string): Promise<LessonConcept> => {
-    const res = await client.get<LessonConcept>(
-      `/classes/${classId}/lessons/${lessonId}/concept`
+
+  triggerExtraction: async (classId: string, lessonId: string): Promise<void> => {
+    await apiClient.post(
+      `/educator/classes/${classId}/lessons/${lessonId}/re-extract`
     );
-    return res.data;
-  },
-  retriggerExtraction: async (
-    classId: string,
-    lessonId: string,
-    detail: string
-  ): Promise<{ success: true; message: string }> => {
-    const res = await client.post<{ success: true; message: string }>(
-      `/classes/${classId}/lessons/${lessonId}/re-extract`,
-      { detail }
-    );
-    return res.data;
   },
 };

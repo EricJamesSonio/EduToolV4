@@ -1,33 +1,38 @@
-export interface ManualScore {
-  categoryId: string;
-  categoryName: string;
-  score: number | null;
-  maxScore: number;
-}
+export type AssessmentType = "quiz" | "exam" | "activity" | "custom";
 
 export interface AssessmentScore {
   assessmentId: string;
-  assessmentTitle: string;
-  assessmentType: string;
-  earned: number | null;
-  total: number;
-  isPublished: boolean;
+  type: AssessmentType;
+  score: number | null;
+  manualScore: number | null;
+  totalItems: number;
+  status: string;
 }
 
-export interface GradeView {
+export interface CategoryBreakdown {
+  category: string;
+  weight: number;
+  rawAverage: number;
+  manualScore: number | null;
+  weightedScore: number;
+}
+
+export interface StudentGrade {
   studentId: string;
   studentName: string;
   studentCode: string;
+  grade: {
+    student_id: string;
+    final_score: number;
+    final_grade: string;
+    is_locked: boolean;
+  } | null;
   assessmentScores: AssessmentScore[];
-  manualScores: ManualScore[];
-  termGrade: number | null;
-  isLocked: boolean;
+  categoryBreakdown: CategoryBreakdown[];
 }
 
-export interface Grade {
-  id: string;
-  classId: string;
+export interface TermGrades {
   termId: string;
   termName: string;
-  gradeViews: GradeView[];
+  students: StudentGrade[];
 }

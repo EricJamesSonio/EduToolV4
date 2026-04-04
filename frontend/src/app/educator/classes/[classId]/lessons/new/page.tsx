@@ -1,0 +1,56 @@
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { LessonForm } from "@/components/educator/lesson/LessonForm";
+import { useCreateLesson } from "@/hooks/educator/useLessons";
+import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
+import { CreateLessonRequest } from "@/api/educator/lesson.api";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import Link from "next/link";
+
+export default function NewLessonPage(): React.JSX.Element {
+  const params = useParams();
+  const router = useRouter();
+  const classId = params.classId as string;
+
+  const { data: weeks, isLoading: weeksLoading } = useClassWeeks(classId);
+  const { mutateAsync: createLesson, isPending } = useCreateLesson(classId);
+
+  async function handleSubmit(data: CreateLessonRequest): Promise<void> {
+    await createLesson(data);
+    toast.success("Lesson saved. Concept extraction running...");
+    // No need to call triggerExtraction manually — backend fires it on create
+    router.push(`/educator/classes/${classId}/lessons`);
+  }
+
+  if (weeksLoading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Link
+          href={`/educator/classes/${classId}/lessons`}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
+        <h1 className="text-xl font-semibold">New Lesson</h1>
+      </div>
+
+      <LessonForm
+        classId={classId}
+        availableWeeks={weeks ?? [{ label: "1", value: 1 }]}
+        isLoading={isPending}
+        onSubmit={handleSubmit}
+      />
+    </div>
+  );
+}

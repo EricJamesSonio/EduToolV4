@@ -1,14 +1,9 @@
-import { LevelSection } from "./level.types";
-
 export interface Section {
   id: string;
-  orgId: string;
+  org_id: string;      // ← matches actual API response
+  level_id: string;    // ← matches actual API response
   name: string;
-  levelSection: LevelSection;
-  gradeLevel: string;
-  courseOrStrand: string | null;
   capacity: number;
-  studentCount: number;
-  createdAt: string;
-  updatedAt: string;
+  deleted_at: string | null;
+  studentCount?: number;
 }

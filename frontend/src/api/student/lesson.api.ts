@@ -9,6 +9,18 @@ export interface StudentLesson {
   detail: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapLesson(l: any): StudentLesson {
+  return {
+    id: l.id,
+    title: l.title,
+    description: l.description ?? null,
+    detail: l.detail,
+    weekNumber: l.week_number,
+    subIndex: l.sub_index,
+  };
+}
+
 export const studentLessonApi = {
   getAll: async (
     classId: string,
@@ -18,7 +30,8 @@ export const studentLessonApi = {
       `/student/classes/${classId}/lessons`,
       { params: weekNumber !== undefined ? { weekNumber } : undefined }
     );
-    return data;
+    const items = Array.isArray(data) ? data : (data?.data ?? []);
+    return items.map(mapLesson);
   },
 
   getOne: async (
@@ -28,6 +41,7 @@ export const studentLessonApi = {
     const { data } = await apiClient.get(
       `/student/classes/${classId}/lessons/${lessonId}`
     );
-    return data;
+    const l = data?.data ?? data;
+    return mapLesson(l);
   },
 };

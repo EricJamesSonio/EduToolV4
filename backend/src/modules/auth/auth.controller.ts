@@ -23,9 +23,10 @@ export class AuthController {
    */
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
-  }
+async login(@Body() dto: LoginDto) {
+  console.log('>>> LOGIN ROUTE HIT');
+  return this.authService.login(dto);
+}
 
   /**
    * POST /auth/refresh  @Public()
@@ -35,12 +36,8 @@ export class AuthController {
    */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard)
-  async refresh(
-    @CurrentUser('id') accountId: string,
-    @Body() dto: RefreshTokenDto,
-  ) {
-    return this.authService.refresh(accountId, dto.refreshToken);
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto.refreshToken);
   }
 
   /**
@@ -58,9 +55,10 @@ export class AuthController {
    * GET /auth/me
    * Returns the current authenticated account's profile.
    */
-  @Get('me')
-  @UseGuards(AuthGuard)
-  async getMe(@CurrentUser('id') accountId: string) {
-    return this.authService.getMe(accountId);
-  }
+@Get('me')
+@UseGuards(AuthGuard)
+async getMe(@CurrentUser('id') accountId: string) {
+  console.log('>>> ME ROUTE HIT');
+  return this.authService.getMe(accountId);
+}
 }

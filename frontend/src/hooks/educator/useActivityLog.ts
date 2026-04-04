@@ -5,15 +5,13 @@ import {
   ActivityLog,
 } from "@/api/educator/activity-log.api";
 
-const ACTIVITY_LOG_KEY = "activity-log";
+const ACTIVITY_LOG_KEY = "educator-activity-log";
 
 export const useActivityLog = (
-  classId?: string,
   query?: GetActivityLogQuery
 ): UseQueryResult<ActivityLog[]> => {
   return useQuery({
-    queryKey: [ACTIVITY_LOG_KEY, classId, query],
-    queryFn: () => activityLogApi.getAll({ ...query, classId }),
-    enabled: !!classId,
+    queryKey: [ACTIVITY_LOG_KEY, query],
+    queryFn: () => activityLogApi.getAll(query),
   });
 };

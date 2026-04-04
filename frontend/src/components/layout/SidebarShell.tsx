@@ -17,7 +17,6 @@ export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
-  /** If true, only exact match is active (not prefix match) */
   exact?: boolean;
 }
 
@@ -27,9 +26,9 @@ export interface NavGroup {
 }
 
 interface SidebarShellProps {
-  /** Name/title shown at the top (below TopBar) */
   header: React.ReactNode;
   groups: NavGroup[];
+  footer?: React.ReactNode; // ✅ new
   className?: string;
 }
 
@@ -81,7 +80,7 @@ function NavLink({
   return link;
 }
 
-export function SidebarShell({ header, groups, className }: SidebarShellProps) {
+export function SidebarShell({ header, groups, footer, className }: SidebarShellProps): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -113,6 +112,13 @@ export function SidebarShell({ header, groups, className }: SidebarShellProps) {
             </div>
           ))}
         </nav>
+
+        {/* Footer slot */}
+        {footer && (
+          <div className={cn("border-t p-2", collapsed && "flex justify-center")}>
+            {footer}
+          </div>
+        )}
 
         {/* Collapse toggle */}
         <div className="border-t p-2">

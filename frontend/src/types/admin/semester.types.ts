@@ -1,16 +1,17 @@
 export interface Term {
   id: string;
   name: string;
-  order: number;
+  orderIndex: number;
+  startDate: string;
+  endDate: string;
 }
 
 export interface Semester {
   id: string;
-  templateId: string;
+  schoolYearId: string;
   name: string;
   startDate: string;
   endDate: string;
-  order: number;
   terms: Term[];
 }
 

@@ -84,7 +84,7 @@ LAYOUT: Topbar + Sidebar + Content area
     List of SchoolYearCards (one per year)
       Each card:
         - Title (e.g. "School Year 2026-2027")
-        - Status badge: Pending / Active / Ended
+        - Status badge: Pending / Active / Ended  
         - Date range
         - Actions row:
             "View"  → /admin/school-years/[id]
@@ -250,29 +250,34 @@ LAYOUT: Topbar + Sidebar + Content area
         Inline error messages if invalid
     - Lock status shown: "Locked (first grade locked for this level this year)"
     - "Save" button (disabled if locked)
-
+    
 --------------------------------------------------------------------------------
-  C10. /admin/rubric  — Admin Default Rubric Editor
+  C10. /admin/grading-schemes  — Admin Default Grading Scheme Editor
 --------------------------------------------------------------------------------
 
-  PAGEHEADER
-    - Title: "Default Rubric"
-    - Subtitle: "This rubric is pre-applied to all new classes."
+  PAGE HEADER
+    - Title: "Default Grading Scheme"
+    - Subtitle: "This grading scheme is automatically applied to all new classes."
 
   MAIN CONTENT
-    RubricEditor component
+    GradingSchemeEditor component
       Category rows, each with:
         - Category Name (text input)
         - Weight (%) (number input)
         - Type: Assessment-linked or Manual Entry (toggle/select)
         - "Delete" icon (ConfirmDialog)
+
       "+ Add Category" button
+
       Total weight display: "Total: XX% / 100%"
         → Red if not 100%, green if exactly 100%
-      "Save Rubric" button (disabled if total ≠ 100%)
-      Lock guard banner: if any class has enrolled students,
-        shows "This rubric is locked — remove all enrolled students first."
-        Inputs become read-only.
+
+      "Save Grading Scheme" button (disabled if total ≠ 100%)
+
+      Lock guard banner:
+        If any class has enrolled students,
+        shows: "This grading scheme is locked — remove all enrolled students first."
+        → All inputs become read-only
 
 --------------------------------------------------------------------------------
   C11. /admin/classes  — Classes List

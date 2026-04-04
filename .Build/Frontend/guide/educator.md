@@ -291,20 +291,20 @@ LAYOUT: Topbar + Sidebar + Content area
     Same as above but filtered to specific term (for deep link)
 
 --------------------------------------------------------------------------------
-  D7. /educator/classes/[classId]/rubric  — Class Rubric Editor
+  D7. /educator/classes/[classId]/grading-scheme  — Class Grading Scheme Editor
 --------------------------------------------------------------------------------
 
   PAGEHEADER
-    - Title: "Rubric — [Class Title]"
+    - Title: "Grading Scheme — [Class Title]"
 
   MAIN CONTENT
-    RubricEditor (same as Admin rubric editor, but class-scoped)
-    Pre-filled with Admin default or previously saved rubric
+    GradingSchemeEditor (same as Admin grading scheme editor, but class-scoped)
+    Pre-filled with Admin default or previously saved grading scheme
     Options at top:
       "Use Admin Default" button → resets to Admin default (ConfirmDialog)
-      "Import from Library" button → opens educator's rubric library picker
+      "Import from Library" button → opens educator's grading scheme library picker
       "Save as New Template" button → saves current config to library with name input
-    Lock guard: if first student enrolled, rubric locks (read-only shown)
+    Lock guard: if first student enrolled, grading scheme locks (read-only shown)
 
 --------------------------------------------------------------------------------
   D8. /educator/classes/[classId]/meetings  — Meeting List
@@ -363,18 +363,19 @@ LAYOUT: Topbar + Sidebar + Content area
         End Meeting button (educator only, top right) → ConfirmDialog → ends session
 
 --------------------------------------------------------------------------------
-  D9. /educator/rubric-library  — Personal Rubric Library
+--------------------------------------------------------------------------------
+  D9. /educator/grading-scheme-library  — Personal Grading Scheme Library
 --------------------------------------------------------------------------------
 
   PAGEHEADER
-    - Title: "Rubric Library"
+    - Title: "Grading Scheme Library"
     - Action: "+ New Template"
 
   MAIN CONTENT
-    List of saved rubric templates
+    List of saved grading scheme templates
       Each: Template Name | Categories summary | Actions
       Actions: "Apply to Class" (opens class picker) | "Edit" | "Delete"
-    "+ New Template" → RubricEditor modal with name field, save to library
+    "+ New Template" → GradingSchemeEditor modal with name field, save to library
 
 --------------------------------------------------------------------------------
   D10. /educator/activity-log  — Activity Log

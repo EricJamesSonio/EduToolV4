@@ -23,15 +23,11 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 export class GradingSchemeController {
   constructor(private readonly gradingSchemeService: GradingSchemeService) {}
 
-  // ── Default (admin-managed org default) ──────────────────────────────────
-
-  /** GET /grading-schemes/default */
   @Get('default')
   async getDefault(@CurrentUser('orgId') orgId: string) {
     return this.gradingSchemeService.getDefault(orgId);
   }
 
-  /** PATCH /grading-schemes/default */
   @Patch('default')
   @Roles('admin')
   async updateDefault(
@@ -41,9 +37,27 @@ export class GradingSchemeController {
     return this.gradingSchemeService.updateDefault(orgId, dto);
   }
 
-  // ── Educator personal library ─────────────────────────────────────────────
+  // NOTE: must be declared before :id to avoid NestJS treating "class" as an id param
+  @Get('class/:classId')
+  @Roles('educator')
+  async getForClass(
+    @Param('classId') classId: string,
+    @CurrentUser('orgId') orgId: string,
+  ) {
+    return this.gradingSchemeService.findForClass(classId, orgId);
+  }
 
-  /** POST /grading-schemes */
+  @Patch('class/:classId')
+  @Roles('educator')
+  async saveForClass(
+    @Param('classId') classId: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') educatorId: string,
+    @Body() dto: UpdateGradingSchemeDto,
+  ) {
+    return this.gradingSchemeService.saveForClass(classId, orgId, educatorId, dto);
+  }
+
   @Post()
   @Roles('educator')
   async create(
@@ -54,7 +68,6 @@ export class GradingSchemeController {
     return this.gradingSchemeService.create(orgId, educatorId, dto);
   }
 
-  /** GET /grading-schemes */
   @Get()
   @Roles('educator')
   async findByEducator(
@@ -64,7 +77,6 @@ export class GradingSchemeController {
     return this.gradingSchemeService.findByEducator(orgId, educatorId);
   }
 
-  /** PATCH /grading-schemes/:id */
   @Patch(':id')
   @Roles('educator')
   async update(

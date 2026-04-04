@@ -43,13 +43,12 @@ export class OrganizationService {
    *
    * Returns the org scoped to the current admin via orgId from JWT.
    */
-  async getOwn(orgId: string) {
+  async getOwn(orgId: string | null) {
+    if (!orgId) return null; // admin has no org yet
+    
     const org = await this.orgRepository.findById(orgId);
-
-    if (!org) {
-      throw new NotFoundException('Organization not found.');
-    }
-
+    if (!org) return null; // return null instead of throwing
+    
     return org;
   }
 

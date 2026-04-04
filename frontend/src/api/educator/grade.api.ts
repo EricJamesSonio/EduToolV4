@@ -1,65 +1,36 @@
 import apiClient from "@/api/client";
-
-export interface AssessmentScore {
-  assessmentId: string;
-  type: "quiz" | "exam" | "activity" | "custom";
-  score: number;
-  manualScore: number | null;
-  totalItems: number;
-  status: string;
-}
-
-export interface CategoryBreakdown {
-  category: string;
-  weight: number;
-  rawAverage: number;
-  manualScore: number | null;
-  weightedScore: number;
-}
-
-export interface StudentGrade {
-  studentId: string;
-  grade: {
-    student_id: string;
-    final_score: number;
-    final_grade: string;
-    is_locked: boolean;
-  } | null;
-  assessmentScores: AssessmentScore[];
-  categoryBreakdown: CategoryBreakdown[];
-}
-
-export interface TermGrades {
-  termId: string;
-  students: StudentGrade[];
-}
+import type { TermGrades } from "@/types/educator/grade.types";
 
 export interface ManualScoreDto {
   category: string;
   score: number;
 }
 
+type Envelope<T> = { success: boolean; data: T };
+
 export const gradeApi = {
   getByClass: async (classId: string): Promise<TermGrades[]> => {
-    const { data } = await apiClient.get(`/classes/${classId}/grades`);
-    return data;
+    const { data } = await apiClient.get<Envelope<TermGrades[]>>(
+      `/classes/${classId}/grades`
+    );
+    return data.data;
   },
 
   getByTerm: async (classId: string, termId: string): Promise<TermGrades> => {
-    const { data } = await apiClient.get(
+    const { data } = await apiClient.get<Envelope<TermGrades>>(
       `/classes/${classId}/grades/${termId}`
     );
-    return data;
+    return data.data;
   },
 
   compute: async (
     classId: string,
     termId: string
   ): Promise<{ computed: number; message: string }> => {
-    const { data } = await apiClient.post(
-      `/classes/${classId}/grades/${termId}/compute`
-    );
-    return data;
+    const { data } = await apiClient.post<
+      Envelope<{ computed: number; message: string }>
+    >(`/classes/${classId}/grades/${termId}/compute`);
+    return data.data;
   },
 
   setManualScore: async (
@@ -67,18 +38,13 @@ export const gradeApi = {
     termId: string,
     studentId: string,
     dto: ManualScoreDto
-  ): Promise<{
-    id: string;
-    classId: string;
-    studentId: string;
-    termId: string;
-    category: string;
-    score: number;
-  }> => {
-    const { data } = await apiClient.patch(
+  ): Promise<{ id: string; category: string; score: number }> => {
+    const { data } = await apiClient.patch<
+      Envelope<{ id: string; category: string; score: number }>
+    >(
       `/classes/${classId}/grades/${termId}/students/${studentId}/manual`,
       dto
     );
-    return data;
+    return data.data;
   },
 };

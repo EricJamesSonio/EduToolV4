@@ -2,7 +2,7 @@
 
 import { SidebarShell } from "./SidebarShell";
 import { useAuth } from "@/hooks/useAuth";
-import { Users } from "lucide-react";
+import { Users, LogOut } from "lucide-react";
 
 const GROUPS = [
   {
@@ -16,8 +16,8 @@ const GROUPS = [
   },
 ];
 
-export function PlatformSidebar() {
-  const { user } = useAuth();
+export function PlatformSidebar(): React.JSX.Element {
+  const { user, logout } = useAuth();
 
   return (
     <SidebarShell
@@ -28,6 +28,15 @@ export function PlatformSidebar() {
         </div>
       }
       groups={GROUPS}
+      footer={
+        <button
+          onClick={() => void logout()}
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          <span>Log out</span>
+        </button>
+      }
     />
   );
 }

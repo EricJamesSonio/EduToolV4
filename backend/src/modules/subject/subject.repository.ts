@@ -5,6 +5,40 @@ import { DatabaseService } from '@/core/database/database.provider'
 export class SubjectRepository {
   constructor(private readonly db: DatabaseService) {}
 
+  // ─── Helper: enrich subjects with level name + educator name ─────────────
+  private async enrichSubjects(subjects: any[]) {
+    if (!subjects.length) return subjects
+
+    // Collect unique level IDs and educator IDs
+    const levelIds = [...new Set(subjects.map((s) => s.level_id).filter(Boolean))]
+    const educatorIds = [...new Set(subjects.map((s) => s.educator_id).filter(Boolean))]
+
+    // Fetch levels
+    const levels = levelIds.length
+      ? await this.db.level.findMany({
+          where: { id: { in: levelIds } },
+          select: { id: true, name: true },
+        })
+      : []
+
+    // Fetch educator profiles (Profile has full_name linked to Account)
+    const profiles = educatorIds.length
+      ? await this.db.profile.findMany({
+          where: { account_id: { in: educatorIds } },
+          select: { account_id: true, full_name: true },
+        })
+      : []
+
+    const levelMap = Object.fromEntries(levels.map((l) => [l.id, l.name]))
+    const profileMap = Object.fromEntries(profiles.map((p) => [p.account_id, p.full_name]))
+
+    return subjects.map((s) => ({
+      ...s,
+      levelName: levelMap[s.level_id] ?? null,
+      educatorName: profileMap[s.educator_id] ?? null,
+    }))
+  }
+
   async create(data: {
     orgId: string
     name: string
@@ -15,7 +49,7 @@ export class SubjectRepository {
     yearLevel?: string
     termLabel?: string
   }) {
-    return this.db.subject.create({
+    const subject = await this.db.subject.create({
       data: {
         org_id: data.orgId,
         name: data.name,
@@ -28,6 +62,8 @@ export class SubjectRepository {
         is_locked: false,
       },
     })
+    const [enriched] = await this.enrichSubjects([subject])
+    return enriched
   }
 
   async findAll(
@@ -43,32 +79,22 @@ export class SubjectRepository {
       termLabel?: string
     },
   ) {
-    // Build the course/strand scope filter
-    // When courseId is provided: return open subjects (course_id = null)
-    // + subjects coupled to that course — matches the seeding plan behaviour
     let courseFilter: any = {}
-
     if (filters.scope === 'open') {
       courseFilter = { course_id: null }
     } else if (filters.scope === 'coupled') {
       courseFilter = { course_id: { not: null } }
     } else if (filters.courseId) {
       courseFilter = {
-        OR: [
-          { course_id: null },
-          { course_id: filters.courseId },
-        ],
+        OR: [{ course_id: null }, { course_id: filters.courseId }],
       }
     } else if (filters.strandId) {
       courseFilter = {
-        OR: [
-          { strand_id: null },
-          { strand_id: filters.strandId },
-        ],
+        OR: [{ strand_id: null }, { strand_id: filters.strandId }],
       }
     }
 
-    return this.db.subject.findMany({
+    const subjects = await this.db.subject.findMany({
       where: {
         org_id: orgId,
         ...(filters.levelId ? { level_id: filters.levelId } : {}),
@@ -84,35 +110,50 @@ export class SubjectRepository {
         prerequisites: {
           include: {
             prerequisite: {
-              select: { id: true, name: true, year_level: true, term_label: true },
+              select: {
+                id: true,
+                name: true,
+                year_level: true,
+                term_label: true,
+              },
             },
           },
         },
       },
       orderBy: [{ year_level: 'asc' }, { term_label: 'asc' }, { name: 'asc' }],
     })
+
+    return this.enrichSubjects(subjects)
   }
 
   async findById(id: string, orgId: string) {
-    return this.db.subject.findFirst({
+    const subject = await this.db.subject.findFirst({
       where: { id, org_id: orgId },
       include: {
         prerequisites: {
           include: {
             prerequisite: {
-              select: { id: true, name: true, year_level: true, term_label: true },
+              select: {
+                id: true,
+                name: true,
+                year_level: true,
+                term_label: true,
+              },
             },
           },
         },
         prereqFor: {
           include: {
-            subject: {
-              select: { id: true, name: true },
-            },
+            subject: { select: { id: true, name: true } },
           },
         },
       },
     })
+
+    if (!subject) return null
+
+    const [enriched] = await this.enrichSubjects([subject])
+    return enriched
   }
 
   async update(
@@ -127,7 +168,7 @@ export class SubjectRepository {
       termLabel?: string | null
     },
   ) {
-    return this.db.subject.update({
+    const subject = await this.db.subject.update({
       where: { id },
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
@@ -139,13 +180,17 @@ export class SubjectRepository {
         ...(data.termLabel !== undefined ? { term_label: data.termLabel } : {}),
       },
     })
+    const [enriched] = await this.enrichSubjects([subject])
+    return enriched
   }
 
   async setLocked(id: string, isLocked: boolean) {
-    return this.db.subject.update({
+    const subject = await this.db.subject.update({
       where: { id },
       data: { is_locked: isLocked },
     })
+    const [enriched] = await this.enrichSubjects([subject])
+    return enriched
   }
 
   async unlockAllForOrg(orgId: string) {
@@ -155,7 +200,6 @@ export class SubjectRepository {
     })
   }
 
-  // Used by the seeder — find by name within the same org to resolve prerequisite IDs
   async findByNameInOrg(name: string, orgId: string) {
     return this.db.subject.findFirst({
       where: { name, org_id: orgId },

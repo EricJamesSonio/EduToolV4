@@ -1,4 +1,4 @@
-import { LevelSection } from "./level.types";
+// frontend/src/types/admin/student.types.ts
 
 export type StudentStatus =
   | "pending"
@@ -13,44 +13,32 @@ export interface Student {
   orgId: string;
   fullName: string;
   email: string;
-  studentCode: string;
+  studentId: string;        // was: studentCode — now matches backend metadata field
   status: StudentStatus;
-  levelSection: LevelSection;
-  gradeLevel: string;
+  levelId: string;          // was: levelSection: Level + gradeLevel (backend returns flat IDs)
   sectionId: string | null;
-  sectionName: string | null;
-  courseOrStrand: string | null;
   createdAt: string;
-  updatedAt: string;
-  /** Only present immediately after creation or password reset */
-  password?: string;
+  // omitted: updatedAt (not in backend formatAccount), courseOrStrand, sectionName (not returned)
 }
 
 export interface StudentCredentials {
   fullName: string;
   email: string;
-  studentCode: string;
+  studentId: string;        // was: studentCode
   password: string;
 }
 
-export interface BulkImportRow {
-  rowNumber: number;
-  fullName: string;
-  studentCode: string;
-  email: string;
-  levelSection: LevelSection;
-  gradeLevel: string;
-  section: string;
-  strand: string | null;
-  course: string | null;
-}
-
-export interface BulkImportValidationResult {
-  validRows: BulkImportRow[];
-  errorRows: Array<{
-    rowNumber: number;
-    data: Partial<BulkImportRow>;
-    error: string;
+export interface BulkImportResult {
+  status: "success" | "validation_failed";
+  totalRows?: number;
+  totalCreated?: number;
+  validCount?: number;
+  invalidCount?: number;
+  students?: Student[];
+  errors?: Array<{
+    row: number;
+    data: Record<string, string>;
+    errors: string[];
   }>;
+  message?: string;
 }
-

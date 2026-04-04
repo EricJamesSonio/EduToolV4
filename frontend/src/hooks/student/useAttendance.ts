@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { studentGradeApi } from "@/api/student/grade.api";
+import { studentAttendanceApi } from "@/api/student/attendance.api";
 
-export const useStudentGrades = (classId: string) => {
+export const useStudentAttendance = (classId: string) => {
   return useQuery({
-    queryKey: ["student", "grades", classId],
-    queryFn: () => studentGradeApi.getOwn(classId),
+    queryKey: ["student", "attendance", classId],
+    queryFn: () => studentAttendanceApi.getOwn(classId),
     enabled: !!classId,
   });
 };

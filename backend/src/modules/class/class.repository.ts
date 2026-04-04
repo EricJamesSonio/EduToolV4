@@ -28,6 +28,41 @@ export class ClassRepository {
     })
   }
 
+  async findEnrolledStudents(classId: string, orgId: string) {
+    const enrollments = await this.db.enrollment.findMany({
+      where: {
+        class_id: classId,
+        org_id: orgId,
+        status: { not: 'removed' },
+      },
+      select: {
+        student_id: true,
+      },
+    });
+
+    const studentIds = enrollments.map((e) => e.student_id);
+    if (studentIds.length === 0) return [];
+
+    const profiles = await this.db.profile.findMany({
+      where: {
+        account_id: { in: studentIds },
+      },
+      select: {
+        account_id: true,
+        full_name: true,
+        account: {
+          select: { email: true },
+        },
+      },
+    });
+
+    return profiles.map((p) => ({
+      id: p.account_id,
+      fullName: p.full_name,
+      email: p.account.email,
+    }));
+  }
+
   async findAll(
     orgId: string,
     filters: {

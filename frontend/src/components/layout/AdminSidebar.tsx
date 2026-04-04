@@ -1,21 +1,11 @@
 "use client";
 
 import { SidebarShell } from "./SidebarShell";
+import { LogoutButton } from "./LogoutButton";
 import {
-  LayoutDashboard,
-  Building2,
-  CalendarDays,
-  BookOpen,
-  Layers,
-  FlaskConical,
-  CalendarClock,
-  BarChart3,
-  ClipboardList,
-  GraduationCap,
-  Users,
-  UserSquare2,
-  Lock,
-  ScrollText,
+  LayoutDashboard, Building2, CalendarDays, BookOpen, Layers,
+  FlaskConical, CalendarClock, BarChart3, ClipboardList,
+  GraduationCap, Users, UserSquare2, Lock, ScrollText,
 } from "lucide-react";
 
 const GROUPS = [
@@ -29,7 +19,7 @@ const GROUPS = [
       { label: "Subjects",          href: "/admin/subjects",          icon: FlaskConical },
       { label: "Semester Settings", href: "/admin/semester-settings", icon: CalendarClock },
       { label: "Grading Scales",    href: "/admin/grading-scales",    icon: BarChart3 },
-      { label: "Rubric",            href: "/admin/rubric",            icon: ClipboardList },
+      { label: "Grading Schemes",            href: "/admin/grading-schemes",            icon: ClipboardList },
       { label: "Classes",           href: "/admin/classes",           icon: GraduationCap },
       { label: "Educators",         href: "/admin/educators",         icon: UserSquare2 },
       { label: "Students",          href: "/admin/students",          icon: Users },
@@ -39,7 +29,7 @@ const GROUPS = [
   },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar(): React.JSX.Element {
   return (
     <SidebarShell
       header={
@@ -48,6 +38,7 @@ export function AdminSidebar() {
         </p>
       }
       groups={GROUPS}
+      footer={<LogoutButton />}
     />
   );
 }

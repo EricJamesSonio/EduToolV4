@@ -21,7 +21,7 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 // ── Educator routes ───────────────────────────────────────────────────────────
 
-@Controller('classes/:classId/lessons')
+@Controller('educator/classes/:classId/lessons')
 @UseGuards(AuthGuard, RolesGuard)
 export class LessonController {
   constructor(private readonly lessonService: LessonService) {}

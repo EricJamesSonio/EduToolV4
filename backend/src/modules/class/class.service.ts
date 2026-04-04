@@ -141,6 +141,11 @@ export class ClassService {
 
     return result
   }
+  async getEnrolledStudents(classId: string, orgId: string) {
+    const cls = await this.classRepository.findById(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
+    return this.classRepository.findEnrolledStudents(classId, orgId);
+  }
 
   async getEnrollments(id: string, orgId: string) {
     const cls = await this.classRepository.findById(id, orgId)

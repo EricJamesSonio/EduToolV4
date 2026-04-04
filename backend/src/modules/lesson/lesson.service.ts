@@ -12,7 +12,7 @@ import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
 import { AiService } from '@/core/ai/ai.service';
 
-const MIN_DETAIL_WORDS = 10;
+const MIN_DETAIL_WORDS = 5;
 
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;

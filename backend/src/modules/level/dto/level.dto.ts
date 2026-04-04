@@ -10,6 +10,8 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+
+
 // ── Single level item inside a defaults payload ───────────────────────────────
 
 export class LevelItemDto {
@@ -37,6 +39,22 @@ export class UpdateLevelDefaultsDto {
   @ValidateNested({ each: true })
   @Type(() => LevelItemDto)
   levels: LevelItemDto[];
+}
+
+// level.dto.ts
+
+
+export class CreateLevelDto {
+  @IsUUID()
+  programId: string;
+
+  @IsUUID()
+  schoolYearId: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name: string;
 }
 
 // ── PATCH /levels/:id ─────────────────────────────────────────────────────────

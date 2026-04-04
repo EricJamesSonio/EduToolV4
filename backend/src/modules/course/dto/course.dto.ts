@@ -2,7 +2,7 @@ import { IsString, IsOptional, IsNotEmpty, IsUUID } from 'class-validator'
 
 export class CreateCourseDto {
   @IsUUID()
-  program_id: string
+  programId: string  // ← camelCase
 
   @IsString()
   @IsNotEmpty()
@@ -24,7 +24,7 @@ export class UpdateCourseDto {
 }
 
 export class CourseQueryDto {
-  @IsString()
+  @IsUUID()
   @IsOptional()
-  program_id?: string
+  programId?: string  // ← camelCase
 }

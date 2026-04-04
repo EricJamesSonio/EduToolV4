@@ -1,42 +1,109 @@
-// @/modules/student/student.utils.ts
+// backend/src/modules/student/student.utils.ts
 
 /**
- * Generates a system password — 10 alphanumeric characters.
- * Returned in plain text once to Admin for distribution.
+ * Generates a random 10-character alphanumeric system password.
+ * Never log or persist the returned value.
  */
 export function generateSystemPassword(): string {
-  const chars =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from({ length: 10 }, () =>
-    chars.charAt(Math.floor(Math.random() * chars.length)),
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from(
+    { length: 10 },
+    () => chars.charAt(Math.floor(Math.random() * chars.length)),
   ).join('');
 }
 
 /**
- * Parses a raw CSV string into rows of key-value objects.
- * Expects the first row to be headers.
+ * RFC 4180-compliant CSV parser.
+ * Handles quoted fields, embedded commas, and escaped quotes ("").
+ * Strips BOM if present (common in Excel exports).
  */
 export function parseCsv(raw: string): Record<string, string>[] {
-  const lines = raw.trim().split('\n').map((l) => l.trim());
+  // Strip UTF-8 BOM if present
+  const cleaned = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+  const lines = tokenizeCsvLines(cleaned.trim());
+
   if (lines.length < 2) return [];
 
-  const headers = lines[0].split(',').map((h) => h.trim());
-  return lines.slice(1).map((line) => {
-    const values = line.split(',').map((v) => v.trim());
-    return headers.reduce(
-      (acc, header, i) => {
-        acc[header] = values[i] ?? '';
-        return acc;
-      },
-      {} as Record<string, string>,
+  const headers = lines[0].map((h) => h.trim());
+
+  return lines.slice(1)
+    .filter((cols) => cols.some((c) => c.trim() !== '')) // skip blank rows
+    .map((cols) =>
+      headers.reduce(
+        (acc, header, i) => {
+          acc[header] = (cols[i] ?? '').trim();
+          return acc;
+        },
+        {} as Record<string, string>,
+      ),
     );
-  });
 }
 
 /**
- * Converts an array of student credential objects to a CSV string.
- * Columns: Full Name, Student ID, Email, Password, Level ID, Section ID, Account Status
+ * Tokenizes raw CSV text into a 2D array of string values,
+ * correctly handling quoted fields with embedded commas and escaped quotes.
  */
+function tokenizeCsvLines(raw: string): string[][] {
+  const result: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let inQuotes = false;
+  let i = 0;
+
+  while (i < raw.length) {
+    const ch = raw[i];
+
+    if (inQuotes) {
+      if (ch === '"') {
+        // Escaped quote ("") → literal quote character
+        if (raw[i + 1] === '"') {
+          field += '"';
+          i += 2;
+        } else {
+          // Closing quote
+          inQuotes = false;
+          i++;
+        }
+      } else {
+        field += ch;
+        i++;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+        i++;
+      } else if (ch === ',') {
+        row.push(field);
+        field = '';
+        i++;
+      } else if (ch === '\r' && raw[i + 1] === '\n') {
+        row.push(field);
+        result.push(row);
+        row = [];
+        field = '';
+        i += 2;
+      } else if (ch === '\n' || ch === '\r') {
+        row.push(field);
+        result.push(row);
+        row = [];
+        field = '';
+        i++;
+      } else {
+        field += ch;
+        i++;
+      }
+    }
+  }
+
+  // Flush last field and row
+  if (field !== '' || row.length > 0) {
+    row.push(field);
+    result.push(row);
+  }
+
+  return result;
+}
+
 export function buildCredentialsCsv(
   students: Array<{
     fullName: string;
@@ -58,6 +125,11 @@ export function buildCredentialsCsv(
     'Account Status',
   ];
 
+  const escape = (val: string): string =>
+    val.includes(',') || val.includes('"') || val.includes('\n')
+      ? `"${val.replace(/"/g, '""')}"`
+      : val;
+
   const rows = students.map((s) =>
     [
       s.fullName,
@@ -67,7 +139,9 @@ export function buildCredentialsCsv(
       s.levelId,
       s.sectionId,
       s.status,
-    ].join(','),
+    ]
+      .map(escape)
+      .join(','),
   );
 
   return [headers.join(','), ...rows].join('\n');

@@ -3,9 +3,11 @@ import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import pluginReact from "eslint-plugin-react";
+import reactHooks from "eslint-plugin-react-hooks";
 import { defineConfig } from "eslint/config";
 
 export default defineConfig([
+
   // 1️⃣ Ignore build and output folders
   {
     ignores: [
@@ -17,7 +19,7 @@ export default defineConfig([
     ],
   },
 
-  // 2️⃣ JS / TS source files
+  // 2️⃣ Base JS / TS config
   {
     files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     languageOptions: {
@@ -28,12 +30,14 @@ export default defineConfig([
       },
       globals: globals.browser,
     },
-    plugins: { js },
+    plugins: {
+      js,
+    },
     extends: ["js/recommended"],
   },
 
   // 3️⃣ TypeScript rules
-  tseslint.configs.recommended,
+  ...tseslint.configs.recommended,
 
   // 4️⃣ React rules
   {
@@ -41,12 +45,23 @@ export default defineConfig([
     settings: {
       react: {
         version: "detect",
-        jsxRuntime: "automatic", // no need to import React in JSX
+        jsxRuntime: "automatic",
       },
     },
   },
 
-  // 5️⃣ Optional custom rules
+  // 5️⃣ React Hooks rules (FIXED 🚀)
+  {
+    plugins: {
+      "react-hooks": reactHooks,
+    },
+    rules: {
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+
+  // 6️⃣ Custom rules
   {
     rules: {
       "react/react-in-jsx-scope": "off",
@@ -55,4 +70,5 @@ export default defineConfig([
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
     },
   },
+
 ]);

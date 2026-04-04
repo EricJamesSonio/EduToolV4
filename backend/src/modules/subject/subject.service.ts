@@ -14,8 +14,29 @@ import {
 export class SubjectService {
   constructor(private readonly subjectRepository: SubjectRepository) {}
 
+  // ─── Mapper ───────────────────────────────────────────────────────────────
+private mapToResponse(subject: any) {
+  return {
+    id: subject.id,
+    orgId: subject.org_id,
+    title: subject.name,
+    programId: subject.level_id,
+    programName: subject.levelName ?? null,      // ← from enrichSubjects
+    educatorId: subject.educator_id,
+    educatorName: subject.educatorName ?? null,  // ← from enrichSubjects
+    lockStatus: subject.is_locked ? 'locked' : 'unlocked',
+    yearLevel: subject.year_level,
+    termLabel: subject.term_label,
+    courseId: subject.course_id,
+    strandId: subject.strand_id,
+    prerequisites: subject.prerequisites ?? [],
+    prereqFor: subject.prereqFor ?? [],
+  }
+}
+
+  // ─── CRUD ─────────────────────────────────────────────────────────────────
   async create(orgId: string, dto: CreateSubjectDto) {
-    return this.subjectRepository.create({
+    const subject = await this.subjectRepository.create({
       orgId,
       name: dto.name,
       levelId: dto.levelId,
@@ -25,10 +46,11 @@ export class SubjectService {
       yearLevel: dto.yearLevel,
       termLabel: dto.termLabel,
     })
+    return this.mapToResponse(subject)
   }
 
   async findAll(orgId: string, query: QuerySubjectDto) {
-    return this.subjectRepository.findAll(orgId, {
+    const subjects = await this.subjectRepository.findAll(orgId, {
       levelId: query.levelId,
       educatorId: query.educatorId,
       search: query.search,
@@ -38,12 +60,13 @@ export class SubjectService {
       yearLevel: query.yearLevel,
       termLabel: query.termLabel,
     })
+    return subjects.map((s) => this.mapToResponse(s))
   }
 
   async findById(id: string, orgId: string) {
     const subject = await this.subjectRepository.findById(id, orgId)
     if (!subject) throw new NotFoundException('Subject not found.')
-    return subject
+    return this.mapToResponse(subject)
   }
 
   async update(id: string, orgId: string, dto: UpdateSubjectDto) {
@@ -54,8 +77,7 @@ export class SubjectService {
         'This subject is locked and cannot be modified. Unlock it first.',
       )
     }
-
-    return this.subjectRepository.update(id, {
+    const updated = await this.subjectRepository.update(id, {
       name: dto.name,
       levelId: dto.levelId,
       educatorId: dto.educatorId,
@@ -64,27 +86,29 @@ export class SubjectService {
       yearLevel: dto.yearLevel,
       termLabel: dto.termLabel,
     })
+    return this.mapToResponse(updated)
   }
 
   async lock(id: string, orgId: string) {
     const subject = await this.subjectRepository.findById(id, orgId)
     if (!subject) throw new NotFoundException('Subject not found.')
     if (subject.is_locked) throw new BadRequestException('Subject is already locked.')
-    return this.subjectRepository.setLocked(id, true)
+    const updated = await this.subjectRepository.setLocked(id, true)
+    return this.mapToResponse(updated)
   }
 
   async unlock(id: string, orgId: string) {
     const subject = await this.subjectRepository.findById(id, orgId)
     if (!subject) throw new NotFoundException('Subject not found.')
     if (!subject.is_locked) throw new BadRequestException('Subject is already unlocked.')
-    return this.subjectRepository.setLocked(id, false)
+    const updated = await this.subjectRepository.setLocked(id, false)
+    return this.mapToResponse(updated)
   }
 
   async unlockAllForOrg(orgId: string) {
     return this.subjectRepository.unlockAllForOrg(orgId)
   }
 
-  // Used by seeder to resolve subject names → IDs for prerequisite linking
   async findByNameInOrg(name: string, orgId: string) {
     return this.subjectRepository.findByNameInOrg(name, orgId)
   }

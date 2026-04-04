@@ -1,3 +1,4 @@
+// frontend/src/context/AuthContext.tsx
 "use client";
 
 import React, {
@@ -30,35 +31,43 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const { user, accessToken, setUser, setTokens, setLoading, clearAuth } =
     useAuthStore();
 
-  useEffect(() => {
-    const bootstrap = async (): Promise<void> => {
-      if (!accessToken) {
-        setLoading(false);
-        return;
-      }
+useEffect(() => {
+  const bootstrap = async (): Promise<void> => {
+    // Wait for persist rehydration to complete before reading accessToken
+    await useAuthStore.persist.rehydrate();
 
-      try {
-        const me = await authApi.getMe();
-        setUser(me);
-      } catch {
-        clearAuth();
-        clearTokens();
-      } finally {
-        setLoading(false);
-      }
-    };
+    const token = useAuthStore.getState().accessToken;
 
-    bootstrap();
-  }, []);
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const me = await authApi.getMe();
+      setUser(me);
+    } catch {
+      clearAuth();
+      clearTokens();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  bootstrap();
+}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = useCallback(
     async (email: string, password: string): Promise<void> => {
       const tokens: AuthTokens = await authApi.login({ email, password });
 
+      // Save to localStorage first
       saveTokens(tokens.accessToken, tokens.refreshToken);
       setTokens(tokens.accessToken, tokens.refreshToken);
 
-      const me = await authApi.getMe();
+      // Pass token explicitly to avoid race condition where
+      // interceptor hasn't picked up the newly saved localStorage token yet
+      const me = await authApi.getMe(tokens.accessToken);
       setUser(me);
 
       router.push(getRoleHomePath(me.role));

@@ -64,7 +64,7 @@ model Account {
   id         String        @id @default(uuid())
   org_id     String?
   role       Role
-  email      String
+  email      String        @unique 
   password   String
   status     AccountStatus
   created_at DateTime      @default(now())
@@ -275,12 +275,13 @@ model GradingScale {
   id             String    @id @default(uuid())
   org_id         String
   level_id       String
-  school_year_id String
+  school_year_id String?
   name           String
   ranges         Json
   is_locked      Boolean   @default(false)
   locked_at      DateTime?
   created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
 }
 
 //////////////////////
