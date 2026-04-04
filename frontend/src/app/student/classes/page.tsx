@@ -21,8 +21,24 @@ import type { StudentSemesterItem } from "@/api/student/semester.api";
 export default function StudentClassesPage(): React.JSX.Element {
   const [semesterId, setSemesterId] = useState<string>("all");
 
-  const { data: semesters = [] as StudentSemesterItem[] } = useStudentSemesters();
-  const { data: classes = [], isLoading, isError } = useStudentClasses();
+  const { data: semestersData } = useStudentSemesters();
+  const { data: classesData, isLoading, isError } = useStudentClasses();
+
+  // Defensive normalisation — guards against undefined, wrapped envelopes,
+  // or any non-array the query might return before/during loading
+  const semesters: StudentSemesterItem[] = useMemo(() => {
+    if (!semestersData) return [];
+    if (Array.isArray(semestersData)) return semestersData;
+    const inner = (semestersData as Record<string, unknown>)?.data;
+    return Array.isArray(inner) ? (inner as StudentSemesterItem[]) : [];
+  }, [semestersData]);
+
+  const classes = useMemo(() => {
+    if (!classesData) return [];
+    if (Array.isArray(classesData)) return classesData;
+    const inner = (classesData as Record<string, unknown>)?.data;
+    return Array.isArray(inner) ? inner : [];
+  }, [classesData]);
 
   const filtered = useMemo(() => {
     if (semesterId === "all") return classes;

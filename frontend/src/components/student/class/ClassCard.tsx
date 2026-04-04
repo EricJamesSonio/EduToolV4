@@ -55,7 +55,7 @@ export function ClassCard({ item }: ClassCardProps): React.JSX.Element {
 
       <CardFooter className="px-5 pb-4">
         <Button
-          asChild
+          
           size="sm"
           className="w-full group-hover:bg-primary/90 transition-colors"
         >
