@@ -83,7 +83,7 @@ export function EnrollStudentInClassDialog({
             <Label>Select Class</Label>
             <Select
               value={selectedClassId}
-              onValueChange={setSelectedClassId}
+              onValueChange={(value) => setSelectedClassId(value ?? "")}
               disabled={classesLoading}
             >
               <SelectTrigger>
