@@ -38,11 +38,7 @@ export class AnalyticsService {
   // ── ENROLLMENT ─────────────────────────────────────────────
 
   async getEnrollmentBreakdown(orgId: string) {
-    const byStatus = await this.repo.groupStudentsByStatus(orgId);
-
-    return {
-      byStatus,
-    };
+    return this.repo.getEnrollmentBreakdown(orgId); // replace the old byStatus logic
   }
 
   // ── GRADES (LOCKED ONLY) ───────────────────────────────────

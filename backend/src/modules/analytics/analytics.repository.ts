@@ -123,4 +123,75 @@ export class AnalyticsRepository {
       },
     });
   }
+
+
+  async getEnrollmentBreakdown(orgId: string) {
+    const sections = await this.db.section.findMany({
+      where: { org_id: orgId, deleted_at: null },
+    });
+
+    const levels = await this.db.level.findMany({
+      where: { org_id: orgId },
+    });
+
+    const programs = await this.db.program.findMany({
+      where: { org_id: orgId },
+    });
+
+    // Count enrollments per section via Class → Enrollment
+    const classes = await this.db.class.findMany({
+      where: { org_id: orgId, deleted_at: null },
+      select: {
+        section_id: true,
+        enrollments: {
+          select: { status: true },
+        },
+      },
+    });
+
+    // Build lookup maps
+    const levelMap = new Map(levels.map((l) => [l.id, l]));
+    const programMap = new Map(programs.map((p) => [p.id, p]));
+
+    // ✅ FIXED: proper Map generic syntax
+    const sectionEnrollments = new Map<
+      string,
+      { active: number; pending: number }
+    >();
+
+    for (const cls of classes) {
+      if (!cls.section_id) continue;
+
+      if (!sectionEnrollments.has(cls.section_id)) {
+        sectionEnrollments.set(cls.section_id, { active: 0, pending: 0 });
+      }
+
+      const entry = sectionEnrollments.get(cls.section_id)!;
+
+      for (const e of cls.enrollments) {
+        if (e.status === 'active') entry.active += 1;
+        if (e.status === 'pending') entry.pending += 1;
+      }
+    }
+
+    return sections.map((section) => {
+      const level = levelMap.get(section.level_id);
+      const program = level ? programMap.get(level.program_id) : null;
+
+      const counts = sectionEnrollments.get(section.id) ?? {
+        active: 0,
+        pending: 0,
+      };
+
+      return {
+        levelSection: `${level?.name ?? '—'} - ${section.name}`,
+        programName: program?.name ?? '—',
+        gradeLevel: level?.name ?? '—',
+        sectionName: section.name,
+        activeCount: counts.active,
+        pendingCount: counts.pending,
+        totalCount: counts.active + counts.pending,
+      };
+    });
+  }
 }
