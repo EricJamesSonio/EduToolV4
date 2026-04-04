@@ -188,7 +188,9 @@ export default function EducatorActivityLogPage() {
         {/* Class */}
         <Select value={classFilter} onValueChange={handleClassFilter}>
           <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="All Classes" />
+            <span className="truncate">
+              {classOptions.find((o) => o.value === classFilter)?.label ?? "All Classes"}
+            </span>
           </SelectTrigger>
           <SelectContent>
             {classOptions.map((o) => (
