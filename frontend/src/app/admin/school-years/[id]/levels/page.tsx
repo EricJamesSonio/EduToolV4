@@ -26,7 +26,6 @@ import {
   X,
   Check,
 } from "lucide-react";
-//import { cn } from "@/lib/utils";
 import type { Level } from "@/types/admin/level.types";
 import type { Program } from "@/types/admin/program.types";
 
@@ -77,50 +76,120 @@ function InlineEdit({
   );
 }
 
-// ─── Add Level Row ─────────────────────────────────────────────────────────────
+// ─── Generate Config ───────────────────────────────────────────────────────────
 
-function AddLevelRow({
-  onSave,
+function getCountConfig(type: string): {
+  label: string;
+  default: number;
+  min: number;
+  max: number;
+  preview: (n: number) => string;
+} {
+  switch (type) {
+    case "elementary":
+      return {
+        label: "Number of grades",
+        default: 6,
+        min: 1,
+        max: 12,
+        preview: (n) => `Grade 1 → Grade ${n}`,
+      };
+    case "high_school":
+      return {
+        label: "Number of grades",
+        default: 4,
+        min: 1,
+        max: 6,
+        preview: (n) => `Grade 7 → Grade ${6 + n}`,
+      };
+    case "senior_high":
+      return {
+        label: "Number of grades",
+        default: 2,
+        min: 1,
+        max: 2,
+        preview: (n) => (n === 1 ? "Grade 11" : "Grade 11, Grade 12"),
+      };
+    case "college":
+      return {
+        label: "Number of years",
+        default: 4,
+        min: 1,
+        max: 5,
+        preview: (n) => {
+          const o = ["1st", "2nd", "3rd", "4th", "5th"];
+          return `${o[0]} Year → ${o[n - 1]} Year`;
+        },
+      };
+    default:
+      return {
+        label: "Number of levels",
+        default: 3,
+        min: 1,
+        max: 20,
+        preview: (n) => `1 → ${n}`,
+      };
+  }
+}
+
+// ─── Generate Levels Row ───────────────────────────────────────────────────────
+
+function GenerateLevelsRow({
+  programType,
+  onGenerate,
   onCancel,
   isLoading,
 }: {
-  onSave: (name: string) => void;
+  programType: string;
+  onGenerate: (count: number) => void;
   onCancel: () => void;
   isLoading: boolean;
 }): React.JSX.Element {
-  const [name, setName] = useState("");
+  const cfg = getCountConfig(programType);
+  const [count, setCount] = useState(cfg.default);
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/30 border-t">
-      <div className="w-3 shrink-0" />
-      <Input
-        placeholder="Level name (e.g. Grade 1, Year 1)"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="h-7 text-sm max-w-xs"
-        autoFocus
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && name.trim()) onSave(name.trim());
-          if (e.key === "Escape") onCancel();
-        }}
-      />
-      <Button
-        size="sm"
-        className="h-7 text-xs px-3"
-        onClick={() => name.trim() && onSave(name.trim())}
-        disabled={isLoading || !name.trim()}
-      >
-        {isLoading ? "Adding..." : "Add"}
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-7 text-xs px-3"
-        onClick={onCancel}
-        disabled={isLoading}
-      >
-        Cancel
-      </Button>
+    <div className="flex items-center gap-3 px-4 py-3 bg-muted/30 border-t flex-wrap">
+      <span className="text-sm text-muted-foreground">{cfg.label}:</span>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setCount((c) => Math.max(cfg.min, c - 1))}
+          disabled={count <= cfg.min}
+          className="h-6 w-6 rounded border flex items-center justify-center text-sm hover:bg-muted disabled:opacity-40"
+        >
+          −
+        </button>
+        <span className="w-6 text-center text-sm font-medium">{count}</span>
+        <button
+          onClick={() => setCount((c) => Math.min(cfg.max, c + 1))}
+          disabled={count >= cfg.max}
+          className="h-6 w-6 rounded border flex items-center justify-center text-sm hover:bg-muted disabled:opacity-40"
+        >
+          +
+        </button>
+      </div>
+      <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+        {cfg.preview(count)}
+      </span>
+      <div className="flex items-center gap-2 ml-auto">
+        <Button
+          size="sm"
+          className="h-7 text-xs px-3"
+          onClick={() => onGenerate(count)}
+          disabled={isLoading}
+        >
+          {isLoading ? "Generating..." : "Generate"}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 text-xs px-3"
+          onClick={onCancel}
+          disabled={isLoading}
+        >
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 }
@@ -133,9 +202,9 @@ function ProgramGroup({
   isEnded,
   onUpdate,
   onDelete,
-  onAdd,
+  onGenerate,
   isUpdating,
-  isAdding,
+  isGenerating,
   updatingId,
 }: {
   program: Program;
@@ -143,14 +212,14 @@ function ProgramGroup({
   isEnded: boolean;
   onUpdate: (id: string, name: string) => void;
   onDelete: (level: Level) => void;
-  onAdd: (program_id: string, name: string) => void;
+  onGenerate: (programId: string, count: number) => void;
   isUpdating: boolean;
-  isAdding: boolean;
+  isGenerating: boolean;
   updatingId: string | null;
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [addingLevel, setAddingLevel] = useState(false);
+  const [showGenerate, setShowGenerate] = useState(false);
 
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
@@ -179,7 +248,7 @@ function ProgramGroup({
       {expanded && (
         <div className="border-t divide-y">
           {/* Empty state */}
-          {levels.length === 0 && !addingLevel && (
+          {levels.length === 0 && !showGenerate && (
             <div className="px-4 py-8 text-center">
               <Layers className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">
@@ -187,10 +256,10 @@ function ProgramGroup({
               </p>
               {!isEnded && (
                 <button
-                  onClick={() => setAddingLevel(true)}
+                  onClick={() => setShowGenerate(true)}
                   className="mt-2 text-xs text-primary hover:underline"
                 >
-                  Add the first level
+                  Generate levels
                 </button>
               )}
             </div>
@@ -245,27 +314,28 @@ function ProgramGroup({
             </div>
           ))}
 
-          {/* Add level inline row */}
-          {!isEnded && addingLevel && (
-            <AddLevelRow
-              onSave={(name) => {
-                onAdd(program.id, name);
-                setAddingLevel(false);
+          {/* Generate row */}
+          {!isEnded && showGenerate && (
+            <GenerateLevelsRow
+              programType={program.type}
+              onGenerate={(count) => {
+                onGenerate(program.id, count);
+                setShowGenerate(false);
               }}
-              onCancel={() => setAddingLevel(false)}
-              isLoading={isAdding}
+              onCancel={() => setShowGenerate(false)}
+              isLoading={isGenerating}
             />
           )}
 
-          {/* Add level button (when levels exist) */}
-          {!isEnded && !addingLevel && levels.length > 0 && (
+          {/* Regenerate button (when levels exist) */}
+          {!isEnded && !showGenerate && levels.length > 0 && (
             <div className="px-4 py-2.5">
               <button
-                onClick={() => setAddingLevel(true)}
+                onClick={() => setShowGenerate(true)}
                 className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Add level
+                Regenerate levels
               </button>
             </div>
           )}
@@ -317,14 +387,14 @@ export default function SchoolYearLevelsPage({
     onSettled: () => setUpdatingId(null),
   });
 
-  const addMutation = useMutation({
-    mutationFn: ({ programId, name }: { programId: string; name: string }) =>
-      levelApi.create({ programId, name, schoolYearId: id }),
+  const generateMutation = useMutation({
+    mutationFn: ({ programId, count }: { programId: string; count: number }) =>
+      levelApi.bulkGenerate({ programId, schoolYearId: id, count }),
     onSuccess: () => {
-      toast.success("Level added.");
+      toast.success("Levels generated.");
       invalidate();
     },
-    onError: () => toast.error("Failed to add level."),
+    onError: () => toast.error("Failed to generate levels."),
   });
 
   const deleteMutation = useMutation({
@@ -435,11 +505,11 @@ export default function SchoolYearLevelsPage({
                 updateMutation.mutate({ id: levelId, name })
               }
               onDelete={(level) => setDeleteTarget(level)}
-              onAdd={(programId, name) =>
-                addMutation.mutate({ programId, name })
+              onGenerate={(programId, count) =>
+                generateMutation.mutate({ programId, count })
               }
               isUpdating={updateMutation.isPending}
-              isAdding={addMutation.isPending}
+              isGenerating={generateMutation.isPending}
               updatingId={updatingId}
             />
           ))}
