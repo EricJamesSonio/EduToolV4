@@ -16,9 +16,9 @@ import { useGradingSchemeLibrary } from "@/hooks/educator/useGradingSchemes";
 import type { GradingScheme, GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
 
 interface ImportFromLibraryDialogProps {
-  open:     boolean;
+  open:         boolean;
   onOpenChange: (open: boolean) => void;
-  onImport: (components: GradingSchemeComponentDto[], schemeName: string) => void;
+  onImport:     (components: GradingSchemeComponentDto[], schemeName: string) => void;
 }
 
 export function ImportFromLibraryDialog({
@@ -26,7 +26,9 @@ export function ImportFromLibraryDialog({
   onOpenChange,
   onImport,
 }: ImportFromLibraryDialogProps) {
-  const { data: library = [], isLoading } = useGradingSchemeLibrary();
+  const { data, isLoading } = useGradingSchemeLibrary();
+  const library: GradingScheme[] = Array.isArray(data) ? data : [];
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const selected = library.find((s) => s.id === selectedId) ?? null;
@@ -81,7 +83,7 @@ export function ImportFromLibraryDialog({
           ) : (
             <ScrollArea className="max-h-64">
               <div className="space-y-2 pr-2">
-                {library.map((scheme: GradingScheme) => (
+                {library.map((scheme) => (
                   <button
                     key={scheme.id}
                     type="button"

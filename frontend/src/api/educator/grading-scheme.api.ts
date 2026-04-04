@@ -12,8 +12,8 @@ export const educatorGradingSchemeApi = {
   },
 
   getAll: async (): Promise<GradingScheme[]> => {
-    const res = await client.get<GradingScheme[]>('/grading-schemes')
-    return res.data
+    const res = await client.get<{ success: boolean; data: GradingScheme[] }>('/grading-schemes')
+    return res.data.data
   },
 
   create: async (data: CreateGradingSchemeDto): Promise<GradingScheme> => {

@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { GradingSchemeComponentRow } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
-import { ImportFromLibraryDialog } from "@/components/educator/grading-scheme/ImportFromLibraryDialog";
+import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
 import {
   useClassGradingScheme,
   useDefaultGradingScheme,
@@ -88,8 +88,14 @@ export function ClassGradingSchemeEditor({ classId }: ClassGradingSchemeEditorPr
   // Use Admin Default — reset rows to org default components
   const handleResetToDefault = () => {
     if (!defaultScheme) return;
+    const components = Array.isArray(defaultScheme.components) ? defaultScheme.components : [];
+    if (components.length === 0) {
+      toast.error("Admin default has no components configured yet.");
+      setShowResetConfirm(false);
+      return;
+    }
     setRows(
-      defaultScheme.components.map((c) => ({
+      components.map((c) => ({
         name:       c.name,
         type:       c.type,
         weight:     c.weight,
