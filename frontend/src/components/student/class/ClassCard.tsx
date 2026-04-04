@@ -5,7 +5,7 @@ import Link from "next/link";
 import { User, Clock, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatSchedule } from "@/utils/classes.utils";
 import type { StudentClassItem } from "@/api/student/class.api";
@@ -54,16 +54,16 @@ export function ClassCard({ item }: ClassCardProps): React.JSX.Element {
       </CardContent>
 
       <CardFooter className="px-5 pb-4">
-        <Button
-          
-          size="sm"
-          className="w-full group-hover:bg-primary/90 transition-colors"
+        <Link
+          href={`/student/classes/${cls.id}`}
+          className={cn(
+            buttonVariants({ variant: "default", size: "sm" }),
+            "w-full justify-center"
+          )}
         >
-          <Link href={`/student/classes/${cls.id}`}>
-            Open Class
-            <ChevronRight className="ml-1 h-3.5 w-3.5" />
-          </Link>
-        </Button>
+          View Class
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Link>
       </CardFooter>
     </Card>
   );
