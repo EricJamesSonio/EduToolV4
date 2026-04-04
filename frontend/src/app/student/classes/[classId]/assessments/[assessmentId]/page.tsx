@@ -291,7 +291,7 @@ export default function AssessmentTakerPage(): React.JSX.Element {
   const toggleFlag = (questionId: string) => {
     setFlagged((prev) => {
       const next = new Set(prev);
-      next.has(questionId) ? next.delete(questionId) : next.add(questionId);
+      if (next.has(questionId)) { next.delete(questionId); } else { next.add(questionId); }
       return next;
     });
   };
@@ -515,18 +515,19 @@ export default function AssessmentTakerPage(): React.JSX.Element {
       </div>
 
       {/* Confirm submit dialog */}
-      <ConfirmDialog
+        <ConfirmDialog
         open={showConfirm}
         onOpenChange={setShowConfirm}
         title="Submit Assessment"
-        description={
-          unanswered > 0
+        message={
+            unanswered > 0
             ? `You have ${unanswered} unanswered question${unanswered > 1 ? "s" : ""}. Submit anyway?`
             : "Are you sure you want to submit? You cannot change your answers after submitting."
         }
         confirmLabel="Submit"
+        destructive
         onConfirm={handleSubmit}
-      />
+        />
     </div>
   );
 }

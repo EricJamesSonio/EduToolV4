@@ -9,6 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { useAssessmentResult, useStudentAssessment } from "@/hooks/student/useStudentAssessments";
+import type { AssessmentResult, StudentAssessmentDetail } from "@/api/student/assessment.api";
+
+function unwrap<T>(raw: T | undefined): T | undefined {
+  if (!raw) return undefined;
+  const wrapped = (raw as unknown) as Record<string, unknown>;
+  return (wrapped?.data as T | undefined) ?? (raw as T);
+}
 
 export default function AssessmentResultPage(): React.JSX.Element {
   const { classId, assessmentId } = useParams<{
@@ -17,20 +24,16 @@ export default function AssessmentResultPage(): React.JSX.Element {
   }>();
   const router = useRouter();
 
-  const { data: rawResult, isLoading: resultLoading } = useAssessmentResult(
-    classId,
-    assessmentId
-  );
-  const { data: rawAssessment, isLoading: assessmentLoading } =
-    useStudentAssessment(classId, assessmentId);
+  const { data: rawResult, isLoading: resultLoading } = useAssessmentResult(classId, assessmentId);
+  const { data: rawAssessment, isLoading: assessmentLoading } = useStudentAssessment(classId, assessmentId);
 
-  const result = (rawResult as any)?.data ?? rawResult;
-  const assessment = (rawAssessment as any)?.data ?? rawAssessment;
+  const result = unwrap<AssessmentResult>(rawResult);
+  const assessment = unwrap<StudentAssessmentDetail>(rawAssessment);
 
   const isLoading = resultLoading || assessmentLoading;
 
   const scorePercent =
-    result?.score !== null && assessment?.totalItems
+    result?.score != null && assessment?.totalItems
       ? Math.round((result.score / assessment.totalItems) * 100)
       : null;
 
@@ -50,9 +53,7 @@ export default function AssessmentResultPage(): React.JSX.Element {
         variant="ghost"
         size="sm"
         className="gap-1.5 text-muted-foreground hover:text-foreground -ml-1"
-        onClick={() =>
-          router.push(`/student/classes/${classId}/assessments`)
-        }
+        onClick={() => router.push(`/student/classes/${classId}/assessments`)}
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Back to Assessments
@@ -76,7 +77,7 @@ export default function AssessmentResultPage(): React.JSX.Element {
         ) : result ? (
           <>
             {/* Score display */}
-            {result.score !== null ? (
+            {result.score != null ? (
               <div className="space-y-3">
                 <div className="flex items-end gap-2">
                   <span className={cn("text-4xl font-bold tabular-nums", gradeColor)}>
@@ -86,12 +87,7 @@ export default function AssessmentResultPage(): React.JSX.Element {
                     / {assessment?.totalItems ?? "—"}
                   </span>
                   {scorePercent !== null && (
-                    <span
-                      className={cn(
-                        "ml-2 text-sm font-semibold mb-0.5",
-                        gradeColor
-                      )}
-                    >
+                    <span className={cn("ml-2 text-sm font-semibold mb-0.5", gradeColor)}>
                       ({scorePercent}%)
                     </span>
                   )}
@@ -140,7 +136,7 @@ export default function AssessmentResultPage(): React.JSX.Element {
             </div>
 
             {/* Essay pending notice */}
-            {result.status === "submitted" && result.score === null && (
+            {result.status === "submitted" && result.score == null && (
               <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2">
                 <Clock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                 <div>
@@ -155,7 +151,7 @@ export default function AssessmentResultPage(): React.JSX.Element {
             )}
 
             {/* Published confirmation */}
-            {result.isPublished && result.score !== null && (
+            {result.isPublished && result.score != null && (
               <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                 <p className="text-sm text-emerald-800">
