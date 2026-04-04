@@ -6,11 +6,11 @@ import type {
 } from '@/types/admin/grading-scheme.types'
 
 const KEYS = {
-  default: ['grading-scheme', 'default']          as const,
-  library: ['grading-scheme', 'educator-library'] as const,
+  default:          ['grading-scheme', 'default']           as const,
+  library:          ['grading-scheme', 'educator-library']  as const,
+  forClass: (classId: string) => ['grading-scheme', 'class', classId] as const,
 }
 
-// GET /grading-schemes/default — the org default (read-only for educators)
 export const useDefaultGradingScheme = () => {
   return useQuery({
     queryKey: KEYS.default,
@@ -18,7 +18,6 @@ export const useDefaultGradingScheme = () => {
   })
 }
 
-// GET /grading-schemes — educator's own custom schemes
 export const useGradingSchemeLibrary = () => {
   return useQuery({
     queryKey: KEYS.library,
@@ -26,18 +25,25 @@ export const useGradingSchemeLibrary = () => {
   })
 }
 
-// POST /grading-schemes
+export const useClassGradingScheme = (classId: string) => {
+  return useQuery({
+    queryKey: KEYS.forClass(classId),
+    queryFn:  () => educatorGradingSchemeApi.getForClass(classId),
+    enabled:  !!classId,
+  })
+}
+
 export const useCreateGradingScheme = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: CreateGradingSchemeDto) => educatorGradingSchemeApi.create(data),
+    mutationFn: (data: CreateGradingSchemeDto) =>
+      educatorGradingSchemeApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEYS.library })
     },
   })
 }
 
-// PATCH /grading-schemes/:id
 export const useUpdateGradingScheme = () => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -45,6 +51,17 @@ export const useUpdateGradingScheme = () => {
       educatorGradingSchemeApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEYS.library })
+    },
+  })
+}
+
+export const useSaveClassGradingScheme = (classId: string) => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: UpdateGradingSchemeDto) =>
+      educatorGradingSchemeApi.saveForClass(classId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.forClass(classId) })
     },
   })
 }
