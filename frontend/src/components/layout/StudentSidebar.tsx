@@ -2,41 +2,35 @@
 
 import { useParams, usePathname } from "next/navigation";
 import { SidebarShell, NavGroup } from "./SidebarShell";
+import { LogoutButton } from "./LogoutButton";
 import {
-  BookOpen,
-  Video,
-  ScrollText,
-  LayoutGrid,
-  FileText,
-  ClipboardCheck,
-  CalendarCheck,
-  BarChart2,
+  BookOpen, Video, ScrollText, LayoutGrid,
+  FileText, ClipboardCheck, CalendarCheck, BarChart2,
 } from "lucide-react";
 
 const TOP_LEVEL_GROUPS: NavGroup[] = [
   {
     items: [
-      { label: "My Classes", href: "/student/classes",    icon: BookOpen },
-      { label: "Meetings",   href: "/student/meetings",   icon: Video },
+      { label: "My Classes", href: "/student/classes",   icon: BookOpen },
+      { label: "Meetings",   href: "/student/meetings",  icon: Video },
       { label: "Transcript", href: "/student/transcript", icon: ScrollText },
     ],
   },
 ];
 
 export function StudentSidebar() {
-  const params = useParams();
+  const params   = useParams();
   const pathname = usePathname();
-  const classId = params?.classId as string | undefined;
 
-  const inClass =
-    !!classId && pathname.includes(`/student/classes/${classId}`);
+  const classId = params?.classId as string | undefined;
+  const inClass = !!classId && pathname.includes(`/student/classes/${classId}`);
 
   const groups: NavGroup[] = inClass
     ? [
         {
           items: [
-            { label: "My Classes", href: "/student/classes",    icon: BookOpen, exact: true },
-            { label: "Meetings",   href: "/student/meetings",   icon: Video },
+            { label: "My Classes", href: "/student/classes",   icon: BookOpen, exact: true },
+            { label: "Meetings",   href: "/student/meetings",  icon: Video },
             { label: "Transcript", href: "/student/transcript", icon: ScrollText },
           ],
         },
@@ -61,6 +55,7 @@ export function StudentSidebar() {
         </p>
       }
       groups={groups}
+      footer={<LogoutButton />}  // ← logout lives here
     />
   );
 }
