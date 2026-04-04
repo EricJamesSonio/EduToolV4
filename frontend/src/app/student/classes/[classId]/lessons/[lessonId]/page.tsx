@@ -5,13 +5,17 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStudentLesson, useStudentLessons } from "@/hooks/student/usestudentLessons";
+import { StudentLesson } from "@/api/student/lesson.api";
 
 export default function StudentLessonDetailPage(): React.JSX.Element {
   const { classId, lessonId } = useParams<{ classId: string; lessonId: string }>();
   const router = useRouter();
 
   const { data: lesson, isLoading } = useStudentLesson(classId, lessonId);
-  const { data: allLessons = [] } = useStudentLessons(classId);
+    const { data: allLessonsRaw } = useStudentLessons(classId);
+    const allLessons: StudentLesson[] = Array.isArray(allLessonsRaw)
+    ? allLessonsRaw
+    : (((allLessonsRaw as unknown) as Record<string, unknown>)?.data as StudentLesson[] ?? []);
 
   // Sort all lessons by week then subIndex for prev/next nav
   const sorted = [...allLessons].sort(

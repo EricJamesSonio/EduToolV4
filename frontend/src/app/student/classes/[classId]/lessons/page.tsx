@@ -12,7 +12,10 @@ export default function StudentLessonsPage(): React.JSX.Element {
   const { classId } = useParams<{ classId: string }>();
   const router = useRouter();
 
-  const { data: lessons = [], isLoading } = useStudentLessons(classId);
+    const { data: lessonsRaw, isLoading } = useStudentLessons(classId);
+    const lessons: StudentLesson[] = Array.isArray(lessonsRaw)
+    ? lessonsRaw
+    : (((lessonsRaw as unknown) as Record<string, unknown>)?.data as StudentLesson[] ?? []);
 
   // Group lessons by weekNumber
   const byWeek = lessons.reduce<Record<number, StudentLesson[]>>((acc, lesson) => {
