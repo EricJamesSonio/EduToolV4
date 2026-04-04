@@ -33,13 +33,19 @@ export default function NewMeetingPage({ params }: Props) {
 
   const canSave = title.trim().length > 0 && startTime.length > 0 && !createMutation.isPending;
 
-  const toggleStudent = (id: string) => {
+    const toggleStudent = (id: string) => {
     setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
+        const next = new Set(prev);
+
+        if (next.has(id)) {
+        next.delete(id);
+        } else {
+        next.add(id);
+        }
+
+        return next;
     });
-  };
+    };
 
   const handleSave = () => {
     const invitedStudentIds = inviteAll ? [] : Array.from(selectedIds);

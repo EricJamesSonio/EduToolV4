@@ -171,8 +171,16 @@ export default function EducatorActivityLogPage() {
   const columns = useMemo(() => buildColumns(classMap), [classMap]);
 
   // Reset to page 1 on filter change
-  const handleClassFilter = (v: string) => { setClassFilter(v); setPage(1); };
-  const handleEventFilter = (v: string) => { setEventTypeFilter(v); setPage(1); };
+  const handleClassFilter = (v: string | null) => {
+  if (!v) return; // guard against null
+  setClassFilter(v);
+  setPage(1);
+};
+  const handleEventFilter = (v: string | null) => {
+  if (!v) return;
+  setEventTypeFilter(v);
+  setPage(1);
+};
   const handleFromDate    = (v: string) => { setFromDate(v); setPage(1); };
   const handleToDate      = (v: string) => { setToDate(v); setPage(1); };
 
