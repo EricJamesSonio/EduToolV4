@@ -1,11 +1,9 @@
 // frontend/src/app/student/classes/[classId]/page.tsx
 "use client";
 
-import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, BookOpen, User, Clock } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClassInfoCard } from "@/components/student/class/overview/ClassInfoCard";
 import { UpcomingAssessmentsCard } from "@/components/student/class/overview/UpcomingAssessmentsCard";
@@ -13,34 +11,24 @@ import { GradeSummaryCard } from "@/components/student/class/overview/GradeSumma
 import { useStudentClass } from "@/hooks/student/useStudentClassess";
 import { useStudentAssessments } from "@/hooks/student/useStudentAssessments";
 import { useStudentGrades } from "@/hooks/student/useStudentGrades";
-
-type Tab = "overview" | "lessons" | "assessments" | "attendance" | "grades";
-
-const TABS: { value: Tab; label: string }[] = [
-  { value: "overview",    label: "Overview"    },
-  { value: "lessons",     label: "Lessons"     },
-  { value: "assessments", label: "Assessments" },
-  { value: "attendance",  label: "Attendance"  },
-  { value: "grades",      label: "Grades"      },
-];
+import type { StudentAssessmentItem } from "@/api/student/assessment.api";
+import type { StudentTermGrade } from "@/api/student/grade.api";
 
 export default function StudentClassDetailPage(): React.JSX.Element {
   const { classId } = useParams<{ classId: string }>();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
 
   const { data: classData, isLoading: classLoading } = useStudentClass(classId);
   const { data: assessmentsRaw, isLoading: assessmentsLoading } = useStudentAssessments(classId);
   const { data: gradesRaw, isLoading: gradesLoading } = useStudentGrades(classId);
 
-  // Normalize envelopes defensively
-  const assessments = Array.isArray(assessmentsRaw)
+    const assessments = Array.isArray(assessmentsRaw)
     ? assessmentsRaw
-    : ((assessmentsRaw as any)?.data ?? []);
+    : (((assessmentsRaw as unknown) as Record<string, unknown>)?.data as StudentAssessmentItem[] ?? []);
 
-  const grades = Array.isArray(gradesRaw)
+    const grades = Array.isArray(gradesRaw)
     ? gradesRaw
-    : ((gradesRaw as any)?.data ?? []);
+    : (((gradesRaw as unknown) as Record<string, unknown>)?.data as StudentTermGrade[] ?? []);
 
   const subjectName = classData?.class?.subjectName ?? "Class";
 
@@ -65,84 +53,29 @@ export default function StudentClassDetailPage(): React.JSX.Element {
         )}
       </div>
 
-      {/* Tabs */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as Tab)}
-        className="w-full"
-      >
-        <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0 h-auto gap-0">
-          {TABS.map((tab) => (
-            <TabsTrigger
-              key={tab.value}
-              value={tab.value}
-              className="rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none bg-transparent hover:text-foreground transition-colors"
-            >
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        {/* ── Overview ── */}
-        <TabsContent value="overview" className="mt-5">
-          {classLoading ? (
-            <OverviewSkeleton />
-          ) : classData ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              {/* Left col */}
-              <div className="lg:col-span-1 space-y-5">
-                <ClassInfoCard data={classData} />
-              </div>
-
-              {/* Right col */}
-              <div className="lg:col-span-2 space-y-5">
-                <UpcomingAssessmentsCard
-                  classId={classId}
-                  assessments={assessments}
-                  isLoading={assessmentsLoading}
-                  onViewAll={() => setActiveTab("assessments")}
-                />
-                <GradeSummaryCard
-                  grades={grades}
-                  isLoading={gradesLoading}
-                  onViewAll={() => setActiveTab("grades")}
-                />
-              </div>
-            </div>
-          ) : null}
-        </TabsContent>
-
-        {/* ── Lessons (placeholder) ── */}
-        <TabsContent value="lessons" className="mt-5">
-          <ComingSoon label="Lessons" />
-        </TabsContent>
-
-        {/* ── Assessments (placeholder) ── */}
-        <TabsContent value="assessments" className="mt-5">
-          <ComingSoon label="Assessments" />
-        </TabsContent>
-
-        {/* ── Attendance (placeholder) ── */}
-        <TabsContent value="attendance" className="mt-5">
-          <ComingSoon label="Attendance" />
-        </TabsContent>
-
-        {/* ── Grades (placeholder) ── */}
-        <TabsContent value="grades" className="mt-5">
-          <ComingSoon label="Grades" />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-function ComingSoon({ label }: { label: string }): React.JSX.Element {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <p className="text-xs text-muted-foreground/60 mt-1">
-        This section is coming soon
-      </p>
+      {/* Overview content */}
+      {classLoading ? (
+        <OverviewSkeleton />
+      ) : classData ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-1 space-y-5">
+            <ClassInfoCard data={classData} />
+          </div>
+          <div className="lg:col-span-2 space-y-5">
+            <UpcomingAssessmentsCard
+              classId={classId}
+              assessments={assessments}
+              isLoading={assessmentsLoading}
+              onViewAll={() => router.push(`/student/classes/${classId}/assessments`)}
+            />
+            <GradeSummaryCard
+              grades={grades}
+              isLoading={gradesLoading}
+              onViewAll={() => router.push(`/student/classes/${classId}/grades`)}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
