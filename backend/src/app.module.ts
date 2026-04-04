@@ -1,8 +1,6 @@
 // src/app.module.ts
 import { Module } from '@nestjs/common';
-import { ServeStaticModule } from '@nestjs/serve-static';
 import { ScheduleModule } from '@nestjs/schedule';
-import { join } from 'path';
 
 import { CoreModule } from '@/core/core.module';
 
@@ -19,9 +17,7 @@ import { HealthModule } from './modules/health/health.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(), 
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'public'),
-    }),
+    // ServeStaticModule removed — frontend is served by Next.js
 
     CoreModule,
     SchedulerModule,

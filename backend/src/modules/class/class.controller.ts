@@ -84,6 +84,15 @@ export class ClassController {
     return this.classService.getEnrollments(id, orgId);
   }
 
+  @Get(':id/students')
+  @Roles('admin', 'educator')
+  async getEnrolledStudents(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+  ) {
+    return this.classService.getEnrolledStudents(id, orgId);
+  }
+
   @Patch(':classId/enrollments/:enrollmentId')
   @Roles('admin')
   async updateEnrollment(
@@ -135,6 +144,8 @@ export class EducatorClassController {
   ) {
     return this.classService.getEducatorClasses(educatorId, orgId);
   }
+
+
 }
 
 // ── Student routes ────────────────────────────────────────────────────────────
@@ -172,3 +183,4 @@ export class StudentClassController {
     return this.classService.getOwnershipHistory(id, orgId);
   }
 }
+
