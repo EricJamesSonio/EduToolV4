@@ -1,64 +1,97 @@
 import apiClient from "@/api/client";
+import type {
+  Meeting,
+  MeetingToken,
+  CreateMeetingDto,
+  UpdateMeetingDto,
+  EnrolledStudent,
+} from "@/types/educator/meeting.types";
 
-export type MeetingStatus = "scheduled" | "ended";
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+}
 
-export interface Meeting {
+/* ================= RAW API TYPES ================= */
+
+interface RawInvite {
   id: string;
-  title: string;
-  description?: string;
-  startTime: string;
-  status: MeetingStatus;
+  student_id?: string;
+  studentId?: string;
 }
 
-export interface MeetingToken {
-  token: string;
-  channel: string;
-  appId: string;
-  uid: number;
-  warning?: string;
-}
-
-export interface CreateMeetingDto {
-  title: string;
-  description?: string;
-  startTime: string;
-  invitedStudentIds?: string[];
-}
-
-export interface UpdateMeetingDto {
-  title?: string;
-  description?: string;
-  startTime?: string;
-  invitedStudentIds?: string[];
-}
-
-export interface JoinRequestResponse {
+interface RawJoinRequest {
   id: string;
+  student_id?: string;
+  studentId?: string;
   status: "pending" | "accepted" | "declined";
 }
 
+interface RawMeeting {
+  id: string;
+  title: string;
+  description?: string | null;
+  start_time?: string;
+  startTime?: string;
+  status: Meeting["status"];
+  invites?: RawInvite[];
+  join_requests?: RawJoinRequest[];
+  joinRequests?: RawJoinRequest[];
+}
+
+interface RawStudent {
+  id: string;
+  full_name?: string;
+  fullName?: string;
+  name?: string;
+  email?: string;
+}
+
+/* ================= MAPPERS ================= */
+
+function mapMeeting(raw: RawMeeting): Meeting {
+  return {
+    id: raw.id,
+    title: raw.title,
+    description: raw.description ?? undefined,
+    startTime: raw.start_time ?? raw.startTime ?? "",
+    status: raw.status,
+    invites: (raw.invites ?? []).map((i) => ({
+      id: i.id,
+      studentId: i.student_id ?? i.studentId ?? "",
+    })),
+    joinRequests: (raw.join_requests ?? raw.joinRequests ?? []).map((r) => ({
+      id: r.id,
+      studentId: r.student_id ?? r.studentId ?? "",
+      status: r.status,
+    })),
+  };
+}
+
+/* ================= API ================= */
+
 export const meetingApi = {
   getAll: async (classId: string): Promise<Meeting[]> => {
-    const { data } = await apiClient.get(`/classes/${classId}/meetings`);
-    return data;
+    const { data } = await apiClient.get<ApiResponse<RawMeeting[]>>(
+      `/classes/${classId}/meetings`
+    );
+    const raw = data?.data ?? [];
+    return raw.map(mapMeeting);
   },
 
   getOne: async (classId: string, meetingId: string): Promise<Meeting> => {
-    const { data } = await apiClient.get(
+    const { data } = await apiClient.get<ApiResponse<RawMeeting>>(
       `/classes/${classId}/meetings/${meetingId}`
     );
-    return data;
+    return mapMeeting(data.data);
   },
 
-  create: async (
-    classId: string,
-    dto: CreateMeetingDto
-  ): Promise<Meeting> => {
-    const { data } = await apiClient.post(
+  create: async (classId: string, dto: CreateMeetingDto): Promise<Meeting> => {
+    const { data } = await apiClient.post<ApiResponse<RawMeeting>>(
       `/classes/${classId}/meetings`,
       dto
     );
-    return data;
+    return mapMeeting(data.data);
   },
 
   update: async (
@@ -66,11 +99,11 @@ export const meetingApi = {
     meetingId: string,
     dto: UpdateMeetingDto
   ): Promise<Meeting> => {
-    const { data } = await apiClient.patch(
+    const { data } = await apiClient.patch<ApiResponse<RawMeeting>>(
       `/classes/${classId}/meetings/${meetingId}`,
       dto
     );
-    return data;
+    return mapMeeting(data.data);
   },
 
   delete: async (classId: string, meetingId: string): Promise<void> => {
@@ -81,10 +114,17 @@ export const meetingApi = {
     classId: string,
     meetingId: string
   ): Promise<{ success: true; message: string }> => {
-    const { data } = await apiClient.post(
+    const { data } = await apiClient.post<ApiResponse<{ message: string }>>(
       `/classes/${classId}/meetings/${meetingId}/end`
     );
-    return data;
+    return { success: true, message: data.data.message };
+  },
+
+  getToken: async (meetingId: string): Promise<MeetingToken> => {
+    const { data } = await apiClient.get<ApiResponse<MeetingToken>>(
+      `/meetings/${meetingId}/token`
+    );
+    return data.data;
   },
 
   respondToJoinRequest: async (
@@ -97,8 +137,17 @@ export const meetingApi = {
     });
   },
 
-  getToken: async (meetingId: string): Promise<MeetingToken> => {
-    const { data } = await apiClient.get(`/meetings/${meetingId}/token`);
-    return data;
+  getEnrolledStudents: async (
+    classId: string
+  ): Promise<EnrolledStudent[]> => {
+    const { data } = await apiClient.get<ApiResponse<RawStudent[]>>(
+      `/classes/${classId}/students`
+    );
+
+    return data.data.map((s) => ({
+      id: s.id,
+      fullName: s.full_name ?? s.fullName ?? s.name ?? "",
+      email: s.email ?? "",
+    }));
   },
 };
