@@ -21,9 +21,9 @@ import {
 const TOP_LEVEL_GROUPS: NavGroup[] = [
   {
     items: [
-      { label: "My Classes",     href: "/educator/classes",        icon: BookOpen },
-      { label: "Rubric Library", href: "/educator/rubric-library", icon: Library },
-      { label: "Activity Log",   href: "/educator/activity-log",   icon: ActivitySquare },
+      { label: "My Classes", href: "/educator/classes", icon: BookOpen },
+      { label: "Grading Scheme Library", href: "/educator/gradingScheme-library", icon: Library },
+      { label: "Activity Log", href: "/educator/activity-log", icon: ActivitySquare },
     ],
   },
 ];
@@ -40,21 +40,21 @@ export function EducatorSidebar() {
     ? [
         {
           items: [
-            { label: "My Classes",     href: "/educator/classes",        icon: BookOpen,   exact: true },
-            { label: "Rubric Library", href: "/educator/rubric-library", icon: Library },
-            { label: "Activity Log",   href: "/educator/activity-log",   icon: ActivitySquare },
+            { label: "My Classes", href: "/educator/classes", icon: BookOpen, exact: true },
+            { label: "Grading Scheme Library", href: "/educator/gradingScheme-library", icon: Library },
+            { label: "Activity Log", href: "/educator/activity-log", icon: ActivitySquare },
           ],
         },
         {
           label: "Current Class",
           items: [
-            { label: "Overview",    href: `/educator/classes/${classId}`,              icon: LayoutGrid,    exact: true },
-            { label: "Lessons",     href: `/educator/classes/${classId}/lessons`,      icon: FileText },
-            { label: "Assessments", href: `/educator/classes/${classId}/assessments`,  icon: ClipboardCheck },
-            { label: "Attendance",  href: `/educator/classes/${classId}/attendance`,   icon: CalendarCheck },
-            { label: "Grades",      href: `/educator/classes/${classId}/grades`,       icon: BarChart2 },
-            { label: "Rubric",      href: `/educator/classes/${classId}/rubric`,       icon: ClipboardList },
-            { label: "Meetings",    href: `/educator/classes/${classId}/meetings`,     icon: Video },
+            { label: "Overview", href: `/educator/classes/${classId}`, icon: LayoutGrid, exact: true },
+            { label: "Lessons", href: `/educator/classes/${classId}/lessons`, icon: FileText },
+            { label: "Assessments", href: `/educator/classes/${classId}/assessments`, icon: ClipboardCheck },
+            { label: "Attendance", href: `/educator/classes/${classId}/attendance`, icon: CalendarCheck },
+            { label: "Grades", href: `/educator/classes/${classId}/grades`, icon: BarChart2 },
+            { label: "Grading Scheme", href: `/educator/classes/${classId}/grading-scheme`, icon: ClipboardList },
+            { label: "Meetings", href: `/educator/classes/${classId}/meetings`, icon: Video },
           ],
         },
       ]
