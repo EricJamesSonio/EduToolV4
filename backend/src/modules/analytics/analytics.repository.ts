@@ -125,59 +125,63 @@ export class AnalyticsRepository {
   }
 
 
-  async getEnrollmentBreakdown(orgId: string) {
-    const [sections, levels, programs, classes] = await Promise.all([
-      this.db.section.findMany({
-        where: { org_id: orgId, deleted_at: null },
-      }),
-      this.db.level.findMany({
-        where: { org_id: orgId },
-      }),
-      this.db.program.findMany({
-        where: { org_id: orgId },
-      }),
-      this.db.class.findMany({
-        where: { org_id: orgId, deleted_at: null },
-        select: {
-          section_id: true,
-          enrollments: { select: { status: true } },
-        },
-      }),
-    ]);
+async getEnrollmentBreakdown(orgId: string) {
+  const [sections, classes] = await Promise.all([
+    this.db.section.findMany({
+      where: { org_id: orgId, deleted_at: null },
+    }),
+    this.db.class.findMany({
+      where: { org_id: orgId, deleted_at: null },
+      select: {
+        section_id: true,
+        enrollments: { select: { status: true } },
+      },
+    }),
+  ]);
 
-    // Build lookup maps using the exact field names Prisma returns
-    const levelMap = new Map(levels.map((l) => [l.id, l]));
-    const programMap = new Map(programs.map((p) => [p.id, p]));
+  // Fetch levels only for the level_ids actually used by these sections
+  const levelIds = [...new Set(sections.map((s) => s.level_id).filter(Boolean))];
+  const levels = levelIds.length
+    ? await this.db.level.findMany({ where: { id: { in: levelIds } } })
+    : [];
 
-    // Aggregate enrollment counts per section
-    const sectionEnrollments = new Map<string, { active: number; pending: number }>();
-    for (const cls of classes) {
-      if (!cls.section_id) continue;
-      if (!sectionEnrollments.has(cls.section_id)) {
-        sectionEnrollments.set(cls.section_id, { active: 0, pending: 0 });
-      }
-      const entry = sectionEnrollments.get(cls.section_id)!;
-      for (const e of cls.enrollments) {
-        if (e.status === 'active') entry.active += 1;
-        if (e.status === 'pending') entry.pending += 1;
-      }
+  // Fetch programs only for the program_ids actually used by these levels
+  const programIds = [...new Set(levels.map((l) => l.program_id).filter(Boolean))];
+  const programs = programIds.length
+    ? await this.db.program.findMany({ where: { id: { in: programIds } } })
+    : [];
+
+  const levelMap = new Map(levels.map((l) => [l.id, l]));
+  const programMap = new Map(programs.map((p) => [p.id, p]));
+
+  const sectionEnrollments = new Map<string, { active: number; pending: number }>();
+  for (const cls of classes) {
+    if (!cls.section_id) continue;
+    if (!sectionEnrollments.has(cls.section_id)) {
+      sectionEnrollments.set(cls.section_id, { active: 0, pending: 0 });
     }
-
-    return sections.map((section) => {
-      const level = levelMap.get(section.level_id);
-      // level.program_id is snake_case from Prisma since no remapping in schema
-      const program = level ? programMap.get(level.program_id) : null;
-      const counts = sectionEnrollments.get(section.id) ?? { active: 0, pending: 0 };
-
-      return {
-        levelSection: `${level?.name ?? '—'} - ${section.name}`,
-        programName: program?.name ?? '—',
-        gradeLevel: level?.name ?? '—',
-        sectionName: section.name,
-        activeCount: counts.active,
-        pendingCount: counts.pending,
-        totalCount: counts.active + counts.pending,
-      };
-    });
+    const entry = sectionEnrollments.get(cls.section_id)!;
+    for (const e of cls.enrollments) {
+      if (e.status === 'active') entry.active += 1;
+      if (e.status === 'pending') entry.pending += 1;
+    }
   }
+
+  return sections.map((section) => {
+    const level = levelMap.get(section.level_id);
+    const program = level ? programMap.get(level.program_id) : null;
+    const counts = sectionEnrollments.get(section.id) ?? { active: 0, pending: 0 };
+
+    return {
+      levelSection: `${level?.name ?? '—'} - ${section.name}`,
+      programName: program?.name ?? '—',
+      gradeLevel: level?.name ?? '—',
+      sectionName: section.name,
+      activeCount: counts.active,
+      pendingCount: counts.pending,
+      totalCount: counts.active + counts.pending,
+    };
+  });
+}
+
 }
