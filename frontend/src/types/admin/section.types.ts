@@ -1,9 +1,9 @@
 export interface Section {
   id: string;
-  org_id: string;      // ← matches actual API response
-  level_id: string;    // ← matches actual API response
+  org_id: string;
+  level_id: string;
   name: string;
   capacity: number;
   deleted_at: string | null;
-  studentCount?: number;
+  studentCount: number; // remove the ?
 }

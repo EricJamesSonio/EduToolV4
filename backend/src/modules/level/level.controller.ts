@@ -5,6 +5,7 @@ import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+import { BulkGenerateLevelsDto } from './dto/level.dto';
 
 // backend/src/modules/level/level.controller.ts
 
@@ -65,5 +66,14 @@ export class LevelController {
   ) {
     await this.levelService.deleteOne(id, orgId);
     return null; // interceptor wraps to { success: true, data: null }
+  }
+
+  @Post('bulk-generate')
+  @Roles('admin')
+  async bulkGenerate(
+    @CurrentUser('orgId') orgId: string,
+    @Body() dto: BulkGenerateLevelsDto,
+  ) {
+    return this.levelService.bulkGenerate(orgId, dto);
   }
 }

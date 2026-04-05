@@ -1,8 +1,9 @@
 export interface AnalyticsOverview {
   totalStudents: number;
-  totalEducators: number;
-  activeClasses: number;
+  activeStudents: number;
   pendingStudents: number;
+  totalEducators: number;
+  totalClasses: number; // was activeClasses
 }
 
 export interface EnrollmentBreakdownRow {

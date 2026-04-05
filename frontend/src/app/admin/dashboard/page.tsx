@@ -331,7 +331,7 @@ export default function AdminDashboardPage(): React.JSX.Element {
         />
         <StatCard
           label="Active Classes"
-          value={overview?.activeClasses}
+          value={overview?.totalClasses}
           icon={GraduationCap}
           isLoading={overviewLoading}
         />

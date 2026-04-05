@@ -9,6 +9,8 @@ import {
   IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+// add at the bottom of the file
+import { IsInt, Min, Max } from 'class-validator';
 
 
 
@@ -73,4 +75,19 @@ export class QueryLevelDto {
   @IsOptional()
   @IsUUID()
   schoolYearId?: string;
+}
+
+
+
+export class BulkGenerateLevelsDto {
+  @IsUUID()
+  programId: string;
+
+  @IsUUID()
+  schoolYearId: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  count: number;
 }

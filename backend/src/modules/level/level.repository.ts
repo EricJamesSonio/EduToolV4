@@ -97,4 +97,41 @@ export class LevelRepository {
       orderBy: [{ program_id: 'asc' }, { name: 'asc' }],
     });
   }
+
+  async deleteByProgramAndSchoolYear(
+    orgId: string,
+    programId: string,
+    schoolYearId: string,
+  ): Promise<void> {
+    await this.db.level.deleteMany({
+      where: { org_id: orgId, program_id: programId, school_year_id: schoolYearId },
+    });
+  }
+
+  async bulkCreate(
+    levels: Array<{
+      orgId: string;
+      programId: string;
+      schoolYearId: string;
+      name: string;
+    }>,
+  ) {
+    await this.db.level.createMany({
+      data: levels.map((l) => ({
+        org_id: l.orgId,
+        program_id: l.programId,
+        school_year_id: l.schoolYearId,
+        name: l.name,
+      })),
+    });
+
+    return this.db.level.findMany({
+      where: {
+        org_id: levels[0].orgId,
+        program_id: levels[0].programId,
+        school_year_id: levels[0].schoolYearId,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
 }

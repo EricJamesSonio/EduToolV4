@@ -23,14 +23,23 @@ export class SectionRepository {
   }
 
   async findAll(orgId: string, levelId?: string) {
-    return this.db.section.findMany({
+    const sections = await this.db.section.findMany({
       where: {
         org_id: orgId,
         ...(levelId ? { level_id: levelId } : {}),
-        deleted_at: null, // ✅ FIXED (was isDeleted)
+        deleted_at: null,
       },
       orderBy: [{ level_id: 'asc' }, { name: 'asc' }],
     });
+
+    const counts = await Promise.all(
+      sections.map((s) => this.countStudentsInSection(s.id)),
+    );
+
+    return sections.map((s, i) => ({
+      ...s,
+      studentCount: counts[i],
+    }));
   }
 
   async findById(id: string, orgId: string) {

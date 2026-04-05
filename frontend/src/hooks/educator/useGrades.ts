@@ -1,6 +1,7 @@
 // src/hooks/educator/useGrades.ts
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { gradeApi, ManualScoreDto, TermGrades } from "@/api/educator/grade.api";
+import { gradeApi, ManualScoreDto,  } from "@/api/educator/grade.api";
+import type { TermGrades } from "@/types/educator/grade.types";
 
 const GRADES_KEY = "grades";
 

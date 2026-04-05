@@ -42,4 +42,16 @@ export const levelApi = {
   deleteOne: async (id: string): Promise<void> => {
     await client.delete(`/levels/${id}`);
   },
+
+  bulkGenerate: async (data: {
+    programId: string;
+    schoolYearId: string;
+    count: number;
+  }): Promise<Level[]> => {
+    const res = await client.post<{ success: boolean; data: Level[] }>(
+      '/levels/bulk-generate',
+      data,
+    );
+    return res.data.data;
+  },
 };
