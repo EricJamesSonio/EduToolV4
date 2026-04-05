@@ -5,6 +5,7 @@ import type { AxiosError } from "axios";
 export interface CreateOrganizationRequest {
   name: string;
   description?: string;
+  programs?: string[];
 }
 
 export interface UpdateOrganizationRequest {
