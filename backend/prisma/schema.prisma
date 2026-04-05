@@ -99,7 +99,7 @@ model Program {
 
   courses Course[]
   strands Strand[]
-  levels  Level[]   // add this
+  levels  Level[]   
 }
 
 model Course {
