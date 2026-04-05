@@ -63,203 +63,83 @@ interface SetupForm {
 
 // ── OrgSetupModal ──────────────────────────────────────────────────────────────
 
-function OrgSetupModal({
-  open,
-  onSuccess,
-  onSkip,
-}: {
-  open: boolean;
-  onSuccess: () => void;
-  onSkip: () => void;
+function OrgSetupModal({ open, onSuccess, onSkip }: {
+  open: boolean
+  onSuccess: () => void
+  onSkip: () => void
 }): React.JSX.Element {
-  const [step, setStep] = useState<1 | 2>(1);
-  const [selectedPrograms, setSelectedPrograms] = useState<string[]>([]);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    trigger,
-    getValues,
-  } = useForm<SetupForm>({
-    defaultValues: { name: "", description: "" },
-  });
+  const { register, handleSubmit, formState: { errors } } =
+    useForm<{ name: string; description: string }>({
+      defaultValues: { name: "", description: "" },
+    })
 
   const mutation = useMutation({
     mutationFn: organizationApi.createOrg,
     onSuccess: () => {
-      toast.success("Organization created! Welcome to EduTool.");
-      onSuccess();
+      toast.success("Organization created! Welcome to EduTool.")
+      onSuccess()
     },
     onError: () => toast.error("Failed to create organization."),
-  });
-
-  function toggleProgram(key: string) {
-    setSelectedPrograms((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    );
-  }
-
-  async function handleNext() {
-    const valid = await trigger(["name"]);
-    if (valid) setStep(2);
-  }
-
-  function handleBack() {
-    setStep(1);
-  }
-
-  function handleFinish() {
-    const values = getValues();
-    mutation.mutate({
-      name: values.name,
-      description: values.description || undefined,
-      programs: selectedPrograms.length > 0 ? selectedPrograms : undefined,
-    });
-  }
+  })
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-lg" showCloseButton={false}>
+      <DialogContent className="sm:max-w-md" showCloseButton={false}>
         <DialogHeader>
           <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
             <Building2 className="h-5 w-5 text-primary" />
           </div>
-          <DialogTitle className="text-lg">
-            {step === 1 ? "Set up your organization" : "Select your programs"}
-          </DialogTitle>
+          <DialogTitle className="text-lg">Set up your organization</DialogTitle>
           <DialogDescription>
-            {step === 1
-              ? "Before you get started, give your school a name. You can update this later from the Organization settings."
-              : "Choose the programs your school offers. We'll seed your levels, sections, subjects, and grading scales automatically. You can skip this and set it up manually later."}
+            Before you get started, give your school a name. You can update this later
+            from the Organization settings.
           </DialogDescription>
         </DialogHeader>
-
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 mt-1">
-          {[1, 2].map((s) => (
-            <div
-              key={s}
-              className={cn(
-                "h-1.5 flex-1 rounded-full transition-colors",
-                s <= step ? "bg-primary" : "bg-muted"
-              )}
-            />
-          ))}
-        </div>
-
-        {/* Step 1 — Org details */}
-        {step === 1 && (
-          <div className="space-y-4 mt-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="org-name">School / Organization Name</Label>
-              <Input
-                id="org-name"
-                placeholder="e.g. St. Mary's Academy"
-                {...register("name", {
-                  required: "Name is required",
-                  minLength: { value: 2, message: "At least 2 characters" },
-                })}
-              />
-              {errors.name && (
-                <p className="text-xs text-destructive">{errors.name.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="org-desc">
-                Description{" "}
-                <span className="text-muted-foreground font-normal">(optional)</span>
-              </Label>
-              <Textarea
-                id="org-desc"
-                placeholder="A brief description of your school..."
-                rows={3}
-                {...register("description")}
-              />
-            </div>
-            <Button type="button" className="w-full" onClick={handleNext}>
-              Next
-              <ChevronRight className="ml-1.5 h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full text-muted-foreground"
-              onClick={onSkip}
-            >
-              Not now
-            </Button>
-          </div>
-        )}
-
-        {/* Step 2 — Program selection */}
-        {step === 2 && (
-          <div className="space-y-4 mt-2">
-            <div className="grid grid-cols-1 gap-2">
-              {PROGRAM_OPTIONS.map((prog) => {
-                const selected = selectedPrograms.includes(prog.key);
-                return (
-                  <button
-                    key={prog.key}
-                    type="button"
-                    onClick={() => toggleProgram(prog.key)}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
-                      selected && "border-primary bg-primary/5"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-                        selected
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-muted-foreground/40"
-                      )}
-                    >
-                      {selected && <Check className="h-3 w-3" />}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium leading-none">
-                        {prog.label}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {prog.description}
-                      </p>
-                    </div>
-                  </button>
-                );
+        <form
+          onSubmit={handleSubmit((v) =>
+            mutation.mutate({ name: v.name, description: v.description || undefined })
+          )}
+          className="space-y-4 mt-2"
+        >
+          <div className="space-y-1.5">
+            <Label htmlFor="org-name">School / Organization Name</Label>
+            <Input
+              id="org-name"
+              placeholder="e.g. St. Mary's Academy"
+              {...register("name", {
+                required:  "Name is required",
+                minLength: { value: 2, message: "At least 2 characters" },
               })}
-            </div>
-
-            <div className="flex gap-2 pt-1">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={handleBack}
-                disabled={mutation.isPending}
-              >
-                <ChevronLeft className="mr-1.5 h-4 w-4" />
-                Back
-              </Button>
-              <Button
-                type="button"
-                className="flex-1"
-                onClick={handleFinish}
-                disabled={mutation.isPending}
-              >
-                {mutation.isPending
-                  ? "Setting up..."
-                  : selectedPrograms.length > 0
-                  ? `Set up (${selectedPrograms.length} program${selectedPrograms.length > 1 ? "s" : ""})`
-                  : "Skip & finish"}
-              </Button>
-            </div>
+            />
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
-        )}
+          <div className="space-y-1.5">
+            <Label htmlFor="org-desc">
+              Description <span className="text-muted-foreground font-normal">(optional)</span>
+            </Label>
+            <Textarea
+              id="org-desc"
+              placeholder="A brief description of your school..."
+              rows={3}
+              {...register("description")}
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={mutation.isPending}>
+            {mutation.isPending ? "Creating..." : "Create Organization"}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full text-muted-foreground"
+            onClick={onSkip}
+            disabled={mutation.isPending}
+          >
+            Not now
+          </Button>
+        </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
 // ── StatCard ───────────────────────────────────────────────────────────────────
