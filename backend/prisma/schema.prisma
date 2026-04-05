@@ -99,6 +99,7 @@ model Program {
 
   courses Course[]
   strands Strand[]
+  levels  Level[]   // add this
 }
 
 model Course {
@@ -123,11 +124,14 @@ model Strand {
 }
 
 model Level {
-  id             String  @id @default(uuid())
+  id             String    @id @default(uuid())
   org_id         String
   program_id     String
   name           String
   school_year_id String?
+
+  program  Program   @relation(fields: [program_id], references: [id])
+  sections Section[]
 }
 
 model Section {
@@ -137,7 +141,10 @@ model Section {
   name       String
   capacity   Int
   deleted_at DateTime?
+
+  level Level @relation(fields: [level_id], references: [id])
 }
+
 
 model SchoolYear {
   id     String @id @default(uuid())

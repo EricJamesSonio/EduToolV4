@@ -124,35 +124,44 @@ export class AnalyticsRepository {
     });
   }
 
-
 async getEnrollmentBreakdown(orgId: string) {
-  const [sections, classes] = await Promise.all([
-    this.db.section.findMany({
-      where: { org_id: orgId, deleted_at: null },
-    }),
-    this.db.class.findMany({
-      where: { org_id: orgId, deleted_at: null },
-      select: {
-        section_id: true,
-        enrollments: { select: { status: true } },
-      },
-    }),
-  ]);
+  const sections = await this.db.section.findMany({
+    where: { org_id: orgId, deleted_at: null },
+  });
 
-  // Fetch levels only for the level_ids actually used by these sections
+  console.log('=== DEBUG: sections ===');
+  console.log(JSON.stringify(sections, null, 2));
+
   const levelIds = [...new Set(sections.map((s) => s.level_id).filter(Boolean))];
+  console.log('=== DEBUG: levelIds to look up ===');
+  console.log(levelIds);
+
   const levels = levelIds.length
     ? await this.db.level.findMany({ where: { id: { in: levelIds } } })
     : [];
+  console.log('=== DEBUG: levels found ===');
+  console.log(JSON.stringify(levels, null, 2));
 
-  // Fetch programs only for the program_ids actually used by these levels
   const programIds = [...new Set(levels.map((l) => l.program_id).filter(Boolean))];
+  console.log('=== DEBUG: programIds to look up ===');
+  console.log(programIds);
+
   const programs = programIds.length
     ? await this.db.program.findMany({ where: { id: { in: programIds } } })
     : [];
+  console.log('=== DEBUG: programs found ===');
+  console.log(JSON.stringify(programs, null, 2));
 
   const levelMap = new Map(levels.map((l) => [l.id, l]));
   const programMap = new Map(programs.map((p) => [p.id, p]));
+
+  const classes = await this.db.class.findMany({
+    where: { org_id: orgId, deleted_at: null },
+    select: {
+      section_id: true,
+      enrollments: { select: { status: true } },
+    },
+  });
 
   const sectionEnrollments = new Map<string, { active: number; pending: number }>();
   for (const cls of classes) {
@@ -167,10 +176,12 @@ async getEnrollmentBreakdown(orgId: string) {
     }
   }
 
-  return sections.map((section) => {
+  const result = sections.map((section) => {
     const level = levelMap.get(section.level_id);
     const program = level ? programMap.get(level.program_id) : null;
     const counts = sectionEnrollments.get(section.id) ?? { active: 0, pending: 0 };
+
+    console.log(`=== DEBUG: section ${section.id} (${section.name}) → level_id=${section.level_id} → level=${level?.name} → program=${program?.name}`);
 
     return {
       levelSection: `${level?.name ?? '—'} - ${section.name}`,
@@ -182,6 +193,7 @@ async getEnrollmentBreakdown(orgId: string) {
       totalCount: counts.active + counts.pending,
     };
   });
-}
 
+  return result;
+}
 }
