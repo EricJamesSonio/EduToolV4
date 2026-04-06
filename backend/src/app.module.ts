@@ -2,7 +2,7 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 
-import { CoreModule } from '@/core/core.module';
+import { CoreModule } from './core/core.module';
 
 import { AcademicDomainModule } from './domains/academic/academic-domain.module';
 import { UserDomainModule } from './domains/user/user-domain.module';

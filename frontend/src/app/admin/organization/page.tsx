@@ -1,9 +1,11 @@
 "use client";
+
 import { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { organizationApi } from "@/api/admin/organization.api";
+import { schoolYearApi } from "@/api/admin/school-year.api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,12 +14,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import type { SchoolYear } from "@/types/admin/school-year.types";
 import {
-  ChevronDown, ChevronRight, Check, Loader2,
-  Database, BookOpen, Layers, GraduationCap,
+  ChevronDown,
+  ChevronRight,
+  Check,
+  Loader2,
+  Database,
+  BookOpen,
+  Layers,
+  GraduationCap,
+  CalendarDays,
+  Plus,
 } from "lucide-react";
-
-// ── Seed data mirrors (frontend copy for UI only) ─────────────────────────────
 
 const PROGRAMS = [
   { key: "daycare",    label: "Daycare / Pre-School" },
@@ -46,8 +55,8 @@ const COLLEGE_COURSES = [
 ]
 
 const SHS_STRANDS = [
-  "ABM", "STEM", "HUMSS", "GAS",
-  "ICT", "HE", "IA", "Agri-Fishery", "Sports", "Arts and Design",
+  "ABM", "STEM", "HUMSS", "GAS", "ICT", "HE", "IA",
+  "Agri-Fishery", "Sports", "Arts and Design",
 ]
 
 const LEVEL_DEFS: Record<string, string[]> = {
@@ -57,7 +66,6 @@ const LEVEL_DEFS: Record<string, string[]> = {
   jhs:        ["Grade 7","Grade 8","Grade 9","Grade 10"],
 }
 
-// Subjects per level (simplified for UI — full list seeded by backend)
 const LEVEL_SUBJECTS: Record<string, string[]> = {
   "Daycare 1":  ["Language and Literacy","Cognitive and Numeracy Skills","Physical Development, Health, and Safety","Social and Emotional Development","Creative Arts and Music","Understanding the World / Discovery"],
   "Daycare 2":  ["Language and Literacy","Cognitive and Numeracy Skills","Physical Development, Health, and Safety","Social and Emotional Development","Creative Arts and Music","Understanding the World / Discovery"],
@@ -75,7 +83,6 @@ const LEVEL_SUBJECTS: Record<string, string[]> = {
   "Grade 10":   ["English","Mathematics","Science","Filipino","Araling Panlipunan","MAPEH","Edukasyon sa Pagpapakatao (ESP)","TLE"],
 }
 
-// SHS subjects per strand (minor + major combined for UI)
 const SHS_STRAND_SUBJECTS: Record<string, string[]> = {
   ABM:   ["Oral Communication","Reading and Writing Skills","Mathematics in the Modern World","Understanding the Self","Contemporary World","Readings in Philippine History","Physical Education / Health","Life and Works of Jose Rizal","National Service Training Program (NSTP)","Art Appreciation","Fundamentals of Accounting","Business Math","Fundamentals of Economics","Principles of Management","Entrepreneurship","Organization and Management","Business Finance","Business Ethics","Applied Economics","Strategic Business Planning"],
   STEM:  ["Oral Communication","Reading and Writing Skills","Mathematics in the Modern World","Understanding the Self","Contemporary World","Readings in Philippine History","Physical Education / Health","Life and Works of Jose Rizal","National Service Training Program (NSTP)","Art Appreciation","General Biology","General Chemistry","General Physics","Earth and Life Science","Calculus and Analytical Geometry","Advanced Physics","Organic Chemistry","Research in Science","Engineering and Technology Applications","Applied Mathematics"],
@@ -89,16 +96,15 @@ const SHS_STRAND_SUBJECTS: Record<string, string[]> = {
   "Arts and Design": ["Oral Communication","Reading and Writing Skills","Mathematics in the Modern World","Understanding the Self","Contemporary World","Readings in Philippine History","Physical Education / Health","Life and Works of Jose Rizal","National Service Training Program (NSTP)","Art Appreciation","Introduction to Arts and Design","Elements and Principles of Design","Creative Industries I (Applied Arts)","Creative Industries II (Media Arts)","Fundamentals of Performing Arts","Visual Arts Production","Specialization in Arts","Portfolio Development","Arts Production and Management","Contemporary Arts Practices","Work Immersion (OJT)","Capstone Project / Culminating Exhibit"],
 }
 
-// College subjects per course (abbreviated for UI)
 const COURSE_SUBJECTS: Record<string, string[]> = {
-  BSIT:    ["Introduction to Computing","Computer Programming 1","Computer Programming 2","Data Structures and Algorithms","Database Management Systems","Web Systems and Technologies","Software Engineering","Human-Computer Interaction","Operating Systems","Computer Networks","Information Assurance and Security","Systems Analysis and Design","IT Project Management","Capstone Project / Thesis"],
-  BSBA:    ["Principles of Management","Microeconomics","Macroeconomics","Business Statistics","Principles of Marketing","Financial Management","Business Law","Human Resource Management","Operations Management","Business Ethics","Organizational Behavior","Strategic Management","International Business","Entrepreneurial Management","Business Research","Project Management"],
-  BSA:     ["Fundamentals of Accounting","Financial Accounting and Reporting I","Business Law","Management Accounting","Regulatory Framework and Legal Issues in Business","Cost Accounting","Accounting Information Systems","Auditing Theory","Advanced Financial Accounting and Reporting","Financial Management","Auditing and Assurance Services","Taxation (Income Tax, Business Tax)","Strategic Cost Management","Governance, Business Ethics, Risk Management, and Internal Control","Accounting Research","Integrated Review Courses (Board Exam Preparation)"],
-  BSCS:    ["Introduction to Computing","Computer Programming 1","Computer Programming 2","Discrete Mathematics","Object-Oriented Programming","Computer Architecture","Data Structures and Algorithms","Database Systems","Algorithms and Complexity","Automata Theory","Operating Systems","Numerical Methods","Programming Languages","Software Engineering","Computer Networks","Human-Computer Interaction","Artificial Intelligence","Machine Learning","CS Thesis / Capstone Project"],
-  BSHM:    ["Introduction to Hospitality Industry","Food and Beverage Service Operations","Housekeeping Operations","Front Office Operations","Culinary Arts / Basic Cooking","Hospitality Marketing","Hospitality Financial Management","Food Safety and Sanitation","Hospitality Law","Customer Service Management","Tourism Planning and Development","Hotel and Restaurant Management","Beverage Management (Bar and Drinks)","Event Management","Banquet and Catering Management","Entrepreneurship in Hospitality","Internship / OJT"],
-  BSCRIM:  ["Introduction to Criminology","Criminal Law","Criminological Theories","Law Enforcement Administration","Ethics and Moral Values in Law Enforcement","Criminalistics / Forensic Science","Crime Detection and Investigation","Juvenile Delinquency","Police Administration","Criminal Psychology","Correctional Administration","Disaster and Risk Management","Research in Criminology","Criminal Investigation Practicum","Community Policing and Public Safety"],
-  BSTM:    ["Principles of Tourism","Tourism Research and Statistics","Tourism Planning and Development","Travel Agency Operations","Tour Guiding and Tour Operations","Hospitality and Tourism Law","Tourism Marketing and Promotion","Event and Convention Management","Sustainable Tourism","Cultural and Heritage Tourism","Tourism Policy and Governance","Airline and Cruise Management","Tourism Entrepreneurship","Internship / OJT"],
-  BSED:    ["The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
+  BSIT:        ["Introduction to Computing","Computer Programming 1","Computer Programming 2","Data Structures and Algorithms","Database Management Systems","Web Systems and Technologies","Software Engineering","Human-Computer Interaction","Operating Systems","Computer Networks","Information Assurance and Security","Systems Analysis and Design","IT Project Management","Capstone Project / Thesis"],
+  BSBA:        ["Principles of Management","Microeconomics","Macroeconomics","Business Statistics","Principles of Marketing","Financial Management","Business Law","Human Resource Management","Operations Management","Business Ethics","Organizational Behavior","Strategic Management","International Business","Entrepreneurial Management","Business Research","Project Management"],
+  BSA:         ["Fundamentals of Accounting","Financial Accounting and Reporting I","Business Law","Management Accounting","Regulatory Framework and Legal Issues in Business","Cost Accounting","Accounting Information Systems","Auditing Theory","Advanced Financial Accounting and Reporting","Financial Management","Auditing and Assurance Services","Taxation (Income Tax, Business Tax)","Strategic Cost Management","Governance, Business Ethics, Risk Management, and Internal Control","Accounting Research","Integrated Review Courses (Board Exam Preparation)"],
+  BSCS:        ["Introduction to Computing","Computer Programming 1","Computer Programming 2","Discrete Mathematics","Object-Oriented Programming","Computer Architecture","Data Structures and Algorithms","Database Systems","Algorithms and Complexity","Automata Theory","Operating Systems","Numerical Methods","Programming Languages","Software Engineering","Computer Networks","Human-Computer Interaction","Artificial Intelligence","Machine Learning","CS Thesis / Capstone Project"],
+  BSHM:        ["Introduction to Hospitality Industry","Food and Beverage Service Operations","Housekeeping Operations","Front Office Operations","Culinary Arts / Basic Cooking","Hospitality Marketing","Hospitality Financial Management","Food Safety and Sanitation","Hospitality Law","Customer Service Management","Tourism Planning and Development","Hotel and Restaurant Management","Beverage Management (Bar and Drinks)","Event Management","Banquet and Catering Management","Entrepreneurship in Hospitality","Internship / OJT"],
+  BSCRIM:      ["Introduction to Criminology","Criminal Law","Criminological Theories","Law Enforcement Administration","Ethics and Moral Values in Law Enforcement","Criminalistics / Forensic Science","Crime Detection and Investigation","Juvenile Delinquency","Police Administration","Criminal Psychology","Correctional Administration","Disaster and Risk Management","Research in Criminology","Criminal Investigation Practicum","Community Policing and Public Safety"],
+  BSTM:        ["Principles of Tourism","Tourism Research and Statistics","Tourism Planning and Development","Travel Agency Operations","Tour Guiding and Tour Operations","Hospitality and Tourism Law","Tourism Marketing and Promotion","Event and Convention Management","Sustainable Tourism","Cultural and Heritage Tourism","Tourism Policy and Governance","Airline and Cruise Management","Tourism Entrepreneurship","Internship / OJT"],
+  BSED:        ["The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
   "BSED-ENG":  ["The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
   "BSED-MATH": ["The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
   "BSED-SCI":  ["The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
@@ -107,9 +113,14 @@ const COURSE_SUBJECTS: Record<string, string[]> = {
   "BSED-TLE":  ["The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
 }
 
-// ── Checkbox primitive ─────────────────────────────────────────────────────────
+// ─── Sub-components ──────────────────────────────────────────────────────────
 
-function Checkbox({ checked, onChange, label, subtle }: {
+function Checkbox({
+  checked,
+  onChange,
+  label,
+  subtle,
+}: {
   checked: boolean
   onChange: (v: boolean) => void
   label: string
@@ -129,19 +140,20 @@ function Checkbox({ checked, onChange, label, subtle }: {
       )}>
         {checked && <Check className="h-3 w-3" />}
       </div>
-      <span className={cn(
-        "text-sm",
-        subtle ? "text-muted-foreground" : "font-medium"
-      )}>
+      <span className={cn("text-sm", subtle ? "text-muted-foreground" : "font-medium")}>
         {label}
       </span>
     </button>
   )
 }
 
-// ── Collapsible section ────────────────────────────────────────────────────────
-
-function Collapsible({ title, count, total, children, defaultOpen = false }: {
+function Collapsible({
+  title,
+  count,
+  total,
+  children,
+  defaultOpen = false,
+}: {
   title: string
   count: number
   total: number
@@ -172,21 +184,148 @@ function Collapsible({ title, count, total, children, defaultOpen = false }: {
   )
 }
 
-// ── OrgForm ────────────────────────────────────────────────────────────────────
+// ─── School Year Step ─────────────────────────────────────────────────────────
 
-interface OrgForm { name: string; description: string }
+function SchoolYearStep({
+  schoolYears,
+  isLoading,
+  selectedId,
+  onSelect,
+  onCreate,
+  isCreating,
+}: {
+  schoolYears: SchoolYear[]
+  isLoading:   boolean
+  selectedId:  string | null
+  onSelect:    (id: string) => void
+  onCreate:    (name: string) => void
+  isCreating:  boolean
+}) {
+  const [showCreate, setShowCreate] = useState(false)
+  const [newName, setNewName]       = useState("")
 
-// ── Main page ──────────────────────────────────────────────────────────────────
+  function handleCreate() {
+    const trimmed = newName.trim()
+    if (!trimmed) return
+    onCreate(trimmed)
+    setNewName("")
+    setShowCreate(false)
+  }
+
+  return (
+    <div className="space-y-3">
+      {isLoading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ) : (
+        <>
+          {/* Existing school years */}
+          {schoolYears.length > 0 && (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {schoolYears.map((sy) => (
+                <button
+                  key={sy.id}
+                  type="button"
+                  onClick={() => onSelect(sy.id)}
+                  className={cn(
+                    "flex items-center justify-between rounded-lg border px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50",
+                    selectedId === sy.id && "border-primary bg-primary/5"
+                  )}
+                >
+                  <span className="font-medium">{sy.name}</span>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={
+                        sy.status === "active"
+                          ? "default"
+                          : sy.status === "ended"
+                          ? "secondary"
+                          : "outline"
+                      }
+                      className="text-xs capitalize"
+                    >
+                      {sy.status}
+                    </Badge>
+                    {selectedId === sy.id && (
+                      <Check className="h-4 w-4 text-primary" />
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* No school years yet */}
+          {schoolYears.length === 0 && !showCreate && (
+            <p className="text-sm text-muted-foreground">
+              No school years found. Create one below to proceed.
+            </p>
+          )}
+
+          {/* Create inline */}
+          {showCreate ? (
+            <div className="flex gap-2">
+              <Input
+                autoFocus
+                placeholder="e.g. S.Y. 2025–2026"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleCreate}
+                disabled={isCreating || !newName.trim()}
+              >
+                {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => { setShowCreate(false); setNewName("") }}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Create new school year
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ─── Page form type ───────────────────────────────────────────────────────────
+
+interface OrgForm {
+  name:        string
+  description: string
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function OrganizationPage(): React.JSX.Element {
   const queryClient = useQueryClient()
 
+  // ── Org details ──
   const { data: org, isLoading } = useQuery({
     queryKey: ["admin", "organization"],
     queryFn:  organizationApi.getOrg,
   })
 
-  // ── Org form ──
   const { register, handleSubmit, reset, formState: { errors, isDirty } } =
     useForm<OrgForm>({ defaultValues: { name: "", description: "" } })
 
@@ -196,7 +335,10 @@ export default function OrganizationPage(): React.JSX.Element {
 
   const updateMutation = useMutation({
     mutationFn: (values: OrgForm) =>
-      organizationApi.updateOrg({ name: values.name, description: values.description || undefined }),
+      organizationApi.updateOrg({
+        name:        values.name,
+        description: values.description || undefined,
+      }),
     onSuccess: (updated) => {
       toast.success("Organization updated.")
       queryClient.invalidateQueries({ queryKey: ["admin", "organization"] })
@@ -205,7 +347,33 @@ export default function OrganizationPage(): React.JSX.Element {
     onError: () => toast.error("Failed to update organization."),
   })
 
-  // ── Seed state ──
+  // ── School years ──
+  const { data: schoolYears = [], isLoading: syLoading } = useQuery({
+    queryKey: ["admin", "school-years"],
+    queryFn:  schoolYearApi.getAll,
+  })
+
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null)
+
+  // Auto-select active school year when data loads
+  useEffect(() => {
+    if (schoolYears.length > 0 && !selectedSchoolYearId) {
+      const active = schoolYears.find((sy) => sy.status === "active")
+      if (active) setSelectedSchoolYearId(active.id)
+    }
+  }, [schoolYears, selectedSchoolYearId])
+
+  const createSchoolYearMutation = useMutation({
+    mutationFn: (name: string) => schoolYearApi.create({ name }),
+    onSuccess: (created) => {
+      toast.success(`School year "${created.name}" created.`)
+      queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] })
+      setSelectedSchoolYearId(created.id)
+    },
+    onError: () => toast.error("Failed to create school year."),
+  })
+
+  // ── Seeder state ──
   const [selectedPrograms,  setSelectedPrograms]  = useState<Set<string>>(new Set())
   const [selectedCourses,   setSelectedCourses]   = useState<Set<string>>(new Set(COLLEGE_COURSES.map((c) => c.code)))
   const [selectedStrands,   setSelectedStrands]   = useState<Set<string>>(new Set(SHS_STRANDS))
@@ -224,8 +392,8 @@ export default function OrganizationPage(): React.JSX.Element {
 
   const seedMutation = useMutation({
     mutationFn: organizationApi.seedOrg,
-    onSuccess: () => toast.success("Seed completed! Your programs, levels, and subjects are ready."),
-    onError:   () => toast.error("Seed failed. Please try again."),
+    onSuccess:  () => toast.success("Seed completed! Your programs, levels, and subjects are ready."),
+    onError:    () => toast.error("Seed failed. Please try again."),
   })
 
   function toggleSet(set: Set<string>, key: string, setter: (s: Set<string>) => void) {
@@ -243,7 +411,6 @@ export default function OrganizationPage(): React.JSX.Element {
     setter(new Set())
   }
 
-  // all subjects that belong to currently selected context
   const allSelectableSubjects = useMemo(() => {
     const out = new Set<string>()
     selectedPrograms.forEach((prog) => {
@@ -269,27 +436,35 @@ export default function OrganizationPage(): React.JSX.Element {
   }, [selectedPrograms, selectedLevels, selectedStrands, selectedCourses])
 
   function handleSeed() {
+    if (!selectedSchoolYearId) {
+      toast.error("Select or create a school year first.")
+      return
+    }
     if (selectedPrograms.size === 0) {
       toast.error("Select at least one program.")
       return
     }
+
     const allLevels = Object.entries(LEVEL_DEFS)
       .filter(([prog]) => selectedPrograms.has(prog))
       .flatMap(([, levels]) => levels)
+
     const excludedLevels   = allLevels.filter((l) => !selectedLevels.has(l))
     const excludedSubjects = allSelectableSubjects.filter((s) => !selectedSubjects.has(s))
 
     seedMutation.mutate({
+      schoolYearId:     selectedSchoolYearId,
       programs:         Array.from(selectedPrograms),
-      courses:          selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
-      strands:          selectedPrograms.has("shs")     ? Array.from(selectedStrands) : undefined,
-      excludedLevels:   excludedLevels.length   > 0 ? excludedLevels   : undefined,
-      excludedSubjects: excludedSubjects.length > 0 ? excludedSubjects : undefined,
+      courses:          selectedPrograms.has("college") ? Array.from(selectedCourses)  : undefined,
+      strands:          selectedPrograms.has("shs")     ? Array.from(selectedStrands)  : undefined,
+      excludedLevels:   excludedLevels.length   > 0     ? excludedLevels               : undefined,
+      excludedSubjects: excludedSubjects.length > 0     ? excludedSubjects             : undefined,
     })
   }
 
   const onSubmit = (values: OrgForm) => updateMutation.mutate(values)
 
+  // ── Render ──
   return (
     <div className="space-y-8 max-w-3xl">
       <PageHeader title="Organization" />
@@ -299,6 +474,7 @@ export default function OrganizationPage(): React.JSX.Element {
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
           Details
         </h2>
+
         {isLoading ? (
           <div className="space-y-4">
             <Skeleton className="h-4 w-24" />
@@ -319,11 +495,15 @@ export default function OrganizationPage(): React.JSX.Element {
                   maxLength: { value: 100, message: "Max 100 characters" },
                 })}
               />
-              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+              {errors.name && (
+                <p className="text-xs text-destructive">{errors.name.message}</p>
+              )}
             </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="org-desc">
-                Description <span className="text-muted-foreground font-normal">(optional)</span>
+                Description{" "}
+                <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <Textarea
                 id="org-desc"
@@ -333,11 +513,17 @@ export default function OrganizationPage(): React.JSX.Element {
                   maxLength: { value: 500, message: "Max 500 characters" },
                 })}
               />
-              {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
+              {errors.description && (
+                <p className="text-xs text-destructive">{errors.description.message}</p>
+              )}
             </div>
+
             {isDirty && (
               <div className="flex justify-end pt-2">
-                <Button onClick={handleSubmit(onSubmit)} disabled={updateMutation.isPending}>
+                <Button
+                  onClick={handleSubmit(onSubmit)}
+                  disabled={updateMutation.isPending}
+                >
                   {updateMutation.isPending ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
@@ -348,102 +534,293 @@ export default function OrganizationPage(): React.JSX.Element {
 
       {/* ── Seeder card ── */}
       <div className="rounded-lg border bg-card p-6 space-y-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-              <Database className="h-4 w-4" /> Data Seeder
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Seed your organization with programs, levels, sections, subjects, and grading schemes.
-              Safe to run multiple times — only adds missing data.
-            </p>
-          </div>
+        <div>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            Data Seeder
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Seed your organization with programs, levels, sections, subjects, and grading schemes.
+            Safe to run multiple times — only adds missing data.
+          </p>
         </div>
 
-        {/* Step 1 — Programs */}
+        {/* Step 0 — School Year */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="flex items-center gap-1.5">
-              <Layers className="h-3.5 w-3.5" /> Programs
-            </Label>
-            <div className="flex gap-2">
-              <button type="button" className="text-xs text-primary hover:underline"
-                onClick={() => selectAll(PROGRAMS.map((p) => p.key), setSelectedPrograms)}>
-                All
-              </button>
-              <button type="button" className="text-xs text-muted-foreground hover:underline"
-                onClick={() => deselectAll(setSelectedPrograms)}>
-                None
-              </button>
+          <Label className="flex items-center gap-1.5">
+            <CalendarDays className="h-3.5 w-3.5" />
+            School Year
+            <span className="text-destructive ml-0.5">*</span>
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            All seeded data will be scoped to the selected school year.
+          </p>
+          <SchoolYearStep
+            schoolYears={schoolYears}
+            isLoading={syLoading}
+            selectedId={selectedSchoolYearId}
+            onSelect={setSelectedSchoolYearId}
+            onCreate={(name) => createSchoolYearMutation.mutate(name)}
+            isCreating={createSchoolYearMutation.isPending}
+          />
+          {!selectedSchoolYearId && !syLoading && (
+            <p className="text-xs text-destructive">
+              A school year is required before seeding.
+            </p>
+          )}
+        </div>
+
+        <div className={cn(
+          "space-y-5 transition-opacity",
+          !selectedSchoolYearId ? "opacity-40 pointer-events-none select-none" : ""
+        )}>
+
+          {/* Step 1 — Programs */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5" />
+                Programs
+              </Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => selectAll(PROGRAMS.map((p) => p.key), setSelectedPrograms)}
+                >All</button>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:underline"
+                  onClick={() => deselectAll(setSelectedPrograms)}
+                >None</button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {PROGRAMS.map((prog) => (
+                <button
+                  key={prog.key}
+                  type="button"
+                  onClick={() => toggleSet(selectedPrograms, prog.key, setSelectedPrograms)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 text-sm",
+                    selectedPrograms.has(prog.key) && "border-primary bg-primary/5"
+                  )}
+                >
+                  <div className={cn(
+                    "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                    selectedPrograms.has(prog.key)
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-muted-foreground/40"
+                  )}>
+                    {selectedPrograms.has(prog.key) && <Check className="h-3 w-3" />}
+                  </div>
+                  {prog.label}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {PROGRAMS.map((prog) => (
-              <button
-                key={prog.key}
-                type="button"
-                onClick={() => toggleSet(selectedPrograms, prog.key, setSelectedPrograms)}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 text-sm",
-                  selectedPrograms.has(prog.key) && "border-primary bg-primary/5"
-                )}
-              >
-                <div className={cn(
-                  "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                  selectedPrograms.has(prog.key)
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-muted-foreground/40"
-                )}>
-                  {selectedPrograms.has(prog.key) && <Check className="h-3 w-3" />}
-                </div>
-                {prog.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
-        {/* Step 2 — Levels (for non-shs, non-college programs) */}
-        {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <BookOpen className="h-3.5 w-3.5" /> Levels
-            </Label>
+          {/* Step 2 — Levels */}
+          {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
             <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <BookOpen className="h-3.5 w-3.5" />
+                Levels
+              </Label>
+              <div className="space-y-2">
+                {Array.from(selectedPrograms)
+                  .filter((p) => LEVEL_DEFS[p])
+                  .map((prog) => {
+                    const levels   = LEVEL_DEFS[prog]
+                    const selected = levels.filter((l) => selectedLevels.has(l))
+                    return (
+                      <Collapsible
+                        key={prog}
+                        title={PROGRAMS.find((p) => p.key === prog)?.label ?? prog}
+                        count={selected.length}
+                        total={levels.length}
+                        defaultOpen
+                      >
+                        <div className="space-y-2">
+                          <div className="flex gap-3 mb-2">
+                            <button type="button" className="text-xs text-primary hover:underline"
+                              onClick={() => selectAll([...Array.from(selectedLevels), ...levels], setSelectedLevels)}>All</button>
+                            <button type="button" className="text-xs text-muted-foreground hover:underline"
+                              onClick={() => {
+                                const next = new Set(selectedLevels)
+                                levels.forEach((l) => next.delete(l))
+                                setSelectedLevels(next)
+                              }}>None</button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                            {levels.map((lvl) => (
+                              <Checkbox
+                                key={lvl}
+                                checked={selectedLevels.has(lvl)}
+                                onChange={() => toggleSet(selectedLevels, lvl, setSelectedLevels)}
+                                label={lvl}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </Collapsible>
+                    )
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* Step 3 — SHS Strands */}
+          {selectedPrograms.has("shs") && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <BookOpen className="h-3.5 w-3.5" />
+                SHS Strands
+              </Label>
+              <Collapsible
+                title="Senior High School Strands"
+                count={SHS_STRANDS.filter((s) => selectedStrands.has(s)).length}
+                total={SHS_STRANDS.length}
+                defaultOpen
+              >
+                <div className="space-y-2">
+                  <div className="flex gap-3 mb-2">
+                    <button type="button" className="text-xs text-primary hover:underline"
+                      onClick={() => selectAll(SHS_STRANDS, setSelectedStrands)}>All</button>
+                    <button type="button" className="text-xs text-muted-foreground hover:underline"
+                      onClick={() => deselectAll(setSelectedStrands)}>None</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                    {SHS_STRANDS.map((strand) => (
+                      <Checkbox
+                        key={strand}
+                        checked={selectedStrands.has(strand)}
+                        onChange={() => toggleSet(selectedStrands, strand, setSelectedStrands)}
+                        label={strand}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </Collapsible>
+            </div>
+          )}
+
+          {/* Step 4 — College Courses */}
+          {selectedPrograms.has("college") && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <GraduationCap className="h-3.5 w-3.5" />
+                College Courses
+              </Label>
+              <Collapsible
+                title="Courses"
+                count={COLLEGE_COURSES.filter((c) => selectedCourses.has(c.code)).length}
+                total={COLLEGE_COURSES.length}
+                defaultOpen
+              >
+                <div className="space-y-2">
+                  <div className="flex gap-3 mb-2">
+                    <button type="button" className="text-xs text-primary hover:underline"
+                      onClick={() => selectAll(COLLEGE_COURSES.map((c) => c.code), setSelectedCourses)}>All</button>
+                    <button type="button" className="text-xs text-muted-foreground hover:underline"
+                      onClick={() => deselectAll(setSelectedCourses)}>None</button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                    {COLLEGE_COURSES.map((course) => (
+                      <Checkbox
+                        key={course.code}
+                        checked={selectedCourses.has(course.code)}
+                        onChange={() => toggleSet(selectedCourses, course.code, setSelectedCourses)}
+                        label={`${course.code} – ${course.name}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </Collapsible>
+            </div>
+          )}
+
+          {/* Step 5 — Subjects */}
+          {allSelectableSubjects.length > 0 && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <BookOpen className="h-3.5 w-3.5" />
+                Subjects
+              </Label>
+
               {Array.from(selectedPrograms)
                 .filter((p) => LEVEL_DEFS[p])
-                .map((prog) => {
-                  const levels = LEVEL_DEFS[prog]
-                  const selected = levels.filter((l) => selectedLevels.has(l))
+                .map((prog) =>
+                  LEVEL_DEFS[prog]
+                    .filter((lvl) => selectedLevels.has(lvl))
+                    .map((lvl) => {
+                      const subjects = LEVEL_SUBJECTS[lvl] ?? []
+                      const selCount = subjects.filter((s) => selectedSubjects.has(s)).length
+                      return (
+                        <Collapsible key={lvl} title={lvl} count={selCount} total={subjects.length}>
+                          <div className="space-y-2">
+                            <div className="flex gap-3 mb-2">
+                              <button type="button" className="text-xs text-primary hover:underline"
+                                onClick={() => { const n = new Set(selectedSubjects); subjects.forEach((s) => n.add(s)); setSelectedSubjects(n) }}>All</button>
+                              <button type="button" className="text-xs text-muted-foreground hover:underline"
+                                onClick={() => { const n = new Set(selectedSubjects); subjects.forEach((s) => n.delete(s)); setSelectedSubjects(n) }}>None</button>
+                            </div>
+                            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                              {subjects.map((subj) => (
+                                <Checkbox key={subj} checked={selectedSubjects.has(subj)}
+                                  onChange={() => toggleSet(selectedSubjects, subj, setSelectedSubjects)}
+                                  label={subj} subtle />
+                              ))}
+                            </div>
+                          </div>
+                        </Collapsible>
+                      )
+                    })
+                )}
+
+              {selectedPrograms.has("shs") &&
+                Array.from(selectedStrands).map((strand) => {
+                  const subjects = SHS_STRAND_SUBJECTS[strand] ?? []
+                  const selCount = subjects.filter((s) => selectedSubjects.has(s)).length
                   return (
-                    <Collapsible
-                      key={prog}
-                      title={PROGRAMS.find((p) => p.key === prog)?.label ?? prog}
-                      count={selected.length}
-                      total={levels.length}
-                      defaultOpen
-                    >
+                    <Collapsible key={strand} title={`SHS – ${strand}`} count={selCount} total={subjects.length}>
                       <div className="space-y-2">
                         <div className="flex gap-3 mb-2">
                           <button type="button" className="text-xs text-primary hover:underline"
-                            onClick={() => selectAll(
-                              [...Array.from(selectedLevels), ...levels],
-                              setSelectedLevels
-                            )}>All</button>
+                            onClick={() => { const n = new Set(selectedSubjects); subjects.forEach((s) => n.add(s)); setSelectedSubjects(n) }}>All</button>
                           <button type="button" className="text-xs text-muted-foreground hover:underline"
-                            onClick={() => {
-                              const next = new Set(selectedLevels)
-                              levels.forEach((l) => next.delete(l))
-                              setSelectedLevels(next)
-                            }}>None</button>
+                            onClick={() => { const n = new Set(selectedSubjects); subjects.forEach((s) => n.delete(s)); setSelectedSubjects(n) }}>None</button>
                         </div>
-                        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                          {levels.map((lvl) => (
-                            <Checkbox
-                              key={lvl}
-                              checked={selectedLevels.has(lvl)}
-                              onChange={() => toggleSet(selectedLevels, lvl, setSelectedLevels)}
-                              label={lvl}
-                            />
+                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                          {subjects.map((subj) => (
+                            <Checkbox key={subj} checked={selectedSubjects.has(subj)}
+                              onChange={() => toggleSet(selectedSubjects, subj, setSelectedSubjects)}
+                              label={subj} subtle />
+                          ))}
+                        </div>
+                      </div>
+                    </Collapsible>
+                  )
+                })}
+
+              {selectedPrograms.has("college") &&
+                Array.from(selectedCourses).map((code) => {
+                  const subjects = COURSE_SUBJECTS[code] ?? []
+                  const selCount = subjects.filter((s) => selectedSubjects.has(s)).length
+                  return (
+                    <Collapsible key={code} title={`${code} Subjects`} count={selCount} total={subjects.length}>
+                      <div className="space-y-2">
+                        <div className="flex gap-3 mb-2">
+                          <button type="button" className="text-xs text-primary hover:underline"
+                            onClick={() => { const n = new Set(selectedSubjects); subjects.forEach((s) => n.add(s)); setSelectedSubjects(n) }}>All</button>
+                          <button type="button" className="text-xs text-muted-foreground hover:underline"
+                            onClick={() => { const n = new Set(selectedSubjects); subjects.forEach((s) => n.delete(s)); setSelectedSubjects(n) }}>None</button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                          {subjects.map((subj) => (
+                            <Checkbox key={subj} checked={selectedSubjects.has(subj)}
+                              onChange={() => toggleSet(selectedSubjects, subj, setSelectedSubjects)}
+                              label={subj} subtle />
                           ))}
                         </div>
                       </div>
@@ -451,220 +828,35 @@ export default function OrganizationPage(): React.JSX.Element {
                   )
                 })}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Step 3 — SHS Strands */}
-        {selectedPrograms.has("shs") && (
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <BookOpen className="h-3.5 w-3.5" /> SHS Strands
-            </Label>
-            <Collapsible
-              title="Senior High School Strands"
-              count={SHS_STRANDS.filter((s) => selectedStrands.has(s)).length}
-              total={SHS_STRANDS.length}
-              defaultOpen
-            >
-              <div className="space-y-2">
-                <div className="flex gap-3 mb-2">
-                  <button type="button" className="text-xs text-primary hover:underline"
-                    onClick={() => selectAll(SHS_STRANDS, setSelectedStrands)}>All</button>
-                  <button type="button" className="text-xs text-muted-foreground hover:underline"
-                    onClick={() => deselectAll(setSelectedStrands)}>None</button>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                  {SHS_STRANDS.map((strand) => (
-                    <Checkbox
-                      key={strand}
-                      checked={selectedStrands.has(strand)}
-                      onChange={() => toggleSet(selectedStrands, strand, setSelectedStrands)}
-                      label={strand}
-                    />
-                  ))}
-                </div>
-              </div>
-            </Collapsible>
-          </div>
-        )}
-
-        {/* Step 4 — College Courses */}
-        {selectedPrograms.has("college") && (
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <GraduationCap className="h-3.5 w-3.5" /> College Courses
-            </Label>
-            <Collapsible
-              title="Courses"
-              count={COLLEGE_COURSES.filter((c) => selectedCourses.has(c.code)).length}
-              total={COLLEGE_COURSES.length}
-              defaultOpen
-            >
-              <div className="space-y-2">
-                <div className="flex gap-3 mb-2">
-                  <button type="button" className="text-xs text-primary hover:underline"
-                    onClick={() => selectAll(COLLEGE_COURSES.map((c) => c.code), setSelectedCourses)}>All</button>
-                  <button type="button" className="text-xs text-muted-foreground hover:underline"
-                    onClick={() => deselectAll(setSelectedCourses)}>None</button>
-                </div>
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                  {COLLEGE_COURSES.map((course) => (
-                    <Checkbox
-                      key={course.code}
-                      checked={selectedCourses.has(course.code)}
-                      onChange={() => toggleSet(selectedCourses, course.code, setSelectedCourses)}
-                      label={`${course.code} – ${course.name}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </Collapsible>
-          </div>
-        )}
-
-        {/* Step 5 — Subjects */}
-        {allSelectableSubjects.length > 0 && (
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <BookOpen className="h-3.5 w-3.5" /> Subjects
-            </Label>
-
-            {/* Group by level for non-shs/college */}
-            {Array.from(selectedPrograms)
-              .filter((p) => LEVEL_DEFS[p])
-              .map((prog) =>
-                LEVEL_DEFS[prog]
-                  .filter((lvl) => selectedLevels.has(lvl))
-                  .map((lvl) => {
-                    const subjects = LEVEL_SUBJECTS[lvl] ?? []
-                    const selCount = subjects.filter((s) => selectedSubjects.has(s)).length
-                    return (
-                      <Collapsible key={lvl} title={lvl} count={selCount} total={subjects.length}>
-                        <div className="space-y-2">
-                          <div className="flex gap-3 mb-2">
-                            <button type="button" className="text-xs text-primary hover:underline"
-                              onClick={() => {
-                                const next = new Set(selectedSubjects)
-                                subjects.forEach((s) => next.add(s))
-                                setSelectedSubjects(next)
-                              }}>All</button>
-                            <button type="button" className="text-xs text-muted-foreground hover:underline"
-                              onClick={() => {
-                                const next = new Set(selectedSubjects)
-                                subjects.forEach((s) => next.delete(s))
-                                setSelectedSubjects(next)
-                              }}>None</button>
-                          </div>
-                          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                            {subjects.map((subj) => (
-                              <Checkbox
-                                key={subj}
-                                checked={selectedSubjects.has(subj)}
-                                onChange={() => toggleSet(selectedSubjects, subj, setSelectedSubjects)}
-                                label={subj}
-                                subtle
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </Collapsible>
-                    )
-                  })
-              )}
-
-            {/* SHS strands */}
-            {selectedPrograms.has("shs") &&
-              Array.from(selectedStrands).map((strand) => {
-                const subjects = SHS_STRAND_SUBJECTS[strand] ?? []
-                const selCount = subjects.filter((s) => selectedSubjects.has(s)).length
-                return (
-                  <Collapsible key={strand} title={`SHS – ${strand}`} count={selCount} total={subjects.length}>
-                    <div className="space-y-2">
-                      <div className="flex gap-3 mb-2">
-                        <button type="button" className="text-xs text-primary hover:underline"
-                          onClick={() => {
-                            const next = new Set(selectedSubjects)
-                            subjects.forEach((s) => next.add(s))
-                            setSelectedSubjects(next)
-                          }}>All</button>
-                        <button type="button" className="text-xs text-muted-foreground hover:underline"
-                          onClick={() => {
-                            const next = new Set(selectedSubjects)
-                            subjects.forEach((s) => next.delete(s))
-                            setSelectedSubjects(next)
-                          }}>None</button>
-                      </div>
-                      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                        {subjects.map((subj) => (
-                          <Checkbox
-                            key={subj}
-                            checked={selectedSubjects.has(subj)}
-                            onChange={() => toggleSet(selectedSubjects, subj, setSelectedSubjects)}
-                            label={subj}
-                            subtle
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </Collapsible>
-                )
-              })}
-
-            {/* College courses */}
-            {selectedPrograms.has("college") &&
-              Array.from(selectedCourses).map((code) => {
-                const subjects = COURSE_SUBJECTS[code] ?? []
-                const selCount = subjects.filter((s) => selectedSubjects.has(s)).length
-                return (
-                  <Collapsible key={code} title={`${code} Subjects`} count={selCount} total={subjects.length}>
-                    <div className="space-y-2">
-                      <div className="flex gap-3 mb-2">
-                        <button type="button" className="text-xs text-primary hover:underline"
-                          onClick={() => {
-                            const next = new Set(selectedSubjects)
-                            subjects.forEach((s) => next.add(s))
-                            setSelectedSubjects(next)
-                          }}>All</button>
-                        <button type="button" className="text-xs text-muted-foreground hover:underline"
-                          onClick={() => {
-                            const next = new Set(selectedSubjects)
-                            subjects.forEach((s) => next.delete(s))
-                            setSelectedSubjects(next)
-                          }}>None</button>
-                      </div>
-                      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                        {subjects.map((subj) => (
-                          <Checkbox
-                            key={subj}
-                            checked={selectedSubjects.has(subj)}
-                            onChange={() => toggleSet(selectedSubjects, subj, setSelectedSubjects)}
-                            label={subj}
-                            subtle
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </Collapsible>
-                )
-              })}
-          </div>
-        )}
+        </div>{/* end dimmed wrapper */}
 
         {/* Apply button */}
         <div className="flex items-center justify-between pt-2 border-t">
           <p className="text-xs text-muted-foreground">
-            {selectedPrograms.size === 0
-              ? "Select at least one program to begin."
+            {!selectedSchoolYearId
+              ? "Select a school year to begin."
+              : selectedPrograms.size === 0
+              ? "Select at least one program."
               : `${selectedPrograms.size} program(s) · ${
-                  selectedPrograms.has("college") ? Array.from(selectedCourses).length + " course(s) · " : ""
+                  selectedPrograms.has("college")
+                    ? Array.from(selectedCourses).length + " course(s) · "
+                    : ""
                 }${
-                  selectedPrograms.has("shs") ? Array.from(selectedStrands).length + " strand(s) · " : ""
+                  selectedPrograms.has("shs")
+                    ? Array.from(selectedStrands).length + " strand(s) · "
+                    : ""
                 }${allSelectableSubjects.filter((s) => selectedSubjects.has(s)).length} subject(s) selected`
             }
           </p>
           <Button
             onClick={handleSeed}
-            disabled={seedMutation.isPending || selectedPrograms.size === 0}
+            disabled={
+              seedMutation.isPending ||
+              !selectedSchoolYearId ||
+              selectedPrograms.size === 0
+            }
           >
             {seedMutation.isPending ? (
               <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Seeding...</>

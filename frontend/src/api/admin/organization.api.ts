@@ -13,6 +13,7 @@ export interface UpdateOrganizationRequest {
 }
 
 export interface SeedOrganizationRequest {
+  schoolYearId:      string        // ← required now
   programs:          string[]
   courses?:          string[]
   strands?:          string[]
