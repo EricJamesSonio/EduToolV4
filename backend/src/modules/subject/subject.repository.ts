@@ -92,18 +92,20 @@ export class SubjectRepository {
     yearLevel?:   string
     termLabel?:   string
   }) {
+
+
     const subject = await this.db.subject.create({
       data: {
         org_id:       data.orgId,
         name:         data.name,
         subject_type: data.subjectType ?? 'major',
-        program_id:   data.programId   ?? null,
-        level_id:     data.levelId     ?? null,
-        educator_id:  data.educatorId  ?? null,
-        course_id:    data.courseId    ?? null,
-        strand_id:    data.strandId    ?? null,
-        year_level:   data.yearLevel   ?? null,
-        term_label:   data.termLabel   ?? null,
+        program_id:   data.programId  ?? null,
+        level_id:     data.levelId!,          // ← required, caller must provide
+        educator_id:  data.educatorId ?? null,
+        course_id:    data.courseId   ?? null,
+        strand_id:    data.strandId   ?? null,
+        year_level:   data.yearLevel  ?? null,
+        term_label:   data.termLabel  ?? null,
         is_locked:    false,
       },
     })
@@ -240,18 +242,18 @@ export class SubjectRepository {
       termLabel?:  string | null
     },
   ) {
-    const subject = await this.db.subject.update({
-      where: { id },
-      data: {
-        ...(data.name       !== undefined ? { name:        data.name }       : {}),
-        ...(data.levelId    !== undefined ? { level_id:    data.levelId }    : {}),
-        ...(data.educatorId !== undefined ? { educator_id: data.educatorId } : {}),
-        ...(data.courseId   !== undefined ? { course_id:   data.courseId }   : {}),
-        ...(data.strandId   !== undefined ? { strand_id:   data.strandId }   : {}),
-        ...(data.yearLevel  !== undefined ? { year_level:  data.yearLevel }  : {}),
-        ...(data.termLabel  !== undefined ? { term_label:  data.termLabel }  : {}),
-      },
-    })
+  const subject = await this.db.subject.update({
+    where: { id },
+    data: {
+      ...(data.name      !== undefined ? { name:        data.name }              : {}),
+      ...(data.levelId   !== undefined ? { level_id:    data.levelId! }          : {}),
+      ...(data.educatorId !== undefined ? { educator_id: { set: data.educatorId } } : {}),
+      ...(data.courseId  !== undefined ? { course_id:   { set: data.courseId } } : {}),
+      ...(data.strandId  !== undefined ? { strand_id:   { set: data.strandId } } : {}),
+      ...(data.yearLevel !== undefined ? { year_level:  { set: data.yearLevel } } : {}),
+      ...(data.termLabel !== undefined ? { term_label:  { set: data.termLabel } } : {}),
+    },
+  })
 
     const [enriched] = await this.enrichSubjects([subject])
     return { ...enriched, sharings: [] }
