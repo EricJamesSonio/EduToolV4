@@ -117,7 +117,7 @@ export class SubjectService {
   async unlock(id: string, orgId: string) {
     const subject = await this.subjectRepository.findById(id, orgId)
     if (!subject) throw new NotFoundException('Subject not found.')
-    if (!subject.is_locked) throw new BadRequestExceptionn('Subject is already unlocked.')
+    if (!subject.is_locked) throw new BadRequestException('Subject is already unlocked.')
     const updated = await this.subjectRepository.setLocked(id, false)
     return this.mapToResponse(updated)
   }

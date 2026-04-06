@@ -4,11 +4,9 @@ import {
   MinLength,
   MaxLength,
   IsArray,
-  IsIn,
-  IsUUID,   // ← added
+  IsUUID,
+  Matches,
 } from 'class-validator'
-
-const VALID_PROGRAM_KEYS = ['daycare', 'kinder', 'elementary', 'jhs', 'shs', 'college']
 
 export class CreateOrganizationDto {
   @IsString()
@@ -33,6 +31,13 @@ export class UpdateOrganizationDto {
   @IsString()
   @MaxLength(500)
   description?: string
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
+    message: 'emailExtension must be a valid domain like @edutool.ph',
+  })
+  emailExtension?: string | null
 }
 
 export class SeedOrganizationDto {

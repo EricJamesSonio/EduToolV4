@@ -8,8 +8,9 @@ export interface CreateOrganizationRequest {
 }
 
 export interface UpdateOrganizationRequest {
-  name?:        string
-  description?: string
+  name?: string;
+  description?: string;
+  emailExtension?: string | null;
 }
 
 export interface SeedOrganizationRequest {

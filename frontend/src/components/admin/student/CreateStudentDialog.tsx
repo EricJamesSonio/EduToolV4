@@ -10,6 +10,9 @@ import { studentApi } from "@/api/admin/student.api";
 import type { CreateStudentRequest } from "@/api/admin/student.api";
 import type { Section } from "@/types/admin/section.types";
 
+import { useOrganization } from "@/hooks/admin/useOrganization";
+import { EmailInput } from "@/components/shared/EmailInput";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,6 +62,9 @@ export function CreateStudentDialog({
 }: CreateStudentDialogProps): React.JSX.Element {
   const [credentials, setCredentials] = useState<CredentialsPreview | null>(null);
 
+  const { data: org } = useOrganization();
+  const emailExtension = org?.emailExtension ?? null;
+
   const {
     register,
     handleSubmit,
@@ -76,10 +82,9 @@ export function CreateStudentDialog({
     },
   });
 
-  const selectedLevelId  = watch("levelId");
+  const selectedLevelId = watch("levelId");
   const selectedSectionId = watch("sectionId");
 
-  // Only show sections that belong to the selected level
   const filteredSections = useMemo(() => {
     if (!selectedLevelId) return [];
     return sections.filter((s) => s.level_id === selectedLevelId);
@@ -88,20 +93,20 @@ export function CreateStudentDialog({
   const mutation = useMutation({
     mutationFn: (values: CreateStudentForm) => {
       const payload: CreateStudentRequest = {
-        fullName:  values.fullName,
-        email:     values.email,
+        fullName: values.fullName,
+        email: values.email,
         studentId: values.studentId,
-        levelId:   values.levelId,
+        levelId: values.levelId,
         sectionId: values.sectionId || undefined,
       };
       return studentApi.create(payload).then((res) => ({ res, values }));
     },
     onSuccess: ({ res, values }) => {
       setCredentials({
-        fullName:  values.fullName,
-        email:     values.email,
+        fullName: values.fullName,
+        email: values.email,
         studentId: values.studentId,
-        password:  res.plainPassword,
+        password: res.plainPassword,
       });
       onCreated();
     },
@@ -125,7 +130,7 @@ export function CreateStudentDialog({
           </DialogHeader>
           <div className="space-y-3 mt-1">
             <p className="text-sm text-muted-foreground">
-              Save these credentials — the password won&apost be shown again.
+              Save these credentials — the password won&apos;t be shown again.
             </p>
             <div className="rounded-lg border bg-muted/40 p-4 space-y-2 text-sm font-mono">
               <div><span className="text-muted-foreground">Name: </span>{credentials.fullName}</div>
@@ -163,12 +168,15 @@ export function CreateStudentDialog({
             )}
           </div>
 
+          {/* ✅ UPDATED EMAIL INPUT */}
           <div className="space-y-1.5">
             <Label>Email</Label>
-            <Input
-              type="email"
-              placeholder="e.g. juan@school.edu"
-              {...register("email", { required: "Email is required" })}
+            <EmailInput
+              value={watch("email")}
+              onChange={(v) => setValue("email", v)}
+              extension={emailExtension}
+              placeholder="student"
+              disabled={mutation.isPending}
             />
             {errors.email && (
               <p className="text-xs text-destructive">{errors.email.message}</p>
@@ -192,7 +200,7 @@ export function CreateStudentDialog({
               value={selectedLevelId}
               onValueChange={(v) => {
                 setValue("levelId", v ?? "");
-                setValue("sectionId", ""); // reset section when level changes
+                setValue("sectionId", "");
               }}
             >
               <SelectTrigger>
