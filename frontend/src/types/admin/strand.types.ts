@@ -1,5 +1,3 @@
-// frontend/src/types/admin/strand.types.ts
-
 export interface StrandSubjectPrerequisite {
   prerequisite: {
     id: string;
@@ -17,9 +15,10 @@ export interface StrandSubject {
 
 export interface Strand {
   id: string;
-  orgId: string;       // maps from backend org_id
-  programId: string;   // maps from backend program_id
+  orgId: string;
+  schoolYearId: string; // added — schema school_year_id is now required
+  programId: string;
   name: string;
-  createdAt?: string;  // maps from backend created_at
+  createdAt?: string;
   subjects?: StrandSubject[];
 }

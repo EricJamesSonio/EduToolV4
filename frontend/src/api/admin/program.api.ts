@@ -9,6 +9,7 @@ export type ProgramType =
   | "custom";
 
 export interface CreateProgramRequest {
+  schoolYearId: string; // added — backend @IsUUID() required field
   name: string;
   type: ProgramType;
 }
