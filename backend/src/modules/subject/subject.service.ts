@@ -14,51 +14,50 @@ import {
 export class SubjectService {
   constructor(private readonly subjectRepository: SubjectRepository) {}
 
-  // ─── Mapper ───────────────────────────────────────────────────────────────
-private mapToResponse(subject: any) {
-  return {
-    id: subject.id,
-    orgId: subject.org_id,
-    title: subject.name,
-    programId: subject.level_id,
-    programName: subject.levelName ?? null,      // ← from enrichSubjects
-    educatorId: subject.educator_id,
-    educatorName: subject.educatorName ?? null,  // ← from enrichSubjects
-    lockStatus: subject.is_locked ? 'locked' : 'unlocked',
-    yearLevel: subject.year_level,
-    termLabel: subject.term_label,
-    courseId: subject.course_id,
-    strandId: subject.strand_id,
-    prerequisites: subject.prerequisites ?? [],
-    prereqFor: subject.prereqFor ?? [],
+  private mapToResponse(subject: any) {
+    return {
+      id:           subject.id,
+      orgId:        subject.org_id,
+      title:        subject.name,
+      programId:    subject.level_id,
+      programName:  subject.levelName ?? null,
+      educatorId:   subject.educator_id,
+      educatorName: subject.educatorName ?? null,
+      lockStatus:   subject.is_locked ? 'locked' : 'unlocked',
+      yearLevel:    subject.year_level,
+      termLabel:    subject.term_label,
+      courseId:     subject.course_id,
+      strandId:     subject.strand_id,
+      prerequisites: subject.prerequisites ?? [],
+      prereqFor:     subject.prereqFor ?? [],
+    }
   }
-}
 
-  // ─── CRUD ─────────────────────────────────────────────────────────────────
   async create(orgId: string, dto: CreateSubjectDto) {
     const subject = await this.subjectRepository.create({
       orgId,
-      name: dto.name,
-      levelId: dto.levelId,
+      name:       dto.name,
+      levelId:    dto.levelId,
       educatorId: dto.educatorId,
-      courseId: dto.courseId,
-      strandId: dto.strandId,
-      yearLevel: dto.yearLevel,
-      termLabel: dto.termLabel,
+      courseId:   dto.courseId,
+      strandId:   dto.strandId,
+      yearLevel:  dto.yearLevel,
+      termLabel:  dto.termLabel,
     })
     return this.mapToResponse(subject)
   }
 
   async findAll(orgId: string, query: QuerySubjectDto) {
     const subjects = await this.subjectRepository.findAll(orgId, {
-      levelId: query.levelId,
-      educatorId: query.educatorId,
-      search: query.search,
-      courseId: query.courseId,
-      strandId: query.strandId,
-      scope: query.scope,
-      yearLevel: query.yearLevel,
-      termLabel: query.termLabel,
+      schoolYearId: query.schoolYearId, // ← threaded through
+      levelId:      query.levelId,
+      educatorId:   query.educatorId,
+      search:       query.search,
+      courseId:     query.courseId,
+      strandId:     query.strandId,
+      scope:        query.scope,
+      yearLevel:    query.yearLevel,
+      termLabel:    query.termLabel,
     })
     return subjects.map((s) => this.mapToResponse(s))
   }
@@ -78,11 +77,11 @@ private mapToResponse(subject: any) {
       )
     }
     const updated = await this.subjectRepository.update(id, {
-      name: dto.name,
-      levelId: dto.levelId,
+      name:      dto.name,
+      levelId:   dto.levelId,
       educatorId: dto.educatorId,
-      courseId: dto.courseId,
-      strandId: dto.strandId,
+      courseId:  dto.courseId,
+      strandId:  dto.strandId,
       yearLevel: dto.yearLevel,
       termLabel: dto.termLabel,
     })

@@ -3,69 +3,67 @@ import type { Subject } from "@/types/admin/subject.types";
 import type { AxiosResponse } from "axios";
 
 export interface CreateSubjectRequest {
-  name: string;
-  levelId: string;
+  name:        string;
+  levelId:     string;
   educatorId?: string;
 }
 
 export interface UpdateSubjectRequest {
-  name?: string;
-  levelId?: string;
-  educatorId?: string;
+  name?:        string;
+  levelId?:     string;
+  educatorId?:  string;
 }
 
 export interface GetSubjectsQuery {
-  levelId?: string;
-  educatorId?: string;
-  search?: string;
+  schoolYearId?: string;   // ← added
+  levelId?:      string;
+  educatorId?:   string;
+  search?:       string;
 }
 
-// Backend Subject DTO
 interface SubjectResponse {
-  id: string;
-  orgId: string;
-  title: string;
-  programId: string;
+  id:           string;
+  orgId:        string;
+  title:        string;
+  programId:    string;
   programName?: string;
-  courseId: string | null;
-  educatorId?: string | null;
+  courseId:     string | null;
+  educatorId?:  string | null;
   educatorName?: string | null;
-  lockStatus: "locked" | "unlocked";
-  yearLevel?: string | null;
-  termLabel?: string | null;
-  strandId?: string | null;
+  lockStatus:   "locked" | "unlocked";
+  yearLevel?:   string | null;
+  termLabel?:   string | null;
+  strandId?:    string | null;
   prerequisites?: unknown[];
-  prereqFor?: unknown[];
-  createdAt?: string;
-  updatedAt?: string;
+  prereqFor?:     unknown[];
+  createdAt?:   string;
+  updatedAt?:   string;
 }
 
-// Wrapper for getAll response
 interface GetSubjectsResponse {
   success: boolean;
-  data: SubjectResponse[];
+  data:    SubjectResponse[];
 }
 
 export const subjectApi = {
   getAll: async (params?: GetSubjectsQuery): Promise<Subject[]> => {
     const res: AxiosResponse<GetSubjectsResponse> = await client.get("/subjects", { params });
-
     return res.data.data.map((s) => ({
-      id: s.id,
-      orgId: s.orgId,
-      title: s.title,
-      gradeLevel: s.yearLevel ?? "",
-      programId: s.programId,
-      programName: s.programName ?? "",
-      courseId: s.courseId,
-      courseName: null,
-      educatorId: s.educatorId ?? null,
-      educatorName: s.educatorName ?? null,
-      gradingSystemId: null,
+      id:                s.id,
+      orgId:             s.orgId,
+      title:             s.title,
+      gradeLevel:        s.yearLevel ?? "",
+      programId:         s.programId,
+      programName:       s.programName ?? "",
+      courseId:          s.courseId,
+      courseName:        null,
+      educatorId:        s.educatorId ?? null,
+      educatorName:      s.educatorName ?? null,
+      gradingSystemId:   null,
       gradingSystemName: null,
-      lockStatus: s.lockStatus,
-      createdAt: s.createdAt ?? "",
-      updatedAt: s.updatedAt ?? "",
+      lockStatus:        s.lockStatus,
+      createdAt:         s.createdAt ?? "",
+      updatedAt:         s.updatedAt ?? "",
     }));
   },
 
