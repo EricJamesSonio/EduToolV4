@@ -29,8 +29,6 @@ import {
 import type { Level } from "@/types/admin/level.types";
 import type { Program } from "@/types/admin/program.types";
 
-// ─── Inline Edit ──────────────────────────────────────────────────────────────
-
 function InlineEdit({
   value,
   onSave,
@@ -43,7 +41,6 @@ function InlineEdit({
   isLoading: boolean;
 }): React.JSX.Element {
   const [draft, setDraft] = useState(value);
-
   return (
     <div className="flex items-center gap-2 flex-1 min-w-0">
       <Input
@@ -75,8 +72,6 @@ function InlineEdit({
     </div>
   );
 }
-
-// ─── Generate Config ───────────────────────────────────────────────────────────
 
 function getCountConfig(type: string): {
   label: string;
@@ -132,8 +127,6 @@ function getCountConfig(type: string): {
   }
 }
 
-// ─── Generate Levels Row ───────────────────────────────────────────────────────
-
 function GenerateLevelsRow({
   programType,
   onGenerate,
@@ -147,7 +140,6 @@ function GenerateLevelsRow({
 }): React.JSX.Element {
   const cfg = getCountConfig(programType);
   const [count, setCount] = useState(cfg.default);
-
   return (
     <div className="flex items-center gap-3 px-4 py-3 bg-muted/30 border-t flex-wrap">
       <span className="text-sm text-muted-foreground">{cfg.label}:</span>
@@ -193,8 +185,6 @@ function GenerateLevelsRow({
     </div>
   );
 }
-
-// ─── Program Group ─────────────────────────────────────────────────────────────
 
 function ProgramGroup({
   program,
@@ -345,8 +335,6 @@ function ProgramGroup({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function SchoolYearLevelsPage({
   params,
 }: {
@@ -367,9 +355,10 @@ export default function SchoolYearLevelsPage({
     queryFn: () => levelApi.getBySchoolYear(id),
   });
 
+  // ↓ THE FIX: pass the school year id so the backend returns programs for this year
   const { data: programs, isLoading: programsLoading } = useQuery({
-    queryKey: ["admin", "programs"],
-    queryFn: programApi.getAll,
+    queryKey: ["admin", "programs", id],
+    queryFn: () => programApi.getAll(id),
   });
 
   const invalidate = () =>
@@ -410,7 +399,6 @@ export default function SchoolYearLevelsPage({
   const isLoading = syLoading || levelsLoading || programsLoading;
   const isEnded = schoolYear?.status === "ended";
 
-  // Group levels by program_id
   const levelsByProgram = (levels ?? []).reduce<Record<string, Level[]>>(
     (acc, level) => {
       if (!acc[level.program_id]) acc[level.program_id] = [];
@@ -481,16 +469,16 @@ export default function SchoolYearLevelsPage({
         <div className="rounded-lg border bg-card px-6 py-12 text-center">
           <Layers className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-sm font-medium text-muted-foreground">
-            No programs found
+            No programs found for this school year
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Set up programs before managing levels.
+            Run the data seeder on the Organization page to set up programs.
           </p>
           <Link
-            href="/admin/programs"
+            href="/admin/organization"
             className="mt-3 inline-block text-xs text-primary hover:underline"
           >
-            Go to Programs →
+            Go to Organization → 
           </Link>
         </div>
       ) : (
