@@ -9,6 +9,7 @@ export type ProgramType =
   | "custom";
 
 export interface CreateProgramRequest {
+  schoolYearId: string; // added — backend @IsUUID() required field
   name: string;
   type: ProgramType;
 }
@@ -19,9 +20,12 @@ export interface UpdateProgramRequest {
 }
 
 export const programApi = {
-  getAll: async (): Promise<Program[]> => {
+  getAll: async (schoolYearId?: string): Promise<Program[]> => {
     const res = await client.get<{ success: boolean; data: Program[] }>(
-      "/programs"
+      "/programs",
+      {
+        params: schoolYearId ? { schoolYearId } : undefined,
+      }
     );
     return res.data.data;
   },

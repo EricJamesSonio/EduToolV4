@@ -1,101 +1,80 @@
-import { Injectable } from '@nestjs/common';
-import { DatabaseService } from '@/core/database/database.provider';
+import { Injectable } from '@nestjs/common'
+import { DatabaseService } from '@/core/database/database.provider'
+import { buildLevelDefs } from '@/modules/org-seeder/data/levels.data'
 
 @Injectable()
 export class LevelRepository {
   constructor(private readonly db: DatabaseService) {}
 
-  async findDefaultsByOrgId(orgId: string) {
-    return this.db.level.findMany({
-      where: { org_id: orgId, school_year_id: null }, // defaults have no school year
-      orderBy: [{ program_id: 'asc' }, { name: 'asc' }],
-    });
-  }
-
-  async upsertDefaults(
-    orgId: string,
-    levels: Array<{ id?: string; programId: string; name: string }>,
-  ) {
-    const ops = levels.map((level) => {
-      if (level.id) {
-        return this.db.level.update({
-          where: { id: level.id },
-          data: { name: level.name },
-        });
-      }
-      return this.db.level.create({
-        data: {
-          org_id: orgId,
-          program_id: level.programId,
-          name: level.name,
-          school_year_id: null, // explicitly a default
-        },
-      });
-    });
-    return this.db.$transaction(ops);
-  }
-
-  // ✅ Fixed: now actually filters by school_year_id
   async findBySchoolYear(orgId: string, schoolYearId: string) {
     return this.db.level.findMany({
       where: { org_id: orgId, school_year_id: schoolYearId },
       orderBy: [{ program_id: 'asc' }, { name: 'asc' }],
-    });
+    })
   }
 
-  async seedFromDefaults(orgId: string, schoolYearId: string) {
-    const defaults = await this.findDefaultsByOrgId(orgId);
-    if (defaults.length === 0) return [];
+  // Rebuild levels for a new school year from static program definitions
+  // Uses program records already seeded for that school year
+  async seedFromDefaults(
+    orgId: string,
+    schoolYearId: string,
+    programMap: Record<string, string>, // programKey → programId
+  ) {
+    const levelDefs = buildLevelDefs().filter(
+      (l) => !!programMap[l.programKey],
+    )
+    if (levelDefs.length === 0) return []
 
-    const ops = defaults.map((level) =>
-      this.db.level.create({
+    const created: any[] = []
+    for (const lvl of levelDefs) {
+      const level = await this.db.level.create({
         data: {
-          org_id: orgId,
-          program_id: level.program_id,
-          name: level.name,
+          org_id:         orgId,
           school_year_id: schoolYearId,
+          program_id:     programMap[lvl.programKey],
+          name:           lvl.name,
         },
-      }),
-    );
-    return this.db.$transaction(ops);
+      })
+      created.push(level)
+    }
+    return created
   }
 
   async findById(id: string, orgId: string) {
-    return this.db.level.findFirst({
-      where: { id, org_id: orgId },
-    });
+    return this.db.level.findFirst({ where: { id, org_id: orgId } })
   }
 
   async update(id: string, data: { name?: string }) {
-    return this.db.level.update({
-      where: { id }, // ✅ Fixed: Prisma delete/update only accepts unique field
-      data,
-    });
+    return this.db.level.update({ where: { id }, data })
   }
 
-  async create(orgId: string, data: { programId: string; schoolYearId: string; name: string }) {
+  async create(orgId: string, data: {
+    programId: string
+    schoolYearId: string
+    name: string
+  }) {
     return this.db.level.create({
       data: {
-        org_id: orgId,
-        program_id: data.programId,
+        org_id:         orgId,
         school_year_id: data.schoolYearId,
-        name: data.name,
+        program_id:     data.programId,
+        name:           data.name,
       },
-    });
+    })
   }
 
-  // ✅ Fixed: Prisma delete requires unique field only
   async delete(id: string) {
-    return this.db.level.delete({
-      where: { id },
-    });
+    return this.db.level.delete({ where: { id } })
   }
 
-  async findAll(orgId: string) {
+  async findAll(orgId: string, schoolYearId?: string) {
     return this.db.level.findMany({
-      where: { org_id: orgId },
+      where: {
+        org_id: orgId,
+        ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
+      },
       orderBy: [{ program_id: 'asc' }, { name: 'asc' }],
-    });
+    })
   }
 
   async deleteByProgramAndSchoolYear(
@@ -105,33 +84,30 @@ export class LevelRepository {
   ): Promise<void> {
     await this.db.level.deleteMany({
       where: { org_id: orgId, program_id: programId, school_year_id: schoolYearId },
-    });
+    })
   }
 
-  async bulkCreate(
-    levels: Array<{
-      orgId: string;
-      programId: string;
-      schoolYearId: string;
-      name: string;
-    }>,
-  ) {
+  async bulkCreate(levels: Array<{
+    orgId: string
+    programId: string
+    schoolYearId: string
+    name: string
+  }>) {
     await this.db.level.createMany({
       data: levels.map((l) => ({
-        org_id: l.orgId,
-        program_id: l.programId,
+        org_id:         l.orgId,
         school_year_id: l.schoolYearId,
-        name: l.name,
+        program_id:     l.programId,
+        name:           l.name,
       })),
-    });
-
+    })
     return this.db.level.findMany({
       where: {
-        org_id: levels[0].orgId,
-        program_id: levels[0].programId,
+        org_id:         levels[0].orgId,
+        program_id:     levels[0].programId,
         school_year_id: levels[0].schoolYearId,
       },
       orderBy: { name: 'asc' },
-    });
+    })
   }
 }

@@ -62,7 +62,12 @@ interface ApiResponse<T> {
 
 export const studentApi = {
   getAll: async (query?: GetStudentsQuery): Promise<Student[]> => {
-    const res = await client.get<ApiResponse<Student[]>>("/students", { params: query });
+    const params = query
+      ? Object.fromEntries(
+          Object.entries(query).filter(([, v]) => v !== undefined && v !== "")
+        )
+      : undefined;
+    const res = await client.get<ApiResponse<Student[]>>("/students", { params });
     return res.data.data;
   },
 

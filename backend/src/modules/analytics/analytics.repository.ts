@@ -1,4 +1,3 @@
-// @/modules/analytics/analytics.repository.ts
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { GradeAnalyticsQueryDto } from './dto/analytics.dto';
@@ -6,8 +5,6 @@ import { GradeAnalyticsQueryDto } from './dto/analytics.dto';
 @Injectable()
 export class AnalyticsRepository {
   constructor(private readonly db: DatabaseService) {}
-
-  // ── STUDENTS ───────────────────────────────────────────────
 
   async countStudents(orgId: string) {
     return this.db.account.count({
@@ -17,34 +14,20 @@ export class AnalyticsRepository {
 
   async countStudentsByStatus(orgId: string, status: any) {
     return this.db.account.count({
-      where: {
-        org_id: orgId,
-        role: 'student',
-        status,
-      },
+      where: { org_id: orgId, role: 'student', status },
     });
   }
 
   async groupStudentsByStatus(orgId: string) {
     const result = await this.db.account.groupBy({
       by: ['status'],
-      where: {
-        org_id: orgId,
-        role: 'student',
-      },
+      where: { org_id: orgId, role: 'student' },
       _count: true,
     });
-
     const formatted: Record<string, number> = {};
-
-    result.forEach(r => {
-      formatted[r.status] = r._count;
-    });
-
+    result.forEach((r) => { formatted[r.status] = r._count; });
     return formatted;
   }
-
-  // ── EDUCATORS ──────────────────────────────────────────────
 
   async countEducators(orgId: string) {
     return this.db.account.count({
@@ -57,99 +40,63 @@ export class AnalyticsRepository {
       where: { org_id: orgId },
       select: {
         educator_id: true,
-        enrollments: {
-          select: { id: true },
-        },
+        enrollments: { select: { id: true } },
       },
     });
 
-    const map: Record<
-      string,
-      { totalClasses: number; totalStudents: number }
-    > = {};
-
+    const map: Record<string, { totalClasses: number; totalStudents: number }> = {};
     for (const cls of classes) {
       if (!map[cls.educator_id]) {
-        map[cls.educator_id] = {
-          totalClasses: 0,
-          totalStudents: 0,
-        };
+        map[cls.educator_id] = { totalClasses: 0, totalStudents: 0 };
       }
-
       map[cls.educator_id].totalClasses += 1;
       map[cls.educator_id].totalStudents += cls.enrollments.length;
     }
-
-    return Object.entries(map).map(([educatorId, data]) => ({
-      educatorId,
-      ...data,
-    }));
+    return Object.entries(map).map(([educatorId, data]) => ({ educatorId, ...data }));
   }
 
-  // ── CLASSES ────────────────────────────────────────────────
-
   async countClasses(orgId: string) {
-    return this.db.class.count({
-      where: { org_id: orgId },
-    });
+    return this.db.class.count({ where: { org_id: orgId } });
   }
 
   async countUnlockedClasses(orgId: string) {
     return this.db.gradeLock.count({
-      where: {
-        org_id: orgId,
-        is_locked: false,
-      },
+      where: { org_id: orgId, is_locked: false },
     });
   }
 
-  // ── GRADES ─────────────────────────────────────────────────
-
-  async getLockedGrades(
-    orgId: string,
-    query: GradeAnalyticsQueryDto,
-  ) {
+  async getLockedGrades(orgId: string, query: GradeAnalyticsQueryDto) {
     return this.db.grade.findMany({
       where: {
         org_id: orgId,
         is_locked: true,
-
         ...(query.classId && { class_id: query.classId }),
         ...(query.termId && { term_id: query.termId }),
       },
-      select: {
-        final_score: true,
-        final_grade: true,
-      },
+      select: { final_score: true, final_grade: true },
     });
   }
 
-
   async getEnrollmentBreakdown(orgId: string) {
-    const [sections, levels, programs, classes] = await Promise.all([
-      this.db.section.findMany({
-        where: { org_id: orgId, deleted_at: null },
-      }),
-      this.db.level.findMany({
-        where: { org_id: orgId },
-      }),
-      this.db.program.findMany({
-        where: { org_id: orgId },
-      }),
-      this.db.class.findMany({
-        where: { org_id: orgId, deleted_at: null },
-        select: {
-          section_id: true,
-          enrollments: { select: { status: true } },
+    const sections = await this.db.section.findMany({
+      where: { org_id: orgId, deleted_at: null },
+      include: {
+        level: {
+          include: {
+            program: true,
+          },
         },
-      }),
-    ]);
+      },
+    });
 
-    // Build lookup maps using the exact field names Prisma returns
-    const levelMap = new Map(levels.map((l) => [l.id, l]));
-    const programMap = new Map(programs.map((p) => [p.id, p]));
+    const classes = await this.db.class.findMany({
+      where: { org_id: orgId, deleted_at: null },
+      select: {
+        section_id: true,
+        enrollments: { select: { status: true } },
+      },
+    });
 
-    // Aggregate enrollment counts per section
     const sectionEnrollments = new Map<string, { active: number; pending: number }>();
     for (const cls of classes) {
       if (!cls.section_id) continue;
@@ -164,15 +111,11 @@ export class AnalyticsRepository {
     }
 
     return sections.map((section) => {
-      const level = levelMap.get(section.level_id);
-      // level.program_id is snake_case from Prisma since no remapping in schema
-      const program = level ? programMap.get(level.program_id) : null;
       const counts = sectionEnrollments.get(section.id) ?? { active: 0, pending: 0 };
-
       return {
-        levelSection: `${level?.name ?? '—'} - ${section.name}`,
-        programName: program?.name ?? '—',
-        gradeLevel: level?.name ?? '—',
+        levelSection: `${section.level.name} - ${section.name}`,
+        programName: section.level.program.name,
+        gradeLevel: section.level.name,
         sectionName: section.name,
         activeCount: counts.active,
         pendingCount: counts.pending,

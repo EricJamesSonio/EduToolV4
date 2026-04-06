@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,65 +13,76 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  Users,
-  UserSquare2,
-  GraduationCap,
-  AlertTriangle,
-  ArrowRight,
-  Building2,
-} from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Users, UserSquare2, GraduationCap, AlertTriangle, ArrowRight, Building2, ChevronRight, ChevronLeft, Check } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 import type { EnrollmentBreakdownRow } from "@/types/admin/analytics.types";
 import { cn } from "@/lib/utils";
 
-// ─── Setup Modal ──────────────────────────────────────────────────────────────
+// ── Program options ────────────────────────────────────────────────────────────
+
+const PROGRAM_OPTIONS = [
+  {
+    key: "daycare",
+    label: "Daycare / Pre-School",
+    description: "Daycare 1 & 2 with foundational learning areas",
+  },
+  {
+    key: "kinder",
+    label: "Kindergarten",
+    description: "Kinder 1 & 2 with early childhood curriculum",
+  },
+  {
+    key: "elementary",
+    label: "Elementary School",
+    description: "Grade 1–6 with core K-12 subjects",
+  },
+  {
+    key: "jhs",
+    label: "Junior High School",
+    description: "Grade 7–10 with core K-12 subjects",
+  },
+  {
+    key: "shs",
+    label: "Senior High School",
+    description: "Grade 11–12 across all SHS strands",
+  },
+  {
+    key: "college",
+    label: "College / University",
+    description: "Year-level courses with full subject curriculum",
+  },
+] as const;
+
+// ── Setup Form types ───────────────────────────────────────────────────────────
 
 interface SetupForm {
   name: string;
   description: string;
 }
 
-function OrgSetupModal({
-  open,
-  onSuccess,
-  onSkip,
-}: {
-  open: boolean;
-  onSuccess: () => void;
-  onSkip: () => void;
+// ── OrgSetupModal ──────────────────────────────────────────────────────────────
+
+function OrgSetupModal({ open, onSuccess, onSkip }: {
+  open: boolean
+  onSuccess: () => void
+  onSkip: () => void
 }): React.JSX.Element {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<SetupForm>({ defaultValues: { name: "", description: "" } });
+  const { register, handleSubmit, formState: { errors } } =
+    useForm<{ name: string; description: string }>({
+      defaultValues: { name: "", description: "" },
+    })
 
   const mutation = useMutation({
     mutationFn: organizationApi.createOrg,
     onSuccess: () => {
-      toast.success("Organization created! Welcome to EduTool.");
-      onSuccess();
+      toast.success("Organization created! Welcome to EduTool.")
+      onSuccess()
     },
     onError: () => toast.error("Failed to create organization."),
-  });
-
-  const onSubmit = (values: SetupForm) => {
-    mutation.mutate({
-      name: values.name,
-      description: values.description || undefined,
-    });
-  };
+  })
 
   return (
-    // onOpenChange does nothing — modal is intentionally non-dismissible
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-md" showCloseButton={false}>
         <DialogHeader>
@@ -81,33 +91,31 @@ function OrgSetupModal({
           </div>
           <DialogTitle className="text-lg">Set up your organization</DialogTitle>
           <DialogDescription>
-            Before you get started, give your school a name. You can update
-            this later from the Organization settings.
+            Before you get started, give your school a name. You can update this later
+            from the Organization settings.
           </DialogDescription>
         </DialogHeader>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
+        <form
+          onSubmit={handleSubmit((v) =>
+            mutation.mutate({ name: v.name, description: v.description || undefined })
+          )}
+          className="space-y-4 mt-2"
+        >
           <div className="space-y-1.5">
             <Label htmlFor="org-name">School / Organization Name</Label>
             <Input
               id="org-name"
               placeholder="e.g. St. Mary's Academy"
               {...register("name", {
-                required: "Name is required",
+                required:  "Name is required",
                 minLength: { value: 2, message: "At least 2 characters" },
               })}
             />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
           </div>
-
           <div className="space-y-1.5">
             <Label htmlFor="org-desc">
-              Description{" "}
-              <span className="text-muted-foreground font-normal">
-                (optional)
-              </span>
+              Description <span className="text-muted-foreground font-normal">(optional)</span>
             </Label>
             <Textarea
               id="org-desc"
@@ -116,15 +124,9 @@ function OrgSetupModal({
               {...register("description")}
             />
           </div>
-
-<Button
-            type="submit"
-            className="w-full"
-            disabled={mutation.isPending}
-          >
+          <Button type="submit" className="w-full" disabled={mutation.isPending}>
             {mutation.isPending ? "Creating..." : "Create Organization"}
           </Button>
-
           <Button
             type="button"
             variant="ghost"
@@ -134,14 +136,13 @@ function OrgSetupModal({
           >
             Not now
           </Button>
-          
         </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
+// ── StatCard ───────────────────────────────────────────────────────────────────
 
 interface StatCardProps {
   label: string;
@@ -152,35 +153,21 @@ interface StatCardProps {
   action?: { label: string; onClick: () => void };
 }
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  isLoading,
-  warning,
-  action,
-}: StatCardProps): React.JSX.Element {
+function StatCard({ label, value, icon: Icon, isLoading, warning, action }: StatCardProps): React.JSX.Element {
   return (
-    <div
-      className={cn(
-        "rounded-lg border bg-card p-5 flex items-start justify-between gap-4",
-        warning &&
-          value &&
-          value > 0 &&
-          "border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20"
-      )}
-    >
+    <div className={cn(
+      "rounded-lg border bg-card p-5 flex items-start justify-between gap-4",
+      warning && value && value > 0 && "border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20"
+    )}>
       <div className="space-y-1">
         <p className="text-sm text-muted-foreground">{label}</p>
         {isLoading ? (
           <Skeleton className="h-8 w-16" />
         ) : (
-          <p
-            className={cn(
-              "text-3xl font-bold tracking-tight",
-              warning && value && value > 0 && "text-amber-600"
-            )}
-          >
+          <p className={cn(
+            "text-3xl font-bold tracking-tight",
+            warning && value && value > 0 && "text-amber-600"
+          )}>
             {value ?? 0}
           </p>
         )}
@@ -194,68 +181,52 @@ function StatCard({
           </button>
         )}
       </div>
-      <div
-        className={cn(
-          "rounded-md p-2 bg-muted",
-          warning && value && value > 0 && "bg-amber-100 dark:bg-amber-900/30"
-        )}
-      >
-        <Icon
-          className={cn(
-            "h-5 w-5 text-muted-foreground",
-            warning && value && value > 0 && "text-amber-600"
-          )}
-        />
+      <div className={cn(
+        "rounded-md p-2 bg-muted",
+        warning && value && value > 0 && "bg-amber-100 dark:bg-amber-900/30"
+      )}>
+        <Icon className={cn(
+          "h-5 w-5 text-muted-foreground",
+          warning && value && value > 0 && "text-amber-600"
+        )} />
       </div>
     </div>
   );
 }
 
-// ─── Enrollment Table Columns ─────────────────────────────────────────────────
+// ── Enrollment table columns ───────────────────────────────────────────────────
 
 const enrollmentColumns: ColumnDef<EnrollmentBreakdownRow>[] = [
   {
     accessorKey: "levelSection",
     header: "Level Section",
-    cell: ({ row }) => (
-      <span className="font-medium">{row.original.levelSection}</span>
-    ),
+    cell: ({ row }) => <span className="font-medium">{row.original.levelSection}</span>,
   },
   {
     accessorKey: "programName",
     header: "Program / Course",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.original.programName}</span>
-    ),
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.programName}</span>,
   },
   {
     accessorKey: "gradeLevel",
     header: "Year / Grade",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.original.gradeLevel}</span>
-    ),
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.gradeLevel}</span>,
   },
   { accessorKey: "sectionName", header: "Section" },
   {
     accessorKey: "activeCount",
     header: "Active",
     cell: ({ row }) => (
-      <span className="text-green-600 font-medium">
-        {row.original.activeCount}
-      </span>
+      <span className="text-green-600 font-medium">{row.original.activeCount}</span>
     ),
   },
   {
     accessorKey: "pendingCount",
     header: "Pending",
     cell: ({ row }) => (
-      <span
-        className={cn(
-          row.original.pendingCount > 0
-            ? "text-amber-600 font-medium"
-            : "text-muted-foreground"
-        )}
-      >
+      <span className={cn(
+        row.original.pendingCount > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"
+      )}>
         {row.original.pendingCount}
       </span>
     ),
@@ -263,13 +234,11 @@ const enrollmentColumns: ColumnDef<EnrollmentBreakdownRow>[] = [
   {
     accessorKey: "totalCount",
     header: "Total",
-    cell: ({ row }) => (
-      <span className="font-semibold">{row.original.totalCount}</span>
-    ),
+    cell: ({ row }) => <span className="font-semibold">{row.original.totalCount}</span>,
   },
 ];
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function AdminDashboardPage(): React.JSX.Element {
   const router = useRouter();
@@ -279,7 +248,7 @@ export default function AdminDashboardPage(): React.JSX.Element {
   const { data: org, isLoading: orgLoading } = useQuery({
     queryKey: ["admin", "organization"],
     queryFn: organizationApi.getOrg,
-    retry: false, // don't retry 404s
+    retry: false,
   });
 
   const { data: overview, isLoading: overviewLoading } = useQuery({
@@ -312,42 +281,21 @@ export default function AdminDashboardPage(): React.JSX.Element {
         open={showSetup}
         onSuccess={handleOrgCreated}
         onSkip={() => setShowSetup(false)}
-        />
-
+      />
       <PageHeader title="Dashboard" />
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Total Students"
-          value={overview?.totalStudents}
-          icon={Users}
-          isLoading={overviewLoading}
-        />
-        <StatCard
-          label="Total Educators"
-          value={overview?.totalEducators}
-          icon={UserSquare2}
-          isLoading={overviewLoading}
-        />
-        <StatCard
-          label="Active Classes"
-          value={overview?.totalClasses}
-          icon={GraduationCap}
-          isLoading={overviewLoading}
-        />
+        <StatCard label="Total Students" value={overview?.totalStudents} icon={Users} isLoading={overviewLoading} />
+        <StatCard label="Total Educators" value={overview?.totalEducators} icon={UserSquare2} isLoading={overviewLoading} />
+        <StatCard label="Active Classes" value={overview?.totalClasses} icon={GraduationCap} isLoading={overviewLoading} />
         <StatCard
           label="Pending Students"
           value={overview?.pendingStudents}
           icon={AlertTriangle}
           isLoading={overviewLoading}
           warning
-          action={{
-            label: "Resolve",
-            onClick: () => router.push("/admin/students?status=Pending"),
-          }}
+          action={{ label: "Resolve", onClick: () => router.push("/admin/students?status=Pending") }}
         />
       </div>
-
       <div className="space-y-3">
         <h2 className="text-base font-semibold">Enrollment Breakdown</h2>
         <DataTable

@@ -29,6 +29,14 @@ const db = new PrismaClient();
 /** Org id injected at runtime — replace or pass as env var */
 const ORG_ID = process.env.SEED_ORG_ID ?? 'ORG_ID_PLACEHOLDER';
 
+/** School year id — must exist before running this seed */
+const SCHOOL_YEAR_ID = process.env.SEED_SCHOOL_YEAR_ID ?? '';
+
+if (!SCHOOL_YEAR_ID) {
+  console.error('❌ SEED_SCHOOL_YEAR_ID env var is required');
+  process.exit(1);
+}
+
 function id() { return uuid() }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -204,7 +212,6 @@ const SHS_STRAND_DEFS = [
 /**
  * Ranges stored as JSON array:
  *   { min: number, max: number, label: string }[]
- * school_year_id is null — linked when admin creates the first school year.
  */
 
 const SCALE_K12 = [
@@ -831,6 +838,7 @@ function allSubjects(): SubjectDef[] {
 
 async function main() {
   console.log('🌱 Starting seed for org:', ORG_ID)
+  console.log('  → School Year:', SCHOOL_YEAR_ID)
   console.log('  → Programs:', SELECTED_PROGRAMS ? [...SELECTED_PROGRAMS].join(', ') : 'all')
 
   // Programs — only seed selected ones
@@ -838,13 +846,14 @@ async function main() {
   for (const p of PROGRAMS) {
     if (!shouldSeed(p.key)) continue
     const rec = await db.program.upsert({
-      where: { id: `seed-prog-${p.key}-${ORG_ID}` },
+      where:  { id: `seed-prog-${p.key}-${ORG_ID}` },
       update: {},
       create: {
-        id:     `seed-prog-${p.key}-${ORG_ID}`,
-        org_id: ORG_ID,
-        name:   p.name,
-        type:   p.type,
+        id:             `seed-prog-${p.key}-${ORG_ID}`,
+        org_id:         ORG_ID,
+        school_year_id: SCHOOL_YEAR_ID,   // ← added
+        name:           p.name,
+        type:           p.type,
       },
     })
     programMap[p.key] = rec.id
@@ -856,28 +865,30 @@ async function main() {
     console.log('  → Courses')
     for (const c of COLLEGE_COURSES) {
       const rec = await db.course.upsert({
-        where: { id: `seed-course-${c.code}-${ORG_ID}` },
+        where:  { id: `seed-course-${c.code}-${ORG_ID}` },
         update: {},
         create: {
-          id:         `seed-course-${c.code}-${ORG_ID}`,
-          org_id:     ORG_ID,
-          program_id: programMap['college'],
-          name:       c.name,
-          code:       c.code,
+          id:             `seed-course-${c.code}-${ORG_ID}`,
+          org_id:         ORG_ID,
+          school_year_id: SCHOOL_YEAR_ID,   // ← added
+          program_id:     programMap['college'],
+          name:           c.name,
+          code:           c.code,
         },
       })
       courseMap[c.code] = rec.id
     }
     for (const m of BSED_MAJORS) {
       const rec = await db.course.upsert({
-        where: { id: `seed-course-${m.code}-${ORG_ID}` },
+        where:  { id: `seed-course-${m.code}-${ORG_ID}` },
         update: {},
         create: {
-          id:         `seed-course-${m.code}-${ORG_ID}`,
-          org_id:     ORG_ID,
-          program_id: programMap['college'],
-          name:       m.name,
-          code:       m.code,
+          id:             `seed-course-${m.code}-${ORG_ID}`,
+          org_id:         ORG_ID,
+          school_year_id: SCHOOL_YEAR_ID,   // ← added
+          program_id:     programMap['college'],
+          name:           m.name,
+          code:           m.code,
         },
       })
       courseMap[m.code] = rec.id
@@ -890,13 +901,14 @@ async function main() {
     console.log('  → Strands')
     for (const s of SHS_STRAND_DEFS) {
       const rec = await db.strand.upsert({
-        where: { id: `seed-strand-${s.name.replace(/\s+/g, '-')}-${ORG_ID}` },
+        where:  { id: `seed-strand-${s.name.replace(/\s+/g, '-')}-${ORG_ID}` },
         update: {},
         create: {
-          id:         `seed-strand-${s.name.replace(/\s+/g, '-')}-${ORG_ID}`,
-          org_id:     ORG_ID,
-          program_id: programMap['shs'],
-          name:       s.name,
+          id:             `seed-strand-${s.name.replace(/\s+/g, '-')}-${ORG_ID}`,
+          org_id:         ORG_ID,
+          school_year_id: SCHOOL_YEAR_ID,   // ← added
+          program_id:     programMap['shs'],
+          name:           s.name,
         },
       })
       strandMap[s.name] = rec.id
@@ -910,20 +922,21 @@ async function main() {
   for (const lvl of levelDefs) {
     const levelKey = `${lvl.programKey}-${lvl.name}`.replace(/\s+/g, '-')
     const rec = await db.level.upsert({
-      where: { id: `seed-level-${levelKey}-${ORG_ID}` },
+      where:  { id: `seed-level-${levelKey}-${ORG_ID}` },
       update: {},
       create: {
-        id:         `seed-level-${levelKey}-${ORG_ID}`,
-        org_id:     ORG_ID,
-        program_id: programMap[lvl.programKey],
-        name:       lvl.name,
+        id:             `seed-level-${levelKey}-${ORG_ID}`,
+        org_id:         ORG_ID,
+        school_year_id: SCHOOL_YEAR_ID,   // ← added
+        program_id:     programMap[lvl.programKey],
+        name:           lvl.name,
       },
     })
     levelMap[lvl.name] = rec.id
     for (const sec of lvl.sections) {
       const sectionKey = `${levelKey}-${sec.name}`.replace(/\s+/g, '-')
       await db.section.upsert({
-        where: { id: `seed-section-${sectionKey}-${ORG_ID}` },
+        where:  { id: `seed-section-${sectionKey}-${ORG_ID}` },
         update: {},
         create: {
           id:       `seed-section-${sectionKey}-${ORG_ID}`,
@@ -945,13 +958,13 @@ async function main() {
     if (!levelId) continue
     const scaleKey = `${sa.levelName}-${sa.scaleName}`.replace(/\s+/g, '-')
     await db.gradingScale.upsert({
-      where: { id: `seed-scale-${scaleKey}-${ORG_ID}` },
+      where:  { id: `seed-scale-${scaleKey}-${ORG_ID}` },
       update: {},
       create: {
         id:             `seed-scale-${scaleKey}-${ORG_ID}`,
         org_id:         ORG_ID,
+        school_year_id: SCHOOL_YEAR_ID,   // ← replaced '' with SCHOOL_YEAR_ID
         level_id:       levelId,
-        school_year_id: '',
         name:           sa.scaleName,
         ranges:         sa.ranges,
         is_locked:      false,
@@ -1104,6 +1117,7 @@ function buildScaleAssignments() {
   }
   return out
 }
+
 function deriveProgramKey(levelName: string): string {
   if (levelName.startsWith('Daycare'))  return 'daycare'
   if (levelName.startsWith('Kinder'))   return 'kinder'
@@ -1134,9 +1148,7 @@ main()
  *   Play 40 + Participation 30 + Behavior 20 + Health 10 = 100%
  *
  * - Grading scales:
- *   school_year_id seeds as '' (empty string, nullable-ish placeholder).
- *   If your schema enforces a foreign key, make school_year_id optional (String?)
- *   or seed a placeholder school year first.
+ *   school_year_id now uses SEED_SCHOOL_YEAR_ID env var (required).
  *
  * - All 6 schemes seeded as named presets with is_default: false
  *   → Admin selects one during onboarding
@@ -1146,10 +1158,5 @@ main()
  *   BSED majors are separate Course rows for specialization subjects
  *
  * To run:
- *   SEED_ORG_ID=your-org-uuid npx ts-node seed.ts
- *
- * Schema fix needed:
- *   GradingScale.school_year_id should be String? (nullable)
- *   to support seeding before a school year exists.
- *   Currently String → seed uses '' as workaround.
+ *   SEED_ORG_ID=your-org-uuid SEED_SCHOOL_YEAR_ID=your-sy-uuid npx ts-node seed.ts
  */

@@ -19,6 +19,7 @@ export interface StrandSnapshot {
 export interface Program {
   id: string;
   orgId: string;
+  schoolYearId: string; // added — schema school_year_id is now required
   name: string;
   type: ProgramType;
   courses: CourseSnapshot[];

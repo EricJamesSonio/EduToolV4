@@ -1,13 +1,11 @@
+// ===== File: backend\src\modules\level\level.controller.ts =====
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { LevelService } from './level.service';
-import { UpdateLevelDefaultsDto, UpdateLevelDto, QueryLevelDto, CreateLevelDto } from './dto/level.dto';
+import { UpdateLevelDefaultsDto, UpdateLevelDto, QueryLevelDto, CreateLevelDto, BulkGenerateLevelsDto } from './dto/level.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
-import { BulkGenerateLevelsDto } from './dto/level.dto';
-
-// backend/src/modules/level/level.controller.ts
 
 @Controller('levels')
 @UseGuards(AuthGuard, RolesGuard)
@@ -16,7 +14,7 @@ export class LevelController {
 
   @Get('defaults')
   async getDefaults(@CurrentUser('orgId') orgId: string) {
-    return this.levelService.getDefaults(orgId); // interceptor wraps this
+    return this.levelService.getDefaults(orgId);
   }
 
   @Patch('defaults')
@@ -26,6 +24,15 @@ export class LevelController {
     @Body() dto: UpdateLevelDefaultsDto,
   ) {
     return this.levelService.updateDefaults(orgId, dto);
+  }
+
+  @Post('bulk-generate')
+  @Roles('admin')
+  async bulkGenerate(
+    @CurrentUser('orgId') orgId: string,
+    @Body() dto: BulkGenerateLevelsDto,
+  ) {
+    return this.levelService.bulkGenerate(orgId, dto);
   }
 
   @Get()
@@ -65,15 +72,6 @@ export class LevelController {
     @CurrentUser('orgId') orgId: string,
   ) {
     await this.levelService.deleteOne(id, orgId);
-    return null; // interceptor wraps to { success: true, data: null }
-  }
-
-  @Post('bulk-generate')
-  @Roles('admin')
-  async bulkGenerate(
-    @CurrentUser('orgId') orgId: string,
-    @Body() dto: BulkGenerateLevelsDto,
-  ) {
-    return this.levelService.bulkGenerate(orgId, dto);
+    return null;
   }
 }

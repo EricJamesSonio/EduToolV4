@@ -2,6 +2,9 @@ import { IsString, IsOptional, IsNotEmpty, IsUUID } from 'class-validator'
 
 export class CreateStrandDto {
   @IsUUID()
+  schoolYearId: string
+
+  @IsUUID()
   program_id: string
 
   @IsString()
@@ -16,7 +19,11 @@ export class UpdateStrandDto {
 }
 
 export class StrandQueryDto {
-  @IsString()
   @IsOptional()
+  @IsUUID()
+  schoolYearId?: string
+
+  @IsOptional()
+  @IsUUID()
   program_id?: string
 }

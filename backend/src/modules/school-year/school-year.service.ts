@@ -25,17 +25,20 @@ export class SchoolYearService {
   /**
    * Creates a new school year with status = pending.
    * Phase 3: will seed level structure from level defaults after creation.
-   */
+    */
   async create(orgId: string, dto: CreateSchoolYearDto) {
     const schoolYear = await this.schoolYearRepository.create({
       orgId,
       name: dto.name,
-    });
+    })
 
-    // Seed level structure from org defaults into this school year
-    await this.levelService.seedFromDefaults(orgId, schoolYear.id);
+    // seedFromDefaults now needs programs seeded for this school year first
+    // For UI-created school years, no programs exist yet — seed is empty
+    // Programs are added manually by admin or via the seeder
+    // So we pass an empty programMap — levels will be seeded when programs are added
+    await this.levelService.seedFromDefaults(orgId, schoolYear.id, {})
 
-    return schoolYear;
+    return schoolYear
   }
 
   // ── GET /school-years ───────────────────────────────────────────────────────
