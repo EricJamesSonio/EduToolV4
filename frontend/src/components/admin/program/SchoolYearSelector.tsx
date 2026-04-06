@@ -35,25 +35,29 @@ export function SchoolYearSelector({
   return (
     <div className="flex items-center gap-2">
       <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
-      <Select value={selectedId ?? ""} onValueChange={onSelect}>
-        <SelectTrigger className="w-52 h-9 text-sm">
-          <SelectValue placeholder="Select school year" />
-        </SelectTrigger>
-        <SelectContent>
-          {schoolYears.map((sy) => (
-            <SelectItem key={sy.id} value={sy.id}>
-              <div className="flex items-center gap-2">
-                <span>{sy.name}</span>
-                {sy.status === "active" && (
-                  <Badge variant="default" className="text-xs py-0 px-1.5">
-                    Active
-                  </Badge>
-                )}
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+
+
+    <Select value={selectedId ?? ""} onValueChange={onSelect}>
+    <SelectTrigger className="w-52 h-9 text-sm">
+        <SelectValue>
+        {schoolYears.find((sy) => sy.id === selectedId)?.name ?? "Select school year"}
+        </SelectValue>
+    </SelectTrigger>
+    <SelectContent>
+        {schoolYears.map((sy) => (
+        <SelectItem key={sy.id} value={sy.id}>
+            <div className="flex items-center gap-2">
+            <span>{sy.name}</span>
+            {sy.status === "active" && (
+                <Badge variant="default" className="text-xs py-0 px-1.5">
+                Active
+                </Badge>
+            )}
+            </div>
+        </SelectItem>
+        ))}
+    </SelectContent>
+    </Select>
     </div>
   );
 }

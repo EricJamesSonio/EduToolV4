@@ -30,11 +30,11 @@ export default function ProgramsPage(): React.JSX.Element {
   });
 
   useEffect(() => {
-    if (schoolYears.length > 0 && !selectedSchoolYearId) {
-      const active = schoolYears.find((sy) => sy.status === "active");
-      setSelectedSchoolYearId(active?.id ?? schoolYears[0].id);
-    }
-  }, [schoolYears, selectedSchoolYearId]);
+    if (!schoolYears.length || selectedSchoolYearId) return;
+
+    const active = schoolYears.find((sy) => sy.status === "active");
+    setSelectedSchoolYearId(active?.id ?? schoolYears[0].id);
+  }, [schoolYears]); // ← remove selectedSchoolYearId from deps
 
   const { data: programs, isLoading: programsLoading } = useQuery({
     queryKey: ["admin", "programs", selectedSchoolYearId],
