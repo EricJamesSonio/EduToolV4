@@ -4,20 +4,23 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Clock, Users } from "lucide-react";
+
 import { subjectApi } from "@/api/admin/subject.api";
 import { sectionApi } from "@/api/admin/section.api";
 import { semesterApi } from "@/api/admin/semester.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
+
 import { useEducatorClasses } from "@/hooks/educator/useEducatorClasses";
 import { toArray } from "@/utils/classes.utils";
 import { formatSchedules } from "@/types/educator/class.types";
+
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+
 import type { EducatorClass } from "@/types/educator/class.types";
 
-// ── Enriched shape used only in this page ────────────────────────────────────
 interface EnrichedClass extends EducatorClass {
   subjectName: string | null;
   sectionName: string | null;
@@ -25,7 +28,6 @@ interface EnrichedClass extends EducatorClass {
   schoolYearName: string | null;
 }
 
-// ── Class card ────────────────────────────────────────────────────────────────
 function ClassCard({
   cls,
   onClick,
@@ -42,12 +44,10 @@ function ClassCard({
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-1.5">
-          {/* Subject name */}
           <p className="font-semibold text-base group-hover:text-primary transition-colors truncate">
             {cls.subjectName ?? cls.subject_id}
           </p>
 
-          {/* Meta row */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {cls.sectionName && (
               <span className="flex items-center gap-1">
@@ -55,6 +55,7 @@ function ClassCard({
                 {cls.sectionName}
               </span>
             )}
+
             {schedule !== "No schedule" && (
               <span className="flex items-center gap-1">
                 <Clock className="h-3.5 w-3.5 shrink-0" />
@@ -64,18 +65,19 @@ function ClassCard({
           </div>
         </div>
 
-        {/* Right: semester + school year badges */}
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           {cls.semesterName && (
             <Badge variant="secondary" className="text-xs font-normal">
               {cls.semesterName}
             </Badge>
           )}
+
           {cls.schoolYearName && (
             <span className="text-xs text-muted-foreground">
               {cls.schoolYearName}
             </span>
           )}
+
           {cls.capacity > 0 && (
             <span className="text-xs text-muted-foreground">
               Cap: {cls.capacity}
@@ -87,7 +89,6 @@ function ClassCard({
   );
 }
 
-// ── Loading skeleton ──────────────────────────────────────────────────────────
 function ClassCardSkeleton(): React.JSX.Element {
   return (
     <div className="rounded-lg border bg-card px-5 py-4 space-y-2">
@@ -97,35 +98,45 @@ function ClassCardSkeleton(): React.JSX.Element {
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
 export default function EducatorClassesPage(): React.JSX.Element {
   const router = useRouter();
 
-  const { data: classesRaw, isLoading: classesLoading } = useEducatorClasses();
+  const { data: classesRaw, isLoading: classesLoading } =
+    useEducatorClasses();
 
-  // Lookup tables — same pattern as admin classes page
   const { data: subjectsRaw } = useQuery({
     queryKey: ["admin", "subjects"],
     queryFn: () => subjectApi.getAll(),
   });
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections"],
-    queryFn: () => sectionApi.getAll(),
-  });
+
   const { data: semestersRaw } = useQuery({
     queryKey: ["admin", "semesters"],
     queryFn: () => semesterApi.getAll(),
   });
+
   const { data: schoolYearsRaw } = useQuery({
     queryKey: ["admin", "school-years"],
     queryFn: () => schoolYearApi.getAll(),
   });
 
-  // Build lookup maps
+  // ✅ ACTIVE SCHOOL YEAR
+  const activeSchoolYearId = useMemo(() => {
+    const arr = toArray<{ id: string; status: string }>(schoolYearsRaw);
+    return arr.find((sy) => sy.status === "active")?.id ?? null;
+  }, [schoolYearsRaw]);
+
+  // ✅ SECTIONS SCOPED BY SCHOOL YEAR
+  const { data: sectionsRaw } = useQuery({
+    queryKey: ["admin", "sections", activeSchoolYearId],
+    queryFn: () => sectionApi.getAll(activeSchoolYearId!),
+    enabled: !!activeSchoolYearId,
+  });
+
+  // ===== MAPS =====
   const subjectMap = useMemo(() => {
     const m = new Map<string, string>();
     toArray<{ id: string; title: string }>(subjectsRaw).forEach((s) =>
-      m.set(s.id, s.title),
+      m.set(s.id, s.title)
     );
     return m;
   }, [subjectsRaw]);
@@ -133,7 +144,7 @@ export default function EducatorClassesPage(): React.JSX.Element {
   const sectionMap = useMemo(() => {
     const m = new Map<string, string>();
     toArray<{ id: string; name: string }>(sectionsRaw).forEach((s) =>
-      m.set(s.id, s.name),
+      m.set(s.id, s.name)
     );
     return m;
   }, [sectionsRaw]);
@@ -141,7 +152,7 @@ export default function EducatorClassesPage(): React.JSX.Element {
   const semesterMap = useMemo(() => {
     const m = new Map<string, string>();
     toArray<{ id: string; name: string }>(semestersRaw).forEach((s) =>
-      m.set(s.id, s.name),
+      m.set(s.id, s.name)
     );
     return m;
   }, [semestersRaw]);
@@ -149,20 +160,20 @@ export default function EducatorClassesPage(): React.JSX.Element {
   const schoolYearMap = useMemo(() => {
     const m = new Map<string, string>();
     toArray<{ id: string; name: string }>(schoolYearsRaw).forEach((s) =>
-      m.set(s.id, s.name),
+      m.set(s.id, s.name)
     );
     return m;
   }, [schoolYearsRaw]);
 
-  // Enrich classes
+  // ===== ENRICH =====
   const classes = useMemo<EnrichedClass[]>(() => {
     return toArray<EducatorClass>(classesRaw).map((cls) => ({
       ...cls,
-      subjectName:  subjectMap.get(cls.subject_id)    ?? null,
-      sectionName:  cls.section_id
-                      ? (sectionMap.get(cls.section_id) ?? null)
-                      : null,
-      semesterName:  semesterMap.get(cls.semester_id)   ?? null,
+      subjectName: subjectMap.get(cls.subject_id) ?? null,
+      sectionName: cls.section_id
+        ? sectionMap.get(cls.section_id) ?? null
+        : null,
+      semesterName: semesterMap.get(cls.semester_id) ?? null,
       schoolYearName: schoolYearMap.get(cls.school_year_id) ?? null,
     }));
   }, [classesRaw, subjectMap, sectionMap, semesterMap, schoolYearMap]);

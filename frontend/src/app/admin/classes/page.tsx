@@ -75,7 +75,7 @@ function ClassesPageInner(): React.JSX.Element {
   const { data: sectionsRaw } = useQuery({
     queryKey: ["admin", "sections", activeSchoolYearId],
     queryFn: () => sectionApi.getAll(activeSchoolYearId!),
-    enabled: !!activeSchoolYearId,
+    enabled: !!activeSchoolYearId,  
   });
 
   // ── Lookup maps ───────────────────────────────────────────────────────────
