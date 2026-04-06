@@ -117,8 +117,8 @@ function EditSubjectDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">— None —</SelectItem>
-                {levels.map((level) => (
-                  <SelectItem key={level.id} value={level.id}>{level.name}</SelectItem>
+                {levels.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -169,8 +169,8 @@ function SharingsSection({
   sharings:     SubjectSharing[];
   schoolYearId: string;
 }): React.JSX.Element {
-  const [shareOpen, setShareOpen]           = useState(false);
-  const [unshareTarget, setUnshareTarget]   = useState<SubjectSharing | null>(null);
+  const [shareOpen, setShareOpen]         = useState(false);
+  const [unshareTarget, setUnshareTarget] = useState<SubjectSharing | null>(null);
   const unshareMutation = useUnshareSubject();
 
   const getSharingLabel = (s: SubjectSharing): string =>
@@ -188,8 +188,7 @@ function SharingsSection({
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold">Shared To</h2>
         <Button size="sm" variant="outline" onClick={() => setShareOpen(true)}>
-          <Share2 className="mr-1.5 h-3.5 w-3.5" />
-          Share
+          <Share2 className="mr-1.5 h-3.5 w-3.5" /> Share
         </Button>
       </div>
 
@@ -274,6 +273,7 @@ export default function SubjectDetailPage({
   const { id } = use(params);
   const router  = useRouter();
   const queryClient = useQueryClient();
+
   const [editOpen, setEditOpen]           = useState(false);
   const [lockConfirm, setLockConfirm]     = useState(false);
   const [unlockConfirm, setUnlockConfirm] = useState(false);
@@ -351,6 +351,9 @@ export default function SubjectDetailPage({
   const isLocked = subject.lockStatus === "locked";
   const isMinor  = subject.subjectType === "minor";
 
+  // programName is actually the level name (legacy backend field naming)
+  const levelDisplayName = subject.levelName ?? subject.programName ?? null;
+
   return (
     <div className="space-y-6 max-w-3xl">
       {/* Breadcrumb */}
@@ -426,18 +429,10 @@ export default function SubjectDetailPage({
           </Badge>
         </div>
         <div className="flex items-center gap-4 px-4 py-3">
-          <span className="w-36 text-sm text-muted-foreground shrink-0">Program</span>
-          {subject.programName ? (
-            <span className="text-sm">{subject.programName}</span>
-          ) : (
-            <span className="text-sm text-muted-foreground">—</span>
-          )}
-        </div>
-        <div className="flex items-center gap-4 px-4 py-3">
           <span className="w-36 text-sm text-muted-foreground shrink-0">Level</span>
-          {subject.levelName ? (
+          {levelDisplayName ? (
             <Badge variant="secondary" className="font-normal">
-              {subject.levelName}
+              {levelDisplayName}
             </Badge>
           ) : (
             <span className="text-sm text-muted-foreground">—</span>
