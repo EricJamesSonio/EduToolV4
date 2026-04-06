@@ -1,22 +1,20 @@
 import {
-  Controller,
-  Post,
-  Get,
-  Patch,
-  Body,
-  Param,
-  UseGuards,
+  Controller, Post, Get, Patch, Body, Param, Query, UseGuards,
 } from '@nestjs/common';
 import { GradingSchemeService } from './grading-scheme.service';
 import {
-  CreateGradingSchemeDto,
-  UpdateGradingSchemeDto,
-  UpdateDefaultGradingSchemeDto,
+  CreateGradingSchemeDto, UpdateGradingSchemeDto, UpdateDefaultGradingSchemeDto,
 } from './dto/grading-scheme.dto';
-import { AuthGuard } from '@/commons/guards/auth.guard';
-import { RolesGuard } from '@/commons/guards/role.guard';
-import { Roles } from '@/commons/decorators/roles.decorator';
-import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+import { AuthGuard }    from '@/commons/guards/auth.guard';
+import { RolesGuard }   from '@/commons/guards/role.guard';
+import { Roles }        from '@/commons/decorators/roles.decorator';
+import { CurrentUser }  from '@/commons/decorators/current-user.decorator';
+import { IsUUID }       from 'class-validator';
+
+class SchoolYearQueryDto {
+  @IsUUID()
+  schoolYearId: string
+}
 
 @Controller('grading-schemes')
 @UseGuards(AuthGuard, RolesGuard)
@@ -24,20 +22,23 @@ export class GradingSchemeController {
   constructor(private readonly gradingSchemeService: GradingSchemeService) {}
 
   @Get('default')
-  async getDefault(@CurrentUser('orgId') orgId: string) {
-    return this.gradingSchemeService.getDefault(orgId);
+  async getDefault(
+    @CurrentUser('orgId') orgId: string,
+    @Query() query: SchoolYearQueryDto,
+  ) {
+    return this.gradingSchemeService.getDefault(orgId, query.schoolYearId);
   }
 
   @Patch('default')
   @Roles('admin')
   async updateDefault(
     @CurrentUser('orgId') orgId: string,
+    @Query() query: SchoolYearQueryDto,
     @Body() dto: UpdateDefaultGradingSchemeDto,
   ) {
-    return this.gradingSchemeService.updateDefault(orgId, dto);
+    return this.gradingSchemeService.updateDefault(orgId, query.schoolYearId, dto);
   }
 
-  // NOTE: must be declared before :id to avoid NestJS treating "class" as an id param
   @Get('class/:classId')
   @Roles('educator')
   async getForClass(
@@ -52,29 +53,34 @@ export class GradingSchemeController {
   async saveForClass(
     @Param('classId') classId: string,
     @CurrentUser('orgId') orgId: string,
+    @Query() query: SchoolYearQueryDto,
     @CurrentUser('id') educatorId: string,
     @Body() dto: UpdateGradingSchemeDto,
   ) {
-    return this.gradingSchemeService.saveForClass(classId, orgId, educatorId, dto);
+    return this.gradingSchemeService.saveForClass(
+      classId, orgId, query.schoolYearId, educatorId, dto,
+    );
   }
 
   @Post()
   @Roles('educator')
   async create(
     @CurrentUser('orgId') orgId: string,
+    @Query() query: SchoolYearQueryDto,
     @CurrentUser('id') educatorId: string,
     @Body() dto: CreateGradingSchemeDto,
   ) {
-    return this.gradingSchemeService.create(orgId, educatorId, dto);
+    return this.gradingSchemeService.create(orgId, query.schoolYearId, educatorId, dto);
   }
 
   @Get()
   @Roles('educator')
   async findByEducator(
     @CurrentUser('orgId') orgId: string,
+    @Query() query: SchoolYearQueryDto,
     @CurrentUser('id') educatorId: string,
   ) {
-    return this.gradingSchemeService.findByEducator(orgId, educatorId);
+    return this.gradingSchemeService.findByEducator(orgId, query.schoolYearId, educatorId);
   }
 
   @Patch(':id')

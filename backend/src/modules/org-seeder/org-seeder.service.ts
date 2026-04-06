@@ -63,7 +63,7 @@ export class OrgSeederService {
     await this.seedStrands(orgId, schoolYearId, shouldSeedProgram, shouldSeedStrand, programMap, strandMap)
     await this.seedLevelsAndSections(orgId, schoolYearId, shouldSeedProgram, shouldSeedLevel, programMap, levelMap)
     await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, levelMap)
-    await this.seedGradingSchemes(orgId, shouldSeedProgram)
+    await this.seedGradingSchemes(orgId, schoolYearId, shouldSeedProgram)
     await this.seedSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, subjectNameToId)
     await this.seedPrerequisites(orgId, shouldSeedProgram, levelMap, subjectNameToId)
   }
@@ -184,11 +184,12 @@ export class OrgSeederService {
           where:  { id: sectionId },
           update: {},
           create: {
-            id:       sectionId,
-            org_id:   orgId,
-            level_id: rec.id,
-            name:     sec.name,
-            capacity: sec.capacity,
+            id:             sectionId,
+            org_id:         orgId,
+            level_id:       rec.id,
+            school_year_id: schoolYearId,  // ← add this
+            name:           sec.name,
+            capacity:       sec.capacity,
           },
         })
       }
@@ -223,10 +224,11 @@ export class OrgSeederService {
     }
   }
 
-  private async seedGradingSchemes(
-    orgId:      string,
-    shouldSeed: (k: string) => boolean,
-  ) {
+    private async seedGradingSchemes(
+      orgId:        string,
+      schoolYearId: string,   // ← add param
+      shouldSeed:   (k: string) => boolean,
+    ) {
     const schemeProgram: Record<string, string> = {
       'Daycare Scheme':            'daycare',
       'Kindergarten Scheme':       'kinder',
@@ -247,10 +249,11 @@ export class OrgSeederService {
       const scheme = await this.db.gradingScheme.create({
         data: {
           id,
-          org_id:     orgId,
-          name:       preset.name,
-          is_default: false,
-          is_locked:  false,
+          org_id:         orgId,
+          school_year_id: schoolYearId,  // ← add
+          name:           preset.name,
+          is_default:     false,
+          is_locked:      false,
         },
       })
 
