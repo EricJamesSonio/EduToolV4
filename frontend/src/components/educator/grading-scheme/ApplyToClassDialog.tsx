@@ -3,7 +3,8 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Check, BookOpen } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
 import {
   Dialog,
   DialogContent,
@@ -14,12 +15,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+
 import { useEducatorClasses } from "@/hooks/educator/useEducatorClasses";
+
 import { educatorGradingSchemeApi } from "@/api/educator/grading-scheme.api";
 import { subjectApi } from "@/api/admin/subject.api";
 import { sectionApi } from "@/api/admin/section.api";
+import { schoolYearApi } from "@/api/admin/school-year.api";
+
 import { toArray } from "@/utils/classes.utils";
-import { useQueryClient } from "@tanstack/react-query";
+
 import type { GradingScheme } from "@/types/admin/grading-scheme.types";
 import type { EducatorClass } from "@/types/educator/class.types";
 import type { AxiosError } from "axios";
@@ -41,20 +46,37 @@ export function ApplyToClassDialog({
   scheme,
 }: ApplyToClassDialogProps) {
   const queryClient = useQueryClient();
+
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [isApplying, setIsApplying] = useState(false);
 
-  const { data: classesRaw, isLoading: classesLoading } = useEducatorClasses();
+  const { data: classesRaw, isLoading: classesLoading } =
+    useEducatorClasses();
 
   const { data: subjectsRaw } = useQuery({
     queryKey: ["admin", "subjects"],
     queryFn: () => subjectApi.getAll(),
   });
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections"],
-    queryFn: () => sectionApi.getAll(),
+
+  const { data: schoolYearsRaw } = useQuery({
+    queryKey: ["admin", "school-years"],
+    queryFn: () => schoolYearApi.getAll(),
   });
 
+  // ✅ ACTIVE SCHOOL YEAR
+  const activeSchoolYearId = useMemo(() => {
+    const arr = toArray<{ id: string; status: string }>(schoolYearsRaw);
+    return arr.find((sy) => sy.status === "active")?.id ?? null;
+  }, [schoolYearsRaw]);
+
+  // ✅ SECTIONS SCOPED BY SCHOOL YEAR
+  const { data: sectionsRaw } = useQuery({
+    queryKey: ["admin", "sections", activeSchoolYearId],
+    queryFn: () => sectionApi.getAll(activeSchoolYearId!),
+    enabled: !!activeSchoolYearId,
+  });
+
+  // ===== MAPS =====
   const subjectMap = useMemo(() => {
     const m = new Map<string, string>();
     toArray<{ id: string; title: string }>(subjectsRaw).forEach((s) =>
@@ -71,6 +93,7 @@ export function ApplyToClassDialog({
     return m;
   }, [sectionsRaw]);
 
+  // ===== ENRICH =====
   const classes = useMemo<EnrichedClass[]>(() => {
     return toArray<EducatorClass>(classesRaw).map((cls) => ({
       ...cls,
@@ -81,9 +104,12 @@ export function ApplyToClassDialog({
     }));
   }, [classesRaw, subjectMap, sectionMap]);
 
+  // ===== APPLY =====
   const handleApply = async () => {
     if (!scheme || !selectedClassId) return;
+
     setIsApplying(true);
+
     try {
       const components = Array.isArray(scheme.components)
         ? scheme.components.map((c) => ({
@@ -190,6 +216,7 @@ export function ApplyToClassDialog({
                           </p>
                         )}
                       </div>
+
                       {selectedClassId === cls.id && (
                         <Check className="h-4 w-4 text-primary shrink-0" />
                       )}
@@ -209,6 +236,7 @@ export function ApplyToClassDialog({
           >
             Cancel
           </Button>
+
           <Button
             disabled={!selectedClassId || isApplying}
             onClick={handleApply}

@@ -1,10 +1,8 @@
 import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
+  Injectable, NotFoundException, ConflictException,
 } from '@nestjs/common';
 import { SectionRepository } from './section.repository';
-import { DatabaseService } from '@/core/database/database.provider';
+import { DatabaseService }   from '@/core/database/database.provider';
 import { CreateSectionDto, UpdateSectionDto, QuerySectionDto } from './dto/section.dto';
 
 @Injectable()
@@ -22,22 +20,22 @@ export class SectionService {
 
     return this.sectionRepository.create({
       orgId,
-      levelId: dto.levelId,
-      name: dto.name,
-      capacity: dto.capacity,
+      levelId:      dto.levelId,
+      schoolYearId: dto.schoolYearId,
+      name:         dto.name,
+      capacity:     dto.capacity,
     });
   }
 
   async findAll(orgId: string, query: QuerySectionDto) {
-    return this.sectionRepository.findAll(orgId, query.levelId);
+    return this.sectionRepository.findAll(orgId, query.schoolYearId, query.levelId);
   }
 
   async update(id: string, orgId: string, dto: UpdateSectionDto) {
     const section = await this.sectionRepository.findById(id, orgId);
     if (!section) throw new NotFoundException('Section not found.');
-
     return this.sectionRepository.update(id, {
-      name: dto.name,
+      name:     dto.name,
       capacity: dto.capacity,
     });
   }
@@ -52,7 +50,6 @@ export class SectionService {
         'Cannot delete a section that has students assigned to it.',
       );
     }
-
     return this.sectionRepository.softDelete(id);
   }
 

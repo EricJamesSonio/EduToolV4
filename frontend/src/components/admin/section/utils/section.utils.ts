@@ -5,8 +5,18 @@ import type { Program } from "@/types/admin/program.types";
 
 export type EnrichedLevel = Level & { programName: string };
 
-export function enrichLevels(levels: Level[], programs: Program[]): EnrichedLevel[] {
-  const programMap = Object.fromEntries(programs.map((p) => [p.id, p.name]));
+export function enrichLevels(
+  levels: Level[],
+  programs: Program[]
+): EnrichedLevel[] {
+  const programMap = Object.fromEntries(
+    programs.map((p) => [p.id, p.name])
+  );
+
+  // ✅ Move logs BEFORE return
+  console.log("LEVEL program_id:", levels.map(l => l.program_id));
+  console.log("PROGRAM ids:", programs.map(p => p.id));
+
   return levels.map((l) => ({
     ...l,
     programName: programMap[l.program_id] ?? "Unknown Program",
@@ -17,11 +27,13 @@ export function groupLevelsByProgram(
   levels: EnrichedLevel[]
 ): { programName: string; levels: EnrichedLevel[] }[] {
   const map = new Map<string, EnrichedLevel[]>();
+
   for (const level of levels) {
     const key = level.programName;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(level);
   }
+
   return Array.from(map.entries()).map(([programName, levels]) => ({
     programName,
     levels,

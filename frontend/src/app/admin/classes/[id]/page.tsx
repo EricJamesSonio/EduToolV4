@@ -69,8 +69,9 @@ export default function ClassDetailPage({
     queryFn: () => semesterApi.getAll(),
   });
   const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections"],
-    queryFn: () => sectionApi.getAll(),
+    queryKey: ["admin", "sections", cls?.schoolYearId],
+    queryFn:  () => sectionApi.getAll(cls!.schoolYearId),
+    enabled:  !!cls?.schoolYearId,
   });
 
   // ── Enrich cls ────────────────────────────────────────────────────────────

@@ -4,9 +4,12 @@ import { use, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
+
 import { studentApi, type StudentEnrollment } from "@/api/admin/student.api";
 import { levelApi } from "@/api/admin/level.api";
 import { sectionApi } from "@/api/admin/section.api";
+import { schoolYearApi } from "@/api/admin/school-year.api"; // ✅ added
+
 import { toArray } from "@/utils/classes.utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -18,7 +21,7 @@ import { UpdateStatusDialog } from "@/components/admin/student/detail/UpdateStat
 import { ResetPasswordDialog } from "@/components/admin/student/detail/ResetPasswordDialog";
 import { EnrollStudentInClassDialog } from "@/components/admin/student/detail/EnrollStudentInClassDialog";
 
-// Normalised shapes — snake_case from API converted once here, used everywhere
+// ── Normalised shapes ───────────────────────────────────────────────────────
 export interface NormalisedLevel {
   id: string;
   name: string;
@@ -27,7 +30,7 @@ export interface NormalisedLevel {
 export interface NormalisedSection {
   id: string;
   name: string;
-  levelId: string; // normalised from level_id
+  levelId: string;
 }
 
 export default function StudentDetailPage({
@@ -42,7 +45,8 @@ export default function StudentDetailPage({
   const [statusOpen, setStatusOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
-  const [removeTarget, setRemoveTarget] = useState<StudentEnrollment | null>(null);
+  const [removeTarget, setRemoveTarget] =
+    useState<StudentEnrollment | null>(null);
 
   // ── fetching ──────────────────────────────────────────────────────────────
   const { data: student, isLoading: studentLoading } = useQuery({
@@ -61,13 +65,30 @@ export default function StudentDetailPage({
     queryFn: () => levelApi.getAll(),
   });
 
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections"],
-    queryFn: () => sectionApi.getAll(),
+  // ✅ NEW: School Years Query
+  const { data: schoolYearsRaw } = useQuery({
+    queryKey: ["admin", "school-years"],
+    queryFn: () => schoolYearApi.getAll(),
   });
 
-  // ── normalise: convert snake_case API fields → camelCase once ─────────────
-  // /levels returns: { id, name, org_id, program_id, school_year_id }
+  // ✅ NEW: Active School Year
+  const activeSchoolYearId = useMemo(() => {
+    const arr = toArray<{ id: string; status: string }>(schoolYearsRaw);
+    return (
+      arr.find((sy) => sy.status === "active")?.id ??
+      arr[0]?.id ??
+      null
+    );
+  }, [schoolYearsRaw]);
+
+  // ✅ UPDATED: Sections Query (scoped)
+  const { data: sectionsRaw } = useQuery({
+    queryKey: ["admin", "sections", activeSchoolYearId],
+    queryFn: () => sectionApi.getAll(activeSchoolYearId!),
+    enabled: !!activeSchoolYearId,
+  });
+
+  // ── normalise ─────────────────────────────────────────────────────────────
   const levels = useMemo<NormalisedLevel[]>(() => {
     return toArray<{ id: string; name: string }>(levelsRaw).map((l) => ({
       id: l.id,
@@ -75,21 +96,19 @@ export default function StudentDetailPage({
     }));
   }, [levelsRaw]);
 
-  // /sections returns: { id, name, org_id, level_id, capacity, deleted_at }
   const sections = useMemo<NormalisedSection[]>(() => {
     return toArray<{ id: string; name: string; level_id: string }>(
       sectionsRaw,
     ).map((s) => ({
       id: s.id,
       name: s.name,
-      levelId: s.level_id, // ← the key fix: level_id → levelId
+      levelId: s.level_id,
     }));
   }, [sectionsRaw]);
 
   const enrollments = toArray<StudentEnrollment>(enrollmentsRaw);
 
-  // ── lookup names for display ───────────────────────────────────────────────
-  // student.levelId / student.sectionId come back camelCase from formatAccount()
+  // ── lookups ───────────────────────────────────────────────────────────────
   const levelName = useMemo(
     () => levels.find((l) => l.id === student?.levelId)?.name,
     [student, levels],

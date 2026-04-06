@@ -1,20 +1,13 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
+  Controller, Get, Post, Patch, Delete,
+  Body, Param, Query, UseGuards,
 } from '@nestjs/common'
-import { StrandService } from './strand.service'
+import { StrandService }   from './strand.service'
 import { CreateStrandDto, UpdateStrandDto, StrandQueryDto } from './dto/strand.dto'
-import { AuthGuard } from '@/commons/guards/auth.guard'
-import { RolesGuard } from '@/commons/guards/role.guard'
-import { Roles } from '@/commons/decorators/roles.decorator'
-import { CurrentUser } from '@/commons/decorators/current-user.decorator'
+import { AuthGuard }       from '@/commons/guards/auth.guard'
+import { RolesGuard }      from '@/commons/guards/role.guard'
+import { Roles }           from '@/commons/decorators/roles.decorator'
+import { CurrentUser }     from '@/commons/decorators/current-user.decorator'
 
 @UseGuards(AuthGuard, RolesGuard)
 @Controller('strands')
@@ -32,29 +25,38 @@ export class StrandController {
 
   @Get()
   @Roles('admin', 'educator', 'platform_owner')
-  findAll(@CurrentUser() user: any, @Query() query: StrandQueryDto) {
-    return this.strandService.findAll(user.org_id, query)
+  findAll(
+    @CurrentUser('orgId') orgId: string,
+    @Query() query: StrandQueryDto,
+  ) {
+    return this.strandService.findAll(orgId, query)
   }
 
   @Get(':id')
   @Roles('admin', 'educator', 'platform_owner')
-  findOne(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.strandService.findOne(id, user.org_id)
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+  ) {
+    return this.strandService.findOne(id, orgId)
   }
 
   @Patch(':id')
   @Roles('admin', 'platform_owner')
   update(
     @Param('id') id: string,
-    @CurrentUser() user: any,
+    @CurrentUser('orgId') orgId: string,
     @Body() dto: UpdateStrandDto,
   ) {
-    return this.strandService.update(id, user.org_id, dto)
+    return this.strandService.update(id, orgId, dto)
   }
 
   @Delete(':id')
   @Roles('admin', 'platform_owner')
-  remove(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.strandService.remove(id, user.org_id)
+  remove(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+  ) {
+    return this.strandService.remove(id, orgId)
   }
 }

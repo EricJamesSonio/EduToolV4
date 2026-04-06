@@ -125,8 +125,12 @@ export default function EducatorClassOverviewPage({
   });
 
   const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections"],
-    queryFn: () => sectionApi.getAll(),
+    queryKey: ["admin", "sections", cls?.schoolYearId],
+    queryFn: () => {
+      if (!cls?.schoolYearId) return [];
+      return sectionApi.getAll(cls.schoolYearId);
+    },
+    enabled: !!cls?.schoolYearId,
   });
 
   const { data: semestersRaw } = useQuery({

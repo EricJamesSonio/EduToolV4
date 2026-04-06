@@ -1,32 +1,61 @@
-// filepath: app/admin/sections/_components/SectionEmptyState.tsx
-
 "use client";
 
-import { Layers, Plus } from "lucide-react";
+import { CalendarDays, Layers, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SectionEmptyStateProps {
   isFiltered: boolean;
+  noSchoolYear?: boolean;
   onCreateClick: () => void;
 }
 
 export function SectionEmptyState({
   isFiltered,
+  noSchoolYear,
   onCreateClick,
 }: SectionEmptyStateProps): React.JSX.Element {
+  // 🚫 No school year selected
+  if (noSchoolYear) {
+    return (
+      <div className="rounded-lg border bg-card px-6 py-16 text-center">
+        <CalendarDays className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+        <p className="text-sm font-medium text-muted-foreground">
+          No school year selected
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Please select a school year to view sections.
+        </p>
+      </div>
+    );
+  }
+
+  // 📭 Empty / filtered states
   return (
     <div className="rounded-lg border bg-card px-6 py-16 text-center">
       <Layers className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-      <p className="text-sm font-medium text-muted-foreground">No sections found</p>
+
+      <p className="text-sm font-medium text-muted-foreground">
+        {isFiltered ? "No matching sections" : "No sections yet"}
+      </p>
+
       <p className="text-xs text-muted-foreground mt-1">
         {isFiltered
-          ? "No sections for this level yet."
-          : "Create your first section to get started."}
+          ? "Try adjusting your filters."
+          : "This school year doesn’t have any sections yet."}
       </p>
-      <Button size="sm" variant="outline" className="mt-4" onClick={onCreateClick}>
-        <Plus className="mr-1.5 h-3.5 w-3.5" />
-        New Section
-      </Button>
+
+      {/* Only show CTA when NOT filtered */}
+      {!isFiltered && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-4"
+          onClick={onCreateClick}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          New Section
+        </Button>
+      )}
     </div>
   );
 }

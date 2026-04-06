@@ -4,6 +4,7 @@ import client from "@/api/client";
 import type { Strand } from "@/types/admin/strand.types";
 
 export interface CreateStrandRequest {
+  schoolYearId: string;  // ← add
   program_id: string;  // matches backend CreateStrandDto field name exactly
   name: string;
 }

@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -15,6 +16,7 @@ import {
   CreateSubjectDto,
   UpdateSubjectDto,
   QuerySubjectDto,
+  ShareSubjectDto,
 } from './dto/subject.dto'
 import { AuthGuard } from '@/commons/guards/auth.guard'
 import { RolesGuard } from '@/commons/guards/role.guard'
@@ -26,6 +28,10 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator'
 export class SubjectController {
   constructor(private readonly subjectService: SubjectService) {}
 
+  // ---------------------------------------------------------------------------
+  // Core CRUD
+  // ---------------------------------------------------------------------------
+
   @Post()
   @Roles('admin')
   async create(
@@ -35,16 +41,6 @@ export class SubjectController {
     return this.subjectService.create(orgId, dto)
   }
 
-  /**
-   * GET /subjects
-   * Supports filtering by courseId, strandId, scope, yearLevel, termLabel.
-   *
-   * Examples:
-   *   GET /subjects?courseId=xxx          → open subjects + BSCS majors
-   *   GET /subjects?scope=open            → only open/minor subjects
-   *   GET /subjects?scope=coupled         → only course-coupled majors
-   *   GET /subjects?courseId=xxx&yearLevel=1st Year&termLabel=1st Sem
-   */
   @Get()
   async findAll(
     @CurrentUser('orgId') orgId: string,
@@ -89,5 +85,39 @@ export class SubjectController {
     @CurrentUser('orgId') orgId: string,
   ) {
     return this.subjectService.unlock(id, orgId)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sharing (minor subjects only)
+  // ---------------------------------------------------------------------------
+
+  @Post(':id/share')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async share(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+    @Body() dto: ShareSubjectDto,
+  ) {
+    return this.subjectService.share(id, orgId, dto)
+  }
+
+  @Delete(':id/share/:sharingId')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async unshare(
+    @Param('id') id: string,
+    @Param('sharingId') sharingId: string,
+    @CurrentUser('orgId') orgId: string,
+  ) {
+    return this.subjectService.unshare(id, sharingId, orgId)
+  }
+
+  @Get(':id/sharings')
+  async findSharings(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+  ) {
+    return this.subjectService.findSharings(id, orgId)
   }
 }

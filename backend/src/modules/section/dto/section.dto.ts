@@ -1,31 +1,23 @@
-// @/modules/section/dto/section.dto.ts
 import {
-  IsString,
-  IsOptional,
-  IsInt,
-  IsUUID,
-  MinLength,
-  MaxLength,
-  Min,
+  IsString, IsOptional, IsInt, IsUUID, MinLength, MaxLength, Min,
 } from 'class-validator';
-
-// ── POST /sections ────────────────────────────────────────────────────────────
 
 export class CreateSectionDto {
   @IsUUID()
-  levelId: string;
+  levelId!: string;
+
+  @IsUUID()
+  schoolYearId!: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @IsInt()
   @Min(1)
-  capacity: number;
+  capacity!: number;
 }
-
-// ── PATCH /sections/:id ───────────────────────────────────────────────────────
 
 export class UpdateSectionDto {
   @IsOptional()
@@ -40,9 +32,11 @@ export class UpdateSectionDto {
   capacity?: number;
 }
 
-// ── GET /sections ─────────────────────────────────────────────────────────────
-
 export class QuerySectionDto {
+  @IsOptional()
+  @IsUUID()
+  schoolYearId?: string;
+
   @IsOptional()
   @IsUUID()
   levelId?: string;
