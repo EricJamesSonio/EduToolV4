@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { programApi } from "@/api/admin/program.api";
+import { schoolYearApi } from "@/api/admin/school-year.api";
 import type { ProgramType } from "@/api/admin/program.api";
 import type { Program } from "@/types/admin/program.types";
+import type { SchoolYear } from "@/types/admin/school-year.types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -35,6 +37,7 @@ import {
   Trash2,
   BookOpen,
   GraduationCap,
+  CalendarDays,
 } from "lucide-react";
 import type { AxiosError } from "axios";
 
@@ -56,6 +59,55 @@ const PROGRAM_TYPE_OPTIONS: { value: ProgramType; label: string }[] = [
   { value: "custom", label: "Custom" },
 ];
 
+// ─── School Year Selector ─────────────────────────────────────────────────────
+
+function SchoolYearSelector({
+  schoolYears,
+  isLoading,
+  selectedId,
+  onSelect,
+}: {
+  schoolYears: SchoolYear[];
+  isLoading: boolean;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}): React.JSX.Element {
+  if (isLoading) {
+    return <Skeleton className="h-9 w-48" />;
+  }
+
+  if (schoolYears.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">No school years found.</p>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+      <Select value={selectedId ?? ""} onValueChange={onSelect}>
+        <SelectTrigger className="w-52 h-9 text-sm">
+          <SelectValue placeholder="Select school year" />
+        </SelectTrigger>
+        <SelectContent>
+          {schoolYears.map((sy) => (
+            <SelectItem key={sy.id} value={sy.id}>
+              <div className="flex items-center gap-2">
+                <span>{sy.name}</span>
+                {sy.status === "active" && (
+                  <Badge variant="default" className="text-xs py-0 px-1.5">
+                    Active
+                  </Badge>
+                )}
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 // ─── Create Dialog ────────────────────────────────────────────────────────────
 
 interface CreateForm {
@@ -66,9 +118,11 @@ interface CreateForm {
 function CreateProgramDialog({
   open,
   onClose,
+  schoolYearId,
 }: {
   open: boolean;
   onClose: () => void;
+  schoolYearId: string;
 }): React.JSX.Element {
   const queryClient = useQueryClient();
 
@@ -86,10 +140,13 @@ function CreateProgramDialog({
   const selectedType = watch("type");
 
   const mutation = useMutation({
-    mutationFn: programApi.create,
+    mutationFn: (values: CreateForm) =>
+      programApi.create({ ...values, schoolYearId }),
     onSuccess: () => {
       toast.success("Program created.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "programs"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "programs", schoolYearId],
+      });
       reset();
       onClose();
     },
@@ -250,42 +307,82 @@ function ProgramCard({
 
 export default function ProgramsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<
+    string | null
+  >(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Program | null>(null);
 
-  const { data: programs, isLoading } = useQuery({
-    queryKey: ["admin", "programs"],
-    queryFn: programApi.getAll,
+  // Fetch all school years
+  const { data: schoolYears = [], isLoading: syLoading } = useQuery({
+    queryKey: ["admin", "school-years"],
+    queryFn: schoolYearApi.getAll,
+  });
+
+  // Auto-select the active school year on load
+  useEffect(() => {
+    if (schoolYears.length > 0 && !selectedSchoolYearId) {
+      const active = schoolYears.find((sy) => sy.status === "active");
+      setSelectedSchoolYearId(active?.id ?? schoolYears[0].id);
+    }
+  }, [schoolYears, selectedSchoolYearId]);
+
+  // Fetch programs scoped to selected school year
+  const { data: programs, isLoading: programsLoading } = useQuery({
+    queryKey: ["admin", "programs", selectedSchoolYearId],
+    queryFn: () => programApi.getAll(selectedSchoolYearId!),
+    enabled: !!selectedSchoolYearId,
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => programApi.delete(id),
     onSuccess: () => {
       toast.success("Program deleted.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "programs"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "programs", selectedSchoolYearId],
+      });
       setDeleteTarget(null);
     },
     onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(
-        err?.response?.data?.message ?? "Failed to delete program."
-      );
+      toast.error(err?.response?.data?.message ?? "Failed to delete program.");
       setDeleteTarget(null);
     },
   });
+
+  const isLoading = syLoading || programsLoading;
+  const noSchoolYears = !syLoading && schoolYears.length === 0;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Programs"
         actions={
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Program
-          </Button>
+          <div className="flex items-center gap-3">
+            <SchoolYearSelector
+              schoolYears={schoolYears}
+              isLoading={syLoading}
+              selectedId={selectedSchoolYearId}
+              onSelect={setSelectedSchoolYearId}
+            />
+            <Button
+              onClick={() => setCreateOpen(true)}
+              disabled={!selectedSchoolYearId}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Program
+            </Button>
+          </div>
         }
       />
 
-      {isLoading ? (
+      {/* No school years at all */}
+      {noSchoolYears ? (
+        <EmptyState
+          icon={CalendarDays}
+          title="No school years found"
+          description="Create a school year first before managing programs."
+        />
+      ) : !selectedSchoolYearId || isLoading ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-32 w-full rounded-lg" />
@@ -294,8 +391,8 @@ export default function ProgramsPage(): React.JSX.Element {
       ) : !programs?.length ? (
         <EmptyState
           icon={BookOpen}
-          title="No programs yet"
-          description="Add your first program to get started."
+          title="No programs for this school year"
+          description="Add a program manually or run the data seeder from the Organization page."
         />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -309,10 +406,13 @@ export default function ProgramsPage(): React.JSX.Element {
         </div>
       )}
 
-      <CreateProgramDialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-      />
+      {selectedSchoolYearId && (
+        <CreateProgramDialog
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          schoolYearId={selectedSchoolYearId}
+        />
+      )}
 
       {deleteTarget && (
         <ConfirmDialog
