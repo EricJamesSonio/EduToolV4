@@ -13,7 +13,7 @@ import { IsUUID }       from 'class-validator';
 
 class SchoolYearQueryDto {
   @IsUUID()
-  schoolYearId: string
+  schoolYearId!: string
 }
 
 @Controller('grading-schemes')

@@ -1,20 +1,13 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
+  Controller, Get, Post, Patch, Delete,
+  Body, Param, Query, UseGuards,
 } from '@nestjs/common'
-import { CourseService } from './course.service'
+import { CourseService }   from './course.service'
 import { CreateCourseDto, UpdateCourseDto, CourseQueryDto } from './dto/course.dto'
-import { AuthGuard } from '@/commons/guards/auth.guard'
-import { RolesGuard } from '@/commons/guards/role.guard'
-import { Roles } from '@/commons/decorators/roles.decorator'
-import { CurrentUser } from '@/commons/decorators/current-user.decorator'
+import { AuthGuard }       from '@/commons/guards/auth.guard'
+import { RolesGuard }      from '@/commons/guards/role.guard'
+import { Roles }           from '@/commons/decorators/roles.decorator'
+import { CurrentUser }     from '@/commons/decorators/current-user.decorator'
 
 @UseGuards(AuthGuard, RolesGuard)
 @Controller('courses')
@@ -32,29 +25,38 @@ export class CourseController {
 
   @Get()
   @Roles('admin', 'educator', 'platform_owner')
-  findAll(@CurrentUser() user: any, @Query() query: CourseQueryDto) {
-    return this.courseService.findAll(user.org_id, query)
+  findAll(
+    @CurrentUser('orgId') orgId: string,
+    @Query() query: CourseQueryDto,
+  ) {
+    return this.courseService.findAll(orgId, query)
   }
 
   @Get(':id')
   @Roles('admin', 'educator', 'platform_owner')
-  findOne(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.courseService.findOne(id, user.org_id)
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+  ) {
+    return this.courseService.findOne(id, orgId)
   }
 
   @Patch(':id')
   @Roles('admin', 'platform_owner')
   update(
     @Param('id') id: string,
-    @CurrentUser() user: any,
+    @CurrentUser('orgId') orgId: string,
     @Body() dto: UpdateCourseDto,
   ) {
-    return this.courseService.update(id, user.org_id, dto)
+    return this.courseService.update(id, orgId, dto)
   }
 
   @Delete(':id')
   @Roles('admin', 'platform_owner')
-  remove(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.courseService.remove(id, user.org_id)
+  remove(
+    @Param('id') id: string,
+    @CurrentUser('orgId') orgId: string,
+  ) {
+    return this.courseService.remove(id, orgId)
   }
 }

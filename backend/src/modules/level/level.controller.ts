@@ -1,30 +1,21 @@
-// ===== File: backend\src\modules\level\level.controller.ts =====
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { LevelService } from './level.service';
-import { UpdateLevelDefaultsDto, UpdateLevelDto, QueryLevelDto, CreateLevelDto, BulkGenerateLevelsDto } from './dto/level.dto';
-import { AuthGuard } from '@/commons/guards/auth.guard';
-import { RolesGuard } from '@/commons/guards/role.guard';
-import { Roles } from '@/commons/decorators/roles.decorator';
-import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+import {
+  Controller, Get, Post, Patch, Delete,
+  Body, Param, Query, UseGuards,
+} from '@nestjs/common';
+import { LevelService }    from './level.service';
+import {
+  UpdateLevelDto, QueryLevelDto,
+  CreateLevelDto, BulkGenerateLevelsDto,
+} from './dto/level.dto';
+import { AuthGuard }       from '@/commons/guards/auth.guard';
+import { RolesGuard }      from '@/commons/guards/role.guard';
+import { Roles }           from '@/commons/decorators/roles.decorator';
+import { CurrentUser }     from '@/commons/decorators/current-user.decorator';
 
 @Controller('levels')
 @UseGuards(AuthGuard, RolesGuard)
 export class LevelController {
   constructor(private readonly levelService: LevelService) {}
-
-  @Get('defaults')
-  async getDefaults(@CurrentUser('orgId') orgId: string) {
-    return this.levelService.getDefaults(orgId);
-  }
-
-  @Patch('defaults')
-  @Roles('admin')
-  async updateDefaults(
-    @CurrentUser('orgId') orgId: string,
-    @Body() dto: UpdateLevelDefaultsDto,
-  ) {
-    return this.levelService.updateDefaults(orgId, dto);
-  }
 
   @Post('bulk-generate')
   @Roles('admin')
