@@ -17,7 +17,7 @@ function seedId(...parts: string[]): string {
 
 export interface OrgSeedOptions {
   orgId:             string
-  schoolYearId:      string   // required — must exist before seeding
+  schoolYearId:      string
   programs:          string[]
   courses?:          string[]
   strands?:          string[]
@@ -81,11 +81,11 @@ export class OrgSeederService {
         where:  { id },
         update: {},
         create: {
-          id,                           // ← was `seed-prog-${p.key}-${ORG_ID}`
-          org_id:         orgId,        // ← was ORG_ID
-          school_year_id: schoolYearId, // ← was SCHOOL_YEAR_ID
-          name:           p.name,
-          type:           p.type,
+          id,
+          org_id: orgId,
+          name:   p.name,
+          type:   p.type,
+          schoolYear: { connect: { id: schoolYearId } },
         },
       })
       programMap[p.key] = rec.id
@@ -110,11 +110,11 @@ export class OrgSeederService {
         update: {},
         create: {
           id,
-          org_id:         orgId,
-          school_year_id: schoolYearId,
-          program_id:     programMap['college'],
-          name:           c.name,
-          code:           c.code,
+          org_id: orgId,
+          name:   c.name,
+          code:   c.code,
+          schoolYear: { connect: { id: schoolYearId } },
+          program:    { connect: { id: programMap['college'] } },
         },
       })
       courseMap[c.code] = rec.id
@@ -139,10 +139,10 @@ export class OrgSeederService {
         update: {},
         create: {
           id,
-          org_id:         orgId,
-          school_year_id: schoolYearId,
-          program_id:     programMap['shs'],
-          name:           s.name,
+          org_id: orgId,
+          name:   s.name,
+          schoolYear: { connect: { id: schoolYearId } },
+          program:    { connect: { id: programMap['shs'] } },
         },
       })
       strandMap[s.name] = rec.id
@@ -167,10 +167,10 @@ export class OrgSeederService {
         update: {},
         create: {
           id,
-          org_id:         orgId,
-          school_year_id: schoolYearId,
-          program_id:     programMap[lvl.programKey],
-          name:           lvl.name,
+          org_id: orgId,
+          name:   lvl.name,
+          schoolYear: { connect: { id: schoolYearId } },
+          program:    { connect: { id: programMap[lvl.programKey] } },
         },
       })
       levelMap[lvl.name] = rec.id
@@ -183,9 +183,9 @@ export class OrgSeederService {
           create: {
             id:       sectionId,
             org_id:   orgId,
-            level_id: rec.id,
             name:     sec.name,
             capacity: sec.capacity,
+            level:    { connect: { id: rec.id } },
           },
         })
       }
@@ -202,19 +202,20 @@ export class OrgSeederService {
       if (!shouldSeed(sa.programKey)) continue
       const levelId = levelMap[sa.levelName]
       if (!levelId) continue
+
       const id = seedId('scale', sa.levelName, sa.scaleName, schoolYearId, orgId)
       await this.db.gradingScale.upsert({
         where:  { id },
         update: {},
-        create: {
-          id,
-          org_id:         orgId,
-          school_year_id: schoolYearId,
-          level_id:       levelId,
-          name:           sa.scaleName,
-          ranges:         sa.ranges,
-          is_locked:      false,
-        },
+      create: {
+        id,
+        org_id:         orgId,
+        name:           sa.scaleName,
+        ranges:         sa.ranges,
+        is_locked:      false,
+        level_id:       levelId,
+        school_year_id: schoolYearId,
+      },
       })
     }
   }
@@ -299,19 +300,21 @@ export class OrgSeederService {
       const existing = await this.db.subject.findFirst({ where: { id } })
       const subjectId = existing
         ? existing.id
-        : (await this.db.subject.create({
-            data: {
-              id,
-              org_id:     orgId,
-              name:       s.name,
-              level_id:   levelId,
-              course_id:  courseId,
-              strand_id:  strandId,
-              year_level: s.yearLevel,
-              term_label: s.termLabel,
-              is_locked:  false,
-            },
-          })).id
+        : (
+            await this.db.subject.create({
+              data: {
+                id,
+                org_id:     orgId,
+                name:       s.name,
+                year_level: s.yearLevel,
+                term_label: s.termLabel,
+                is_locked:  false,
+                level:  { connect: { id: levelId } },
+                ...(courseId ? { course: { connect: { id: courseId } } } : {}),
+                ...(strandId ? { strand: { connect: { id: strandId } } } : {}),
+              },
+            })
+          ).id
 
       subjectNameToId[s.name] = subjectId
     }
