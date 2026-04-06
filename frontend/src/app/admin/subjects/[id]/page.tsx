@@ -10,7 +10,10 @@ import { subjectApi } from "@/api/admin/subject.api";
 import type { UpdateSubjectRequest } from "@/api/admin/subject.api";
 import { levelApi } from "@/api/admin/level.api";
 import { educatorApi } from "@/api/admin/educator.api";
-import type { Subject } from "@/types/admin/subject.types";
+import { schoolYearApi } from "@/api/admin/school-year.api";
+import { useUnshareSubject } from "@/hooks/admin/useSubject";
+import type { Subject, SubjectSharing } from "@/types/admin/subject.types";
+import { ShareSubjectDialog } from "@/components/admin/subject/ShareSubjectDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,10 +40,16 @@ import {
   LockOpen,
   AlertTriangle,
   Eye,
+  Share2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AxiosError } from "axios";
 import type { Level } from "@/types/admin/level.types";
+
+// ---------------------------------------------------------------------------
+// Edit dialog (unchanged from original, kept inline)
+// ---------------------------------------------------------------------------
 
 interface EditSubjectForm {
   name: string;
@@ -62,7 +71,6 @@ function EditSubjectDialog({
   onClose: () => void;
 }): React.JSX.Element {
   const queryClient = useQueryClient();
-
   const {
     register,
     handleSubmit,
@@ -72,22 +80,20 @@ function EditSubjectDialog({
     formState: { errors },
   } = useForm<EditSubjectForm>({
     defaultValues: {
-      // ✅ subject.title (not .name), subject.programId (not .levelId)
-      name: subject.title,
-      levelId: subject.programId ?? "",
+      name:       subject.title,
+      levelId:    subject.programId ?? "",
       educatorId: subject.educatorId ?? "",
     },
   });
 
-  const selectedLevelId = watch("levelId");
+  const selectedLevelId    = watch("levelId");
   const selectedEducatorId = watch("educatorId");
 
   const mutation = useMutation({
     mutationFn: (values: EditSubjectForm) =>
       subjectApi.update(subject.id, {
-        // ✅ API uses `name` (UpdateSubjectRequest)
-        name: values.name,
-        levelId: values.levelId || undefined,
+        name:       values.name,
+        levelId:    values.levelId    || undefined,
         educatorId: values.educatorId || undefined,
       } as UpdateSubjectRequest),
     onSuccess: () => {
@@ -201,6 +207,141 @@ function EditSubjectDialog({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Sharings section
+// ---------------------------------------------------------------------------
+
+function SharingsSection({
+  subject,
+  sharings,
+  schoolYearId,
+}: {
+  subject: Subject;
+  sharings: SubjectSharing[];
+  schoolYearId: string;
+}): React.JSX.Element {
+  const [shareOpen, setShareOpen] = useState(false);
+  const [unshareTarget, setUnshareTarget] = useState<SubjectSharing | null>(null);
+  const unshareMutation = useUnshareSubject();
+
+  const getSharingLabel = (s: SubjectSharing): string => {
+    if (s.courseName) return s.courseName;
+    if (s.strandName) return s.strandName;
+    if (s.levelName)  return s.levelName;
+    return "Unknown";
+  };
+
+  const getSharingType = (s: SubjectSharing): string => {
+    if (s.courseId) return "Course";
+    if (s.strandId) return "Strand";
+    if (s.levelId)  return "Level";
+    return "";
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold">Shared To</h2>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShareOpen(true)}
+        >
+          <Share2 className="mr-1.5 h-3.5 w-3.5" />
+          Share
+        </Button>
+      </div>
+
+      {sharings.length === 0 ? (
+        <div className="rounded-lg border border-dashed px-4 py-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Not shared to any courses or levels yet.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-3"
+            onClick={() => setShareOpen(true)}
+          >
+            <Share2 className="mr-1.5 h-3.5 w-3.5" />
+            Share to a course or level
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-lg border bg-card divide-y">
+          {sharings.map((s) => (
+            <div
+              key={s.id}
+              className="flex items-center justify-between gap-4 px-4 py-3"
+            >
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs font-normal">
+                  {getSharingType(s)}
+                </Badge>
+                <span className="text-sm">{getSharingLabel(s)}</span>
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                onClick={() => setUnshareTarget(s)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {shareOpen && (
+        <ShareSubjectDialog
+          subject={subject}
+          existingSharings={sharings}
+          schoolYearId={schoolYearId}
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
+
+      {unshareTarget && (
+        <ConfirmDialog
+          open
+          title="Remove sharing?"
+          message={`Remove sharing to "${getSharingLabel(unshareTarget)}"? The subject will no longer appear there.`}
+          confirmLabel="Remove"
+          destructive
+          isLoading={unshareMutation.isPending}
+          onConfirm={() =>
+            unshareMutation.mutate(
+              { id: subject.id, sharingId: unshareTarget.id },
+              {
+                onSuccess: () => {
+                  toast.success("Sharing removed.");
+                  setUnshareTarget(null);
+                },
+                onError: (err: unknown) => {
+                  const axiosErr = err as AxiosError<{ message: string }>;
+                  toast.error(
+                    axiosErr?.response?.data?.message ?? "Failed to remove sharing.",
+                  );
+                  setUnshareTarget(null);
+                },
+              },
+            )
+          }
+          onOpenChange={(o) => {
+            if (!o) setUnshareTarget(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
 export default function SubjectDetailPage({
   params,
 }: {
@@ -224,11 +365,21 @@ export default function SubjectDetailPage({
     queryFn: () => levelApi.getAll(),
   });
 
-  const { data: educators = [], isLoading: educatorsLoading } = useQuery({
+  const { data: educators = [] } = useQuery({
     queryKey: ["admin", "educators", "all"],
     queryFn: () => educatorApi.getAll(),
     select: (data) => (Array.isArray(data) ? data : []),
   });
+
+  // Resolve active school year id for the share dialog
+  const { data: schoolYears = [] } = useQuery({
+    queryKey: ["admin", "school-years"],
+    queryFn: schoolYearApi.getAll,
+  });
+  const activeSchoolYearId =
+    schoolYears.find((sy) => sy.status === "active")?.id ??
+    schoolYears[0]?.id ??
+    "";
 
   const lockMutation = useMutation({
     mutationFn: () => subjectApi.lock(id),
@@ -274,8 +425,8 @@ export default function SubjectDetailPage({
     );
   }
 
-  // ✅ lockStatus === "locked" (not isLocked)
   const isLocked = subject.lockStatus === "locked";
+  const isMinor  = subject.subjectType === "minor";
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -294,53 +445,50 @@ export default function SubjectDetailPage({
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 shrink-0 mt-0.5">
             <BookOpen className="h-5 w-5 text-primary" />
           </div>
-          <div className="space-y-1">
-            {/* ✅ subject.title (not subject.name) */}
+          <div className="space-y-1.5">
             <h1 className="text-2xl font-semibold">{subject.title}</h1>
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full",
-                isLocked
-                  ? "bg-muted text-muted-foreground"
-                  : "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400"
-              )}
-            >
-              {isLocked ? (
-                <Lock className="h-3 w-3" />
-              ) : (
-                <LockOpen className="h-3 w-3" />
-              )}
-              {isLocked ? "Locked" : "Unlocked"}
-            </span>
+            <div className="flex items-center gap-2">
+              {/* Lock status badge */}
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full",
+                  isLocked
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400",
+                )}
+              >
+                {isLocked ? (
+                  <Lock className="h-3 w-3" />
+                ) : (
+                  <LockOpen className="h-3 w-3" />
+                )}
+                {isLocked ? "Locked" : "Unlocked"}
+              </span>
+              {/* Subject type badge */}
+              <Badge
+                variant={isMinor ? "outline" : "secondary"}
+                className="text-xs font-normal capitalize"
+              >
+                {subject.subjectType}
+              </Badge>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {!isLocked && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditOpen(true)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="mr-1.5 h-3.5 w-3.5" />
               Edit
             </Button>
           )}
           {isLocked ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setUnlockConfirm(true)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setUnlockConfirm(true)}>
               <LockOpen className="mr-1.5 h-3.5 w-3.5" />
               Unlock
             </Button>
           ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setLockConfirm(true)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setLockConfirm(true)}>
               <Lock className="mr-1.5 h-3.5 w-3.5" />
               Lock
             </Button>
@@ -360,17 +508,17 @@ export default function SubjectDetailPage({
       {/* Info card */}
       <div className="rounded-lg border bg-card divide-y">
         <div className="flex items-center gap-4 px-4 py-3">
-          <span className="w-36 text-sm text-muted-foreground shrink-0">
-            Name
-          </span>
-          {/* ✅ subject.title */}
+          <span className="w-36 text-sm text-muted-foreground shrink-0">Name</span>
           <span className="text-sm font-medium">{subject.title}</span>
         </div>
         <div className="flex items-center gap-4 px-4 py-3">
-          <span className="w-36 text-sm text-muted-foreground shrink-0">
-            Level
-          </span>
-          {/* ✅ subject.programName (not subject.levelName) */}
+          <span className="w-36 text-sm text-muted-foreground shrink-0">Type</span>
+          <Badge variant="secondary" className="font-normal capitalize">
+            {subject.subjectType}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-4 px-4 py-3">
+          <span className="w-36 text-sm text-muted-foreground shrink-0">Level</span>
           {subject.programName ? (
             <Badge variant="secondary" className="font-normal">
               {subject.programName}
@@ -380,9 +528,7 @@ export default function SubjectDetailPage({
           )}
         </div>
         <div className="flex items-center gap-4 px-4 py-3">
-          <span className="w-36 text-sm text-muted-foreground shrink-0">
-            Educator
-          </span>
+          <span className="w-36 text-sm text-muted-foreground shrink-0">Educator</span>
           <span className="text-sm">
             {subject.educatorName ?? (
               <span className="text-muted-foreground">Unassigned</span>
@@ -390,15 +536,21 @@ export default function SubjectDetailPage({
           </span>
         </div>
         <div className="flex items-center gap-4 px-4 py-3">
-          <span className="w-36 text-sm text-muted-foreground shrink-0">
-            Lock Status
-          </span>
-          {/* ✅ isLocked derived from lockStatus === "locked" above */}
+          <span className="w-36 text-sm text-muted-foreground shrink-0">Lock Status</span>
           <span className="text-sm">{isLocked ? "Locked" : "Unlocked"}</span>
         </div>
       </div>
 
-      {/* Linked Classes — Subject type does not include classes; navigate to filtered list */}
+      {/* Sharings section — only for minor subjects */}
+      {isMinor && activeSchoolYearId && (
+        <SharingsSection
+          subject={subject}
+          sharings={subject.sharings ?? []}
+          schoolYearId={activeSchoolYearId}
+        />
+      )}
+
+      {/* Linked Classes */}
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold">Linked Classes</h2>
         <Button
@@ -427,7 +579,6 @@ export default function SubjectDetailPage({
         <ConfirmDialog
           open
           title="Lock this subject?"
-          // ✅ subject.title (not subject.name)
           message={`Lock "${subject.title}"? It will become read-only.`}
           confirmLabel="Lock Subject"
           destructive={false}
@@ -444,7 +595,6 @@ export default function SubjectDetailPage({
         <ConfirmDialog
           open
           title="Unlock this subject?"
-          // ✅ subject.title (not subject.name)
           message={`Unlock "${subject.title}"? It will become editable again.`}
           confirmLabel="Unlock Subject"
           destructive={false}
@@ -459,7 +609,6 @@ export default function SubjectDetailPage({
   );
 }
 
-// Named import to avoid confusion with the BookOpen used inline
 function BookOpen({ className }: { className?: string }): React.JSX.Element {
   return (
     <svg

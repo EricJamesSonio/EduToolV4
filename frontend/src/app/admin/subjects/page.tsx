@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -22,21 +23,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, BookOpen } from "lucide-react";
 import { SubjectDialog } from "@/components/admin/subject/SubjectDialog";
 import { useSubjectColumns } from "@/components/admin/subject/SubjectColumns";
 import type { AxiosError } from "axios";
+import type { SubjectType } from "@/types/admin/subject.types";
 
 export default function SubjectsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
 
-  // ── School years ──
   const { data: schoolYears = [], isLoading: syLoading } = useQuery({
     queryKey: ["admin", "school-years"],
-    queryFn:  schoolYearApi.getAll,
+    queryFn: schoolYearApi.getAll,
   });
 
-  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     if (schoolYears.length > 0 && !selectedSchoolYearId) {
@@ -45,44 +49,51 @@ export default function SubjectsPage(): React.JSX.Element {
     }
   }, [schoolYears, selectedSchoolYearId]);
 
-  // ── Level filter ──
+  // Tab: "major" | "minor"
+  const [activeTab, setActiveTab] = useState<SubjectType>("major");
+
   const [filterLevelId, setFilterLevelId] = useState<string>("all");
 
+  // Reset level filter when school year or tab changes
   useEffect(() => {
     setFilterLevelId("all");
-  }, [selectedSchoolYearId]);
+  }, [selectedSchoolYearId, activeTab]);
 
-  // ── Dialogs ──
-  const [createOpen,   setCreateOpen]   = useState(false);
-  const [lockTarget,   setLockTarget]   = useState<Subject | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [lockTarget, setLockTarget] = useState<Subject | null>(null);
   const [unlockTarget, setUnlockTarget] = useState<Subject | null>(null);
 
-  // ── Levels scoped to school year via getBySchoolYear ──
   const { data: levels = [], isLoading: levelsLoading } = useQuery({
     queryKey: ["admin", "levels", selectedSchoolYearId],
-    queryFn:  () => levelApi.getBySchoolYear(selectedSchoolYearId!),
-    enabled:  !!selectedSchoolYearId,
+    queryFn: () => levelApi.getBySchoolYear(selectedSchoolYearId!),
+    enabled: !!selectedSchoolYearId,
   });
 
-  // ── Educators (org-wide) ──
   const { data: educators = [], isLoading: educatorsLoading } = useQuery({
     queryKey: ["admin", "educators", "all"],
-    queryFn:  () => educatorApi.getAll(),
-    select:   (data) => (Array.isArray(data) ? data : []),
+    queryFn: () => educatorApi.getAll(),
+    select: (data) => (Array.isArray(data) ? data : []),
   });
 
-  // ── Subjects scoped to school year + optional level ──
-  const { data: subjects = [], isLoading: subjectsLoading } = useQuery<Subject[]>({
-    queryKey: ["admin", "subjects", selectedSchoolYearId, filterLevelId],
-    queryFn:  () =>
+  const { data: subjects = [], isLoading: subjectsLoading } = useQuery<
+    Subject[]
+  >({
+    queryKey: [
+      "admin",
+      "subjects",
+      selectedSchoolYearId,
+      filterLevelId,
+      activeTab,
+    ],
+    queryFn: () =>
       subjectApi.getAll({
         schoolYearId: selectedSchoolYearId!,
-        levelId:      filterLevelId !== "all" ? filterLevelId : undefined,
+        levelId: filterLevelId !== "all" ? filterLevelId : undefined,
+        subjectType: activeTab,
       }),
     enabled: !!selectedSchoolYearId,
   });
 
-  // ── Mutations ──
   const lockMutation = useMutation({
     mutationFn: (id: string) => subjectApi.lock(id),
     onSuccess: () => {
@@ -104,7 +115,9 @@ export default function SubjectsPage(): React.JSX.Element {
       setUnlockTarget(null);
     },
     onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to unlock subject.");
+      toast.error(
+        err?.response?.data?.message ?? "Failed to unlock subject.",
+      );
       setUnlockTarget(null);
     },
   });
@@ -117,9 +130,13 @@ export default function SubjectsPage(): React.JSX.Element {
       <PageHeader
         title="Subjects"
         actions={
-          <Button onClick={() => setCreateOpen(true)} size="sm" disabled={!selectedSchoolYearId}>
+          <Button
+            onClick={() => setCreateOpen(true)}
+            size="sm"
+            disabled={!selectedSchoolYearId}
+          >
             <Plus className="mr-1.5 h-4 w-4" />
-            New Subject
+            {activeTab === "minor" ? "New Minor Subject" : "New Subject"}
           </Button>
         }
       />
@@ -134,12 +151,16 @@ export default function SubjectsPage(): React.JSX.Element {
         />
 
         {selectedSchoolYearId && (
-          <Select value={filterLevelId} onValueChange={(v) => setFilterLevelId(v ?? "all")}>
+          <Select
+            value={filterLevelId}
+            onValueChange={(v) => setFilterLevelId(v ?? "all")}
+          >
             <SelectTrigger className="w-52 h-9 text-sm">
               <SelectValue placeholder="All Levels">
                 {filterLevelId === "all"
                   ? "All Levels"
-                  : levels.find((l) => l.id === filterLevelId)?.name ?? "All Levels"}
+                  : levels.find((l) => l.id === filterLevelId)?.name ??
+                    "All Levels"}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -153,6 +174,23 @@ export default function SubjectsPage(): React.JSX.Element {
           </Select>
         )}
       </div>
+
+      {/* ── Major / Minor tabs ── */}
+      {selectedSchoolYearId && (
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as SubjectType)}
+        >
+          <TabsList className="h-9">
+            <TabsTrigger value="major" className="text-sm px-4">
+              Major Subjects
+            </TabsTrigger>
+            <TabsTrigger value="minor" className="text-sm px-4">
+              Minor Subjects
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
 
       {/* ── No school year ── */}
       {!selectedSchoolYearId && !syLoading && (
@@ -175,16 +213,30 @@ export default function SubjectsPage(): React.JSX.Element {
           ) : subjects.length === 0 ? (
             <EmptyState
               icon={BookOpen}
-              title="No subjects found"
+              title={`No ${activeTab} subjects found`}
               description={
                 filterLevelId !== "all"
-                  ? "No subjects for this level yet."
-                  : "No subjects found for this school year."
+                  ? `No ${activeTab} subjects for this level yet.`
+                  : `No ${activeTab} subjects found for this school year.`
               }
-              action={{ label: "New Subject", onClick: () => setCreateOpen(true) }}
+              action={{
+                label:
+                  activeTab === "minor"
+                    ? "New Minor Subject"
+                    : "New Subject",
+                onClick: () => setCreateOpen(true),
+              }}
             />
           ) : (
-            <DataTable columns={columns} data={subjects} />
+            <>
+              {/* Minor tab: show sharing badges above the table */}
+              {activeTab === "minor" && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>Minor subjects can be shared to courses, strands, or levels within their program.</span>
+                </div>
+              )}
+              <DataTable columns={columns} data={subjects} />
+            </>
           )}
         </>
       )}
@@ -194,9 +246,14 @@ export default function SubjectsPage(): React.JSX.Element {
         <SubjectDialog
           levels={levels}
           educators={educators}
+          schoolYearId={selectedSchoolYearId ?? undefined}
+          // Pre-set subjectType based on active tab
+          defaultSubjectType={activeTab}
           open={createOpen}
           onClose={() => setCreateOpen(false)}
-          onSaved={() => queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] })}
+          onSaved={() =>
+            queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] })
+          }
         />
       )}
 
@@ -209,7 +266,9 @@ export default function SubjectsPage(): React.JSX.Element {
           destructive={false}
           isLoading={lockMutation.isPending}
           onConfirm={() => lockMutation.mutate(lockTarget.id)}
-          onOpenChange={(o) => { if (!o) setLockTarget(null); }}
+          onOpenChange={(o) => {
+            if (!o) setLockTarget(null);
+          }}
         />
       )}
 
@@ -222,7 +281,9 @@ export default function SubjectsPage(): React.JSX.Element {
           destructive={false}
           isLoading={unlockMutation.isPending}
           onConfirm={() => unlockMutation.mutate(unlockTarget.id)}
-          onOpenChange={(o) => { if (!o) setUnlockTarget(null); }}
+          onOpenChange={(o) => {
+            if (!o) setUnlockTarget(null);
+          }}
         />
       )}
     </div>
