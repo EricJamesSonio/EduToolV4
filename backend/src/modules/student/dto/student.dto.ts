@@ -8,6 +8,7 @@ import {
   MinLength,
   MaxLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 // ── Status enum ───────────────────────────────────────────────────────────────
 
@@ -26,18 +27,18 @@ export class CreateStudentDto {
   @IsString()
   @MinLength(2)
   @MaxLength(150)
-  fullName: string;
+  fullName!: string;
 
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(50)
-  studentId: string; // Admin-assigned student ID
+  studentId!: string; // Admin-assigned student ID
 
   @IsUUID()
-  levelId: string;
+  levelId!: string;
 
   @IsOptional()
   @IsUUID()
@@ -70,7 +71,7 @@ export class UpdateStudentDto {
 
 export class UpdateStudentStatusDto {
   @IsEnum(StudentStatus)
-  status: StudentStatus;
+  status!: StudentStatus;
 
   @IsOptional()
   @IsString()
@@ -83,23 +84,23 @@ export class UpdateStudentStatusDto {
 export class QueryStudentDto {
   @IsOptional()
   @IsString()
-  search?: string; // by name or studentId
+  search?: string;
 
   @IsOptional()
   @IsEnum(StudentStatus)
   status?: StudentStatus;
 
   @IsOptional()
+  @Transform(({ value }) => value || undefined)
   @IsUUID()
   levelId?: string;
 
   @IsOptional()
+  @Transform(({ value }) => value || undefined)
   @IsUUID()
   sectionId?: string;
-
-
 }
 export class AddEnrollmentDto {
   @IsUUID()
-  classId: string;
+  classId!: string;
 }
