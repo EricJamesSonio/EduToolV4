@@ -119,18 +119,21 @@ export function SubjectDialog({
 
           <div className="space-y-1.5">
             <Label>Level</Label>
-            <Select value={selectedLevelId} onValueChange={(v) => setValue("levelId", v ?? "")}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a level" />
-              </SelectTrigger>
-              <SelectContent>
-                {levels.map((level) => (
-                  <SelectItem key={level.id} value={level.id}>
-                    {level.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+
+        <Select value={selectedLevelId} onValueChange={(v) => setValue("levelId", v ?? "")}>
+          <SelectTrigger>
+<SelectValue placeholder="Select a level">
+  {levels.find((l) => l.id === selectedLevelId)?.name ?? "Select a level"}
+</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {levels.map((level) => (
+              <SelectItem key={level.id} value={level.id}>
+                {level.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
             {errors.levelId && (
               <p className="text-xs text-destructive">{errors.levelId.message}</p>
             )}
@@ -141,19 +144,21 @@ export function SubjectDialog({
               Assigned Educator{" "}
               <span className="text-muted-foreground font-normal">(optional)</span>
             </Label>
-            <Select value={selectedEducatorId} onValueChange={(v) => setValue("educatorId", v ?? "")}>
-              <SelectTrigger>
-                <SelectValue placeholder="Unassigned" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
-                {educators.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.fullName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <Select value={selectedEducatorId} onValueChange={(v) => setValue("educatorId", v ?? "")}>
+                      <SelectTrigger>
+          <SelectValue placeholder="Unassigned">
+            {educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Unassigned"}
+          </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Unassigned</SelectItem>
+              {educators.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.fullName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           </div>
 
           <div className="flex justify-end gap-2 pt-1">

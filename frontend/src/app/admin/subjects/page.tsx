@@ -93,19 +93,23 @@ export default function SubjectsPage(): React.JSX.Element {
 
       {/* Filter bar */}
       <div className="flex items-center gap-3">
-        <Select value={filterLevelId} onValueChange={(v) => setFilterLevelId(v ?? "all")}>
-          <SelectTrigger className="w-52">
-            <SelectValue placeholder="All Levels" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Levels</SelectItem>
-            {levels.map((level) => (
-              <SelectItem key={level.id} value={level.id}>
-                {level.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <Select value={filterLevelId} onValueChange={(v) => setFilterLevelId(v ?? "all")}>
+        <SelectTrigger className="w-52">
+          <SelectValue placeholder="All Levels">
+            {filterLevelId === "all"
+              ? "All Levels"
+              : levels.find((l) => l.id === filterLevelId)?.name ?? "All Levels"}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Levels</SelectItem>
+          {levels.map((level) => (
+            <SelectItem key={level.id} value={level.id}>
+              {level.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       </div>
 
       {/* Table */}
