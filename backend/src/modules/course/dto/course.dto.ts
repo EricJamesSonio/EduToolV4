@@ -2,14 +2,17 @@ import { IsString, IsOptional, IsNotEmpty, IsUUID } from 'class-validator'
 
 export class CreateCourseDto {
   @IsUUID()
-  programId: string  // ← camelCase
+  schoolYearId: string
+
+  @IsUUID()
+  programId: string
 
   @IsString()
   @IsNotEmpty()
   name: string
 
-  @IsString()
   @IsOptional()
+  @IsString()
   code?: string
 }
 

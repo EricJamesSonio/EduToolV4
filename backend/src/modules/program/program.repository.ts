@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { DatabaseService } from '@/core/database/database.provider'
 
-// Shared include shape — used in both findAll and findById
-// findAll: lightweight list (no subjects) for dashboard/picker views
-// findById: full detail with subjects nested under each course/strand
 const PROGRAM_LIST_INCLUDE = {
   courses: {
     select: { id: true, name: true, code: true },
@@ -21,11 +18,8 @@ const PROGRAM_DETAIL_INCLUDE = {
     include: {
       subjects: {
         select: {
-          id: true,
-          name: true,
-          year_level: true,
-          term_label: true,
-          is_locked: true,
+          id: true, name: true,
+          year_level: true, term_label: true, is_locked: true,
         },
         orderBy: [
           { year_level: 'asc' as const },
@@ -40,11 +34,8 @@ const PROGRAM_DETAIL_INCLUDE = {
     include: {
       subjects: {
         select: {
-          id: true,
-          name: true,
-          year_level: true,
-          term_label: true,
-          is_locked: true,
+          id: true, name: true,
+          year_level: true, term_label: true, is_locked: true,
         },
         orderBy: [
           { year_level: 'asc' as const },
@@ -60,26 +51,26 @@ const PROGRAM_DETAIL_INCLUDE = {
 export class ProgramRepository {
   constructor(private readonly db: DatabaseService) {}
 
-  async create(data: { orgId: string; name: string; type: string }) {
+  async create(data: { orgId: string; schoolYearId: string; name: string; type: string }) {
     return this.db.program.create({
       data: {
-        org_id: data.orgId,
-        name: data.name,
-        type: data.type,
+        org_id:         data.orgId,
+        school_year_id: data.schoolYearId,
+        name:           data.name,
+        type:           data.type,
       },
       include: PROGRAM_LIST_INCLUDE,
     })
   }
 
-  async findAll(orgId: string) {
+  async findAll(orgId: string, schoolYearId: string) {
     return this.db.program.findMany({
-      where: { org_id: orgId },
+      where: { org_id: orgId, school_year_id: schoolYearId },
       include: PROGRAM_LIST_INCLUDE,
       orderBy: { name: 'asc' },
     })
   }
 
-  // Full detail — includes courses → subjects and strands → subjects
   async findById(id: string, orgId: string) {
     return this.db.program.findFirst({
       where: { id, org_id: orgId },
@@ -87,9 +78,9 @@ export class ProgramRepository {
     })
   }
 
-  async findByNameAndOrg(name: string, orgId: string) {
+  async findByNameAndYear(name: string, orgId: string, schoolYearId: string) {
     return this.db.program.findFirst({
-      where: { name, org_id: orgId },
+      where: { name, org_id: orgId, school_year_id: schoolYearId },
       select: { id: true },
     })
   }
@@ -109,26 +100,18 @@ export class ProgramRepository {
     return this.db.program.delete({ where: { id } })
   }
 
-  // ── Deletion guards ──────────────────────────────────────────────────────
-
   async hasLevels(programId: string): Promise<boolean> {
-    const count = await this.db.level.count({
-      where: { program_id: programId },
-    })
+    const count = await this.db.level.count({ where: { program_id: programId } })
     return count > 0
   }
 
   async hasCourses(programId: string): Promise<boolean> {
-    const count = await this.db.course.count({
-      where: { program_id: programId },
-    })
+    const count = await this.db.course.count({ where: { program_id: programId } })
     return count > 0
   }
 
   async hasStrands(programId: string): Promise<boolean> {
-    const count = await this.db.strand.count({
-      where: { program_id: programId },
-    })
+    const count = await this.db.strand.count({ where: { program_id: programId } })
     return count > 0
   }
 }

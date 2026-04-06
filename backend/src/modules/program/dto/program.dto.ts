@@ -4,6 +4,7 @@ import {
   IsEnum,
   MinLength,
   MaxLength,
+  IsNotEmpty, IsUUID,
 } from 'class-validator'
 
 export enum ProgramType {
@@ -15,23 +16,27 @@ export enum ProgramType {
 }
 
 export class CreateProgramDto {
+  @IsUUID()
+  schoolYearId: string
+
   @IsString()
-  @MinLength(2)
-  @MaxLength(100)
+  @IsNotEmpty()
   name: string
 
-  @IsEnum(ProgramType)
-  type: ProgramType
+  @IsString()
+  @IsNotEmpty()
+  type: string
 }
+
 
 export class UpdateProgramDto {
   @IsOptional()
   @IsString()
-  @MinLength(2)
-  @MaxLength(100)
+  @IsNotEmpty()
   name?: string
 
   @IsOptional()
-  @IsEnum(ProgramType)
-  type?: ProgramType
+  @IsString()
+  @IsNotEmpty()
+  type?: string
 }
