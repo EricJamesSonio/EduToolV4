@@ -1,57 +1,61 @@
 "use client";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import type { SchoolYear } from "@/types/admin/school-year.types";
 import { CalendarDays } from "lucide-react";
-import { StatusBadge } from "./StatusBadge";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger,
+} from "@/components/ui/select";
+import type { SchoolYear } from "@/types/admin/school-year.types";
 
-interface Props {
+interface SchoolYearSelectorProps {
   schoolYears: SchoolYear[];
+  isLoading:   boolean;
   selectedId:  string | null;
-  onChange:    (id: string) => void;
-  isLoading?:  boolean;
+  onSelect:    (id: string) => void;
 }
 
-export function SchoolYearSelector({ schoolYears, selectedId, onChange, isLoading }: Props) {
-  const selected = schoolYears.find((sy) => sy.id === selectedId);
-
-  if (isLoading) {
-    return (
-      <div className="h-9 w-48 animate-pulse rounded-md bg-muted" />
-    );
-  }
+export function SchoolYearSelector({
+  schoolYears,
+  isLoading,
+  selectedId,
+  onSelect,
+}: SchoolYearSelectorProps): React.JSX.Element {
+  if (isLoading) return <Skeleton className="h-9 w-48" />;
 
   if (schoolYears.length === 0) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <CalendarDays className="h-4 w-4" />
-        No school years
-      </div>
-    );
+    return <p className="text-sm text-muted-foreground">No school years found.</p>;
   }
 
+  const selected = schoolYears.find((sy) => sy.id === selectedId);
+
   return (
-    <Select value={selectedId ?? ""} onValueChange={onChange}>
-      <SelectTrigger className="w-56 h-9">
-        <div className="flex items-center gap-2 truncate">
-          <CalendarDays className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+    <div className="flex items-center gap-2">
+      <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+      <Select
+        value={selectedId ?? ""}
+        onValueChange={(value) => { if (value) onSelect(value); }}
+      >
+        <SelectTrigger className="w-52 h-9 text-sm">
+          {/* Render label explicitly — never rely on SelectValue children after async load */}
           <span className="truncate">
             {selected?.name ?? "Select school year"}
           </span>
-          {selected && (
-            <StatusBadge status={selected.status} className="ml-auto shrink-0" />
-          )}
-        </div>
-      </SelectTrigger>
-      <SelectContent>
-        {schoolYears.map((sy) => (
-          <SelectItem key={sy.id} value={sy.id}>
-            <div className="flex items-center gap-2">
-              <span>{sy.name}</span>
-              <StatusBadge status={sy.status} />
-            </div>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+        </SelectTrigger>
+        <SelectContent>
+          {schoolYears.map((sy) => (
+            <SelectItem key={sy.id} value={sy.id}>
+              <div className="flex items-center gap-2">
+                <span>{sy.name}</span>
+                {sy.status === "active" && (
+                  <Badge variant="default" className="text-xs py-0 px-1.5">
+                    Active
+                  </Badge>
+                )}
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

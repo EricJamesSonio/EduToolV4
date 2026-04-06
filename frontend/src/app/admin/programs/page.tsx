@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, BookOpen, CalendarDays } from "lucide-react";
-import { SchoolYearSelector } from "@/components/admin/program/SchoolYearSelector";
+import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { CreateProgramDialog } from "@/components/admin/program/CreateProgramDialog";
 import { ProgramCard } from "@/components/admin/program/ProgramCard";
 import type { AxiosError } from "axios";
