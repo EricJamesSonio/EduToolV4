@@ -5,6 +5,10 @@ import { DatabaseService } from '@/core/database/database.provider'
 export class SubjectRepository {
   constructor(private readonly db: DatabaseService) {}
 
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
   private async enrichSubjects(subjects: any[]) {
     if (!subjects.length) return subjects
 
@@ -35,31 +39,77 @@ export class SubjectRepository {
     }))
   }
 
+  /** Resolves names for sharing target rows (course/strand/level). */
+  private async enrichSharings(sharings: any[]) {
+    if (!sharings.length) return []
+
+    const courseIds = [...new Set(sharings.map((s) => s.course_id).filter(Boolean))]
+    const strandIds = [...new Set(sharings.map((s) => s.strand_id).filter(Boolean))]
+    const levelIds  = [...new Set(sharings.map((s) => s.level_id).filter(Boolean))]
+
+    const [courses, strands, levels] = await Promise.all([
+      courseIds.length
+        ? this.db.course.findMany({ where: { id: { in: courseIds } }, select: { id: true, name: true } })
+        : [],
+      strandIds.length
+        ? this.db.strand.findMany({ where: { id: { in: strandIds } }, select: { id: true, name: true } })
+        : [],
+      levelIds.length
+        ? this.db.level.findMany({ where: { id: { in: levelIds } }, select: { id: true, name: true } })
+        : [],
+    ])
+
+    const courseMap = Object.fromEntries(courses.map((c) => [c.id, c.name]))
+    const strandMap = Object.fromEntries(strands.map((s) => [s.id, s.name]))
+    const levelMap  = Object.fromEntries(levels.map((l)  => [l.id, l.name]))
+
+    return sharings.map((s) => ({
+      id:         s.id,
+      orgId:      s.org_id,
+      subjectId:  s.subject_id,
+      courseId:   s.course_id ?? null,
+      courseName: s.course_id ? (courseMap[s.course_id] ?? null) : null,
+      strandId:   s.strand_id ?? null,
+      strandName: s.strand_id ? (strandMap[s.strand_id] ?? null) : null,
+      levelId:    s.level_id ?? null,
+      levelName:  s.level_id  ? (levelMap[s.level_id]   ?? null) : null,
+    }))
+  }
+
+  // ---------------------------------------------------------------------------
+  // CRUD
+  // ---------------------------------------------------------------------------
+
   async create(data: {
-    orgId:       string
-    name:        string
-    levelId:     string
-    educatorId?: string
-    courseId?:   string
-    strandId?:   string
-    yearLevel?:  string
-    termLabel?:  string
+    orgId:        string
+    name:         string
+    subjectType?: string
+    programId?:   string
+    levelId?:     string
+    educatorId?:  string
+    courseId?:    string
+    strandId?:    string
+    yearLevel?:   string
+    termLabel?:   string
   }) {
     const subject = await this.db.subject.create({
       data: {
-        org_id:      data.orgId,
-        name:        data.name,
-        level_id:    data.levelId,
-        educator_id: data.educatorId ?? null,
-        course_id:   data.courseId   ?? null,
-        strand_id:   data.strandId   ?? null,
-        year_level:  data.yearLevel  ?? null,
-        term_label:  data.termLabel  ?? null,
-        is_locked:   false,
+        org_id:       data.orgId,
+        name:         data.name,
+        subject_type: data.subjectType ?? 'major',
+        program_id:   data.programId   ?? null,
+        level_id:     data.levelId     ?? null,
+        educator_id:  data.educatorId  ?? null,
+        course_id:    data.courseId    ?? null,
+        strand_id:    data.strandId    ?? null,
+        year_level:   data.yearLevel   ?? null,
+        term_label:   data.termLabel   ?? null,
+        is_locked:    false,
       },
     })
+
     const [enriched] = await this.enrichSubjects([subject])
-    return enriched
+    return { ...enriched, sharings: [] }
   }
 
   async findAll(
@@ -74,9 +124,10 @@ export class SubjectRepository {
       scope?:        'open' | 'coupled'
       yearLevel?:    string
       termLabel?:    string
+      subjectType?:  string
     },
   ) {
-    let courseFilter: any = {}
+    let courseFilter: Record<string, unknown> = {}
     if (filters.scope === 'open') {
       courseFilter = { course_id: null }
     } else if (filters.scope === 'coupled') {
@@ -87,10 +138,8 @@ export class SubjectRepository {
       courseFilter = { OR: [{ strand_id: null }, { strand_id: filters.strandId }] }
     }
 
-    // Subject has no @relation to Level — only a bare level_id FK.
-    // When schoolYearId is provided (and no specific levelId), resolve the
-    // matching level IDs first, then filter with level_id: { in: [...] }.
-    let levelFilter: any = {}
+    // Level filter is null-safe — minor subjects may have no level_id
+    let levelFilter: Record<string, unknown> = {}
     if (filters.levelId) {
       levelFilter = { level_id: filters.levelId }
     } else if (filters.schoolYearId) {
@@ -98,17 +147,25 @@ export class SubjectRepository {
         where:  { school_year_id: filters.schoolYearId },
         select: { id: true },
       })
-      levelFilter = { level_id: { in: levels.map((l) => l.id) } }
+      const levelIds = levels.map((l) => l.id)
+      // Include subjects with matching level OR subjects with no level (some minors)
+      levelFilter = {
+        OR: [
+          { level_id: { in: levelIds } },
+          { level_id: null },
+        ],
+      }
     }
 
     const subjects = await this.db.subject.findMany({
       where: {
         org_id: orgId,
         ...levelFilter,
-        ...(filters.educatorId ? { educator_id: filters.educatorId }                         : {}),
-        ...(filters.yearLevel  ? { year_level:  filters.yearLevel }                          : {}),
-        ...(filters.termLabel  ? { term_label:  filters.termLabel }                          : {}),
-        ...(filters.search     ? { name: { contains: filters.search, mode: 'insensitive' } } : {}),
+        ...(filters.subjectType ? { subject_type: filters.subjectType }                          : {}),
+        ...(filters.educatorId  ? { educator_id:  filters.educatorId }                           : {}),
+        ...(filters.yearLevel   ? { year_level:   filters.yearLevel }                            : {}),
+        ...(filters.termLabel   ? { term_label:   filters.termLabel }                            : {}),
+        ...(filters.search      ? { name: { contains: filters.search, mode: 'insensitive' } }   : {}),
         ...courseFilter,
       },
       include: {
@@ -119,11 +176,28 @@ export class SubjectRepository {
             },
           },
         },
+        sharings: true, // raw rows — enriched below
       },
       orderBy: [{ year_level: 'asc' }, { term_label: 'asc' }, { name: 'asc' }],
     })
 
-    return this.enrichSubjects(subjects)
+    const enriched = await this.enrichSubjects(subjects)
+
+    // Enrich sharings for all subjects in one batch per type
+    const allSharings = subjects.flatMap((s: any) => s.sharings ?? [])
+    const enrichedSharings = await this.enrichSharings(allSharings)
+
+    // Map enriched sharings back to their subject by subject_id
+    const sharingsBySubject = enrichedSharings.reduce<Record<string, any[]>>((acc, sh) => {
+      if (!acc[sh.subjectId]) acc[sh.subjectId] = []
+      acc[sh.subjectId].push(sh)
+      return acc
+    }, {})
+
+    return enriched.map((s: any) => ({
+      ...s,
+      sharings: sharingsBySubject[s.id] ?? [],
+    }))
   }
 
   async findById(id: string, orgId: string) {
@@ -142,18 +216,23 @@ export class SubjectRepository {
             subject: { select: { id: true, name: true } },
           },
         },
+        sharings: true,
       },
     })
+
     if (!subject) return null
+
     const [enriched] = await this.enrichSubjects([subject])
-    return enriched
+    const enrichedSharings = await this.enrichSharings((subject as any).sharings ?? [])
+
+    return { ...enriched, sharings: enrichedSharings }
   }
 
   async update(
     id: string,
     data: {
       name?:       string
-      levelId?:    string
+      levelId?:    string | null
       educatorId?: string | null
       courseId?:   string | null
       strandId?:   string | null
@@ -173,8 +252,9 @@ export class SubjectRepository {
         ...(data.termLabel  !== undefined ? { term_label:  data.termLabel }  : {}),
       },
     })
+
     const [enriched] = await this.enrichSubjects([subject])
-    return enriched
+    return { ...enriched, sharings: [] }
   }
 
   async setLocked(id: string, isLocked: boolean) {
@@ -183,7 +263,7 @@ export class SubjectRepository {
       data:  { is_locked: isLocked },
     })
     const [enriched] = await this.enrichSubjects([subject])
-    return enriched
+    return { ...enriched, sharings: [] }
   }
 
   async unlockAllForOrg(orgId: string) {
@@ -198,5 +278,41 @@ export class SubjectRepository {
       where:  { name, org_id: orgId },
       select: { id: true, name: true },
     })
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sharing
+  // ---------------------------------------------------------------------------
+
+  async addSharing(
+    subjectId: string,
+    orgId: string,
+    target: { courseId?: string; strandId?: string; levelId?: string },
+  ) {
+    const sharing = await this.db.subjectSharing.create({
+      data: {
+        org_id:     orgId,
+        subject_id: subjectId,
+        course_id:  target.courseId ?? null,
+        strand_id:  target.strandId ?? null,
+        level_id:   target.levelId  ?? null,
+      },
+    })
+
+    const [enriched] = await this.enrichSharings([sharing])
+    return enriched
+  }
+
+  async removeSharing(sharingId: string, orgId: string) {
+    return this.db.subjectSharing.deleteMany({
+      where: { id: sharingId, org_id: orgId },
+    })
+  }
+
+  async findSharings(subjectId: string, orgId: string) {
+    const sharings = await this.db.subjectSharing.findMany({
+      where: { subject_id: subjectId, org_id: orgId },
+    })
+    return this.enrichSharings(sharings)
   }
 }

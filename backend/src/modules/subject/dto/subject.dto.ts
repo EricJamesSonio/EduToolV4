@@ -5,6 +5,7 @@ import {
   IsIn,
   MinLength,
   MaxLength,
+  ValidateIf,
 } from 'class-validator'
 
 export class CreateSubjectDto {
@@ -13,8 +14,19 @@ export class CreateSubjectDto {
   @MaxLength(150)
   name: string
 
+  @IsOptional()
   @IsUUID()
-  levelId: string
+  levelId?: string
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['major', 'minor'])
+  subjectType?: 'major' | 'minor'
+
+  // Required when subjectType is 'minor'
+  @ValidateIf((o) => o.subjectType === 'minor')
+  @IsUUID()
+  programId?: string
 
   @IsOptional()
   @IsUUID()
@@ -72,7 +84,7 @@ export class UpdateSubjectDto {
 export class QuerySubjectDto {
   @IsOptional()
   @IsUUID()
-  schoolYearId?: string   // ← added: scopes subjects to a school year via their level
+  schoolYearId?: string
 
   @IsOptional()
   @IsUUID()
@@ -105,4 +117,25 @@ export class QuerySubjectDto {
   @IsOptional()
   @IsString()
   termLabel?: string
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['major', 'minor'])
+  subjectType?: 'major' | 'minor'
+}
+
+// Exactly one of courseId, strandId, or levelId must be provided.
+// Validated in the service layer since class-validator cannot enforce mutual exclusivity cleanly.
+export class ShareSubjectDto {
+  @IsOptional()
+  @IsUUID()
+  courseId?: string
+
+  @IsOptional()
+  @IsUUID()
+  strandId?: string
+
+  @IsOptional()
+  @IsUUID()
+  levelId?: string
 }
