@@ -3,6 +3,10 @@ import { COLLEGE_COURSES } from '../courses.data'
 
 type CollegeSubjRaw = { name: string; year: string; term: string; prereqs: string[] }
 
+// ---------------------------------------------------------------------------
+// GE subjects — these are MINOR subjects shared across all college courses
+// ---------------------------------------------------------------------------
+
 const COLLEGE_GE: CollegeSubjRaw[] = [
   { name: 'Mathematics in the Modern World',  year: '1st Year', term: '1st Semester', prereqs: [] },
   { name: 'Purposive Communication',          year: '1st Year', term: '1st Semester', prereqs: [] },
@@ -18,6 +22,10 @@ const COLLEGE_GE: CollegeSubjRaw[] = [
   { name: 'NSTP 1',                           year: '2nd Year', term: '1st Semester', prereqs: [] },
   { name: 'NSTP 2',                           year: '2nd Year', term: '2nd Semester', prereqs: [] },
 ]
+
+// ---------------------------------------------------------------------------
+// Major subjects per course
+// ---------------------------------------------------------------------------
 
 const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
   BSIT: [
@@ -148,7 +156,6 @@ const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
   ],
 }
 
-// Shared BSED professional education core (applies to all BSED majors)
 const BSED_CORE: CollegeSubjRaw[] = [
   { name: 'The Teaching Profession',                     year: '1st Year', term: '1st Semester', prereqs: [] },
   { name: 'Foundations of Education',                    year: '1st Year', term: '2nd Semester', prereqs: ['The Teaching Profession'] },
@@ -163,30 +170,50 @@ const BSED_CORE: CollegeSubjRaw[] = [
   { name: 'Practice Teaching / Internship',              year: '4th Year', term: '1st Semester', prereqs: ['Field Study (Practice Teaching Preparation)'] },
 ]
 
-export function collegeSubjects(): SubjectDef[] {
+// ---------------------------------------------------------------------------
+// Exports
+// ---------------------------------------------------------------------------
+
+/**
+ * Major subjects scoped per course (one row per course).
+ * These are seeded with subject_type: 'major'.
+ */
+export function collegeMajorSubjects(): SubjectDef[] {
   const out: SubjectDef[] = []
 
   for (const course of COLLEGE_COURSES) {
     const majors = COLLEGE_MAJOR[course.code] ?? []
-
-    // Major subjects
     for (const s of majors) {
       const levelName = `${course.code} – ${s.year}`
-      out.push(subj(levelName, course.code, null, s.name, s.year, s.term, s.prereqs))
-    }
-
-    // GE subjects shared across all college courses
-    for (const s of COLLEGE_GE) {
-      const levelName = `${course.code} – ${s.year}`
-      out.push(subj(levelName, course.code, null, s.name, s.year, s.term, s.prereqs))
+      out.push(subj(levelName, course.code, null, s.name, s.year, s.term, s.prereqs, false))
     }
   }
 
-  // BSED core professional education subjects (seeded under 'BSED – <year>' level)
+  // BSED core subjects — still seeded per-year-level under college program
   for (const s of BSED_CORE) {
     const levelName = `BSED – ${s.year}`
-    out.push(subj(levelName, null, null, s.name, s.year, s.term, s.prereqs))
+    out.push(subj(levelName, null, null, s.name, s.year, s.term, s.prereqs, false))
   }
 
   return out
+}
+
+/**
+ * GE (General Education) subjects — seeded ONCE for the college program
+ * with subject_type: 'minor', then shared to all courses via SubjectSharing.
+ *
+ * Uses synthetic levelName 'college_ge' so deriveProgramKey() maps it to 'college'.
+ */
+export function collegeMinorSubjects(): SubjectDef[] {
+  return COLLEGE_GE.map((s) =>
+    subj('college_ge', null, null, s.name, s.year, s.term, s.prereqs, true),
+  )
+}
+
+/**
+ * @deprecated Use collegeMajorSubjects() + collegeMinorSubjects() instead.
+ * Kept only for any legacy callers.
+ */
+export function collegeSubjects(): SubjectDef[] {
+  return [...collegeMajorSubjects(), ...collegeMinorSubjects()]
 }

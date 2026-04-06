@@ -1,5 +1,4 @@
-// filepath: app/admin/sections/_components/SectionDialog.tsx
-
+// frontend/src/components/admin/section/SectionDialog.tsx
 "use client";
 
 import { useMemo } from "react";
@@ -8,8 +7,9 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { sectionApi } from "@/api/admin/section.api";
 import type { Section } from "@/types/admin/section.types";
+import type { Program } from "@/types/admin/program.types";
 import type { EnrichedLevel } from "@/components/admin/section/utils/section.utils";
-import { groupLevelsByProgram, buildLevelLabel } from "@/components/admin/section/utils/section.utils";
+import { buildLevelLabel } from "@/components/admin/section/utils/section.utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,22 +29,28 @@ import {
 import type { AxiosError } from "axios";
 
 interface SectionFormValues {
-  levelId: string;
-  name: string;
-  capacity: number;
+  programId: string;
+  levelId:   string;
+  name:      string;
+  capacity:  number;
 }
 
 interface SectionDialogProps {
-  section?: Section;
-  levels: EnrichedLevel[];
-  open: boolean;
-  onClose: () => void;
-  onSaved: () => void;
+  section?:     Section;
+  levels:       EnrichedLevel[];
+  programs:     Program[];
+  schoolYearId: string;           // ← add
+  open:         boolean;
+  onClose:      () => void;
+  onSaved:      () => void;
 }
 
+// destructure it
 export function SectionDialog({
   section,
   levels,
+  programs,
+  schoolYearId,                   // ← add
   open,
   onClose,
   onSaved,
@@ -61,27 +67,39 @@ export function SectionDialog({
     formState: { errors },
   } = useForm<SectionFormValues>({
     defaultValues: {
-      levelId: section?.level_id ?? "",
-      name: section?.name ?? "",
-      capacity: section?.capacity ?? 30,
+      programId: "",
+      levelId:   section?.level_id  ?? "",
+      name:      section?.name      ?? "",
+      capacity:  section?.capacity  ?? 30,
     },
   });
 
-  const selectedLevelId = watch("levelId");
-  const selectedLevel = levels.find((l) => l.id === selectedLevelId);
-  const grouped = useMemo(() => groupLevelsByProgram(levels), [levels]);
+  const selectedProgramId = watch("programId");
+  const selectedLevelId   = watch("levelId");
+
+  // Levels filtered to selected program
+  const filteredLevels = useMemo(
+    () => selectedProgramId
+      ? levels.filter((l) => l.program_id === selectedProgramId)
+      : [],
+    [levels, selectedProgramId]
+  );
+
+  const selectedProgram = programs.find((p) => p.id === selectedProgramId);
+  const selectedLevel   = filteredLevels.find((l) => l.id === selectedLevelId);
 
   const mutation = useMutation({
     mutationFn: (values: SectionFormValues) =>
       isEdit
         ? sectionApi.update(section!.id, {
-            name: values.name,
+            name:     values.name,
             capacity: values.capacity,
           })
         : sectionApi.create({
-            levelId: values.levelId,
-            name: values.name,
+            levelId:  values.levelId,
+            name:     values.name,
             capacity: values.capacity,
+            schoolYearId,
           }),
     onSuccess: () => {
       toast.success(isEdit ? "Section updated." : "Section created.");
@@ -106,62 +124,80 @@ export function SectionDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Section" : "New Section"}</DialogTitle>
         </DialogHeader>
-
         <form
           onSubmit={handleSubmit((v) => mutation.mutate(v))}
           className="space-y-4 mt-1"
         >
+          {/* ── Program (create only) ── */}
+          {!isEdit && (
+            <div className="space-y-1.5">
+              <Label>Program</Label>
+              <Select
+                value={selectedProgramId}
+                onValueChange={(v) => {
+                  setValue("programId", v ?? "");
+                  setValue("levelId", ""); // reset level when program changes
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a program">
+                    {selectedProgram?.name ?? "Select a program"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {programs.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* ── Level (create only, gated on program) ── */}
           {!isEdit && (
             <div className="space-y-1.5">
               <Label>Level</Label>
               <Select
                 value={selectedLevelId}
                 onValueChange={(v) => setValue("levelId", v ?? "")}
+                disabled={!selectedProgramId}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a level">
-                    {selectedLevel ? buildLevelLabel(selectedLevel) : "Select a level"}
+                  <SelectValue placeholder={selectedProgramId ? "Select a level" : "Select a program first"}>
+                    {selectedLevel
+                      ? buildLevelLabel(selectedLevel)
+                      : selectedProgramId
+                        ? "Select a level"
+                        : "Select a program first"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {grouped.map(({ programName, levels: groupLevels }) => (
-                    <div key={programName}>
-                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b mb-1">
-                        {programName}
-                      </div>
-                      {groupLevels.map((level) => (
-                        <SelectItem key={level.id} value={level.id}>
-                          {level.name}
-                        </SelectItem>
-                      ))}
+                  {filteredLevels.length === 0 ? (
+                    <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                      No levels for this program
                     </div>
-                  ))}
+                  ) : (
+                    filteredLevels.map((level) => (
+                      <SelectItem key={level.id} value={level.id}>
+                        {level.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
-
-              {selectedLevel?.programName && (
-                <p className="text-xs text-muted-foreground">
-                  Program:{" "}
-                  <span className="font-medium text-foreground">
-                    {selectedLevel.programName}
-                  </span>
-                </p>
-              )}
-              {!selectedLevelId && (
-                <p className="text-xs text-muted-foreground">
-                  Select a level for this section.
-                </p>
-              )}
             </div>
           )}
 
+          {/* ── Name ── */}
           <div className="space-y-1.5">
             <Label>Section Name</Label>
             <Input
               placeholder="e.g. Section A, Rizal, Mabini"
               {...register("name", {
-                required: "Name is required",
-                minLength: { value: 1, message: "At least 1 character" },
+                required:  "Name is required",
+                minLength: { value: 1,   message: "At least 1 character" },
                 maxLength: { value: 100, message: "Max 100 characters" },
               })}
             />
@@ -170,6 +206,7 @@ export function SectionDialog({
             )}
           </div>
 
+          {/* ── Capacity ── */}
           <div className="space-y-1.5">
             <Label>Capacity</Label>
             <Input
@@ -178,7 +215,7 @@ export function SectionDialog({
               placeholder="e.g. 40"
               {...register("capacity", {
                 required: "Capacity is required",
-                min: { value: 1, message: "At least 1 student" },
+                min:      { value: 1, message: "At least 1 student" },
                 valueAsNumber: true,
               })}
             />
@@ -188,23 +225,14 @@ export function SectionDialog({
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={mutation.isPending}
-            >
+            <Button type="button" variant="outline" onClick={handleClose} disabled={mutation.isPending}>
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={mutation.isPending || (!isEdit && !selectedLevelId)}
+              disabled={mutation.isPending || (!isEdit && (!selectedProgramId || !selectedLevelId))}
             >
-              {mutation.isPending
-                ? "Saving..."
-                : isEdit
-                ? "Save Changes"
-                : "Create Section"}
+              {mutation.isPending ? "Saving..." : isEdit ? "Save Changes" : "Create Section"}
             </Button>
           </div>
         </form>

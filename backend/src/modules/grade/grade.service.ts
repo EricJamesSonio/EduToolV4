@@ -321,7 +321,16 @@ export class GradeService {
   private async resolveGradingScale(cls: any, orgId: string) {
     const subject = await this.repo.findSubjectLevel(cls.subject_id, orgId);
     if (!subject) return null;
-    return this.repo.findGradingScale(subject.level_id, cls.school_year_id, orgId);
+
+    const levelId = subject.level_id;
+
+    if (!levelId) {
+      throw new NotFoundException(
+        'Subject has no level_id. Cannot determine grading scale.',
+      );
+    }
+
+    return this.repo.findGradingScale(levelId, cls.school_year_id, orgId);
   }
 
   private async resolveTerms(semesterId: string) {

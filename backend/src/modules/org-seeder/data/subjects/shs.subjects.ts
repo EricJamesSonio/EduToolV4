@@ -3,6 +3,10 @@ import { SHS_STRAND_DEFS } from '../strands.data'
 
 type ShsSubjRaw = { name: string; grade: 11 | 12; term: string; prereqs: string[] }
 
+// ---------------------------------------------------------------------------
+// Minor (core/GE) subjects — shared across ALL SHS strands
+// ---------------------------------------------------------------------------
+
 const SHS_MINOR: ShsSubjRaw[] = [
   { name: 'Oral Communication',                       grade: 11, term: '1st Semester',  prereqs: [] },
   { name: 'Reading and Writing Skills',               grade: 11, term: '1st Semester',  prereqs: [] },
@@ -15,6 +19,10 @@ const SHS_MINOR: ShsSubjRaw[] = [
   { name: 'National Service Training Program (NSTP)', grade: 12, term: 'Both Semesters', prereqs: [] },
   { name: 'Art Appreciation',                         grade: 12, term: '1st Semester',  prereqs: [] },
 ]
+
+// ---------------------------------------------------------------------------
+// Major subjects per strand
+// ---------------------------------------------------------------------------
 
 const SHS_MAJOR: Record<string, ShsSubjRaw[]> = {
   ABM: [
@@ -151,20 +159,39 @@ const SHS_MAJOR: Record<string, ShsSubjRaw[]> = {
   ],
 }
 
+// ---------------------------------------------------------------------------
+// Export
+// ---------------------------------------------------------------------------
+
+/**
+ * SHS subjects split by type:
+ * - Major subjects are per-strand (subject_type: 'major')
+ * - Minor subjects (SHS_MINOR) are seeded per-grade-level but flagged isMinor: true
+ *   so the seeder can set subject_type: 'minor' and create SubjectSharing rows
+ */
 export function shsSubjects(): SubjectDef[] {
   const out: SubjectDef[] = []
+
   for (const strand of SHS_STRAND_DEFS) {
     const majors = SHS_MAJOR[strand.name] ?? []
+
     for (const g of [11, 12] as const) {
       const levelName = `Grade ${g} – ${strand.name}`
       const yearLabel = `Grade ${g}`
+
+      // Major subjects — isMinor: false
       for (const m of majors.filter((x) => x.grade === g)) {
-        out.push(subj(levelName, null, strand.name, m.name, yearLabel, m.term, m.prereqs))
+        out.push(subj(levelName, null, strand.name, m.name, yearLabel, m.term, m.prereqs, false))
       }
+
+      // Minor subjects — isMinor: true
+      // These are still emitted per strand-level so the seeder can create
+      // SubjectSharing rows linking each minor → strand
       for (const m of SHS_MINOR.filter((x) => x.grade === g)) {
-        out.push(subj(levelName, null, strand.name, m.name, yearLabel, m.term, m.prereqs))
+        out.push(subj(levelName, null, strand.name, m.name, yearLabel, m.term, m.prereqs, true))
       }
     }
   }
+
   return out
 }

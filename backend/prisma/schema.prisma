@@ -206,7 +206,7 @@ model Subject {
   name         String
   subject_type String  @default("major") // "major" | "minor"
   program_id   String?                   // required for minor subjects; gates sharing scope
-  level_id     String                    // for major: the specific level; for minor: "home" level
+  level_id     String?                    // for major: the specific level; for minor: "home" level
   course_id    String?
   strand_id    String?
   educator_id  String?

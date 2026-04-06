@@ -28,6 +28,7 @@ export interface Subject {
   realProgramId: string | null;
 
   levelId: string | null;  // explicit level_id field
+  levelName:    string | null; 
   courseId: string | null;
   strandId: string | null;
   educatorId: string | null;

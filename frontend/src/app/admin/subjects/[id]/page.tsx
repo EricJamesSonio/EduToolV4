@@ -1,3 +1,4 @@
+// frontend/src/app/admin/subjects/[id]/page.tsx
 "use client";
 
 import { use, useState } from "react";
@@ -6,6 +7,10 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  ChevronLeft, Pencil, Lock, LockOpen,
+  AlertTriangle, Eye, Share2, X, BookOpen,
+} from "lucide-react";
 import { subjectApi } from "@/api/admin/subject.api";
 import type { UpdateSubjectRequest } from "@/api/admin/subject.api";
 import { levelApi } from "@/api/admin/level.api";
@@ -20,40 +25,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  ChevronLeft,
-  Pencil,
-  Lock,
-  LockOpen,
-  AlertTriangle,
-  Eye,
-  Share2,
-  X,
-} from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { AxiosError } from "axios";
 import type { Level } from "@/types/admin/level.types";
 
-// ---------------------------------------------------------------------------
-// Edit dialog (unchanged from original, kept inline)
-// ---------------------------------------------------------------------------
+// ─── Edit Dialog ──────────────────────────────────────────────────────────────
 
 interface EditSubjectForm {
-  name: string;
-  levelId: string;
+  name:       string;
+  levelId:    string;
   educatorId: string;
 }
 
@@ -64,27 +46,22 @@ function EditSubjectDialog({
   open,
   onClose,
 }: {
-  subject: Subject;
-  levels: Level[];
+  subject:   Subject;
+  levels:    Level[];
   educators: { id: string; fullName: string }[];
-  open: boolean;
-  onClose: () => void;
+  open:      boolean;
+  onClose:   () => void;
 }): React.JSX.Element {
   const queryClient = useQueryClient();
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<EditSubjectForm>({
-    defaultValues: {
-      name:       subject.title,
-      levelId:    subject.programId ?? "",
-      educatorId: subject.educatorId ?? "",
-    },
-  });
+
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } =
+    useForm<EditSubjectForm>({
+      defaultValues: {
+        name:       subject.title,
+        levelId:    subject.programId  ?? "",
+        educatorId: subject.educatorId ?? "",
+      },
+    });
 
   const selectedLevelId    = watch("levelId");
   const selectedEducatorId = watch("educatorId");
@@ -98,9 +75,7 @@ function EditSubjectDialog({
       } as UpdateSubjectRequest),
     onSuccess: () => {
       toast.success("Subject updated.");
-      queryClient.invalidateQueries({
-        queryKey: ["admin", "subjects", subject.id],
-      });
+      queryClient.invalidateQueries({ queryKey: ["admin", "subjects", subject.id] });
       queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
       onClose();
     },
@@ -109,30 +84,21 @@ function EditSubjectDialog({
     },
   });
 
+  const handleClose = () => { reset(); onClose(); };
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) {
-          reset();
-          onClose();
-        }
-      }}
-    >
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Edit Subject</DialogTitle>
         </DialogHeader>
-        <form
-          onSubmit={handleSubmit((v) => mutation.mutate(v))}
-          className="space-y-4 mt-1"
-        >
+        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-1">
           <div className="space-y-1.5">
             <Label>Subject Name</Label>
             <Input
               {...register("name", {
-                required: "Name is required",
-                minLength: { value: 2, message: "At least 2 characters" },
+                required:  "Name is required",
+                minLength: { value: 2,   message: "At least 2 characters" },
                 maxLength: { value: 100, message: "Max 100 characters" },
               })}
             />
@@ -143,18 +109,16 @@ function EditSubjectDialog({
 
           <div className="space-y-1.5">
             <Label>Level</Label>
-            <Select
-              value={selectedLevelId}
-              onValueChange={(v) => setValue("levelId", v ?? "")}
-            >
+            <Select value={selectedLevelId} onValueChange={(v) => setValue("levelId", v ?? "")}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a level" />
+                <SelectValue placeholder="Select a level">
+                  {levels.find((l) => l.id === selectedLevelId)?.name ?? "Select a level"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {levels.map((level) => (
-                  <SelectItem key={level.id} value={level.id}>
-                    {level.name}
-                  </SelectItem>
+                <SelectItem value="">— None —</SelectItem>
+                {levels.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -163,38 +127,25 @@ function EditSubjectDialog({
           <div className="space-y-1.5">
             <Label>
               Assigned Educator{" "}
-              <span className="text-muted-foreground font-normal">
-                (optional)
-              </span>
+              <span className="text-muted-foreground font-normal">(optional)</span>
             </Label>
-            <Select
-              value={selectedEducatorId}
-              onValueChange={(v) => setValue("educatorId", v ?? "")}
-            >
+            <Select value={selectedEducatorId} onValueChange={(v) => setValue("educatorId", v ?? "")}>
               <SelectTrigger>
-                <SelectValue placeholder="Unassigned" />
+                <SelectValue placeholder="Unassigned">
+                  {educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Unassigned"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Unassigned</SelectItem>
                 {educators.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.fullName}
-                  </SelectItem>
+                  <SelectItem key={e.id} value={e.id}>{e.fullName}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                reset();
-                onClose();
-              }}
-              disabled={mutation.isPending}
-            >
+            <Button type="button" variant="outline" onClick={handleClose} disabled={mutation.isPending}>
               Cancel
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
@@ -207,29 +158,23 @@ function EditSubjectDialog({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sharings section
-// ---------------------------------------------------------------------------
+// ─── Sharings Section ─────────────────────────────────────────────────────────
 
 function SharingsSection({
   subject,
   sharings,
   schoolYearId,
 }: {
-  subject: Subject;
-  sharings: SubjectSharing[];
+  subject:      Subject;
+  sharings:     SubjectSharing[];
   schoolYearId: string;
 }): React.JSX.Element {
-  const [shareOpen, setShareOpen] = useState(false);
+  const [shareOpen, setShareOpen]         = useState(false);
   const [unshareTarget, setUnshareTarget] = useState<SubjectSharing | null>(null);
   const unshareMutation = useUnshareSubject();
 
-  const getSharingLabel = (s: SubjectSharing): string => {
-    if (s.courseName) return s.courseName;
-    if (s.strandName) return s.strandName;
-    if (s.levelName)  return s.levelName;
-    return "Unknown";
-  };
+  const getSharingLabel = (s: SubjectSharing): string =>
+    s.courseName ?? s.strandName ?? s.levelName ?? "Unknown";
 
   const getSharingType = (s: SubjectSharing): string => {
     if (s.courseId) return "Course";
@@ -242,13 +187,8 @@ function SharingsSection({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold">Shared To</h2>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setShareOpen(true)}
-        >
-          <Share2 className="mr-1.5 h-3.5 w-3.5" />
-          Share
+        <Button size="sm" variant="outline" onClick={() => setShareOpen(true)}>
+          <Share2 className="mr-1.5 h-3.5 w-3.5" /> Share
         </Button>
       </div>
 
@@ -257,12 +197,7 @@ function SharingsSection({
           <p className="text-sm text-muted-foreground">
             Not shared to any courses or levels yet.
           </p>
-          <Button
-            size="sm"
-            variant="outline"
-            className="mt-3"
-            onClick={() => setShareOpen(true)}
-          >
+          <Button size="sm" variant="outline" className="mt-3" onClick={() => setShareOpen(true)}>
             <Share2 className="mr-1.5 h-3.5 w-3.5" />
             Share to a course or level
           </Button>
@@ -270,10 +205,7 @@ function SharingsSection({
       ) : (
         <div className="rounded-lg border bg-card divide-y">
           {sharings.map((s) => (
-            <div
-              key={s.id}
-              className="flex items-center justify-between gap-4 px-4 py-3"
-            >
+            <div key={s.id} className="flex items-center justify-between gap-4 px-4 py-3">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-xs font-normal">
                   {getSharingType(s)}
@@ -315,32 +247,23 @@ function SharingsSection({
             unshareMutation.mutate(
               { id: subject.id, sharingId: unshareTarget.id },
               {
-                onSuccess: () => {
-                  toast.success("Sharing removed.");
-                  setUnshareTarget(null);
-                },
+                onSuccess: () => { toast.success("Sharing removed."); setUnshareTarget(null); },
                 onError: (err: unknown) => {
                   const axiosErr = err as AxiosError<{ message: string }>;
-                  toast.error(
-                    axiosErr?.response?.data?.message ?? "Failed to remove sharing.",
-                  );
+                  toast.error(axiosErr?.response?.data?.message ?? "Failed to remove sharing.");
                   setUnshareTarget(null);
                 },
               },
             )
           }
-          onOpenChange={(o) => {
-            if (!o) setUnshareTarget(null);
-          }}
+          onOpenChange={(o) => { if (!o) setUnshareTarget(null); }}
         />
       )}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main page
-// ---------------------------------------------------------------------------
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SubjectDetailPage({
   params,
@@ -348,34 +271,34 @@ export default function SubjectDetailPage({
   params: Promise<{ id: string }>;
 }): React.JSX.Element {
   const { id } = use(params);
-  const router = useRouter();
+  const router  = useRouter();
   const queryClient = useQueryClient();
 
-  const [editOpen, setEditOpen] = useState(false);
-  const [lockConfirm, setLockConfirm] = useState(false);
+  const [editOpen, setEditOpen]           = useState(false);
+  const [lockConfirm, setLockConfirm]     = useState(false);
   const [unlockConfirm, setUnlockConfirm] = useState(false);
 
   const { data: subject, isLoading } = useQuery({
     queryKey: ["admin", "subjects", id],
-    queryFn: () => subjectApi.getOne(id),
+    queryFn:  () => subjectApi.getOne(id),
   });
 
   const { data: levels = [] } = useQuery({
     queryKey: ["admin", "levels", "all"],
-    queryFn: () => levelApi.getAll(),
+    queryFn:  () => levelApi.getAll(),
   });
 
   const { data: educators = [] } = useQuery({
     queryKey: ["admin", "educators", "all"],
-    queryFn: () => educatorApi.getAll(),
-    select: (data) => (Array.isArray(data) ? data : []),
+    queryFn:  () => educatorApi.getAll(),
+    select:   (data) => (Array.isArray(data) ? data : []),
   });
 
-  // Resolve active school year id for the share dialog
   const { data: schoolYears = [] } = useQuery({
     queryKey: ["admin", "school-years"],
-    queryFn: schoolYearApi.getAll,
+    queryFn:  schoolYearApi.getAll,
   });
+
   const activeSchoolYearId =
     schoolYears.find((sy) => sy.status === "active")?.id ??
     schoolYears[0]?.id ??
@@ -428,6 +351,9 @@ export default function SubjectDetailPage({
   const isLocked = subject.lockStatus === "locked";
   const isMinor  = subject.subjectType === "minor";
 
+  // programName is actually the level name (legacy backend field naming)
+  const levelDisplayName = subject.levelName ?? subject.programName ?? null;
+
   return (
     <div className="space-y-6 max-w-3xl">
       {/* Breadcrumb */}
@@ -448,27 +374,16 @@ export default function SubjectDetailPage({
           <div className="space-y-1.5">
             <h1 className="text-2xl font-semibold">{subject.title}</h1>
             <div className="flex items-center gap-2">
-              {/* Lock status badge */}
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full",
-                  isLocked
-                    ? "bg-muted text-muted-foreground"
-                    : "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400",
-                )}
-              >
-                {isLocked ? (
-                  <Lock className="h-3 w-3" />
-                ) : (
-                  <LockOpen className="h-3 w-3" />
-                )}
+              <span className={cn(
+                "inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full",
+                isLocked
+                  ? "bg-muted text-muted-foreground"
+                  : "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400",
+              )}>
+                {isLocked ? <Lock className="h-3 w-3" /> : <LockOpen className="h-3 w-3" />}
                 {isLocked ? "Locked" : "Unlocked"}
               </span>
-              {/* Subject type badge */}
-              <Badge
-                variant={isMinor ? "outline" : "secondary"}
-                className="text-xs font-normal capitalize"
-              >
+              <Badge variant={isMinor ? "outline" : "secondary"} className="text-xs font-normal capitalize">
                 {subject.subjectType}
               </Badge>
             </div>
@@ -478,19 +393,16 @@ export default function SubjectDetailPage({
         <div className="flex items-center gap-2">
           {!isLocked && (
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit
+              <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
             </Button>
           )}
           {isLocked ? (
             <Button variant="outline" size="sm" onClick={() => setUnlockConfirm(true)}>
-              <LockOpen className="mr-1.5 h-3.5 w-3.5" />
-              Unlock
+              <LockOpen className="mr-1.5 h-3.5 w-3.5" /> Unlock
             </Button>
           ) : (
             <Button variant="outline" size="sm" onClick={() => setLockConfirm(true)}>
-              <Lock className="mr-1.5 h-3.5 w-3.5" />
-              Lock
+              <Lock className="mr-1.5 h-3.5 w-3.5" /> Lock
             </Button>
           )}
         </div>
@@ -500,8 +412,7 @@ export default function SubjectDetailPage({
       {isLocked && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          This subject is locked and read-only. It will auto-unlock at the start
-          of a new school year.
+          This subject is locked and read-only. It will auto-unlock at the start of a new school year.
         </div>
       )}
 
@@ -519,9 +430,9 @@ export default function SubjectDetailPage({
         </div>
         <div className="flex items-center gap-4 px-4 py-3">
           <span className="w-36 text-sm text-muted-foreground shrink-0">Level</span>
-          {subject.programName ? (
+          {levelDisplayName ? (
             <Badge variant="secondary" className="font-normal">
-              {subject.programName}
+              {levelDisplayName}
             </Badge>
           ) : (
             <span className="text-sm text-muted-foreground">—</span>
@@ -541,7 +452,7 @@ export default function SubjectDetailPage({
         </div>
       </div>
 
-      {/* Sharings section — only for minor subjects */}
+      {/* Sharings — minor only */}
       {isMinor && activeSchoolYearId && (
         <SharingsSection
           subject={subject}
@@ -563,7 +474,6 @@ export default function SubjectDetailPage({
         </Button>
       </div>
 
-      {/* Edit dialog */}
       {editOpen && (
         <EditSubjectDialog
           subject={subject}
@@ -574,7 +484,6 @@ export default function SubjectDetailPage({
         />
       )}
 
-      {/* Lock confirm */}
       {lockConfirm && (
         <ConfirmDialog
           open
@@ -584,13 +493,10 @@ export default function SubjectDetailPage({
           destructive={false}
           isLoading={lockMutation.isPending}
           onConfirm={() => lockMutation.mutate()}
-          onOpenChange={(o) => {
-            if (!o) setLockConfirm(false);
-          }}
+          onOpenChange={(o) => { if (!o) setLockConfirm(false); }}
         />
       )}
 
-      {/* Unlock confirm */}
       {unlockConfirm && (
         <ConfirmDialog
           open
@@ -600,29 +506,9 @@ export default function SubjectDetailPage({
           destructive={false}
           isLoading={unlockMutation.isPending}
           onConfirm={() => unlockMutation.mutate()}
-          onOpenChange={(o) => {
-            if (!o) setUnlockConfirm(false);
-          }}
+          onOpenChange={(o) => { if (!o) setUnlockConfirm(false); }}
         />
       )}
     </div>
-  );
-}
-
-function BookOpen({ className }: { className?: string }): React.JSX.Element {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-    </svg>
   );
 }
