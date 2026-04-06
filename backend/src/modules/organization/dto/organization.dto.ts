@@ -1,6 +1,11 @@
 import {
-  IsString, IsOptional, MinLength,
-  MaxLength, IsArray, IsIn,
+  IsString,
+  IsOptional,
+  MinLength,
+  MaxLength,
+  IsArray,
+  IsIn,
+  IsUUID,   // ← added
 } from 'class-validator'
 
 const VALID_PROGRAM_KEYS = ['daycare', 'kinder', 'elementary', 'jhs', 'shs', 'college']
@@ -29,6 +34,7 @@ export class UpdateOrganizationDto {
   @MaxLength(500)
   description?: string
 }
+
 export class SeedOrganizationDto {
   @IsUUID()
   schoolYearId: string

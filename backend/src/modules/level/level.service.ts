@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LevelRepository } from './level.repository';
-import { UpdateLevelDto, CreateLevelDto, BulkGenerateLevelsDto } from './dto/level.dto';
+import { UpdateLevelDefaultsDto, UpdateLevelDto, CreateLevelDto, BulkGenerateLevelsDto } from './dto/level.dto';
 import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
@@ -9,6 +9,37 @@ export class LevelService {
     private readonly levelRepository: LevelRepository,
     private readonly db: DatabaseService,
   ) {}
+
+  /**
+   * Returns all levels for the org, grouped by program.
+   * Used by the frontend as the org's "default level template".
+   */
+  async getDefaults(orgId: string) {
+    return this.db.level.findMany({
+      where:   { org_id: orgId },
+      include: { program: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  /**
+   * Bulk-upserts level rows for the org from UpdateLevelDefaultsDto.
+   *   - dto.levels[n].id present  → update name only
+   *   - dto.levels[n].id absent   → skip (school_year_id required by schema;
+   *     add schoolYearId to LevelItemDto and CreateLevelDto path if creates needed here)
+   */
+  async updateDefaults(orgId: string, dto: UpdateLevelDefaultsDto) {
+    const toUpdate = dto.levels.filter((l) => !!l.id);
+
+    return this.db.$transaction(
+      toUpdate.map((l) =>
+        this.db.level.update({
+          where: { id: l.id },
+          data:  { name: l.name },
+        }),
+      ),
+    );
+  }
 
   async getAll(orgId: string, schoolYearId?: string) {
     return this.levelRepository.findAll(orgId, schoolYearId);
@@ -57,7 +88,7 @@ export class LevelService {
     return this.levelRepository.bulkCreate(
       names.map((name) => ({
         orgId,
-        programId: dto.programId,
+        programId:    dto.programId,
         schoolYearId: dto.schoolYearId,
         name,
       })),
