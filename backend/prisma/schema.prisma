@@ -92,47 +92,57 @@ model Profile {
 //////////////////////
 
 model Program {
-  id     String @id @default(uuid())
-  org_id String
-  name   String
-  type   String
+  id             String  @id @default(uuid())
+  org_id         String
+  school_year_id String
+  name           String
+  type           String
 
-  courses Course[]
-  strands Strand[]
-  levels  Level[]   
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
+  courses    Course[]
+  strands    Strand[]
+  levels     Level[]
 }
+
 
 model Course {
-  id         String  @id @default(uuid())
-  org_id     String
-  program_id String
-  name       String
-  code       String?
+  id             String  @id @default(uuid())
+  org_id         String
+  school_year_id String
+  program_id     String
+  name           String
+  code           String?
 
-  program  Program   @relation(fields: [program_id], references: [id])
-  subjects Subject[]
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
+  program    Program    @relation(fields: [program_id], references: [id])
+  subjects   Subject[]
 }
 
-model Strand {
-  id         String @id @default(uuid())
-  org_id     String
-  program_id String
-  name       String
 
-  program  Program   @relation(fields: [program_id], references: [id])
-  subjects Subject[]
+model Strand {
+  id             String @id @default(uuid())
+  org_id         String
+  school_year_id String
+  program_id     String
+  name           String
+
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
+  program    Program    @relation(fields: [program_id], references: [id])
+  subjects   Subject[]
 }
 
 model Level {
-  id             String    @id @default(uuid())
+  id             String @id @default(uuid())
   org_id         String
+  school_year_id String  // was String?
   program_id     String
   name           String
-  school_year_id String?
 
-  program  Program   @relation(fields: [program_id], references: [id])
-  sections Section[]
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
+  program    Program    @relation(fields: [program_id], references: [id])
+  sections   Section[]
 }
+
 
 model Section {
   id         String    @id @default(uuid())
@@ -146,11 +156,18 @@ model Section {
 }
 
 
+
 model SchoolYear {
-  id     String @id @default(uuid())
-  org_id String
-  name   String
-  status String
+  id       String @id @default(uuid())
+  org_id   String
+  name     String
+  status   String
+
+  programs      Program[]
+  courses       Course[]
+  strands       Strand[]
+  levels        Level[]
+  gradingScales GradingScale[]
 }
 
 model Semester {
@@ -281,16 +298,17 @@ model AcademicCalendar {
 model GradingScale {
   id             String    @id @default(uuid())
   org_id         String
+  school_year_id String    // was String?
   level_id       String
-  school_year_id String?
   name           String
   ranges         Json
   is_locked      Boolean   @default(false)
   locked_at      DateTime?
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt
-}
 
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
+}
 //////////////////////
 // GRADING SCHEME
 //////////////////////
