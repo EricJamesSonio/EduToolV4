@@ -34,18 +34,18 @@ export class OrganizationService {
     return org
   }
 
-async getOwn(orgId: string | null) {
-  if (!orgId) return null
-  const org = await this.orgRepository.findById(orgId)
-  if (!org) return null
+  async getOwn(orgId: string | null) {
+    if (!orgId) return null
+    const org = await this.orgRepository.findById(orgId)
+    if (!org) return null
 
-  return {
-    id:             org.id,
-    name:           org.name,
-    description:    org.description,
-    emailExtension: org.email_extension ?? null,
+    return {
+      id:             org.id,
+      name:           org.name,
+      description:    org.description,
+      emailExtension: org.email_extension ?? null,
+    }
   }
-}
 
   async update(orgId: string, dto: UpdateOrganizationDto) {
     const org = await this.orgRepository.findById(orgId)

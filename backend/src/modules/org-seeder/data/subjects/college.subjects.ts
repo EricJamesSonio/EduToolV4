@@ -3,10 +3,6 @@ import { COLLEGE_COURSES } from '../courses.data'
 
 type CollegeSubjRaw = { name: string; year: string; term: string; prereqs: string[] }
 
-// ---------------------------------------------------------------------------
-// GE subjects — these are MINOR subjects shared across all college courses
-// ---------------------------------------------------------------------------
-
 const COLLEGE_GE: CollegeSubjRaw[] = [
   { name: 'Mathematics in the Modern World',  year: '1st Year', term: '1st Semester', prereqs: [] },
   { name: 'Purposive Communication',          year: '1st Year', term: '1st Semester', prereqs: [] },
@@ -23,15 +19,11 @@ const COLLEGE_GE: CollegeSubjRaw[] = [
   { name: 'NSTP 2',                           year: '2nd Year', term: '2nd Semester', prereqs: [] },
 ]
 
-// ---------------------------------------------------------------------------
-// Major subjects per course
-// ---------------------------------------------------------------------------
-
 const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
   BSIT: [
     { name: 'Introduction to Computing',          year: '1st Year', term: '1st Semester', prereqs: [] },
     { name: 'Computer Programming 1',             year: '1st Year', term: '1st Semester', prereqs: ['Introduction to Computing'] },
-    { name: 'Computer Programming 2',            year: '1st Year', term: '2nd Semester', prereqs: ['Computer Programming 1'] },
+    { name: 'Computer Programming 2',             year: '1st Year', term: '2nd Semester', prereqs: ['Computer Programming 1'] },
     { name: 'Data Structures and Algorithms',     year: '2nd Year', term: '1st Semester', prereqs: ['Computer Programming 2'] },
     { name: 'Database Management Systems',        year: '2nd Year', term: '2nd Semester', prereqs: ['Data Structures and Algorithms'] },
     { name: 'Web Systems and Technologies',       year: '2nd Year', term: '2nd Semester', prereqs: ['Computer Programming 2'] },
@@ -45,61 +37,61 @@ const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
     { name: 'Capstone Project / Thesis',          year: '4th Year', term: '2nd Semester', prereqs: ['IT Project Management'] },
   ],
   BSBA: [
-    { name: 'Principles of Management',   year: '1st Year', term: '1st Semester', prereqs: [] },
-    { name: 'Microeconomics',             year: '1st Year', term: '2nd Semester', prereqs: [] },
-    { name: 'Macroeconomics',             year: '1st Year', term: '2nd Semester', prereqs: ['Microeconomics'] },
-    { name: 'Business Statistics',        year: '1st Year', term: '2nd Semester', prereqs: ['Mathematics in the Modern World'] },
-    { name: 'Principles of Marketing',   year: '2nd Year', term: '1st Semester', prereqs: ['Principles of Management'] },
-    { name: 'Financial Management',      year: '2nd Year', term: '1st Semester', prereqs: ['Principles of Management', 'Business Statistics'] },
-    { name: 'Business Law',              year: '2nd Year', term: '1st Semester', prereqs: [] },
-    { name: 'Human Resource Management', year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Management'] },
-    { name: 'Operations Management',     year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Management', 'Business Statistics'] },
-    { name: 'Business Ethics',           year: '2nd Year', term: '2nd Semester', prereqs: [] },
-    { name: 'Organizational Behavior',   year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Management'] },
-    { name: 'Strategic Management',      year: '3rd Year', term: '1st Semester', prereqs: ['Principles of Management', 'Principles of Marketing', 'Financial Management'] },
-    { name: 'International Business',    year: '3rd Year', term: '1st Semester', prereqs: ['Principles of Marketing', 'Strategic Management'] },
+    { name: 'Principles of Management',    year: '1st Year', term: '1st Semester', prereqs: [] },
+    { name: 'Microeconomics',              year: '1st Year', term: '2nd Semester', prereqs: [] },
+    { name: 'Macroeconomics',              year: '1st Year', term: '2nd Semester', prereqs: ['Microeconomics'] },
+    { name: 'Business Statistics',         year: '1st Year', term: '2nd Semester', prereqs: ['Mathematics in the Modern World'] },
+    { name: 'Principles of Marketing',    year: '2nd Year', term: '1st Semester', prereqs: ['Principles of Management'] },
+    { name: 'Financial Management',       year: '2nd Year', term: '1st Semester', prereqs: ['Principles of Management', 'Business Statistics'] },
+    { name: 'Business Law',               year: '2nd Year', term: '1st Semester', prereqs: [] },
+    { name: 'Human Resource Management',  year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Management'] },
+    { name: 'Operations Management',      year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Management', 'Business Statistics'] },
+    { name: 'Business Ethics',            year: '2nd Year', term: '2nd Semester', prereqs: [] },
+    { name: 'Organizational Behavior',    year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Management'] },
+    { name: 'Strategic Management',       year: '3rd Year', term: '1st Semester', prereqs: ['Principles of Management', 'Principles of Marketing', 'Financial Management'] },
+    { name: 'International Business',     year: '3rd Year', term: '1st Semester', prereqs: ['Principles of Marketing', 'Strategic Management'] },
     { name: 'Entrepreneurial Management', year: '3rd Year', term: '2nd Semester', prereqs: ['Principles of Marketing', 'Strategic Management'] },
-    { name: 'Business Research',         year: '3rd Year', term: '2nd Semester', prereqs: ['Business Statistics', 'Principles of Management'] },
-    { name: 'Project Management',        year: '4th Year', term: '1st Semester', prereqs: ['Strategic Management', 'Operations Management'] },
+    { name: 'Business Research',          year: '3rd Year', term: '2nd Semester', prereqs: ['Business Statistics', 'Principles of Management'] },
+    { name: 'Project Management',         year: '4th Year', term: '1st Semester', prereqs: ['Strategic Management', 'Operations Management'] },
   ],
   BSA: [
-    { name: 'Fundamentals of Accounting',                                                year: '1st Year', term: '1st Semester', prereqs: [] },
-    { name: 'Financial Accounting and Reporting I',                                      year: '1st Year', term: '2nd Semester', prereqs: ['Fundamentals of Accounting'] },
-    { name: 'Business Law',                                                              year: '2nd Year', term: '1st Semester', prereqs: [] },
-    { name: 'Management Accounting',                                                     year: '2nd Year', term: '1st Semester', prereqs: ['Financial Accounting and Reporting I'] },
-    { name: 'Regulatory Framework and Legal Issues in Business',                         year: '2nd Year', term: '1st Semester', prereqs: ['Business Law'] },
-    { name: 'Cost Accounting',                                                           year: '2nd Year', term: '2nd Semester', prereqs: ['Management Accounting'] },
-    { name: 'Accounting Information Systems',                                            year: '2nd Year', term: '2nd Semester', prereqs: ['Fundamentals of Accounting'] },
-    { name: 'Auditing Theory',                                                           year: '3rd Year', term: '1st Semester', prereqs: ['Cost Accounting'] },
-    { name: 'Advanced Financial Accounting and Reporting',                               year: '3rd Year', term: '1st Semester', prereqs: ['Financial Accounting and Reporting I'] },
-    { name: 'Financial Management',                                                      year: '3rd Year', term: '1st Semester', prereqs: ['Management Accounting'] },
-    { name: 'Auditing and Assurance Services',                                           year: '3rd Year', term: '2nd Semester', prereqs: ['Auditing Theory'] },
-    { name: 'Taxation (Income Tax, Business Tax)',                                       year: '3rd Year', term: '2nd Semester', prereqs: ['Financial Accounting and Reporting I'] },
-    { name: 'Strategic Cost Management',                                                 year: '4th Year', term: '1st Semester', prereqs: ['Cost Accounting'] },
-    { name: 'Governance, Business Ethics, Risk Management, and Internal Control',       year: '4th Year', term: '1st Semester', prereqs: ['Auditing Theory'] },
-    { name: 'Accounting Research',                                                       year: '4th Year', term: '2nd Semester', prereqs: ['Advanced Financial Accounting and Reporting', 'Management Accounting'] },
-    { name: 'Integrated Review Courses (Board Exam Preparation)',                        year: '4th Year', term: '2nd Semester', prereqs: [] },
+    { name: 'Fundamentals of Accounting',                                              year: '1st Year', term: '1st Semester', prereqs: [] },
+    { name: 'Financial Accounting and Reporting I',                                    year: '1st Year', term: '2nd Semester', prereqs: ['Fundamentals of Accounting'] },
+    { name: 'Business Law',                                                            year: '2nd Year', term: '1st Semester', prereqs: [] },
+    { name: 'Management Accounting',                                                   year: '2nd Year', term: '1st Semester', prereqs: ['Financial Accounting and Reporting I'] },
+    { name: 'Regulatory Framework and Legal Issues in Business',                       year: '2nd Year', term: '1st Semester', prereqs: ['Business Law'] },
+    { name: 'Cost Accounting',                                                         year: '2nd Year', term: '2nd Semester', prereqs: ['Management Accounting'] },
+    { name: 'Accounting Information Systems',                                          year: '2nd Year', term: '2nd Semester', prereqs: ['Fundamentals of Accounting'] },
+    { name: 'Auditing Theory',                                                         year: '3rd Year', term: '1st Semester', prereqs: ['Cost Accounting'] },
+    { name: 'Advanced Financial Accounting and Reporting',                             year: '3rd Year', term: '1st Semester', prereqs: ['Financial Accounting and Reporting I'] },
+    { name: 'Financial Management',                                                    year: '3rd Year', term: '1st Semester', prereqs: ['Management Accounting'] },
+    { name: 'Auditing and Assurance Services',                                         year: '3rd Year', term: '2nd Semester', prereqs: ['Auditing Theory'] },
+    { name: 'Taxation (Income Tax, Business Tax)',                                     year: '3rd Year', term: '2nd Semester', prereqs: ['Financial Accounting and Reporting I'] },
+    { name: 'Strategic Cost Management',                                               year: '4th Year', term: '1st Semester', prereqs: ['Cost Accounting'] },
+    { name: 'Governance, Business Ethics, Risk Management, and Internal Control',     year: '4th Year', term: '1st Semester', prereqs: ['Auditing Theory'] },
+    { name: 'Accounting Research',                                                     year: '4th Year', term: '2nd Semester', prereqs: ['Advanced Financial Accounting and Reporting', 'Management Accounting'] },
+    { name: 'Integrated Review Courses (Board Exam Preparation)',                      year: '5th Year', term: '1st Semester', prereqs: [] },
   ],
   BSCS: [
     { name: 'Introduction to Computing',       year: '1st Year', term: '1st Semester', prereqs: [] },
     { name: 'Computer Programming 1',          year: '1st Year', term: '1st Semester', prereqs: ['Introduction to Computing'] },
-    { name: 'Computer Programming 2',         year: '1st Year', term: '2nd Semester', prereqs: ['Computer Programming 1'] },
-    { name: 'Discrete Mathematics',           year: '1st Year', term: '2nd Semester', prereqs: [] },
-    { name: 'Object-Oriented Programming',    year: '2nd Year', term: '1st Semester', prereqs: ['Computer Programming 2'] },
-    { name: 'Computer Architecture',          year: '2nd Year', term: '2nd Semester', prereqs: ['Introduction to Computing', 'Object-Oriented Programming'] },
-    { name: 'Data Structures and Algorithms', year: '2nd Year', term: '2nd Semester', prereqs: ['Object-Oriented Programming', 'Discrete Mathematics'] },
-    { name: 'Database Systems',               year: '2nd Year', term: '2nd Semester', prereqs: ['Computer Programming 2'] },
-    { name: 'Algorithms and Complexity',      year: '3rd Year', term: '1st Semester', prereqs: ['Data Structures and Algorithms'] },
-    { name: 'Automata Theory',               year: '3rd Year', term: '1st Semester', prereqs: ['Discrete Mathematics'] },
-    { name: 'Operating Systems',              year: '3rd Year', term: '1st Semester', prereqs: ['Data Structures and Algorithms', 'Computer Architecture'] },
-    { name: 'Numerical Methods',              year: '3rd Year', term: '1st Semester', prereqs: ['Discrete Mathematics'] },
-    { name: 'Programming Languages',          year: '3rd Year', term: '2nd Semester', prereqs: ['Object-Oriented Programming', 'Data Structures and Algorithms'] },
-    { name: 'Software Engineering',           year: '3rd Year', term: '2nd Semester', prereqs: ['Object-Oriented Programming'] },
-    { name: 'Computer Networks',              year: '3rd Year', term: '2nd Semester', prereqs: ['Operating Systems'] },
-    { name: 'Human-Computer Interaction',     year: '3rd Year', term: '2nd Semester', prereqs: ['Software Engineering'] },
-    { name: 'Artificial Intelligence',        year: '4th Year', term: '1st Semester', prereqs: ['Data Structures and Algorithms', 'Algorithms and Complexity'] },
-    { name: 'Machine Learning',              year: '4th Year', term: '2nd Semester', prereqs: ['Artificial Intelligence', 'Data Structures and Algorithms'] },
-    { name: 'CS Thesis / Capstone Project',  year: '4th Year', term: '2nd Semester', prereqs: [] },
+    { name: 'Computer Programming 2',          year: '1st Year', term: '2nd Semester', prereqs: ['Computer Programming 1'] },
+    { name: 'Discrete Mathematics',            year: '1st Year', term: '2nd Semester', prereqs: [] },
+    { name: 'Object-Oriented Programming',     year: '2nd Year', term: '1st Semester', prereqs: ['Computer Programming 2'] },
+    { name: 'Computer Architecture',           year: '2nd Year', term: '2nd Semester', prereqs: ['Introduction to Computing', 'Object-Oriented Programming'] },
+    { name: 'Data Structures and Algorithms',  year: '2nd Year', term: '2nd Semester', prereqs: ['Object-Oriented Programming', 'Discrete Mathematics'] },
+    { name: 'Database Systems',                year: '2nd Year', term: '2nd Semester', prereqs: ['Computer Programming 2'] },
+    { name: 'Algorithms and Complexity',       year: '3rd Year', term: '1st Semester', prereqs: ['Data Structures and Algorithms'] },
+    { name: 'Automata Theory',                 year: '3rd Year', term: '1st Semester', prereqs: ['Discrete Mathematics'] },
+    { name: 'Operating Systems',               year: '3rd Year', term: '1st Semester', prereqs: ['Data Structures and Algorithms', 'Computer Architecture'] },
+    { name: 'Numerical Methods',               year: '3rd Year', term: '1st Semester', prereqs: ['Discrete Mathematics'] },
+    { name: 'Programming Languages',           year: '3rd Year', term: '2nd Semester', prereqs: ['Object-Oriented Programming', 'Data Structures and Algorithms'] },
+    { name: 'Software Engineering',            year: '3rd Year', term: '2nd Semester', prereqs: ['Object-Oriented Programming'] },
+    { name: 'Computer Networks',               year: '3rd Year', term: '2nd Semester', prereqs: ['Operating Systems'] },
+    { name: 'Human-Computer Interaction',      year: '3rd Year', term: '2nd Semester', prereqs: ['Software Engineering'] },
+    { name: 'Artificial Intelligence',         year: '4th Year', term: '1st Semester', prereqs: ['Data Structures and Algorithms', 'Algorithms and Complexity'] },
+    { name: 'Machine Learning',                year: '4th Year', term: '2nd Semester', prereqs: ['Artificial Intelligence', 'Data Structures and Algorithms'] },
+    { name: 'CS Thesis / Capstone Project',    year: '4th Year', term: '2nd Semester', prereqs: [] },
   ],
   BSED: [], // BSED majors use BSED_CORE below + major-specific subjects per BSED_MAJORS courses
   BSHM: [
@@ -108,7 +100,7 @@ const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
     { name: 'Housekeeping Operations',               year: '1st Year', term: '2nd Semester', prereqs: ['Introduction to Hospitality Industry'] },
     { name: 'Front Office Operations',               year: '2nd Year', term: '1st Semester', prereqs: ['Introduction to Hospitality Industry'] },
     { name: 'Culinary Arts / Basic Cooking',         year: '2nd Year', term: '1st Semester', prereqs: ['Food and Beverage Service Operations'] },
-    { name: 'Hospitality Marketing',                year: '2nd Year', term: '2nd Semester', prereqs: ['Introduction to Hospitality Industry', 'Front Office Operations'] },
+    { name: 'Hospitality Marketing',                 year: '2nd Year', term: '2nd Semester', prereqs: ['Introduction to Hospitality Industry', 'Front Office Operations'] },
     { name: 'Hospitality Financial Management',      year: '2nd Year', term: '2nd Semester', prereqs: ['Food and Beverage Service Operations'] },
     { name: 'Food Safety and Sanitation',            year: '2nd Year', term: '2nd Semester', prereqs: ['Culinary Arts / Basic Cooking'] },
     { name: 'Hospitality Law',                       year: '2nd Year', term: '2nd Semester', prereqs: [] },
@@ -119,7 +111,7 @@ const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
     { name: 'Event Management',                      year: '3rd Year', term: '2nd Semester', prereqs: ['Hospitality Marketing'] },
     { name: 'Banquet and Catering Management',       year: '3rd Year', term: '2nd Semester', prereqs: ['Food and Beverage Service Operations', 'Event Management'] },
     { name: 'Entrepreneurship in Hospitality',       year: '4th Year', term: '1st Semester', prereqs: ['Hospitality Marketing', 'Hotel and Restaurant Management'] },
-    { name: 'Internship / OJT',                     year: '4th Year', term: '2nd Semester', prereqs: [] },
+    { name: 'Internship / OJT',                      year: '4th Year', term: '2nd Semester', prereqs: [] },
   ],
   BSCRIM: [
     { name: 'Introduction to Criminology',                year: '1st Year', term: '1st Semester', prereqs: [] },
@@ -139,20 +131,20 @@ const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
     { name: 'Community Policing and Public Safety',       year: '4th Year', term: '2nd Semester', prereqs: ['Criminal Investigation Practicum'] },
   ],
   BSTM: [
-    { name: 'Principles of Tourism',             year: '1st Year', term: '1st Semester', prereqs: [] },
-    { name: 'Tourism Research and Statistics',   year: '2nd Year', term: '2nd Semester', prereqs: [] },
-    { name: 'Tourism Planning and Development',  year: '2nd Year', term: '1st Semester', prereqs: ['Principles of Tourism'] },
-    { name: 'Travel Agency Operations',          year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Tourism'] },
-    { name: 'Tour Guiding and Tour Operations',  year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Tourism'] },
-    { name: 'Hospitality and Tourism Law',       year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Tourism'] },
-    { name: 'Tourism Marketing and Promotion',   year: '3rd Year', term: '1st Semester', prereqs: ['Tourism Planning and Development'] },
-    { name: 'Event and Convention Management',   year: '3rd Year', term: '1st Semester', prereqs: ['Tourism Marketing and Promotion'] },
+    { name: 'Principles of Tourism',            year: '1st Year', term: '1st Semester', prereqs: [] },
+    { name: 'Tourism Research and Statistics',  year: '2nd Year', term: '2nd Semester', prereqs: [] },
+    { name: 'Tourism Planning and Development', year: '2nd Year', term: '1st Semester', prereqs: ['Principles of Tourism'] },
+    { name: 'Travel Agency Operations',         year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Tourism'] },
+    { name: 'Tour Guiding and Tour Operations', year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Tourism'] },
+    { name: 'Hospitality and Tourism Law',      year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Tourism'] },
+    { name: 'Tourism Marketing and Promotion',  year: '3rd Year', term: '1st Semester', prereqs: ['Tourism Planning and Development'] },
+    { name: 'Event and Convention Management',  year: '3rd Year', term: '1st Semester', prereqs: ['Tourism Marketing and Promotion'] },
     { name: 'Sustainable Tourism',              year: '3rd Year', term: '2nd Semester', prereqs: ['Tourism Planning and Development'] },
     { name: 'Cultural and Heritage Tourism',    year: '3rd Year', term: '2nd Semester', prereqs: ['Tourism Planning and Development'] },
     { name: 'Tourism Policy and Governance',    year: '3rd Year', term: '2nd Semester', prereqs: ['Principles of Tourism', 'Sustainable Tourism'] },
     { name: 'Airline and Cruise Management',    year: '4th Year', term: '1st Semester', prereqs: ['Travel Agency Operations'] },
     { name: 'Tourism Entrepreneurship',         year: '4th Year', term: '1st Semester', prereqs: ['Tourism Marketing and Promotion'] },
-    { name: 'Internship / OJT',                year: '4th Year', term: '2nd Semester', prereqs: [] },
+    { name: 'Internship / OJT',                 year: '4th Year', term: '2nd Semester', prereqs: [] },
   ],
 }
 
@@ -170,13 +162,13 @@ const BSED_CORE: CollegeSubjRaw[] = [
   { name: 'Practice Teaching / Internship',              year: '4th Year', term: '1st Semester', prereqs: ['Field Study (Practice Teaching Preparation)'] },
 ]
 
-// ---------------------------------------------------------------------------
-// Exports
-// ---------------------------------------------------------------------------
-
 /**
- * Major subjects scoped per course (one row per course).
- * These are seeded with subject_type: 'major'.
+ * Major subjects for college courses.
+ *
+ * Key change: `levelName` is now the shared year-level name (e.g. '1st Year', '2nd Year')
+ * instead of the old course-scoped name (e.g. 'BSCS – 1st Year').
+ * The `courseCode` field still scopes subjects to their course.
+ * This means the seeder resolves: levelId = levelMap['1st Year'], courseId = courseMap['BSCS'].
  */
 export function collegeMajorSubjects(): SubjectDef[] {
   const out: SubjectDef[] = []
@@ -184,25 +176,22 @@ export function collegeMajorSubjects(): SubjectDef[] {
   for (const course of COLLEGE_COURSES) {
     const majors = COLLEGE_MAJOR[course.code] ?? []
     for (const s of majors) {
-      const levelName = `${course.code} – ${s.year}`
-      out.push(subj(levelName, course.code, null, s.name, s.year, s.term, s.prereqs, false))
+      // levelName = s.year ('1st Year', '2nd Year', ...) — matches the shared college level
+      out.push(subj(s.year, course.code, null, s.name, s.year, s.term, s.prereqs, false))
     }
   }
 
-  // BSED core subjects — still seeded per-year-level under college program
   for (const s of BSED_CORE) {
-    const levelName = `BSED – ${s.year}`
-    out.push(subj(levelName, null, null, s.name, s.year, s.term, s.prereqs, false))
+    // BSED core subjects: levelName = s.year, no specific courseCode
+    out.push(subj(s.year, null, null, s.name, s.year, s.term, s.prereqs, false))
   }
 
   return out
 }
 
 /**
- * GE (General Education) subjects — seeded ONCE for the college program
- * with subject_type: 'minor', then shared to all courses via SubjectSharing.
- *
- * Uses synthetic levelName 'college_ge' so deriveProgramKey() maps it to 'college'.
+ * GE (minor) subjects shared across all college courses.
+ * levelName is 'college_ge' — a sentinel that deriveProgramKey maps to 'college'.
  */
 export function collegeMinorSubjects(): SubjectDef[] {
   return COLLEGE_GE.map((s) =>
@@ -210,10 +199,6 @@ export function collegeMinorSubjects(): SubjectDef[] {
   )
 }
 
-/**
- * @deprecated Use collegeMajorSubjects() + collegeMinorSubjects() instead.
- * Kept only for any legacy callers.
- */
 export function collegeSubjects(): SubjectDef[] {
   return [...collegeMajorSubjects(), ...collegeMinorSubjects()]
 }
