@@ -2,27 +2,27 @@ import client from "@/api/client";
 import type { Section } from "@/types/admin/section.types";
 
 export interface CreateSectionRequest {
-  levelId: string;
-  name: string;
-  capacity: number;
+  levelId:      string;
+  schoolYearId: string;
+  name:         string;
+  capacity:     number;
 }
 
 export interface UpdateSectionRequest {
-  name?: string;
+  name?:     string;
   capacity?: number;
 }
 
 interface ApiResponse<T> {
   success: boolean;
-  data: T;
+  data:    T;
 }
 
 export const sectionApi = {
-  getAll: async (levelId?: string): Promise<Section[]> => {
+  getAll: async (schoolYearId: string, levelId?: string): Promise<Section[]> => {
     const res = await client.get<ApiResponse<Section[]>>("/sections", {
-      params: levelId ? { levelId } : undefined,
+      params: { schoolYearId, ...(levelId ? { levelId } : {}) },
     });
-    // Backend returns { success: true, data: [...] }
     return res.data.data ?? [];
   },
 

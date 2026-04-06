@@ -2,16 +2,13 @@ import client from "@/api/client";
 import type { Program } from "@/types/admin/program.types";
 
 export type ProgramType =
-  | "elementary"
-  | "high_school"
-  | "senior_high"
-  | "college"
-  | "custom";
+  | "daycare" | "kinder" | "elementary" | "jhs"
+  | "shs" | "college" | "custom";
 
 export interface CreateProgramRequest {
-  schoolYearId: string; // added — backend @IsUUID() required field
-  name: string;
-  type: ProgramType;
+  schoolYearId: string;
+  name:         string;
+  type:         ProgramType;
 }
 
 export interface UpdateProgramRequest {
@@ -20,36 +17,26 @@ export interface UpdateProgramRequest {
 }
 
 export const programApi = {
-  getAll: async (schoolYearId?: string): Promise<Program[]> => {
+  getAll: async (schoolYearId: string): Promise<Program[]> => {
     const res = await client.get<{ success: boolean; data: Program[] }>(
       "/programs",
-      {
-        params: schoolYearId ? { schoolYearId } : undefined,
-      }
+      { params: { schoolYearId } },
     );
     return res.data.data;
   },
 
   getOne: async (id: string): Promise<Program> => {
-    const res = await client.get<{ success: boolean; data: Program }>(
-      `/programs/${id}`
-    );
+    const res = await client.get<{ success: boolean; data: Program }>(`/programs/${id}`);
     return res.data.data;
   },
 
   create: async (data: CreateProgramRequest): Promise<Program> => {
-    const res = await client.post<{ success: boolean; data: Program }>(
-      "/programs",
-      data
-    );
+    const res = await client.post<{ success: boolean; data: Program }>("/programs", data);
     return res.data.data;
   },
 
   update: async (id: string, data: UpdateProgramRequest): Promise<Program> => {
-    const res = await client.patch<{ success: boolean; data: Program }>(
-      `/programs/${id}`,
-      data
-    );
+    const res = await client.patch<{ success: boolean; data: Program }>(`/programs/${id}`, data);
     return res.data.data;
   },
 

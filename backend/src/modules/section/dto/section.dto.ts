@@ -4,19 +4,19 @@ import {
 
 export class CreateSectionDto {
   @IsUUID()
-  levelId: string;
+  levelId!: string;
 
   @IsUUID()
-  schoolYearId: string;
+  schoolYearId!: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @IsInt()
   @Min(1)
-  capacity: number;
+  capacity!: number;
 }
 
 export class UpdateSectionDto {
