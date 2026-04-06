@@ -145,29 +145,31 @@ model Level {
 
 
 model Section {
-  id         String    @id @default(uuid())
-  org_id     String
-  level_id   String
-  name       String
-  capacity   Int
-  deleted_at DateTime?
+  id             String    @id @default(uuid())
+  org_id         String
+  level_id       String
+  school_year_id String
+  name           String
+  capacity       Int
+  deleted_at     DateTime?
 
-  level Level @relation(fields: [level_id], references: [id])
+  level      Level      @relation(fields: [level_id], references: [id])
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
 }
 
-
-
 model SchoolYear {
-  id       String @id @default(uuid())
-  org_id   String
-  name     String
-  status   String
+  id     String @id @default(uuid())
+  org_id String
+  name   String
+  status String
 
-  programs      Program[]
-  courses       Course[]
-  strands       Strand[]
-  levels        Level[]
-  gradingScales GradingScale[]
+  programs       Program[]
+  courses        Course[]
+  strands        Strand[]
+  levels         Level[]
+  sections       Section[]
+  gradingScales  GradingScale[]
+  gradingSchemes GradingScheme[]
 }
 
 model Semester {
@@ -239,13 +241,13 @@ model Class {
   created_at     DateTime  @default(now())
   deleted_at     DateTime?
 
-  schedules       ClassSchedule[]
-  enrollments     Enrollment[]
-  gradeLock       GradeLock?
-  ownershipLogs   ClassOwnershipLog[]
-  meetings        Meeting[]
-  grades          Grade[]
-  gradingSchemes  GradingScheme[]
+  schedules     ClassSchedule[]
+  enrollments   Enrollment[]
+  gradeLock     GradeLock?
+  ownershipLogs ClassOwnershipLog[]
+  meetings      Meeting[]
+  grades        Grade[]
+  gradingSchemes GradingScheme[]
 }
 
 model ClassSchedule {
@@ -314,18 +316,20 @@ model GradingScale {
 //////////////////////
 
 model GradingScheme {
-  id          String    @id @default(uuid())
-  org_id      String
-  educator_id String?
-  class_id    String?
-  name        String
-  is_default  Boolean   @default(false)
-  is_locked   Boolean   @default(false)
-  locked_at   DateTime?
-  created_at  DateTime  @default(now())
+  id             String    @id @default(uuid())
+  org_id         String
+  educator_id    String?
+  class_id       String?
+  school_year_id String
+  name           String
+  is_default     Boolean   @default(false)
+  is_locked      Boolean   @default(false)
+  locked_at      DateTime?
+  created_at     DateTime  @default(now())
 
+  schoolYear SchoolYear             @relation(fields: [school_year_id], references: [id])
+  class      Class?                 @relation(fields: [class_id], references: [id])
   components GradingSchemeComponent[]
-  class      Class?                   @relation(fields: [class_id], references: [id])
 }
 
 model GradingSchemeComponent {
