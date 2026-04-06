@@ -56,11 +56,11 @@ function EditSubjectDialog({
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } =
     useForm<EditSubjectForm>({
-      defaultValues: {
-        name:       subject.title,
-        levelId:    subject.programId  ?? "",
-        educatorId: subject.educatorId ?? "",
-      },
+    defaultValues: {
+      name:       subject.title,
+      levelId:    subject.levelId ?? "",     // ← fix
+      educatorId: subject.educatorId ?? "",
+    }
     });
 
   const selectedLevelId    = watch("levelId");

@@ -53,10 +53,11 @@ interface SubjectResponse {
   orgId: string;
   title: string;
   subjectType: SubjectType;
-  programId: string | null;    // ← backend sends level_id here (legacy naming)
-  programName?: string | null; // ← levelName
-  levelId: string | null;      // ← explicit level_id
-  realProgramId?: string | null; // ← actual program_id for minors (if backend sends it)
+  programId: string | null;
+  programName?: string | null;   // not sent by backend — keep for safety
+  levelName?: string | null;     // ← ADD THIS — backend sends this directly
+  levelId: string | null;
+  realProgramId?: string | null;
   courseId: string | null;
   strandId?: string | null;
   educatorId?: string | null;
@@ -80,18 +81,18 @@ interface ApiResponse<T> {
 // Mapper
 // ---------------------------------------------------------------------------
 
+// In mapSubject — add levelName
 function mapSubject(s: SubjectResponse): Subject {
   return {
     id:            s.id,
     orgId:         s.orgId,
     title:         s.title,
     subjectType:   s.subjectType ?? "major",
-    // legacy fields kept for backwards compat
     programId:     s.programId   ?? "",
     programName:   s.programName ?? "",
-    // new explicit fields
     realProgramId: s.realProgramId ?? null,
     levelId:       s.levelId       ?? null,
+    levelName:     s.levelName     ?? null,   // ← ADD THIS
     courseId:      s.courseId,
     strandId:      s.strandId      ?? null,
     educatorId:    s.educatorId    ?? null,
@@ -106,7 +107,6 @@ function mapSubject(s: SubjectResponse): Subject {
     updatedAt:     s.updatedAt     ?? "",
   };
 }
-
 // ---------------------------------------------------------------------------
 // API
 // ---------------------------------------------------------------------------
