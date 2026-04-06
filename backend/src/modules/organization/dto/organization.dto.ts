@@ -37,11 +37,11 @@ export class UpdateOrganizationDto {
 
 export class SeedOrganizationDto {
   @IsUUID()
-  schoolYearId: string
+  schoolYearId!: string
 
   @IsArray()
   @IsString({ each: true })
-  programs: string[]
+  programs!: string[]
 
   @IsOptional()
   @IsArray()

@@ -28,7 +28,7 @@ export function useSubjectColumns(
       accessorKey: "programName",
       cell: (info) => (
         <Badge variant="secondary">
-          {info.row.original.yearLevel ?? info.getValue<string>() ?? "—"}
+          {info.row.original.gradeLevel ?? info.getValue<string>() ?? "—"}
         </Badge>
       ),
     },

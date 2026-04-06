@@ -2,14 +2,14 @@ import { IsString, IsOptional, IsNotEmpty, IsUUID } from 'class-validator'
 
 export class CreateCourseDto {
   @IsUUID()
-  schoolYearId: string
+  schoolYearId!: string
 
   @IsUUID()
-  programId: string
+  programId!: string
 
   @IsString()
   @IsNotEmpty()
-  name: string
+  name!: string
 
   @IsOptional()
   @IsString()
