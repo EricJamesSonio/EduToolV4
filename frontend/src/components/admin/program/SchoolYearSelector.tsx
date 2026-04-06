@@ -37,7 +37,12 @@ export function SchoolYearSelector({
       <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
 
 
-    <Select value={selectedId ?? ""} onValueChange={onSelect}>
+    <Select
+  value={selectedId ?? ""}
+  onValueChange={(value) => {
+    if (value) onSelect(value);
+  }}
+>
     <SelectTrigger className="w-52 h-9 text-sm">
         <SelectValue>
         {schoolYears.find((sy) => sy.id === selectedId)?.name ?? "Select school year"}

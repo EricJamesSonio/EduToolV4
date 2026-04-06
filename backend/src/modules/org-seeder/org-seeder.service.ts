@@ -82,10 +82,10 @@ export class OrgSeederService {
         update: {},
         create: {
           id,
-          org_id: orgId,
-          name:   p.name,
-          type:   p.type,
-          schoolYear: { connect: { id: schoolYearId } },
+          org_id:         orgId,
+          school_year_id: schoolYearId,
+          name:           p.name,
+          type:           p.type,
         },
       })
       programMap[p.key] = rec.id
@@ -110,11 +110,11 @@ export class OrgSeederService {
         update: {},
         create: {
           id,
-          org_id: orgId,
-          name:   c.name,
-          code:   c.code,
-          schoolYear: { connect: { id: schoolYearId } },
-          program:    { connect: { id: programMap['college'] } },
+          org_id:         orgId,
+          school_year_id: schoolYearId,
+          program_id:     programMap['college'],
+          name:           c.name,
+          code:           c.code,
         },
       })
       courseMap[c.code] = rec.id
@@ -139,10 +139,10 @@ export class OrgSeederService {
         update: {},
         create: {
           id,
-          org_id: orgId,
-          name:   s.name,
-          schoolYear: { connect: { id: schoolYearId } },
-          program:    { connect: { id: programMap['shs'] } },
+          org_id:         orgId,
+          school_year_id: schoolYearId,
+          program_id:     programMap['shs'],
+          name:           s.name,
         },
       })
       strandMap[s.name] = rec.id
@@ -161,16 +161,19 @@ export class OrgSeederService {
 
     for (const lvl of levelDefs) {
       if (!shouldSeedL(lvl.name)) continue
+      const programId = programMap[lvl.programKey]
+      if (!programId) continue
+
       const id = seedId('level', lvl.programKey, lvl.name, schoolYearId, orgId)
       const rec = await this.db.level.upsert({
         where:  { id },
         update: {},
         create: {
           id,
-          org_id: orgId,
-          name:   lvl.name,
-          schoolYear: { connect: { id: schoolYearId } },
-          program:    { connect: { id: programMap[lvl.programKey] } },
+          org_id:         orgId,
+          school_year_id: schoolYearId,
+          program_id:     programId,
+          name:           lvl.name,
         },
       })
       levelMap[lvl.name] = rec.id
@@ -183,9 +186,9 @@ export class OrgSeederService {
           create: {
             id:       sectionId,
             org_id:   orgId,
+            level_id: rec.id,
             name:     sec.name,
             capacity: sec.capacity,
-            level:    { connect: { id: rec.id } },
           },
         })
       }
@@ -207,15 +210,15 @@ export class OrgSeederService {
       await this.db.gradingScale.upsert({
         where:  { id },
         update: {},
-      create: {
-        id,
-        org_id:         orgId,
-        name:           sa.scaleName,
-        ranges:         sa.ranges,
-        is_locked:      false,
-        level_id:       levelId,
-        school_year_id: schoolYearId,
-      },
+        create: {
+          id,
+          org_id:         orgId,
+          school_year_id: schoolYearId,
+          level_id:       levelId,
+          name:           sa.scaleName,
+          ranges:         sa.ranges,
+          is_locked:      false,
+        },
       })
     }
   }
@@ -305,13 +308,13 @@ export class OrgSeederService {
               data: {
                 id,
                 org_id:     orgId,
+                level_id:   levelId,
+                course_id:  courseId ?? undefined,
+                strand_id:  strandId ?? undefined,
                 name:       s.name,
                 year_level: s.yearLevel,
                 term_label: s.termLabel,
                 is_locked:  false,
-                level:  { connect: { id: levelId } },
-                ...(courseId ? { course: { connect: { id: courseId } } } : {}),
-                ...(strandId ? { strand: { connect: { id: strandId } } } : {}),
               },
             })
           ).id
