@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query"; // ✅ added useQuery
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -11,6 +11,7 @@ import { Plus } from "lucide-react";
 import { useSections } from "@/hooks/admin/useSectionsHelper";
 import { useEnrichedLevels } from "@/hooks/admin/useEnrichedLevels";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
+import { programApi } from "@/api/admin/program.api"; // ✅ added
 import { SectionDialog } from "@/components/admin/section/SectionDialog";
 import { SectionTable } from "@/components/admin/section/SectionTable";
 import { SectionLevelFilter } from "@/components/admin/section/SectionLevelFilter";
@@ -20,12 +21,13 @@ import type { Section } from "@/types/admin/section.types";
 
 export default function SectionsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
-  const [createOpen, setCreateOpen]   = useState(false);
-  const [editTarget, setEditTarget]   = useState<Section | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Section | null>(null);
   const [schoolYearId, setSchoolYearId] = useState<string | null>(null);
 
   // fetch school years and auto-select active one
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
+
   useEffect(() => {
     if (schoolYears.length > 0 && !schoolYearId) {
       const active = schoolYears.find((sy) => sy.status === "active");
@@ -46,10 +48,19 @@ export default function SectionsPage(): React.JSX.Element {
   const { levels, grouped, levelMap, isLoading: levelsLoading } =
     useEnrichedLevels(schoolYearId);
 
+  // ✅ PROGRAMS QUERY (FIX)
+  const { data: programs = [] } = useQuery({
+    queryKey: ["admin", "programs", schoolYearId],
+    queryFn: () => programApi.getAll(schoolYearId!),
+    enabled: !!schoolYearId,
+  });
+
   const isLoading = sectionsLoading || levelsLoading;
 
   function handleSaved(): void {
-    queryClient.invalidateQueries({ queryKey: ["admin", "sections", schoolYearId] });
+    queryClient.invalidateQueries({
+      queryKey: ["admin", "sections", schoolYearId],
+    });
   }
 
   return (
@@ -75,11 +86,11 @@ export default function SectionsPage(): React.JSX.Element {
         selectedId={schoolYearId}
         onSelect={(id) => {
           setSchoolYearId(id);
-          setFilterLevelId("all"); // reset level filter on year change
+          setFilterLevelId("all");
         }}
       />
 
-      {/* Level filter — only when school year selected */}
+      {/* Level filter */}
       {schoolYearId && !isLoading && (
         <SectionLevelFilter
           filterLevelId={filterLevelId}
@@ -116,23 +127,32 @@ export default function SectionsPage(): React.JSX.Element {
         />
       )}
 
+      {/* Create Dialog */}
       {createOpen && schoolYearId && (
         <SectionDialog
           levels={levels}
+          programs={programs} // ✅ now defined
+          schoolYearId={schoolYearId}
           open={createOpen}
           onClose={() => setCreateOpen(false)}
           onSaved={handleSaved}
         />
       )}
+
+      {/* Edit Dialog */}
       {editTarget && (
         <SectionDialog
           section={editTarget}
           levels={levels}
+          programs={programs} // ✅ now defined
+          schoolYearId={schoolYearId!}
           open={!!editTarget}
           onClose={() => setEditTarget(null)}
           onSaved={handleSaved}
         />
       )}
+
+      {/* Delete Dialog */}
       {deleteTarget && (
         <ConfirmDialog
           open
@@ -142,7 +162,9 @@ export default function SectionsPage(): React.JSX.Element {
           destructive
           isLoading={deleteMutation.isPending}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
-          onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+          onOpenChange={(o) => {
+            if (!o) setDeleteTarget(null);
+          }}
         />
       )}
     </div>
