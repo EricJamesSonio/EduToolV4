@@ -1,47 +1,60 @@
-// frontend/src/hooks/admin/useSectionsHelper.ts
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { sectionApi } from "@/api/admin/section.api";
-import type { Section } from "@/types/admin/section.types";
-import type { AxiosError } from "axios";
+import {
+  useQuery, useMutation, useQueryClient,
+  UseQueryResult, UseMutationResult,
+} from "@tanstack/react-query";
+import { schoolYearApi } from "@/api/admin/school-year.api";
+import type { SchoolYear } from "@/types/admin/school-year.types";
 
-export function useSections(schoolYearId: string | null) {
-  const queryClient = useQueryClient();
-  const [filterLevelId, setFilterLevelId] = useState<string>("all");
-  const [deleteTarget, setDeleteTarget]   = useState<Section | null>(null);
-
-  const { data: allSections = [], isLoading } = useQuery({
-    queryKey: ["admin", "sections", schoolYearId],
-    queryFn:  () => sectionApi.getAll(),   // backend filters by org; we filter by level client-side
-    enabled:  !!schoolYearId,
+export const useSchoolYears = (): UseQueryResult<SchoolYear[], unknown> => {
+  return useQuery({
+    queryKey: ["schoolYears"],
+    queryFn:  schoolYearApi.getAll,
   });
+};
 
-  // client-side level filter
-  const sections = filterLevelId === "all"
-    ? allSections
-    : allSections.filter((s) => s.level_id === filterLevelId);
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => sectionApi.delete(id),
-    onSuccess: () => {
-      toast.success("Section deleted.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "sections", schoolYearId] });
-      setDeleteTarget(null);
-    },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to delete section.");
-      setDeleteTarget(null);
-    },
-  });
-
-  return {
-    sections,
-    isLoading,
-    filterLevelId,
-    setFilterLevelId,
-    deleteTarget,
-    setDeleteTarget,
-    deleteMutation,
-  };
+/** Returns the active school year id, falling back to the first one. */
+export function useActiveSchoolYearId(): string | null {
+  const { data: schoolYears = [] } = useSchoolYears();
+  if (schoolYears.length === 0) return null;
+  return (schoolYears.find((sy) => sy.status === "active") ?? schoolYears[0]).id;
 }
+
+export const useCreateSchoolYear = (): UseMutationResult<SchoolYear, unknown, { name: string }, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: schoolYearApi.create,
+    onSuccess:  () => { queryClient.invalidateQueries({ queryKey: ["schoolYears"] }); },
+  });
+};
+
+export const useUpdateSchoolYear = (): UseMutationResult<
+  SchoolYear,
+  unknown,
+  { id: string; data: { name: string } },
+  unknown
+> => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }) => schoolYearApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schoolYears"] });
+    },
+  });
+};
+
+export const useActivateSchoolYear = (): UseMutationResult<SchoolYear, unknown, string, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: schoolYearApi.activate,
+    onSuccess:  () => { queryClient.invalidateQueries({ queryKey: ["schoolYears"] }); },
+  });
+};
+
+export const useEndSchoolYear = (): UseMutationResult<SchoolYear, unknown, string, unknown> => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: schoolYearApi.end,
+    onSuccess:  () => { queryClient.invalidateQueries({ queryKey: ["schoolYears"] }); },
+  });
+};
