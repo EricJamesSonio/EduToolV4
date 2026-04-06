@@ -80,13 +80,13 @@ export class OrgSeederService {
       const rec = await this.db.program.upsert({
         where:  { id },
         update: {},
-        create: {
-          id,
-          org_id:         orgId,
-          school_year_id: schoolYearId,
-          name:           p.name,
-          type:           p.type,
-        },
+      create: {
+        id:             `seed-prog-${p.key}-${ORG_ID}`,
+        org_id:         ORG_ID,
+        school_year_id: SCHOOL_YEAR_ID,   // ← add
+        name:           p.name,
+        type:           p.type,
+      },
       })
       programMap[p.key] = rec.id
     }
