@@ -105,6 +105,7 @@ function mapSubject(s: SubjectResponse): Subject {
     sharings:      s.sharings      ?? [],
     createdAt:     s.createdAt     ?? "",
     updatedAt:     s.updatedAt     ?? "",
+    
   };
 }
 // ---------------------------------------------------------------------------
