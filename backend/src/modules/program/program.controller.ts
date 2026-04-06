@@ -1,14 +1,6 @@
 import {
-  Controller,
-  Post,
-  Get,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  UseGuards,
-  HttpCode,
-  HttpStatus,
+  Controller, Post, Get, Patch, Delete,
+  Body, Param, Query, UseGuards, HttpCode, HttpStatus,
 } from '@nestjs/common'
 import { ProgramService } from './program.service'
 import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto'
@@ -16,6 +8,13 @@ import { AuthGuard } from '@/commons/guards/auth.guard'
 import { RolesGuard } from '@/commons/guards/role.guard'
 import { Roles } from '@/commons/decorators/roles.decorator'
 import { CurrentUser } from '@/commons/decorators/current-user.decorator'
+import { IsOptional, IsUUID } from 'class-validator'
+
+class ProgramQueryDto {
+  @IsOptional()
+  @IsUUID()
+  schoolYearId?: string
+}
 
 @Controller('programs')
 @UseGuards(AuthGuard, RolesGuard)
@@ -31,20 +30,15 @@ export class ProgramController {
     return this.programService.create(orgId, dto)
   }
 
-  /**
-   * Returns all programs with their courses[] and strands[] (lightweight).
-   * Use this for pickers and dashboard lists.
-   */
   @Get()
-  async findAll(@CurrentUser('orgId') orgId: string) {
-    return this.programService.findAll(orgId)
+  async findAll(
+    @CurrentUser('orgId') orgId: string,
+    @Query() query: ProgramQueryDto,
+  ) {
+    if (!query.schoolYearId) return []
+    return this.programService.findAll(orgId, query.schoolYearId)
   }
 
-  /**
-   * Returns full program detail:
-   * program → courses → subjects[]
-   * program → strands → subjects[]
-   */
   @Get(':id')
   async findOne(
     @Param('id') id: string,

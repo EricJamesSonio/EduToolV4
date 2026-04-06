@@ -27,7 +27,11 @@ export class UpdateCourseDto {
 }
 
 export class CourseQueryDto {
-  @IsUUID()
   @IsOptional()
-  programId?: string  // ← camelCase
+  @IsUUID()
+  schoolYearId?: string
+
+  @IsOptional()
+  @IsUUID()
+  programId?: string
 }

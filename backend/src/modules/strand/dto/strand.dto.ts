@@ -19,7 +19,11 @@ export class UpdateStrandDto {
 }
 
 export class StrandQueryDto {
-  @IsString()
   @IsOptional()
+  @IsUUID()
+  schoolYearId?: string
+
+  @IsOptional()
+  @IsUUID()
   program_id?: string
 }

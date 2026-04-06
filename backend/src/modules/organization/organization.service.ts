@@ -48,20 +48,20 @@ export class OrganizationService {
     })
   }
 
-  async seed(orgId: string, dto: SeedOrganizationDto) {
-    if (!orgId) throw new BadRequestException('No organization found for this account.')
-    const org = await this.orgRepository.findById(orgId)
-    if (!org) throw new NotFoundException('Organization not found.')
+async seed(orgId: string, dto: SeedOrganizationDto) {
+  if (!orgId) throw new BadRequestException('No organization found for this account.')
+  const org = await this.orgRepository.findById(orgId)
+  if (!org) throw new NotFoundException('Organization not found.')
 
-    await this.orgSeeder.seedOrg({
-      orgId,
-      programs:         dto.programs,
-      courses:          dto.courses,
-      strands:          dto.strands,
-      excludedLevels:   dto.excludedLevels,
-      excludedSubjects: dto.excludedSubjects,
-    })
-
-    return { success: true, message: 'Seed completed successfully.' }
-  }
+  await this.orgSeeder.seedOrg({
+    orgId,
+    schoolYearId:     dto.schoolYearId,   // ← added
+    programs:         dto.programs,
+    courses:          dto.courses,
+    strands:          dto.strands,
+    excludedLevels:   dto.excludedLevels,
+    excludedSubjects: dto.excludedSubjects,
+  })
+  return { success: true, message: 'Seed completed successfully.' }
+}
 }

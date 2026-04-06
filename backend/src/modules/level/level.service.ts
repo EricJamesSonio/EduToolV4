@@ -1,37 +1,29 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LevelRepository } from './level.repository';
-import { UpdateLevelDefaultsDto, UpdateLevelDto, CreateLevelDto } from './dto/level.dto';
+import { UpdateLevelDto, CreateLevelDto, BulkGenerateLevelsDto } from './dto/level.dto';
 import { DatabaseService } from '@/core/database/database.provider';
-import { BulkGenerateLevelsDto } from './dto/level.dto';
 
 @Injectable()
 export class LevelService {
   constructor(
-  private readonly levelRepository: LevelRepository,
-  private readonly db: DatabaseService,
-) {}
+    private readonly levelRepository: LevelRepository,
+    private readonly db: DatabaseService,
+  ) {}
 
-  async getAll(orgId: string) {
-    return this.levelRepository.findAll(orgId);
-  }
-
-  async getDefaults(orgId: string) {
-    return this.levelRepository.findDefaultsByOrgId(orgId);
-  }
-
-  async updateDefaults(orgId: string, dto: UpdateLevelDefaultsDto) {
-    return this.levelRepository.upsertDefaults(
-      orgId,
-      dto.levels.map((l) => ({ id: l.id, programId: l.programId, name: l.name })),
-    );
+  async getAll(orgId: string, schoolYearId?: string) {
+    return this.levelRepository.findAll(orgId, schoolYearId);
   }
 
   async getBySchoolYear(orgId: string, schoolYearId: string) {
     return this.levelRepository.findBySchoolYear(orgId, schoolYearId);
   }
 
-  async seedFromDefaults(orgId: string, schoolYearId: string) {
-    return this.levelRepository.seedFromDefaults(orgId, schoolYearId);
+  async seedFromDefaults(
+    orgId: string,
+    schoolYearId: string,
+    programMap: Record<string, string>,
+  ) {
+    return this.levelRepository.seedFromDefaults(orgId, schoolYearId, programMap);
   }
 
   async updateOne(id: string, orgId: string, dto: UpdateLevelDto) {
@@ -47,7 +39,7 @@ export class LevelService {
   async deleteOne(id: string, orgId: string) {
     const existing = await this.levelRepository.findById(id, orgId);
     if (!existing) throw new NotFoundException('Level not found.');
-    return this.levelRepository.delete(id); // ✅ ownership already verified above
+    return this.levelRepository.delete(id);
   }
 
   async bulkGenerate(orgId: string, dto: BulkGenerateLevelsDto) {
@@ -57,13 +49,11 @@ export class LevelService {
     if (!program) throw new NotFoundException('Program not found.');
 
     const names = this.generateLevelNames(program.type, dto.count);
-
     await this.levelRepository.deleteByProgramAndSchoolYear(
       orgId,
       dto.programId,
       dto.schoolYearId,
     );
-
     return this.levelRepository.bulkCreate(
       names.map((name) => ({
         orgId,

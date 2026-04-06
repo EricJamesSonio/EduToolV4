@@ -29,11 +29,13 @@ export class UpdateOrganizationDto {
   @MaxLength(500)
   description?: string
 }
-
 export class SeedOrganizationDto {
+  @IsUUID()
+  schoolYearId: string
+
   @IsArray()
-  @IsIn(VALID_PROGRAM_KEYS, { each: true })
-  programs!: string[]
+  @IsString({ each: true })
+  programs: string[]
 
   @IsOptional()
   @IsArray()
