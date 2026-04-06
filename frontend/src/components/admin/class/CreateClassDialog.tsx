@@ -28,7 +28,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 
 import { ScheduleSlotFields } from "./ScheduleSlotFields";
@@ -108,17 +107,19 @@ export function CreateClassDialog({
   });
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections"],
-    queryFn: () => sectionApi.getAll(),
-  });
-  const sections = toArray<{ id: string; name: string }>(sectionsRaw);
-
   const { data: schoolYearsRaw } = useQuery({
     queryKey: ["admin", "school-years"],
     queryFn: () => schoolYearApi.getAll(),
   });
   const schoolYears = toArray<{ id: string; name: string }>(schoolYearsRaw);
+
+  // ✅ FIXED: reactive sections query
+  const { data: sectionsRaw } = useQuery({
+    queryKey: ["admin", "sections", selectedSchoolYearId],
+    queryFn: () => sectionApi.getAll(selectedSchoolYearId!),
+    enabled: !!selectedSchoolYearId,
+  });
+  const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 
   const { data: semestersRaw } = useQuery({
     queryKey: ["admin", "semesters", selectedSchoolYearId],
@@ -191,7 +192,9 @@ export function CreateClassDialog({
                 onValueChange={(v) => setValue("subjectId", v ?? "")}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a subject" />
+                  <span>
+                    {subjects.find((s) => s.id === selectedSubjectId)?.title ?? "Select a subject"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {subjects.map((s) => (
@@ -211,7 +214,9 @@ export function CreateClassDialog({
                 onValueChange={(v) => setValue("educatorId", v ?? "")}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select an educator" />
+                  <span>
+                    {educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Select an educator"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {educators.map((e) => (
@@ -223,18 +228,20 @@ export function CreateClassDialog({
               </Select>
             </div>
 
-            {/* Section (optional) */}
+            {/* Section (optional) ✅ FIXED */}
             <div className="space-y-1.5">
               <Label>
-                Section{" "}
-                <span className="text-muted-foreground font-normal">(optional)</span>
+                Section <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <Select
                 value={selectedSectionId}
                 onValueChange={(v) => setValue("sectionId", v ?? "")}
+                disabled={!selectedSchoolYearId}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="No section" />
+                  <span>
+                    {sections.find((s) => s.id === selectedSectionId)?.name ?? "No section"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">No section</SelectItem>
@@ -245,6 +252,11 @@ export function CreateClassDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {!selectedSchoolYearId && (
+                <p className="text-xs text-muted-foreground">
+                  Select a school year first.
+                </p>
+              )}
             </div>
 
             {/* School Year */}
@@ -254,11 +266,14 @@ export function CreateClassDialog({
                 value={selectedSchoolYearId}
                 onValueChange={(v) => {
                   setValue("schoolYearId", v ?? "");
-                  setValue("semesterId", ""); // reset dependent
+                  setValue("semesterId", "");
+                  setValue("sectionId", ""); // reset section too
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select school year" />
+                  <span>
+                    {schoolYears.find((sy) => sy.id === selectedSchoolYearId)?.name ?? "Select school year"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {schoolYears.map((sy) => (
@@ -279,7 +294,9 @@ export function CreateClassDialog({
                 disabled={!selectedSchoolYearId || semesters.length === 0}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select semester" />
+                  <span>
+                    {semesters.find((s) => s.id === selectedSemesterId)?.name ?? "Select semester"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {semesters.map((sem) => (
@@ -304,11 +321,12 @@ export function CreateClassDialog({
                 })}
               />
               {errors.capacity && (
-                <p className="text-xs text-destructive">{errors.capacity.message}</p>
+                <p className="text-xs text-destructive">
+                  {errors.capacity.message}
+                </p>
               )}
             </div>
 
-            {/* Schedule slots — extracted to its own component */}
             <ScheduleSlotFields />
 
             <div className="flex justify-end gap-2 pt-1">

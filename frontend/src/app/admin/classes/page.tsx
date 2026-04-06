@@ -28,6 +28,7 @@ import { CreateClassDialog } from "@/components/admin/class/CreateClassDialog";
 function ClassesPageInner(): React.JSX.Element {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+
   const defaultSubjectId: string | undefined =
     searchParams.get("subjectId") ?? undefined;
 
@@ -47,21 +48,34 @@ function ClassesPageInner(): React.JSX.Element {
     queryKey: ["admin", "subjects"],
     queryFn: () => subjectApi.getAll(),
   });
+
   const { data: educatorsRaw } = useQuery({
     queryKey: ["admin", "educators", "all"],
     queryFn: () => educatorApi.getAll(),
   });
+
   const { data: schoolYearsRaw } = useQuery({
     queryKey: ["admin", "school-years"],
     queryFn: () => schoolYearApi.getAll(),
   });
+
   const { data: semestersRaw } = useQuery({
     queryKey: ["admin", "semesters"],
     queryFn: () => semesterApi.getAll(),
   });
+
+  // ✅ FIXED: derive active school year BEFORE fetching sections
+  const schoolYears = toArray<{ id: string; name: string; status: string }>(schoolYearsRaw);
+
+  const activeSchoolYearId =
+    schoolYears.find((sy) => sy.status === "active")?.id ??
+    schoolYears[0]?.id ??
+    null;
+
   const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections"],
-    queryFn: () => sectionApi.getAll(),
+    queryKey: ["admin", "sections", activeSchoolYearId],
+    queryFn: () => sectionApi.getAll(activeSchoolYearId!),
+    enabled: !!activeSchoolYearId,
   });
 
   // ── Lookup maps ───────────────────────────────────────────────────────────
@@ -109,16 +123,30 @@ function ClassesPageInner(): React.JSX.Element {
   const classes = useMemo<Class[]>(() => {
     return toArray<Class>(classesRaw).map((cls) => ({
       ...cls,
-      subjectName:     subjectMap.get(cls.subjectId)      ?? cls.subjectName,
-      educatorName:    educatorMap.get(cls.educatorId)     ?? cls.educatorName,
-      schoolYearTitle: schoolYearMap.get(cls.schoolYearId) ?? cls.schoolYearTitle,
-      semesterName:    semesterMap.get(cls.semesterId)     ?? cls.semesterName,
-      sectionName:     cls.sectionId
-                         ? (sectionMap.get(cls.sectionId) ?? cls.sectionName)
-                         : cls.sectionName,
-      title:           subjectMap.get(cls.subjectId)      ?? cls.subjectName ?? cls.subjectId,
+      subjectName:
+        subjectMap.get(cls.subjectId) ?? cls.subjectName,
+      educatorName:
+        educatorMap.get(cls.educatorId) ?? cls.educatorName,
+      schoolYearTitle:
+        schoolYearMap.get(cls.schoolYearId) ?? cls.schoolYearTitle,
+      semesterName:
+        semesterMap.get(cls.semesterId) ?? cls.semesterName,
+      sectionName: cls.sectionId
+        ? sectionMap.get(cls.sectionId) ?? cls.sectionName
+        : cls.sectionName,
+      title:
+        subjectMap.get(cls.subjectId) ??
+        cls.subjectName ??
+        cls.subjectId,
     }));
-  }, [classesRaw, subjectMap, educatorMap, schoolYearMap, semesterMap, sectionMap]);
+  }, [
+    classesRaw,
+    subjectMap,
+    educatorMap,
+    schoolYearMap,
+    semesterMap,
+    sectionMap,
+  ]);
 
   // ── Archive mutation ──────────────────────────────────────────────────────
   const archiveMutation = useMutation({
@@ -145,6 +173,7 @@ function ClassesPageInner(): React.JSX.Element {
           </Button>
         }
       />
+
       <ClassesFilterBar {...filters} />
 
       {isLoading ? (
@@ -176,7 +205,11 @@ function ClassesPageInner(): React.JSX.Element {
         <ConfirmDialog
           open
           title="Archive this class?"
-          message={`Archive "${archiveTarget.title ?? archiveTarget.subjectName ?? "this class"}"? It will become read-only and hidden from active views.`}
+          message={`Archive "${
+            archiveTarget.title ??
+            archiveTarget.subjectName ??
+            "this class"
+          }"? It will become read-only and hidden from active views.`}
           confirmLabel="Archive Class"
           destructive
           isLoading={archiveMutation.isPending}

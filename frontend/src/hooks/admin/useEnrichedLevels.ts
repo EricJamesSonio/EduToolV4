@@ -26,7 +26,7 @@ export function useEnrichedLevels(schoolYearId?: string | null): UseEnrichedLeve
 
   const { data: programs = [], isLoading: programsLoading } = useQuery({
     queryKey: ["admin", "programs", schoolYearId ?? "all"],
-    queryFn:  () => programApi.getAll(schoolYearId ?? undefined),
+    queryFn: () => programApi.getAll(schoolYearId!),
     enabled,
   });
 

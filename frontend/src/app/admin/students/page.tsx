@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import { studentApi } from "@/api/admin/student.api";
 import { levelApi } from "@/api/admin/level.api";
 import { sectionApi } from "@/api/admin/section.api";
+import { schoolYearApi } from "@/api/admin/school-year.api"; // ✅ added
+
 import type { Student } from "@/types/admin/student.types";
 import type { Section } from "@/types/admin/section.types";
 import type { GetStudentsQuery } from "@/api/admin/student.api";
@@ -37,9 +39,27 @@ function StudentsPageInner(): React.JSX.Element {
     queryFn: () => levelApi.getAll(),
   });
 
+  // ✅ NEW: School Years Query
+  const { data: schoolYearsRaw } = useQuery({
+    queryKey: ["admin", "school-years"],
+    queryFn: () => schoolYearApi.getAll(),
+  });
+
+  // ✅ NEW: Active School Year ID
+  const activeSchoolYearId = useMemo(() => {
+    const sysArr = toArray<{ id: string; status: string }>(schoolYearsRaw);
+    return (
+      sysArr.find((sy) => sy.status === "active")?.id ??
+      sysArr[0]?.id ??
+      null
+    );
+  }, [schoolYearsRaw]);
+
+  // ✅ UPDATED: Sections Query (now scoped to active school year)
   const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections"],
-    queryFn: () => sectionApi.getAll(),
+    queryKey: ["admin", "sections", activeSchoolYearId],
+    queryFn: () => sectionApi.getAll(activeSchoolYearId!),
+    enabled: !!activeSchoolYearId,
   });
 
   const levels = useMemo(
@@ -58,8 +78,6 @@ function StudentsPageInner(): React.JSX.Element {
     return allSections.filter((s) => s.level_id === filters.levelId);
   }, [allSections, filters.levelId]);
 
-  // Filter sections shown in create dialog by selected level
-  // (passed down; dialog handles its own selected level internally)
   const levelMap = useMemo(() => {
     const map = new Map<string, string>();
     levels.forEach((l) => map.set(l.id, l.name));
@@ -72,11 +90,17 @@ function StudentsPageInner(): React.JSX.Element {
     return map;
   }, [allSections]);
 
-  const students = useMemo<(Student & { levelName?: string; sectionName?: string })[]>(() => {
+  const students = useMemo<
+    (Student & { levelName?: string; sectionName?: string })[]
+  >(() => {
     return toArray<Student>(studentsRaw).map((s) => ({
       ...s,
-      levelName:   s.levelId   ? (levelMap.get(s.levelId)     ?? s.levelId)   : undefined,
-      sectionName: s.sectionId ? (sectionMap.get(s.sectionId) ?? s.sectionId) : undefined,
+      levelName: s.levelId
+        ? levelMap.get(s.levelId) ?? s.levelId
+        : undefined,
+      sectionName: s.sectionId
+        ? sectionMap.get(s.sectionId) ?? s.sectionId
+        : undefined,
     }));
   }, [studentsRaw, levelMap, sectionMap]);
 
@@ -90,7 +114,11 @@ function StudentsPageInner(): React.JSX.Element {
         title="Students"
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleDownloadCredentials}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadCredentials}
+            >
               <Download className="mr-1.5 h-4 w-4" />
               Download Credentials
             </Button>
@@ -127,7 +155,10 @@ function StudentsPageInner(): React.JSX.Element {
           icon={Users}
           title="No students found"
           description="Create your first student or adjust your filters."
-          action={{ label: "New Student", onClick: () => setCreateOpen(true) }}
+          action={{
+            label: "New Student",
+            onClick: () => setCreateOpen(true),
+          }}
         />
       ) : (
         <StudentTable
@@ -141,7 +172,9 @@ function StudentsPageInner(): React.JSX.Element {
           open={createOpen}
           onClose={() => setCreateOpen(false)}
           onCreated={() => {
-            queryClient.invalidateQueries({ queryKey: ["admin", "students"] });
+            queryClient.invalidateQueries({
+              queryKey: ["admin", "students"],
+            });
           }}
           levels={levels}
           sections={allSections}

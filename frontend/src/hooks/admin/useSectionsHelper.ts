@@ -13,7 +13,7 @@ export function useSections(schoolYearId: string | null) {
 
   const { data: allSections = [], isLoading } = useQuery({
     queryKey: ["admin", "sections", schoolYearId],
-    queryFn:  () => sectionApi.getAll(),   // backend filters by org; we filter by level client-side
+    queryFn: () => sectionApi.getAll(schoolYearId!),    // backend filters by org; we filter by level client-side
     enabled:  !!schoolYearId,
   });
 
