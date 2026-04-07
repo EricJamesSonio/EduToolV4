@@ -14,7 +14,7 @@ import { SchoolYearEnrollmentStatus } from '@prisma/client'; // updated to use p
 export class EnrollStudentDto {
   @IsString()
   @IsNotEmpty()
-  student_id: string;
+  student_id!: string;
 
   @IsOptional()
   @IsString()
@@ -25,12 +25,12 @@ export class BulkEnrollStudentsDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => EnrollStudentDto)
-  students: EnrollStudentDto[];
+  students!: EnrollStudentDto[];
 }
 
 export class UpdateSchoolYearEnrollmentDto {
   @IsEnum(SchoolYearEnrollmentStatus)
-  status: SchoolYearEnrollmentStatus;
+  status!: SchoolYearEnrollmentStatus;
 
   @IsOptional()
   @IsString()
@@ -42,7 +42,7 @@ export class UpdateSchoolYearEnrollmentDto {
 export class EnrollStudentProgramDto {
   @IsString()
   @IsNotEmpty()
-  program_id: string;
+  program_id!: string;
 
   @IsOptional()
   @IsString()
