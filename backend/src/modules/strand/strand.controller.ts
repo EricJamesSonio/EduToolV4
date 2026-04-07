@@ -17,7 +17,7 @@ export class StrandController {
   @Post()
   @Roles('admin', 'platform_owner')
   create(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: CreateStrandDto,
   ) {
     return this.strandService.create(orgId, dto)
@@ -26,7 +26,7 @@ export class StrandController {
   @Get()
   @Roles('admin', 'educator', 'platform_owner')
   findAll(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: StrandQueryDto,
   ) {
     return this.strandService.findAll(orgId, query)
@@ -36,7 +36,7 @@ export class StrandController {
   @Roles('admin', 'educator', 'platform_owner')
   findOne(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.strandService.findOne(id, orgId)
   }
@@ -45,7 +45,7 @@ export class StrandController {
   @Roles('admin', 'platform_owner')
   update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateStrandDto,
   ) {
     return this.strandService.update(id, orgId, dto)
@@ -55,7 +55,7 @@ export class StrandController {
   @Roles('admin', 'platform_owner')
   remove(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.strandService.remove(id, orgId)
   }

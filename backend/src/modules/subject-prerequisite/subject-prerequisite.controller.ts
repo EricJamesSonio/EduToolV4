@@ -28,7 +28,7 @@ export class SubjectPrerequisiteController {
 @Post()
 @Roles('admin', 'platform_owner')
 create(
-  @CurrentUser('orgId') orgId: string,
+  @CurrentUser('org_id') orgId: string,
   @Body() dto: CreatePrerequisiteDto,
 ) {
   return this.prerequisiteService.create(orgId, dto)
@@ -37,7 +37,7 @@ create(
 @Post('bulk')
 @Roles('admin', 'platform_owner')
 bulkCreate(
-  @CurrentUser('orgId') orgId: string,
+  @CurrentUser('org_id') orgId: string,
   @Body() dto: BulkCreatePrerequisiteDto,
 ) {
   return this.prerequisiteService.bulkCreate(orgId, dto)
@@ -46,7 +46,7 @@ bulkCreate(
 @Get()
 @Roles('admin', 'educator', 'platform_owner')
 findBySubject(
-  @CurrentUser('orgId') orgId: string,
+  @CurrentUser('org_id') orgId: string,
   @Query('subject_id') subject_id: string,
 ) {
   return this.prerequisiteService.findBySubject(subject_id, orgId)
@@ -55,7 +55,7 @@ findBySubject(
 @Get('check')
 @Roles('admin', 'platform_owner')
 checkEligibility(
-  @CurrentUser('orgId') orgId: string,
+  @CurrentUser('org_id') orgId: string,
   @Query('subject_id') subject_id: string,
   @Query('student_id') student_id: string,
 ) {
@@ -65,7 +65,7 @@ checkEligibility(
 @Delete(':prerequisite_id')
 @Roles('admin', 'platform_owner')
 remove(
-  @CurrentUser('orgId') orgId: string,
+  @CurrentUser('org_id') orgId: string,
   @Param('prerequisite_id') prerequisite_id: string,
   @Query('subject_id') subject_id: string,
 ) {

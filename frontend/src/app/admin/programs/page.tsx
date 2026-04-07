@@ -1,4 +1,3 @@
-// app/admin/programs/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -20,6 +19,7 @@ import type { AxiosError } from "axios";
 
 export default function ProgramsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
+
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Program | null>(null);
@@ -29,16 +29,16 @@ export default function ProgramsPage(): React.JSX.Element {
     queryFn: schoolYearApi.getAll,
   });
 
+  // Auto-select active or first school year once
   useEffect(() => {
     if (!schoolYears.length || selectedSchoolYearId) return;
-
     const active = schoolYears.find((sy) => sy.status === "active");
     setSelectedSchoolYearId(active?.id ?? schoolYears[0].id);
-  }, [schoolYears]); // ← remove selectedSchoolYearId from deps
+  }, [schoolYears]);
 
   const { data: programs, isLoading: programsLoading } = useQuery({
     queryKey: ["admin", "programs", selectedSchoolYearId],
-    queryFn: () => programApi.getAll(selectedSchoolYearId!),
+    queryFn: () => selectedSchoolYearId ? programApi.getAll(selectedSchoolYearId) : Promise.resolve([]),
     enabled: !!selectedSchoolYearId,
   });
 
@@ -46,7 +46,9 @@ export default function ProgramsPage(): React.JSX.Element {
     mutationFn: (id: string) => programApi.delete(id),
     onSuccess: () => {
       toast.success("Program deleted.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "programs", selectedSchoolYearId] });
+      if (selectedSchoolYearId) {
+        queryClient.invalidateQueries({ queryKey: ["admin", "programs", selectedSchoolYearId] });
+      }
       setDeleteTarget(null);
     },
     onError: (err: AxiosError<{ message: string }>) => {
@@ -57,6 +59,16 @@ export default function ProgramsPage(): React.JSX.Element {
 
   const isLoading = syLoading || programsLoading;
   const noSchoolYears = !syLoading && schoolYears.length === 0;
+
+  if (noSchoolYears) {
+    return (
+      <EmptyState
+        icon={CalendarDays}
+        title="No school years found"
+        description="Create a school year first before managing programs."
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -70,7 +82,10 @@ export default function ProgramsPage(): React.JSX.Element {
               selectedId={selectedSchoolYearId}
               onSelect={setSelectedSchoolYearId}
             />
-            <Button onClick={() => setCreateOpen(true)} disabled={!selectedSchoolYearId}>
+            <Button
+              onClick={() => selectedSchoolYearId && setCreateOpen(true)}
+              disabled={!selectedSchoolYearId}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Add Program
             </Button>
@@ -78,13 +93,7 @@ export default function ProgramsPage(): React.JSX.Element {
         }
       />
 
-      {noSchoolYears ? (
-        <EmptyState
-          icon={CalendarDays}
-          title="No school years found"
-          description="Create a school year first before managing programs."
-        />
-      ) : !selectedSchoolYearId || isLoading ? (
+      {isLoading ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-32 w-full rounded-lg" />

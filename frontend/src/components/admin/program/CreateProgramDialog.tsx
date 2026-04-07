@@ -1,4 +1,3 @@
-// app/admin/programs/_components/CreateProgramDialog.tsx
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -33,7 +32,7 @@ interface CreateForm {
 interface CreateProgramDialogProps {
   open: boolean;
   onClose: () => void;
-  schoolYearId: string;
+  schoolYearId: string | null; // <-- allow null temporarily
 }
 
 export function CreateProgramDialog({
@@ -54,21 +53,34 @@ export function CreateProgramDialog({
 
   const selectedType = watch("type");
 
+  // Safely handle mutation
   const mutation = useMutation({
-    mutationFn: (values: CreateForm) =>
-      programApi.create({ ...values, schoolYearId }),
+    mutationFn: (values: CreateForm) => {
+      if (!schoolYearId) {
+        // Prevent sending invalid data
+        throw new Error("Cannot create program: school year not selected.");
+      }
+      return programApi.create({ ...values, schoolYearId });
+    },
     onSuccess: () => {
       toast.success("Program created.");
       queryClient.invalidateQueries({ queryKey: ["admin", "programs", schoolYearId] });
       reset();
       onClose();
     },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to create program.");
+    onError: (err: AxiosError<{ message: string }> | Error) => {
+      const message =
+        err instanceof AxiosError
+          ? err?.response?.data?.message
+          : err.message;
+      toast.error(message ?? "Failed to create program.");
     },
   });
 
-  const handleClose = () => { reset(); onClose(); };
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
@@ -76,7 +88,10 @@ export function CreateProgramDialog({
         <DialogHeader>
           <DialogTitle>New Program</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-1">
+        <form
+          onSubmit={handleSubmit((v) => mutation.mutate(v))}
+          className="space-y-4 mt-1"
+        >
           <div className="space-y-1.5">
             <Label htmlFor="prog-name">Program Name</Label>
             <Input
@@ -95,7 +110,10 @@ export function CreateProgramDialog({
 
           <div className="space-y-1.5">
             <Label>Type</Label>
-            <Select value={selectedType} onValueChange={(v) => setValue("type", v as ProgramType)}>
+            <Select
+              value={selectedType}
+              onValueChange={(v) => setValue("type", v as ProgramType)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -110,10 +128,18 @@ export function CreateProgramDialog({
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={mutation.isPending}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={mutation.isPending}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending}>
+            <Button
+              type="submit"
+              disabled={mutation.isPending || !schoolYearId} // <-- disable if schoolYearId missing
+            >
               {mutation.isPending ? "Creating..." : "Create"}
             </Button>
           </div>

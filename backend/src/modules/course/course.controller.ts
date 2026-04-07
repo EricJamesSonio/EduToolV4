@@ -17,7 +17,7 @@ export class CourseController {
   @Post()
   @Roles('admin', 'platform_owner')
   create(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: CreateCourseDto,
   ) {
     return this.courseService.create(orgId, dto)
@@ -26,7 +26,7 @@ export class CourseController {
   @Get()
   @Roles('admin', 'educator', 'platform_owner')
   findAll(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: CourseQueryDto,
   ) {
     return this.courseService.findAll(orgId, query)
@@ -36,7 +36,7 @@ export class CourseController {
   @Roles('admin', 'educator', 'platform_owner')
   findOne(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.courseService.findOne(id, orgId)
   }
@@ -45,7 +45,7 @@ export class CourseController {
   @Roles('admin', 'platform_owner')
   update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateCourseDto,
   ) {
     return this.courseService.update(id, orgId, dto)
@@ -55,7 +55,7 @@ export class CourseController {
   @Roles('admin', 'platform_owner')
   remove(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.courseService.remove(id, orgId)
   }

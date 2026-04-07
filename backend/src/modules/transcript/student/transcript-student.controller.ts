@@ -16,7 +16,7 @@ export class TranscriptStudentController {
   @Roles('student')
   getMyTranscript(
     @CurrentUser('id') studentId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.service.getMyTranscript(studentId, orgId);
   }

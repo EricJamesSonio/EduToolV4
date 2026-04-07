@@ -33,7 +33,7 @@ export class GradingScaleController {
   @Post()
   @Roles('admin')
   async create(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: CreateGradingScaleDto,
   ) {
     return this.gradingScaleService.create(orgId, dto);
@@ -46,7 +46,7 @@ export class GradingScaleController {
    */
   @Get()
   async findAll(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: QueryGradingScaleDto,
   ) {
     return this.gradingScaleService.findAll(orgId, query);
@@ -60,7 +60,7 @@ export class GradingScaleController {
   @Roles('admin')
   async update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateGradingScaleDto,
   ) {
     return this.gradingScaleService.update(id, orgId, dto);

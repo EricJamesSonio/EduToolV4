@@ -28,7 +28,7 @@ export class NotificationController {
   @Get()
   async findAll(
     @CurrentUser('id') accountId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: QueryNotificationDto,
   ) {
     return this.notificationService.findForUser(accountId, orgId, query);

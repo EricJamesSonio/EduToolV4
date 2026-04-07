@@ -23,7 +23,7 @@ export class GradingSchemeController {
 
   @Get('default')
   async getDefault(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: SchoolYearQueryDto,
   ) {
     return this.gradingSchemeService.getDefault(orgId, query.schoolYearId);
@@ -32,7 +32,7 @@ export class GradingSchemeController {
   @Patch('default')
   @Roles('admin')
   async updateDefault(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: SchoolYearQueryDto,
     @Body() dto: UpdateDefaultGradingSchemeDto,
   ) {
@@ -43,7 +43,7 @@ export class GradingSchemeController {
   @Roles('educator')
   async getForClass(
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.gradingSchemeService.findForClass(classId, orgId);
   }
@@ -52,7 +52,7 @@ export class GradingSchemeController {
   @Roles('educator')
   async saveForClass(
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: SchoolYearQueryDto,
     @CurrentUser('id') educatorId: string,
     @Body() dto: UpdateGradingSchemeDto,
@@ -65,7 +65,7 @@ export class GradingSchemeController {
   @Post()
   @Roles('educator')
   async create(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: SchoolYearQueryDto,
     @CurrentUser('id') educatorId: string,
     @Body() dto: CreateGradingSchemeDto,
@@ -76,7 +76,7 @@ export class GradingSchemeController {
   @Get()
   @Roles('educator')
   async findByEducator(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: SchoolYearQueryDto,
     @CurrentUser('id') educatorId: string,
   ) {
@@ -87,7 +87,7 @@ export class GradingSchemeController {
   @Roles('educator')
   async update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
     @Body() dto: UpdateGradingSchemeDto,
   ) {

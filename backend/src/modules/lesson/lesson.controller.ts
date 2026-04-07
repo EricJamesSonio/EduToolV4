@@ -31,7 +31,7 @@ export class LessonController {
   @Roles('educator')
   create(
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
     @Body() dto: CreateLessonDto,
   ) {
@@ -43,7 +43,7 @@ export class LessonController {
   @Roles('educator')
   findAll(
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
     @Query() query: QueryLessonDto,
   ) {
@@ -55,7 +55,7 @@ export class LessonController {
   @Roles('educator')
   findOne(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
     return this.lessonService.findOne(id, orgId, educatorId);
@@ -66,7 +66,7 @@ export class LessonController {
   @Roles('educator')
   update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
     @Body() dto: UpdateLessonDto,
   ) {
@@ -79,7 +79,7 @@ export class LessonController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
     await this.lessonService.delete(id, orgId, educatorId);
@@ -90,7 +90,7 @@ export class LessonController {
   @Roles('educator')
   getConcept(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
     return this.lessonService.getConcept(id, orgId, educatorId);
@@ -101,7 +101,7 @@ export class LessonController {
   @Roles('educator')
   reExtract(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
     @Body('detail') detail: string,
   ) {
@@ -122,7 +122,7 @@ export class StudentLessonController {
   @Roles('student')
   getMyLessons(
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') studentId: string,
     @Query('weekNumber') weekNumber?: number,
   ) {
@@ -140,7 +140,7 @@ export class StudentLessonController {
   getMyLesson(
     @Param('classId') classId: string,
     @Param('lessonId') lessonId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') studentId: string,
   ) {
     return this.lessonService.getStudentLesson(classId, lessonId, studentId, orgId);

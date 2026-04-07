@@ -52,7 +52,7 @@ export class ProgramController {
   @Get(':id')
   async findOne(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     if (!orgId) {
       throw new BadRequestException('orgId is missing from user context')
@@ -64,7 +64,7 @@ export class ProgramController {
   @Patch(':id')
   async update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateProgramDto,
   ) {
     if (!orgId) {
@@ -78,7 +78,7 @@ export class ProgramController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     if (!orgId) {
       throw new BadRequestException('orgId is missing from user context')

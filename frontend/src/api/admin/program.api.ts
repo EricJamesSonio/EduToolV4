@@ -1,14 +1,18 @@
+// frontend/src/api/admin/program.api.ts
 import client from "@/api/client";
 import type { Program } from "@/types/admin/program.types";
 
 export type ProgramType =
-  | "daycare" | "kinder" | "elementary" | "jhs"
-  | "shs" | "college" | "custom";
+  | "elementary"
+  | "high_school"
+  | "senior_high"
+  | "college"
+  | "custom";
 
 export interface CreateProgramRequest {
   schoolYearId: string;
-  name:         string;
-  type:         ProgramType;
+  name: string;
+  type: ProgramType;
 }
 
 export interface UpdateProgramRequest {
@@ -18,10 +22,9 @@ export interface UpdateProgramRequest {
 
 export const programApi = {
   getAll: async (schoolYearId: string): Promise<Program[]> => {
-    const res = await client.get<{ success: boolean; data: Program[] }>(
-      "/programs",
-      { params: { schoolYearId } },
-    );
+    const res = await client.get<{ success: boolean; data: Program[] }>("/programs", {
+      params: { schoolYearId },
+    });
     return res.data.data;
   },
 

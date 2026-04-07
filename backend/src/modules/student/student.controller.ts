@@ -37,7 +37,7 @@ export class StudentController {
   @Post()
   @Roles('admin')
   async create(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: CreateStudentDto,
   ) {
     return this.studentService.create(orgId, dto);
@@ -48,7 +48,7 @@ export class StudentController {
   @Get('credentials-csv')
   @Roles('admin')
   async getCredentialsCsv(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Res() res: Response,
   ) {
     const csv = await this.studentService.getCredentialsCsv(orgId);
@@ -72,7 +72,7 @@ export class StudentController {
   @UseInterceptors(FileInterceptor('file'))
   @HttpCode(HttpStatus.OK)
   async bulkImport(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) throw new Error('No file uploaded.');
@@ -82,7 +82,7 @@ export class StudentController {
 
   @Get()
   async findAll(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: QueryStudentDto,
   ) {
     return this.studentService.findAll(orgId, query);
@@ -91,7 +91,7 @@ export class StudentController {
   @Get(':id')
   async findById(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.studentService.findById(id, orgId);
   }
@@ -100,7 +100,7 @@ export class StudentController {
   @Roles('admin')
   async update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateStudentDto,
   ) {
     return this.studentService.update(id, orgId, dto);
@@ -110,7 +110,7 @@ export class StudentController {
   @Roles('admin')
   async updateStatus(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateStudentStatusDto,
   ) {
     return this.studentService.updateStatus(id, orgId, dto);
@@ -121,7 +121,7 @@ export class StudentController {
   @HttpCode(HttpStatus.OK)
   async resetPassword(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.studentService.resetPassword(id, orgId);
   }
@@ -130,7 +130,7 @@ export class StudentController {
 @Roles('admin')
 async getEnrollments(
   @Param('id') id: string,
-  @CurrentUser('orgId') orgId: string,
+  @CurrentUser('org_id') orgId: string,
 ) {
   return this.studentService.getEnrollments(id, orgId);
 }
@@ -139,7 +139,7 @@ async getEnrollments(
 @Roles('admin')
 async addEnrollment(
   @Param('id') id: string,
-  @CurrentUser('orgId') orgId: string,
+  @CurrentUser('org_id') orgId: string,
   @Body() dto: AddEnrollmentDto,
 ) {
   return this.studentService.addEnrollment(id, orgId, dto.classId);
@@ -151,7 +151,7 @@ async addEnrollment(
 async deleteEnrollment(
   @Param('id') id: string,
   @Param('enrollmentId') enrollmentId: string,
-  @CurrentUser('orgId') orgId: string,
+  @CurrentUser('org_id') orgId: string,
 ) {
   return this.studentService.deleteEnrollment(id, enrollmentId, orgId);
 }

@@ -26,7 +26,7 @@ export class SubmissionController {
   @Roles('student')
   startOrResume(
     @Param('assessmentId') assessmentId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') studentId: string,
   ) {
     return this.submissionService.startOrResume(assessmentId, orgId, studentId);
@@ -38,7 +38,7 @@ export class SubmissionController {
   @Roles('student')
   saveDraft(
     @Param('assessmentId') assessmentId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') studentId: string,
     @Body() dto: SaveDraftDto,
   ) {
@@ -51,7 +51,7 @@ export class SubmissionController {
   @Roles('student')
   finish(
     @Param('assessmentId') assessmentId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') studentId: string,
     @Body() dto: FinishSubmissionDto,
   ) {
@@ -65,7 +65,7 @@ export class SubmissionController {
   getAnswers(
     @Param('assessmentId') assessmentId: string,
     @Param('submissionId') submissionId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.submissionService.getAnswers(assessmentId, submissionId, orgId);
   }

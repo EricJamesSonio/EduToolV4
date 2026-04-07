@@ -22,7 +22,7 @@ export class MeetingTokenController {
   @Roles('educator', 'student')
   getToken(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: string,
   ) {
