@@ -125,6 +125,7 @@ model Program {
   levels     Level[]
   subjects   Subject[]  // minor subjects scoped to this program
   studentEnrollments StudentProgramEnrollment[]
+  semesterAssignment ProgramSemesterAssignment?
 }
 
 model Course {
@@ -201,6 +202,43 @@ model SchoolYear {
   gradingSchemes     GradingScheme[]
   studentEnrollments StudentSchoolYear[]
   semesters Semester[]
+}
+
+model SemesterTemplate {
+  id           String  @id @default(uuid())
+  org_id       String
+  program_type String  // "college" | "shs" | "jhs" etc — matches Program.type
+  name         String  // e.g. "Standard 2-Sem"
+  semesters    SemesterTemplateItem[]
+  assignments  ProgramSemesterAssignment[]
+}
+
+model SemesterTemplateItem {
+  id          String @id @default(uuid())
+  org_id      String
+  template_id String
+  name        String  // e.g. "1st Semester"
+  order_index Int
+  template    SemesterTemplate @relation(...)
+  terms       SemesterTemplateTerm[]
+}
+
+model SemesterTemplateTerm {
+  id          String @id @default(uuid())
+  org_id      String
+  semester_id String  // FK to SemesterTemplateItem
+  name        String  // e.g. "Midterm"
+  order_index Int
+  semester    SemesterTemplateItem @relation(...)
+}
+
+model ProgramSemesterAssignment {
+  id          String @id @default(uuid())
+  org_id      String
+  program_id  String  @unique  // one active template per program instance
+  template_id String
+  program     Program          @relation(...)
+  template    SemesterTemplate @relation(...)
 }
 
 model StudentSchoolYear {
