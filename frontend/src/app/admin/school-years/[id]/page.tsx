@@ -422,9 +422,10 @@ export default function SchoolYearDetailPage({
 
   const isEnded = schoolYear.status === "ended";
 
-  const TABS: { key: Tab; label: string; icon?: React.ReactNode }[] = [
+  const TABS: { key: Tab | "levels"; label: string; href?: string; icon?: React.ReactNode }[] = [
     { key: "overview",    label: "Overview" },
     { key: "enrollments", label: "Enrollments", icon: <Users className="inline mr-1.5 h-3.5 w-3.5" /> },
+    { key: "levels",      label: "Levels",      href: `/admin/school-years/${id}/levels` },
     { key: "calendar",    label: "Calendar" },
   ];
 
@@ -454,11 +455,15 @@ export default function SchoolYearDetailPage({
       )}
 
       {/* Tabs */}
+
       <div className="border-b flex gap-0">
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => {
+              if (tab.href) router.push(tab.href);
+              else setActiveTab(tab.key as Tab);
+            }}
             className={cn(
               "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
               activeTab === tab.key

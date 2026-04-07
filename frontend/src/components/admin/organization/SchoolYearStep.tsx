@@ -1,10 +1,11 @@
 import { useState } from "react"
 import { Check, Loader2, Plus } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Badge }    from "@/components/ui/badge"
+import { Button }   from "@/components/ui/button"
+import { Input }    from "@/components/ui/input"
+import { Label }    from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
+import { cn }       from "@/lib/utils"
 import type { SchoolYear } from "@/types/admin/school-year.types"
 
 interface SchoolYearStepProps {
@@ -12,7 +13,7 @@ interface SchoolYearStepProps {
   isLoading:   boolean
   selectedId:  string | null
   onSelect:    (id: string) => void
-  onCreate:    (name: string) => void
+  onCreate:    (name: string, startDate?: string, endDate?: string) => void
   isCreating:  boolean
 }
 
@@ -25,14 +26,25 @@ export function SchoolYearStep({
   isCreating,
 }: SchoolYearStepProps) {
   const [showCreate, setShowCreate] = useState(false)
-  const [newName, setNewName]       = useState("")
+  const [newName,    setNewName]    = useState("")
+  const [startDate,  setStartDate]  = useState("")
+  const [endDate,    setEndDate]    = useState("")
 
   function handleCreate() {
     const trimmed = newName.trim()
     if (!trimmed) return
-    onCreate(trimmed)
+    onCreate(trimmed, startDate || undefined, endDate || undefined)
     setNewName("")
+    setStartDate("")
+    setEndDate("")
     setShowCreate(false)
+  }
+
+  function handleCancel() {
+    setShowCreate(false)
+    setNewName("")
+    setStartDate("")
+    setEndDate("")
   }
 
   return (
@@ -53,15 +65,31 @@ export function SchoolYearStep({
                   onClick={() => onSelect(sy.id)}
                   className={cn(
                     "flex items-center justify-between rounded-lg border px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50",
-                    selectedId === sy.id && "border-primary bg-primary/5"
+                    selectedId === sy.id && "border-primary bg-primary/5",
                   )}
                 >
-                  <span className="font-medium">{sy.name}</span>
-                  <div className="flex items-center gap-2">
+                  <div className="space-y-0.5 min-w-0">
+                    <span className="font-medium block truncate">{sy.name}</span>
+                    {(sy.start_date || sy.end_date) && (
+                      <span className="text-xs text-muted-foreground block">
+                        {sy.start_date
+                          ? new Date(sy.start_date).toLocaleDateString()
+                          : "—"}
+                        {" – "}
+                        {sy.end_date
+                          ? new Date(sy.end_date).toLocaleDateString()
+                          : "—"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
                     <Badge
                       variant={
-                        sy.status === "active"  ? "default"   :
-                        sy.status === "ended"   ? "secondary" : "outline"
+                        sy.status === "active"
+                          ? "default"
+                          : sy.status === "ended"
+                          ? "secondary"
+                          : "outline"
                       }
                       className="text-xs capitalize"
                     >
@@ -83,31 +111,62 @@ export function SchoolYearStep({
           )}
 
           {showCreate ? (
-            <div className="flex gap-2">
-              <Input
-                autoFocus
-                placeholder="e.g. S.Y. 2025–2026"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleCreate}
-                disabled={isCreating || !newName.trim()}
-              >
-                {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => { setShowCreate(false); setNewName("") }}
-              >
-                Cancel
-              </Button>
+            <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">School Year Title</Label>
+                <Input
+                  autoFocus
+                  placeholder="e.g. S.Y. 2025–2026"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    Start Date{" "}
+                    <span className="text-muted-foreground font-normal">(optional)</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    End Date{" "}
+                    <span className="text-muted-foreground font-normal">(optional)</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleCreate}
+                  disabled={isCreating || !newName.trim()}
+                >
+                  {isCreating
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : "Create"
+                  }
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
           ) : (
             <button
