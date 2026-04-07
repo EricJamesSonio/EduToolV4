@@ -71,6 +71,7 @@ export class OrganizationService {
       excludedLevels:   dto.excludedLevels,
       excludedSubjects: dto.excludedSubjects,
       levelConfigs:     dto.levelConfigs,
+      sectionConfigs:   dto.sectionConfigs,
       gradingScales:    dto.gradingScales,
     })
 

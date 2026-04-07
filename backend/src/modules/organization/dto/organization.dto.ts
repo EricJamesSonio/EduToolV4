@@ -117,4 +117,16 @@ export class SeedOrganizationDto {
   @IsOptional()
   @IsObject()
   gradingScales?: Record<string, GradingScalePayloadDto>
+
+  @IsOptional()
+@IsObject()
+sectionConfigs?: Record<string, SectionItemDto[]>
+}
+
+export class SectionItemDto {
+  @IsString()
+  name!: string
+
+  @IsNumber()
+  capacity!: number
 }

@@ -25,7 +25,7 @@ export class ProgramController {
 
   @Post()
   async create(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: CreateProgramDto,
   ) {
     if (!orgId) {
@@ -37,7 +37,7 @@ export class ProgramController {
 
   @Get()
   async findAll(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: ProgramQueryDto,
   ) {
     if (!orgId) {
