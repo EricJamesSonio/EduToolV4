@@ -35,7 +35,7 @@ export class SubjectController {
   @Post()
   @Roles('admin')
   async create(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: CreateSubjectDto,
   ) {
     return this.subjectService.create(orgId, dto)
@@ -43,7 +43,7 @@ export class SubjectController {
 
   @Get()
   async findAll(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: QuerySubjectDto,
   ) {
     return this.subjectService.findAll(orgId, query)
@@ -52,7 +52,7 @@ export class SubjectController {
   @Get(':id')
   async findOne(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.subjectService.findById(id, orgId)
   }
@@ -61,7 +61,7 @@ export class SubjectController {
   @Roles('admin')
   async update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateSubjectDto,
   ) {
     return this.subjectService.update(id, orgId, dto)
@@ -72,7 +72,7 @@ export class SubjectController {
   @HttpCode(HttpStatus.OK)
   async lock(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.subjectService.lock(id, orgId)
   }
@@ -82,7 +82,7 @@ export class SubjectController {
   @HttpCode(HttpStatus.OK)
   async unlock(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.subjectService.unlock(id, orgId)
   }
@@ -96,7 +96,7 @@ export class SubjectController {
   @HttpCode(HttpStatus.OK)
   async share(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: ShareSubjectDto,
   ) {
     return this.subjectService.share(id, orgId, dto)
@@ -108,7 +108,7 @@ export class SubjectController {
   async unshare(
     @Param('id') id: string,
     @Param('sharingId') sharingId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.subjectService.unshare(id, sharingId, orgId)
   }
@@ -116,7 +116,7 @@ export class SubjectController {
   @Get(':id/sharings')
   async findSharings(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.subjectService.findSharings(id, orgId)
   }
