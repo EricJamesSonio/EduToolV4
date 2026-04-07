@@ -1,108 +1,35 @@
 "use client";
 
-import { Suspense, useState, useMemo } from "react";
+import { Suspense, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Users, Plus, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { studentApi } from "@/api/admin/student.api";
-import { levelApi } from "@/api/admin/level.api";
-import { sectionApi } from "@/api/admin/section.api";
-import { schoolYearApi } from "@/api/admin/school-year.api"; // ✅ added
-
+import { studentApi }  from "@/api/admin/student.api";
 import type { Student } from "@/types/admin/student.types";
-import type { Section } from "@/types/admin/section.types";
 import type { GetStudentsQuery } from "@/api/admin/student.api";
 
-import { PageHeader } from "@/components/shared/PageHeader";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { toArray } from "@/utils/classes.utils";
-import { StudentFilterBar } from "@/components/admin/student/StudentFilterBar";
-import { StudentTable } from "@/components/admin/student/StudentTable";
+import { PageHeader }    from "@/components/shared/PageHeader";
+import { EmptyState }    from "@/components/shared/EmptyState";
+import { Skeleton }      from "@/components/ui/skeleton";
+import { Button }        from "@/components/ui/button";
+
+import { StudentFilterBar }    from "@/components/admin/student/StudentFilterBar";
+import { StudentTable }        from "@/components/admin/student/StudentTable";
 import { CreateStudentDialog } from "@/components/admin/student/CreateStudentDialog";
 
 function StudentsPageInner(): React.JSX.Element {
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  const router       = useRouter();
+  const queryClient  = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
-  const [filters, setFilters] = useState<GetStudentsQuery>({});
+  const [filters, setFilters]       = useState<GetStudentsQuery>({});
 
   const { data: studentsRaw, isLoading } = useQuery({
     queryKey: ["admin", "students", filters],
-    queryFn: () => studentApi.getAll(filters),
+    queryFn:  () => studentApi.getAll(filters),
   });
 
-  const { data: levelsRaw } = useQuery({
-    queryKey: ["admin", "levels", "all"],
-    queryFn: () => levelApi.getAll(),
-  });
-
-  // ✅ NEW: School Years Query
-  const { data: schoolYearsRaw } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: () => schoolYearApi.getAll(),
-  });
-
-  // ✅ NEW: Active School Year ID
-  const activeSchoolYearId = useMemo(() => {
-    const sysArr = toArray<{ id: string; status: string }>(schoolYearsRaw);
-    return (
-      sysArr.find((sy) => sy.status === "active")?.id ??
-      sysArr[0]?.id ??
-      null
-    );
-  }, [schoolYearsRaw]);
-
-  // ✅ UPDATED: Sections Query (now scoped to active school year)
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections", activeSchoolYearId],
-    queryFn: () => sectionApi.getAll(activeSchoolYearId!),
-    enabled: !!activeSchoolYearId,
-  });
-
-  const levels = useMemo(
-    () => toArray<{ id: string; name: string }>(levelsRaw),
-    [levelsRaw],
-  );
-
-  const allSections = useMemo(
-    () => toArray<Section>(sectionsRaw),
-    [sectionsRaw],
-  );
-
-  // Filter sections shown in the filter bar by selected level
-  const filteredSections = useMemo(() => {
-    if (!filters.levelId) return allSections;
-    return allSections.filter((s) => s.level_id === filters.levelId);
-  }, [allSections, filters.levelId]);
-
-  const levelMap = useMemo(() => {
-    const map = new Map<string, string>();
-    levels.forEach((l) => map.set(l.id, l.name));
-    return map;
-  }, [levels]);
-
-  const sectionMap = useMemo(() => {
-    const map = new Map<string, string>();
-    allSections.forEach((s) => map.set(s.id, s.name));
-    return map;
-  }, [allSections]);
-
-  const students = useMemo<
-    (Student & { levelName?: string; sectionName?: string })[]
-  >(() => {
-    return toArray<Student>(studentsRaw).map((s) => ({
-      ...s,
-      levelName: s.levelId
-        ? levelMap.get(s.levelId) ?? s.levelId
-        : undefined,
-      sectionName: s.sectionId
-        ? sectionMap.get(s.sectionId) ?? s.sectionId
-        : undefined,
-    }));
-  }, [studentsRaw, levelMap, sectionMap]);
+  const students: Student[] = studentsRaw ?? [];
 
   const handleDownloadCredentials = () => {
     window.open(studentApi.downloadCredentials(), "_blank");
@@ -114,11 +41,7 @@ function StudentsPageInner(): React.JSX.Element {
         title="Students"
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadCredentials}
-            >
+            <Button variant="outline" size="sm" onClick={handleDownloadCredentials}>
               <Download className="mr-1.5 h-4 w-4" />
               Download Credentials
             </Button>
@@ -137,12 +60,7 @@ function StudentsPageInner(): React.JSX.Element {
         }
       />
 
-      <StudentFilterBar
-        filters={filters}
-        onChange={setFilters}
-        levels={levels}
-        sections={filteredSections}
-      />
+      <StudentFilterBar filters={filters} onChange={setFilters} />
 
       {isLoading ? (
         <div className="space-y-2">
@@ -155,10 +73,7 @@ function StudentsPageInner(): React.JSX.Element {
           icon={Users}
           title="No students found"
           description="Create your first student or adjust your filters."
-          action={{
-            label: "New Student",
-            onClick: () => setCreateOpen(true),
-          }}
+          action={{ label: "New Student", onClick: () => setCreateOpen(true) }}
         />
       ) : (
         <StudentTable
@@ -172,12 +87,8 @@ function StudentsPageInner(): React.JSX.Element {
           open={createOpen}
           onClose={() => setCreateOpen(false)}
           onCreated={() => {
-            queryClient.invalidateQueries({
-              queryKey: ["admin", "students"],
-            });
+            queryClient.invalidateQueries({ queryKey: ["admin", "students"] });
           }}
-          levels={levels}
-          sections={allSections}
         />
       )}
     </div>

@@ -6,12 +6,14 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { schoolYearApi } from "@/api/admin/school-year.api";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { PageHeader }    from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { StatusBadge }   from "@/components/shared/StatusBadge";
+import { EmptyState }    from "@/components/shared/EmptyState";
+import { Button }   from "@/components/ui/button";
+import { Input }    from "@/components/ui/input";
+import { Label }    from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -19,36 +21,39 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Plus, Eye, CalendarDays } from "lucide-react";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { SchoolYear } from "@/types/admin/school-year.types";
-import { cn } from "@/lib/utils";
+import { cn }         from "@/lib/utils";
+import { formatDate } from "@/utils/date.util";
 import type { AxiosError } from "axios";
 
-// ─── Create Dialog ────────────────────────────────────────────────────────────
-
 interface CreateForm {
-  name: string;
+  name:       string;
+  start_date: string;
+  end_date:   string;
 }
 
 function CreateSchoolYearDialog({
   open,
   onClose,
 }: {
-  open: boolean;
+  open:    boolean;
   onClose: () => void;
 }): React.JSX.Element {
   const queryClient = useQueryClient();
-
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<CreateForm>({ defaultValues: { name: "" } });
+  } = useForm<CreateForm>({ defaultValues: { name: "", start_date: "", end_date: "" } });
 
   const mutation = useMutation({
-    mutationFn: schoolYearApi.create,
+    mutationFn: (values: CreateForm) =>
+      schoolYearApi.create({
+        name:        values.name,
+        start_date:  values.start_date || undefined,
+        end_date:    values.end_date   || undefined,
+      }),
     onSuccess: () => {
       toast.success("School year created.");
       queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
@@ -58,7 +63,7 @@ function CreateSchoolYearDialog({
     onError: () => toast.error("Failed to create school year."),
   });
 
-  const onSubmit = (values: CreateForm) => mutation.mutate({ name: values.name });
+  const onSubmit = (values: CreateForm) => mutation.mutate(values);
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
@@ -66,7 +71,6 @@ function CreateSchoolYearDialog({
         <DialogHeader>
           <DialogTitle>New School Year</DialogTitle>
         </DialogHeader>
-
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-1">
           <div className="space-y-1.5">
             <Label htmlFor="sy-name">Title</Label>
@@ -74,14 +78,31 @@ function CreateSchoolYearDialog({
               id="sy-name"
               placeholder="e.g. School Year 2026-2027"
               {...register("name", {
-                required: "Title is required",
-                minLength: { value: 2, message: "At least 2 characters" },
+                required:  "Title is required",
+                minLength: { value: 2,   message: "At least 2 characters" },
                 maxLength: { value: 100, message: "Max 100 characters" },
               })}
             />
             {errors.name && (
               <p className="text-xs text-destructive">{errors.name.message}</p>
             )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>
+                Start Date{" "}
+                <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input type="date" {...register("start_date")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>
+                End Date{" "}
+                <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input type="date" {...register("end_date")} />
+            </div>
           </div>
 
           <div className="flex justify-end gap-2">
@@ -103,18 +124,15 @@ function CreateSchoolYearDialog({
   );
 }
 
-// ─── School Year Card ─────────────────────────────────────────────────────────
-
 function SchoolYearCard({
   year,
   hasActive,
 }: {
-  year: SchoolYear;
+  year:      SchoolYear;
   hasActive: boolean;
 }): React.JSX.Element {
   const router = useRouter();
   const queryClient = useQueryClient();
-
   const [confirmAction, setConfirmAction] = useState<"activate" | "end" | null>(null);
 
   const activateMutation = useMutation({
@@ -124,7 +142,7 @@ function SchoolYearCard({
       queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
       setConfirmAction(null);
     },
-    onError: (err: AxiosError<{ message: string }>)=> {
+    onError: (err: AxiosError<{ message: string }>) => {
       toast.error(err?.response?.data?.message ?? "Failed to activate.");
       setConfirmAction(null);
     },
@@ -145,19 +163,20 @@ function SchoolYearCard({
 
   const isMutating = activateMutation.isPending || endMutation.isPending;
 
-  const confirmCopy = confirmAction === "activate"
-    ? {
-        title: "Activate this school year?",
-        message: "This will make it the active school year. This cannot be undone.",
-        confirmLabel: "Activate",
-        destructive: false,
-      }
-    : {
-        title: "End this school year?",
-        message: "It will become read-only and archived. This cannot be undone.",
-        confirmLabel: "End School Year",
-        destructive: true,
-      };
+  const confirmCopy =
+    confirmAction === "activate"
+      ? {
+          title:        "Activate this school year?",
+          message:      "This will make it the active school year. This cannot be undone.",
+          confirmLabel: "Activate",
+          destructive:  false,
+        }
+      : {
+          title:        "End this school year?",
+          message:      "It will become read-only and archived. This cannot be undone.",
+          confirmLabel: "End School Year",
+          destructive:  true,
+        };
 
   return (
     <>
@@ -171,6 +190,14 @@ function SchoolYearCard({
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <h3 className="font-semibold text-base">{year.name}</h3>
+            {/* Date range */}
+            {(year.start_date || year.end_date) && (
+              <p className="text-xs text-muted-foreground">
+                {year.start_date ? formatDate(year.start_date) : "—"}
+                {" "}–{" "}
+                {year.end_date ? formatDate(year.end_date) : "—"}
+              </p>
+            )}
           </div>
           <StatusBadge status={year.status} />
         </div>
@@ -212,7 +239,6 @@ function SchoolYearCard({
         </div>
       </div>
 
-      {/* Confirm dialog */}
       {confirmAction && (
         <ConfirmDialog
           open
@@ -233,14 +259,12 @@ function SchoolYearCard({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function SchoolYearsPage(): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data: schoolYears, isLoading } = useQuery({
     queryKey: ["admin", "school-years"],
-    queryFn: schoolYearApi.getAll,
+    queryFn:  schoolYearApi.getAll,
   });
 
   const hasActive = schoolYears?.some((y) => y.status === "active") ?? false;
@@ -257,7 +281,6 @@ export default function SchoolYearsPage(): React.JSX.Element {
         }
       />
 
-      {/* List */}
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (

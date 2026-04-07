@@ -14,7 +14,7 @@ import type { Program } from "@/types/admin/program.types";
 export const usePrograms = (schoolYearId?: string): UseQueryResult<Program[], Error> => {
   return useQuery({
     queryKey: ["programs", schoolYearId],
-    queryFn: () => programApi.getAll(schoolYearId),
+    queryFn: () => programApi.getAll(schoolYearId!),
     enabled: !!schoolYearId, // don't fire until we have a schoolYearId
   });
 };

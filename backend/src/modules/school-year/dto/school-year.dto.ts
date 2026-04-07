@@ -1,25 +1,40 @@
-// @/modules/school-year/dto/school-year.dto.ts
-import { IsString, MinLength, MaxLength, IsOptional } from 'class-validator';
-
-// ── POST /school-years ────────────────────────────────────────────────────────
+import {
+  IsString,
+  IsNotEmpty,
+  MinLength,
+  MaxLength,
+  IsOptional,
+  IsDateString,
+} from 'class-validator'
 
 export class CreateSchoolYearDto {
   @IsString()
+  @IsNotEmpty()
   @MinLength(2)
   @MaxLength(100)
-  name: string;
+  name!: string
+
+  @IsOptional()
+  @IsDateString()
+  start_date?: string
+
+  @IsOptional()
+  @IsDateString()
+  end_date?: string
 }
 
-// ── PATCH /school-years/:id ───────────────────────────────────────────────────
-
-/**
- * Only the name is editable directly.
- * Status transitions happen via dedicated endpoints (activate / end).
- */
 export class UpdateSchoolYearDto {
   @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  name?: string;
+  name?: string
+
+  @IsOptional()
+  @IsDateString()
+  start_date?: string
+
+  @IsOptional()
+  @IsDateString()
+  end_date?: string
 }

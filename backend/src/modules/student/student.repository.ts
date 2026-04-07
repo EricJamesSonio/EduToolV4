@@ -14,7 +14,7 @@ export class StudentRepository {
     status: string;
     fullName: string;
     studentId: string;
-    levelId: string;
+    levelId?: string;
     sectionId?: string;
   }) {
     return this.db.account.create({

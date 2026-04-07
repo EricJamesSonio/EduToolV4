@@ -1,4 +1,3 @@
-// @/modules/class/class.controller.ts
 import {
   Controller,
   Post,
@@ -27,7 +26,6 @@ import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 // ── Educator / Admin routes ───────────────────────────────────────────────────
-
 @Controller('classes')
 @UseGuards(AuthGuard, RolesGuard)
 export class ClassController {
@@ -35,19 +33,19 @@ export class ClassController {
 
   @Post()
   @Roles('admin')
-  async create(@CurrentUser('orgId') orgId: string, @Body() dto: CreateClassDto) {
+  async create(@CurrentUser('org_id') orgId: string, @Body() dto: CreateClassDto) {
     return this.classService.create(orgId, dto);
   }
 
   @Get()
   @Roles('admin', 'educator')
-  async findAll(@CurrentUser('orgId') orgId: string, @Query() query: QueryClassDto) {
+  async findAll(@CurrentUser('org_id') orgId: string, @Query() query: QueryClassDto) {
     return this.classService.findAll(orgId, query);
   }
 
   @Get(':id')
   @Roles('admin', 'educator')
-  async findOne(@Param('id') id: string, @CurrentUser('orgId') orgId: string) {
+  async findOne(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     return this.classService.findById(id, orgId);
   }
 
@@ -55,7 +53,7 @@ export class ClassController {
   @Roles('admin')
   async update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateClassDto,
   ) {
     return this.classService.update(id, orgId, dto);
@@ -64,7 +62,7 @@ export class ClassController {
   @Delete(':id')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async archive(@Param('id') id: string, @CurrentUser('orgId') orgId: string) {
+  async archive(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     await this.classService.archive(id, orgId);
   }
 
@@ -72,7 +70,7 @@ export class ClassController {
   @Roles('admin')
   async enrollStudent(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: EnrollStudentDto,
   ) {
     return this.classService.enrollStudent(id, orgId, dto);
@@ -80,16 +78,13 @@ export class ClassController {
 
   @Get(':id/enrollments')
   @Roles('admin', 'educator')
-  async getEnrollments(@Param('id') id: string, @CurrentUser('orgId') orgId: string) {
+  async getEnrollments(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     return this.classService.getEnrollments(id, orgId);
   }
 
   @Get(':id/students')
   @Roles('admin', 'educator')
-  async getEnrolledStudents(
-    @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
-  ) {
+  async getEnrolledStudents(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     return this.classService.getEnrolledStudents(id, orgId);
   }
 
@@ -98,20 +93,19 @@ export class ClassController {
   async updateEnrollment(
     @Param('classId') classId: string,
     @Param('enrollmentId') enrollmentId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateEnrollmentDto,
   ) {
     return this.classService.updateEnrollment(classId, enrollmentId, orgId, dto);
   }
 
-  // ✅ #8 — DELETE /classes/:classId/enrollments/:enrollmentId
   @Delete(':classId/enrollments/:enrollmentId')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   async removeEnrollment(
     @Param('classId') classId: string,
     @Param('enrollmentId') enrollmentId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.classService.removeEnrollment(classId, enrollmentId, orgId);
   }
@@ -120,17 +114,15 @@ export class ClassController {
   @Roles('admin')
   async reassignEducator(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
-    @CurrentUser('id') adminId: string,    // ← add this
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') adminId: string,    
     @Body() dto: ReassignEducatorDto,
   ) {
-    return this.classService.reassignEducator(id, orgId, dto, adminId);  // ← pass adminId
+    return this.classService.reassignEducator(id, orgId, dto, adminId);
   }
 }
 
 // ── Educator self-view ────────────────────────────────────────────────────────
-
-// ✅ #3 — GET /educator/classes
 @Controller('educator')
 @UseGuards(AuthGuard, RolesGuard)
 export class EducatorClassController {
@@ -139,17 +131,14 @@ export class EducatorClassController {
   @Get('classes')
   @Roles('educator', 'admin')
   async getMyClasses(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
     return this.classService.getEducatorClasses(educatorId, orgId);
   }
-
-
 }
 
 // ── Student routes ────────────────────────────────────────────────────────────
-
 @Controller('student/classes')
 @UseGuards(AuthGuard, RolesGuard)
 export class StudentClassController {
@@ -158,7 +147,7 @@ export class StudentClassController {
   @Get()
   @Roles('student')
   async getMyClasses(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') studentId: string,
   ) {
     return this.classService.getStudentClasses(studentId, orgId);
@@ -168,7 +157,7 @@ export class StudentClassController {
   @Roles('student')
   async getMyClass(
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') studentId: string,
   ) {
     return this.classService.getStudentClassById(classId, studentId, orgId);
@@ -178,9 +167,8 @@ export class StudentClassController {
   @Roles('admin', 'educator')
   async getOwnershipHistory(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.classService.getOwnershipHistory(id, orgId);
   }
 }
-

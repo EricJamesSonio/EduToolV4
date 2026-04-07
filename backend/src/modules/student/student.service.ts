@@ -1,5 +1,3 @@
-// backend/src/modules/student/student.service.ts
-
 import {
   Injectable,
   ConflictException,
@@ -39,7 +37,6 @@ export class StudentService {
     private readonly enrollmentRepo: EnrollmentRepository,
   ) {}
 
-  // Safe metadata extraction — guards against null, non-object, or array JSON values
   private extractMeta(account: Record<string, any>): Record<string, any> {
     const raw = account?.profile?.metadata;
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
@@ -82,21 +79,7 @@ export class StudentService {
       );
     }
 
-    let status = StudentStatus.ACTIVE;
-
-    if (dto.sectionId) {
-      const section = await this.sectionService.findById(dto.sectionId, orgId);
-      const currentCount = await this.sectionService.countStudentsInSection(
-        dto.sectionId,
-      );
-      if (currentCount >= section.capacity) {
-        status = StudentStatus.PENDING;
-        dto.sectionId = undefined;
-      }
-    } else {
-      status = StudentStatus.PENDING;
-    }
-
+    // Students are created as PENDING — level/section assignment is handled via enrollment
     const plainPassword = generateSystemPassword();
     const hashedPassword = await hashPassword(plainPassword);
 
@@ -104,14 +87,13 @@ export class StudentService {
       orgId,
       email: dto.email,
       hashedPassword,
-      status,
+      status: StudentStatus.PENDING,
       fullName: dto.fullName,
       studentId: dto.studentId,
-      levelId: dto.levelId,
-      sectionId: dto.sectionId,
+      levelId: dto.levelId,      // optional, may be undefined
+      sectionId: dto.sectionId,  // optional, may be undefined
     });
 
-    // plainPassword returned once for admin to distribute — never persisted or logged
     return {
       ...this.formatAccount(account),
       plainPassword,
@@ -133,7 +115,6 @@ export class StudentService {
     if (query.levelId) {
       results = results.filter((s) => s.levelId === query.levelId);
     }
-
     if (query.sectionId) {
       results = results.filter((s) => s.sectionId === query.sectionId);
     }
@@ -216,12 +197,10 @@ export class StudentService {
 
   async bulkImport(orgId: string, csvContent: string) {
     const rows = parseCsv(csvContent);
-
     if (rows.length === 0) {
       throw new BadRequestException('CSV file is empty or malformed.');
     }
 
-    // Batch duplicate checks — avoids N×2 individual DB queries
     const emails = rows.map((r) => r['Email']).filter(Boolean);
     const studentIds = rows.map((r) => r['Student ID']).filter(Boolean);
 
@@ -238,7 +217,6 @@ export class StudentService {
       data: Record<string, string>;
       errors: string[];
     }> = [];
-
     const validRows: Array<{ row: number; data: Record<string, string> }> = [];
 
     for (let i = 0; i < rows.length; i++) {
@@ -249,16 +227,14 @@ export class StudentService {
       if (!row['Full Name']) errors.push('Full Name is required.');
       if (!row['Student ID']) errors.push('Student ID is required.');
       if (!row['Email']) errors.push('Email is required.');
-      if (!row['Level ID']) errors.push('Level ID is required.');
+      // Level ID is now optional — removed required check
 
       if (row['Email'] && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row['Email'])) {
         errors.push('Email format is invalid.');
       }
-
       if (row['Email'] && takenEmailSet.has(row['Email'])) {
         errors.push(`Email "${row['Email']}" already exists.`);
       }
-
       if (row['Student ID'] && takenIdSet.has(row['Student ID'])) {
         errors.push(`Student ID "${row['Student ID']}" already exists.`);
       }
@@ -282,38 +258,26 @@ export class StudentService {
       };
     }
 
-    const created: Array<ReturnType<typeof this.formatAccount> & { plainPassword: string }> = [];
+    const created: Array<
+      ReturnType<typeof this.formatAccount> & { plainPassword: string }
+    > = [];
 
     for (const { data } of validRows) {
       const plainPassword = generateSystemPassword();
       const hashedPassword = await hashPassword(plainPassword);
-      let rowStatus = StudentStatus.PENDING;
-      let sectionId: string | undefined = data['Section ID'] || undefined;
 
-      if (sectionId) {
-        const section = await this.sectionService.findById(sectionId, orgId);
-        const currentCount =
-          await this.sectionService.countStudentsInSection(sectionId);
-        if (currentCount >= section.capacity) {
-          rowStatus = StudentStatus.PENDING;
-          sectionId = undefined;
-        } else {
-          rowStatus = StudentStatus.ACTIVE;
-        }
-      }
-
+      // All bulk-imported students start as PENDING; enrollment assigns level/section
       const account = await this.studentRepository.create({
         orgId,
         email: data['Email'],
         hashedPassword,
-        status: rowStatus,
+        status: StudentStatus.PENDING,
         fullName: data['Full Name'],
         studentId: data['Student ID'],
-        levelId: data['Level ID'],
-        sectionId,
+        levelId: data['Level ID'] || undefined,
+        sectionId: data['Section ID'] || undefined,
       });
 
-      // plainPassword is for admin distribution only — never persisted or logged
       created.push({ ...this.formatAccount(account), plainPassword });
     }
 
@@ -330,13 +294,11 @@ export class StudentService {
     const hashedPassword = await hashPassword(plainPassword);
     await this.studentRepository.updatePassword(id, hashedPassword);
 
-    // plainPassword returned once for admin — never persisted or logged
     return { id, plainPassword };
   }
 
   async getCredentialsCsv(orgId: string): Promise<string> {
     const accounts = await this.studentRepository.findAllForExport(orgId);
-
     const rows = accounts.map((a) => {
       const meta = this.extractMeta(a as Record<string, any>);
       return {
@@ -349,7 +311,6 @@ export class StudentService {
         status: a.status,
       };
     });
-
     return buildCredentialsCsv(rows);
   }
 
@@ -359,7 +320,7 @@ export class StudentService {
       'Juan Dela Cruz',
       'STU-2024-001',
       'juan@school.edu',
-      'level-uuid-here',
+      'level-uuid-here (optional)',
       'section-uuid-here (optional)',
     ];
     return [headers.join(','), example.join(',')].join('\n');
@@ -447,7 +408,6 @@ export class StudentService {
 
   async getEducatorClasses(educatorId: string, orgId: string) {
     const classes = await this.classRepository.findAll(orgId, { educatorId });
-
     return Promise.all(
       classes.map(async (cls) => {
         const { subject } = await this.classRepository.findSubjectWithEducator(

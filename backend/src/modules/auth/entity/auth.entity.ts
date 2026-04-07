@@ -3,7 +3,7 @@ import { Role, AccountStatus } from '@prisma/client';
 
 export class AuthEntity {
   id: string;
-  orgId: string | null;
+  org_id: string | null;   // ✅ changed from orgId to org_id
   role: Role;
   email: string;
   status: AccountStatus;
@@ -15,8 +15,8 @@ export class AuthEntity {
 }
 
 export class TokenPayload {
-  sub: string;       // account id
-  orgId: string | null;
+  sub: string;             // account id
+  org_id: string | null;   // ✅ changed from orgId to org_id
   role: Role;
   email: string;
 }

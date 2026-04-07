@@ -14,6 +14,7 @@ import { MeetingModule } from '@/modules/meeting/meeting.module'
 import { CourseModule } from '@/modules/course/course.module'
 import { StrandModule } from '@/modules/strand/strand.module'
 import { SubjectPrerequisiteModule } from '@/modules/subject-prerequisite/subject-prerequisite.module'
+import { StudentEnrollmentModule } from '@/modules/student-enrollment/student-enrollment.module'
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { SubjectPrerequisiteModule } from '@/modules/subject-prerequisite/subjec
     CourseModule,
     StrandModule,
     SubjectPrerequisiteModule,
+    StudentEnrollmentModule
   ],
   exports: [
     AcademicCalendarModule,
