@@ -1,33 +1,30 @@
+// frontend/src/components/admin/organization/SeederCard.tsx
+"use client"
+
 import { useEffect, useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { organizationApi } from "@/api/admin/organization.api"
-import { schoolYearApi } from "@/api/admin/school-year.api"
+import { schoolYearApi }   from "@/api/admin/school-year.api"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { cn } from "@/lib/utils"
-import {
-  CalendarDays,
-  ChevronDown,
-  ChevronRight,
-  Database,
-  Loader2,
-} from "lucide-react"
+import { Label }  from "@/components/ui/label"
+import { cn }     from "@/lib/utils"
+import { CalendarDays, ChevronDown, ChevronRight, Database, Loader2 } from "lucide-react"
 
-import { SchoolYearStep } from "./SchoolYearStep"
-import { ProgramStep }    from "./ProgramStep"
-import { LevelStep }      from "./LevelStep"
-import { StrandStep }     from "./StrandStep"
-import { CourseStep }     from "./CourseStep"
-import { SubjectStep }    from "./SubjectStep"
-import { useSeedState }   from "./hooks/useSeedState"
+import { SchoolYearStep }   from "./SchoolYearStep"
+import { ProgramStep }      from "./ProgramStep"
+import { LevelStep }        from "./LevelStep"
+import { StrandStep }       from "./StrandStep"
+import { CourseStep }       from "./CourseStep"
+import { SubjectStep }      from "./SubjectStep"
+import { GradingScaleStep } from "./GradingScaleStep"
+import { useSeedState }     from "./hooks/useSeedState"
 import { COLLEGE_COURSES, LEVEL_DEFS, PROGRAMS, SHS_STRANDS } from "./constants/seed-data"
 
 export function SeederCard() {
   const queryClient = useQueryClient()
   const [collapsed, setCollapsed] = useState(false)
 
-  // ── School year ──────────────────────────────────────────────────────────
   const { data: schoolYears = [], isLoading: syLoading } = useQuery({
     queryKey: ["admin", "school-years"],
     queryFn:  schoolYearApi.getAll,
@@ -44,7 +41,7 @@ export function SeederCard() {
 
   const createSchoolYearMutation = useMutation({
     mutationFn: (name: string) => schoolYearApi.create({ name }),
-    onSuccess:  (created) => {
+    onSuccess: (created) => {
       toast.success(`School year "${created.name}" created.`)
       queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] })
       setSelectedSchoolYearId(created.id)
@@ -52,23 +49,26 @@ export function SeederCard() {
     onError: () => toast.error("Failed to create school year."),
   })
 
-  // ── Seed state ───────────────────────────────────────────────────────────
   const {
     selectedPrograms,  setSelectedPrograms,
     selectedCourses,   setSelectedCourses,
     selectedStrands,   setSelectedStrands,
-    selectedLevels,    setSelectedLevels,
     selectedSubjects,  setSelectedSubjects,
     allSelectableSubjects,
+    levelConfigs,
+    setLevelCount,
+    renameLevelAt,
+    seedGradingScale,      setSeedGradingScale,
+    gradingScaleByProgram, setGradingScaleForProgram,
+    resolvedGradingScales,
     toggleSet,
     selectAll,
     deselectAll,
   } = useSeedState()
 
-  // ── Seed mutation ─────────────────────────────────────────────────────────
   const seedMutation = useMutation({
     mutationFn: organizationApi.seedOrg,
-    onSuccess:  () => {
+    onSuccess: () => {
       toast.success("Seed completed! Your programs, levels, and subjects are ready.")
       setCollapsed(true)
     },
@@ -85,71 +85,89 @@ export function SeederCard() {
       return
     }
 
-    const allLevels = Object.entries(LEVEL_DEFS)
-      .filter(([prog]) => selectedPrograms.has(prog))
-      .flatMap(([, levels]) => levels)
-
-    const excludedLevels   = allLevels.filter((l) => !selectedLevels.has(l))
     const excludedSubjects = allSelectableSubjects.filter((s) => !selectedSubjects.has(s))
+
+    // Build levelConfigs payload: programKey → ordered array of level names
+    const levelConfigsPayload = Object.fromEntries(
+      Array.from(selectedPrograms)
+        .filter((p) => LEVEL_DEFS[p])
+        .map((p) => [p, levelConfigs[p]?.names ?? LEVEL_DEFS[p]])
+    )
+
+    // Per-program grading scale payload — only if enabled
+    const gradingScales = seedGradingScale
+      ? Object.fromEntries(
+          Object.entries(resolvedGradingScales).map(([prog, preset]) => [
+            prog,
+            { presetKey: preset.key, name: preset.name, ranges: preset.ranges },
+          ])
+        )
+      : undefined
 
     seedMutation.mutate({
       schoolYearId:     selectedSchoolYearId,
       programs:         Array.from(selectedPrograms),
-      courses:          selectedPrograms.has("college") ? Array.from(selectedCourses)  : undefined,
-      strands:          selectedPrograms.has("shs")     ? Array.from(selectedStrands)  : undefined,
-      excludedLevels:   excludedLevels.length   > 0     ? excludedLevels               : undefined,
-      excludedSubjects: excludedSubjects.length > 0     ? excludedSubjects             : undefined,
+      courses:          selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
+      strands:          selectedPrograms.has("shs")     ? Array.from(selectedStrands) : undefined,
+      levelConfigs:     Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
+      excludedSubjects: excludedSubjects.length > 0 ? excludedSubjects : undefined,
+      gradingScales,
     })
   }
 
-  // ── Helpers wired to useSeedState ─────────────────────────────────────────
   const helpers = {
-    toggleProgram:         (key: string)    => toggleSet(selectedPrograms, key, setSelectedPrograms),
-    selectAllPrograms:     ()               => selectAll(PROGRAMS.map((p) => p.key), setSelectedPrograms),
-    deselectAllPrograms:   ()               => deselectAll(setSelectedPrograms),
-
-    toggleLevel:           (lvl: string)    => toggleSet(selectedLevels, lvl, setSelectedLevels),
-    selectAllForProgram:   (lvls: string[]) => selectAll([...Array.from(selectedLevels), ...lvls], setSelectedLevels),
-    deselectAllForProgram: (lvls: string[]) => {
-      const next = new Set(selectedLevels)
-      lvls.forEach((l) => next.delete(l))
-      setSelectedLevels(next)
+    toggleProgram:       (key: string) => toggleSet(selectedPrograms, key, setSelectedPrograms),
+    selectAllPrograms:   ()            => selectAll(PROGRAMS.map((p) => p.key), setSelectedPrograms),
+    deselectAllPrograms: ()            => deselectAll(setSelectedPrograms),
+    toggleStrand:        (s: string)   => toggleSet(selectedStrands, s, setSelectedStrands),
+    selectAllStrands:    ()            => selectAll(SHS_STRANDS, setSelectedStrands),
+    deselectAllStrands:  ()            => deselectAll(setSelectedStrands),
+    toggleCourse:        (c: string)   => toggleSet(selectedCourses, c, setSelectedCourses),
+    selectAllCourses:    ()            => selectAll(COLLEGE_COURSES.map((c) => c.code), setSelectedCourses),
+    deselectAllCourses:  ()            => deselectAll(setSelectedCourses),
+    toggleSubject:       (s: string)   => toggleSet(selectedSubjects, s, setSelectedSubjects),
+    selectAllForGroup:   (subs: string[]) => {
+      const n = new Set(selectedSubjects)
+      subs.forEach((s) => n.add(s))
+      setSelectedSubjects(n)
     },
-
-    toggleStrand:          (s: string)      => toggleSet(selectedStrands, s, setSelectedStrands),
-    selectAllStrands:      ()               => selectAll(SHS_STRANDS, setSelectedStrands),
-    deselectAllStrands:    ()               => deselectAll(setSelectedStrands),
-
-    toggleCourse:          (c: string)      => toggleSet(selectedCourses, c, setSelectedCourses),
-    selectAllCourses:      ()               => selectAll(COLLEGE_COURSES.map((c) => c.code), setSelectedCourses),
-    deselectAllCourses:    ()               => deselectAll(setSelectedCourses),
-
-    toggleSubject:         (s: string)      => toggleSet(selectedSubjects, s, setSelectedSubjects),
-    selectAllForGroup:     (subs: string[]) => {
-      const n = new Set(selectedSubjects); subs.forEach((s) => n.add(s)); setSelectedSubjects(n)
-    },
-    deselectAllForGroup:   (subs: string[]) => {
-      const n = new Set(selectedSubjects); subs.forEach((s) => n.delete(s)); setSelectedSubjects(n)
+    deselectAllForGroup: (subs: string[]) => {
+      const n = new Set(selectedSubjects)
+      subs.forEach((s) => n.delete(s))
+      setSelectedSubjects(n)
     },
   }
 
-  // ── Summary line for footer ───────────────────────────────────────────────
+  const totalLevelCount = Array.from(selectedPrograms)
+    .filter((p) => LEVEL_DEFS[p])
+    .reduce((sum, p) => sum + (levelConfigs[p]?.count ?? LEVEL_DEFS[p].length), 0)
+
   const summaryText = !selectedSchoolYearId
     ? "Select a school year to begin."
     : selectedPrograms.size === 0
     ? "Select at least one program."
     : [
         `${selectedPrograms.size} program(s)`,
+        totalLevelCount > 0 && `${totalLevelCount} level(s)`,
         selectedPrograms.has("college") && `${Array.from(selectedCourses).length} course(s)`,
         selectedPrograms.has("shs")     && `${Array.from(selectedStrands).length} strand(s)`,
-        `${allSelectableSubjects.filter((s) => selectedSubjects.has(s)).length} subject(s) selected`,
+        `${allSelectableSubjects.filter((s) => selectedSubjects.has(s)).length} subject(s)`,
+        seedGradingScale &&
+          `${Object.keys(resolvedGradingScales).length} grading scale(s)`,
       ]
         .filter(Boolean)
         .join(" · ")
 
+  // Derive the selectedLevels set from levelConfigs for SubjectStep compatibility
+  const derivedSelectedLevels = new Set(
+    Array.from(selectedPrograms)
+      .filter((p) => LEVEL_DEFS[p])
+      .flatMap((p) => levelConfigs[p]?.names ?? LEVEL_DEFS[p])
+  )
+
   return (
     <div className="rounded-lg border bg-card">
-      {/* ── Card header (always visible) ── */}
+      {/* ── Card header ── */}
       <button
         type="button"
         onClick={() => setCollapsed((c) => !c)}
@@ -171,7 +189,7 @@ export function SeederCard() {
       {!collapsed && (
         <div className="px-6 pb-6 space-y-5">
           <p className="text-sm text-muted-foreground -mt-1">
-            Seed your organization with programs, levels, sections, subjects, and grading schemes.
+            Seed your organization with programs, levels, subjects, and grading scales.
             Safe to run multiple times — only adds missing data.
           </p>
 
@@ -215,10 +233,9 @@ export function SeederCard() {
             {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
               <LevelStep
                 selectedPrograms={selectedPrograms}
-                selectedLevels={selectedLevels}
-                onToggleLevel={helpers.toggleLevel}
-                onSelectAllForProgram={helpers.selectAllForProgram}
-                onDeselectAllForProgram={helpers.deselectAllForProgram}
+                levelConfigs={levelConfigs}
+                onSetCount={setLevelCount}
+                onRenameAt={renameLevelAt}
               />
             )}
 
@@ -242,7 +259,7 @@ export function SeederCard() {
 
             <SubjectStep
               selectedPrograms={selectedPrograms}
-              selectedLevels={selectedLevels}
+              selectedLevels={derivedSelectedLevels}
               selectedStrands={selectedStrands}
               selectedCourses={selectedCourses}
               selectedSubjects={selectedSubjects}
@@ -251,6 +268,19 @@ export function SeederCard() {
               onDeselectAllForGroup={helpers.deselectAllForGroup}
               allSelectableSubjects={allSelectableSubjects}
             />
+
+            {/* Grading Scales — one per program */}
+            {selectedPrograms.size > 0 && (
+              <div className="border-t pt-5">
+                <GradingScaleStep
+                  selectedPrograms={selectedPrograms}
+                  seedGradingScale={seedGradingScale}
+                  gradingScaleByProgram={gradingScaleByProgram}
+                  onToggleSeed={setSeedGradingScale}
+                  onSelectPreset={setGradingScaleForProgram}
+                />
+              </div>
+            )}
           </div>
 
           {/* Footer */}

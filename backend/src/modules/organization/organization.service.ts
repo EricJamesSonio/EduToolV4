@@ -1,3 +1,4 @@
+// backend/src/modules/organization/organization.service.ts
 import {
   Injectable,
   ConflictException,
@@ -36,7 +37,12 @@ export class OrganizationService {
     if (!orgId) return null
     const org = await this.orgRepository.findById(orgId)
     if (!org) return null
-    return org
+    return {
+      id:             org.id,
+      name:           org.name,
+      description:    org.description,
+      emailExtension: org.email_extension ?? null,
+    }
   }
 
   async update(orgId: string, dto: UpdateOrganizationDto) {
@@ -45,23 +51,29 @@ export class OrganizationService {
     return this.orgRepository.update(orgId, {
       name:        dto.name,
       description: dto.description,
+      ...(dto.emailExtension !== undefined && {
+        email_extension: dto.emailExtension,
+      }),
     })
   }
 
-async seed(orgId: string, dto: SeedOrganizationDto) {
-  if (!orgId) throw new BadRequestException('No organization found for this account.')
-  const org = await this.orgRepository.findById(orgId)
-  if (!org) throw new NotFoundException('Organization not found.')
+  async seed(orgId: string, dto: SeedOrganizationDto) {
+    if (!orgId) throw new BadRequestException('No organization found for this account.')
+    const org = await this.orgRepository.findById(orgId)
+    if (!org) throw new NotFoundException('Organization not found.')
 
-  await this.orgSeeder.seedOrg({
-    orgId,
-    schoolYearId:     dto.schoolYearId,   // ← added
-    programs:         dto.programs,
-    courses:          dto.courses,
-    strands:          dto.strands,
-    excludedLevels:   dto.excludedLevels,
-    excludedSubjects: dto.excludedSubjects,
-  })
-  return { success: true, message: 'Seed completed successfully.' }
-}
+    await this.orgSeeder.seedOrg({
+      orgId,
+      schoolYearId:     dto.schoolYearId,
+      programs:         dto.programs,
+      courses:          dto.courses,
+      strands:          dto.strands,
+      excludedLevels:   dto.excludedLevels,
+      excludedSubjects: dto.excludedSubjects,
+      levelConfigs:     dto.levelConfigs,
+      gradingScales:    dto.gradingScales,
+    })
+
+    return { success: true, message: 'Seed completed successfully.' }
+  }
 }

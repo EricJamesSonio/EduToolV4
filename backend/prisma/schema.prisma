@@ -55,6 +55,7 @@ model Organization {
   id               String   @id @default(uuid())
   name             String
   description      String?
+  email_extension  String?  // e.g. "@edutool.ph"
   admin_account_id String?  @unique
 
   accounts Account[]

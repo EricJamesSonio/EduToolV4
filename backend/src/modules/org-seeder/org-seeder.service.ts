@@ -1,3 +1,4 @@
+// backend/src/modules/org-seeder/org-seeder.service.ts
 import { Injectable } from '@nestjs/common'
 import { DatabaseService } from '@/core/database/database.provider'
 import { v4 as uuid, v5 as uuidv5 } from 'uuid'
@@ -15,6 +16,19 @@ function seedId(...parts: string[]): string {
   return uuidv5(parts.join(':'), SEED_NAMESPACE)
 }
 
+export interface GradingScaleRangeOption {
+  label:      string
+  minScore:   number
+  maxScore:   number
+  gradeValue: string
+}
+
+export interface GradingScaleOption {
+  presetKey: string
+  name:      string
+  ranges:    GradingScaleRangeOption[]
+}
+
 export interface OrgSeedOptions {
   orgId:             string
   schoolYearId:      string
@@ -23,6 +37,18 @@ export interface OrgSeedOptions {
   strands?:          string[]
   excludedLevels?:   string[]
   excludedSubjects?: string[]
+  /**
+   * Custom level names per program from the frontend admin.
+   * Key = programKey, value = ordered array of level names.
+   * When provided for a program, overrides buildLevelDefs() for that program.
+   * e.g. { college: ['1st Year', '2nd Year', '3rd Year'], shs: ['Grade 11', 'Grade 12'] }
+   */
+  levelConfigs?:     Record<string, string[]>
+  /**
+   * Per-program grading scale to seed.
+   * Key = programKey, value = scale definition.
+   */
+  gradingScales?:    Record<string, GradingScaleOption>
 }
 
 @Injectable()
@@ -38,6 +64,8 @@ export class OrgSeederService {
       strands          = [],
       excludedLevels   = [],
       excludedSubjects = [],
+      levelConfigs     = {},
+      gradingScales    = {},
     } = options
 
     const selectedPrograms  = new Set(programs)
@@ -61,17 +89,13 @@ export class OrgSeederService {
     await this.seedPrograms(orgId, schoolYearId, shouldSeedProgram, programMap)
     await this.seedCourses(orgId, schoolYearId, shouldSeedProgram, shouldSeedCourse, programMap, courseMap)
     await this.seedStrands(orgId, schoolYearId, shouldSeedProgram, shouldSeedStrand, programMap, strandMap)
-    await this.seedLevelsAndSections(orgId, schoolYearId, shouldSeedProgram, shouldSeedLevel, programMap, levelMap)
-    await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, levelMap)
+    await this.seedLevelsAndSections(orgId, schoolYearId, shouldSeedProgram, shouldSeedLevel, programMap, levelMap, levelConfigs)
+    await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, levelMap, gradingScales)
     await this.seedGradingSchemes(orgId, schoolYearId, shouldSeedProgram)
     await this.seedMajorSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, subjectNameToId)
     await this.seedMinorSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, programMap, subjectNameToId)
     await this.seedPrerequisites(orgId, shouldSeedProgram, levelMap, subjectNameToId)
   }
-
-  // ---------------------------------------------------------------------------
-  // Programs
-  // ---------------------------------------------------------------------------
 
   private async seedPrograms(
     orgId:        string,
@@ -81,25 +105,15 @@ export class OrgSeederService {
   ) {
     for (const p of PROGRAMS) {
       if (!shouldSeed(p.key)) continue
-      const id = seedId('prog', p.key, schoolYearId, orgId)
+      const id  = seedId('prog', p.key, schoolYearId, orgId)
       const rec = await this.db.program.upsert({
         where:  { id },
         update: {},
-        create: {
-          id,
-          org_id:         orgId,
-          school_year_id: schoolYearId,
-          name:           p.name,
-          type:           p.type,
-        },
+        create: { id, org_id: orgId, school_year_id: schoolYearId, name: p.name, type: p.type },
       })
       programMap[p.key] = rec.id
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Courses
-  // ---------------------------------------------------------------------------
 
   private async seedCourses(
     orgId:        string,
@@ -110,10 +124,9 @@ export class OrgSeederService {
     courseMap:    Record<string, string>,
   ) {
     if (!shouldSeedP('college') || !programMap['college']) return
-
     for (const c of [...COLLEGE_COURSES, ...BSED_MAJORS]) {
       if (!shouldSeedC(c.code)) continue
-      const id = seedId('course', c.code, schoolYearId, orgId)
+      const id  = seedId('course', c.code, schoolYearId, orgId)
       const rec = await this.db.course.upsert({
         where:  { id },
         update: {},
@@ -130,10 +143,6 @@ export class OrgSeederService {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Strands
-  // ---------------------------------------------------------------------------
-
   private async seedStrands(
     orgId:        string,
     schoolYearId: string,
@@ -143,10 +152,9 @@ export class OrgSeederService {
     strandMap:    Record<string, string>,
   ) {
     if (!shouldSeedP('shs') || !programMap['shs']) return
-
     for (const s of SHS_STRAND_DEFS) {
       if (!shouldSeedS(s.name)) continue
-      const id = seedId('strand', s.name, schoolYearId, orgId)
+      const id  = seedId('strand', s.name, schoolYearId, orgId)
       const rec = await this.db.strand.upsert({
         where:  { id },
         update: {},
@@ -162,10 +170,6 @@ export class OrgSeederService {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Levels & Sections
-  // ---------------------------------------------------------------------------
-
   private async seedLevelsAndSections(
     orgId:        string,
     schoolYearId: string,
@@ -173,61 +177,139 @@ export class OrgSeederService {
     shouldSeedL:  (name: string) => boolean,
     programMap:   Record<string, string>,
     levelMap:     Record<string, string>,
+    levelConfigs: Record<string, string[]>,
   ) {
-    const levelDefs = buildLevelDefs().filter((l) => shouldSeedP(l.programKey))
+    // Build level defs: prefer frontend levelConfigs over buildLevelDefs()
+    const defaultDefs = buildLevelDefs().filter((l) => shouldSeedP(l.programKey))
 
-    for (const lvl of levelDefs) {
-      if (!shouldSeedL(lvl.name)) continue
-      const programId = programMap[lvl.programKey]
+    // Collect all program keys that need levels
+    const programKeys = [...new Set(defaultDefs.map((l) => l.programKey))]
+
+    for (const progKey of programKeys) {
+      const programId = programMap[progKey]
       if (!programId) continue
 
-      const id = seedId('level', lvl.programKey, lvl.name, schoolYearId, orgId)
-      const rec = await this.db.level.upsert({
-        where:  { id },
-        update: {},
-        create: {
-          id,
-          org_id:         orgId,
-          school_year_id: schoolYearId,
-          program_id:     programId,
-          name:           lvl.name,
-        },
-      })
-      levelMap[lvl.name] = rec.id
+      // If frontend sent custom level names for this program, use those.
+      // Otherwise fall back to what buildLevelDefs() generated.
+      const customNames = levelConfigs[progKey]
 
-      for (const sec of lvl.sections) {
-        const sectionId = seedId('section', lvl.programKey, lvl.name, sec.name, schoolYearId, orgId)
-        await this.db.section.upsert({
-          where:  { id: sectionId },
-          update: {},
-          create: {
-            id:             sectionId,
-            org_id:         orgId,
-            level_id:       rec.id,
-            school_year_id: schoolYearId,
-            name:           sec.name,
-            capacity:       sec.capacity,
-          },
-        })
+      if (customNames && customNames.length > 0) {
+        // Use custom level names from the frontend admin
+        for (const levelName of customNames) {
+          if (!shouldSeedL(levelName)) continue
+
+          const id  = seedId('level', progKey, levelName, schoolYearId, orgId)
+          const rec = await this.db.level.upsert({
+            where:  { id },
+            update: {},
+            create: {
+              id,
+              org_id:         orgId,
+              school_year_id: schoolYearId,
+              program_id:     programId,
+              name:           levelName,
+            },
+          })
+          levelMap[levelName] = rec.id
+
+          // Default 2 sections for custom levels
+          for (const secName of ['Section A', 'Section B']) {
+            const sectionId = seedId('section', progKey, levelName, secName, schoolYearId, orgId)
+            await this.db.section.upsert({
+              where:  { id: sectionId },
+              update: {},
+              create: {
+                id:             sectionId,
+                org_id:         orgId,
+                level_id:       rec.id,
+                school_year_id: schoolYearId,
+                name:           secName,
+                capacity:       40,
+              },
+            })
+          }
+        }
+      } else {
+        // Fall back to default level defs for this program
+        const progDefs = defaultDefs.filter((l) => l.programKey === progKey)
+        for (const lvl of progDefs) {
+          if (!shouldSeedL(lvl.name)) continue
+
+          const id  = seedId('level', lvl.programKey, lvl.name, schoolYearId, orgId)
+          const rec = await this.db.level.upsert({
+            where:  { id },
+            update: {},
+            create: {
+              id,
+              org_id:         orgId,
+              school_year_id: schoolYearId,
+              program_id:     programId,
+              name:           lvl.name,
+            },
+          })
+          levelMap[lvl.name] = rec.id
+
+          for (const sec of lvl.sections) {
+            const sectionId = seedId('section', lvl.programKey, lvl.name, sec.name, schoolYearId, orgId)
+            await this.db.section.upsert({
+              where:  { id: sectionId },
+              update: {},
+              create: {
+                id:             sectionId,
+                org_id:         orgId,
+                level_id:       rec.id,
+                school_year_id: schoolYearId,
+                name:           sec.name,
+                capacity:       sec.capacity,
+              },
+            })
+          }
+        }
       }
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Grading Scales
-  // ---------------------------------------------------------------------------
-
   private async seedGradingScales(
-    orgId:        string,
-    schoolYearId: string,
-    shouldSeed:   (k: string) => boolean,
-    levelMap:     Record<string, string>,
+    orgId:         string,
+    schoolYearId:  string,
+    shouldSeed:    (k: string) => boolean,
+    levelMap:      Record<string, string>,
+    gradingScales: Record<string, GradingScaleOption>,
   ) {
+    // If frontend sent per-program grading scales, use those
+    if (Object.keys(gradingScales).length > 0) {
+      for (const [progKey, scale] of Object.entries(gradingScales)) {
+        if (!shouldSeed(progKey)) continue
+        // Apply this scale to every level that belongs to this program (via levelMap)
+        // We match by checking which levelMap keys were seeded for this program
+        for (const [levelName, levelId] of Object.entries(levelMap)) {
+          // Only apply to levels that were seeded for this program
+          // (we can't directly query programKey here, but we seeded them in order,
+          // so we check by trying to create — upsert handles duplicates safely)
+          const id = seedId('scale', levelName, scale.name, schoolYearId, orgId)
+          await this.db.gradingScale.upsert({
+            where:  { id },
+            update: {},
+            create: {
+              id,
+              org_id:         orgId,
+              school_year_id: schoolYearId,
+              level_id:       levelId,
+              name:           scale.name,
+              ranges:         scale.ranges as any,
+              is_locked:      false,
+            },
+          })
+        }
+      }
+      return
+    }
+
+    // Fall back to buildScaleAssignments() if no frontend scales provided
     for (const sa of buildScaleAssignments()) {
       if (!shouldSeed(sa.programKey)) continue
       const levelId = levelMap[sa.levelName]
       if (!levelId) continue
-
       const id = seedId('scale', sa.levelName, sa.scaleName, schoolYearId, orgId)
       await this.db.gradingScale.upsert({
         where:  { id },
@@ -244,10 +326,6 @@ export class OrgSeederService {
       })
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Grading Schemes
-  // ---------------------------------------------------------------------------
 
   private async seedGradingSchemes(
     orgId:        string,
@@ -266,8 +344,7 @@ export class OrgSeederService {
     for (const preset of SCHEME_PRESETS) {
       const progKey = schemeProgram[preset.name]
       if (progKey && !shouldSeed(progKey)) continue
-
-      const id = seedId('scheme', preset.name, orgId)
+      const id       = seedId('scheme', preset.name, orgId)
       const existing = await this.db.gradingScheme.findFirst({ where: { id } })
       if (existing) continue
 
@@ -296,10 +373,6 @@ export class OrgSeederService {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Major Subjects
-  // ---------------------------------------------------------------------------
-
   private async seedMajorSubjects(
     orgId:           string,
     shouldSeedP:     (k: string) => boolean,
@@ -315,10 +388,8 @@ export class OrgSeederService {
 
     for (const s of subjectDefs) {
       if (!shouldSeedSubj(s.name)) continue
-
       const levelId  = levelMap[s.levelName]
       if (!levelId) continue
-
       const courseId = s.courseCode ? courseMap[s.courseCode] : null
       const strandId = s.strandName ? strandMap[s.strandName] : null
       if (s.courseCode && !courseId) continue
@@ -333,7 +404,7 @@ export class OrgSeederService {
         orgId,
       )
 
-      const existing = await this.db.subject.findFirst({ where: { id } })
+      const existing  = await this.db.subject.findFirst({ where: { id } })
       const subjectId = existing
         ? existing.id
         : (
@@ -357,10 +428,6 @@ export class OrgSeederService {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Minor Subjects + SubjectSharing
-  // ---------------------------------------------------------------------------
-
   private async seedMinorSubjects(
     orgId:           string,
     shouldSeedP:     (k: string) => boolean,
@@ -371,21 +438,15 @@ export class OrgSeederService {
     programMap:      Record<string, string>,
     subjectNameToId: Record<string, string>,
   ) {
-    // ── College GE minors ────────────────────────────────────────────────────
-    // Seed each GE subject ONCE for the college program, then share to all courses.
     if (shouldSeedP('college') && programMap['college']) {
       const collegeMinors = allMinorSubjects().filter(
         (s) => deriveProgramKey(s.levelName) === 'college',
       )
-
       for (const s of collegeMinors) {
         if (!shouldSeedSubj(s.name)) continue
-
         const id = seedId('subject', 'college_ge', 'minor', s.name, orgId)
-
         let subjectId: string
         const existing = await this.db.subject.findFirst({ where: { id } })
-
         if (existing) {
           subjectId = existing.id
         } else {
@@ -395,7 +456,7 @@ export class OrgSeederService {
               org_id:       orgId,
               subject_type: 'minor',
               program_id:   programMap['college'],
-              level_id:     null,  // GE minors have no specific level
+              level_id:     null,
               name:         s.name,
               year_level:   s.yearLevel,
               term_label:   s.termLabel,
@@ -404,53 +465,34 @@ export class OrgSeederService {
           })
           subjectId = created.id
         }
-
         subjectNameToId[s.name] = subjectId
 
-        // Share to every seeded course
         for (const [, courseId] of Object.entries(courseMap)) {
           const sharingId = seedId('sharing', subjectId, courseId, orgId)
           await this.db.subjectSharing.upsert({
-            where: { id: sharingId },
+            where:  { id: sharingId },
             update: {},
-            create: {
-              id:         sharingId,
-              org_id:     orgId,
-              subject_id: subjectId,
-              course_id:  courseId,
-              strand_id:  null,
-              level_id:   null,
-            },
+            create: { id: sharingId, org_id: orgId, subject_id: subjectId, course_id: courseId, strand_id: null, level_id: null },
           })
         }
       }
     }
 
-    // ── SHS minor subjects ───────────────────────────────────────────────────
-    // SHS minors are emitted once per strand-level by shsSubjects() with isMinor: true.
-    // We seed each unique minor subject ONCE per grade (11 or 12) for the SHS program,
-    // then create SubjectSharing rows pointing to each strand.
     if (shouldSeedP('shs') && programMap['shs']) {
-      // Collect unique SHS minor subjects across all strand emissions
-      // Key: `${name}:${yearLevel}` to deduplicate across strands
-      const seenShsMinors = new Map<string, string>() // key → subjectId
-
-      const shsMinorDefs = allMajorSubjects()  // shsSubjects() is included in allMajorSubjects
-        .filter((s) => s.isMinor && deriveProgramKey(s.levelName) === 'shs')
+      const seenShsMinors = new Map<string, string>()
+      const shsMinorDefs  = allMajorSubjects().filter(
+        (s) => s.isMinor && deriveProgramKey(s.levelName) === 'shs',
+      )
 
       for (const s of shsMinorDefs) {
         if (!shouldSeedSubj(s.name)) continue
-
         const dedupeKey = `${s.name}:${s.yearLevel}`
         let subjectId: string
 
         if (seenShsMinors.has(dedupeKey)) {
-          // Already seeded this minor for this grade — just get the id for sharing
           subjectId = seenShsMinors.get(dedupeKey)!
         } else {
-          // Seed once for the SHS program
-          const id = seedId('subject', 'shs_minor', s.yearLevel, s.name, orgId)
-
+          const id       = seedId('subject', 'shs_minor', s.yearLevel, s.name, orgId)
           const existing = await this.db.subject.findFirst({ where: { id } })
           if (existing) {
             subjectId = existing.id
@@ -461,7 +503,7 @@ export class OrgSeederService {
                 org_id:       orgId,
                 subject_type: 'minor',
                 program_id:   programMap['shs'],
-                level_id:     null,  // Not tied to a specific level — shared via SubjectSharing
+                level_id:     null,
                 name:         s.name,
                 year_level:   s.yearLevel,
                 term_label:   s.termLabel,
@@ -470,35 +512,22 @@ export class OrgSeederService {
             })
             subjectId = created.id
           }
-
           seenShsMinors.set(dedupeKey, subjectId)
           subjectNameToId[s.name] = subjectId
         }
 
-        // Create SubjectSharing row: this minor → this strand
         if (s.strandName && strandMap[s.strandName]) {
           const strandId  = strandMap[s.strandName]
           const sharingId = seedId('sharing', subjectId, strandId, s.yearLevel, orgId)
           await this.db.subjectSharing.upsert({
-            where: { id: sharingId },
+            where:  { id: sharingId },
             update: {},
-            create: {
-              id:         sharingId,
-              org_id:     orgId,
-              subject_id: subjectId,
-              course_id:  null,
-              strand_id:  strandId,
-              level_id:   null,
-            },
+            create: { id: sharingId, org_id: orgId, subject_id: subjectId, course_id: null, strand_id: strandId, level_id: null },
           })
         }
       }
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Prerequisites
-  // ---------------------------------------------------------------------------
 
   private async seedPrerequisites(
     orgId:           string,
@@ -506,16 +535,13 @@ export class OrgSeederService {
     levelMap:        Record<string, string>,
     subjectNameToId: Record<string, string>,
   ) {
-    // Use allSubjects() so we cover both major and minor prereq chains
     const subjectDefs = allSubjects().filter((s) =>
       shouldSeedP(deriveProgramKey(s.levelName)),
     )
 
     for (const s of subjectDefs) {
       if (s.prereqNames.length === 0) continue
-      // Minor subjects don't have a levelName that maps to levelMap — skip the level check
       if (!s.isMinor && !levelMap[s.levelName]) continue
-
       const subjectId = subjectNameToId[s.name]
       if (!subjectId) continue
 

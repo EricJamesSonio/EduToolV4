@@ -25,12 +25,15 @@ export function useSubjectColumns(
     },
     {
       header: "Level",
-      accessorKey: "programName",
-      cell: (info) => (
-        <Badge variant="secondary">
-          {info.row.original.gradeLevel ?? info.getValue<string>() ?? "—"}
-        </Badge>
-      ),
+      accessorKey: "levelName",
+      cell: (info) => {
+        const name = info.getValue<string | null>();
+        return name ? (
+          <Badge variant="secondary">{name}</Badge>
+        ) : (
+          <span className="text-sm text-muted-foreground">—</span>
+        );
+      },
     },
     {
       header: "Educator",

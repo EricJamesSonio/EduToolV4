@@ -41,29 +41,39 @@ export function buildScaleAssignments(): ScaleAssignment[] {
   for (const name of ['Daycare 1', 'Daycare 2']) {
     out.push({ programKey: 'daycare', levelName: name, scaleName: 'Pass/Fail Scale', ranges: SCALE_PASSFAIL })
   }
+
   for (const name of ['Kinder 1', 'Kinder 2']) {
     out.push({ programKey: 'kinder', levelName: name, scaleName: 'Pass/Fail Scale', ranges: SCALE_PASSFAIL })
   }
+
   for (let g = 1; g <= 6; g++) {
     out.push({ programKey: 'elementary', levelName: `Grade ${g}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
   }
+
   for (let g = 7; g <= 10; g++) {
     out.push({ programKey: 'jhs', levelName: `Grade ${g}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
   }
+
   for (const strand of SHS_STRANDS) {
     for (const g of [11, 12]) {
       out.push({ programKey: 'shs', levelName: `Grade ${g} – ${strand}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
     }
   }
-  for (const course of COLLEGE_COURSES) {
-    for (let y = 1; y <= course.years; y++) {
-      out.push({
-        programKey: 'college',
-        levelName:  `${course.code} – ${YEAR_LABELS[y - 1]}`,
-        scaleName:  'College Numeric Scale (1.0–5.0)',
-        ranges:     SCALE_COLLEGE,
-      })
-    }
+
+  // College: one scale entry per shared year level (not per-course).
+  // Levels are '1st Year', '2nd Year', etc. — shared across all courses.
+  const maxCollegeYears = Math.max(...COLLEGE_COURSES.map((c) => c.years))
+  const seenYears = new Set<string>()
+  for (let y = 1; y <= maxCollegeYears; y++) {
+    const levelName = YEAR_LABELS[y - 1]
+    if (seenYears.has(levelName)) continue
+    seenYears.add(levelName)
+    out.push({
+      programKey: 'college',
+      levelName,
+      scaleName:  'College Numeric Scale (1.0–5.0)',
+      ranges:     SCALE_COLLEGE,
+    })
   }
 
   return out

@@ -1,3 +1,4 @@
+// frontend/src/api/admin/organization.api.ts
 import client from "@/api/client"
 import type { Organization } from "@/types/admin/organization.types"
 import type { AxiosError } from "axios"
@@ -8,17 +9,36 @@ export interface CreateOrganizationRequest {
 }
 
 export interface UpdateOrganizationRequest {
-  name?:        string
-  description?: string
+  name?:           string
+  description?:    string
+  emailExtension?: string | null
+}
+
+export interface GradingScaleRangePayload {
+  label:      string
+  minScore:   number
+  maxScore:   number
+  gradeValue: string
+}
+
+export interface GradingScalePayload {
+  presetKey: string
+  name:      string
+  ranges:    GradingScaleRangePayload[]
 }
 
 export interface SeedOrganizationRequest {
-  schoolYearId:      string        // ← required now
+  schoolYearId:      string
   programs:          string[]
   courses?:          string[]
   strands?:          string[]
   excludedLevels?:   string[]
   excludedSubjects?: string[]
+  /** Custom level names per program. Key = programKey, value = ordered level name array.
+   *  e.g. { college: ['1st Year', '2nd Year', '3rd Year'], shs: ['Grade 11', 'Grade 12'] } */
+  levelConfigs?:     Record<string, string[]>
+  /** One grading scale per program key, e.g. { elementary: { ... }, college: { ... } } */
+  gradingScales?:    Record<string, GradingScalePayload>
 }
 
 export const organizationApi = {

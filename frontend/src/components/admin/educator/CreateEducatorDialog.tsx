@@ -2,35 +2,49 @@
 
 import { useState } from "react";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { useCreateEducator } from "@/hooks/admin/useEducators";
 import { EducatorCredentialsCard } from "./EducatorCredentialsCard";
 
+// ✅ Added imports
+import { useOrganization } from "@/hooks/admin/useOrganization";
+import { EmailInput } from "@/components/shared/EmailInput";
+
 interface CreateEducatorDialogProps {
-  open:    boolean;
+  open: boolean;
   onClose: () => void;
 }
 
 interface CreatedCredentials {
-  fullName:     string;
-  email:        string;
+  fullName: string;
+  email: string;
   educatorCode: string;
-  password:     string;
+  password: string;
 }
 
-export function CreateEducatorDialog({ open, onClose }: CreateEducatorDialogProps) {
+export function CreateEducatorDialog({
+  open,
+  onClose,
+}: CreateEducatorDialogProps) {
   const [fullName, setFullName] = useState("");
-  const [email, setEmail]       = useState("");
-  const [error, setError]       = useState<string | null>(null);
-  const [credentials, setCredentials] = useState<CreatedCredentials | null>(null);
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [credentials, setCredentials] =
+    useState<CreatedCredentials | null>(null);
 
   const createMutation = useCreateEducator();
+
+  // ✅ Get organization email extension
+  const { data: org } = useOrganization();
+  const emailExtension = org?.emailExtension ?? null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,16 +55,19 @@ export function CreateEducatorDialog({ open, onClose }: CreateEducatorDialogProp
       {
         onSuccess: (result) => {
           setCredentials({
-            fullName:     result.fullName,
-            email:        result.email,
-            educatorCode: result.educatorId ?? result.educatorCode ?? "",
-            password:     result.plainPassword,
+            fullName: result.fullName,
+            email: result.email,
+            educatorCode:
+              result.educatorId ?? result.educatorCode ?? "",
+            password: result.plainPassword,
           });
           setFullName("");
           setEmail("");
         },
         onError: () => {
-          setError("Failed to create educator. Email may already be in use.");
+          setError(
+            "Failed to create educator. Email may already be in use."
+          );
         },
       }
     );
@@ -63,7 +80,10 @@ export function CreateEducatorDialog({ open, onClose }: CreateEducatorDialogProp
 
   return (
     <>
-      <Dialog open={open && !credentials} onOpenChange={(v) => !v && onClose()}>
+      <Dialog
+        open={open && !credentials}
+        onOpenChange={(v) => !v && onClose()}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create Educator Account</DialogTitle>
@@ -82,21 +102,22 @@ export function CreateEducatorDialog({ open, onClose }: CreateEducatorDialogProp
               />
             </div>
 
+            {/* ✅ Replaced Input with EmailInput */}
             <div className="space-y-1.5">
               <Label htmlFor="edu-email">Email</Label>
-              <Input
-                id="edu-email"
-                type="email"
-                placeholder="educator@school.edu"
-                required
+              <EmailInput
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={setEmail}
+                extension={emailExtension}
+                placeholder="educator"
                 disabled={createMutation.isPending}
               />
             </div>
 
             {error && (
-              <p className="text-sm text-destructive" role="alert">{error}</p>
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
             )}
 
             <div className="flex gap-2 pt-1">
@@ -109,10 +130,19 @@ export function CreateEducatorDialog({ open, onClose }: CreateEducatorDialogProp
               >
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1" disabled={createMutation.isPending}>
-                {createMutation.isPending
-                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</>
-                  : "Create Account"}
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={createMutation.isPending}
+              >
+                {createMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Account"
+                )}
               </Button>
             </div>
           </form>

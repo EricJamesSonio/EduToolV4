@@ -1,7 +1,11 @@
+
+
 export type ProgramType =
+  | "daycare"
+  | "kinder"
   | "elementary"
-  | "high_school"
-  | "senior_high"
+  | "jhs"
+  | "shs"
   | "college"
   | "custom";
 
