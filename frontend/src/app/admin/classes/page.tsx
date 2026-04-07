@@ -232,12 +232,15 @@ function ClassesPageInner(): React.JSX.Element {
       )}
 
       {createOpen && (
-        <CreateClassDialog
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
-          defaultSubjectId={defaultSubjectId}
-          schoolYearId={selectedSchoolYearId}
-        />
+  <CreateClassDialog
+    open={createOpen}
+     onClose={() => setCreateOpen(false)}
+    defaultSubjectId={defaultSubjectId}
+     schoolYearId={selectedSchoolYearId}
+     schoolYearName={
+       schoolYears.find((sy) => sy.id === selectedSchoolYearId)?.name ?? null
+     }
+   />
       )}
 
       {archiveTarget && (
