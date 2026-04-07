@@ -28,7 +28,7 @@ export function StrandsSection({
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StrandSnapshot | null>(null);
 
-  const deleteMutation = useDeleteStrand(programId);
+  const deleteMutation = useDeleteStrand();
 
   const handleDelete = () => {
     if (!deleteTarget) return;
