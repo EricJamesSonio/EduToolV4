@@ -7,16 +7,8 @@ export class OrgEnrollmentSettingService {
   constructor(private readonly repo: OrgEnrollmentSettingRepository) {}
 
   async getByOrg(orgId: string) {
-    // Return defaults if not yet configured
-    const setting = await this.repo.findByOrg(orgId)
-    if (!setting) {
-      return {
-        org_id:                        orgId,
-        require_semester_reenrollment: false,
-        auto_unenroll_on_year_end:     true,
-      }
-    }
-    return setting
+    console.log('orgId:', orgId)
+    return this.repo.upsert(orgId, {})
   }
 
   upsert(orgId: string, dto: UpsertOrgEnrollmentSettingDto) {

@@ -42,7 +42,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     // This becomes req.user in all downstream guards/controllers
     return {
       id: account.id,
-      orgId: account.org_id,
+      org_id: account.org_id,
       role: account.role,
       email: account.email,
       status: account.status,

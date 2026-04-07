@@ -116,13 +116,13 @@ export class AuthService {
 
   private async generateTokens(
     accountId: string,
-    orgId: string | null,
+    org_id: string | null,
     role: any,
     email: string,
   ): Promise<AuthTokens> {
     const payload: TokenPayload = {
       sub: accountId,
-      orgId,
+      org_id,
       role,
       email,
     };

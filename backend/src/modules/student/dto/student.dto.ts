@@ -1,4 +1,3 @@
-// @/modules/student/dto/student.dto.ts
 import {
   IsString,
   IsEmail,
@@ -10,8 +9,6 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
-// ── Status enum ───────────────────────────────────────────────────────────────
-
 export enum StudentStatus {
   ACTIVE = 'active',
   PENDING = 'pending',
@@ -20,8 +17,6 @@ export enum StudentStatus {
   SUSPENDED = 'suspended',
   GRADUATED = 'graduated',
 }
-
-// ── POST /students ────────────────────────────────────────────────────────────
 
 export class CreateStudentDto {
   @IsString()
@@ -37,15 +32,15 @@ export class CreateStudentDto {
   @MaxLength(50)
   studentId!: string; // Admin-assigned student ID
 
+  // levelId and sectionId are now managed via enrollment — not required on creation
+  @IsOptional()
   @IsUUID()
-  levelId!: string;
+  levelId?: string;
 
   @IsOptional()
   @IsUUID()
-  sectionId?: string; // optional — if absent, student starts as pending
+  sectionId?: string;
 }
-
-// ── PATCH /students/:id ───────────────────────────────────────────────────────
 
 export class UpdateStudentDto {
   @IsOptional()
@@ -67,8 +62,6 @@ export class UpdateStudentDto {
   sectionId?: string;
 }
 
-// ── PATCH /students/:id/status ────────────────────────────────────────────────
-
 export class UpdateStudentStatusDto {
   @IsEnum(StudentStatus)
   status!: StudentStatus;
@@ -76,10 +69,8 @@ export class UpdateStudentStatusDto {
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  reason?: string; // required for irreversible transitions (dropped/transferred/graduated)
+  reason?: string;
 }
-
-// ── GET /students ─────────────────────────────────────────────────────────────
 
 export class QueryStudentDto {
   @IsOptional()
@@ -100,6 +91,7 @@ export class QueryStudentDto {
   @IsUUID()
   sectionId?: string;
 }
+
 export class AddEnrollmentDto {
   @IsUUID()
   classId!: string;
