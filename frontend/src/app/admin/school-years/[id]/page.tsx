@@ -76,8 +76,8 @@ const studentEnrollmentApi = {
     );
     return res.data.data;
   },
-  unenroll: async (enrollmentId: string): Promise<void> => {
-    await client.patch(`/student-enrollments/${enrollmentId}/unenroll`);
+  unenroll: async (schoolYearId: string, enrollmentId: string): Promise<void> => {
+    await client.delete(`/school-years/${schoolYearId}/enrollments/${enrollmentId}`);
   },
 };
 // ─────────────────────────────────────────────────────────────────────────────
@@ -384,6 +384,7 @@ function CalendarTab({ schoolYearId }: { schoolYearId: string }): React.JSX.Elem
 
 // ── Enrollments ───────────────────────────────────────────────────────────────
 function EnrollmentsTab({ schoolYearId }: { schoolYearId: string }): React.JSX.Element {
+
   const queryClient = useQueryClient();
   const [unenrollTarget, setUnenrollTarget] =
     useState<StudentSchoolYearEnrollment | null>(null);
@@ -394,7 +395,8 @@ function EnrollmentsTab({ schoolYearId }: { schoolYearId: string }): React.JSX.E
   });
 
   const unenrollMutation = useMutation({
-    mutationFn: (id: string) => studentEnrollmentApi.unenroll(id),
+    mutationFn: (enrollmentId: string) =>
+      studentEnrollmentApi.unenroll(schoolYearId, enrollmentId),  // ← fixed
     onSuccess: () => {
       toast.success("Student unenrolled.");
       queryClient.invalidateQueries({
