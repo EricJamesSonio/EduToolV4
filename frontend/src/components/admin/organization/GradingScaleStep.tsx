@@ -179,7 +179,7 @@ export function GradingScaleStep({
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Assign one grading scale per program. Each scale will be saved and applied to that program&aposs levels.
+            Assign one grading scale per program. Each scale will be saved and applied to that program &apos;s levels.
           </p>
           {programs.map((prog) => (
             <ProgramScalePanel

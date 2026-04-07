@@ -12,49 +12,49 @@ import { Type } from 'class-transformer'
 
 export class SectionItemDto {
   @IsString()
-  name: string
+  name!: string
 
   @IsNumber()
-  capacity: number
+  capacity!: number
 }
 
 class GradingScaleRangeDto {
   @IsString()
-  label: string
+  label!: string
 
   @IsNumber()
-  minScore: number
+  minScore!: number
 
   @IsNumber()
-  maxScore: number
+  maxScore!: number
 
   @IsString()
-  gradeValue: string
+  gradeValue!: string
 }
 
 class GradingScaleOptionDto {
   @IsString()
-  presetKey: string
+  presetKey!: string
 
   @IsString()
-  name: string
+  name!: string
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => GradingScaleRangeDto)
-  ranges: GradingScaleRangeDto[]
+  ranges!: GradingScaleRangeDto[]
 }
 
 export class OrgSeedDto {
   @IsString()
-  orgId: string
+  orgId!: string
 
   @IsString()
-  schoolYearId: string
+  schoolYearId!: string
 
   @IsArray()
   @IsString({ each: true })
-  programs: string[]
+  programs!: string[]
 
   @IsOptional()
   @IsArray()
@@ -76,14 +76,10 @@ export class OrgSeedDto {
   @IsString({ each: true })
   excludedSubjects?: string[]
 
-  // Record<string, string[]> — class-validator can't deep-validate
-  // plain Record shapes, so @IsObject() is sufficient here
   @IsOptional()
   @IsObject()
   levelConfigs?: Record<string, string[]>
 
-  // This is what was failing — needs @IsObject() so the pipe
-  // doesn't strip it under whitelist: true
   @IsOptional()
   @IsObject()
   sectionConfigs?: Record<string, SectionItemDto[]>
@@ -91,4 +87,8 @@ export class OrgSeedDto {
   @IsOptional()
   @IsObject()
   gradingScales?: Record<string, GradingScaleOptionDto>
+
+  // new "other" field — required, non-optional
+  @IsObject()
+  other!: Record<string, any>
 }
