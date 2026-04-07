@@ -1,10 +1,8 @@
-// @/modules/school-year/entity/school-year.entity.ts
-
-export type SchoolYearStatus = 'pending' | 'active' | 'ended';
-
 export class SchoolYearEntity {
-  id: string;
-  orgId: string;
-  name: string;
-  status: SchoolYearStatus;
+  id: string
+  org_id: string
+  name: string
+  status: 'pending' | 'active' | 'ended'
+  start_date: Date | null
+  end_date: Date | null
 }
