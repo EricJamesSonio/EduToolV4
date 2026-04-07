@@ -1,4 +1,5 @@
 "use client";
+
 import { SearchInput } from "@/components/shared/SearchInput";
 import {
   Select,
@@ -8,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { GetStudentsQuery } from "@/api/admin/student.api";
-import type { StudentStatus } from "@/types/admin/student.types";
+import type { StudentStatus }    from "@/types/admin/student.types";
 
 const STATUS_OPTIONS: { value: StudentStatus; label: string }[] = [
   { value: "active",      label: "Active" },
@@ -20,17 +21,13 @@ const STATUS_OPTIONS: { value: StudentStatus; label: string }[] = [
 ];
 
 interface StudentFilterBarProps {
-  filters: GetStudentsQuery;
+  filters:  GetStudentsQuery;
   onChange: (filters: GetStudentsQuery) => void;
-  levels: { id: string; name: string }[];
-  sections: { id: string; name: string }[];
 }
 
 export function StudentFilterBar({
   filters,
   onChange,
-  levels,
-  sections,
 }: StudentFilterBarProps): React.JSX.Element {
   function set(patch: Partial<GetStudentsQuery>) {
     onChange({ ...filters, ...patch });
@@ -44,7 +41,6 @@ export function StudentFilterBar({
         placeholder="Search by name or student ID…"
         className="w-64"
       />
-
       <Select
         value={filters.status ?? "all"}
         onValueChange={(v) =>
@@ -59,48 +55,6 @@ export function StudentFilterBar({
           {STATUS_OPTIONS.map((o) => (
             <SelectItem key={o.value} value={o.value}>
               {o.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={filters.levelId ?? "all"}
-        onValueChange={(v) =>
-          set({
-            levelId: v === "all" ? undefined : v ?? "",
-            sectionId: undefined, // reset dependent
-          })
-        }
-      >
-        <SelectTrigger className="w-40">
-          <SelectValue placeholder="All Levels" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Levels</SelectItem>
-          {levels.map((l) => (
-            <SelectItem key={l.id} value={l.id}>
-              {l.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={filters.sectionId ?? "all"}
-        onValueChange={(v) =>
-          set({ sectionId: v === "all" ? undefined : v ?? ""})
-        }
-        disabled={!filters.levelId || sections.length === 0}
-      >
-        <SelectTrigger className="w-40">
-          <SelectValue placeholder="All Sections" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Sections</SelectItem>
-          {sections.map((s) => (
-            <SelectItem key={s.id} value={s.id}>
-              {s.name}
             </SelectItem>
           ))}
         </SelectContent>

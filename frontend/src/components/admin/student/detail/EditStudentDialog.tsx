@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect }   from "react";
+import { useForm }     from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast }       from "sonner";
 import type { AxiosError } from "axios";
+
 import { studentApi, type UpdateStudentRequest } from "@/api/admin/student.api";
 import type { Student } from "@/types/admin/student.types";
-import type { NormalisedLevel, NormalisedSection } from "@/app/admin/students/[id]/page";
+
 import {
   Dialog,
   DialogContent,
@@ -16,38 +17,23 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input }  from "@/components/ui/input";
+import { Label }  from "@/components/ui/label";
 
 interface Props {
-  open: boolean;
+  open:    boolean;
   student: Student;
-  levels: NormalisedLevel[];
-  sections: NormalisedSection[]; // all sections, already normalised (levelId = camelCase)
   onClose: () => void;
 }
 
 interface FormValues {
   fullName: string;
-  email: string;
-  levelId: string;
-  sectionId: string;
+  email:    string;
 }
-
-const NONE = "__none__";
 
 export function EditStudentDialog({
   open,
   student,
-  levels,
-  sections,
   onClose,
 }: Props): React.JSX.Element {
   const queryClient = useQueryClient();
@@ -55,33 +41,17 @@ export function EditStudentDialog({
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
     reset,
     formState: { errors },
   } = useForm<FormValues>({
     defaultValues: {
       fullName: student.fullName,
-      email: student.email,
-      levelId: student.levelId ?? "",
-      sectionId: student.sectionId ?? NONE,
+      email:    student.email,
     },
   });
 
-  const selectedLevelId = watch("levelId");
-
-  // sections already have levelId (camelCase) — filter correctly
-  const filteredSections = sections.filter(
-    (s) => s.levelId === selectedLevelId,
-  );
-
   useEffect(() => {
-    reset({
-      fullName: student.fullName,
-      email: student.email,
-      levelId: student.levelId ?? "",
-      sectionId: student.sectionId ?? NONE,
-    });
+    reset({ fullName: student.fullName, email: student.email });
   }, [student, reset]);
 
   const mutation = useMutation({
@@ -89,9 +59,7 @@ export function EditStudentDialog({
       studentApi.update(student.id, data),
     onSuccess: () => {
       toast.success("Student updated.");
-      queryClient.invalidateQueries({
-        queryKey: ["admin", "students", student.id],
-      });
+      queryClient.invalidateQueries({ queryKey: ["admin", "students", student.id] });
       queryClient.invalidateQueries({ queryKey: ["admin", "students"] });
       onClose();
     },
@@ -101,12 +69,7 @@ export function EditStudentDialog({
   });
 
   function onSubmit(values: FormValues) {
-    mutation.mutate({
-      fullName: values.fullName,
-      email: values.email,
-      levelId: values.levelId || undefined,
-      sectionId: values.sectionId === NONE ? undefined : values.sectionId,
-    });
+    mutation.mutate({ fullName: values.fullName, email: values.email });
   }
 
   return (
@@ -124,9 +87,7 @@ export function EditStudentDialog({
               {...register("fullName", { required: "Full name is required" })}
             />
             {errors.fullName && (
-              <p className="text-xs text-destructive">
-                {errors.fullName.message}
-              </p>
+              <p className="text-xs text-destructive">{errors.fullName.message}</p>
             )}
           </div>
 
@@ -142,61 +103,9 @@ export function EditStudentDialog({
             )}
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Level</Label>
-            <Select
-              value={selectedLevelId}
-              onValueChange={(v) => {
-                setValue("levelId", v ?? '');
-                setValue("sectionId", NONE); // reset section when level changes
-              }}
-            >
-              <SelectTrigger>
-                <span>
-                  {levels.find((l) => l.id === selectedLevelId)?.name ?? (
-                    <span className="text-muted-foreground">Select level</span>
-                  )}
-                </span>
-              </SelectTrigger>
-              <SelectContent>
-                {levels.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>
-                    {l.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Section</Label>
-            <Select
-              value={watch("sectionId")}
-              onValueChange={(v) => setValue("sectionId", v ?? "")}
-              disabled={!selectedLevelId || filteredSections.length === 0}
-            >
-              <SelectTrigger>
-                <span>
-                  {(() => {
-                    const val = watch("sectionId");
-                    if (!val || val === NONE)
-                      return <span className="text-muted-foreground">Select section (optional)</span>;
-                    return filteredSections.find((s) => s.id === val)?.name
-                      ?? sections.find((s) => s.id === val)?.name
-                      ?? <span className="text-muted-foreground">Select section (optional)</span>;
-                  })()}
-                </span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>None</SelectItem>
-                {filteredSections.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            To change program, level, or section — update the student&apos;s enrollment instead.
+          </p>
         </div>
 
         <DialogFooter>

@@ -1,5 +1,3 @@
-// frontend/src/types/admin/student.types.ts
-
 export type StudentStatus =
   | "pending"
   | "active"
@@ -9,35 +7,32 @@ export type StudentStatus =
   | "graduated";
 
 export interface Student {
-  id: string;
-  orgId: string;
-  fullName: string;
-  email: string;
-  studentId: string;        // was: studentCode — now matches backend metadata field
-  status: StudentStatus;
-  levelId: string;          // was: levelSection: Level + gradeLevel (backend returns flat IDs)
-  sectionId: string | null;
+  id:        string;
+  orgId:     string;
+  fullName:  string;
+  email:     string;
+  studentId: string;
+  status:    StudentStatus;
   createdAt: string;
-  // omitted: updatedAt (not in backend formatAccount), courseOrStrand, sectionName (not returned)
 }
 
 export interface StudentCredentials {
-  fullName: string;
-  email: string;
-  studentId: string;        // was: studentCode
-  password: string;
+  fullName:  string;
+  email:     string;
+  studentId: string;
+  password:  string;
 }
 
 export interface BulkImportResult {
-  status: "success" | "validation_failed";
-  totalRows?: number;
+  status:       "success" | "validation_failed";
+  totalRows?:   number;
   totalCreated?: number;
-  validCount?: number;
+  validCount?:  number;
   invalidCount?: number;
-  students?: Student[];
+  students?:    Student[];
   errors?: Array<{
-    row: number;
-    data: Record<string, string>;
+    row:    number;
+    data:   Record<string, string>;
     errors: string[];
   }>;
   message?: string;

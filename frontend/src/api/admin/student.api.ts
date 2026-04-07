@@ -2,69 +2,61 @@ import client from "@/api/client";
 import type { Student, StudentStatus, BulkImportResult } from "@/types/admin/student.types";
 
 export interface CreateStudentRequest {
-  fullName: string;
-  email: string;
+  fullName:  string;
+  email:     string;
   studentId: string;
-  levelId: string;
-  sectionId?: string;
 }
 
 export interface CreateStudentResponse {
-  id: string;
-  orgId: string;
-  fullName: string;
-  email: string;
-  studentId: string;
-  levelId: string;
-  sectionId: string | null;
-  status: StudentStatus;
-  createdAt: string;
+  id:            string;
+  orgId:         string;
+  fullName:      string;
+  email:         string;
+  studentId:     string;
+  status:        StudentStatus;
+  createdAt:     string;
   plainPassword: string;
 }
 
 export interface UpdateStudentRequest {
   fullName?: string;
-  email?: string;
-  levelId?: string;
-  sectionId?: string;
+  email?:    string;
 }
 
 export interface UpdateStudentStatusRequest {
-  status: StudentStatus;
+  status:  StudentStatus;
   reason?: string;
 }
 
 export interface GetStudentsQuery {
   search?: string;
   status?: StudentStatus;
-  levelId?: string;
-  sectionId?: string;
 }
 
 export interface StudentEnrollment {
-  id: string;
+  id:      string;
   classId: string;
-  status: string;
+  status:  string;
 }
 
 export interface AddEnrollmentResponse {
-  id?: string;
-  overflow?: boolean;
-  message?: string;
-  classId?: string;
+  id?:        string;
+  overflow?:  boolean;
+  message?:   string;
+  classId?:   string;
   studentId?: string;
 }
 
 interface ApiResponse<T> {
   success: boolean;
-  data: T;
+  data:    T;
 }
 
 export const studentApi = {
   getAll: async (query?: GetStudentsQuery): Promise<Student[]> => {
     const params = query
       ? Object.fromEntries(
-          Object.entries(query).filter(([, v]) => v !== undefined && v !== "")
+          Object.entries(query).filter(([, v]) => v !== undefined && v !== ""),
         )
       : undefined;
     const res = await client.get<ApiResponse<Student[]>>("/students", { params });
@@ -86,8 +78,14 @@ export const studentApi = {
     return res.data.data;
   },
 
-  updateStatus: async (id: string, data: UpdateStudentStatusRequest): Promise<Student> => {
-    const res = await client.patch<ApiResponse<Student>>(`/students/${id}/status`, data);
+  updateStatus: async (
+    id:   string,
+    data: UpdateStudentStatusRequest,
+  ): Promise<Student> => {
+    const res = await client.patch<ApiResponse<Student>>(
+      `/students/${id}/status`,
+      data,
+    );
     return res.data.data;
   },
 
@@ -109,11 +107,8 @@ export const studentApi = {
     return res.data.data;
   },
 
-  downloadTemplate: (): string =>
-    `${client.defaults.baseURL}/students/import-template`,
-
-  downloadCredentials: (): string =>
-    `${client.defaults.baseURL}/students/credentials-csv`,
+  downloadTemplate:    (): string => `${client.defaults.baseURL}/students/import-template`,
+  downloadCredentials: (): string => `${client.defaults.baseURL}/students/credentials-csv`,
 
   getEnrollments: async (studentId: string): Promise<StudentEnrollment[]> => {
     const res = await client.get<ApiResponse<StudentEnrollment[]>>(
@@ -122,7 +117,10 @@ export const studentApi = {
     return res.data.data;
   },
 
-  addEnrollment: async (studentId: string, classId: string): Promise<AddEnrollmentResponse> => {
+  addEnrollment: async (
+    studentId: string,
+    classId:   string,
+  ): Promise<AddEnrollmentResponse> => {
     const res = await client.post<ApiResponse<AddEnrollmentResponse>>(
       `/students/${studentId}/enrollments`,
       { classId },
@@ -130,7 +128,10 @@ export const studentApi = {
     return res.data.data;
   },
 
-  removeEnrollment: async (studentId: string, enrollmentId: string): Promise<void> => {
+  removeEnrollment: async (
+    studentId:    string,
+    enrollmentId: string,
+  ): Promise<void> => {
     await client.delete(`/students/${studentId}/enrollments/${enrollmentId}`);
   },
 };

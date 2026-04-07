@@ -1,68 +1,52 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm }     from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { useState, useMemo } from "react";
+import { toast }       from "sonner";
+import { useState }    from "react";
 import type { AxiosError } from "axios";
 
-import { studentApi } from "@/api/admin/student.api";
+import { studentApi }               from "@/api/admin/student.api";
 import type { CreateStudentRequest } from "@/api/admin/student.api";
-import type { Section } from "@/types/admin/section.types";
-
-import { useOrganization } from "@/hooks/admin/useOrganization";
-import { EmailInput } from "@/components/shared/EmailInput";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useOrganization }          from "@/hooks/admin/useOrganization";
+import { EmailInput }               from "@/components/shared/EmailInput";
+import { Button }  from "@/components/ui/button";
+import { Input }   from "@/components/ui/input";
+import { Label }   from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface CredentialsPreview {
-  fullName: string;
-  email: string;
+  fullName:  string;
+  email:     string;
   studentId: string;
-  password: string;
+  password:  string;
 }
 
 interface CreateStudentForm {
-  fullName: string;
-  email: string;
+  fullName:  string;
+  email:     string;
   studentId: string;
-  levelId: string;
-  sectionId: string;
 }
 
 interface CreateStudentDialogProps {
-  open: boolean;
-  onClose: () => void;
+  open:      boolean;
+  onClose:   () => void;
   onCreated: () => void;
-  levels: { id: string; name: string }[];
-  sections: Section[];
 }
 
 export function CreateStudentDialog({
   open,
   onClose,
   onCreated,
-  levels,
-  sections,
 }: CreateStudentDialogProps): React.JSX.Element {
   const [credentials, setCredentials] = useState<CredentialsPreview | null>(null);
 
-  const { data: org } = useOrganization();
+  const { data: org }  = useOrganization();
   const emailExtension = org?.emailExtension ?? null;
 
   const {
@@ -73,40 +57,24 @@ export function CreateStudentDialog({
     watch,
     formState: { errors },
   } = useForm<CreateStudentForm>({
-    defaultValues: {
-      fullName: "",
-      email: "",
-      studentId: "",
-      levelId: "",
-      sectionId: "",
-    },
+    defaultValues: { fullName: "", email: "", studentId: "" },
   });
-
-  const selectedLevelId = watch("levelId");
-  const selectedSectionId = watch("sectionId");
-
-  const filteredSections = useMemo(() => {
-    if (!selectedLevelId) return [];
-    return sections.filter((s) => s.level_id === selectedLevelId);
-  }, [sections, selectedLevelId]);
 
   const mutation = useMutation({
     mutationFn: (values: CreateStudentForm) => {
       const payload: CreateStudentRequest = {
-        fullName: values.fullName,
-        email: values.email,
+        fullName:  values.fullName,
+        email:     values.email,
         studentId: values.studentId,
-        levelId: values.levelId,
-        sectionId: values.sectionId || undefined,
       };
       return studentApi.create(payload).then((res) => ({ res, values }));
     },
     onSuccess: ({ res, values }) => {
       setCredentials({
-        fullName: values.fullName,
-        email: values.email,
+        fullName:  values.fullName,
+        email:     values.email,
         studentId: values.studentId,
-        password: res.plainPassword,
+        password:  res.plainPassword,
       });
       onCreated();
     },
@@ -121,6 +89,7 @@ export function CreateStudentDialog({
     onClose();
   }
 
+  // ── Credentials preview after creation ───────────────────────────────────
   if (credentials) {
     return (
       <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
@@ -147,9 +116,10 @@ export function CreateStudentDialog({
     );
   }
 
+  // ── Create form ───────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New Student</DialogTitle>
         </DialogHeader>
@@ -168,7 +138,6 @@ export function CreateStudentDialog({
             )}
           </div>
 
-          {/* ✅ UPDATED EMAIL INPUT */}
           <div className="space-y-1.5">
             <Label>Email</Label>
             <EmailInput
@@ -194,57 +163,9 @@ export function CreateStudentDialog({
             )}
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Level</Label>
-            <Select
-              value={selectedLevelId}
-              onValueChange={(v) => {
-                setValue("levelId", v ?? "");
-                setValue("sectionId", "");
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a level" />
-              </SelectTrigger>
-              <SelectContent>
-                {levels.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>
-                    {l.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.levelId && (
-              <p className="text-xs text-destructive">{errors.levelId.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>
-              Section{" "}
-              <span className="text-muted-foreground font-normal">(optional)</span>
-            </Label>
-            <Select
-              value={selectedSectionId}
-              onValueChange={(v) => setValue("sectionId", v ?? "")}
-              disabled={!selectedLevelId || filteredSections.length === 0}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="No section" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">No section</SelectItem>
-                {filteredSections.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Students without a section start as <strong>Pending</strong>.
-            </p>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Program, level, and section can be assigned via enrollment after creation.
+          </p>
 
           <div className="flex justify-end gap-2 pt-1">
             <Button
@@ -255,10 +176,7 @@ export function CreateStudentDialog({
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={mutation.isPending || !selectedLevelId}
-            >
+            <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending ? "Creating..." : "Create Student"}
             </Button>
           </div>
