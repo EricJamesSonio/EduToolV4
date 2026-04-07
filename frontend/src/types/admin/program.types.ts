@@ -1,5 +1,3 @@
-
-
 export type ProgramType =
   | "daycare"
   | "kinder"
@@ -10,22 +8,23 @@ export type ProgramType =
   | "custom";
 
 export interface CourseSnapshot {
-  id: string;
+  id:   string;
   name: string;
   code: string | null;
 }
 
 export interface StrandSnapshot {
-  id: string;
+  id:   string;
   name: string;
 }
 
 export interface Program {
-  id: string;
-  orgId: string;
-  schoolYearId: string; // added — schema school_year_id is now required
-  name: string;
-  type: ProgramType;
-  courses: CourseSnapshot[];
-  strands: StrandSnapshot[];
+  id:           string;
+  orgId:        string;
+  schoolYearId: string;
+  school_year_id: string;
+  name:         string;
+  type:         ProgramType;
+  courses:      CourseSnapshot[];
+  strands:      StrandSnapshot[];
 }
