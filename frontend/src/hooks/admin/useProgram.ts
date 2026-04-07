@@ -60,3 +60,12 @@ export const useDeleteProgram = (): UseMutationResult<void, Error, string> => {
     },
   });
 };
+
+export const useProgramDetail = (id: string): UseQueryResult<Program, Error> => {
+  return useQuery({
+    queryKey: ["admin", "programs", id],
+    queryFn: () => programApi.getOne(id),
+    enabled: !!id,
+  });
+};
+
