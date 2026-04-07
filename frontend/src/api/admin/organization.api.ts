@@ -34,6 +34,9 @@ export interface SeedOrganizationRequest {
   strands?:          string[]
   excludedLevels?:   string[]
   excludedSubjects?: string[]
+  /** Custom level names per program. Key = programKey, value = ordered level name array.
+   *  e.g. { college: ['1st Year', '2nd Year', '3rd Year'], shs: ['Grade 11', 'Grade 12'] } */
+  levelConfigs?:     Record<string, string[]>
   /** One grading scale per program key, e.g. { elementary: { ... }, college: { ... } } */
   gradingScales?:    Record<string, GradingScalePayload>
 }

@@ -446,7 +446,7 @@ export default function ProgramDetailPage({
   const showStrands  = isSeniorHigh;
 
   // school_year_id comes from the program record returned by the backend
-  const schoolYearId = program?.school_year_id ?? "";
+  const schoolYearId = program?.schoolYearId ?? "";
 
   if (isLoading) {
     return (

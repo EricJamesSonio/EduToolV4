@@ -87,19 +87,12 @@ export function SeederCard() {
 
     const excludedSubjects = allSelectableSubjects.filter((s) => !selectedSubjects.has(s))
 
-    // Compute excludedLevels: levels that exist in the default defs but are NOT in
-    // the admin's custom config (i.e. they reduced the count or the default had more)
-    const allDefaultLevels = Array.from(selectedPrograms)
-      .filter((p) => LEVEL_DEFS[p])
-      .flatMap((p) => LEVEL_DEFS[p])
-
-    const activeCustomLevelNames = new Set(
+    // Build levelConfigs payload: programKey → ordered array of level names
+    const levelConfigsPayload = Object.fromEntries(
       Array.from(selectedPrograms)
         .filter((p) => LEVEL_DEFS[p])
-        .flatMap((p) => levelConfigs[p]?.names ?? LEVEL_DEFS[p])
+        .map((p) => [p, levelConfigs[p]?.names ?? LEVEL_DEFS[p]])
     )
-
-    const excludedLevels = allDefaultLevels.filter((l) => !activeCustomLevelNames.has(l))
 
     // Per-program grading scale payload — only if enabled
     const gradingScales = seedGradingScale
@@ -116,7 +109,7 @@ export function SeederCard() {
       programs:         Array.from(selectedPrograms),
       courses:          selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
       strands:          selectedPrograms.has("shs")     ? Array.from(selectedStrands) : undefined,
-      excludedLevels:   excludedLevels.length > 0   ? excludedLevels   : undefined,
+      levelConfigs:     Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
       excludedSubjects: excludedSubjects.length > 0 ? excludedSubjects : undefined,
       gradingScales,
     })

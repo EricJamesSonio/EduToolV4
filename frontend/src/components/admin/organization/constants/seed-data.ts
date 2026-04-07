@@ -55,6 +55,8 @@ export const LEVEL_DEFS: Record<string, string[]> = {
   kinder:     ["Kinder 1", "Kinder 2"],
   elementary: ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"],
   jhs:        ["Grade 7", "Grade 8", "Grade 9", "Grade 10"],
+  shs:        ["Grade 11", "Grade 12"],
+  college:    ["1st Year", "2nd Year", "3rd Year", "4th Year"],
 }
 
 // Max levels allowed per program (for the stepper UI)
@@ -63,6 +65,8 @@ export const LEVEL_MAX: Record<string, number> = {
   kinder:     3,
   elementary: 12,
   jhs:        6,
+  shs:        4,
+  college:    6,
 }
 
 // Min levels per program
@@ -71,7 +75,11 @@ export const LEVEL_MIN: Record<string, number> = {
   kinder:     1,
   elementary: 1,
   jhs:        1,
+  shs:        1,
+  college:    1,
 }
+
+const COLLEGE_YEAR_LABELS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "6th Year"]
 
 // Generate level names for a given program + count
 export function generateLevelNames(prog: string, count: number): string[] {
@@ -84,6 +92,10 @@ export function generateLevelNames(prog: string, count: number): string[] {
       return Array.from({ length: count }, (_, i) => `Grade ${i + 1}`)
     case "jhs":
       return Array.from({ length: count }, (_, i) => `Grade ${i + 7}`)
+    case "shs":
+      return Array.from({ length: count }, (_, i) => `Grade ${i + 11}`)
+    case "college":
+      return Array.from({ length: count }, (_, i) => COLLEGE_YEAR_LABELS[i] ?? `Year ${i + 1}`)
     default:
       return Array.from({ length: count }, (_, i) => `Level ${i + 1}`)
   }
