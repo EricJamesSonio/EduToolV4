@@ -54,23 +54,17 @@ export function buildScaleAssignments(): ScaleAssignment[] {
     out.push({ programKey: 'jhs', levelName: `Grade ${g}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
   }
 
-  for (const strand of SHS_STRANDS) {
-    for (const g of [11, 12]) {
-      out.push({ programKey: 'shs', levelName: `Grade ${g} – ${strand}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
-    }
+  // SHS — one scale per shared grade level (Grade 11, Grade 12)
+  for (const grade of ['Grade 11', 'Grade 12']) {
+    out.push({ programKey: 'shs', levelName: grade, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
   }
 
-  // College: one scale entry per shared year level (not per-course).
-  // Levels are '1st Year', '2nd Year', etc. — shared across all courses.
-  const maxCollegeYears = Math.max(...COLLEGE_COURSES.map((c) => c.years))
-  const seenYears = new Set<string>()
-  for (let y = 1; y <= maxCollegeYears; y++) {
-    const levelName = YEAR_LABELS[y - 1]
-    if (seenYears.has(levelName)) continue
-    seenYears.add(levelName)
+  // College — one scale per shared year level (1st Year … 5th Year)
+  const maxYears = Math.max(...COLLEGE_COURSES.map((c) => c.years))
+  for (let y = 1; y <= maxYears; y++) {
     out.push({
       programKey: 'college',
-      levelName,
+      levelName:  YEAR_LABELS[y - 1],
       scaleName:  'College Numeric Scale (1.0–5.0)',
       ranges:     SCALE_COLLEGE,
     })

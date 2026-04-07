@@ -3,6 +3,7 @@ import { COLLEGE_COURSES } from '../courses.data'
 
 type CollegeSubjRaw = { name: string; year: string; term: string; prereqs: string[] }
 
+// ── GE / Minor subjects (shared across all college courses) ──────────────────
 const COLLEGE_GE: CollegeSubjRaw[] = [
   { name: 'Mathematics in the Modern World',  year: '1st Year', term: '1st Semester', prereqs: [] },
   { name: 'Purposive Communication',          year: '1st Year', term: '1st Semester', prereqs: [] },
@@ -19,6 +20,7 @@ const COLLEGE_GE: CollegeSubjRaw[] = [
   { name: 'NSTP 2',                           year: '2nd Year', term: '2nd Semester', prereqs: [] },
 ]
 
+// ── Major subjects per course code ───────────────────────────────────────────
 const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
   BSIT: [
     { name: 'Introduction to Computing',          year: '1st Year', term: '1st Semester', prereqs: [] },
@@ -55,22 +57,25 @@ const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
     { name: 'Project Management',         year: '4th Year', term: '1st Semester', prereqs: ['Strategic Management', 'Operations Management'] },
   ],
   BSA: [
-    { name: 'Fundamentals of Accounting',                                              year: '1st Year', term: '1st Semester', prereqs: [] },
-    { name: 'Financial Accounting and Reporting I',                                    year: '1st Year', term: '2nd Semester', prereqs: ['Fundamentals of Accounting'] },
-    { name: 'Business Law',                                                            year: '2nd Year', term: '1st Semester', prereqs: [] },
-    { name: 'Management Accounting',                                                   year: '2nd Year', term: '1st Semester', prereqs: ['Financial Accounting and Reporting I'] },
-    { name: 'Regulatory Framework and Legal Issues in Business',                       year: '2nd Year', term: '1st Semester', prereqs: ['Business Law'] },
-    { name: 'Cost Accounting',                                                         year: '2nd Year', term: '2nd Semester', prereqs: ['Management Accounting'] },
-    { name: 'Accounting Information Systems',                                          year: '2nd Year', term: '2nd Semester', prereqs: ['Fundamentals of Accounting'] },
-    { name: 'Auditing Theory',                                                         year: '3rd Year', term: '1st Semester', prereqs: ['Cost Accounting'] },
-    { name: 'Advanced Financial Accounting and Reporting',                             year: '3rd Year', term: '1st Semester', prereqs: ['Financial Accounting and Reporting I'] },
-    { name: 'Financial Management',                                                    year: '3rd Year', term: '1st Semester', prereqs: ['Management Accounting'] },
-    { name: 'Auditing and Assurance Services',                                         year: '3rd Year', term: '2nd Semester', prereqs: ['Auditing Theory'] },
-    { name: 'Taxation (Income Tax, Business Tax)',                                     year: '3rd Year', term: '2nd Semester', prereqs: ['Financial Accounting and Reporting I'] },
-    { name: 'Strategic Cost Management',                                               year: '4th Year', term: '1st Semester', prereqs: ['Cost Accounting'] },
-    { name: 'Governance, Business Ethics, Risk Management, and Internal Control',     year: '4th Year', term: '1st Semester', prereqs: ['Auditing Theory'] },
-    { name: 'Accounting Research',                                                     year: '4th Year', term: '2nd Semester', prereqs: ['Advanced Financial Accounting and Reporting', 'Management Accounting'] },
-    { name: 'Integrated Review Courses (Board Exam Preparation)',                      year: '5th Year', term: '1st Semester', prereqs: [] },
+    { name: 'Fundamentals of Accounting',                                                year: '1st Year', term: '1st Semester', prereqs: [] },
+    { name: 'Financial Accounting and Reporting I',                                      year: '1st Year', term: '2nd Semester', prereqs: ['Fundamentals of Accounting'] },
+    { name: 'Business Law',                                                              year: '2nd Year', term: '1st Semester', prereqs: [] },
+    { name: 'Management Accounting',                                                     year: '2nd Year', term: '1st Semester', prereqs: ['Financial Accounting and Reporting I'] },
+    { name: 'Regulatory Framework and Legal Issues in Business',                         year: '2nd Year', term: '1st Semester', prereqs: ['Business Law'] },
+    { name: 'Cost Accounting',                                                           year: '2nd Year', term: '2nd Semester', prereqs: ['Management Accounting'] },
+    { name: 'Accounting Information Systems',                                            year: '2nd Year', term: '2nd Semester', prereqs: ['Fundamentals of Accounting'] },
+    { name: 'Auditing Theory',                                                           year: '3rd Year', term: '1st Semester', prereqs: ['Cost Accounting'] },
+    { name: 'Advanced Financial Accounting and Reporting',                               year: '3rd Year', term: '1st Semester', prereqs: ['Financial Accounting and Reporting I'] },
+    { name: 'Financial Management',                                                      year: '3rd Year', term: '1st Semester', prereqs: ['Management Accounting'] },
+    { name: 'Auditing and Assurance Services',                                           year: '3rd Year', term: '2nd Semester', prereqs: ['Auditing Theory'] },
+    { name: 'Taxation (Income Tax, Business Tax)',                                       year: '3rd Year', term: '2nd Semester', prereqs: ['Financial Accounting and Reporting I'] },
+    { name: 'Strategic Cost Management',                                                 year: '4th Year', term: '1st Semester', prereqs: ['Cost Accounting'] },
+    { name: 'Governance, Business Ethics, Risk Management, and Internal Control',        year: '4th Year', term: '1st Semester', prereqs: ['Auditing Theory'] },
+    { name: 'Accounting Research',                                                       year: '4th Year', term: '2nd Semester', prereqs: ['Advanced Financial Accounting and Reporting', 'Management Accounting'] },
+    { name: 'Integrated Review Courses (Board Exam Preparation)',                        year: '4th Year', term: '2nd Semester', prereqs: [] },
+    // BSA has a 5th year
+    { name: 'Advanced Taxation',                                                         year: '5th Year', term: '1st Semester', prereqs: ['Taxation (Income Tax, Business Tax)'] },
+    { name: 'CPA Licensure Exam Review',                                                 year: '5th Year', term: '2nd Semester', prereqs: [] },
   ],
   BSCS: [
     { name: 'Introduction to Computing',       year: '1st Year', term: '1st Semester', prereqs: [] },
@@ -93,7 +98,7 @@ const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
     { name: 'Machine Learning',                year: '4th Year', term: '2nd Semester', prereqs: ['Artificial Intelligence', 'Data Structures and Algorithms'] },
     { name: 'CS Thesis / Capstone Project',    year: '4th Year', term: '2nd Semester', prereqs: [] },
   ],
-  BSED: [], // BSED majors use BSED_CORE below + major-specific subjects per BSED_MAJORS courses
+  BSED: [],
   BSHM: [
     { name: 'Introduction to Hospitality Industry',  year: '1st Year', term: '1st Semester', prereqs: [] },
     { name: 'Food and Beverage Service Operations',  year: '1st Year', term: '2nd Semester', prereqs: ['Introduction to Hospitality Industry'] },
@@ -131,20 +136,20 @@ const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
     { name: 'Community Policing and Public Safety',       year: '4th Year', term: '2nd Semester', prereqs: ['Criminal Investigation Practicum'] },
   ],
   BSTM: [
-    { name: 'Principles of Tourism',            year: '1st Year', term: '1st Semester', prereqs: [] },
-    { name: 'Tourism Research and Statistics',  year: '2nd Year', term: '2nd Semester', prereqs: [] },
-    { name: 'Tourism Planning and Development', year: '2nd Year', term: '1st Semester', prereqs: ['Principles of Tourism'] },
-    { name: 'Travel Agency Operations',         year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Tourism'] },
-    { name: 'Tour Guiding and Tour Operations', year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Tourism'] },
-    { name: 'Hospitality and Tourism Law',      year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Tourism'] },
-    { name: 'Tourism Marketing and Promotion',  year: '3rd Year', term: '1st Semester', prereqs: ['Tourism Planning and Development'] },
-    { name: 'Event and Convention Management',  year: '3rd Year', term: '1st Semester', prereqs: ['Tourism Marketing and Promotion'] },
-    { name: 'Sustainable Tourism',              year: '3rd Year', term: '2nd Semester', prereqs: ['Tourism Planning and Development'] },
-    { name: 'Cultural and Heritage Tourism',    year: '3rd Year', term: '2nd Semester', prereqs: ['Tourism Planning and Development'] },
-    { name: 'Tourism Policy and Governance',    year: '3rd Year', term: '2nd Semester', prereqs: ['Principles of Tourism', 'Sustainable Tourism'] },
-    { name: 'Airline and Cruise Management',    year: '4th Year', term: '1st Semester', prereqs: ['Travel Agency Operations'] },
-    { name: 'Tourism Entrepreneurship',         year: '4th Year', term: '1st Semester', prereqs: ['Tourism Marketing and Promotion'] },
-    { name: 'Internship / OJT',                 year: '4th Year', term: '2nd Semester', prereqs: [] },
+    { name: 'Principles of Tourism',             year: '1st Year', term: '1st Semester', prereqs: [] },
+    { name: 'Tourism Research and Statistics',   year: '2nd Year', term: '2nd Semester', prereqs: [] },
+    { name: 'Tourism Planning and Development',  year: '2nd Year', term: '1st Semester', prereqs: ['Principles of Tourism'] },
+    { name: 'Travel Agency Operations',          year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Tourism'] },
+    { name: 'Tour Guiding and Tour Operations',  year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Tourism'] },
+    { name: 'Hospitality and Tourism Law',       year: '2nd Year', term: '2nd Semester', prereqs: ['Principles of Tourism'] },
+    { name: 'Tourism Marketing and Promotion',   year: '3rd Year', term: '1st Semester', prereqs: ['Tourism Planning and Development'] },
+    { name: 'Event and Convention Management',   year: '3rd Year', term: '1st Semester', prereqs: ['Tourism Marketing and Promotion'] },
+    { name: 'Sustainable Tourism',               year: '3rd Year', term: '2nd Semester', prereqs: ['Tourism Planning and Development'] },
+    { name: 'Cultural and Heritage Tourism',     year: '3rd Year', term: '2nd Semester', prereqs: ['Tourism Planning and Development'] },
+    { name: 'Tourism Policy and Governance',     year: '3rd Year', term: '2nd Semester', prereqs: ['Principles of Tourism', 'Sustainable Tourism'] },
+    { name: 'Airline and Cruise Management',     year: '4th Year', term: '1st Semester', prereqs: ['Travel Agency Operations'] },
+    { name: 'Tourism Entrepreneurship',          year: '4th Year', term: '1st Semester', prereqs: ['Tourism Marketing and Promotion'] },
+    { name: 'Internship / OJT',                  year: '4th Year', term: '2nd Semester', prereqs: [] },
   ],
 }
 
@@ -163,12 +168,9 @@ const BSED_CORE: CollegeSubjRaw[] = [
 ]
 
 /**
- * Major subjects for college courses.
- *
- * Key change: `levelName` is now the shared year-level name (e.g. '1st Year', '2nd Year')
- * instead of the old course-scoped name (e.g. 'BSCS – 1st Year').
- * The `courseCode` field still scopes subjects to their course.
- * This means the seeder resolves: levelId = levelMap['1st Year'], courseId = courseMap['BSCS'].
+ * Major subjects for college.
+ * levelName = shared year label (e.g. "1st Year")
+ * courseCode = course code (e.g. "BSIT") — used for level_id + course_id mapping in the seeder
  */
 export function collegeMajorSubjects(): SubjectDef[] {
   const out: SubjectDef[] = []
@@ -176,22 +178,22 @@ export function collegeMajorSubjects(): SubjectDef[] {
   for (const course of COLLEGE_COURSES) {
     const majors = COLLEGE_MAJOR[course.code] ?? []
     for (const s of majors) {
-      // levelName = s.year ('1st Year', '2nd Year', ...) — matches the shared college level
+      // levelName is now just the year label — shared across all courses
       out.push(subj(s.year, course.code, null, s.name, s.year, s.term, s.prereqs, false))
     }
   }
 
+  // BSED core subjects — seeded for each BSED major course code
   for (const s of BSED_CORE) {
-    // BSED core subjects: levelName = s.year, no specific courseCode
-    out.push(subj(s.year, null, null, s.name, s.year, s.term, s.prereqs, false))
+    out.push(subj(s.year, 'BSED', null, s.name, s.year, s.term, s.prereqs, false))
   }
 
   return out
 }
 
 /**
- * GE (minor) subjects shared across all college courses.
- * levelName is 'college_ge' — a sentinel that deriveProgramKey maps to 'college'.
+ * Minor (GE) subjects for college — shared across all courses via SubjectSharing.
+ * levelName = 'college_ge' (sentinel, not a real level name)
  */
 export function collegeMinorSubjects(): SubjectDef[] {
   return COLLEGE_GE.map((s) =>

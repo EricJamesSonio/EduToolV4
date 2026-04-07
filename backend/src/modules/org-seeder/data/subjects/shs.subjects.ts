@@ -3,10 +3,7 @@ import { SHS_STRAND_DEFS } from '../strands.data'
 
 type ShsSubjRaw = { name: string; grade: 11 | 12; term: string; prereqs: string[] }
 
-// ---------------------------------------------------------------------------
-// Minor (core/GE) subjects — shared across ALL SHS strands
-// ---------------------------------------------------------------------------
-
+// ── SHS Core / Minor subjects (shared across all strands) ────────────────────
 const SHS_MINOR: ShsSubjRaw[] = [
   { name: 'Oral Communication',                       grade: 11, term: '1st Semester',  prereqs: [] },
   { name: 'Reading and Writing Skills',               grade: 11, term: '1st Semester',  prereqs: [] },
@@ -20,10 +17,7 @@ const SHS_MINOR: ShsSubjRaw[] = [
   { name: 'Art Appreciation',                         grade: 12, term: '1st Semester',  prereqs: [] },
 ]
 
-// ---------------------------------------------------------------------------
-// Major subjects per strand
-// ---------------------------------------------------------------------------
-
+// ── SHS Major subjects per strand ────────────────────────────────────────────
 const SHS_MAJOR: Record<string, ShsSubjRaw[]> = {
   ABM: [
     { name: 'Fundamentals of Accounting',  grade: 11, term: '1st Semester', prereqs: [] },
@@ -78,14 +72,14 @@ const SHS_MAJOR: Record<string, ShsSubjRaw[]> = {
     { name: 'Introduction to Computing',       grade: 11, term: '1st Semester', prereqs: [] },
     { name: 'Web Development 1 (HTML, CSS)',   grade: 11, term: '1st Semester', prereqs: [] },
     { name: 'Computer Programming 2',          grade: 11, term: '2nd Semester', prereqs: ['Computer Programming 1'] },
-    { name: 'Web Development 2 (JavaScript)', grade: 11, term: '2nd Semester', prereqs: ['Web Development 1 (HTML, CSS)'] },
+    { name: 'Web Development 2 (JavaScript)',  grade: 11, term: '2nd Semester', prereqs: ['Web Development 1 (HTML, CSS)'] },
     { name: 'Database Management Systems',     grade: 11, term: '2nd Semester', prereqs: ['Introduction to Computing'] },
     { name: 'Systems Analysis and Design',     grade: 12, term: '1st Semester', prereqs: ['Computer Programming 2', 'Database Management Systems'] },
-    { name: 'Mobile Application Development', grade: 12, term: '1st Semester', prereqs: ['Computer Programming 2'] },
-    { name: 'Computer Networks and Security', grade: 12, term: '1st Semester', prereqs: ['Introduction to Computing'] },
-    { name: 'Capstone Project',               grade: 12, term: '2nd Semester', prereqs: ['Systems Analysis and Design'] },
-    { name: 'ICT Project Management',         grade: 12, term: '2nd Semester', prereqs: ['Systems Analysis and Design'] },
-    { name: 'Emerging Technologies in ICT',   grade: 12, term: '2nd Semester', prereqs: [] },
+    { name: 'Mobile Application Development',  grade: 12, term: '1st Semester', prereqs: ['Computer Programming 2'] },
+    { name: 'Computer Networks and Security',  grade: 12, term: '1st Semester', prereqs: ['Introduction to Computing'] },
+    { name: 'Capstone Project',                grade: 12, term: '2nd Semester', prereqs: ['Systems Analysis and Design'] },
+    { name: 'ICT Project Management',          grade: 12, term: '2nd Semester', prereqs: ['Systems Analysis and Design'] },
+    { name: 'Emerging Technologies in ICT',    grade: 12, term: '2nd Semester', prereqs: [] },
   ],
   HE: [
     { name: 'Introduction to Home Economics',           grade: 11, term: '1st Semester', prereqs: [] },
@@ -103,17 +97,17 @@ const SHS_MAJOR: Record<string, ShsSubjRaw[]> = {
   ],
   IA: [
     { name: 'Introduction to Industrial Arts',               grade: 11, term: '1st Semester', prereqs: [] },
-    { name: 'Basic Electrical Installation and Maintenance', grade: 11, term: '1st Semester', prereqs: [] },
+    { name: 'Basic Electrical Installation and Maintenance',  grade: 11, term: '1st Semester', prereqs: [] },
     { name: 'Carpentry Fundamentals',                        grade: 11, term: '1st Semester', prereqs: [] },
-    { name: 'Shielded Metal Arc Welding (SMAW) NC I',       grade: 11, term: '2nd Semester', prereqs: [] },
+    { name: 'Shielded Metal Arc Welding (SMAW) NC I',        grade: 11, term: '2nd Semester', prereqs: [] },
     { name: 'Plumbing Basics',                               grade: 11, term: '2nd Semester', prereqs: [] },
     { name: 'Automotive Servicing NC I',                     grade: 11, term: '2nd Semester', prereqs: [] },
     { name: 'Electrical Installation and Maintenance NC II', grade: 12, term: '1st Semester', prereqs: ['Basic Electrical Installation and Maintenance'] },
-    { name: 'Shielded Metal Arc Welding (SMAW) NC II',      grade: 12, term: '1st Semester', prereqs: ['Shielded Metal Arc Welding (SMAW) NC I'] },
+    { name: 'Shielded Metal Arc Welding (SMAW) NC II',       grade: 12, term: '1st Semester', prereqs: ['Shielded Metal Arc Welding (SMAW) NC I'] },
     { name: 'Advanced Carpentry / Construction Technology',  grade: 12, term: '1st Semester', prereqs: ['Carpentry Fundamentals'] },
     { name: 'Industrial Safety and Maintenance',             grade: 12, term: '2nd Semester', prereqs: [] },
-    { name: 'Work Immersion (OJT)',                         grade: 12, term: '2nd Semester', prereqs: [] },
-    { name: 'Capstone Project / Practical Assessment',      grade: 12, term: '2nd Semester', prereqs: [] },
+    { name: 'Work Immersion (OJT)',                          grade: 12, term: '2nd Semester', prereqs: [] },
+    { name: 'Capstone Project / Practical Assessment',       grade: 12, term: '2nd Semester', prereqs: [] },
   ],
   'Agri-Fishery': [
     { name: 'Introduction to Agri-Fishery Arts',       grade: 11, term: '1st Semester', prereqs: [] },
@@ -150,24 +144,20 @@ const SHS_MAJOR: Record<string, ShsSubjRaw[]> = {
     { name: 'Creative Industries II (Media Arts)',      grade: 11, term: '2nd Semester', prereqs: ['Creative Industries I (Applied Arts)'] },
     { name: 'Fundamentals of Performing Arts',          grade: 11, term: '2nd Semester', prereqs: [] },
     { name: 'Visual Arts Production',                   grade: 11, term: '2nd Semester', prereqs: ['Elements and Principles of Design'] },
-    { name: 'Specialization in Arts',                  grade: 12, term: '1st Semester', prereqs: [] },
+    { name: 'Specialization in Arts',                   grade: 12, term: '1st Semester', prereqs: [] },
     { name: 'Portfolio Development',                    grade: 12, term: '1st Semester', prereqs: ['Visual Arts Production'] },
     { name: 'Arts Production and Management',           grade: 12, term: '1st Semester', prereqs: [] },
     { name: 'Contemporary Arts Practices',              grade: 12, term: '2nd Semester', prereqs: [] },
-    { name: 'Work Immersion (OJT)',                    grade: 12, term: '2nd Semester', prereqs: [] },
-    { name: 'Capstone Project / Culminating Exhibit',  grade: 12, term: '2nd Semester', prereqs: [] },
+    { name: 'Work Immersion (OJT)',                     grade: 12, term: '2nd Semester', prereqs: [] },
+    { name: 'Capstone Project / Culminating Exhibit',   grade: 12, term: '2nd Semester', prereqs: [] },
   ],
 }
 
-// ---------------------------------------------------------------------------
-// Export
-// ---------------------------------------------------------------------------
-
 /**
- * SHS subjects split by type:
- * - Major subjects are per-strand (subject_type: 'major')
- * - Minor subjects (SHS_MINOR) are seeded per-grade-level but flagged isMinor: true
- *   so the seeder can set subject_type: 'minor' and create SubjectSharing rows
+ * SHS subjects.
+ * levelName = shared grade label ("Grade 11" or "Grade 12") — NOT per-strand.
+ * strandName = strand name (e.g. "STEM") — used for strand_id mapping in the seeder.
+ * isMinor = true for core/GE subjects shared across all strands.
  */
 export function shsSubjects(): SubjectDef[] {
   const out: SubjectDef[] = []
@@ -176,17 +166,15 @@ export function shsSubjects(): SubjectDef[] {
     const majors = SHS_MAJOR[strand.name] ?? []
 
     for (const g of [11, 12] as const) {
-      const levelName = `Grade ${g} – ${strand.name}`
+      const levelName = `Grade ${g}`
       const yearLabel = `Grade ${g}`
 
-      // Major subjects — isMinor: false
+      // Major subjects — tied to this specific strand
       for (const m of majors.filter((x) => x.grade === g)) {
         out.push(subj(levelName, null, strand.name, m.name, yearLabel, m.term, m.prereqs, false))
       }
 
-      // Minor subjects — isMinor: true
-      // These are still emitted per strand-level so the seeder can create
-      // SubjectSharing rows linking each minor → strand
+      // Minor/core subjects — shared across strands (isMinor = true)
       for (const m of SHS_MINOR.filter((x) => x.grade === g)) {
         out.push(subj(levelName, null, strand.name, m.name, yearLabel, m.term, m.prereqs, true))
       }
