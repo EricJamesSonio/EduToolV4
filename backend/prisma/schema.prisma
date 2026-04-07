@@ -47,6 +47,17 @@ enum AttendanceStatus {
   excused
 }
 
+enum SchoolYearStatus {
+  pending
+  active
+  ended
+}
+
+enum SchoolYearEnrollmentStatus {
+  active
+  pending
+  unenrolled  // manually or auto unenrolled
+}
 //////////////////////
 // CORE TABLES
 //////////////////////
@@ -59,6 +70,15 @@ model Organization {
   admin_account_id String?  @unique
 
   accounts Account[]
+}
+
+model OrgEnrollmentSetting {
+  id                          String  @id @default(uuid())
+  org_id                      String  @unique
+  require_semester_reenrollment Boolean @default(false) // if true, students must re-enroll each semester
+  auto_unenroll_on_year_end   Boolean @default(true)   // auto unenroll when school year ends
+  created_at                  DateTime @default(now())
+  updated_at                  DateTime @updatedAt
 }
 
 model Account {
@@ -104,6 +124,7 @@ model Program {
   strands    Strand[]
   levels     Level[]
   subjects   Subject[]  // minor subjects scoped to this program
+  studentEnrollments StudentProgramEnrollment[]
 }
 
 model Course {
@@ -118,6 +139,7 @@ model Course {
   program    Program          @relation(fields: [program_id], references: [id])
   subjects   Subject[]        // major subjects directly assigned
   sharings   SubjectSharing[] // minor subjects shared to this course
+  studentEnrollments StudentProgramEnrollment[]
 }
 
 model Strand {
@@ -131,6 +153,7 @@ model Strand {
   program    Program          @relation(fields: [program_id], references: [id])
   subjects   Subject[]        // major subjects directly assigned
   sharings   SubjectSharing[] // minor subjects shared to this strand
+  studentEnrollments StudentProgramEnrollment[]
 }
 
 model Level {
@@ -144,6 +167,7 @@ model Level {
   program    Program          @relation(fields: [program_id], references: [id])
   sections   Section[]
   sharings   SubjectSharing[] // minor subjects shared to this level (K-12)
+  studentEnrollments StudentProgramEnrollment[]
 }
 
 model Section {
@@ -157,21 +181,63 @@ model Section {
 
   level      Level      @relation(fields: [level_id], references: [id])
   schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
+  studentEnrollments StudentProgramEnrollment[]
 }
 
 model SchoolYear {
-  id     String @id @default(uuid())
-  org_id String
-  name   String
-  status String
+  id         String            @id @default(uuid())
+  org_id     String
+  name       String
+  status     SchoolYearStatus  @default(pending)  // was plain String
+  start_date DateTime?
+  end_date   DateTime?
 
-  programs       Program[]
-  courses        Course[]
-  strands        Strand[]
-  levels         Level[]
-  sections       Section[]
-  gradingScales  GradingScale[]
-  gradingSchemes GradingScheme[]
+  programs           Program[]
+  courses            Course[]
+  strands            Strand[]
+  levels             Level[]
+  sections           Section[]
+  gradingScales      GradingScale[]
+  gradingSchemes     GradingScheme[]
+  studentEnrollments StudentSchoolYear[]
+}
+
+model StudentSchoolYear {
+  id             String                     @id @default(uuid())
+  org_id         String
+  student_id     String
+  school_year_id String
+  status         SchoolYearEnrollmentStatus @default(pending)
+  enrolled_at    DateTime                   @default(now())
+  unenrolled_at  DateTime?                  // set when manually or auto unenrolled
+  notes          String?                    // optional admin notes
+
+  schoolYear          SchoolYear               @relation(fields: [school_year_id], references: [id])
+  programEnrollments  StudentProgramEnrollment[]
+
+  @@unique([org_id, student_id, school_year_id])
+}
+
+model StudentProgramEnrollment {
+  id                      String           @id @default(uuid())
+  org_id                  String
+  student_school_year_id  String           // FK to StudentSchoolYear
+  program_id              String
+  level_id                String?          // e.g. 1st Year, Grade 7
+  course_id               String?          // e.g. BSCS (college)
+  strand_id               String?          // e.g. STEM (SHS)
+  section_id              String?          // optional section assignment
+  status                  EnrollmentStatus @default(active)
+  enrolled_at             DateTime         @default(now())
+
+  studentSchoolYear StudentSchoolYear @relation(fields: [student_school_year_id], references: [id])
+  program           Program           @relation(fields: [program_id], references: [id])
+  level             Level?            @relation(fields: [level_id], references: [id])
+  course            Course?           @relation(fields: [course_id], references: [id])
+  strand            Strand?           @relation(fields: [strand_id], references: [id])
+  section           Section?          @relation(fields: [section_id], references: [id])
+
+  @@unique([student_school_year_id, program_id]) // one program per student per school year
 }
 
 model Semester {
