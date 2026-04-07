@@ -217,28 +217,31 @@ model SemesterTemplateItem {
   id          String @id @default(uuid())
   org_id      String
   template_id String
-  name        String  // e.g. "1st Semester"
+  name        String
   order_index Int
-  template    SemesterTemplate @relation(...)
-  terms       SemesterTemplateTerm[]
+
+  template SemesterTemplate @relation(fields: [template_id], references: [id])
+  terms    SemesterTemplateTerm[]
 }
 
 model SemesterTemplateTerm {
   id          String @id @default(uuid())
   org_id      String
-  semester_id String  // FK to SemesterTemplateItem
-  name        String  // e.g. "Midterm"
+  semester_id String
+  name        String
   order_index Int
-  semester    SemesterTemplateItem @relation(...)
+
+  semester SemesterTemplateItem @relation(fields: [semester_id], references: [id])
 }
 
 model ProgramSemesterAssignment {
   id          String @id @default(uuid())
   org_id      String
-  program_id  String  @unique  // one active template per program instance
+  program_id  String  @unique
   template_id String
-  program     Program          @relation(...)
-  template    SemesterTemplate @relation(...)
+
+  program  Program          @relation(fields: [program_id], references: [id])
+  template SemesterTemplate @relation(fields: [template_id], references: [id])
 }
 
 model StudentSchoolYear {
