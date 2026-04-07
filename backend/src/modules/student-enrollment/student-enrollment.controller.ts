@@ -17,12 +17,12 @@ import {
   UpdateProgramEnrollmentDto,
 } from './dto/student-enrollment.dto'
 import { AuthGuard }    from '@/commons/guards/auth.guard'
-import { RoleGuard }    from '@/commons/guards/role.guard'
+import { RolesGuard }    from '@/commons/guards/role.guard'
 import { Roles }        from '@/commons/decorators/roles.decorator'
 import { CurrentUser }  from '@/commons/decorators/current-user.decorator'
 
 @Controller('school-years/:schoolYearId/enrollments')
-@UseGuards(AuthGuard, RoleGuard)
+@UseGuards(AuthGuard, RolesGuard)
 @Roles('admin')
 export class StudentEnrollmentController {
   constructor(private readonly service: StudentEnrollmentService) {}
