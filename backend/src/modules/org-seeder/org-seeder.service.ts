@@ -30,25 +30,26 @@ export interface GradingScaleOption {
 }
 
 export interface OrgSeedOptions {
-  orgId:             string
-  schoolYearId:      string
-  programs:          string[]
-  courses?:          string[]
-  strands?:          string[]
-  excludedLevels?:   string[]
+  orgId: string
+  schoolYearId: string
+  programs: string[]
+  courses?: string[]
+  strands?: string[]
+  excludedLevels?: string[]
   excludedSubjects?: string[]
-  /**
-   * Custom level names per program from the frontend admin.
-   * Key = programKey, value = ordered array of level names.
-   * When provided for a program, overrides buildLevelDefs() for that program.
-   * e.g. { college: ['1st Year', '2nd Year', '3rd Year'], shs: ['Grade 11', 'Grade 12'] }
-   */
-  levelConfigs?:     Record<string, string[]>
-  /**
-   * Per-program grading scale to seed.
-   * Key = programKey, value = scale definition.
-   */
-  gradingScales?:    Record<string, GradingScaleOption>
+
+  levelConfigs?: Record<string, string[]>
+
+  // ✅ ADD THIS
+  sectionConfigs?: Record<
+    string,
+    {
+      name: string
+      capacity: number
+    }[]
+  >
+
+  gradingScales?: Record<string, GradingScaleOption>
 }
 
 @Injectable()
@@ -65,6 +66,7 @@ export class OrgSeederService {
       excludedLevels   = [],
       excludedSubjects = [],
       levelConfigs     = {},
+      sectionConfigs = {},
       gradingScales    = {},
     } = options
 
@@ -89,7 +91,7 @@ export class OrgSeederService {
     await this.seedPrograms(orgId, schoolYearId, shouldSeedProgram, programMap)
     await this.seedCourses(orgId, schoolYearId, shouldSeedProgram, shouldSeedCourse, programMap, courseMap)
     await this.seedStrands(orgId, schoolYearId, shouldSeedProgram, shouldSeedStrand, programMap, strandMap)
-    await this.seedLevelsAndSections(orgId, schoolYearId, shouldSeedProgram, shouldSeedLevel, programMap, levelMap, levelConfigs)
+    await this.seedLevelsAndSections(orgId, schoolYearId, shouldSeedProgram, shouldSeedLevel, programMap, levelMap, levelConfigs,sectionConfigs)
     await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, levelMap, gradingScales)
     await this.seedGradingSchemes(orgId, schoolYearId, shouldSeedProgram)
     await this.seedMajorSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, subjectNameToId)
@@ -170,15 +172,22 @@ export class OrgSeederService {
     }
   }
 
-  private async seedLevelsAndSections(
-    orgId:        string,
-    schoolYearId: string,
-    shouldSeedP:  (k: string) => boolean,
-    shouldSeedL:  (name: string) => boolean,
-    programMap:   Record<string, string>,
-    levelMap:     Record<string, string>,
-    levelConfigs: Record<string, string[]>,
-  ) {
+private async seedLevelsAndSections(
+  orgId: string,
+  schoolYearId: string,
+  shouldSeedP: (k: string) => boolean,
+  shouldSeedL: (name: string) => boolean,
+  programMap: Record<string, string>,
+  levelMap: Record<string, string>,
+  levelConfigs: Record<string, string[]>,
+  sectionConfigs: Record<
+    string,
+    {
+      name: string
+      capacity: number
+    }[]
+  >,
+) {
     // Build level defs: prefer frontend levelConfigs over buildLevelDefs()
     const defaultDefs = buildLevelDefs().filter((l) => shouldSeedP(l.programKey))
 
@@ -212,22 +221,25 @@ export class OrgSeederService {
           })
           levelMap[levelName] = rec.id
 
-          // Default 2 sections for custom levels
-          for (const secName of ['Section A', 'Section B']) {
-            const sectionId = seedId('section', progKey, levelName, secName, schoolYearId, orgId)
-            await this.db.section.upsert({
-              where:  { id: sectionId },
-              update: {},
-              create: {
-                id:             sectionId,
-                org_id:         orgId,
-                level_id:       rec.id,
-                school_year_id: schoolYearId,
-                name:           secName,
-                capacity:       40,
-              },
-            })
-          }
+    const customSections = sectionConfigs[levelName] ?? [
+      { name: 'Section A', capacity: 40 },
+      { name: 'Section B', capacity: 40 },
+    ]
+    for (const sec of customSections) {
+      const sectionId = seedId('section', progKey, levelName, sec.name, schoolYearId, orgId)
+      await this.db.section.upsert({
+        where:  { id: sectionId },
+        update: {},
+        create: {
+          id:             sectionId,
+          org_id:         orgId,
+          level_id:       rec.id,
+          school_year_id: schoolYearId,
+          name:           sec.name,
+          capacity:       sec.capacity,
+        },
+      })
+    }
         }
       } else {
         // Fall back to default level defs for this program
@@ -249,21 +261,22 @@ export class OrgSeederService {
           })
           levelMap[lvl.name] = rec.id
 
-          for (const sec of lvl.sections) {
-            const sectionId = seedId('section', lvl.programKey, lvl.name, sec.name, schoolYearId, orgId)
-            await this.db.section.upsert({
-              where:  { id: sectionId },
-              update: {},
-              create: {
-                id:             sectionId,
-                org_id:         orgId,
-                level_id:       rec.id,
-                school_year_id: schoolYearId,
-                name:           sec.name,
-                capacity:       sec.capacity,
-              },
-            })
-          }
+      const defaultSections = sectionConfigs[lvl.name] ?? lvl.sections
+      for (const sec of defaultSections) {
+        const sectionId = seedId('section', lvl.programKey, lvl.name, sec.name, schoolYearId, orgId)
+        await this.db.section.upsert({
+          where:  { id: sectionId },
+          update: {},
+          create: {
+            id:             sectionId,
+            org_id:         orgId,
+            level_id:       rec.id,
+            school_year_id: schoolYearId,
+            name:           sec.name,
+            capacity:       sec.capacity,
+          },
+        })
+      }
         }
       }
     }

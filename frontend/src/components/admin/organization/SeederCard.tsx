@@ -18,6 +18,7 @@ import {
 import { SchoolYearStep }   from "./SchoolYearStep"
 import { ProgramStep }      from "./ProgramStep"
 import { LevelStep }        from "./LevelStep"
+import { SectionStep }      from "./SectionStep" // ✅ CHANGE 1
 import { StrandStep }       from "./StrandStep"
 import { CourseStep }       from "./CourseStep"
 import { SubjectStep }      from "./SubjectStep"
@@ -49,7 +50,6 @@ export function SeederCard() {
     }
   }, [schoolYears, selectedSchoolYearId])
 
-  // ── Updated: now accepts optional start_date / end_date ──────────────────
   const createSchoolYearMutation = useMutation({
     mutationFn: ({
       name,
@@ -83,6 +83,10 @@ export function SeederCard() {
     toggleSet,
     selectAll,
     deselectAll,
+
+    // ✅ CHANGE 2
+    sectionConfigs,
+    setSectionsForLevel,
   } = useSeedState()
 
   const seedMutation = useMutation({
@@ -114,6 +118,17 @@ export function SeederCard() {
         .map((p) => [p, levelConfigs[p]?.names ?? LEVEL_DEFS[p]]),
     )
 
+    // ✅ CHANGE 4 (section payload)
+    const sectionConfigsPayload = Object.fromEntries(
+      Array.from(selectedPrograms)
+        .filter((p) => LEVEL_DEFS[p])
+        .flatMap((p) => levelConfigs[p]?.names ?? LEVEL_DEFS[p] ?? [])
+        .map((levelName) => [
+          levelName,
+          sectionConfigs[levelName] ?? SECTION_DEFAULTS,
+        ]),
+    )
+
     const gradingScales = seedGradingScale
       ? Object.fromEntries(
           Object.entries(resolvedGradingScales).map(([prog, preset]) => [
@@ -135,6 +150,7 @@ export function SeederCard() {
       levelConfigs:    Object.keys(levelConfigsPayload).length > 0
                          ? levelConfigsPayload
                          : undefined,
+      sectionConfigs:  sectionConfigsPayload, // ✅ added
       excludedSubjects: excludedSubjects.length > 0 ? excludedSubjects : undefined,
       gradingScales,
     })
@@ -170,6 +186,12 @@ export function SeederCard() {
       0,
     )
 
+  // ✅ CHANGE 5 (section count)
+  const totalSectionCount = Array.from(selectedPrograms)
+    .filter((p) => LEVEL_DEFS[p])
+    .flatMap((p) => levelConfigs[p]?.names ?? LEVEL_DEFS[p] ?? [])
+    .reduce((sum, lvl) => sum + (sectionConfigs[lvl]?.length ?? 2), 0)
+
   const summaryText = !selectedSchoolYearId
     ? "Select a school year to begin."
     : selectedPrograms.size === 0
@@ -177,6 +199,7 @@ export function SeederCard() {
     : [
         `${selectedPrograms.size} program(s)`,
         totalLevelCount > 0 && `${totalLevelCount} level(s)`,
+        totalSectionCount > 0 && `${totalSectionCount} section(s)`, // ✅ added
         selectedPrograms.has("college") &&
           `${Array.from(selectedCourses).length} course(s)`,
         selectedPrograms.has("shs") &&
@@ -196,7 +219,6 @@ export function SeederCard() {
 
   return (
     <div className="rounded-lg border bg-card">
-      {/* ── Card header ── */}
       <button
         type="button"
         onClick={() => setCollapsed((c) => !c)}
@@ -214,7 +236,6 @@ export function SeederCard() {
         }
       </button>
 
-      {/* ── Collapsible body ── */}
       {!collapsed && (
         <div className="px-6 pb-6 space-y-5">
           <p className="text-sm text-muted-foreground -mt-1">
@@ -222,35 +243,25 @@ export function SeederCard() {
             scales. Safe to run multiple times — only adds missing data.
           </p>
 
-          {/* School Year */}
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5" />
               School Year
               <span className="text-destructive ml-0.5">*</span>
             </Label>
-            <p className="text-xs text-muted-foreground">
-              All seeded data will be scoped to the selected school year.
-            </p>
+
             <SchoolYearStep
               schoolYears={schoolYears}
               isLoading={syLoading}
               selectedId={selectedSchoolYearId}
               onSelect={setSelectedSchoolYearId}
-              // ── Updated: pass start_date + end_date through ──────────────
               onCreate={(name, start_date, end_date) =>
                 createSchoolYearMutation.mutate({ name, start_date, end_date })
               }
               isCreating={createSchoolYearMutation.isPending}
             />
-            {!selectedSchoolYearId && !syLoading && (
-              <p className="text-xs text-destructive">
-                A school year is required before seeding.
-              </p>
-            )}
           </div>
 
-          {/* Steps — dimmed until school year selected */}
           <div
             className={cn(
               "space-y-5 transition-opacity",
@@ -259,12 +270,12 @@ export function SeederCard() {
                 : "",
             )}
           >
-            <ProgramStep
-              selectedPrograms={selectedPrograms}
-              onToggleProgram={helpers.toggleProgram}
-              onSelectAllPrograms={helpers.selectAllPrograms}
-              onDeselectAllPrograms={helpers.deselectAllPrograms}
-            />
+            <ProgramStep {...{
+              selectedPrograms,
+              onToggleProgram: helpers.toggleProgram,
+              onSelectAllPrograms: helpers.selectAllPrograms,
+              onDeselectAllPrograms: helpers.deselectAllPrograms,
+            }} />
 
             {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
               <LevelStep
@@ -275,22 +286,32 @@ export function SeederCard() {
               />
             )}
 
-            {selectedPrograms.has("shs") && (
-              <StrandStep
-                selectedStrands={selectedStrands}
-                onToggleStrand={helpers.toggleStrand}
-                onSelectAllStrands={helpers.selectAllStrands}
-                onDeselectAllStrands={helpers.deselectAllStrands}
+            {/* ✅ CHANGE 3 */}
+            {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
+              <SectionStep
+                selectedPrograms={selectedPrograms}
+                levelConfigs={levelConfigs}
+                sectionConfigs={sectionConfigs}
+                onSetSections={setSectionsForLevel}
               />
             )}
 
+            {selectedPrograms.has("shs") && (
+              <StrandStep {...{
+                selectedStrands,
+                onToggleStrand: helpers.toggleStrand,
+                onSelectAllStrands: helpers.selectAllStrands,
+                onDeselectAllStrands: helpers.deselectAllStrands,
+              }} />
+            )}
+
             {selectedPrograms.has("college") && (
-              <CourseStep
-                selectedCourses={selectedCourses}
-                onToggleCourse={helpers.toggleCourse}
-                onSelectAllCourses={helpers.selectAllCourses}
-                onDeselectAllCourses={helpers.deselectAllCourses}
-              />
+              <CourseStep {...{
+                selectedCourses,
+                onToggleCourse: helpers.toggleCourse,
+                onSelectAllCourses: helpers.selectAllCourses,
+                onDeselectAllCourses: helpers.deselectAllCourses,
+              }} />
             )}
 
             <SubjectStep
@@ -318,7 +339,6 @@ export function SeederCard() {
             )}
           </div>
 
-          {/* Footer */}
           <div className="flex items-center justify-between pt-2 border-t">
             <p className="text-xs text-muted-foreground">{summaryText}</p>
             <Button

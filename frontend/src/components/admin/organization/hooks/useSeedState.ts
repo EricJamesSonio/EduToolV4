@@ -8,6 +8,7 @@ import {
   SHS_STRAND_SUBJECTS,
   SHS_STRANDS,
   GRADING_SCALE_PRESETS,
+  SECTION_DEFAULTS,
   generateLevelNames,
   type GradingScalePreset,
 } from "../constants/seed-data"
@@ -17,14 +18,27 @@ export interface ProgramLevelConfig {
   names: string[]
 }
 
+export type SectionConfig = { name: string; capacity: number }[]
+
 // Sensible default preset per program type
 const DEFAULT_PRESET_PER_PROGRAM: Record<string, string> = {
-  daycare:    "deped_k12",
-  kinder:     "deped_k12",
+  daycare: "deped_k12",
+  kinder: "deped_k12",
   elementary: "deped_k12",
-  jhs:        "deped_k12",
-  shs:        "deped_k12",
-  college:    "college_5pt",
+  jhs: "deped_k12",
+  shs: "deped_k12",
+  college: "college_5pt",
+}
+
+// Helper: build initial section configs
+function buildInitialSectionConfigs(): Record<string, SectionConfig> {
+  const out: Record<string, SectionConfig> = {}
+  Object.entries(LEVEL_DEFS).forEach(([, names]) => {
+    names.forEach((levelName) => {
+      out[levelName] = SECTION_DEFAULTS.map((s) => ({ ...s }))
+    })
+  })
+  return out
 }
 
 export function useSeedState() {
@@ -39,6 +53,11 @@ export function useSeedState() {
     })
     return initial
   })
+
+  // ── Sections ──────────────────────────────────────────────────────────────
+  const [sectionConfigs, setSectionConfigs] = useState<Record<string, SectionConfig>>(
+    buildInitialSectionConfigs,
+  )
 
   // ── Courses / Strands ──────────────────────────────────────────────────────
   const [selectedCourses, setSelectedCourses] = useState<Set<string>>(
@@ -79,10 +98,9 @@ export function useSeedState() {
     return Array.from(out)
   }, [selectedPrograms, levelConfigs, selectedStrands, selectedCourses])
 
-  // ── Grading Scale — one preset key per program (1-to-1) ──────────────────
+  // ── Grading Scale ─────────────────────────────────────────────────────────
   const [seedGradingScale, setSeedGradingScale] = useState(true)
 
-  // Map: programKey → presetKey
   const [gradingScaleByProgram, setGradingScaleByProgram] = useState<Record<string, string>>(
     () => ({ ...DEFAULT_PRESET_PER_PROGRAM })
   )
@@ -91,11 +109,10 @@ export function useSeedState() {
     setGradingScaleByProgram((prev) => ({ ...prev, [prog]: presetKey }))
   }
 
-  // Resolved preset objects for the currently selected programs
   const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => {
     const out: Record<string, GradingScalePreset> = {}
     Array.from(selectedPrograms).forEach((prog) => {
-      const key    = gradingScaleByProgram[prog] ?? GRADING_SCALE_PRESETS[0].key
+      const key = gradingScaleByProgram[prog] ?? GRADING_SCALE_PRESETS[0].key
       const preset = GRADING_SCALE_PRESETS.find((p) => p.key === key)
       if (preset) out[prog] = preset
     })
@@ -105,10 +122,10 @@ export function useSeedState() {
   // ── Level helpers ──────────────────────────────────────────────────────────
   function setLevelCount(prog: string, count: number) {
     setLevelConfigs((prev) => {
-      const existing  = prev[prog] ?? { count: 0, names: [] }
-      const newNames  = generateLevelNames(prog, count)
-      const merged    = newNames.map((defaultName, i) => {
-        const oldName    = existing.names[i]
+      const existing = prev[prog] ?? { count: 0, names: [] }
+      const newNames = generateLevelNames(prog, count)
+      const merged = newNames.map((defaultName, i) => {
+        const oldName = existing.names[i]
         const defaultAtI = generateLevelNames(prog, existing.count)[i]
         return oldName && oldName !== defaultAtI ? oldName : defaultName
       })
@@ -120,10 +137,25 @@ export function useSeedState() {
     setLevelConfigs((prev) => {
       const existing = prev[prog]
       if (!existing) return prev
+
       const names = [...existing.names]
+      const oldName = names[index]
       names[index] = newName
+
+      setSectionConfigs((prevSec) => {
+        const next = { ...prevSec }
+        const current = next[oldName] ?? SECTION_DEFAULTS.map((s) => ({ ...s }))
+        delete next[oldName]
+        next[newName] = current
+        return next
+      })
+
       return { ...prev, [prog]: { ...existing, names } }
     })
+  }
+
+  function renameLevelSections(levelName: string, sections: SectionConfig) {
+    setSectionConfigs((prev) => ({ ...prev, [levelName]: sections }))
   }
 
   // ── Generic set helpers ───────────────────────────────────────────────────
@@ -143,17 +175,22 @@ export function useSeedState() {
   }
 
   return {
-    selectedPrograms,  setSelectedPrograms,
-    selectedCourses,   setSelectedCourses,
-    selectedStrands,   setSelectedStrands,
-    selectedSubjects,  setSelectedSubjects,
+    selectedPrograms, setSelectedPrograms,
+    selectedCourses, setSelectedCourses,
+    selectedStrands, setSelectedStrands,
+    selectedSubjects, setSelectedSubjects,
     allSelectableSubjects,
     levelConfigs,
     setLevelCount,
     renameLevelAt,
-    seedGradingScale,      setSeedGradingScale,
+
+    sectionConfigs,
+    setSectionsForLevel: renameLevelSections,
+
+    seedGradingScale, setSeedGradingScale,
     gradingScaleByProgram, setGradingScaleForProgram,
     resolvedGradingScales,
+
     toggleSet,
     selectAll,
     deselectAll,

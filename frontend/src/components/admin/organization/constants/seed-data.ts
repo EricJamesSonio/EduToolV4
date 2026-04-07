@@ -420,3 +420,9 @@ export const COURSE_SUBJECTS: Record<string, string[]> = {
   "BSED-FIL":  ["Oral Communication","Reading and Writing Skills","Mathematics in the Modern World","Understanding the Self","Contemporary World","Readings in Philippine History","Physical Education / Health","Life and Works of Jose Rizal","National Service Training Program (NSTP)","Art Appreciation","The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
   "BSED-TLE":  ["Oral Communication","Reading and Writing Skills","Mathematics in the Modern World","Understanding the Self","Contemporary World","Readings in Philippine History","Physical Education / Health","Life and Works of Jose Rizal","National Service Training Program (NSTP)","Art Appreciation","The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
 }
+
+export const SECTION_DEFAULTS: { name: string; capacity: number }[] = [
+  { name: "Section A", capacity: 40 },
+  { name: "Section B", capacity: 40 },
+]
+ 

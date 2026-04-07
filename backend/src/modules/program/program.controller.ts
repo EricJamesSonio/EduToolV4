@@ -1,6 +1,7 @@
 import {
   Controller, Post, Get, Patch, Delete,
   Body, Param, Query, UseGuards, HttpCode, HttpStatus,
+  BadRequestException
 } from '@nestjs/common'
 import { ProgramService } from './program.service'
 import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto'
@@ -27,6 +28,10 @@ export class ProgramController {
     @CurrentUser('orgId') orgId: string,
     @Body() dto: CreateProgramDto,
   ) {
+    if (!orgId) {
+      throw new BadRequestException('orgId is missing from user context')
+    }
+
     return this.programService.create(orgId, dto)
   }
 
@@ -35,7 +40,12 @@ export class ProgramController {
     @CurrentUser('orgId') orgId: string,
     @Query() query: ProgramQueryDto,
   ) {
+    if (!orgId) {
+      throw new BadRequestException('orgId is missing from user context')
+    }
+
     if (!query.schoolYearId) return []
+
     return this.programService.findAll(orgId, query.schoolYearId)
   }
 
@@ -44,6 +54,10 @@ export class ProgramController {
     @Param('id') id: string,
     @CurrentUser('orgId') orgId: string,
   ) {
+    if (!orgId) {
+      throw new BadRequestException('orgId is missing from user context')
+    }
+
     return this.programService.findById(id, orgId)
   }
 
@@ -53,6 +67,10 @@ export class ProgramController {
     @CurrentUser('orgId') orgId: string,
     @Body() dto: UpdateProgramDto,
   ) {
+    if (!orgId) {
+      throw new BadRequestException('orgId is missing from user context')
+    }
+
     return this.programService.update(id, orgId, dto)
   }
 
@@ -62,6 +80,10 @@ export class ProgramController {
     @Param('id') id: string,
     @CurrentUser('orgId') orgId: string,
   ) {
+    if (!orgId) {
+      throw new BadRequestException('orgId is missing from user context')
+    }
+
     await this.programService.remove(id, orgId)
   }
 }
