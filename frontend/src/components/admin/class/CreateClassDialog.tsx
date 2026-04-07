@@ -1,5 +1,7 @@
+// ===== File: frontend\src\components\admin\class\CreateClassDialog.tsx =====
 "use client";
 
+import { useEffect } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,8 +12,8 @@ import type { CreateClassRequest, ScheduleSlot } from "@/api/admin/class.api";
 import { subjectApi } from "@/api/admin/subject.api";
 import { educatorApi } from "@/api/admin/educator.api";
 import { sectionApi } from "@/api/admin/section.api";
-import { schoolYearApi } from "@/api/admin/school-year.api";
 import { semesterApi } from "@/api/admin/semester.api";
+
 import type { Subject } from "@/types/admin/subject.types";
 
 import { Button } from "@/components/ui/button";
@@ -29,11 +31,13 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import { programApi } from "@/api/admin/program.api";
+import { courseApi } from "@/api/admin/course.api";
+import { strandApi } from "@/api/admin/strand.api";
+import { levelApi } from "@/api/admin/level.api";
 
 import { ScheduleSlotFields } from "./ScheduleSlotFields";
 import { toArray } from "@/utils/classes.utils";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ScheduleSlotForm {
   weekday: string;
@@ -44,8 +48,12 @@ export interface ScheduleSlotForm {
 export interface CreateClassForm {
   subjectId: string;
   educatorId: string;
+
+  programId: string;     // ✅ NEW
+  trackId: string;       // course or strand (unified) ✅
+  levelId: string;       // ✅ NEW
   sectionId: string;
-  schoolYearId: string;
+
   semesterId: string;
   capacity: string;
   schedules: ScheduleSlotForm[];
@@ -55,14 +63,14 @@ interface CreateClassDialogProps {
   open: boolean;
   onClose: () => void;
   defaultSubjectId?: string;
+  schoolYearId: string | null; // ✅ NEW
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function CreateClassDialog({
   open,
   onClose,
   defaultSubjectId,
+  schoolYearId,
 }: CreateClassDialogProps): React.JSX.Element {
   const queryClient = useQueryClient();
 
@@ -71,10 +79,11 @@ export function CreateClassDialog({
       subjectId: defaultSubjectId ?? "",
       educatorId: "",
       sectionId: "",
-      schoolYearId: "",
       semesterId: "",
       capacity: "30",
-      schedules: [{ weekday: "1", startTime: "08:00", endTime: "09:00" }],
+      schedules: [
+        { weekday: "1", startTime: "08:00", endTime: "09:00" },
+      ],
     },
   });
 
@@ -90,11 +99,9 @@ export function CreateClassDialog({
   const selectedSubjectId = watch("subjectId");
   const selectedEducatorId = watch("educatorId");
   const selectedSectionId = watch("sectionId");
-  const selectedSchoolYearId = watch("schoolYearId");
   const selectedSemesterId = watch("semesterId");
 
-  // ─── Data fetching ──────────────────────────────────────────────────────────
-
+  // ===== Queries =====
   const { data: subjectsRaw } = useQuery({
     queryKey: ["admin", "subjects"],
     queryFn: () => subjectApi.getAll(),
@@ -107,36 +114,36 @@ export function CreateClassDialog({
   });
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
-  const { data: schoolYearsRaw } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: () => schoolYearApi.getAll(),
-  });
-  const schoolYears = toArray<{ id: string; name: string }>(schoolYearsRaw);
-
-  // ✅ FIXED: reactive sections query
   const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections", selectedSchoolYearId],
-    queryFn: () => sectionApi.getAll(selectedSchoolYearId!),
-    enabled: !!selectedSchoolYearId,
+    queryKey: ["admin", "sections", schoolYearId],
+    queryFn: () => sectionApi.getAll(schoolYearId!),
+    enabled: !!schoolYearId,
   });
   const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 
   const { data: semestersRaw } = useQuery({
-    queryKey: ["admin", "semesters", selectedSchoolYearId],
+    queryKey: ["admin", "semesters", schoolYearId],
     queryFn: () => semesterApi.getAll(),
-    enabled: !!selectedSchoolYearId,
+    enabled: !!schoolYearId,
   });
   const semesters = toArray<{ id: string; name: string }>(semestersRaw);
 
-  // ─── Mutation ───────────────────────────────────────────────────────────────
+  // ===== Ensure form resets when school year changes =====
+  useEffect(() => {
+    if (!schoolYearId) return;
 
+    setValue("sectionId", "");
+    setValue("semesterId", "");
+  }, [schoolYearId, setValue]);
+
+  // ===== Mutation =====
   const mutation = useMutation({
     mutationFn: (values: CreateClassForm) => {
       const payload: CreateClassRequest = {
         subjectId: values.subjectId,
         educatorId: values.educatorId,
         sectionId: values.sectionId || undefined,
-        schoolYearId: values.schoolYearId,
+        schoolYearId: schoolYearId!, // ✅ injected
         semesterId: values.semesterId,
         capacity: Number(values.capacity),
         schedules: values.schedules.map((s) => ({
@@ -145,6 +152,7 @@ export function CreateClassDialog({
           endTime: s.endTime,
         })) as ScheduleSlot[],
       };
+
       return classApi.create(payload);
     },
     onSuccess: () => {
@@ -154,7 +162,9 @@ export function CreateClassDialog({
       onClose();
     },
     onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to create class.");
+      toast.error(
+        err?.response?.data?.message ?? "Failed to create class."
+      );
     },
   });
 
@@ -167,13 +177,11 @@ export function CreateClassDialog({
     mutation.isPending ||
     !selectedSubjectId ||
     !selectedEducatorId ||
-    !selectedSchoolYearId ||
-    !selectedSemesterId;
-
-  // ─── Render ─────────────────────────────────────────────────────────────────
+    !selectedSemesterId ||
+    !schoolYearId;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Class</DialogTitle>
@@ -193,7 +201,8 @@ export function CreateClassDialog({
               >
                 <SelectTrigger>
                   <span>
-                    {subjects.find((s) => s.id === selectedSubjectId)?.title ?? "Select a subject"}
+                    {subjects.find((s) => s.id === selectedSubjectId)
+                      ?.title ?? "Select a subject"}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
@@ -215,7 +224,8 @@ export function CreateClassDialog({
               >
                 <SelectTrigger>
                   <span>
-                    {educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Select an educator"}
+                    {educators.find((e) => e.id === selectedEducatorId)
+                      ?.fullName ?? "Select an educator"}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
@@ -228,57 +238,24 @@ export function CreateClassDialog({
               </Select>
             </div>
 
-            {/* Section (optional) ✅ FIXED */}
+            {/* Section */}
             <div className="space-y-1.5">
-              <Label>
-                Section <span className="text-muted-foreground font-normal">(optional)</span>
-              </Label>
+              <Label>Section</Label>
               <Select
                 value={selectedSectionId}
                 onValueChange={(v) => setValue("sectionId", v ?? "")}
-                disabled={!selectedSchoolYearId}
+                disabled={!schoolYearId}
               >
                 <SelectTrigger>
                   <span>
-                    {sections.find((s) => s.id === selectedSectionId)?.name ?? "No section"}
+                    {sections.find((s) => s.id === selectedSectionId)
+                      ?.name ?? "Select section"}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No section</SelectItem>
                   {sections.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!selectedSchoolYearId && (
-                <p className="text-xs text-muted-foreground">
-                  Select a school year first.
-                </p>
-              )}
-            </div>
-
-            {/* School Year */}
-            <div className="space-y-1.5">
-              <Label>School Year</Label>
-              <Select
-                value={selectedSchoolYearId}
-                onValueChange={(v) => {
-                  setValue("schoolYearId", v ?? "");
-                  setValue("semesterId", "");
-                  setValue("sectionId", ""); // reset section too
-                }}
-              >
-                <SelectTrigger>
-                  <span>
-                    {schoolYears.find((sy) => sy.id === selectedSchoolYearId)?.name ?? "Select school year"}
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {schoolYears.map((sy) => (
-                    <SelectItem key={sy.id} value={sy.id}>
-                      {sy.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -291,11 +268,12 @@ export function CreateClassDialog({
               <Select
                 value={selectedSemesterId}
                 onValueChange={(v) => setValue("semesterId", v ?? "")}
-                disabled={!selectedSchoolYearId || semesters.length === 0}
+                disabled={!schoolYearId || semesters.length === 0}
               >
                 <SelectTrigger>
                   <span>
-                    {semesters.find((s) => s.id === selectedSemesterId)?.name ?? "Select semester"}
+                    {semesters.find((s) => s.id === selectedSemesterId)
+                      ?.name ?? "Select semester"}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
@@ -314,7 +292,6 @@ export function CreateClassDialog({
               <Input
                 type="number"
                 min={1}
-                placeholder="e.g. 30"
                 {...register("capacity", {
                   required: "Capacity is required",
                   min: { value: 1, message: "At least 1" },
@@ -334,7 +311,6 @@ export function CreateClassDialog({
                 type="button"
                 variant="outline"
                 onClick={handleClose}
-                disabled={mutation.isPending}
               >
                 Cancel
               </Button>
