@@ -1,3 +1,4 @@
+// backend/src/modules/organization/dto/organization.dto.ts
 import {
   IsString,
   IsOptional,
@@ -6,7 +7,12 @@ import {
   IsArray,
   IsUUID,
   Matches,
+  IsObject,
+  IsNumber,
+  IsBoolean,
+  ValidateNested,
 } from 'class-validator'
+import { Type } from 'class-transformer'
 
 export class CreateOrganizationDto {
   @IsString()
@@ -40,6 +46,33 @@ export class UpdateOrganizationDto {
   emailExtension?: string | null
 }
 
+export class GradingScaleRangeDto {
+  @IsString()
+  label!: string
+
+  @IsNumber()
+  minScore!: number
+
+  @IsNumber()
+  maxScore!: number
+
+  @IsString()
+  gradeValue!: string
+}
+
+export class GradingScalePayloadDto {
+  @IsString()
+  presetKey!: string
+
+  @IsString()
+  name!: string
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => GradingScaleRangeDto)
+  ranges!: GradingScaleRangeDto[]
+}
+
 export class SeedOrganizationDto {
   @IsUUID()
   schoolYearId!: string
@@ -67,4 +100,21 @@ export class SeedOrganizationDto {
   @IsArray()
   @IsString({ each: true })
   excludedSubjects?: string[]
+
+  /**
+   * Custom level names per program.
+   * Key = programKey, value = ordered array of level name strings.
+   * e.g. { college: ['1st Year', '2nd Year'], shs: ['Grade 11', 'Grade 12'] }
+   */
+  @IsOptional()
+  @IsObject()
+  levelConfigs?: Record<string, string[]>
+
+  /**
+   * Per-program grading scale to seed.
+   * Key = programKey, value = scale definition.
+   */
+  @IsOptional()
+  @IsObject()
+  gradingScales?: Record<string, GradingScalePayloadDto>
 }

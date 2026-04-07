@@ -1,3 +1,4 @@
+// backend/src/modules/organization/organization.service.ts
 import {
   Injectable,
   ConflictException,
@@ -24,12 +25,10 @@ export class OrganizationService {
     if (alreadyExists) {
       throw new ConflictException('An organization already exists for this account.')
     }
-
     const org = await this.orgRepository.create({
       name:        dto.name,
       description: dto.description,
     })
-
     await this.orgRepository.linkToAdmin(adminId, org.id)
     return org
   }
@@ -38,7 +37,6 @@ export class OrganizationService {
     if (!orgId) return null
     const org = await this.orgRepository.findById(orgId)
     if (!org) return null
-
     return {
       id:             org.id,
       name:           org.name,
@@ -50,11 +48,9 @@ export class OrganizationService {
   async update(orgId: string, dto: UpdateOrganizationDto) {
     const org = await this.orgRepository.findById(orgId)
     if (!org) throw new NotFoundException('Organization not found.')
-
     return this.orgRepository.update(orgId, {
-      name:            dto.name,
-      description:     dto.description,
-      // only include email_extension in the update payload if it was sent
+      name:        dto.name,
+      description: dto.description,
       ...(dto.emailExtension !== undefined && {
         email_extension: dto.emailExtension,
       }),
@@ -74,6 +70,8 @@ export class OrganizationService {
       strands:          dto.strands,
       excludedLevels:   dto.excludedLevels,
       excludedSubjects: dto.excludedSubjects,
+      levelConfigs:     dto.levelConfigs,
+      gradingScales:    dto.gradingScales,
     })
 
     return { success: true, message: 'Seed completed successfully.' }
