@@ -200,6 +200,7 @@ model SchoolYear {
   gradingScales      GradingScale[]
   gradingSchemes     GradingScheme[]
   studentEnrollments StudentSchoolYear[]
+  semesters Semester[]
 }
 
 model StudentSchoolYear {
@@ -248,7 +249,8 @@ model Semester {
   start_date     DateTime
   end_date       DateTime
 
-  terms Term[]
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])  // ADD THIS
+  terms      Term[]
 }
 
 model Term {
