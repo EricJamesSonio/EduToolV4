@@ -124,7 +124,7 @@ export function ProgramEnrollmentDialog({
             <Label>Program <span className="text-destructive">*</span></Label>
             <Select
               value={watch("program_id")}
-              onValueChange={(v) => setValue("program_id", v)}
+              onValueChange={(v) => setValue("program_id", v ?? "")}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select program" />
@@ -143,7 +143,7 @@ export function ProgramEnrollmentDialog({
               <Label>Level</Label>
               <Select
                 value={watch("level_id")}
-                onValueChange={(v) => setValue("level_id", v)}
+                onValueChange={(v) => setValue("level_id", v ?? "")}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select level" />
@@ -164,7 +164,7 @@ export function ProgramEnrollmentDialog({
               <Label>Course</Label>
               <Select
                 value={watch("course_id")}
-                onValueChange={(v) => setValue("course_id", v)}
+                onValueChange={(v) => setValue("course_id", v ?? "")}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select course" />
@@ -187,7 +187,7 @@ export function ProgramEnrollmentDialog({
               <Label>Strand</Label>
               <Select
                 value={watch("strand_id")}
-                onValueChange={(v) => setValue("strand_id", v)}
+                onValueChange={(v) => setValue("strand_id", v ?? "")}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select strand" />
