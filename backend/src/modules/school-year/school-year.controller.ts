@@ -29,10 +29,10 @@ export class SchoolYearController {
   @Post()
   @Roles('admin')
   async create(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') org_id: string,  // <- use snake_case here
     @Body() dto: CreateSchoolYearDto,
   ) {
-    return this.schoolYearService.create(orgId, dto);
+    return this.schoolYearService.create(org_id, dto);
   }
 
   /**

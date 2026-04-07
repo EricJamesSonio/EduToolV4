@@ -29,7 +29,7 @@ export class OrganizationController {
 
   @Get()
   @Roles('admin')
-  async getOwn(@CurrentUser('orgId') orgId: string | null) {
+  async getOwn(@CurrentUser('org_id') orgId: string | null) { // <-- changed here
     const org = await this.orgService.getOwn(orgId)
     if (!org) throw new NotFoundException('Organization not found.')
     return org
@@ -38,7 +38,7 @@ export class OrganizationController {
   @Patch()
   @Roles('admin')
   async update(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string, // <-- changed here
     @Body() dto: UpdateOrganizationDto,
   ) {
     return this.orgService.update(orgId, dto)
@@ -47,7 +47,7 @@ export class OrganizationController {
   @Post('seed')
   @Roles('admin')
   async seed(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string, // <-- changed here
     @Body() dto: SeedOrganizationDto,
   ) {
     return this.orgService.seed(orgId, dto)
