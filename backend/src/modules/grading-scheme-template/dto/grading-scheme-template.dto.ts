@@ -1,5 +1,3 @@
-// filepath: src/modules/grading-scheme-template/dto/grading-scheme-template.dto.ts
-
 import {
   IsString, IsOptional, IsNumber, IsArray, IsEnum,
   ValidateNested, MinLength, MaxLength, Min, Max,
@@ -11,15 +9,15 @@ export class GradingSchemeTemplateComponentDto {
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @IsEnum(ComponentType)
-  type: ComponentType;
+  type!: ComponentType;
 
   @IsNumber()
   @Min(1)
   @Max(100)
-  weight: number;
+  weight!: number;
 
   @IsOptional()
   @IsNumber()
@@ -31,7 +29,7 @@ export class CreateGradingSchemeTemplateDto {
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @IsOptional()
   @IsString()
@@ -40,7 +38,7 @@ export class CreateGradingSchemeTemplateDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => GradingSchemeTemplateComponentDto)
-  components: GradingSchemeTemplateComponentDto[];
+  components!: GradingSchemeTemplateComponentDto[];
 }
 
 export class UpdateGradingSchemeTemplateDto {
