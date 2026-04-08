@@ -14,6 +14,7 @@ import { educatorApi } from "@/api/admin/educator.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { semesterApi } from "@/api/admin/semester.api";
 import { sectionApi } from "@/api/admin/section.api";
+import type { SchoolYear } from "@/types/admin/school-year.types";
 
 import type { Class } from "@/types/admin/class.types";
 
@@ -52,11 +53,7 @@ function ClassesPageInner(): React.JSX.Element {
     queryFn: () => schoolYearApi.getAll(),
   });
 
-  const schoolYears = toArray<{
-    id: string;
-    name: string;
-    status: string;
-  }>(schoolYearsRaw);
+const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
 
   // ✅ Controlled selected school year
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<

@@ -1,7 +1,6 @@
-// frontend/src/app/admin/semester-settings/page.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -31,14 +30,12 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   Plus,
   MoreHorizontal,
   Pencil,
   Trash2,
-  BookOpen,
   ChevronRight,
   GripVertical,
   X,
@@ -48,7 +45,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import type { AxiosError } from "axios";
-import  clientApi  from "@/api/client";
+import clientApi from "@/api/client";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -72,19 +69,25 @@ interface SemesterTemplate {
   program_type: string;
   name: string;
   semesters: SemesterTemplateItem[];
-  assignments: { program_id: string }[];
 }
 
-interface ProgramWithAssignment {
+interface TemplateAssignment {
+  id: string;
+  program_id: string;
+  template_id: string;
+  template: Pick<SemesterTemplate, "id" | "name">;
+}
+
+interface Program {
   id: string;
   name: string;
   type: string;
   school_year_id: string;
-  semesterAssignment: {
-    id: string;
-    template_id: string;
-    template: Pick<SemesterTemplate, "id" | "name">;
-  } | null;
+}
+
+// Programs enriched client-side with their assignment (if any)
+interface ProgramWithAssignment extends Program {
+  semesterAssignment: TemplateAssignment | null;
 }
 
 interface SchoolYear {
@@ -93,34 +96,74 @@ interface SchoolYear {
   status: string;
 }
 
-// ─── API hooks ─────────────────────────────────────────────────────────────
+// ─── API helpers ────────────────────────────────────────────────────────────
+
+interface Envelope<T> {
+  success: boolean;
+  data: T;
+}
+
+// GET /semester-templates  (no programType filter — fetch all, group client-side)
+async function fetchTemplates(): Promise<SemesterTemplate[]> {
+  const res = await clientApi.get<Envelope<SemesterTemplate[]>>("/semester-templates");
+  return res.data.data ?? [];
+}
+
+// GET /semester-templates/assignments/by-school-year?schoolYearId=...
+async function fetchAssignments(schoolYearId: string): Promise<TemplateAssignment[]> {
+  const res = await clientApi.get<Envelope<TemplateAssignment[]>>(
+    "/semester-templates/assignments/by-school-year",
+    { params: { schoolYearId } }
+  );
+  return res.data.data ?? [];
+}
+
+// GET /programs?schoolYearId=...
+async function fetchPrograms(schoolYearId: string): Promise<Program[]> {
+  const res = await clientApi.get<Envelope<Program[]>>("/programs", {
+    params: { schoolYearId },
+  });
+  return res.data.data ?? [];
+}
+
+// ─── Query hooks ────────────────────────────────────────────────────────────
 
 function useSemesterTemplates() {
   return useQuery({
     queryKey: ["semester-templates"],
-    queryFn: () =>
-      api.get<SemesterTemplate[]>("/semester-templates").then((r) => r.data),
+    queryFn: fetchTemplates,
+  });
+}
+
+function useAssignments(schoolYearId: string) {
+  return useQuery({
+    queryKey: ["semester-template-assignments", schoolYearId],
+    queryFn: () => fetchAssignments(schoolYearId),
+    enabled: !!schoolYearId,
   });
 }
 
 function usePrograms(schoolYearId: string) {
   return useQuery({
-    queryKey: ["programs", schoolYearId, "with-assignment"],
-    queryFn: () =>
-      api
-        .get<ProgramWithAssignment[]>("/programs", {
-          params: { school_year_id: schoolYearId, include_assignment: true },
-        })
-        .then((r) => r.data),
+    queryKey: ["programs", schoolYearId],
+    queryFn: () => fetchPrograms(schoolYearId),
     enabled: !!schoolYearId,
   });
 }
 
+// ─── Mutation hooks ─────────────────────────────────────────────────────────
+
 function useCreateTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (dto: Omit<SemesterTemplate, "id" | "org_id" | "assignments">) =>
-      api.post<SemesterTemplate>("/semester-templates", dto).then((r) => r.data),
+    mutationFn: (dto: {
+      name: string;
+      programType: string;
+      semesters: { name: string; orderIndex: number; terms: { name: string; orderIndex: number }[] }[];
+    }) =>
+      clientApi
+        .post<Envelope<SemesterTemplate>>("/semester-templates", dto)
+        .then((r) => r.data.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["semester-templates"] }),
   });
 }
@@ -133,9 +176,14 @@ function useUpdateTemplate() {
       dto,
     }: {
       id: string;
-      dto: Omit<SemesterTemplate, "id" | "org_id" | "assignments">;
+      dto: {
+        name?: string;
+        semesters?: { name: string; orderIndex: number; terms: { name: string; orderIndex: number }[] }[];
+      };
     }) =>
-      api.put<SemesterTemplate>(`/semester-templates/${id}`, dto).then((r) => r.data),
+      clientApi
+        .patch<Envelope<SemesterTemplate>>(`/semester-templates/${id}`, dto)
+        .then((r) => r.data.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["semester-templates"] }),
   });
 }
@@ -143,7 +191,7 @@ function useUpdateTemplate() {
 function useDeleteTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.delete(`/semester-templates/${id}`),
+    mutationFn: (id: string) => clientApi.delete(`/semester-templates/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["semester-templates"] }),
   });
 }
@@ -151,11 +199,23 @@ function useDeleteTemplate() {
 function useAssignTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (dto: { program_id: string; template_id: string | null }) =>
-      api.post("/semester-templates/assign", dto).then((r) => r.data),
+    mutationFn: (dto: { programId: string; templateId: string }) =>
+      clientApi
+        .post<Envelope<TemplateAssignment>>("/semester-templates/assignments", dto)
+        .then((r) => r.data.data),
     onSuccess: (_d, vars) => {
-      qc.invalidateQueries({ queryKey: ["programs"] });
-      qc.invalidateQueries({ queryKey: ["semester-templates"] });
+      qc.invalidateQueries({ queryKey: ["semester-template-assignments"] });
+    },
+  });
+}
+
+function useRemoveAssignment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (programId: string) =>
+      clientApi.delete(`/semester-templates/assignments/${programId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["semester-template-assignments"] });
     },
   });
 }
@@ -166,15 +226,38 @@ const PROGRAM_TYPE_LABELS: Record<string, string> = {
   college: "College",
   shs: "Senior High School",
   jhs: "Junior High School",
-  k12: "K–12",
+  elementary: "Elementary",
 };
 
 const PROGRAM_TYPE_COLORS: Record<string, string> = {
   college: "bg-blue-500/10 text-blue-600 border-blue-200",
   shs: "bg-violet-500/10 text-violet-600 border-violet-200",
   jhs: "bg-amber-500/10 text-amber-600 border-amber-200",
-  k12: "bg-emerald-500/10 text-emerald-600 border-emerald-200",
+  elementary: "bg-emerald-500/10 text-emerald-600 border-emerald-200",
 };
+
+// ─── Form state types (local, 0-based index) ───────────────────────────────
+
+interface LocalTerm {
+  name: string;
+}
+
+interface LocalSemester {
+  name: string;
+  terms: LocalTerm[];
+}
+
+// Convert local form state → backend camelCase DTO
+function toSemesterDto(semesters: LocalSemester[]) {
+  return semesters.map((s, si) => ({
+    name: s.name,
+    orderIndex: si + 1,
+    terms: s.terms.map((t, ti) => ({
+      name: t.name,
+      orderIndex: ti + 1,
+    })),
+  }));
+}
 
 // ─── Template Form Dialog ──────────────────────────────────────────────────
 
@@ -192,27 +275,33 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
 
   const [programType, setProgramType] = useState(template?.program_type ?? "college");
   const [name, setName] = useState(template?.name ?? "");
-  const [semesters, setSemesters] = useState<SemesterTemplateItem[]>(
-    template?.semesters ?? [
-      { name: "1st Semester", order_index: 0, terms: [{ name: "Midterm", order_index: 0 }, { name: "Finals", order_index: 1 }] },
-      { name: "2nd Semester", order_index: 1, terms: [{ name: "Midterm", order_index: 0 }, { name: "Finals", order_index: 1 }] },
-    ]
-  );
+
+  // Normalise backend snake_case semesters → local form shape
+  const [semesters, setSemesters] = useState<LocalSemester[]>(() => {
+    if (template?.semesters?.length) {
+      return [...template.semesters]
+        .sort((a, b) => a.order_index - b.order_index)
+        .map((s) => ({
+          name: s.name,
+          terms: [...(s.terms ?? [])]
+            .sort((a, b) => a.order_index - b.order_index)
+            .map((t) => ({ name: t.name })),
+        }));
+    }
+    return [
+      { name: "1st Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
+      { name: "2nd Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
+    ];
+  });
 
   const addSemester = () =>
     setSemesters((prev) => [
       ...prev,
-      {
-        name: `${prev.length + 1}${["st","nd","rd"][prev.length] ?? "th"} Semester`,
-        order_index: prev.length,
-        terms: [],
-      },
+      { name: `${prev.length + 1}${["st", "nd", "rd"][prev.length] ?? "th"} Semester`, terms: [] },
     ]);
 
   const removeSemester = (si: number) =>
-    setSemesters((prev) =>
-      prev.filter((_, i) => i !== si).map((s, i) => ({ ...s, order_index: i }))
-    );
+    setSemesters((prev) => prev.filter((_, i) => i !== si));
 
   const updateSemesterName = (si: number, val: string) =>
     setSemesters((prev) => prev.map((s, i) => (i === si ? { ...s, name: val } : s)));
@@ -221,13 +310,7 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
     setSemesters((prev) =>
       prev.map((s, i) =>
         i === si
-          ? {
-              ...s,
-              terms: [
-                ...s.terms,
-                { name: `Term ${s.terms.length + 1}`, order_index: s.terms.length },
-              ],
-            }
+          ? { ...s, terms: [...s.terms, { name: `Term ${s.terms.length + 1}` }] }
           : s
       )
     );
@@ -235,14 +318,7 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
   const removeTerm = (si: number, ti: number) =>
     setSemesters((prev) =>
       prev.map((s, i) =>
-        i === si
-          ? {
-              ...s,
-              terms: s.terms
-                .filter((_, j) => j !== ti)
-                .map((t, j) => ({ ...t, order_index: j })),
-            }
-          : s
+        i === si ? { ...s, terms: s.terms.filter((_, j) => j !== ti) } : s
       )
     );
 
@@ -250,28 +326,36 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
     setSemesters((prev) =>
       prev.map((s, i) =>
         i === si
-          ? { ...s, terms: s.terms.map((t, j) => (j === ti ? { ...t, name: val } : t)) }
+          ? { ...s, terms: s.terms.map((t, j) => (j === ti ? { name: val } : t)) }
           : s
       )
     );
 
+  const errMsg = (e: unknown) =>
+    (e as AxiosError<{ message: string }>)?.response?.data?.message ?? "Something went wrong.";
+
   const handleSubmit = () => {
     if (!name.trim()) return toast.error("Template name is required.");
     if (semesters.length === 0) return toast.error("Add at least one semester.");
-    const dto = { program_type: programType, name: name.trim(), semesters };
+
+    const semestersDto = toSemesterDto(semesters);
+
     if (isEdit) {
       updateMutation.mutate(
-        { id: template.id, dto },
+        { id: template.id, dto: { name: name.trim(), semesters: semestersDto } },
         {
           onSuccess: () => { toast.success("Template updated."); onClose(); },
-          onError: (e) => toast.error((e as AxiosError<{ message: string }>)?.response?.data?.message ?? "Failed to update."),
+          onError: (e) => toast.error(errMsg(e)),
         }
       );
     } else {
-      createMutation.mutate(dto, {
-        onSuccess: () => { toast.success("Template created."); onClose(); },
-        onError: (e) => toast.error((e as AxiosError<{ message: string }>)?.response?.data?.message ?? "Failed to create."),
-      });
+      createMutation.mutate(
+        { name: name.trim(), programType, semesters: semestersDto },
+        {
+          onSuccess: () => { toast.success("Template created."); onClose(); },
+          onError: (e) => toast.error(errMsg(e)),
+        }
+      );
     }
   };
 
@@ -286,7 +370,6 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          {/* Top fields */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Program Type</Label>
@@ -314,7 +397,6 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
             </div>
           </div>
 
-          {/* Semesters */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Semesters & Terms</Label>
@@ -325,14 +407,13 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
 
             {semesters.length === 0 && (
               <div className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-                No semesters yet — click "Add Semester" to start.
+                No semesters yet — click &quot; Add Semester&quot; to start.
               </div>
             )}
 
             <div className="space-y-3">
               {semesters.map((sem, si) => (
                 <div key={si} className="rounded-lg border bg-muted/20 p-4 space-y-3">
-                  {/* Semester header */}
                   <div className="flex items-center gap-2">
                     <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0" />
                     <Input
@@ -351,7 +432,6 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
                     </Button>
                   </div>
 
-                  {/* Terms */}
                   <div className="pl-6 space-y-2">
                     {sem.terms.map((term, ti) => (
                       <div key={ti} className="flex items-center gap-2">
@@ -409,12 +489,10 @@ interface TemplateCardProps {
 
 function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const assignedCount = template.assignments?.length ?? 0;
   const typeColor = PROGRAM_TYPE_COLORS[template.program_type] ?? "bg-gray-100 text-gray-600 border-gray-200";
 
   return (
     <div className="rounded-lg border bg-card transition-colors hover:bg-muted/30">
-      {/* Header row */}
       <div
         className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none"
         onClick={() => setExpanded((e) => !e)}
@@ -438,14 +516,8 @@ function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
 
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-xs text-muted-foreground">
-            {template.semesters.length} sem
-            {template.semesters.length !== 1 ? "s" : ""}
+            {template.semesters.length} sem{template.semesters.length !== 1 ? "s" : ""}
           </span>
-          {assignedCount > 0 && (
-            <Badge variant="secondary" className="text-[10px] h-4 px-1.5 py-0">
-              {assignedCount} program{assignedCount !== 1 ? "s" : ""}
-            </Badge>
-          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
               <Button size="icon" variant="ghost" className="h-7 w-7">
@@ -468,12 +540,10 @@ function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
         </div>
       </div>
 
-      {/* Expanded: semester + term preview */}
       {expanded && (
         <div className="border-t px-4 py-3 bg-muted/20">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {template.semesters
-              .slice()
+            {[...template.semesters]
               .sort((a, b) => a.order_index - b.order_index)
               .map((sem) => (
                 <div key={sem.id ?? sem.order_index} className="rounded-md border bg-background p-3">
@@ -482,8 +552,7 @@ function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
                     <p className="text-[11px] text-muted-foreground italic">No terms</p>
                   ) : (
                     <div className="space-y-1">
-                      {sem.terms
-                        .slice()
+                      {[...sem.terms]
                         .sort((a, b) => a.order_index - b.order_index)
                         .map((term) => (
                           <div
@@ -514,46 +583,51 @@ interface AssignRowProps {
 
 function AssignRow({ program, templates }: AssignRowProps) {
   const assignMutation = useAssignTemplate();
+  const removeMutation = useRemoveAssignment();
+  const isPending = assignMutation.isPending || removeMutation.isPending;
+
   const compatible = templates.filter((t) => t.program_type === program.type);
   const current = program.semesterAssignment;
 
+  const errMsg = (e: unknown) =>
+    (e as AxiosError<{ message: string }>)?.response?.data?.message ?? "Something went wrong.";
+
   const handleChange = (templateId: string) => {
-    assignMutation.mutate(
-      { program_id: program.id, template_id: templateId === "none" ? null : templateId },
-      {
-        onSuccess: () => toast.success("Template assigned."),
-        onError: (e) =>
-          toast.error(
-            (e as AxiosError<{ message: string }>)?.response?.data?.message ??
-              "Failed to assign."
-          ),
-      }
-    );
+    if (templateId === "none") {
+      if (!current) return;
+      removeMutation.mutate(program.id, {
+        onSuccess: () => toast.success("Assignment removed."),
+        onError: (e) => toast.error(errMsg(e)),
+      });
+    } else {
+      assignMutation.mutate(
+        { programId: program.id, templateId },
+        {
+          onSuccess: () => toast.success("Template assigned."),
+          onError: (e) => toast.error(errMsg(e)),
+        }
+      );
+    }
   };
 
   return (
     <div className="flex items-center gap-3 py-2.5 px-1">
-      {/* Status icon */}
       {current ? (
         <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
       ) : (
         <Circle className="h-4 w-4 text-muted-foreground/30 shrink-0" />
       )}
 
-      {/* Program name */}
       <span className="text-sm font-medium min-w-0 flex-1 truncate">{program.name}</span>
 
-      {/* Select */}
       <div className="w-52 shrink-0">
         {compatible.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic px-1">
-            No compatible templates
-          </p>
+          <p className="text-xs text-muted-foreground italic px-1">No compatible templates</p>
         ) : (
           <Select
             value={current?.template_id ?? "none"}
             onValueChange={handleChange}
-            disabled={assignMutation.isPending}
+            disabled={isPending}
           >
             <SelectTrigger className="h-8 text-xs">
               <SelectValue placeholder="Assign template…" />
@@ -581,8 +655,8 @@ export default function SemesterSettingsPage(): React.JSX.Element {
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
   const [selectedYearId, setSelectedYearId] = useState<string>("");
 
-  // Auto-select active school year
-  useMemo(() => {
+  // Auto-select active school year — useEffect, not useMemo
+  useEffect(() => {
     if (!selectedYearId && schoolYears.length > 0) {
       const active = schoolYears.find((sy: SchoolYear) => sy.status === "active");
       setSelectedYearId(active?.id ?? schoolYears[0].id);
@@ -591,11 +665,22 @@ export default function SemesterSettingsPage(): React.JSX.Element {
 
   const { data: templates = [], isLoading: tLoading } = useSemesterTemplates();
   const { data: programs = [], isLoading: pLoading } = usePrograms(selectedYearId);
+  const { data: assignments = [], isLoading: aLoading } = useAssignments(selectedYearId);
+
   const deleteMutation = useDeleteTemplate();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<SemesterTemplate | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SemesterTemplate | null>(null);
+
+  // Merge assignments into programs client-side
+  const programsWithAssignment = useMemo<ProgramWithAssignment[]>(() => {
+    if (!Array.isArray(programs)) return [];
+    return programs.map((p) => ({
+      ...p,
+      semesterAssignment: assignments.find((a) => a.program_id === p.id) ?? null,
+    }));
+  }, [programs, assignments]);
 
   // Group templates by program_type
   const templatesByType = useMemo(() => {
@@ -608,37 +693,35 @@ export default function SemesterSettingsPage(): React.JSX.Element {
     return map;
   }, [templates]);
 
-  // Group programs by type (for the assignment panel)
+  // Group enriched programs by type
   const programsByType = useMemo(() => {
     const map = new Map<string, ProgramWithAssignment[]>();
-    for (const p of programs) {
+    for (const p of programsWithAssignment) {
       const arr = map.get(p.type) ?? [];
       arr.push(p);
       map.set(p.type, arr);
     }
     return map;
-  }, [programs]);
+  }, [programsWithAssignment]);
 
   const allTypes = useMemo(
     () => Array.from(new Set([...templatesByType.keys(), ...programsByType.keys()])),
     [templatesByType, programsByType]
   );
 
+  const errMsg = (e: unknown) =>
+    (e as AxiosError<{ message: string }>)?.response?.data?.message ?? "Failed to delete.";
+
   const handleDelete = () => {
     if (!deleteTarget) return;
     deleteMutation.mutate(deleteTarget.id, {
       onSuccess: () => { toast.success("Template deleted."); setDeleteTarget(null); },
-      onError: (e) => {
-        toast.error(
-          (e as AxiosError<{ message: string }>)?.response?.data?.message ??
-            "Failed to delete."
-        );
-        setDeleteTarget(null);
-      },
+      onError: (e) => { toast.error(errMsg(e)); setDeleteTarget(null); },
     });
   };
 
   const isLoading = syLoading || tLoading;
+  const isPanelLoading = pLoading || aLoading;
 
   return (
     <div className="space-y-8 pb-10">
@@ -662,7 +745,6 @@ export default function SemesterSettingsPage(): React.JSX.Element {
       ) : (
         <div className="space-y-10">
           {allTypes.length === 0 ? (
-            /* Empty state */
             <div className="rounded-xl border border-dashed bg-card px-6 py-16 text-center">
               <Layers className="h-10 w-10 text-muted-foreground/25 mx-auto mb-3" />
               <p className="text-sm font-medium text-muted-foreground">No templates yet</p>
@@ -681,7 +763,6 @@ export default function SemesterSettingsPage(): React.JSX.Element {
 
               return (
                 <section key={type} className="space-y-4">
-                  {/* Section heading */}
                   <div className="flex items-center gap-2">
                     <Badge
                       variant="outline"
@@ -694,10 +775,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                       size="sm"
                       variant="ghost"
                       className="h-7 text-xs text-muted-foreground"
-                      onClick={() => {
-                        setCreateOpen(true);
-                        // Pre-select type — handled inside dialog via prop if needed
-                      }}
+                      onClick={() => setCreateOpen(true)}
                     >
                       <Plus className="h-3 w-3 mr-1" /> Template
                     </Button>
@@ -725,16 +803,12 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                       )}
                     </div>
 
-                    {/* ── Right: Program assignments for selected school year ── */}
+                    {/* ── Right: Program assignments ── */}
                     <div className="lg:col-span-2 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Assign to Programs
-                        </p>
-                        {/* School year selector — shown once at this level */}
-                      </div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Assign to Programs
+                      </p>
 
-                      {/* School year selector */}
                       <Select value={selectedYearId} onValueChange={setSelectedYearId}>
                         <SelectTrigger className="h-8 text-xs">
                           <SelectValue placeholder="Select school year…" />
@@ -752,7 +826,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                       </Select>
 
                       <div className="rounded-lg border bg-card divide-y">
-                        {pLoading ? (
+                        {isPanelLoading ? (
                           <div className="p-4 space-y-2">
                             {[1, 2].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
                           </div>
@@ -769,8 +843,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                         )}
                       </div>
 
-                      {/* Unassigned warning */}
-                      {!pLoading && typePrograms.some((p) => !p.semesterAssignment) && (
+                      {!isPanelLoading && typePrograms.some((p) => !p.semesterAssignment) && (
                         <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
                           <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
                           <p className="text-[11px] text-amber-700">
@@ -798,23 +871,13 @@ export default function SemesterSettingsPage(): React.JSX.Element {
         />
       )}
 
-      {/* Delete confirm */}
       {deleteTarget && (
-        <Dialog
-          open
-          onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
-        >
+        <Dialog open onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle>Delete template?</DialogTitle>
               <DialogDescription>
-                Delete <strong>"{deleteTarget.name}"</strong>?{" "}
-                {(deleteTarget.assignments?.length ?? 0) > 0 && (
-                  <span className="text-destructive">
-                    This template is assigned to {deleteTarget.assignments.length} program(s) — assignments will be removed.
-                  </span>
-                )}{" "}
-                This action cannot be undone.
+                Delete <strong>"{deleteTarget.name}"</strong>? This action cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
