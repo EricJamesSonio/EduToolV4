@@ -1,7 +1,11 @@
 // src/modules/grade/grade.repository.ts
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from 'src/core/database/database.provider';
+import { Prisma } from '@prisma/client';
 
+type GradingSchemeWithComponents = Prisma.GradingSchemeGetPayload<{
+  include: { components: true };
+}>;
 @Injectable()
 export class GradeRepository {
   constructor(private db: DatabaseService) {}
@@ -119,7 +123,10 @@ export class GradeRepository {
 
   // ───────── GRADING SCHEME (for weights) ─────────
 
-  async findGradingSchemeForClass(classId: string, orgId: string) {
+  async findGradingSchemeForClass(
+    classId: string,
+    orgId: string,
+  ): Promise<GradingSchemeWithComponents | null> {
     const classScheme = await this.db.gradingScheme.findFirst({
       where: { class_id: classId, org_id: orgId },
       include: { components: true },

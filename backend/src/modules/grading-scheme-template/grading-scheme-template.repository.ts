@@ -3,10 +3,11 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { GradingSchemeTemplateComponentDto } from './dto/grading-scheme-template.dto';
+import { Prisma } from '@prisma/client';
 
 const COMPONENTS_INCLUDE = {
   components: { orderBy: { created_at: 'asc' as const } },
-};
+} satisfies Prisma.GradingSchemeTemplateInclude;
 
 function mapComponent(c: any) {
   return {

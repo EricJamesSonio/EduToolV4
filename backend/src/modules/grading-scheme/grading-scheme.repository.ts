@@ -142,18 +142,30 @@ export class GradingSchemeRepository {
     return this.create(orgId, classId, templateId, name, components);
   }
 
-  // bulk: find all class IDs under a program for the active school year
   async findClassIdsByProgram(programId: string, orgId: string): Promise<string[]> {
+    // 1. Get all subjects under the program
+    const subjects = await this.db.subject.findMany({
+      where: {
+        org_id: orgId,
+        program_id: programId,
+      },
+      select: { id: true },
+    });
+
+    const subjectIds = subjects.map((s) => s.id);
+
+    // 2. Get classes using subject_id
     const classes = await this.db.class.findMany({
       where: {
-        org_id:     orgId,
+        org_id: orgId,
         deleted_at: null,
-        subject: {
-          program_id: programId,
+        subject_id: {
+          in: subjectIds,
         },
       },
       select: { id: true },
     });
+
     return classes.map((c) => c.id);
   }
 

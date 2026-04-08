@@ -473,6 +473,7 @@ model GradingSchemeTemplateComponent {
   type        String
   weight      Float
   max_score   Float?
+  created_at  DateTime @default(now()) 
 
   template GradingSchemeTemplate @relation(fields: [template_id], references: [id])
 }
@@ -490,9 +491,11 @@ model GradingScheme {
   is_locked   Boolean   @default(false)
   locked_at   DateTime?
   created_at  DateTime  @default(now())
+  is_default Boolean @default(false)
 
   class      Class                    @relation(fields: [class_id], references: [id])
   components GradingSchemeComponent[]
+  
 }
 
 model GradingSchemeComponent {

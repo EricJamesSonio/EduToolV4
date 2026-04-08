@@ -93,7 +93,7 @@ export class OrgSeederService {
     await this.seedStrands(orgId, schoolYearId, shouldSeedProgram, shouldSeedStrand, programMap, strandMap)
     await this.seedLevelsAndSections(orgId, schoolYearId, shouldSeedProgram, shouldSeedLevel, programMap, levelMap, levelConfigs,sectionConfigs)
     await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, levelMap, gradingScales)
-    await this.seedGradingSchemes(orgId, schoolYearId, shouldSeedProgram)
+    await this.seedGradingSchemes(orgId, shouldSeedProgram)
     await this.seedMajorSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, subjectNameToId)
     await this.seedMinorSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, programMap, subjectNameToId)
     await this.seedPrerequisites(orgId, shouldSeedProgram, levelMap, subjectNameToId)
@@ -340,51 +340,38 @@ private async seedLevelsAndSections(
     }
   }
 
-  private async seedGradingSchemes(
-    orgId:        string,
-    schoolYearId: string,
-    shouldSeed:   (k: string) => boolean,
-  ) {
-    const schemeProgram: Record<string, string> = {
-      'Daycare Scheme':            'daycare',
-      'Kindergarten Scheme':       'kinder',
-      'Elementary Scheme':         'elementary',
-      'High School Scheme':        'jhs',
-      'Senior High School Scheme': 'shs',
-      'College Scheme':            'college',
-    }
+private async seedGradingSchemes(orgId: string, shouldSeed: (k: string) => boolean) {
+  // Now seeds GradingSchemeTemplate (admin-level, reusable), NOT GradingScheme (class-level)
+  for (const preset of SCHEME_PRESETS) {
+    const progKey = schemeProgram[preset.name]
+    if (progKey && !shouldSeed(progKey)) continue
 
-    for (const preset of SCHEME_PRESETS) {
-      const progKey = schemeProgram[preset.name]
-      if (progKey && !shouldSeed(progKey)) continue
-      const id       = seedId('scheme', preset.name, orgId)
-      const existing = await this.db.gradingScheme.findFirst({ where: { id } })
-      if (existing) continue
+    const id = seedId('scheme-template', preset.name, orgId)
+    const existing = await this.db.gradingSchemeTemplate.findFirst({ where: { id } })
+    if (existing) continue
 
-      const scheme = await this.db.gradingScheme.create({
-        data: {
-          id,
-          org_id:         orgId,
-          school_year_id: schoolYearId,
-          name:           preset.name,
-          is_default:     false,
-          is_locked:      false,
-        },
-      })
+    const template = await this.db.gradingSchemeTemplate.create({
+      data: {
+        id,
+        org_id: orgId,
+        name: preset.name,
+        // program_type is optional — can map from progKey if desired
+      },
+    })
 
-      await this.db.gradingSchemeComponent.createMany({
-        data: preset.components.map((c) => ({
-          id:                uuid(),
-          org_id:            orgId,
-          grading_scheme_id: scheme.id,
-          name:              c.name,
-          type:              c.type,
-          weight:            c.weight,
-          is_optional:       c.isOptional,
-        })),
-      })
-    }
+    await this.db.gradingSchemeTemplateComponent.createMany({
+      data: preset.components.map((c) => ({
+        id: uuid(),
+        org_id: orgId,
+        template_id: template.id,
+        name: c.name,
+        type: c.type,
+        weight: c.weight,
+        // max_score not in preset, omit or default to null
+      })),
+    })
   }
+}
 
   private async seedMajorSubjects(
     orgId:           string,
