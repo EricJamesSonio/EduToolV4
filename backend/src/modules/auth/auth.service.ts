@@ -109,6 +109,7 @@ export class AuthService {
       fullName: account.profile?.full_name ?? null,
       metadata: account.profile?.metadata ?? null,
       createdAt: account.created_at,
+      personalEmail: account.profile?.personal_email ?? null,
     };
   }
 
