@@ -1,6 +1,7 @@
 npx prisma migrate dev --name add_table
 npx prisma generate
 npx prisma db push
+npx prisma migrate reset 
 
 SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
