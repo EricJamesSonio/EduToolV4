@@ -92,6 +92,24 @@ Expected Behavior:
 - Form adapts based on current filter context
 - User can still override if needed
 
+========================================
+6. SUBJECT PAGE
+========================================
+Goal: Fix incorrect responsibility
+
+Current:
+- Subjects assign educators ❌
+
+Fix:
+- REMOVE educator assignment from subject
+
+- MOVE responsibility to:
+  → Classes
+
+Reason:
+- Educators are class-based, not subject-based
+
+
 
 ========================================
 SUMMARY
