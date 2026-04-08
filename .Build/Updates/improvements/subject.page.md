@@ -1,14 +1,103 @@
-In creating a new major
-It doesn't ask for course and strand even if the program selected was college and shs or any that supports some.
-Should ask, so the subject will be created within that course or strand.
+========================================
+SUBJECT CREATION IMPROVEMENTS
+========================================
 
-in minor subject, its fine to not ask what course or strand, just level isenough since the minor subjects are mostly shared so we don't tightly coupled them within just one course or strand.
+1. MAJOR SUBJECT CREATION
+----------------------------------------
+Issue:
+- When creating a new major subject, the system does NOT ask for:
+  - Course
+  - Strand
+- This happens even when the selected program (e.g. College, SHS) supports them.
 
-but the minor subject should have a level, since even minor subject can only be applied for specific level. like 
-MAPEH 1 only applied for 1st year
+Fix:
+- The form SHOULD require:
+  - Course (for College)
+  - Strand (for SHS or similar programs)
+
+Reason:
+- Major subjects must be tied to a specific course or strand
+- Ensures proper organization and avoids misclassification
+
+Expected Behavior:
+- If program supports course/strand → require selection
+- Subject is created under that specific course/strand
 
 
-In creating new subjects also , shouldn't have assigned to educators, since the assigned will be procesd by the class management. 
+2. MINOR SUBJECT CREATION
+----------------------------------------
+Current Behavior:
+- Does not require course or strand ✅ (this is correct)
 
-Improvmeents :
-USer frinedly, for example, the current creation is ask for program etc. then its set also by default, but i want now is baserd on what the user clicks, so foredxample we have filters, such as all, and types. so if the filter of levels are set to 1st year of college then the subhjects selection is set to major,, automatically , when click the create new it should already passed that , since most of the time, that is the intention of the user, to creat new subject for that where they are looking
+Clarification:
+- Minor subjects are usually shared across programs
+- They should NOT be tightly coupled to a single course/strand
+
+Requirement:
+- Minor subjects MUST require a Level
+
+Example:
+- MAPEH 1 → applies only to 1st Year
+
+Reason:
+- Even shared subjects are still level-specific
+
+
+3. EDUCATOR ASSIGNMENT (SUBJECT CREATION)
+----------------------------------------
+Issue:
+- Subjects currently allow assigning educators during creation ❌
+
+Fix:
+- REMOVE educator assignment from subject creation
+
+Reason:
+- Educator assignment should be handled in:
+  → Class Management
+
+- Subjects = definition only
+- Classes = execution (who teaches it)
+
+
+4. UX IMPROVEMENTS (SMART DEFAULTS)
+----------------------------------------
+Goal:
+- Make the creation flow more intuitive and faster
+
+Current Behavior:
+- User manually selects:
+  - Program
+  - Level
+  - Type (Major/Minor)
+
+Improvement:
+- Use current filters as default input
+
+Example Scenario:
+- User is viewing:
+  → College → 1st Year → Major Subjects
+
+- When clicking "Create New Subject":
+  - Automatically prefill:
+    - Program = College
+    - Level = 1st Year
+    - Type = Major
+
+Reason:
+- Matches user intent
+- Reduces repetitive input
+- Improves speed and usability
+
+Expected Behavior:
+- Form adapts based on current filter context
+- User can still override if needed
+
+
+========================================
+SUMMARY
+========================================
+
+✔ Major subjects → Require Course/Strand (if applicable)
+✔ Minor subjects → No Course/Strand, but Level is required
+✔ Remove educator assignment from subject creation
+✔ Use filter-based smart defaults for better UX
