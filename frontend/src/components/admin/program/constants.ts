@@ -1,11 +1,10 @@
-// app/admin/programs/_components/constants.ts
-
+// frontend/src/components/admin/program/constants.ts
 import type { ProgramType } from "@/api/admin/program.api";
 
 export const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
   elementary: "Elementary",
-  high_school: "High School",
-  senior_high: "Senior High",
+  high_school: "Junior High School",
+  senior_high: "Senior High School",
   college: "College",
   custom: "Custom",
 };

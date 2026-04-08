@@ -1,5 +1,3 @@
-// frontend/src/hooks/admin/useCourses.ts
-
 import {
   useQuery,
   useMutation,
@@ -15,8 +13,9 @@ import type {
   GetCoursesQuery,
 } from "@/api/admin/course.api";
 
+// Hook to fetch multiple courses
 export const useCourses = (
-  query?: GetCoursesQuery,
+  query: GetCoursesQuery, // ✅ required
 ): UseQueryResult<Course[], unknown> => {
   return useQuery<Course[], unknown>({
     queryKey: ["courses", query],
@@ -24,6 +23,7 @@ export const useCourses = (
   });
 };
 
+// Hook to fetch a single course
 export const useCourse = (id: string): UseQueryResult<Course, unknown> => {
   return useQuery<Course, unknown>({
     queryKey: ["courses", id],
@@ -32,6 +32,7 @@ export const useCourse = (id: string): UseQueryResult<Course, unknown> => {
   });
 };
 
+// Hook to create a course
 export const useCreateCourse = (): UseMutationResult<
   Course,
   unknown,
@@ -40,12 +41,13 @@ export const useCreateCourse = (): UseMutationResult<
   const queryClient = useQueryClient();
   return useMutation<Course, unknown, CreateCourseRequest>({
     mutationFn: courseApi.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["courses"] });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["courses", { schoolYearId: variables.schoolYearId }] });
     },
   });
 };
 
+// Hook to update a course
 export const useUpdateCourse = (): UseMutationResult<
   Course,
   unknown,
@@ -60,6 +62,7 @@ export const useUpdateCourse = (): UseMutationResult<
   });
 };
 
+// Hook to delete a course
 export const useDeleteCourse = (): UseMutationResult<void, unknown, string> => {
   const queryClient = useQueryClient();
   return useMutation<void, unknown, string>({

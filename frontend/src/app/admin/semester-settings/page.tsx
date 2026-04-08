@@ -847,7 +847,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                         <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
                           <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
                           <p className="text-[11px] text-amber-700">
-                            Some programs don't have a template assigned yet.
+                            Some programs don&apos;t have a template assigned yet.
                           </p>
                         </div>
                       )}
@@ -877,7 +877,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
             <DialogHeader>
               <DialogTitle>Delete template?</DialogTitle>
               <DialogDescription>
-                Delete <strong>"{deleteTarget.name}"</strong>? This action cannot be undone.
+                Delete <strong>&quot;{deleteTarget.name}&quot;</strong>? This action cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

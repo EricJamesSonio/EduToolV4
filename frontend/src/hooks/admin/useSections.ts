@@ -3,10 +3,14 @@ import { sectionApi } from "@/api/admin/section.api";
 import type { CreateSectionRequest, UpdateSectionRequest } from "@/api/admin/section.api";
 import type { Section } from "@/types/admin/section.types";
 
-export const useSections = (levelId?: string): UseQueryResult<Section[], Error> => {
+// ✅ Make schoolYearId required
+export const useSections = (
+  schoolYearId: string,
+  levelId?: string
+): UseQueryResult<Section[], Error> => {
   return useQuery({
-    queryKey: ["sections", levelId],
-    queryFn: () => sectionApi.getAll(levelId),
+    queryKey: ["sections", schoolYearId, levelId],
+    queryFn: () => sectionApi.getAll(schoolYearId, levelId),
   });
 };
 
@@ -15,8 +19,8 @@ export const useCreateSection = (): UseMutationResult<Section, Error, CreateSect
 
   return useMutation({
     mutationFn: sectionApi.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sections"] });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["sections", variables.schoolYearId] });
     },
   });
 };
