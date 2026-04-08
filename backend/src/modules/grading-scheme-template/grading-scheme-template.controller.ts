@@ -1,0 +1,68 @@
+// filepath: src/modules/grading-scheme-template/grading-scheme-template.controller.ts
+
+import {
+  Controller, Get, Post, Patch, Delete,
+  Param, Body, Query, UseGuards, HttpCode, HttpStatus,
+} from '@nestjs/common';
+import { GradingSchemeTemplateService } from './grading-scheme-template.service';
+import {
+  CreateGradingSchemeTemplateDto,
+  UpdateGradingSchemeTemplateDto,
+} from './dto/grading-scheme-template.dto';
+import { AuthGuard }   from '@/commons/guards/auth.guard';
+import { RolesGuard }  from '@/commons/guards/role.guard';
+import { Roles }       from '@/commons/decorators/roles.decorator';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+
+@Controller('grading-scheme-templates')
+@UseGuards(AuthGuard, RolesGuard)
+export class GradingSchemeTemplateController {
+  constructor(private readonly service: GradingSchemeTemplateService) {}
+
+  @Get()
+  @Roles('admin')
+  async findAll(
+    @CurrentUser('org_id') orgId: string,
+    @Query('programType') programType?: string,
+  ) {
+    return this.service.findAll(orgId, programType);
+  }
+
+  @Get(':id')
+  @Roles('admin')
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.service.findById(id, orgId);
+  }
+
+  @Post()
+  @Roles('admin')
+  async create(
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: CreateGradingSchemeTemplateDto,
+  ) {
+    return this.service.create(orgId, dto);
+  }
+
+  @Patch(':id')
+  @Roles('admin')
+  async update(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: UpdateGradingSchemeTemplateDto,
+  ) {
+    return this.service.update(id, orgId, dto);
+  }
+
+  @Delete(':id')
+  @Roles('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async delete(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.service.delete(id, orgId);
+  }
+}
