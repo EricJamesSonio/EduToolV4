@@ -1,52 +1,46 @@
 import {
-  IsString,
-  IsOptional,
-  IsUUID,
-  IsIn,
-  MinLength,
-  MaxLength,
-  ValidateIf,
-} from 'class-validator'
+  IsString, IsOptional, IsUUID, IsIn,
+  MinLength, MaxLength, ValidateIf,
+} from 'class-validator';
 
 export class CreateSubjectDto {
   @IsString()
   @MinLength(2)
   @MaxLength(150)
-  name: string
-
-  @IsOptional()
-  @IsUUID()
-  levelId?: string
+  name!: string;
 
   @IsOptional()
   @IsString()
   @IsIn(['major', 'minor'])
-  subjectType?: 'major' | 'minor'
+  subjectType?: 'major' | 'minor';
 
-  // Required when subjectType is 'minor'
-  @ValidateIf((o) => o.subjectType === 'minor')
+  // required for both major and minor
   @IsUUID()
-  programId?: string
+  programId!: string;
 
+  // major: required if program is college-type (course-based)
   @IsOptional()
   @IsUUID()
-  educatorId?: string
+  courseId?: string;
 
+  // major: required if program is shs-type (strand-based)
   @IsOptional()
   @IsUUID()
-  courseId?: string
+  strandId?: string;
 
+  // major: level within the program
+  // minor: required (level this minor subject belongs to)
   @IsOptional()
   @IsUUID()
-  strandId?: string
+  levelId?: string;
 
   @IsOptional()
   @IsString()
-  yearLevel?: string
+  yearLevel?: string;
 
   @IsOptional()
   @IsString()
-  termLabel?: string
+  termLabel?: string;
 }
 
 export class UpdateSubjectDto {
@@ -54,88 +48,82 @@ export class UpdateSubjectDto {
   @IsString()
   @MinLength(2)
   @MaxLength(150)
-  name?: string
+  name?: string;
 
   @IsOptional()
   @IsUUID()
-  levelId?: string
+  levelId?: string;
 
   @IsOptional()
   @IsUUID()
-  educatorId?: string
+  courseId?: string;
 
   @IsOptional()
   @IsUUID()
-  courseId?: string
-
-  @IsOptional()
-  @IsUUID()
-  strandId?: string
+  strandId?: string;
 
   @IsOptional()
   @IsString()
-  yearLevel?: string
+  yearLevel?: string;
 
   @IsOptional()
   @IsString()
-  termLabel?: string
+  termLabel?: string;
 }
 
 export class QuerySubjectDto {
   @IsOptional()
   @IsUUID()
-  schoolYearId?: string
+  schoolYearId?: string;
 
   @IsOptional()
   @IsUUID()
-  levelId?: string
+  programId?: string;
 
   @IsOptional()
   @IsUUID()
-  educatorId?: string
+  levelId?: string;
 
   @IsOptional()
   @IsString()
-  search?: string
+  search?: string;
 
   @IsOptional()
   @IsUUID()
-  courseId?: string
+  courseId?: string;
 
   @IsOptional()
   @IsUUID()
-  strandId?: string
+  strandId?: string;
 
   @IsOptional()
   @IsIn(['open', 'coupled'])
-  scope?: 'open' | 'coupled'
+  scope?: 'open' | 'coupled';
 
   @IsOptional()
   @IsString()
-  yearLevel?: string
+  yearLevel?: string;
 
   @IsOptional()
   @IsString()
-  termLabel?: string
+  termLabel?: string;
 
   @IsOptional()
   @IsString()
   @IsIn(['major', 'minor'])
-  subjectType?: 'major' | 'minor'
+  subjectType?: 'major' | 'minor';
 }
 
-// Exactly one of courseId, strandId, or levelId must be provided.
-// Validated in the service layer since class-validator cannot enforce mutual exclusivity cleanly.
 export class ShareSubjectDto {
   @IsOptional()
   @IsUUID()
-  courseId?: string
+  courseId?: string;
 
   @IsOptional()
   @IsUUID()
-  strandId?: string
+  strandId?: string;
 
   @IsOptional()
   @IsUUID()
-  levelId?: string
+  levelId?: string;
 }

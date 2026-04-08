@@ -1,23 +1,21 @@
+// filepath: src/modules/subject/subject.service.ts
+
 import {
   Injectable,
   NotFoundException,
   BadRequestException,
-} from '@nestjs/common'
-import { SubjectRepository } from './subject.repository'
+} from '@nestjs/common';
+import { SubjectRepository } from './subject.repository';
 import {
   CreateSubjectDto,
   UpdateSubjectDto,
   QuerySubjectDto,
   ShareSubjectDto,
-} from './dto/subject.dto'
+} from './dto/subject.dto';
 
 @Injectable()
 export class SubjectService {
   constructor(private readonly subjectRepository: SubjectRepository) {}
-
-  // ---------------------------------------------------------------------------
-  // Mapper
-  // ---------------------------------------------------------------------------
 
   private mapToResponse(subject: any) {
     return {
@@ -25,13 +23,9 @@ export class SubjectService {
       orgId:        subject.org_id,
       title:        subject.name,
       subjectType:  subject.subject_type ?? 'major',
-      // programId = actual program_id (for minor subjects)
-      programId:    subject.program_id ?? null,
-      // levelId / levelName kept for backwards compat (was called programId/programName before)
-      levelId:      subject.level_id   ?? null,
-      levelName:    subject.levelName  ?? null,
-      educatorId:   subject.educator_id,
-      educatorName: subject.educatorName ?? null,
+      programId:    subject.program_id  ?? null,
+      levelId:      subject.level_id    ?? null,
+      levelName:    subject.levelName   ?? null,
       lockStatus:   subject.is_locked ? 'locked' : 'unlocked',
       yearLevel:    subject.year_level,
       termLabel:    subject.term_label,
@@ -40,34 +34,63 @@ export class SubjectService {
       prerequisites: subject.prerequisites ?? [],
       prereqFor:     subject.prereqFor     ?? [],
       sharings:      subject.sharings      ?? [],
+    };
+  }
+
+  // validate that major subjects have the right scope fields
+  // and minor subjects always have a levelId
+  private validateSubjectScope(dto: CreateSubjectDto, programType: string): void {
+    const type = dto.subjectType ?? 'major';
+
+    if (type === 'major') {
+      const isCourse = programType === 'college';
+      const isStrand = programType === 'shs';
+
+      if (isCourse && !dto.courseId) {
+        throw new BadRequestException(
+          'Major subjects under a college program require a courseId.',
+        );
+      }
+      if (isStrand && !dto.strandId) {
+        throw new BadRequestException(
+          'Major subjects under a SHS program require a strandId.',
+        );
+      }
+    }
+
+    if (type === 'minor' && !dto.levelId) {
+      throw new BadRequestException(
+        'Minor subjects must specify a levelId.',
+      );
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Core CRUD
-  // ---------------------------------------------------------------------------
-
   async create(orgId: string, dto: CreateSubjectDto) {
+    // fetch program to determine type for scope validation
+    const program = await this.subjectRepository.findProgramById(dto.programId, orgId);
+    if (!program) throw new NotFoundException('Program not found.');
+
+    this.validateSubjectScope(dto, program.type);
+
     const subject = await this.subjectRepository.create({
       orgId,
       name:        dto.name,
       subjectType: dto.subjectType,
       programId:   dto.programId,
       levelId:     dto.levelId,
-      educatorId:  dto.educatorId,
       courseId:    dto.courseId,
       strandId:    dto.strandId,
       yearLevel:   dto.yearLevel,
       termLabel:   dto.termLabel,
-    })
-    return this.mapToResponse(subject)
+    });
+    return this.mapToResponse(subject);
   }
 
   async findAll(orgId: string, query: QuerySubjectDto) {
     const subjects = await this.subjectRepository.findAll(orgId, {
       schoolYearId: query.schoolYearId,
+      programId:    query.programId,
       levelId:      query.levelId,
-      educatorId:   query.educatorId,
       search:       query.search,
       courseId:     query.courseId,
       strandId:     query.strandId,
@@ -75,135 +98,98 @@ export class SubjectService {
       yearLevel:    query.yearLevel,
       termLabel:    query.termLabel,
       subjectType:  query.subjectType,
-    })
-    return subjects.map((s) => this.mapToResponse(s))
+    });
+    return subjects.map((s) => this.mapToResponse(s));
   }
 
   async findById(id: string, orgId: string) {
-    const subject = await this.subjectRepository.findById(id, orgId)
-    if (!subject) throw new NotFoundException('Subject not found.')
-    return this.mapToResponse(subject)
+    const subject = await this.subjectRepository.findById(id, orgId);
+    if (!subject) throw new NotFoundException('Subject not found.');
+    return this.mapToResponse(subject);
   }
 
   async update(id: string, orgId: string, dto: UpdateSubjectDto) {
-    const subject = await this.subjectRepository.findById(id, orgId)
-    if (!subject) throw new NotFoundException('Subject not found.')
+    const subject = await this.subjectRepository.findById(id, orgId);
+    if (!subject) throw new NotFoundException('Subject not found.');
     if (subject.is_locked) {
       throw new BadRequestException(
         'This subject is locked and cannot be modified. Unlock it first.',
-      )
+      );
     }
 
     const updated = await this.subjectRepository.update(id, {
-      name:       dto.name,
-      levelId:    dto.levelId,
-      educatorId: dto.educatorId,
-      courseId:   dto.courseId,
-      strandId:   dto.strandId,
-      yearLevel:  dto.yearLevel,
-      termLabel:  dto.termLabel,
-    })
-    return this.mapToResponse(updated)
+      name:      dto.name,
+      levelId:   dto.levelId,
+      courseId:  dto.courseId,
+      strandId:  dto.strandId,
+      yearLevel: dto.yearLevel,
+      termLabel: dto.termLabel,
+    });
+    return this.mapToResponse(updated);
   }
 
   async lock(id: string, orgId: string) {
-    const subject = await this.subjectRepository.findById(id, orgId)
-    if (!subject) throw new NotFoundException('Subject not found.')
-    if (subject.is_locked) throw new BadRequestException('Subject is already locked.')
-    const updated = await this.subjectRepository.setLocked(id, true)
-    return this.mapToResponse(updated)
+    const subject = await this.subjectRepository.findById(id, orgId);
+    if (!subject)         throw new NotFoundException('Subject not found.');
+    if (subject.is_locked) throw new BadRequestException('Subject is already locked.');
+    const updated = await this.subjectRepository.setLocked(id, true);
+    return this.mapToResponse(updated);
   }
 
   async unlock(id: string, orgId: string) {
-    const subject = await this.subjectRepository.findById(id, orgId)
-    if (!subject) throw new NotFoundException('Subject not found.')
-    if (!subject.is_locked) throw new BadRequestException('Subject is already unlocked.')
-    const updated = await this.subjectRepository.setLocked(id, false)
-    return this.mapToResponse(updated)
+    const subject = await this.subjectRepository.findById(id, orgId);
+    if (!subject)          throw new NotFoundException('Subject not found.');
+    if (!subject.is_locked) throw new BadRequestException('Subject is already unlocked.');
+    const updated = await this.subjectRepository.setLocked(id, false);
+    return this.mapToResponse(updated);
   }
 
   async unlockAllForOrg(orgId: string) {
-    return this.subjectRepository.unlockAllForOrg(orgId)
+    return this.subjectRepository.unlockAllForOrg(orgId);
   }
 
   async findByNameInOrg(name: string, orgId: string) {
-    return this.subjectRepository.findByNameInOrg(name, orgId)
+    return this.subjectRepository.findByNameInOrg(name, orgId);
   }
 
-  // ---------------------------------------------------------------------------
-  // Sharing (minor subjects only)
-  // ---------------------------------------------------------------------------
-
   async share(id: string, orgId: string, dto: ShareSubjectDto) {
-    // Validate exactly one target
-    const targets = [dto.courseId, dto.strandId, dto.levelId].filter(Boolean)
+    const targets = [dto.courseId, dto.strandId, dto.levelId].filter(Boolean);
     if (targets.length !== 1) {
       throw new BadRequestException(
         'Exactly one of courseId, strandId, or levelId must be provided.',
-      )
+      );
     }
 
-    const subject = await this.subjectRepository.findById(id, orgId)
-    if (!subject) throw new NotFoundException('Subject not found.')
-    if (subject.subjectType !== 'minor') {
-      throw new BadRequestException('Only minor subjects can be shared.')
+    const subject = await this.subjectRepository.findById(id, orgId);
+    if (!subject) throw new NotFoundException('Subject not found.');
+
+    if (subject.subject_type !== 'minor') {
+      throw new BadRequestException('Only minor subjects can be shared.');
     }
-    if (!subject.programId) {
+    if (!subject.program_id) {
       throw new BadRequestException(
         'Minor subject must have a programId before sharing.',
-      )
+      );
     }
-
-    // Guard: target must belong to the same program
-    await this.validateTargetBelongsToProgram(subject.programId, dto)
 
     const sharing = await this.subjectRepository.addSharing(id, orgId, {
       courseId: dto.courseId,
       strandId: dto.strandId,
       levelId:  dto.levelId,
-    })
-    return sharing
+    });
+    return sharing;
   }
 
   async unshare(id: string, sharingId: string, orgId: string) {
-    const subject = await this.subjectRepository.findById(id, orgId)
-    if (!subject) throw new NotFoundException('Subject not found.')
-
-    await this.subjectRepository.removeSharing(sharingId, orgId)
-    return { success: true }
+    const subject = await this.subjectRepository.findById(id, orgId);
+    if (!subject) throw new NotFoundException('Subject not found.');
+    await this.subjectRepository.removeSharing(sharingId, orgId);
+    return { success: true };
   }
 
   async findSharings(id: string, orgId: string) {
-    const subject = await this.subjectRepository.findById(id, orgId)
-    if (!subject) throw new NotFoundException('Subject not found.')
-    return this.subjectRepository.findSharings(id, orgId)
-  }
-
-  // ---------------------------------------------------------------------------
-  // Private helpers
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Validates that the sharing target (course/strand/level) belongs to the
-   * same program as the minor subject. Throws BadRequestException if not.
-   */
-  private async validateTargetBelongsToProgram(
-    programId: string,
-    dto: ShareSubjectDto,
-  ) {
-    // We need db access here — delegate to the repository
-    // by checking the target's program_id directly via prisma.
-    // SubjectRepository doesn't expose db publicly, so we re-check via
-    // the repository's underlying db using a service-layer approach.
-    // [ASSUMPTION] We cannot directly query db here without injecting
-    // DatabaseService into the service. For now, this validation is best
-    // placed in the repository where db is available.
-    //
-    // The repository's addSharing will throw a Prisma unique constraint
-    // error if a duplicate sharing exists. Program-scope validation is
-    // handled by the repository via validateSharingTarget() below.
-    //
-    // TODO: Inject DatabaseService here if stronger program-scope checks
-    // are needed at the service layer without coupling to Prisma directly.
+    const subject = await this.subjectRepository.findById(id, orgId);
+    if (!subject) throw new NotFoundException('Subject not found.');
+    return this.subjectRepository.findSharings(id, orgId);
   }
 }
