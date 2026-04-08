@@ -373,7 +373,8 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Program Type</Label>
-              <Select value={programType} onValueChange={setProgramType} disabled={isEdit}>
+              
+<Select value={programType} onValueChange={(v) => { if (v) setProgramType(v); }} disabled={isEdit}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -519,11 +520,9 @@ function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
             {template.semesters.length} sem{template.semesters.length !== 1 ? "s" : ""}
           </span>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button size="icon" variant="ghost" className="h-7 w-7">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
+<DropdownMenuTrigger onClick={(e) => e.stopPropagation()} className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-accent hover:text-accent-foreground">
+  <MoreHorizontal className="h-4 w-4" />
+</DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }}>
                 <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
@@ -592,7 +591,8 @@ function AssignRow({ program, templates }: AssignRowProps) {
   const errMsg = (e: unknown) =>
     (e as AxiosError<{ message: string }>)?.response?.data?.message ?? "Something went wrong.";
 
-  const handleChange = (templateId: string) => {
+  const handleChange = (templateId: string | null) => {
+  if (templateId === null) return;
     if (templateId === "none") {
       if (!current) return;
       removeMutation.mutate(program.id, {
@@ -809,7 +809,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                         Assign to Programs
                       </p>
 
-                      <Select value={selectedYearId} onValueChange={setSelectedYearId}>
+                      <Select value={selectedYearId} onValueChange={(v) => { if (v) setSelectedYearId(v); }}>
                         <SelectTrigger className="h-8 text-xs">
                           <SelectValue placeholder="Select school year…" />
                         </SelectTrigger>
