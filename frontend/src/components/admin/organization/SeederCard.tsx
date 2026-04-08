@@ -28,7 +28,7 @@ import {
   COLLEGE_COURSES,
   LEVEL_DEFS,
   PROGRAMS,
-  SHS_STRANDS,
+  SHS_STRANDS, SECTION_DEFAULTS
 } from "./constants/seed-data"
 
 export function SeederCard() {

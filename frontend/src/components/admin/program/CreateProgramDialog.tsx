@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PROGRAM_TYPE_OPTIONS } from "./constants";
-import type { AxiosError } from "axios";
+import { AxiosError } from "axios";
 
 interface CreateForm {
   name: string;
