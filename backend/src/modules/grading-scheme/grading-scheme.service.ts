@@ -1,15 +1,26 @@
+// filepath: src/modules/grading-scheme/grading-scheme.service.ts
+
 import {
-  Injectable, NotFoundException, BadRequestException, ForbiddenException,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { GradingSchemeRepository } from './grading-scheme.repository';
+import { GradingSchemeTemplateService } from '@/modules/grading-scheme-template/grading-scheme-template.service';
 import {
-  CreateGradingSchemeDto, UpdateGradingSchemeDto,
-  UpdateDefaultGradingSchemeDto, GradingSchemeComponentDto,
+  CreateGradingSchemeDto,
+  UpdateGradingSchemeDto,
+  ApplyTemplateToClassDto,
+  ApplyTemplateToProgramDto,
+  GradingSchemeComponentDto,
 } from './dto/grading-scheme.dto';
 
 @Injectable()
 export class GradingSchemeService {
-  constructor(private readonly repo: GradingSchemeRepository) {}
+  constructor(
+    private readonly repo:             GradingSchemeRepository,
+    private readonly templateService:  GradingSchemeTemplateService,
+  ) {}
 
   private validateWeights(components: GradingSchemeComponentDto[]): void {
     if (components.length === 0) {
@@ -24,103 +35,82 @@ export class GradingSchemeService {
     }
   }
 
-  async getDefault(orgId: string, schoolYearId: string) {
-    const scheme = await this.repo.findDefault(orgId, schoolYearId);
-    if (!scheme) {
-      return this.repo.createDefault(orgId, schoolYearId, 'Default Grading Scheme');
-    }
-    return scheme;
+  async findByClass(classId: string, orgId: string) {
+    return this.repo.findByClassId(classId, orgId);
   }
 
-  async updateDefault(orgId: string, schoolYearId: string, dto: UpdateDefaultGradingSchemeDto) {
-    await this.getDefault(orgId, schoolYearId);
+  async create(orgId: string, dto: CreateGradingSchemeDto) {
+    const existing = await this.repo.findByClassId(dto.classId, orgId);
+    if (existing) {
+      throw new BadRequestException('This class already has a grading scheme. Use update instead.');
+    }
+    this.validateWeights(dto.components);
+    return this.repo.create(orgId, dto.classId, dto.templateId, dto.name, dto.components);
+  }
+
+  async update(id: string, orgId: string, dto: UpdateGradingSchemeDto) {
+    const scheme = await this.repo.findById(id, orgId);
+    if (!scheme)       throw new NotFoundException('Grading scheme not found.');
+    if (scheme.isLocked) throw new BadRequestException('This grading scheme is locked and cannot be modified.');
     if (dto.components) this.validateWeights(dto.components);
-    const updated = await this.repo.updateDefault(orgId, schoolYearId, {
-      name:       dto.name,
-      components: dto.components,
-    });
-    if (!updated) throw new NotFoundException('Default grading scheme not found.');
+    const updated = await this.repo.update(id, orgId, { name: dto.name, components: dto.components });
+    if (!updated) throw new NotFoundException('Grading scheme not found.');
     return updated;
   }
 
-  async create(orgId: string, schoolYearId: string, educatorId: string, dto: CreateGradingSchemeDto) {
-    this.validateWeights(dto.components);
-    return this.repo.create(orgId, schoolYearId, educatorId, dto.name, dto.components);
+  async applyTemplateToClass(orgId: string, dto: ApplyTemplateToClassDto) {
+    // load template to get components
+    const template = await this.templateService.findById(dto.templateId, orgId);
+
+    const components: GradingSchemeComponentDto[] = template.components.map((c) => ({
+      name:    c.name,
+      type:    c.type as any,
+      weight:  c.weight,
+      maxScore: c.maxScore ?? undefined,
+    }));
+
+    this.validateWeights(components);
+
+    return this.repo.upsertForClass(
+      orgId,
+      dto.classId,
+      dto.templateId,
+      dto.name ?? template.name,
+      components,
+    );
   }
 
-  async findByEducator(orgId: string, schoolYearId: string, educatorId: string) {
-    return this.repo.findByEducator(orgId, schoolYearId, educatorId);
-  }
+  async applyTemplateToProgram(orgId: string, dto: ApplyTemplateToProgramDto) {
+    const template  = await this.templateService.findById(dto.templateId, orgId);
+    const classIds  = await this.repo.findClassIdsByProgram(dto.programId, orgId);
 
-  async update(id: string, orgId: string, educatorId: string, dto: UpdateGradingSchemeDto) {
-    const scheme = await this.repo.findById(id, orgId);
-    if (!scheme)                       throw new NotFoundException('Grading scheme not found.');
-    if (scheme.educatorId !== educatorId) throw new ForbiddenException('You can only edit grading schemes from your own library.');
-    if (scheme.isLocked)               throw new BadRequestException('This grading scheme is locked and cannot be modified.');
-    if (dto.components) this.validateWeights(dto.components);
-    return this.repo.update(id, orgId, { name: dto.name, components: dto.components });
-  }
+    if (classIds.length === 0) {
+      throw new BadRequestException('No classes found under this program.');
+    }
 
-  async assignToClass(schemeId: string, classId: string, orgId: string) {
-    const scheme = await this.repo.findById(schemeId, orgId);
-    if (!scheme)         throw new NotFoundException('Grading scheme not found.');
-    if (scheme.isLocked) throw new BadRequestException('Cannot assign a locked grading scheme to a class.');
-    return this.repo.assignToClass(schemeId, classId);
+    const components: GradingSchemeComponentDto[] = template.components.map((c) => ({
+      name:     c.name,
+      type:     c.type as any,
+      weight:   c.weight,
+      maxScore: c.maxScore ?? undefined,
+    }));
+
+    this.validateWeights(components);
+
+    // apply to each class — skip locked ones silently
+    const results = await Promise.allSettled(
+      classIds.map((classId) =>
+        this.repo.upsertForClass(orgId, classId, dto.templateId, template.name, components),
+      ),
+    );
+
+    const applied = results.filter((r) => r.status === 'fulfilled').length;
+    const skipped = results.filter((r) => r.status === 'rejected').length;
+
+    return { applied, skipped, total: classIds.length };
   }
 
   async lockForClass(classId: string) {
     return this.repo.lockByClassId(classId);
-  }
-
-  async findForClass(classId: string, orgId: string) {
-    return this.repo.findForClass(classId, orgId);
-  }
-
-  async findById(id: string, orgId: string) {
-    const scheme = await this.repo.findById(id, orgId);
-    if (!scheme) throw new NotFoundException('Grading scheme not found.');
-    return scheme;
-  }
-
-  async saveForClass(
-    classId:      string,
-    orgId:        string,
-    schoolYearId: string,
-    educatorId:   string,
-    dto:          UpdateGradingSchemeDto,
-  ) {
-    const existing = await this.repo.findForClass(classId, orgId);
-
-    if (existing && existing.classId === classId) {
-      if (existing.isLocked) {
-        throw new BadRequestException(
-          'This grading scheme is locked because students are enrolled in this class.',
-        );
-      }
-      if (dto.components) this.validateWeights(dto.components);
-      return this.repo.update(existing.id, orgId, {
-        name:       dto.name,
-        components: dto.components,
-      });
-    }
-
-    let components: GradingSchemeComponentDto[];
-    if (dto.components && dto.components.length > 0) {
-      components = dto.components;
-    } else {
-      const defaultScheme = await this.getDefault(orgId, schoolYearId);
-      components = defaultScheme.components.map((c) => ({
-        name:       c.name,
-        type:       c.type,
-        weight:     c.weight,
-        maxScore:   c.maxScore ?? undefined,
-        isOptional: c.isOptional,
-      }));
-    }
-
-    this.validateWeights(components);
-    const name    = dto.name ?? 'Class Grading Scheme';
-    const created = await this.repo.create(orgId, schoolYearId, educatorId, name, components);
-    return this.repo.assignToClass(created.id, classId);
   }
 }
