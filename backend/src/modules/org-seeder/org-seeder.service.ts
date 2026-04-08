@@ -342,7 +342,16 @@ private async seedLevelsAndSections(
 
 private async seedGradingSchemes(orgId: string, shouldSeed: (k: string) => boolean) {
   // Now seeds GradingSchemeTemplate (admin-level, reusable), NOT GradingScheme (class-level)
-  for (const preset of SCHEME_PRESETS) {
+const schemeProgram: Record<string, string> = {
+  'Daycare Scheme':            'daycare',
+  'Kindergarten Scheme':       'kinder',
+  'Elementary Scheme':         'elementary',
+  'High School Scheme':        'jhs',
+  'Senior High School Scheme': 'shs',
+  'College Scheme':            'college',
+}
+
+for (const preset of SCHEME_PRESETS) {
     const progKey = schemeProgram[preset.name]
     if (progKey && !shouldSeed(progKey)) continue
 

@@ -24,8 +24,13 @@ export class CreateOrganizationDto {
   @IsString()
   @MaxLength(500)
   description?: string
-}
 
+  @IsString()
+  @Matches(/^@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
+    message: 'emailExtension must be a valid domain like @edutool.ph',
+  })
+  emailExtension!: string
+}
 export class UpdateOrganizationDto {
   @IsOptional()
   @IsString()
