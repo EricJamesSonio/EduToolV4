@@ -117,7 +117,13 @@ export default function SemesterSettingsPage(): React.JSX.Element {
   }, [programs, assignments]);
 
   const templatesByType = useMemo(() => {
-    return new Map([["all", templates]]);
+    const map = new Map<string, typeof templates>();
+    for (const t of templates) {
+      const arr = map.get(t.program_type) ?? [];
+      arr.push(t);
+      map.set(t.program_type, arr);
+    }
+    return map;
   }, [templates]);
 
   const programsByType = useMemo(() => {
@@ -310,7 +316,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                               <AssignRow
                                 key={p.id}
                                 program={p}
-                                templates={templates}
+                                templates={templates.filter((t) => t.program_type === type)}
                               />
                             ))}
                           </div>
