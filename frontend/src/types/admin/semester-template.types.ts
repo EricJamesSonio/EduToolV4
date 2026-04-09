@@ -1,3 +1,5 @@
+export type ProgramType = 'college' | 'shs' | 'jhs' | 'elementary'
+
 export interface TermTemplateItem {
   id?: string
   name: string
@@ -14,6 +16,7 @@ export interface SemesterTemplateItem {
 export interface SemesterTemplate {
   id: string
   org_id: string
+  program_type: ProgramType
   name: string
   semesters: SemesterTemplateItem[]
 }
@@ -22,13 +25,13 @@ export interface TemplateAssignment {
   id: string
   program_id: string
   template_id: string
-  template: Pick<SemesterTemplate, 'id' | 'name'>
+  template: Pick<SemesterTemplate, 'id' | 'name' | 'program_type'>
 }
 
 export interface SemesterTemplateCreateDto {
   name: string
+  programType: ProgramType
   semesters: { name: string; orderIndex: number; terms: { name: string; orderIndex: number }[] }[]
-  // programType removed — templates are org-wide
 }
 
 export interface SemesterTemplateUpdateDto {

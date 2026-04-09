@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,13 +11,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, X, GripVertical } from "lucide-react";
 import type { AxiosError } from "axios";
-import type { SemesterTemplate } from "@/types/admin/semester-template.types";
+import type { SemesterTemplate, ProgramType } from "@/types/admin/semester-template.types";
 import {
   useCreateSemesterTemplate,
   useUpdateSemesterTemplate,
 } from "@/hooks/admin/useSemesterTemplate";
+
+const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
+  college: "College",
+  shs: "Senior High School",
+  jhs: "Junior High School",
+  elementary: "Elementary",
+};
 
 interface LocalTerm {
   name: string;
@@ -32,6 +46,7 @@ interface TemplateFormDialogProps {
   open: boolean;
   onClose: () => void;
   template?: SemesterTemplate;
+  programType?: ProgramType; // Auto-set when creating from category
 }
 
 function toSemesterDto(semesters: LocalSemester[]) {
@@ -53,12 +68,16 @@ export function TemplateFormDialog({
   open,
   onClose,
   template,
+  programType: initialProgramType,
 }: TemplateFormDialogProps): React.JSX.Element {
   const isEdit = !!template;
   const createMutation = useCreateSemesterTemplate();
   const updateMutation = useUpdateSemesterTemplate();
   const isPending = createMutation.isPending || updateMutation.isPending;
   const [name, setName] = useState(template?.name ?? "");
+  const [programType, setProgramType] = useState<ProgramType | "">(
+    initialProgramType ?? ""
+  );
   const [semesters, setSemesters] = useState<LocalSemester[]>(() => {
     if (template?.semesters?.length) {
       return [...template.semesters]
@@ -75,6 +94,20 @@ export function TemplateFormDialog({
       { name: "2nd Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
     ];
   });
+
+  // Sync state when dialog opens
+  useEffect(() => {
+    if (open) {
+      setName(template?.name ?? "");
+      setProgramType(initialProgramType ?? "");
+      if (!template?.semesters?.length) {
+        setSemesters([
+          { name: "1st Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
+          { name: "2nd Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
+        ]);
+      }
+    }
+  }, [open, template, initialProgramType]);
 
   const addSemester = () =>
     setSemesters((prev) => [
@@ -119,9 +152,31 @@ export function TemplateFormDialog({
     );
 
   const handleSubmit = () => {
-    if (!name.trim()) return toast.error("Template name is required.");
-    if (semesters.length === 0) return toast.error("Add at least one semester.");
+    console.log("handleSubmit called!");
+    console.log("name:", name);
+    console.log("programType:", programType);
+    console.log("semesters:", semesters);
+    console.log("isEdit:", isEdit);
+
+    if (!name.trim()) {
+      console.log("Validation failed: no name");
+      return toast.error("Template name is required.");
+    }
+    if (!isEdit && !programType) {
+      console.log("Validation failed: no programType");
+      return toast.error("Program type is required.");
+    }
+    if (semesters.length === 0) {
+      console.log("Validation failed: no semesters");
+      return toast.error("Add at least one semester.");
+    }
     const semestersDto = toSemesterDto(semesters);
+
+    console.log("All validations passed. Creating template with:", {
+      name: name.trim(),
+      programType: programType,
+      semesters: semestersDto,
+    });
 
     if (isEdit) {
       updateMutation.mutate(
@@ -136,7 +191,11 @@ export function TemplateFormDialog({
       );
     } else {
       createMutation.mutate(
-        { name: name.trim(), semesters: semestersDto },
+        {
+          name: name.trim(),
+          programType: programType as ProgramType,
+          semesters: semestersDto,
+        },
         {
           onSuccess: () => {
             toast.success("Template created.");
@@ -174,6 +233,45 @@ export function TemplateFormDialog({
               onChange={(e) => setName(e.target.value)}
             />
           </div>
+
+          {/* Program Type — only for create, hide if passed from category */}
+          {!isEdit && !initialProgramType && (
+            <div className="space-y-1.5">
+              <Label>
+                Program Type <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={programType}
+                onValueChange={(v) => setProgramType(v as ProgramType)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select program type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(
+                    Object.entries(PROGRAM_TYPE_LABELS) as [
+                      ProgramType,
+                      string,
+                    ][]
+                  ).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Program Type Display — when passed from category */}
+          {!isEdit && initialProgramType && (
+            <div className="space-y-1.5">
+              <Label>Program Type</Label>
+              <div className="px-3 py-2 rounded-md bg-muted text-sm">
+                {PROGRAM_TYPE_LABELS[initialProgramType]}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">

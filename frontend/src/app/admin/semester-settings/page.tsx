@@ -36,12 +36,12 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import clientApi from "@/api/client";
 import { TemplateFormDialog } from "@/components/admin/semester-settings/TemplateFormDialog";
-import { TemplateCard } from "@/components/admin/semester-settings//TemplateCard";
-import { AssignRow } from "@/components/admin/semester-settings//AssignRow";
+import { TemplateCard } from "@/components/admin/semester-settings/TemplateCard";
+import { AssignRow } from "@/components/admin/semester-settings/AssignRow";
 import {
   PROGRAM_TYPE_LABELS,
   PROGRAM_TYPE_COLORS,
-} from "@/components/admin/semester-settings//constants";
+} from "@/components/admin/semester-settings/constants";
 
 interface Program {
   id: string;
@@ -104,6 +104,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
   const deleteMutation = useDeleteSemesterTemplate();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [createFromType, setCreateFromType] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<SemesterTemplate | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SemesterTemplate | null>(null);
 
@@ -224,7 +225,10 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                       size="sm"
                       variant="ghost"
                       className="h-7 text-xs text-muted-foreground"
-                      onClick={() => setCreateOpen(true)}
+                      onClick={() => {
+                        setCreateFromType(type);
+                        setCreateOpen(true);
+                      }}
                     >
                       <Plus className="h-3 w-3 mr-1" /> Template
                     </Button>
@@ -336,7 +340,15 @@ export default function SemesterSettingsPage(): React.JSX.Element {
       {/* Dialogs */}
       <TemplateFormDialog
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={() => {
+          setCreateOpen(false);
+          setCreateFromType(null);
+        }}
+        programType={
+          createFromType
+            ? (createFromType as "college" | "shs" | "jhs" | "elementary")
+            : undefined
+        }
       />
       {editTarget && (
         <TemplateFormDialog

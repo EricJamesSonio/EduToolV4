@@ -1,255 +1,372 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { useCreateGradingSchemeTemplate, useUpdateGradingSchemeTemplate } from "@/hooks/admin/useGradingSchemeTemplates";
-import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, X, GripVertical } from "lucide-react";
 import type { AxiosError } from "axios";
+import type { SemesterTemplate } from "@/types/admin/semester-template.types";
+import {
+  useCreateSemesterTemplate,
+  useUpdateSemesterTemplate,
+} from "@/hooks/admin/useSemesterTemplate";
+
+type ProgramType = "college" | "shs" | "jhs" | "elementary";
+
+const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
+  college: "College",
+  shs: "Senior High School",
+  jhs: "Junior High School",
+  elementary: "Elementary",
+};
+
+interface LocalTerm {
+  name: string;
+}
+
+interface LocalSemester {
+  name: string;
+  terms: LocalTerm[];
+}
 
 interface TemplateFormDialogProps {
   open: boolean;
   onClose: () => void;
-  template?: GradingSchemeTemplate;
+  template?: SemesterTemplate;
+  programType?: ProgramType; // Auto-set when creating from category
 }
 
-type ComponentType = "quiz" | "activity" | "exam" | "custom" | "manual";
-
-interface ComponentRow {
-  name: string;
-  type: ComponentType;
-  weight: number;
-  maxScore?: number;
+function toSemesterDto(semesters: LocalSemester[]) {
+  return semesters.map((s, si) => ({
+    name: s.name,
+    orderIndex: si + 1,
+    terms: s.terms.map((t, ti) => ({
+      name: t.name,
+      orderIndex: ti + 1,
+    })),
+  }));
 }
 
-const COMPONENT_TYPES: ComponentType[] = ["quiz", "activity", "exam", "custom", "manual"];
+const errMsg = (e: unknown) =>
+  (e as AxiosError<{ message: string }>)?.response?.data?.message ??
+  "Something went wrong.";
 
-export function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps) {
+export function TemplateFormDialog({
+  open,
+  onClose,
+  template,
+  programType: initialProgramType,
+}: TemplateFormDialogProps): React.JSX.Element {
   const isEdit = !!template;
-  const createMutation = useCreateGradingSchemeTemplate();
-  const updateMutation = useUpdateGradingSchemeTemplate();
+  const createMutation = useCreateSemesterTemplate();
+  const updateMutation = useUpdateSemesterTemplate();
   const isPending = createMutation.isPending || updateMutation.isPending;
+  const [name, setName] = useState(template?.name ?? "");
+  const [programType, setProgramType] = useState<ProgramType | "">(
+    initialProgramType ?? ""
+  );
+  const [semesters, setSemesters] = useState<LocalSemester[]>(() => {
+    if (template?.semesters?.length) {
+      return [...template.semesters]
+        .sort((a, b) => a.order_index - b.order_index)
+        .map((s) => ({
+          name: s.name,
+          terms: [...(s.terms ?? [])]
+            .sort((a, b) => a.order_index - b.order_index)
+            .map((t) => ({ name: t.name })),
+        }));
+    }
+    return [
+      { name: "1st Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
+      { name: "2nd Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
+    ];
+  });
 
-  const [name, setName] = useState("");
-  const [components, setComponents] = useState<ComponentRow[]>([]);
-
+  // Sync state when dialog opens
   useEffect(() => {
     if (open) {
-      if (isEdit && template) {
-        setName(template.name);
-        setComponents(
-          template.components?.map((c) => ({
-            name: c.name,
-            type: c.type as ComponentType,
-            weight: c.weight,
-            maxScore: c.maxScore ?? undefined,
-          })) ?? []
-        );
-      } else {
-        setName("");
-        setComponents([]);
+      setName(template?.name ?? "");
+      setProgramType(initialProgramType ?? "");
+      if (!template?.semesters?.length) {
+        setSemesters([
+          { name: "1st Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
+          { name: "2nd Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
+        ]);
       }
     }
-  }, [open, template, isEdit]);
+  }, [open, template, initialProgramType]);
 
-  const totalWeight = components.reduce((sum, c) => sum + c.weight, 0);
-  const canSave = name.trim().length > 0 && totalWeight === 100 && components.length > 0 && !isPending;
-
-  const addComponent = () => {
-    setComponents((prev) => [
+  const addSemester = () =>
+    setSemesters((prev) => [
       ...prev,
-      { name: "", type: "quiz", weight: 0 },
+      {
+        name: `${prev.length + 1}${["st", "nd", "rd"][prev.length] ?? "th"} Semester`,
+        terms: [],
+      },
     ]);
-  };
 
-  const removeComponent = (idx: number) => {
-    setComponents((prev) => prev.filter((_, i) => i !== idx));
-  };
+  const removeSemester = (si: number) =>
+    setSemesters((prev) => prev.filter((_, i) => i !== si));
 
-  const updateComponent = <K extends keyof ComponentRow>(idx: number, field: K, value: ComponentRow[K]) => {
-    setComponents((prev) =>
-      prev.map((c, i) => (i === idx ? { ...c, [field]: value } : c))
+  const updateSemesterName = (si: number, val: string) =>
+    setSemesters((prev) =>
+      prev.map((s, i) => (i === si ? { ...s, name: val } : s))
     );
-  };
+
+  const addTerm = (si: number) =>
+    setSemesters((prev) =>
+      prev.map((s, i) =>
+        i === si
+          ? { ...s, terms: [...s.terms, { name: `Term ${s.terms.length + 1}` }] }
+          : s
+      )
+    );
+
+  const removeTerm = (si: number, ti: number) =>
+    setSemesters((prev) =>
+      prev.map((s, i) =>
+        i === si ? { ...s, terms: s.terms.filter((_, j) => j !== ti) } : s
+      )
+    );
+
+  const updateTermName = (si: number, ti: number, val: string) =>
+    setSemesters((prev) =>
+      prev.map((s, i) =>
+        i === si
+          ? { ...s, terms: s.terms.map((t, j) => (j === ti ? { name: val } : t)) }
+          : s
+      )
+    );
 
   const handleSubmit = () => {
-    if (!canSave) return;
+    console.log("handleSubmit called!");
+    console.log("name:", name);
+    console.log("programType:", programType);
+    console.log("semesters:", semesters);
+    console.log("isEdit:", isEdit);
 
-    const payload = {
+    if (!name.trim()) {
+      console.log("Validation failed: no name");
+      return toast.error("Template name is required.");
+    }
+    if (!isEdit && !programType) {
+      console.log("Validation failed: no programType");
+      return toast.error("Program type is required.");
+    }
+    if (semesters.length === 0) {
+      console.log("Validation failed: no semesters");
+      return toast.error("Add at least one semester.");
+    }
+    const semestersDto = toSemesterDto(semesters);
+
+    console.log("All validations passed. Creating template with:", {
       name: name.trim(),
-      components: components.map((c) => ({
-        name: c.name,
-        type: c.type,
-        weight: c.weight,
-        maxScore: c.maxScore,
-      })),
-    };
+      programType: programType,
+      semesters: semestersDto,
+    });
 
     if (isEdit) {
       updateMutation.mutate(
-        { templateId: template!.id, data: payload },
+        { id: template.id, dto: { name: name.trim(), semesters: semestersDto } },
         {
           onSuccess: () => {
             toast.success("Template updated.");
             onClose();
           },
-          onError: (e: unknown) => {
-            const err = e as AxiosError<{ message: string }>;
-            toast.error(err?.response?.data?.message ?? "Failed to update.");
-          },
+          onError: (e) => toast.error(errMsg(e)),
         }
       );
     } else {
-      createMutation.mutate(payload, {
-        onSuccess: () => {
-          toast.success("Template created.");
-          onClose();
+      createMutation.mutate(
+        {
+          name: name.trim(),
+          programType: programType as ProgramType,
+          semesters: semestersDto,
         },
-        onError: (e: unknown) => {
-          const err = e as AxiosError<{ message: string }>;
-          toast.error(err?.response?.data?.message ?? "Failed to create.");
-        },
-      });
+        {
+          onSuccess: () => {
+            toast.success("Template created.");
+            onClose();
+          },
+          onError: (e) => toast.error(errMsg(e)),
+        }
+      );
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Template" : "New Grading Scheme Template"}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Edit Template" : "New Semester Template"}
+          </DialogTitle>
           <DialogDescription>
-            Define component categories and their weights. Total weight must equal 100%.
+            Templates are reusable across school years — assign them per program.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-2">
-          {/* Name */}
+        <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Template Name</Label>
             <Input
-              placeholder='e.g. "Standard Grading"'
+              placeholder='e.g. "Standard 2-Semester"'
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
 
-          {/* Components */}
+          {/* Program Type — only for create, hide if passed from category */}
+          {!isEdit && !initialProgramType && (
+            <div className="space-y-1.5">
+              <Label>
+                Program Type <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={programType}
+                onValueChange={(v) => setProgramType(v as ProgramType)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select program type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(
+                    Object.entries(PROGRAM_TYPE_LABELS) as [
+                      ProgramType,
+                      string,
+                    ][]
+                  ).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Program Type Display — when passed from category */}
+          {!isEdit && initialProgramType && (
+            <div className="space-y-1.5">
+              <Label>Program Type</Label>
+              <div className="px-3 py-2 rounded-md bg-muted text-sm">
+                {PROGRAM_TYPE_LABELS[initialProgramType]}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Components</Label>
+              <Label className="text-sm font-medium">Semesters & Terms</Label>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={addComponent}
-                disabled={isPending}
+                onClick={addSemester}
               >
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add Component
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add Semester
               </Button>
             </div>
 
-            {components.length === 0 && (
+            {semesters.length === 0 && (
               <div className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-                No components yet — click &quot;Add Component&quot; to start.
+                No semesters yet — click &quot;Add Semester&quot; to start.
               </div>
             )}
 
-            {/* Column headers */}
-            {components.length > 0 && (
-              <div className="grid grid-cols-[1fr_140px_100px_80px_32px] gap-2 px-0.5">
-                <span className="text-[10px] text-muted-foreground font-medium uppercase">Name</span>
-                <span className="text-[10px] text-muted-foreground font-medium uppercase">Type</span>
-                <span className="text-[10px] text-muted-foreground font-medium uppercase">Weight %</span>
-                <span className="text-[10px] text-muted-foreground font-medium uppercase">Max Score</span>
-                <span />
-              </div>
-            )}
+            <div className="space-y-3">
+              {semesters.map((sem, si) => (
+                <div
+                  key={si}
+                  className="rounded-lg border bg-muted/20 p-4 space-y-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                    <Input
+                      className="h-8 text-sm font-medium bg-background"
+                      value={sem.name}
+                      onChange={(e) => updateSemesterName(si, e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeSemester(si)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
 
-            {/* Component rows */}
-            <div className="space-y-2">
-              {components.map((comp, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_140px_100px_80px_32px] gap-2 items-start">
-                  <Input
-                    placeholder="e.g. Quizzes"
-                    value={comp.name}
-                    onChange={(e) => updateComponent(idx, "name", e.target.value)}
-                    className="h-8 text-sm"
-                    disabled={isPending}
-                  />
+                  <div className="pl-6 space-y-2">
+                    {sem.terms.map((term, ti) => (
+                      <div key={ti} className="flex items-center gap-2">
+                        <div className="h-px w-3 bg-border shrink-0" />
+                        <Input
+                          className="h-7 text-xs bg-background"
+                          value={term.name}
+                          onChange={(e) =>
+                            updateTermName(si, ti, e.target.value)
+                          }
+                        />
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeTerm(si, ti)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
 
-                  <Select
-                    value={comp.type}
-                    onValueChange={(v) => updateComponent(idx, "type", v as ComponentType)}
-                    disabled={isPending}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COMPONENT_TYPES.map((t) => (
-                        <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={comp.weight}
-                    onChange={(e) => updateComponent(idx, "weight", parseFloat(e.target.value) || 0)}
-                    className="h-8 text-sm"
-                    disabled={isPending}
-                  />
-
-                  <Input
-                    type="number"
-                    placeholder="100"
-                    value={comp.maxScore ?? ""}
-                    onChange={(e) => updateComponent(idx, "maxScore", e.target.value ? parseFloat(e.target.value) : undefined)}
-                    className="h-8 text-sm"
-                    disabled={isPending}
-                  />
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => removeComponent(idx)}
-                    disabled={isPending}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs text-muted-foreground"
+                      onClick={() => addTerm(si)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> Add term
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Total weight */}
-          {components.length > 0 && (
-            <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
-              <span className="text-sm font-medium">Total:</span>
-              <span className={cn(
-                "text-sm font-semibold",
-                totalWeight === 100 ? "text-green-600" : "text-destructive"
-              )}>
-                {totalWeight}% / 100%
-              </span>
-            </div>
-          )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!canSave}>
-            {isPending ? "Saving…" : isEdit ? "Save Changes" : "Create Template"}
+          <Button variant="outline" onClick={onClose} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isPending}>
+            {isPending
+              ? "Saving…"
+              : isEdit
+              ? "Save Changes"
+              : "Create Template"}
           </Button>
         </DialogFooter>
       </DialogContent>
