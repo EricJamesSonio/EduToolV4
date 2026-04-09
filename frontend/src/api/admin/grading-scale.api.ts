@@ -1,96 +1,41 @@
-// ===== File: frontend/src/api/admin/grading-scheme.api.ts =====
+// frontend/src/api/admin/grading-scale.api.ts
 
-import client from '@/api/client'
+import client from "@/api/client";
+import type { GradingScale, GradeRange } from "@/types/admin/grading-scale.types";
 
-import type {
-  GradingScheme,
-  CreateGradingSchemeDto,
-  UpdateGradingSchemeDto,
-  GradingSchemeTemplate,
-  ApplyToProgramPayload,
-} from '@/types/admin/grading-scheme.types'
-
-interface ApiResponse<T> {
-  success: boolean
-  data: T
+export interface CreateGradingScaleRequest {
+  levelId: string;
+  schoolYearId: string;
+  name: string;
+  ranges: GradeRange[];  // now correctly typed — fields match backend GradeRangeDto
 }
 
-export const adminGradingSchemeApi = {
-  // ========================================
-  // CLASS-BASED SCHEME
-  // ========================================
-
-  // GET /grading-schemes/class/:classId
-  getByClass: async (classId: string): Promise<GradingScheme | null> => {
-    const res = await client.get<ApiResponse<GradingScheme | null>>(
-      `/grading-schemes/class/${classId}`
-    )
-    return res.data.data
-  },
-
-  // POST /grading-schemes
-  create: async (data: CreateGradingSchemeDto): Promise<GradingScheme> => {
-    const res = await client.post<ApiResponse<GradingScheme>>(
-      `/grading-schemes`,
-      data
-    )
-    return res.data.data
-  },
-
-  // PATCH /grading-schemes/:id
-  update: async (
-    schemeId: string,
-    data: UpdateGradingSchemeDto
-  ): Promise<GradingScheme> => {
-    const res = await client.patch<ApiResponse<GradingScheme>>(
-      `/grading-schemes/${schemeId}`,
-      data
-    )
-    return res.data.data
-  },
-
-  // ========================================
-  // TEMPLATE
-  // ========================================
-
-  // ⚠️ Only include this IF you have a template controller
-  getTemplates: async (
-    programType?: string
-  ): Promise<GradingSchemeTemplate[]> => {
-    const res = await client.get<ApiResponse<GradingSchemeTemplate[]>>(
-      `/grading-scheme-templates`,
-      {
-        params: { programType },
-      }
-    )
-    return res.data.data
-  },
-
-  // ========================================
-  // APPLY TEMPLATE
-  // ========================================
-
-  // POST /grading-schemes/apply-to-class
-  applyToClass: async (payload: {
-    classId: string
-    templateId: string
-    name?: string
-  }): Promise<GradingScheme> => {
-    const res = await client.post<ApiResponse<GradingScheme>>(
-      `/grading-schemes/apply-to-class`,
-      payload
-    )
-    return res.data.data
-  },
-
-  // POST /grading-schemes/apply-to-program
-  applyToProgram: async (
-    payload: ApplyToProgramPayload
-  ): Promise<{ success: boolean }> => {
-    const res = await client.post<ApiResponse<{ success: boolean }>>(
-      `/grading-schemes/apply-to-program`,
-      payload
-    )
-    return res.data.data
-  },
+export interface UpdateGradingScaleRequest {
+  name?: string;
+  ranges?: GradeRange[];
 }
+
+export interface GetGradingScalesQuery {
+  levelId?: string;
+  schoolYearId?: string;
+}
+
+export const gradingScaleApi = {
+  getAll: async (query?: GetGradingScalesQuery): Promise<GradingScale[]> => {
+    const res = await client.get<{ success: boolean; data: GradingScale[] }>("/grading-scales", { params: query });
+    return res.data.data;  // ← unwrap the actual array
+  },
+
+  create: async (data: CreateGradingScaleRequest): Promise<GradingScale> => {
+    const res = await client.post<{ success: boolean; data: GradingScale }>("/grading-scales", data);
+    return res.data.data;
+  },
+
+  update: async (id: string, data: UpdateGradingScaleRequest): Promise<GradingScale> => {
+    const res = await client.patch<{ success: boolean; data: GradingScale }>(`/grading-scales/${id}`, data);
+    return res.data.data;
+  },
+  delete: async (id: string): Promise<void> => {
+  await client.delete(`/grading-scales/${id}`);
+},
+};

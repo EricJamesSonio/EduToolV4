@@ -21,19 +21,32 @@ export class SubjectService {
     return {
       id:           subject.id,
       orgId:        subject.org_id,
+
       title:        subject.name,
       subjectType:  subject.subject_type ?? 'major',
-      programId:    subject.program_id  ?? null,
-      levelId:      subject.level_id    ?? null,
-      levelName:    subject.levelName   ?? null,
+
+      programId:    subject.program_id ?? null,
+      programName:  subject.programName ?? null,
+      realProgramId: subject.program_id ?? null,
+
+      levelId:      subject.level_id ?? null,
+      levelName:    subject.levelName ?? null,
+
+      courseId:     subject.course_id ?? null,
+      strandId:     subject.strand_id ?? null,
+
       lockStatus:   subject.is_locked ? 'locked' : 'unlocked',
-      yearLevel:    subject.year_level,
-      termLabel:    subject.term_label,
-      courseId:     subject.course_id,
-      strandId:     subject.strand_id,
+
+      yearLevel:    subject.year_level ?? null,
+      termLabel:    subject.term_label ?? null,
+
       prerequisites: subject.prerequisites ?? [],
-      prereqFor:     subject.prereqFor     ?? [],
-      sharings:      subject.sharings      ?? [],
+      prereqFor:     subject.prereqFor ?? [],
+
+      sharings:      subject.sharings ?? [],
+
+      createdAt:     subject.created_at ?? null,
+      updatedAt:     subject.updated_at ?? null,
     };
   }
 
