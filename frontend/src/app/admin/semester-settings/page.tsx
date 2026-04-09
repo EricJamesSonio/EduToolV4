@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Plus, Layers, AlertCircle } from "lucide-react";
 import type { AxiosError } from "axios";
+import type { ProgramType } from "@/types/admin/semester-template.types";
 
 import type {
   SemesterTemplate,
@@ -378,11 +379,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
           setCreateOpen(false);
           setCreateFromType(null);
         }}
-        programType={
-          createFromType
-            ? (createFromType as "college" | "shs" | "jhs" | "elementary")
-            : undefined
-        }
+programType={createFromType as ProgramType ?? undefined}
       />
       {editTarget && (
         <TemplateFormDialog
