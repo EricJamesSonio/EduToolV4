@@ -1,6 +1,6 @@
 // filepath: src/modules/grading-scheme-template/grading-scheme-template.repository.ts
 
-import { Injectable } from '@nestjs/common';
+import { Injectable} from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { GradingSchemeTemplateComponentDto } from './dto/grading-scheme-template.dto';
 import { Prisma } from '@prisma/client';
@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 const COMPONENTS_INCLUDE = {
   components: { orderBy: { created_at: 'asc' as const } },
 } satisfies Prisma.GradingSchemeTemplateInclude;
+
 
 function mapComponent(c: any) {
   return {

@@ -1,19 +1,191 @@
+// src/app/admin/grading-schemes/page.tsx
 "use client";
 
+import { useState, useEffect, useMemo } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { GradingSchemeEditor } from "@/components/admin/grading-scheme/GradingSchemeEditor";
+import { GradingSchemeTemplateList } from "@/components/admin/grading-scheme-template/GradingSchemeTemplateList";
+import { TemplateAssignmentPanel } from "@/components/admin/grading-scheme-template/TemplateAssignmentPanel";
+import { TemplateFormDialog } from "@/components/admin/grading-scheme-template/TemplateFormDialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useGradingSchemeTemplates } from "@/hooks/admin/useGradingSchemeTemplates";
+import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
+import { useQuery } from "@tanstack/react-query";
+import clientApi from "@/api/client";
+import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
+
+interface Class {
+  id: string;
+  name: string;
+}
+
+interface Program {
+  id: string;
+  name: string;
+  type: string;
+}
+
+interface ProgramWithClasses extends Program {
+  classes: Class[];
+}
+
+interface Envelope<T> {
+  success: boolean;
+  data: T;
+}
+
+async function fetchPrograms(schoolYearId: string): Promise<Program[]> {
+  const res = await clientApi.get<Envelope<Program[]>>("/programs", {
+    params: { schoolYearId },
+  });
+  return res.data.data ?? [];
+}
+
+async function fetchClasses(schoolYearId: string): Promise<Class[]> {
+  const res = await clientApi.get<Envelope<Class[]>>("/classes", {
+    params: { schoolYearId },
+  });
+  return res.data.data ?? [];
+}
+
+function usePrograms(schoolYearId: string) {
+  return useQuery({
+    queryKey: ["programs", schoolYearId],
+    queryFn: () => fetchPrograms(schoolYearId),
+    enabled: !!schoolYearId,
+  });
+}
+
+function useClasses(schoolYearId: string) {
+  return useQuery({
+    queryKey: ["classes", schoolYearId],
+    queryFn: () => fetchClasses(schoolYearId),
+    enabled: !!schoolYearId,
+  });
+}
 
 export default function GradingSchemesPage(): React.JSX.Element {
+  const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
+  const [selectedYearId, setSelectedYearId] = useState<string>("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<GradingSchemeTemplate | null>(null);
+
+  useEffect(() => {
+    if (!selectedYearId && schoolYears.length > 0) {
+      const active = schoolYears.find((sy: any) => sy.status === "active");
+      setSelectedYearId(active?.id ?? schoolYears[0].id);
+    }
+  }, [schoolYears, selectedYearId]);
+
+  const { data: templates = [], isLoading: tLoading } = useGradingSchemeTemplates();
+  const { data: programs = [], isLoading: pLoading } = usePrograms(selectedYearId);
+  const { data: classes = [] } = useClasses(selectedYearId);
+
+  // Enrich programs with their classes
+  const programsWithClasses = useMemo<ProgramWithClasses[]>(() => {
+    return programs.map((prog) => ({
+      ...prog,
+      classes: classes.filter((cls: any) => cls.programId === prog.id),
+    }));
+  }, [programs, classes]);
+
+  const isLoading = syLoading || tLoading || pLoading;
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Default Grading Scheme"
-        description="This grading scheme is automatically applied to all new classes."
+    <div className="space-y-8 pb-10">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Grading Scheme Templates</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Create reusable grading scheme templates and apply them to programs or individual classes.
+          </p>
+        </div>
+        <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4 mr-1.5" /> New Template
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-3 space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+            ))}
+          </div>
+          <div className="lg:col-span-2 space-y-3">
+            {[1, 2].map((i) => (
+              <Skeleton key={i} className="h-8 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Templates List */}
+          <div className="lg:col-span-3 space-y-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Templates
+            </p>
+            <GradingSchemeTemplateList
+              templates={templates}
+              isLoading={tLoading}
+              onCreateClick={() => setCreateOpen(true)}
+              onEditClick={(template) => setEditTarget(template)}
+            />
+          </div>
+
+          {/* Assignment Panel */}
+          <div className="lg:col-span-2 space-y-3">
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                School Year
+              </p>
+              <Select value={selectedYearId} onValueChange={(v) => setSelectedYearId(v)}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select school year…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {schoolYears.map((sy: any) => (
+                    <SelectItem key={sy.id} value={sy.id} className="text-xs">
+                      {sy.name}
+                      {sy.status === "active" && (
+                        <span className="ml-1.5 text-emerald-600 text-[10px]">• Active</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Apply Templates
+              </p>
+              <TemplateAssignmentPanel
+                programs={programsWithClasses}
+                templates={templates}
+                isLoading={pLoading}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Dialog */}
+      <TemplateFormDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
       />
 
-      <div className="rounded-lg border p-6">
-        <GradingSchemeEditor />
-      </div>
+      {/* Edit Dialog */}
+      {editTarget && (
+        <TemplateFormDialog
+          open={!!editTarget}
+          onClose={() => setEditTarget(null)}
+          template={editTarget}
+        />
+      )}
     </div>
   );
 }

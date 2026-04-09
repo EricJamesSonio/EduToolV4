@@ -7,7 +7,7 @@ import {
 import { GradingSchemeTemplateService } from './grading-scheme-template.service';
 import {
   CreateGradingSchemeTemplateDto,
-  UpdateGradingSchemeTemplateDto,
+  UpdateGradingSchemeTemplateDto,ApplyTemplateToClassDto, ApplyTemplateToProgramDto
 } from './dto/grading-scheme-template.dto';
 import { AuthGuard }   from '@/commons/guards/auth.guard';
 import { RolesGuard }  from '@/commons/guards/role.guard';
@@ -65,4 +65,22 @@ export class GradingSchemeTemplateController {
   ) {
     return this.service.delete(id, orgId);
   }
+
+@Post('apply/class')
+@Roles('admin')
+async applyToClass(
+  @CurrentUser('org_id') orgId: string,
+  @Body() dto: ApplyTemplateToClassDto,
+) {
+  return this.service.applyToClass(orgId, dto);
+}
+
+@Post('apply/program')
+@Roles('admin')
+async applyToProgram(
+  @CurrentUser('org_id') orgId: string,
+  @Body() dto: ApplyTemplateToProgramDto,
+) {
+  return this.service.applyToProgram(orgId, dto);
+}
 }

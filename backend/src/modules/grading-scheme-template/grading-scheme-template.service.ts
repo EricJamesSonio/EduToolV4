@@ -10,11 +10,19 @@ import {
   CreateGradingSchemeTemplateDto,
   UpdateGradingSchemeTemplateDto,
   GradingSchemeTemplateComponentDto,
+  ApplyTemplateToClassDto,
+  ApplyTemplateToProgramDto,
 } from './dto/grading-scheme-template.dto';
+import { GradingSchemeRepository } from '../grading-scheme/grading-scheme.repository';
+import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
 export class GradingSchemeTemplateService {
-  constructor(private readonly repo: GradingSchemeTemplateRepository) {}
+  constructor(
+    private readonly repo: GradingSchemeTemplateRepository,
+    private readonly gradingSchemeRepo: GradingSchemeRepository,
+    private readonly db: DatabaseService,
+  ) {}
 
   private validateWeights(components: GradingSchemeTemplateComponentDto[]): void {
     if (components.length === 0) {
@@ -59,4 +67,60 @@ export class GradingSchemeTemplateService {
     await this.findById(id, orgId); // throws if not found
     await this.repo.delete(id, orgId);
   }
+
+ async applyToClass(orgId: string, dto: ApplyTemplateToClassDto) {
+  // Get template
+  const template = await this.findById(dto.templateId, orgId);
+
+  // Create/update grading scheme for the class
+  return this.gradingSchemeRepo.upsertForClass(
+    orgId,
+    dto.classId,
+    dto.templateId,
+    dto.name ?? template.name,
+    template.components.map((c) => ({
+      name: c.name,
+      type: c.type,
+      weight: c.weight,
+      maxScore: c.maxScore,
+      isOptional: false,
+    })),
+  );
+}
+
+async applyToProgram(orgId: string, dto: ApplyTemplateToProgramDto) {
+  // Get template
+  const template = await this.findById(dto.templateId, orgId);
+
+  // Get all class IDs under the program
+  const classIds = await this.gradingSchemeRepo.findClassIdsByProgram(
+    dto.programId,
+    orgId,
+  );
+
+  if (classIds.length === 0) {
+    throw new BadRequestException('No classes found in this program.');
+  }
+
+  // Create/update grading scheme for each class
+  const results = await Promise.all(
+    classIds.map((classId) =>
+      this.gradingSchemeRepo.upsertForClass(
+        orgId,
+        classId,
+        dto.templateId,
+        template.name,
+        template.components.map((c) => ({
+          name: c.name,
+          type: c.type,
+          weight: c.weight,
+          maxScore: c.maxScore,
+          isOptional: false,
+        })),
+      )
+    )
+  );
+
+  return { success: true, appliedCount: results.length };
+}
 }

@@ -1,6 +1,6 @@
 import {
   IsString, IsOptional, IsNumber, IsArray, IsEnum,
-  ValidateNested, MinLength, MaxLength, Min, Max,
+  ValidateNested, MinLength, MaxLength, Min, Max, IsUUID, IsBoolean
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ComponentType } from '@/modules/grading-scheme/dto/grading-scheme.dto';
@@ -57,4 +57,29 @@ export class UpdateGradingSchemeTemplateDto {
   @ValidateNested({ each: true })
   @Type(() => GradingSchemeTemplateComponentDto)
   components?: GradingSchemeTemplateComponentDto[];
+}
+
+export class ApplyTemplateToClassDto {
+  @IsUUID()
+  classId!: string;
+
+  @IsUUID()
+  templateId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  name?: string;
+}
+
+export class ApplyTemplateToProgramDto {
+  @IsUUID()
+  programId!: string;
+
+  @IsUUID()
+  templateId!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  overwriteExisting?: boolean;
 }

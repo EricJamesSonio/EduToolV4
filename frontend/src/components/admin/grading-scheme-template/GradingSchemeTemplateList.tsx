@@ -147,7 +147,7 @@ export function GradingSchemeTemplateList({
               <DialogTitle>Delete template?</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
-              Delete <strong>"{deleteTarget.name}"</strong>? This cannot be undone.
+              Delete <strong>&quot;{deleteTarget.name}&quot;</strong>? This cannot be undone.
             </p>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDeleteTarget(null)}>
