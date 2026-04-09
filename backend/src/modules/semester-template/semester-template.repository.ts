@@ -64,6 +64,16 @@ async findAllBySchoolYear(orgId: string, schoolYearId: string) {
     orderBy: { name: 'asc' },
   })
 }
+
+async getAllForOrg(orgId: string) {
+  return this.db.semesterTemplate.findMany({
+    where: {
+      org_id: orgId,
+    },
+    include: TEMPLATE_INCLUDE,
+    orderBy: { name: 'asc' },
+  })
+}
   async findById(id: string, orgId: string) {
     return this.db.semesterTemplate.findFirst({
       where:   { id, org_id: orgId },
@@ -123,7 +133,13 @@ async findAllBySchoolYear(orgId: string, schoolYearId: string) {
         }),
       ),
     )
-  }
+  }async findAllForOrg(orgId: string) {
+  return this.db.semesterTemplate.findMany({
+    where: { org_id: orgId },
+    include: TEMPLATE_INCLUDE,
+    orderBy: { name: 'asc' },
+  })
+}
 
   async delete(id: string) {
     // Delete items+terms first (no cascade in schema)

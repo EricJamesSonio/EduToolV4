@@ -34,11 +34,23 @@ export class SemesterTemplateController {
 @Roles('admin')
 async findAll(
   @CurrentUser('org_id') orgId: string,
-  @Query('schoolYearId') schoolYearId: string,
+  @Query('schoolYearId') schoolYearId?: string,  // Make optional
 ) {
-  return this.service.findAllBySchoolYear(orgId, schoolYearId)
+  if (schoolYearId) {
+    // Get templates with assignments for this school year
+    return this.service.findAllBySchoolYear(orgId, schoolYearId)
+  }
+  // Get ALL templates for org (no assignment filter)
+  return this.service.findAllForOrg(orgId)
 }
 
+@Get('for-org')
+@Roles('admin')
+async findAllForOrg(
+  @CurrentUser('org_id') orgId: string,
+) {
+  return this.service.findAllForOrg(orgId)
+}
   @Get(':id')
   @Roles('admin')
   async findOne(

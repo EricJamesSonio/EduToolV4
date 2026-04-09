@@ -13,9 +13,11 @@ interface Envelope<T> {
 }
 
 export const semesterTemplateApi = {
-  getAll: async (schoolYearId: string): Promise<SemesterTemplate[]> => {
+  getAll: async (schoolYearId?: string): Promise<SemesterTemplate[]> => {
+    // If schoolYearId provided, get templates with assignments for that year
+    // Otherwise, get all templates for the org
     const res = await clientApi.get<Envelope<SemesterTemplate[]>>('/semester-templates', {
-      params: { schoolYearId },
+      params: schoolYearId ? { schoolYearId } : {},
     })
     return res.data.data ?? []
   },

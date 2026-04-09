@@ -6,18 +6,21 @@ import type {
   AssignTemplateDto,
 } from '@/types/admin/semester-template.types'
 
-export const useSemesterTemplates = (schoolYearId: string) =>
+export const useSemesterTemplates = (schoolYearId?: string) =>
   useQuery({
-    queryKey: ['semester-templates', schoolYearId],
+    queryKey: ['semester-templates'],
     queryFn: () => semesterTemplateApi.getAll(schoolYearId),
-    enabled: !!schoolYearId,
+    enabled: true, // Always enabled - get all templates
   })
 
 export const useCreateSemesterTemplate = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (dto: SemesterTemplateCreateDto) => semesterTemplateApi.create(dto),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['semester-templates'] }),
+    onSuccess: () => {
+      // Invalidate all semester template queries (regardless of schoolYearId)
+      qc.invalidateQueries({ queryKey: ['semester-templates'] })
+    },
   })
 }
 

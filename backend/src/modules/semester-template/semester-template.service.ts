@@ -36,6 +36,12 @@ export class SemesterTemplateService {
     })
   }
 
+  async findAllForOrg(orgId: string) {
+  return this.repo.getAllForOrg(orgId)
+}
+ 
+
+
 async findAllBySchoolYear(orgId: string, schoolYearId: string) {
   return this.repo.findAllBySchoolYear(orgId, schoolYearId)
 }

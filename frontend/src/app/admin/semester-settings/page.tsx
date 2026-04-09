@@ -96,7 +96,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
   }, [schoolYears, selectedYearId]);
 
   const { data: templates = [], isLoading: tLoading } =
-    useSemesterTemplates(selectedYearId);
+    useSemesterTemplates(); // Don't pass schoolYearId - get all templates
   const { data: programs = [], isLoading: pLoading } =
     usePrograms(selectedYearId);
   const { data: assignments = [], isLoading: aLoading } =
