@@ -1,7 +1,6 @@
-// filepath: backend/src/modules/semester-template/semester-template.repository.ts
-
-import { Injectable } from '@nestjs/common'
-import { DatabaseService } from '@/core/database/database.provider'
+// ===== File: backend\src\modules\semester-template\semester-template.repository.ts =====
+import { Injectable } from '@nestjs/common';
+import { DatabaseService } from '@/core/database/database.provider';
 
 const TEMPLATE_INCLUDE = {
   semesters: {
@@ -10,36 +9,36 @@ const TEMPLATE_INCLUDE = {
       terms: { orderBy: { order_index: 'asc' as const } },
     },
   },
-}
+};
 
 @Injectable()
 export class SemesterTemplateRepository {
   constructor(private readonly db: DatabaseService) {}
 
   async create(data: {
-    orgId: string
-    programType: string
-    name: string
+    orgId: string;
+    programType: string;
+    name: string;
     semesters: Array<{
-      name: string
-      orderIndex: number
-      terms: Array<{ name: string; orderIndex: number }>
-    }>
+      name: string;
+      orderIndex: number;
+      terms: Array<{ name: string; orderIndex: number }>;
+    }>;
   }) {
     return this.db.semesterTemplate.create({
       data: {
-        org_id:       data.orgId,
+        org_id: data.orgId,
         program_type: data.programType,
-        name:         data.name,
+        name: data.name,
         semesters: {
           create: data.semesters.map((sem) => ({
-            org_id:     data.orgId,
-            name:       sem.name,
+            org_id: data.orgId,
+            name: sem.name,
             order_index: sem.orderIndex,
             terms: {
               create: sem.terms.map((t) => ({
-                org_id:      data.orgId,
-                name:        t.name,
+                org_id: data.orgId,
+                name: t.name,
                 order_index: t.orderIndex,
               })),
             },
@@ -47,155 +46,128 @@ export class SemesterTemplateRepository {
         },
       },
       include: TEMPLATE_INCLUDE,
-    })
+    });
   }
 
-async findAllBySchoolYear(orgId: string, schoolYearId: string) {
-  return this.db.semesterTemplate.findMany({
-    where: {
-      org_id: orgId,
-      assignments: {
-        some: {
-          program: { school_year_id: schoolYearId },
-        },
-      },
-    },
-    include: TEMPLATE_INCLUDE,
-    orderBy: { name: 'asc' },
-  })
-}
+  /** Get all templates for org, no school-year filter */
+  async getAllForOrg(orgId: string) {
+    return this.db.semesterTemplate.findMany({
+      where: { org_id: orgId },
+      include: TEMPLATE_INCLUDE,
+      orderBy: { name: 'asc' },
+    });
+  }
 
-async getAllForOrg(orgId: string) {
-  return this.db.semesterTemplate.findMany({
-    where: {
-      org_id: orgId,
-    },
-    include: TEMPLATE_INCLUDE,
-    orderBy: { name: 'asc' },
-  })
-}
   async findById(id: string, orgId: string) {
     return this.db.semesterTemplate.findFirst({
-      where:   { id, org_id: orgId },
+      where: { id, org_id: orgId },
       include: TEMPLATE_INCLUDE,
-    })
+    });
   }
 
-  async existsByName(orgId: string, programType: string, name: string, excludeId?: string) {
+  async existsByName(
+    orgId: string,
+    programType: string,
+    name: string,
+    excludeId?: string,
+  ) {
     return this.db.semesterTemplate.findFirst({
       where: {
-        org_id:       orgId,
+        org_id: orgId,
         program_type: programType,
         name,
         ...(excludeId ? { id: { not: excludeId } } : {}),
       },
-    })
+    });
   }
 
   async update(id: string, data: { name?: string }) {
     return this.db.semesterTemplate.update({
       where: { id },
-      data:  { ...(data.name ? { name: data.name } : {}) },
-    })
+      data: { ...(data.name ? { name: data.name } : {}) },
+    });
   }
 
-  // Full replace of semesters+terms on update
   async replaceSemesters(
     templateId: string,
     orgId: string,
     semesters: Array<{
-      name: string
-      orderIndex: number
-      terms: Array<{ name: string; orderIndex: number }>
+      name: string;
+      orderIndex: number;
+      terms: Array<{ name: string; orderIndex: number }>;
     }>,
   ) {
-    // Delete all existing items (cascade deletes terms via FK)
     await this.db.semesterTemplateItem.deleteMany({
       where: { template_id: templateId },
-    })
+    });
 
     return this.db.$transaction(
       semesters.map((sem) =>
         this.db.semesterTemplateItem.create({
           data: {
-            org_id:      orgId,
+            org_id: orgId,
             template_id: templateId,
-            name:        sem.name,
+            name: sem.name,
             order_index: sem.orderIndex,
             terms: {
               create: sem.terms.map((t) => ({
-                org_id:      orgId,
-                name:        t.name,
+                org_id: orgId,
+                name: t.name,
                 order_index: t.orderIndex,
               })),
             },
           },
         }),
       ),
-    )
-  }async findAllForOrg(orgId: string) {
-  return this.db.semesterTemplate.findMany({
-    where: { org_id: orgId },
-    include: TEMPLATE_INCLUDE,
-    orderBy: { name: 'asc' },
-  })
-}
+    );
+  }
 
   async delete(id: string) {
-    // Delete items+terms first (no cascade in schema)
     const items = await this.db.semesterTemplateItem.findMany({
       where: { template_id: id },
-    })
+    });
     await this.db.$transaction([
       this.db.semesterTemplateTerm.deleteMany({
         where: { semester_id: { in: items.map((i) => i.id) } },
       }),
       this.db.semesterTemplateItem.deleteMany({ where: { template_id: id } }),
       this.db.semesterTemplate.delete({ where: { id } }),
-    ])
+    ]);
   }
 
-  // Assignment
-  async assignToProgram(data: {
-    orgId: string
-    programId: string
-    templateId: string
-  }) {
+  async assignToProgram(data: { orgId: string; programId: string; templateId: string }) {
     return this.db.programSemesterAssignment.upsert({
-      where:  { program_id: data.programId },
+      where: { program_id: data.programId },
       update: { template_id: data.templateId },
       create: {
-        org_id:      data.orgId,
-        program_id:  data.programId,
+        org_id: data.orgId,
+        program_id: data.programId,
         template_id: data.templateId,
       },
-    })
+    });
   }
 
   async removeAssignment(programId: string, orgId: string) {
     return this.db.programSemesterAssignment.deleteMany({
       where: { program_id: programId, org_id: orgId },
-    })
+    });
   }
 
-  async findAssignmentsBySchoolYear(orgId: string, schoolYearId: string) {
-    // Join through Program to filter by school_year_id
+  /** Get all assignments, no school-year filter */
+  async findAllAssignments(orgId: string) {
     return this.db.programSemesterAssignment.findMany({
-      where: {
-        org_id:  orgId,
-        program: { school_year_id: schoolYearId },
-      },
+      where: { org_id: orgId },
       include: {
         template: { include: TEMPLATE_INCLUDE },
-        program:  { select: { id: true, name: true, type: true } },
+        program: { select: { id: true, name: true, type: true } },
       },
-    })
+    });
   }
 
   async findAssignmentByProgram(programId: string, orgId: string) {
     return this.db.programSemesterAssignment.findFirst({
-      where:   { program_id: programId, org_id: orgId },
+      where: { program_id: programId, org_id: orgId },
       include: { template: { include: TEMPLATE_INCLUDE } },
-    })
+    });
   }
 }

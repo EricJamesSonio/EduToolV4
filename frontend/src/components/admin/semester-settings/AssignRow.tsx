@@ -1,3 +1,4 @@
+// AssignRow.tsx
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,12 +23,14 @@ interface Program {
   id: string;
   name: string;
   type: string;
-  school_year_id: string;
+}
+
+interface ProgramWithAssignment extends Program {
   semesterAssignment: TemplateAssignment | null;
 }
 
 interface AssignRowProps {
-  program: Program;
+  program: ProgramWithAssignment;
   templates: SemesterTemplate[];
 }
 
@@ -42,12 +45,10 @@ export function AssignRow({
   const assignMutation = useAssignTemplate();
   const removeMutation = useRemoveTemplateAssignment();
   const isPending = assignMutation.isPending || removeMutation.isPending;
-  const compatible = templates;
   const current = program.semesterAssignment;
 
   const handleChange = (templateId: string | null) => {
-    if (templateId === null) return;
-    if (templateId === "none") {
+    if (!templateId || templateId === "none") {
       if (!current) return;
       removeMutation.mutate(program.id, {
         onSuccess: () => toast.success("Assignment removed."),
@@ -75,7 +76,7 @@ export function AssignRow({
         {program.name}
       </span>
       <div className="w-52 shrink-0">
-        {compatible.length === 0 ? (
+        {templates.length === 0 ? (
           <p className="text-xs text-muted-foreground italic px-1">
             No compatible templates
           </p>
@@ -92,7 +93,7 @@ export function AssignRow({
               <SelectItem value="none" className="text-xs text-muted-foreground">
                 — None —
               </SelectItem>
-              {compatible.map((t) => (
+              {templates.map((t) => (
                 <SelectItem key={t.id} value={t.id} className="text-xs">
                   {t.name}
                 </SelectItem>

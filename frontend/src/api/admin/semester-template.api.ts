@@ -13,12 +13,9 @@ interface Envelope<T> {
 }
 
 export const semesterTemplateApi = {
-  getAll: async (schoolYearId?: string): Promise<SemesterTemplate[]> => {
-    // If schoolYearId provided, get templates with assignments for that year
-    // Otherwise, get all templates for the org
-    const res = await clientApi.get<Envelope<SemesterTemplate[]>>('/semester-templates', {
-      params: schoolYearId ? { schoolYearId } : {},
-    })
+  // Get all templates (no school-year filter)
+  getAll: async (): Promise<SemesterTemplate[]> => {
+    const res = await clientApi.get<Envelope<SemesterTemplate[]>>('/semester-templates')
     return res.data.data ?? []
   },
 
@@ -28,11 +25,7 @@ export const semesterTemplateApi = {
   },
 
   create: async (dto: SemesterTemplateCreateDto): Promise<SemesterTemplate> => {
-    const res = await clientApi.post<Envelope<SemesterTemplate>>('/semester-templates', {
-      name: dto.name,
-      programType: dto.programType,
-      semesters: dto.semesters,
-    })
+    const res = await clientApi.post<Envelope<SemesterTemplate>>('/semester-templates', dto)
     return res.data.data
   },
 
@@ -45,11 +38,9 @@ export const semesterTemplateApi = {
     await clientApi.delete(`/semester-templates/${id}`)
   },
 
-  getAssignments: async (schoolYearId: string): Promise<TemplateAssignment[]> => {
-    const res = await clientApi.get<Envelope<TemplateAssignment[]>>(
-      '/semester-templates/assignments/by-school-year',
-      { params: { schoolYearId } }
-    )
+  // Get all assignments (no school-year filter)
+  getAssignments: async (): Promise<TemplateAssignment[]> => {
+    const res = await clientApi.get<Envelope<TemplateAssignment[]>>('/semester-templates/assignments')
     return res.data.data ?? []
   },
 
