@@ -1,49 +1,136 @@
-export type ComponentType = 'quiz' | 'activity' | 'exam' | 'custom' | 'manual'
+// ========================================
+// ENUMS / UNION TYPES
+// ========================================
+
+export type ComponentType =
+  | 'quiz'
+  | 'activity'
+  | 'exam'
+  | 'custom'
+  | 'manual'
+
+// ========================================
+// COMPONENT (ACTUAL SCHEME)
+// ========================================
 
 export interface GradingSchemeComponent {
-  id:              string
-  orgId:           string
+  id: string
+
+  orgId: string
   gradingSchemeId: string
-  name:            string
-  type:            ComponentType
-  weight:          number       // percentage; required components must sum to 100
-  maxScore:        number | null
-  isOptional:      boolean
-  createdAt:       string
+
+  name: string
+  type: ComponentType
+
+  weight: number // percentage; required components must sum to 100
+  maxScore: number | null
+
+  isOptional: boolean
+
+  createdAt: string
 }
 
+// ========================================
+// GRADING SCHEME (UPDATED)
+// ========================================
+
 export interface GradingScheme {
-  id:         string
-  orgId:      string
-  educatorId: string | null  // null = org default (admin-managed)
-  classId:    string | null  // set when assigned to a class
-  name:       string
-  isDefault:  boolean
-  isLocked:   boolean        // locked once students are enrolled
-  lockedAt:   string | null
-  createdAt:  string
+  id: string
+
+  orgId: string
+
+  // ✅ NOW REQUIRED (class-scoped)
+  classId: string
+
+  // ✅ NEW (template origin)
+  templateId?: string | null
+
+  name: string
+
+  isDefault: boolean
+
+  isLocked: boolean
+  lockedAt: string | null
+
+  createdAt: string
+
   components: GradingSchemeComponent[]
 }
 
-// ── DTOs mirroring backend ────────────────────────────────────────────────────
+// ========================================
+// TEMPLATE TYPES (NEW)
+// ========================================
+
+export interface GradingSchemeTemplate {
+  id: string
+
+  orgId: string
+
+  name: string
+
+  // optional: "college", "shs", etc.
+  programType?: string | null
+
+  createdAt: string
+
+  components: GradingSchemeTemplateComponent[]
+}
+
+export interface GradingSchemeTemplateComponent {
+  id: string
+
+  orgId: string
+  templateId: string
+
+  name: string
+  type: ComponentType
+
+  weight: number
+  maxScore?: number | null
+
+  createdAt: string
+}
+
+// ========================================
+// DTOs (CREATE / UPDATE)
+// ========================================
 
 export interface GradingSchemeComponentDto {
-  name:       string
-  type:       ComponentType
-  weight:     number
-  maxScore?:  number | null
+  name: string
+  type: ComponentType
+  weight: number
+  maxScore?: number | null
   isOptional?: boolean
 }
 
 export interface CreateGradingSchemeDto {
-  name:       string
+  name: string
+
+  // ✅ REQUIRED NOW (since class-scoped)
+  classId: string
+
+  // optional if creating from template
+  templateId?: string
+
   components: GradingSchemeComponentDto[]
 }
 
 export interface UpdateGradingSchemeDto {
-  name?:       string
+  name?: string
   components?: GradingSchemeComponentDto[]
 }
 
-// Same shape as UpdateGradingSchemeDto — kept separate to mirror backend naming
+// still valid
 export type UpdateDefaultGradingSchemeDto = UpdateGradingSchemeDto
+
+// ========================================
+// APPLY TEMPLATE → PROGRAM (NEW)
+// ========================================
+
+export interface ApplyToProgramPayload {
+  programId: string
+  templateId: string
+
+  name?: string
+  overwriteExisting?: boolean
+}
