@@ -1,13 +1,8 @@
-// ===== File: frontend/src/api/admin/grading-scheme.api.ts =====
-
 import client from '@/api/client'
-
 import type {
   GradingScheme,
   CreateGradingSchemeDto,
   UpdateGradingSchemeDto,
-  GradingSchemeTemplate,
-  ApplyToProgramPayload,
 } from '@/types/admin/grading-scheme.types'
 
 interface ApiResponse<T> {
@@ -16,11 +11,7 @@ interface ApiResponse<T> {
 }
 
 export const adminGradingSchemeApi = {
-  // ========================================
-  // CLASS-BASED SCHEME
-  // ========================================
-
-  // GET /grading-schemes/class/:classId
+  // Get grading scheme for a specific class
   getByClass: async (classId: string): Promise<GradingScheme | null> => {
     const res = await client.get<ApiResponse<GradingScheme | null>>(
       `/grading-schemes/class/${classId}`
@@ -28,7 +19,7 @@ export const adminGradingSchemeApi = {
     return res.data.data
   },
 
-  // POST /grading-schemes
+  // Create new grading scheme for a class
   create: async (data: CreateGradingSchemeDto): Promise<GradingScheme> => {
     const res = await client.post<ApiResponse<GradingScheme>>(
       `/grading-schemes`,
@@ -37,7 +28,7 @@ export const adminGradingSchemeApi = {
     return res.data.data
   },
 
-  // PATCH /grading-schemes/:id
+  // Update grading scheme
   update: async (
     schemeId: string,
     data: UpdateGradingSchemeDto
@@ -49,28 +40,7 @@ export const adminGradingSchemeApi = {
     return res.data.data
   },
 
-  // ========================================
-  // TEMPLATE
-  // ========================================
-
-  // ⚠️ Only include this IF you have a template controller
-  getTemplates: async (
-    programType?: string
-  ): Promise<GradingSchemeTemplate[]> => {
-    const res = await client.get<ApiResponse<GradingSchemeTemplate[]>>(
-      `/grading-scheme-templates`,
-      {
-        params: { programType },
-      }
-    )
-    return res.data.data
-  },
-
-  // ========================================
-  // APPLY TEMPLATE
-  // ========================================
-
-  // POST /grading-schemes/apply-to-class
+  // Apply template to single class
   applyToClass: async (payload: {
     classId: string
     templateId: string
@@ -83,14 +53,15 @@ export const adminGradingSchemeApi = {
     return res.data.data
   },
 
-  // POST /grading-schemes/apply-to-program
-  applyToProgram: async (
-    payload: ApplyToProgramPayload
-  ): Promise<{ success: boolean }> => {
-    const res = await client.post<ApiResponse<{ success: boolean }>>(
-      `/grading-schemes/apply-to-program`,
-      payload
-    )
+  // Apply template to all classes in a program (bulk operation)
+  applyToProgram: async (payload: {
+    programId: string
+    templateId: string
+    overwriteExisting?: boolean
+  }): Promise<{ success: boolean; appliedCount: number }> => {
+    const res = await client.post<
+      ApiResponse<{ success: boolean; appliedCount: number }>
+    >(`/grading-schemes/apply-to-program`, payload)
     return res.data.data
   },
 }
