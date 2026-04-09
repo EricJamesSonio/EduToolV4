@@ -27,12 +27,12 @@ export class OrganizationRepository {
     return !!account?.org_id;
   }
 
-async create(data: { name: string; description?: string; email_extension: string }) {
+async create(data: { name: string; description?: string; email_extension?: string }) {
   return this.db.organization.create({
     data: {
       name: data.name,
       description: data.description ?? null,
-      email_extension: data.email_extension,
+      email_extension: data.email_extension ?? '', // ← default to empty string
     },
   });
 }
