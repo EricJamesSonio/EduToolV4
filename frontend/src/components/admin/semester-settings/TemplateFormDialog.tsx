@@ -30,7 +30,7 @@ import {
 } from "@/hooks/admin/useSemesterTemplate";
 
 /* =========================
-   ✅ HARD-CODED TEMPLATES
+   TYPES
 ========================= */
 interface LocalTerm {
   name: string;
@@ -41,6 +41,9 @@ interface LocalSemester {
   terms: LocalTerm[];
 }
 
+/* =========================
+   ✅ HARDCODED TEMPLATES
+========================= */
 const DEFAULT_TEMPLATES: Record<ProgramType, LocalSemester[]> = {
   daycare: [
     { name: "Level 1", terms: [{ name: "1st Term" }, { name: "2nd Term" }] },
@@ -135,15 +138,32 @@ export function TemplateFormDialog({
   const updateMutation = useUpdateSemesterTemplate();
   const isPending = createMutation.isPending || updateMutation.isPending;
 
-  const [name, setName] = useState("");
+  const [name, setName] = useState(template?.name ?? "");
   const [programType, setProgramType] = useState<ProgramType | "">(
     initialProgramType ?? ""
   );
 
-  const [semesters, setSemesters] = useState<LocalSemester[]>([]);
+  const [semesters, setSemesters] = useState<LocalSemester[]>(() => {
+    if (template?.semesters?.length) {
+      return [...template.semesters]
+        .sort((a, b) => a.order_index - b.order_index)
+        .map((s) => ({
+          name: s.name,
+          terms: [...(s.terms ?? [])]
+            .sort((a, b) => a.order_index - b.order_index)
+            .map((t) => ({ name: t.name })),
+        }));
+    }
+
+    if (initialProgramType) {
+      return DEFAULT_TEMPLATES[initialProgramType];
+    }
+
+    return [];
+  });
 
   /* =========================
-     ✅ INIT / RESET STATE
+     INIT / RESET
   ========================= */
   useEffect(() => {
     if (open) {
@@ -176,7 +196,12 @@ export function TemplateFormDialog({
   const addSemester = () =>
     setSemesters((prev) => [
       ...prev,
-      { name: `Semester ${prev.length + 1}`, terms: [] },
+      {
+        name: `${prev.length + 1}${
+          ["st", "nd", "rd"][prev.length] ?? "th"
+        } Semester`,
+        terms: [],
+      },
     ]);
 
   const removeSemester = (si: number) =>
@@ -191,7 +216,10 @@ export function TemplateFormDialog({
     setSemesters((prev) =>
       prev.map((s, i) =>
         i === si
-          ? { ...s, terms: [...s.terms, { name: `Term ${s.terms.length + 1}` }] }
+          ? {
+              ...s,
+              terms: [...s.terms, { name: `Term ${s.terms.length + 1}` }],
+            }
           : s
       )
     );
@@ -267,29 +295,37 @@ export function TemplateFormDialog({
   /* ========================= */
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Edit Template" : "New Semester Template"}
           </DialogTitle>
           <DialogDescription>
-            Templates are reusable across school years.
+            Templates are reusable across school years — assign them per program.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div>
+          <div className="space-y-1.5">
             <Label>Template Name</Label>
             <Input
+              placeholder='e.g. "Standard 2-Semester"'
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
 
           {!isEdit && !initialProgramType && (
-            <div>
-              <Label>Program Type</Label>
+            <div className="space-y-1.5">
+              <Label>
+                Program Type <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={programType}
                 onValueChange={(v) => {
@@ -301,9 +337,12 @@ export function TemplateFormDialog({
                   <SelectValue placeholder="Select program type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(PROGRAM_TYPE_LABELS).map(([v, l]) => (
-                    <SelectItem key={v} value={v}>
-                      {l}
+                  {(Object.entries(PROGRAM_TYPE_LABELS) as [
+                    ProgramType,
+                    string,
+                  ][]).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -311,57 +350,101 @@ export function TemplateFormDialog({
             </div>
           )}
 
+          {/* 🔽 EVERYTHING BELOW IS YOUR ORIGINAL UI */}
           <div className="space-y-3">
-            <div className="flex justify-between">
-              <Label>Semesters & Terms</Label>
-              <Button size="sm" onClick={addSemester}>
-                <Plus className="h-4 w-4 mr-1" /> Add
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Semesters & Terms</Label>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={addSemester}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add Semester
               </Button>
             </div>
 
-            {semesters.map((sem, si) => (
-              <div key={si} className="border p-3 rounded">
-                <div className="flex gap-2">
-                  <GripVertical className="h-4 w-4" />
-                  <Input
-                    value={sem.name}
-                    onChange={(e) =>
-                      updateSemesterName(si, e.target.value)
-                    }
-                  />
-                  <Button onClick={() => removeSemester(si)}>
-                    <X />
-                  </Button>
-                </div>
-
-                <div className="pl-6 mt-2">
-                  {sem.terms.map((t, ti) => (
-                    <div key={ti} className="flex gap-2">
-                      <Input
-                        value={t.name}
-                        onChange={(e) =>
-                          updateTermName(si, ti, e.target.value)
-                        }
-                      />
-                      <Button onClick={() => removeTerm(si, ti)}>
-                        <X />
-                      </Button>
-                    </div>
-                  ))}
-
-                  <Button size="sm" onClick={() => addTerm(si)}>
-                    Add Term
-                  </Button>
-                </div>
+            {semesters.length === 0 && (
+              <div className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+                No semesters yet — click &quot;Add Semester&quot; to start.
               </div>
-            ))}
+            )}
+
+            <div className="space-y-3">
+              {semesters.map((sem, si) => (
+                <div
+                  key={si}
+                  className="rounded-lg border bg-muted/20 p-4 space-y-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                    <Input
+                      className="h-8 text-sm font-medium bg-background"
+                      value={sem.name}
+                      onChange={(e) =>
+                        updateSemesterName(si, e.target.value)
+                      }
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeSemester(si)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  <div className="pl-6 space-y-2">
+                    {sem.terms.map((term, ti) => (
+                      <div key={ti} className="flex items-center gap-2">
+                        <div className="h-px w-3 bg-border shrink-0" />
+                        <Input
+                          className="h-7 text-xs bg-background"
+                          value={term.name}
+                          onChange={(e) =>
+                            updateTermName(si, ti, e.target.value)
+                          }
+                        />
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeTerm(si, ti)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs text-muted-foreground"
+                      onClick={() => addTerm(si)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> Add term
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit}>
-            {isEdit ? "Save" : "Create"}
+          <Button variant="outline" onClick={onClose} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isPending}>
+            {isPending
+              ? "Saving…"
+              : isEdit
+              ? "Save Changes"
+              : "Create Template"}
           </Button>
         </DialogFooter>
       </DialogContent>
