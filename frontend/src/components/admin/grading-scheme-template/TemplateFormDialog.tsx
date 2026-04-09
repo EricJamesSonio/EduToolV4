@@ -25,15 +25,10 @@ import {
   useCreateSemesterTemplate,
   useUpdateSemesterTemplate,
 } from "@/hooks/admin/useSemesterTemplate";
+import { PROGRAM_TYPE_LABELS } from "@/components/admin/semester-settings/constants";
 
 type ProgramType = "college" | "shs" | "jhs" | "elementary";
 
-const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
-  college: "College",
-  shs: "Senior High School",
-  jhs: "Junior High School",
-  elementary: "Elementary",
-};
 
 interface LocalTerm {
   name: string;

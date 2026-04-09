@@ -1,3 +1,4 @@
+// ADD to both records:
 export const PROGRAM_TYPE_LABELS: Record<string, string> = {
   college:    "College",
   shs:        "Senior High School",
@@ -5,6 +6,7 @@ export const PROGRAM_TYPE_LABELS: Record<string, string> = {
   elementary: "Elementary",
   kinder:     "Kindergarten",
   daycare:    "Daycare / Pre-School",
+  custom:     "Custom",             // ADD
 };
 
 export const PROGRAM_TYPE_COLORS: Record<string, string> = {
@@ -14,4 +16,5 @@ export const PROGRAM_TYPE_COLORS: Record<string, string> = {
   elementary: "bg-emerald-500/10 text-emerald-600 border-emerald-200",
   kinder:     "bg-pink-500/10 text-pink-600 border-pink-200",
   daycare:    "bg-orange-500/10 text-orange-600 border-orange-200",
+  custom:     "bg-slate-500/10 text-slate-600 border-slate-200",  // ADD
 };

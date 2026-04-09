@@ -1,7 +1,7 @@
 import { IsString, IsArray, IsOptional, IsUUID, MinLength, MaxLength, IsInt, Min, ValidateNested, ArrayMinSize, IsIn, } from 'class-validator'
 import { Type } from 'class-transformer'
 
-export type ProgramType = 'college' | 'shs' | 'jhs' | 'elementary'
+export type ProgramType = 'daycare' | 'kinder' | 'elementary' | 'jhs' | 'shs' | 'college' | 'custom'
 
 export class CreateSemesterTemplateTermDto {
   @IsString() @MinLength(1) @MaxLength(100) name!: string
@@ -17,7 +17,8 @@ export class CreateSemesterTemplateItemDto {
 
 export class CreateSemesterTemplateDto {
   @IsString() @MinLength(1) @MaxLength(100) name!: string
-  @IsString() @IsIn(['college', 'shs', 'jhs', 'elementary']) programType!: ProgramType
+  @IsIn(['college', 'shs', 'jhs', 'elementary', 'kinder', 'daycare', 'custom'])
+programType!: ProgramType
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => CreateSemesterTemplateItemDto)
   semesters!: CreateSemesterTemplateItemDto[]
 }

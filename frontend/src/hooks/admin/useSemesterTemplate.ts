@@ -8,6 +8,7 @@ import type {
   SemesterTemplate,
   TemplateAssignment,
 } from '@/types/admin/semester-template.types'
+import clientApi from '@/api/client'
 
 // ─── Get all templates (no school-year filter) ──────────────────────────────
 export const useSemesterTemplates = () =>
@@ -51,11 +52,23 @@ export const useDeleteSemesterTemplate = () => {
 }
 
 // ─── Get all template assignments (no school-year filter) ──────────────────
-export const useTemplateAssignments = () =>
+// REPLACE useTemplateAssignments with this:
+export const useTemplateAssignments = (schoolYearId: string | null) =>
   useQuery<TemplateAssignment[]>({
-    queryKey: ['semester-template-assignments'],
-    queryFn: () => semesterTemplateApi.getAssignments(),
-    enabled: true, // Always enabled
+    queryKey: ['semester-template-assignments', schoolYearId],
+    queryFn: () => semesterTemplateApi.getAssignmentsBySchoolYear(schoolYearId!),
+    enabled: !!schoolYearId,
+  })
+
+  // ADD this new hook for school-year-scoped programs:
+export const useProgramsBySchoolYear = (schoolYearId: string | null) =>
+  useQuery<{ id: string; name: string; type: string }[]>({
+    queryKey: ['programs', schoolYearId],
+    queryFn: async () => {
+      const res = await clientApi.get(`/programs?schoolYearId=${schoolYearId}`)
+      return res.data.data ?? []
+    },
+    enabled: !!schoolYearId,
   })
 
 // ─── Assign a template to a program ────────────────────────────────────────
@@ -63,9 +76,9 @@ export const useAssignTemplate = () => {
   const qc = useQueryClient()
   return useMutation<TemplateAssignment, unknown, AssignTemplateDto>({
     mutationFn: (dto) => semesterTemplateApi.assign(dto),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['semester-template-assignments'] })
-    },
+onSuccess: () => {
+  qc.invalidateQueries({ queryKey: ['semester-template-assignments'] }) // invalidates all variants
+}
   })
 }
 

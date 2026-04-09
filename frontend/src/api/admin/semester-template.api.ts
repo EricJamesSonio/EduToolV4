@@ -30,7 +30,10 @@ export const semesterTemplateApi = {
   },
 
   update: async (id: string, dto: SemesterTemplateUpdateDto): Promise<SemesterTemplate> => {
-    const res = await clientApi.patch<Envelope<SemesterTemplate>>(`/semester-templates/${id}`, dto)
+    const res = await clientApi.patch<Envelope<SemesterTemplate>>(
+      `/semester-templates/${id}`,
+      dto
+    )
     return res.data.data
   },
 
@@ -38,9 +41,13 @@ export const semesterTemplateApi = {
     await clientApi.delete(`/semester-templates/${id}`)
   },
 
-  // Get all assignments (no school-year filter)
-  getAssignments: async (): Promise<TemplateAssignment[]> => {
-    const res = await clientApi.get<Envelope<TemplateAssignment[]>>('/semester-templates/assignments')
+  // ✅ NEW: Get assignments filtered by school year
+  getAssignmentsBySchoolYear: async (
+    schoolYearId: string
+  ): Promise<TemplateAssignment[]> => {
+    const res = await clientApi.get<Envelope<TemplateAssignment[]>>(
+      `/semester-templates/assignments/by-school-year?schoolYearId=${schoolYearId}`
+    )
     return res.data.data ?? []
   },
 

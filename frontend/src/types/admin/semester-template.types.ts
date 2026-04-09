@@ -1,4 +1,5 @@
-export type ProgramType = 'college' | 'shs' | 'jhs' | 'elementary'
+// REPLACE the current ProgramType:
+export type ProgramType = 'daycare' | 'kinder' | 'elementary' | 'jhs' | 'shs' | 'college' | 'custom'
 
 export interface TermTemplateItem {
   id?: string
@@ -26,6 +27,7 @@ export interface TemplateAssignment {
   program_id: string
   template_id: string
   template: Pick<SemesterTemplate, 'id' | 'name' | 'program_type'>
+  program?: { id: string; name: string; type: string; school_year_id: string } // ADD THIS
 }
 
 export interface SemesterTemplateCreateDto {
