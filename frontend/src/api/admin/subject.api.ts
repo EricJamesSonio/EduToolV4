@@ -10,8 +10,7 @@ export interface CreateSubjectRequest {
   name: string;
   levelId?: string;
   subjectType?: SubjectType;
-  programId?: string;   // real program_id — required when subjectType is 'minor'
-  educatorId?: string;
+  programId?: string;
   courseId?: string;
   strandId?: string;
   yearLevel?: string;
@@ -21,7 +20,6 @@ export interface CreateSubjectRequest {
 export interface UpdateSubjectRequest {
   name?: string;
   levelId?: string;
-  educatorId?: string;
   courseId?: string;
   strandId?: string;
   yearLevel?: string;
@@ -31,7 +29,7 @@ export interface UpdateSubjectRequest {
 export interface GetSubjectsQuery {
   schoolYearId?: string;
   levelId?: string;
-  educatorId?: string;
+  educatorId?: string; // still allowed for filtering
   search?: string;
   courseId?: string;
   strandId?: string;
@@ -51,23 +49,33 @@ export interface ShareSubjectRequest {
 interface SubjectResponse {
   id: string;
   orgId: string;
+
   title: string;
   subjectType: SubjectType;
+
   programId: string | null;
-  programName?: string | null;   // not sent by backend — keep for safety
-  levelName?: string | null;     // ← ADD THIS — backend sends this directly
+  programName?: string | null;
+
+  levelName?: string | null;
   levelId: string | null;
+
   realProgramId?: string | null;
+
   courseId: string | null;
   strandId?: string | null;
-  educatorId?: string | null;
-  educatorName?: string | null;
+
+  // ❌ REMOVED educator fields
+
   lockStatus: "locked" | "unlocked";
+
   yearLevel?: string | null;
   termLabel?: string | null;
+
   prerequisites?: unknown[];
   prereqFor?: unknown[];
+
   sharings?: SubjectSharing[];
+
   createdAt?: string;
   updatedAt?: string;
 }
@@ -81,33 +89,42 @@ interface ApiResponse<T> {
 // Mapper
 // ---------------------------------------------------------------------------
 
-// In mapSubject — add levelName
 function mapSubject(s: SubjectResponse): Subject {
   return {
     id:            s.id,
     orgId:         s.orgId,
+
     title:         s.title,
     subjectType:   s.subjectType ?? "major",
+
     programId:     s.programId   ?? "",
     programName:   s.programName ?? "",
+
     realProgramId: s.realProgramId ?? null,
-    levelId:       s.levelId       ?? null,
-    levelName:     s.levelName     ?? null,   // ← ADD THIS
+
+    levelId:       s.levelId   ?? null,
+    levelName:     s.levelName ?? null,
+
     courseId:      s.courseId,
-    strandId:      s.strandId      ?? null,
-    educatorId:    s.educatorId    ?? null,
-    educatorName:  s.educatorName  ?? null,
+    strandId:      s.strandId ?? null,
+
+    // ❌ REMOVED educator mapping
+
     lockStatus:    s.lockStatus,
-    yearLevel:     s.yearLevel     ?? null,
-    termLabel:     s.termLabel     ?? null,
+
+    yearLevel:     s.yearLevel ?? null,
+    termLabel:     s.termLabel ?? null,
+
     prerequisites: s.prerequisites ?? [],
-    prereqFor:     s.prereqFor     ?? [],
-    sharings:      s.sharings      ?? [],
-    createdAt:     s.createdAt     ?? "",
-    updatedAt:     s.updatedAt     ?? "",
-    
+    prereqFor:     s.prereqFor ?? [],
+
+    sharings:      s.sharings ?? [],
+
+    createdAt:     s.createdAt ?? "",
+    updatedAt:     s.updatedAt ?? "",
   };
 }
+
 // ---------------------------------------------------------------------------
 // API
 // ---------------------------------------------------------------------------
