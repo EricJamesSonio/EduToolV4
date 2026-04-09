@@ -108,7 +108,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
   const { data: programs = [], isLoading: pLoading } =
     useProgramsBySchoolYear(selectedYearId ?? undefined);
   const { data: assignments = [], isLoading: aLoading } =
-    useTemplateAssignments(selectedYearId ?? undefined);
+    useTemplateAssignments(selectedYearId)
 
   const deleteMutation = useDeleteSemesterTemplate();
 
