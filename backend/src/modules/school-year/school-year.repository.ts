@@ -77,4 +77,30 @@ export class SchoolYearRepository {
       select: { id: true, org_id: true },
     })
   }
+
+async unenrollAllStudents(schoolYearId: string, orgId: string) {
+  const [classResult, studentResult] = await this.db.$transaction([
+    this.db.enrollment.updateMany({
+      where: {
+        org_id: orgId,
+        status: 'active',
+        class: { school_year_id: schoolYearId, deleted_at: null },
+      },
+      data: { status: 'removed' },
+    }),
+    this.db.studentSchoolYear.updateMany({
+      where: {
+        org_id:         orgId,
+        school_year_id: schoolYearId,
+        status:         'active',
+      },
+      data: {
+        status:        'unenrolled',
+        unenrolled_at: new Date(),
+      },
+    }),
+  ])
+
+  return { classEnrollments: classResult.count, students: studentResult.count }
+}
 }
