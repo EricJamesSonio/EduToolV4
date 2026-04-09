@@ -65,18 +65,15 @@ interface Envelope<T> {
   data: T;
 }
 
-async function fetchPrograms(schoolYearId: string): Promise<Program[]> {
-  const res = await clientApi.get<Envelope<Program[]>>("/programs", {
-    params: { schoolYearId },
-  });
+async function fetchPrograms(): Promise<Program[]> {
+  const res = await clientApi.get<Envelope<Program[]>>("/programs");
   return res.data.data ?? [];
 }
 
-function usePrograms(schoolYearId: string) {
+function usePrograms() {
   return useQuery({
-    queryKey: ["programs", schoolYearId],
-    queryFn: () => fetchPrograms(schoolYearId),
-    enabled: !!schoolYearId,
+    queryKey: ["programs"],
+    queryFn: fetchPrograms,
   });
 }
 

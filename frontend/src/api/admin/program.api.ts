@@ -1,18 +1,12 @@
-// frontend/src/api/admin/program.api.ts
 import client from "@/api/client";
-import type { Program } from "@/types/admin/program.types";
+import type { Program, ProgramType } from "@/types/admin/program.types";
 
-export type ProgramType =
-  | "elementary"
-  | "high_school"
-  | "senior_high"
-  | "college"
-  | "custom";
+export type { ProgramType };
 
 export interface CreateProgramRequest {
   schoolYearId: string;
-  name: string;
-  type: ProgramType;
+  name:         string;
+  type:         ProgramType;
 }
 
 export interface UpdateProgramRequest {
