@@ -35,13 +35,13 @@ import {
 } from "@/hooks/admin/useSemesterTemplate";
 import { useQuery } from "@tanstack/react-query";
 import clientApi from "@/api/client";
-import { TemplateFormDialog } from "./TemplateFormDialog";
-import { TemplateCard } from "./TemplateCard";
-import { AssignRow } from "./AssignRow";
+import { TemplateFormDialog } from "@/components/admin/semester-settings/TemplateFormDialog";
+import { TemplateCard } from "@/components/admin/semester-settings//TemplateCard";
+import { AssignRow } from "@/components/admin/semester-settings//AssignRow";
 import {
   PROGRAM_TYPE_LABELS,
   PROGRAM_TYPE_COLORS,
-} from "./constants";
+} from "@/components/admin/semester-settings//constants";
 
 interface Program {
   id: string;
