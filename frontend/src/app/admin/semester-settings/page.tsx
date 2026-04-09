@@ -142,13 +142,15 @@ interface TemplateFormDialogProps {
   template?: SemesterTemplate;
 }
 
-function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps) {
+function TemplateFormDialog({
+  open,
+  onClose,
+  template,
+}: TemplateFormDialogProps): React.JSX.Element {
   const isEdit = !!template;
   const createMutation = useCreateSemesterTemplate();
   const updateMutation = useUpdateSemesterTemplate();
   const isPending = createMutation.isPending || updateMutation.isPending;
-
-  const [programType, setProgramType] = useState(template?.program_type ?? "college");
   const [name, setName] = useState(template?.name ?? "");
   const [semesters, setSemesters] = useState<LocalSemester[]>(() => {
     if (template?.semesters?.length) {
@@ -218,15 +220,21 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
       updateMutation.mutate(
         { id: template.id, dto: { name: name.trim(), semesters: semestersDto } },
         {
-          onSuccess: () => { toast.success("Template updated."); onClose(); },
+          onSuccess: () => {
+            toast.success("Template updated.");
+            onClose();
+          },
           onError: (e) => toast.error(errMsg(e)),
         }
       );
     } else {
       createMutation.mutate(
-        { name: name.trim(), programType, semesters: semestersDto },
+        { name: name.trim(), semesters: semestersDto },
         {
-          onSuccess: () => { toast.success("Template created."); onClose(); },
+          onSuccess: () => {
+            toast.success("Template created.");
+            onClose();
+          },
           onError: (e) => toast.error(errMsg(e)),
         }
       );
@@ -234,86 +242,99 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Template" : "New Semester Template"}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Edit Template" : "New Semester Template"}
+          </DialogTitle>
           <DialogDescription>
             Templates are reusable across school years — assign them per program.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-5 py-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Program Type</Label>
-              <Select
-                value={programType}
-                onValueChange={(v) => { if (v) setProgramType(v); }}
-                disabled={isEdit}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(PROGRAM_TYPE_LABELS).map(([v, l]) => (
-                    <SelectItem key={v} value={v}>{l}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {isEdit && (
-                <p className="text-xs text-muted-foreground">
-                  Program type cannot be changed after creation.
-                </p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Template Name</Label>
-              <Input
-                placeholder='e.g. "Standard 2-Semester"'
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
+
+        {/* MAIN CONTENT */}
+        <div className="space-y-4">
+          {/* Template Name */}
+          <div className="space-y-1.5">
+            <Label>Template Name</Label>
+            <Input
+              placeholder='e.g. "Standard 2-Semester"'
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
+
+          {/* Semesters */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Semesters & Terms</Label>
-              <Button type="button" size="sm" variant="outline" onClick={addSemester}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={addSemester}
+              >
                 <Plus className="h-3.5 w-3.5 mr-1" /> Add Semester
               </Button>
             </div>
+
             {semesters.length === 0 && (
               <div className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
                 No semesters yet — click &quot;Add Semester&quot; to start.
               </div>
             )}
+
             <div className="space-y-3">
               {semesters.map((sem, si) => (
-                <div key={si} className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                <div
+                  key={si}
+                  className="rounded-lg border bg-muted/20 p-4 space-y-3"
+                >
+                  {/* Semester Header */}
                   <div className="flex items-center gap-2">
                     <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+
                     <Input
                       className="h-8 text-sm font-medium bg-background"
                       value={sem.name}
                       onChange={(e) => updateSemesterName(si, e.target.value)}
                     />
+
                     <Button
-                      type="button" size="icon" variant="ghost"
+                      type="button"
+                      size="icon"
+                      variant="ghost"
                       className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                       onClick={() => removeSemester(si)}
                     >
                       <X className="h-3.5 w-3.5" />
                     </Button>
                   </div>
+
+                  {/* Terms */}
                   <div className="pl-6 space-y-2">
                     {sem.terms.map((term, ti) => (
                       <div key={ti} className="flex items-center gap-2">
                         <div className="h-px w-3 bg-border shrink-0" />
+
                         <Input
                           className="h-7 text-xs bg-background"
                           value={term.name}
-                          onChange={(e) => updateTermName(si, ti, e.target.value)}
+                          onChange={(e) =>
+                            updateTermName(si, ti, e.target.value)
+                          }
                         />
+
                         <Button
-                          type="button" size="icon" variant="ghost"
+                          type="button"
+                          size="icon"
+                          variant="ghost"
                           className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
                           onClick={() => removeTerm(si, ti)}
                         >
@@ -321,8 +342,11 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
                         </Button>
                       </div>
                     ))}
+
                     <Button
-                      type="button" size="sm" variant="ghost"
+                      type="button"
+                      size="sm"
+                      variant="ghost"
                       className="h-7 text-xs text-muted-foreground"
                       onClick={() => addTerm(si)}
                     >
@@ -334,10 +358,19 @@ function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps
             </div>
           </div>
         </div>
+
+        {/* FOOTER */}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={isPending}>
+            Cancel
+          </Button>
+
           <Button onClick={handleSubmit} disabled={isPending}>
-            {isPending ? "Saving…" : isEdit ? "Save Changes" : "Create Template"}
+            {isPending
+              ? "Saving…"
+              : isEdit
+              ? "Save Changes"
+              : "Create Template"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -351,10 +384,12 @@ interface TemplateCardProps {
   onDelete: () => void;
 }
 
-function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
+function TemplateCard({
+  template,
+  onEdit,
+  onDelete,
+}: TemplateCardProps): React.JSX.Element {
   const [expanded, setExpanded] = useState(false);
-  const typeColor =
-    PROGRAM_TYPE_COLORS[template.program_type] ?? "bg-gray-100 text-gray-600 border-gray-200";
 
   return (
     <div className="rounded-lg border bg-card transition-colors hover:bg-muted/30">
@@ -370,16 +405,11 @@ function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
         />
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className="text-sm font-medium truncate">{template.name}</span>
-          <Badge
-            variant="outline"
-            className={cn("text-[10px] px-1.5 py-0 h-4 shrink-0 border", typeColor)}
-          >
-            {PROGRAM_TYPE_LABELS[template.program_type] ?? template.program_type}
-          </Badge>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-xs text-muted-foreground">
-            {template.semesters.length} sem{template.semesters.length !== 1 ? "s" : ""}
+            {template.semesters.length} sem
+            {template.semesters.length !== 1 ? "s" : ""}
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -389,13 +419,21 @@ function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
               <MoreHorizontal className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
+              >
                 <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
               >
                 <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
               </DropdownMenuItem>
@@ -409,10 +447,17 @@ function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
             {[...template.semesters]
               .sort((a, b) => a.order_index - b.order_index)
               .map((sem) => (
-                <div key={sem.id ?? sem.order_index} className="rounded-md border bg-background p-3">
-                  <p className="text-xs font-semibold text-foreground mb-2">{sem.name}</p>
+                <div
+                  key={sem.id ?? sem.order_index}
+                  className="rounded-md border bg-background p-3"
+                >
+                  <p className="text-xs font-semibold text-foreground mb-2">
+                    {sem.name}
+                  </p>
                   {sem.terms.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground italic">No terms</p>
+                    <p className="text-[11px] text-muted-foreground italic">
+                      No terms
+                    </p>
                   ) : (
                     <div className="space-y-1">
                       {[...sem.terms]
@@ -442,11 +487,14 @@ interface AssignRowProps {
   templates: SemesterTemplate[];
 }
 
-function AssignRow({ program, templates }: AssignRowProps) {
+function AssignRow({
+  program,
+  templates,
+}: AssignRowProps): React.JSX.Element {
   const assignMutation = useAssignTemplate();
   const removeMutation = useRemoveTemplateAssignment();
   const isPending = assignMutation.isPending || removeMutation.isPending;
-  const compatible = templates.filter((t) => t.program_type === program.type);
+  const compatible = templates;
   const current = program.semesterAssignment;
 
   const handleChange = (templateId: string | null) => {
@@ -475,10 +523,14 @@ function AssignRow({ program, templates }: AssignRowProps) {
       ) : (
         <Circle className="h-4 w-4 text-muted-foreground/30 shrink-0" />
       )}
-      <span className="text-sm font-medium min-w-0 flex-1 truncate">{program.name}</span>
+      <span className="text-sm font-medium min-w-0 flex-1 truncate">
+        {program.name}
+      </span>
       <div className="w-52 shrink-0">
         {compatible.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic px-1">No compatible templates</p>
+          <p className="text-xs text-muted-foreground italic px-1">
+            No compatible templates
+          </p>
         ) : (
           <Select
             value={current?.template_id ?? "none"}
@@ -516,9 +568,12 @@ export default function SemesterSettingsPage(): React.JSX.Element {
     }
   }, [schoolYears, selectedYearId]);
 
-  const { data: templates = [], isLoading: tLoading } = useSemesterTemplates(selectedYearId);
-  const { data: programs = [], isLoading: pLoading } = usePrograms(selectedYearId);
-  const { data: assignments = [], isLoading: aLoading } = useTemplateAssignments(selectedYearId);
+  const { data: templates = [], isLoading: tLoading } =
+    useSemesterTemplates(selectedYearId);
+  const { data: programs = [], isLoading: pLoading } =
+    usePrograms(selectedYearId);
+  const { data: assignments = [], isLoading: aLoading } =
+    useTemplateAssignments(selectedYearId);
   const deleteMutation = useDeleteSemesterTemplate();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -534,13 +589,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
   }, [programs, assignments]);
 
   const templatesByType = useMemo(() => {
-    const map = new Map<string, SemesterTemplate[]>();
-    for (const t of templates) {
-      const arr = map.get(t.program_type) ?? [];
-      arr.push(t);
-      map.set(t.program_type, arr);
-    }
-    return map;
+    return new Map([["all", templates]]);
   }, [templates]);
 
   const programsByType = useMemo(() => {
@@ -554,15 +603,24 @@ export default function SemesterSettingsPage(): React.JSX.Element {
   }, [programsWithAssignment]);
 
   const allTypes = useMemo(
-    () => Array.from(new Set([...templatesByType.keys(), ...programsByType.keys()])),
+    () =>
+      Array.from(
+        new Set([...templatesByType.keys(), ...programsByType.keys()])
+      ),
     [templatesByType, programsByType]
   );
 
   const handleDelete = () => {
     if (!deleteTarget) return;
     deleteMutation.mutate(deleteTarget.id, {
-      onSuccess: () => { toast.success("Template deleted."); setDeleteTarget(null); },
-      onError: (e) => { toast.error(errMsg(e)); setDeleteTarget(null); },
+      onSuccess: () => {
+        toast.success("Template deleted.");
+        setDeleteTarget(null);
+      },
+      onError: (e) => {
+        toast.error(errMsg(e));
+        setDeleteTarget(null);
+      },
     });
   };
 
@@ -573,9 +631,12 @@ export default function SemesterSettingsPage(): React.JSX.Element {
     <div className="space-y-8 pb-10">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Semester Settings</h1>
+          <h1 className="text-xl font-semibold tracking-tight">
+            Semester Settings
+          </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Define reusable semester templates per program type, then assign them to programs each school year.
+            Define reusable semester templates per program type, then assign them
+            to programs each school year.
           </p>
         </div>
         <Button size="sm" onClick={() => setCreateOpen(true)}>
@@ -585,18 +646,28 @@ export default function SemesterSettingsPage(): React.JSX.Element {
 
       {isLoading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-lg" />
+          ))}
         </div>
       ) : (
         <div className="space-y-10">
           {allTypes.length === 0 ? (
             <div className="rounded-xl border border-dashed bg-card px-6 py-16 text-center">
               <Layers className="h-10 w-10 text-muted-foreground/25 mx-auto mb-3" />
-              <p className="text-sm font-medium text-muted-foreground">No templates yet</p>
-              <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-                Create your first semester template to define reusable semester and term structures for each program type.
+              <p className="text-sm font-medium text-muted-foreground">
+                No templates yet
               </p>
-              <Button size="sm" variant="outline" className="mt-4" onClick={() => setCreateOpen(true)}>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                Create your first semester template to define reusable semester
+                and term structures for each program type.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-4"
+                onClick={() => setCreateOpen(true)}
+              >
                 <Plus className="h-3.5 w-3.5 mr-1.5" /> New Template
               </Button>
             </div>
@@ -605,7 +676,8 @@ export default function SemesterSettingsPage(): React.JSX.Element {
               const typeTemplates = templatesByType.get(type) ?? [];
               const typePrograms = programsByType.get(type) ?? [];
               const typeColor =
-                PROGRAM_TYPE_COLORS[type] ?? "bg-gray-100 text-gray-600 border-gray-200";
+                PROGRAM_TYPE_COLORS[type] ??
+                "bg-gray-100 text-gray-600 border-gray-200";
 
               return (
                 <section key={type} className="space-y-4">
@@ -618,7 +690,8 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                     </Badge>
                     <div className="flex-1 h-px bg-border" />
                     <Button
-                      size="sm" variant="ghost"
+                      size="sm"
+                      variant="ghost"
                       className="h-7 text-xs text-muted-foreground"
                       onClick={() => setCreateOpen(true)}
                     >
@@ -653,17 +726,25 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                       </p>
                       <Select
                         value={selectedYearId}
-                        onValueChange={(v) => { if (v) setSelectedYearId(v); }}
+                        onValueChange={(v) => {
+                          if (v) setSelectedYearId(v);
+                        }}
                       >
                         <SelectTrigger className="h-8 text-xs">
                           <SelectValue placeholder="Select school year…" />
                         </SelectTrigger>
                         <SelectContent>
                           {schoolYears.map((sy: SchoolYear) => (
-                            <SelectItem key={sy.id} value={sy.id} className="text-xs">
+                            <SelectItem
+                              key={sy.id}
+                              value={sy.id}
+                              className="text-xs"
+                            >
                               {sy.name}
                               {sy.status === "active" && (
-                                <span className="ml-1.5 text-emerald-600 text-[10px]">• Active</span>
+                                <span className="ml-1.5 text-emerald-600 text-[10px]">
+                                  • Active
+                                </span>
                               )}
                             </SelectItem>
                           ))}
@@ -673,11 +754,14 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                       <div className="rounded-lg border bg-card divide-y">
                         {isPanelLoading ? (
                           <div className="p-4 space-y-2">
-                            {[1, 2].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
+                            {[1, 2].map((i) => (
+                              <Skeleton key={i} className="h-8 w-full" />
+                            ))}
                           </div>
                         ) : typePrograms.length === 0 ? (
                           <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-                            No {PROGRAM_TYPE_LABELS[type] ?? type} programs in this year.
+                            No {PROGRAM_TYPE_LABELS[type] ?? type} programs in
+                            this year.
                           </div>
                         ) : (
                           <div className="px-3">
@@ -688,14 +772,16 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                         )}
                       </div>
 
-                      {!isPanelLoading && typePrograms.some((p) => !p.semesterAssignment) && (
-                        <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
-                          <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
-                          <p className="text-[11px] text-amber-700">
-                            Some programs don&apos;t have a template assigned yet.
-                          </p>
-                        </div>
-                      )}
+                      {!isPanelLoading &&
+                        typePrograms.some((p) => !p.semesterAssignment) && (
+                          <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
+                            <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+                            <p className="text-[11px] text-amber-700">
+                              Some programs don&apos;t have a template assigned
+                              yet.
+                            </p>
+                          </div>
+                        )}
                     </div>
                   </div>
                 </section>
@@ -705,7 +791,10 @@ export default function SemesterSettingsPage(): React.JSX.Element {
         </div>
       )}
 
-      <TemplateFormDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      <TemplateFormDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
       {editTarget && (
         <TemplateFormDialog
           open={!!editTarget}
@@ -714,16 +803,27 @@ export default function SemesterSettingsPage(): React.JSX.Element {
         />
       )}
       {deleteTarget && (
-        <Dialog open onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setDeleteTarget(null);
+          }}
+        >
           <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle>Delete template?</DialogTitle>
               <DialogDescription>
-                Delete <strong>&quot;{deleteTarget.name}&quot;</strong>? This action cannot be undone.
+                Delete <strong>&quot;{deleteTarget.name}&quot;</strong>? This
+                action cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteTarget(null)}
+              >
+                Cancel
+              </Button>
               <Button
                 variant="destructive"
                 disabled={deleteMutation.isPending}
