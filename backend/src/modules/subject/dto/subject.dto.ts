@@ -14,22 +14,20 @@ export class CreateSubjectDto {
   @IsIn(['major', 'minor'])
   subjectType?: 'major' | 'minor';
 
-  // required for both major and minor
   @IsUUID()
   programId!: string;
 
-  // major: required if program is college-type (course-based)
+  @ValidateIf((o) => o.subjectType !== 'minor')
   @IsOptional()
   @IsUUID()
   courseId?: string;
 
-  // major: required if program is shs-type (strand-based)
+  @ValidateIf((o) => o.subjectType !== 'minor')
   @IsOptional()
   @IsUUID()
   strandId?: string;
 
-  // major: level within the program
-  // minor: required (level this minor subject belongs to)
+  @ValidateIf((o) => o.subjectType === 'minor')
   @IsOptional()
   @IsUUID()
   levelId?: string;
