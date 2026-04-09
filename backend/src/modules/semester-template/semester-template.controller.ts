@@ -30,14 +30,14 @@ export class SemesterTemplateController {
     return this.service.create(orgId, dto)
   }
 
-  @Get()
-  @Roles('admin')
-  async findAll(
-    @CurrentUser('org_id') orgId: string,
-    @Query('programType') programType: string,
-  ) {
-    return this.service.findAllByProgramType(orgId, programType)
-  }
+@Get()
+@Roles('admin')
+async findAll(
+  @CurrentUser('org_id') orgId: string,
+  @Query('schoolYearId') schoolYearId: string,
+) {
+  return this.service.findAllBySchoolYear(orgId, schoolYearId)
+}
 
   @Get(':id')
   @Roles('admin')

@@ -36,9 +36,9 @@ export class SemesterTemplateService {
     })
   }
 
-  async findAllByProgramType(orgId: string, programType: string) {
-    return this.repo.findAllByProgramType(orgId, programType)
-  }
+async findAllBySchoolYear(orgId: string, schoolYearId: string) {
+  return this.repo.findAllBySchoolYear(orgId, schoolYearId)
+}
 
   async findById(id: string, orgId: string) {
     const template = await this.repo.findById(id, orgId)

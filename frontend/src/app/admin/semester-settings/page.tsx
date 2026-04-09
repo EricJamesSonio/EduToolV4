@@ -103,9 +103,10 @@ interface Envelope<T> {
   data: T;
 }
 
-// GET /semester-templates  (no programType filter — fetch all, group client-side)
-async function fetchTemplates(): Promise<SemesterTemplate[]> {
-  const res = await clientApi.get<Envelope<SemesterTemplate[]>>("/semester-templates");
+async function fetchTemplates(schoolYearId: string): Promise<SemesterTemplate[]> {
+  const res = await clientApi.get<Envelope<SemesterTemplate[]>>("/semester-templates", {
+    params: { schoolYearId },
+  });
   return res.data.data ?? [];
 }
 
@@ -128,10 +129,11 @@ async function fetchPrograms(schoolYearId: string): Promise<Program[]> {
 
 // ─── Query hooks ────────────────────────────────────────────────────────────
 
-function useSemesterTemplates() {
+function useSemesterTemplates(schoolYearId: string) {
   return useQuery({
-    queryKey: ["semester-templates"],
-    queryFn: fetchTemplates,
+    queryKey: ["semester-templates", schoolYearId],
+    queryFn: () => fetchTemplates(schoolYearId),
+    enabled: !!schoolYearId,
   });
 }
 
@@ -663,7 +665,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
     }
   }, [schoolYears, selectedYearId]);
 
-  const { data: templates = [], isLoading: tLoading } = useSemesterTemplates();
+  const { data: templates = [], isLoading: tLoading } = useSemesterTemplates(selectedYearId);
   const { data: programs = [], isLoading: pLoading } = usePrograms(selectedYearId);
   const { data: assignments = [], isLoading: aLoading } = useAssignments(selectedYearId);
 

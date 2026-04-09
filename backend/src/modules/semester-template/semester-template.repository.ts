@@ -50,14 +50,20 @@ export class SemesterTemplateRepository {
     })
   }
 
-  async findAllByProgramType(orgId: string, programType: string) {
-    return this.db.semesterTemplate.findMany({
-      where:   { org_id: orgId, program_type: programType },
-      include: TEMPLATE_INCLUDE,
-      orderBy: { name: 'asc' },
-    })
-  }
-
+async findAllBySchoolYear(orgId: string, schoolYearId: string) {
+  return this.db.semesterTemplate.findMany({
+    where: {
+      org_id: orgId,
+      assignments: {
+        some: {
+          program: { school_year_id: schoolYearId },
+        },
+      },
+    },
+    include: TEMPLATE_INCLUDE,
+    orderBy: { name: 'asc' },
+  })
+}
   async findById(id: string, orgId: string) {
     return this.db.semesterTemplate.findFirst({
       where:   { id, org_id: orgId },
