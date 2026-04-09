@@ -25,10 +25,13 @@ export const semesterTemplateApi = {
     return res.data.data
   },
 
-  create: async (dto: SemesterTemplateCreateDto): Promise<SemesterTemplate> => {
-    const res = await clientApi.post<Envelope<SemesterTemplate>>('/semester-templates', dto)
-    return res.data.data
-  },
+create: async (dto: SemesterTemplateCreateDto): Promise<SemesterTemplate> => {
+  const res = await clientApi.post<Envelope<SemesterTemplate>>('/semester-templates', {
+    name: dto.name,
+    semesters: dto.semesters,
+  })
+  return res.data.data
+},
 
   update: async (id: string, dto: SemesterTemplateUpdateDto): Promise<SemesterTemplate> => {
     const res = await clientApi.patch<Envelope<SemesterTemplate>>(`/semester-templates/${id}`, dto)

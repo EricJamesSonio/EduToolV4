@@ -14,7 +14,6 @@ export interface SemesterTemplateItem {
 export interface SemesterTemplate {
   id: string
   org_id: string
-  program_type: string
   name: string
   semesters: SemesterTemplateItem[]
 }
@@ -28,12 +27,8 @@ export interface TemplateAssignment {
 
 export interface SemesterTemplateCreateDto {
   name: string
-  programType: string
-  semesters: {
-    name: string
-    orderIndex: number
-    terms: { name: string; orderIndex: number }[]
-  }[]
+  semesters: { name: string; orderIndex: number; terms: { name: string; orderIndex: number }[] }[]
+  // programType removed — templates are org-wide
 }
 
 export interface SemesterTemplateUpdateDto {
