@@ -1,86 +1,109 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { analyticsApi } from "@/api/admin/analytics.api";
 import { organizationApi } from "@/api/admin/organization.api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
+import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Users, UserSquare2, GraduationCap, AlertTriangle, ArrowRight, Building2, ChevronRight, ChevronLeft, Check } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Users,
+  UserSquare2,
+  GraduationCap,
+  AlertTriangle,
+  ArrowRight,
+  Building2,
+} from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 import type { EnrollmentBreakdownRow } from "@/types/admin/analytics.types";
+import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { cn } from "@/lib/utils";
 
-// ── Program options ────────────────────────────────────────────────────────────
-
-const PROGRAM_OPTIONS = [
-  {
-    key: "daycare",
-    label: "Daycare / Pre-School",
-    description: "Daycare 1 & 2 with foundational learning areas",
-  },
-  {
-    key: "kinder",
-    label: "Kindergarten",
-    description: "Kinder 1 & 2 with early childhood curriculum",
-  },
-  {
-    key: "elementary",
-    label: "Elementary School",
-    description: "Grade 1–6 with core K-12 subjects",
-  },
-  {
-    key: "jhs",
-    label: "Junior High School",
-    description: "Grade 7–10 with core K-12 subjects",
-  },
-  {
-    key: "shs",
-    label: "Senior High School",
-    description: "Grade 11–12 across all SHS strands",
-  },
-  {
-    key: "college",
-    label: "College / University",
-    description: "Year-level courses with full subject curriculum",
-  },
-] as const;
-
-// ── Setup Form types ───────────────────────────────────────────────────────────
-
-interface SetupForm {
-  name: string;
-  description: string;
+interface StatCardProps {
+  label:     string;
+  value:     number | undefined;
+  icon:      React.ElementType;
+  isLoading: boolean;
+  warning?:  boolean;
+  action?:   { label: string; onClick: () => void };
 }
 
-// ── OrgSetupModal ──────────────────────────────────────────────────────────────
+function StatCard({ label, value, icon: Icon, isLoading, warning, action }: StatCardProps) {
+  return (
+    <div className={cn(
+      "rounded-lg border bg-card p-5 flex items-start justify-between gap-4",
+      warning && value && value > 0 && "border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20"
+    )}>
+      <div className="space-y-1">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        {isLoading ? (
+          <Skeleton className="h-8 w-16" />
+        ) : (
+          <p className={cn(
+            "text-3xl font-bold tracking-tight",
+            warning && value && value > 0 && "text-amber-600"
+          )}>
+            {value ?? 0}
+          </p>
+        )}
+        {action && value && value > 0 && (
+          <button
+            onClick={action.onClick}
+            className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+          >
+            {action.label} <ArrowRight className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+      <div className={cn(
+        "rounded-md p-2 bg-muted",
+        warning && value && value > 0 && "bg-amber-100 dark:bg-amber-900/30"
+      )}>
+        <Icon className={cn(
+          "h-5 w-5 text-muted-foreground",
+          warning && value && value > 0 && "text-amber-600"
+        )} />
+      </div>
+    </div>
+  );
+}
 
-function OrgSetupModal({ open, onSuccess, onSkip }: {
-  open: boolean
-  onSuccess: () => void
-  onSkip: () => void
-}): React.JSX.Element {
-  const { register, handleSubmit, formState: { errors } } =
-    useForm<{ name: string; description: string }>({
-      defaultValues: { name: "", description: "" },
-    })
+function OrgSetupModal({
+  open,
+  onSuccess,
+  onSkip,
+}: {
+  open:      boolean;
+  onSuccess: () => void;
+  onSkip:    () => void;
+}) {
+  const { register, handleSubmit, formState: { errors } } = useForm<{
+    name:        string;
+    description: string;
+  }>({ defaultValues: { name: "", description: "" } });
 
   const mutation = useMutation({
     mutationFn: organizationApi.createOrg,
-    onSuccess: () => {
-      toast.success("Organization created! Welcome to EduTool.")
-      onSuccess()
-    },
-    onError: () => toast.error("Failed to create organization."),
-  })
+    onSuccess:  () => { toast.success("Organization created! Welcome to EduTool."); onSuccess(); },
+    onError:    () => toast.error("Failed to create organization."),
+  });
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
@@ -91,8 +114,8 @@ function OrgSetupModal({ open, onSuccess, onSkip }: {
           </div>
           <DialogTitle className="text-lg">Set up your organization</DialogTitle>
           <DialogDescription>
-            Before you get started, give your school a name. You can update this later
-            from the Organization settings.
+            Before you get started, give your school a name. You can update this later from the
+            Organization settings.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -111,11 +134,14 @@ function OrgSetupModal({ open, onSuccess, onSkip }: {
                 minLength: { value: 2, message: "At least 2 characters" },
               })}
             />
-            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+            {errors.name && (
+              <p className="text-xs text-destructive">{errors.name.message}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="org-desc">
-              Description <span className="text-muted-foreground font-normal">(optional)</span>
+              Description{" "}
+              <span className="text-muted-foreground font-normal">(optional)</span>
             </Label>
             <Textarea
               id="org-desc"
@@ -139,91 +165,37 @@ function OrgSetupModal({ open, onSuccess, onSkip }: {
         </form>
       </DialogContent>
     </Dialog>
-  )
-}
-
-// ── StatCard ───────────────────────────────────────────────────────────────────
-
-interface StatCardProps {
-  label: string;
-  value: number | undefined;
-  icon: React.ElementType;
-  isLoading: boolean;
-  warning?: boolean;
-  action?: { label: string; onClick: () => void };
-}
-
-function StatCard({ label, value, icon: Icon, isLoading, warning, action }: StatCardProps): React.JSX.Element {
-  return (
-    <div className={cn(
-      "rounded-lg border bg-card p-5 flex items-start justify-between gap-4",
-      warning && value && value > 0 && "border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20"
-    )}>
-      <div className="space-y-1">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        {isLoading ? (
-          <Skeleton className="h-8 w-16" />
-        ) : (
-          <p className={cn(
-            "text-3xl font-bold tracking-tight",
-            warning && value && value > 0 && "text-amber-600"
-          )}>
-            {value ?? 0}
-          </p>
-        )}
-        {action && value && value > 0 && (
-          <button
-            onClick={action.onClick}
-            className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"
-          >
-            {action.label}
-            <ArrowRight className="h-3 w-3" />
-          </button>
-        )}
-      </div>
-      <div className={cn(
-        "rounded-md p-2 bg-muted",
-        warning && value && value > 0 && "bg-amber-100 dark:bg-amber-900/30"
-      )}>
-        <Icon className={cn(
-          "h-5 w-5 text-muted-foreground",
-          warning && value && value > 0 && "text-amber-600"
-        )} />
-      </div>
-    </div>
   );
 }
-
-// ── Enrollment table columns ───────────────────────────────────────────────────
 
 const enrollmentColumns: ColumnDef<EnrollmentBreakdownRow>[] = [
   {
     accessorKey: "levelSection",
-    header: "Level Section",
-    cell: ({ row }) => <span className="font-medium">{row.original.levelSection}</span>,
+    header:      "Level Section",
+    cell:        ({ row }) => <span className="font-medium">{row.original.levelSection}</span>,
   },
   {
     accessorKey: "programName",
-    header: "Program / Course",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.original.programName}</span>,
+    header:      "Program / Course",
+    cell:        ({ row }) => <span className="text-muted-foreground">{row.original.programName}</span>,
   },
   {
     accessorKey: "gradeLevel",
-    header: "Year / Grade",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.original.gradeLevel}</span>,
+    header:      "Year / Grade",
+    cell:        ({ row }) => <span className="text-muted-foreground">{row.original.gradeLevel}</span>,
   },
   { accessorKey: "sectionName", header: "Section" },
   {
     accessorKey: "activeCount",
-    header: "Active",
-    cell: ({ row }) => (
+    header:      "Active",
+    cell:        ({ row }) => (
       <span className="text-green-600 font-medium">{row.original.activeCount}</span>
     ),
   },
   {
     accessorKey: "pendingCount",
-    header: "Pending",
-    cell: ({ row }) => (
+    header:      "Pending",
+    cell:        ({ row }) => (
       <span className={cn(
         row.original.pendingCount > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"
       )}>
@@ -233,40 +205,47 @@ const enrollmentColumns: ColumnDef<EnrollmentBreakdownRow>[] = [
   },
   {
     accessorKey: "totalCount",
-    header: "Total",
-    cell: ({ row }) => <span className="font-semibold">{row.original.totalCount}</span>,
+    header:      "Total",
+    cell:        ({ row }) => <span className="font-semibold">{row.original.totalCount}</span>,
   },
 ];
 
-// ── Page ───────────────────────────────────────────────────────────────────────
-
 export default function AdminDashboardPage(): React.JSX.Element {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const [showSetup, setShowSetup] = useState(false);
+  const router       = useRouter();
+  const queryClient  = useQueryClient();
+  const [showSetup, setShowSetup]           = useState(false);
+  const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
+
+  const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
+
+  // Auto-select active year on load
+  useEffect(() => {
+    if (!selectedYearId && schoolYears.length > 0) {
+      const active = schoolYears.find((sy) => sy.status === "active");
+      setSelectedYearId(active?.id ?? schoolYears[0].id);
+    }
+  }, [schoolYears, selectedYearId]);
 
   const { data: org, isLoading: orgLoading } = useQuery({
     queryKey: ["admin", "organization"],
-    queryFn: organizationApi.getOrg,
-    retry: false,
+    queryFn:  organizationApi.getOrg,
+    retry:    false,
   });
 
   const { data: overview, isLoading: overviewLoading } = useQuery({
-    queryKey: ["admin", "analytics", "overview"],
-    queryFn: analyticsApi.getOverview,
-    enabled: org !== null && org !== undefined,
+    queryKey: ["admin", "analytics", "overview", selectedYearId],
+    queryFn:  () => analyticsApi.getOverview(selectedYearId ?? undefined),
+    enabled:  !!org && !!selectedYearId,
   });
 
   const { data: enrollment, isLoading: enrollmentLoading } = useQuery({
-    queryKey: ["admin", "analytics", "enrollment"],
-    queryFn: analyticsApi.getEnrollmentBreakdown,
-    enabled: org !== null && org !== undefined,
+    queryKey: ["admin", "analytics", "enrollment", selectedYearId],
+    queryFn:  () => analyticsApi.getEnrollmentBreakdown(selectedYearId ?? undefined),
+    enabled:  !!org && !!selectedYearId,
   });
 
   useEffect(() => {
-    if (!orgLoading && org === null) {
-      setShowSetup(true);
-    }
+    if (!orgLoading && org === null) setShowSetup(true);
   }, [org, orgLoading]);
 
   const handleOrgCreated = () => {
@@ -282,20 +261,49 @@ export default function AdminDashboardPage(): React.JSX.Element {
         onSuccess={handleOrgCreated}
         onSkip={() => setShowSetup(false)}
       />
-      <PageHeader title="Dashboard" />
+
+      <div className="flex items-center justify-between gap-4">
+        <PageHeader title="Dashboard" />
+        <SchoolYearSelector
+          schoolYears={schoolYears}
+          isLoading={syLoading}
+          selectedId={selectedYearId}
+          onSelect={setSelectedYearId}
+        />
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total Students" value={overview?.totalStudents} icon={Users} isLoading={overviewLoading} />
-        <StatCard label="Total Educators" value={overview?.totalEducators} icon={UserSquare2} isLoading={overviewLoading} />
-        <StatCard label="Active Classes" value={overview?.totalClasses} icon={GraduationCap} isLoading={overviewLoading} />
+        <StatCard
+          label="Total Students"
+          value={overview?.totalStudents}
+          icon={Users}
+          isLoading={overviewLoading}
+        />
+        <StatCard
+          label="Total Educators"
+          value={overview?.totalEducators}
+          icon={UserSquare2}
+          isLoading={overviewLoading}
+        />
+        <StatCard
+          label="Active Classes"
+          value={overview?.totalClasses}
+          icon={GraduationCap}
+          isLoading={overviewLoading}
+        />
         <StatCard
           label="Pending Students"
           value={overview?.pendingStudents}
           icon={AlertTriangle}
           isLoading={overviewLoading}
           warning
-          action={{ label: "Resolve", onClick: () => router.push("/admin/students?status=Pending") }}
+          action={{
+            label:   "Resolve",
+            onClick: () => router.push("/admin/students?status=Pending"),
+          }}
         />
       </div>
+
       <div className="space-y-3">
         <h2 className="text-base font-semibold">Enrollment Breakdown</h2>
         <DataTable
