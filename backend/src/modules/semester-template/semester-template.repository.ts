@@ -170,4 +170,32 @@ export class SemesterTemplateRepository {
       include: { template: { include: TEMPLATE_INCLUDE } },
     });
   }
+  async findAllBySchoolYear(orgId: string, schoolYearId: string) {
+    // Get all templates that are assigned to at least one program in this school year
+    return this.db.semesterTemplate.findMany({
+      where: {
+        org_id: orgId,
+        assignments: {
+          some: {
+            program: { school_year_id: schoolYearId },
+          },
+        },
+      },
+      include: TEMPLATE_INCLUDE,
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async findAssignmentsBySchoolYear(orgId: string, schoolYearId: string) {
+    return this.db.programSemesterAssignment.findMany({
+      where: {
+        org_id: orgId,
+        program: { school_year_id: schoolYearId },
+      },
+      include: {
+        template: { include: TEMPLATE_INCLUDE },
+        program: { select: { id: true, name: true, type: true, school_year_id: true } },
+      },
+    });
+  }
 }
