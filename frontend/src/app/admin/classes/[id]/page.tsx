@@ -177,6 +177,7 @@ export default function ClassDetailPage({
           cls={enrichedCls}
           open={editOpen}
           onClose={() => setEditOpen(false)}
+          schoolYearId={enrichedCls.schoolYearId} 
         />
       )}
 

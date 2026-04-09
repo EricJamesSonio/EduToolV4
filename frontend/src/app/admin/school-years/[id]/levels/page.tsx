@@ -1,4 +1,3 @@
-// app/admin/school-years/[id]/levels/page.tsx
 "use client";
 
 import { use, useState } from "react";
@@ -48,7 +47,10 @@ export default function SchoolYearLevelsPage({
     mutationFn: ({ id, name }: { id: string; name: string }) =>
       levelApi.updateOne(id, name),
     onMutate: ({ id }) => setUpdatingId(id),
-    onSuccess: () => { toast.success("Level renamed."); invalidate(); },
+    onSuccess: () => {
+      toast.success("Level renamed.");
+      invalidate();
+    },
     onError: () => toast.error("Failed to rename level."),
     onSettled: () => setUpdatingId(null),
   });
@@ -56,8 +58,23 @@ export default function SchoolYearLevelsPage({
   const generateMutation = useMutation({
     mutationFn: ({ programId, count }: { programId: string; count: number }) =>
       levelApi.bulkGenerate({ programId, schoolYearId: id, count }),
-    onSuccess: () => { toast.success("Levels generated."); invalidate(); },
+    onSuccess: () => {
+      toast.success("Levels generated.");
+      invalidate();
+    },
     onError: () => toast.error("Failed to generate levels."),
+  });
+
+  // Derives a sensible default name for the new level based on existing ones.
+  // e.g. if the program already has "Grade 1", "Grade 2" → new level = "Grade 3"
+  const createMutation = useMutation({
+    mutationFn: ({ programId, name }: { programId: string; name: string }) =>
+      levelApi.create({ programId, name, schoolYearId: id }),
+    onSuccess: () => {
+      toast.success("Level added.");
+      invalidate();
+    },
+    onError: () => toast.error("Failed to add level."),
   });
 
   const deleteMutation = useMutation({
@@ -82,15 +99,26 @@ export default function SchoolYearLevelsPage({
     {}
   );
 
+  /** Derive the next level name from the existing ones for a program. */
+  function nextLevelName(programLevels: Level[]): string {
+    return `Level ${programLevels.length + 1}`;
+  }
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/admin/school-years" className="hover:text-foreground transition-colors">
+        <Link
+          href="/admin/school-years"
+          className="hover:text-foreground transition-colors"
+        >
           School Years
         </Link>
         <span>/</span>
-        <Link href={`/admin/school-years/${id}`} className="hover:text-foreground transition-colors">
+        <Link
+          href={`/admin/school-years/${id}`}
+          className="hover:text-foreground transition-colors"
+        >
           {syLoading ? "..." : (schoolYear?.name ?? "Detail")}
         </Link>
         <span>/</span>
@@ -142,7 +170,10 @@ export default function SchoolYearLevelsPage({
           <p className="text-xs text-muted-foreground mt-1">
             Run the data seeder on the Organization page to set up programs.
           </p>
-          <Link href="/admin/organization" className="mt-3 inline-block text-xs text-primary hover:underline">
+          <Link
+            href="/admin/organization"
+            className="mt-3 inline-block text-xs text-primary hover:underline"
+          >
             Go to Organization →
           </Link>
         </div>
@@ -154,11 +185,23 @@ export default function SchoolYearLevelsPage({
               program={program}
               levels={levelsByProgram[program.id] ?? []}
               isEnded={isEnded ?? false}
-              onUpdate={(levelId, name) => updateMutation.mutate({ id: levelId, name })}
+              onUpdate={(levelId, name) =>
+                updateMutation.mutate({ id: levelId, name })
+              }
               onDelete={(level) => setDeleteTarget(level)}
-              onGenerate={(programId, count) => generateMutation.mutate({ programId, count })}
+              onGenerate={(programId, count) =>
+                generateMutation.mutate({ programId, count })
+              }
+              onAdd={(programId) => {
+                const existing = levelsByProgram[programId] ?? [];
+                createMutation.mutate({
+                  programId,
+                  name: nextLevelName(existing),
+                });
+              }}
               isUpdating={updateMutation.isPending}
               isGenerating={generateMutation.isPending}
+              isAdding={createMutation.isPending}
               updatingId={updatingId}
             />
           ))}
@@ -175,7 +218,9 @@ export default function SchoolYearLevelsPage({
           destructive
           isLoading={deleteMutation.isPending}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
-          onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+          onOpenChange={(o) => {
+            if (!o) setDeleteTarget(null);
+          }}
         />
       )}
     </div>

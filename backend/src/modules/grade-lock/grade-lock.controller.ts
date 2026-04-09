@@ -31,7 +31,7 @@ export class GradeLockController {
   @Post('settings')
   @Roles('admin')
   createSetting(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: CreateGradeLockSettingDto,
   ) {
     return this.service.createSetting(orgId, dto);
@@ -40,7 +40,7 @@ export class GradeLockController {
   // grade-lock.controller.ts
   @Get('settings')
   getSetting(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: QueryGradeLockDto,
   ) {
     if (!query.schoolYearId) {
@@ -76,7 +76,7 @@ export class GradeLockController {
   @Get('classes')
   @Roles('admin')
   getClassLocks(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: QueryGradeLockDto,
   ) {
     return this.service.getClassLocks(orgId, query);

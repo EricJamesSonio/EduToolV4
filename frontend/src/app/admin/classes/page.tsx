@@ -1,5 +1,7 @@
+// ===== File: frontend\src\app\admin\classes\page.tsx =====
 "use client";
-import { Suspense, useState, useMemo } from "react";
+
+import { Suspense, useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -12,15 +14,21 @@ import { educatorApi } from "@/api/admin/educator.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { semesterApi } from "@/api/admin/semester.api";
 import { sectionApi } from "@/api/admin/section.api";
+import type { SchoolYear } from "@/types/admin/school-year.types";
 
 import type { Class } from "@/types/admin/class.types";
+
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+
 import { useClassFilters } from "@/hooks/admin/useClassFilters";
 import { toArray } from "@/utils/classes.utils";
+
 import { ClassesFilterBar } from "@/components/admin/class/ClassesFilterBar";
 import { ClassesTable } from "@/components/admin/class/ClassesTable";
 import { CreateClassDialog } from "@/components/admin/class/CreateClassDialog";
@@ -32,18 +40,54 @@ function ClassesPageInner(): React.JSX.Element {
   const defaultSubjectId: string | undefined =
     searchParams.get("subjectId") ?? undefined;
 
-  const [createOpen, setCreateOpen] = useState(defaultSubjectId !== undefined);
+  const [createOpen, setCreateOpen] = useState(
+    defaultSubjectId !== undefined
+  );
   const [archiveTarget, setArchiveTarget] = useState<Class | null>(null);
 
   const filters = useClassFilters();
 
-  // ── Primary data ──────────────────────────────────────────────────────────
-  const { data: classesRaw, isLoading } = useQuery({
-    queryKey: ["admin", "classes", filters.query],
-    queryFn: () => classApi.getAll(filters.query),
+  // ===== School Years =====
+  const { data: schoolYearsRaw, isLoading: isSchoolYearsLoading } = useQuery({
+    queryKey: ["admin", "school-years"],
+    queryFn: () => schoolYearApi.getAll(),
   });
 
-  // ── Lookup data ───────────────────────────────────────────────────────────
+const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
+
+  // ✅ Controlled selected school year
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<
+    string | null
+  >(null);
+
+  // ✅ Set default (active → first)
+  useEffect(() => {
+    if (!selectedSchoolYearId && schoolYears.length > 0) {
+      const defaultId =
+        schoolYears.find((sy) => sy.status === "active")?.id ??
+        schoolYears[0].id;
+
+      setSelectedSchoolYearId(defaultId);
+    }
+  }, [schoolYears, selectedSchoolYearId]);
+
+  // ===== Queries scoped to School Year =====
+  const { data: classesRaw, isLoading } = useQuery({
+    queryKey: ["admin", "classes", selectedSchoolYearId, filters.query],
+    queryFn: () =>
+      classApi.getAll({
+        ...filters.query,
+        schoolYearId: selectedSchoolYearId!,
+      }),
+    enabled: !!selectedSchoolYearId,
+  });
+
+  const { data: sectionsRaw } = useQuery({
+    queryKey: ["admin", "sections", selectedSchoolYearId],
+    queryFn: () => sectionApi.getAll(selectedSchoolYearId!),
+    enabled: !!selectedSchoolYearId,
+  });
+
   const { data: subjectsRaw } = useQuery({
     queryKey: ["admin", "subjects"],
     queryFn: () => subjectApi.getAll(),
@@ -54,31 +98,12 @@ function ClassesPageInner(): React.JSX.Element {
     queryFn: () => educatorApi.getAll(),
   });
 
-  const { data: schoolYearsRaw } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: () => schoolYearApi.getAll(),
-  });
-
   const { data: semestersRaw } = useQuery({
     queryKey: ["admin", "semesters"],
     queryFn: () => semesterApi.getAll(),
   });
 
-  // ✅ FIXED: derive active school year BEFORE fetching sections
-  const schoolYears = toArray<{ id: string; name: string; status: string }>(schoolYearsRaw);
-
-  const activeSchoolYearId =
-    schoolYears.find((sy) => sy.status === "active")?.id ??
-    schoolYears[0]?.id ??
-    null;
-
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections", activeSchoolYearId],
-    queryFn: () => sectionApi.getAll(activeSchoolYearId!),
-    enabled: !!activeSchoolYearId,  
-  });
-
-  // ── Lookup maps ───────────────────────────────────────────────────────────
+  // ===== Maps =====
   const subjectMap = useMemo(() => {
     const map = new Map<string, string>();
     toArray<{ id: string; title: string }>(subjectsRaw).forEach((s) =>
@@ -97,11 +122,9 @@ function ClassesPageInner(): React.JSX.Element {
 
   const schoolYearMap = useMemo(() => {
     const map = new Map<string, string>();
-    toArray<{ id: string; name: string }>(schoolYearsRaw).forEach((sy) =>
-      map.set(sy.id, sy.name)
-    );
+    schoolYears.forEach((sy) => map.set(sy.id, sy.name));
     return map;
-  }, [schoolYearsRaw]);
+  }, [schoolYears]);
 
   const semesterMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -119,14 +142,12 @@ function ClassesPageInner(): React.JSX.Element {
     return map;
   }, [sectionsRaw]);
 
-  // ── Enrich classes ────────────────────────────────────────────────────────
+  // ===== Classes Transform =====
   const classes = useMemo<Class[]>(() => {
     return toArray<Class>(classesRaw).map((cls) => ({
       ...cls,
-      subjectName:
-        subjectMap.get(cls.subjectId) ?? cls.subjectName,
-      educatorName:
-        educatorMap.get(cls.educatorId) ?? cls.educatorName,
+      subjectName: subjectMap.get(cls.subjectId) ?? cls.subjectName,
+      educatorName: educatorMap.get(cls.educatorId) ?? cls.educatorName,
       schoolYearTitle:
         schoolYearMap.get(cls.schoolYearId) ?? cls.schoolYearTitle,
       semesterName:
@@ -148,7 +169,7 @@ function ClassesPageInner(): React.JSX.Element {
     sectionMap,
   ]);
 
-  // ── Archive mutation ──────────────────────────────────────────────────────
+  // ===== Archive =====
   const archiveMutation = useMutation({
     mutationFn: (id: string) => classApi.archive(id),
     onSuccess: () => {
@@ -157,7 +178,9 @@ function ClassesPageInner(): React.JSX.Element {
       setArchiveTarget(null);
     },
     onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to archive class.");
+      toast.error(
+        err?.response?.data?.message ?? "Failed to archive class."
+      );
       setArchiveTarget(null);
     },
   });
@@ -167,10 +190,19 @@ function ClassesPageInner(): React.JSX.Element {
       <PageHeader
         title="Classes"
         actions={
-          <Button onClick={() => setCreateOpen(true)} size="sm">
-            <Plus className="mr-1.5 h-4 w-4" />
-            New Class
-          </Button>
+          <div className="flex items-center gap-2">
+            <SchoolYearSelector
+              schoolYears={schoolYears}
+              isLoading={isSchoolYearsLoading}
+              selectedId={selectedSchoolYearId}
+              onSelect={setSelectedSchoolYearId}
+            />
+
+            <Button onClick={() => setCreateOpen(true)} size="sm">
+              <Plus className="mr-1.5 h-4 w-4" />
+              New Class
+            </Button>
+          </div>
         }
       />
 
@@ -187,18 +219,25 @@ function ClassesPageInner(): React.JSX.Element {
           icon={GraduationCap}
           title="No classes found"
           description="Create your first class to get started."
-          action={{ label: "New Class", onClick: () => setCreateOpen(true) }}
+          action={{
+            label: "New Class",
+            onClick: () => setCreateOpen(true),
+          }}
         />
       ) : (
         <ClassesTable data={classes} onArchive={setArchiveTarget} />
       )}
 
       {createOpen && (
-        <CreateClassDialog
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
-          defaultSubjectId={defaultSubjectId}
-        />
+  <CreateClassDialog
+    open={createOpen}
+     onClose={() => setCreateOpen(false)}
+    defaultSubjectId={defaultSubjectId}
+     schoolYearId={selectedSchoolYearId}
+     schoolYearName={
+       schoolYears.find((sy) => sy.id === selectedSchoolYearId)?.name ?? null
+     }
+   />
       )}
 
       {archiveTarget && (

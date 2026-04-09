@@ -3,30 +3,32 @@ import { analyticsApi } from "@/api/admin/analytics.api";
 import type { AnalyticsOverview, EnrollmentBreakdownRow } from "@/types/admin/analytics.types";
 import type { GradeAnalyticsResponse } from "@/api/admin/analytics.api";
 
-// Hook to get the analytics overview
-export const useAnalyticsOverview = (): UseQueryResult<AnalyticsOverview, unknown> => {
+export const useAnalyticsOverview = (
+  schoolYearId?: string,
+): UseQueryResult<AnalyticsOverview, unknown> => {
   return useQuery<AnalyticsOverview>({
-    queryKey: ["analytics", "overview"],
-    queryFn: analyticsApi.getOverview,
+    queryKey: ["analytics", "overview", schoolYearId],
+    queryFn:  () => analyticsApi.getOverview(schoolYearId),
   });
 };
 
-// Hook to get enrollment breakdown
-export const useEnrollmentBreakdown = (): UseQueryResult<EnrollmentBreakdownRow[], unknown> => {
+export const useEnrollmentBreakdown = (
+  schoolYearId?: string,
+): UseQueryResult<EnrollmentBreakdownRow[], unknown> => {
   return useQuery<EnrollmentBreakdownRow[]>({
-    queryKey: ["analytics", "enrollment"],
-    queryFn: analyticsApi.getEnrollmentBreakdown,
+    queryKey: ["analytics", "enrollment", schoolYearId],
+    queryFn:  () => analyticsApi.getEnrollmentBreakdown(schoolYearId),
   });
 };
 
-// Hook to get grade analytics, optionally filtered by class or term
 export const useGradeAnalytics = (params?: {
-  classId?: string;
-  termId?: string;
+  classId?:     string;
+  termId?:      string;
+  schoolYearId?: string;
 }): UseQueryResult<GradeAnalyticsResponse, unknown> => {
   return useQuery<GradeAnalyticsResponse>({
     queryKey: ["analytics", "grades", params],
-    queryFn: () =>
-      analyticsApi.getGradeAnalytics(params?.classId, params?.termId),
+    queryFn:  () =>
+      analyticsApi.getGradeAnalytics(params?.classId, params?.termId, params?.schoolYearId),
   });
 };

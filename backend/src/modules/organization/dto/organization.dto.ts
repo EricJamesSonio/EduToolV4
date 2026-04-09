@@ -1,4 +1,3 @@
-// backend/src/modules/organization/dto/organization.dto.ts
 import {
   IsString,
   IsOptional,
@@ -9,7 +8,6 @@ import {
   Matches,
   IsObject,
   IsNumber,
-  IsBoolean,
   ValidateNested,
 } from 'class-validator'
 import { Type } from 'class-transformer'
@@ -24,6 +22,14 @@ export class CreateOrganizationDto {
   @IsString()
   @MaxLength(500)
   description?: string
+
+  // ✅ FIXED: now truly optional
+  @IsOptional()
+  @IsString()
+  @Matches(/^@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
+    message: 'emailExtension must be a valid domain like @edutool.ph',
+  })
+  emailExtension?: string
 }
 
 export class UpdateOrganizationDto {
@@ -38,12 +44,13 @@ export class UpdateOrganizationDto {
   @MaxLength(500)
   description?: string
 
+  // ✅ FIXED: removed `| null`, handled in service instead
   @IsOptional()
   @IsString()
   @Matches(/^@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
     message: 'emailExtension must be a valid domain like @edutool.ph',
   })
-  emailExtension?: string | null
+  emailExtension?: string
 }
 
 export class GradingScaleRangeDto {
@@ -71,6 +78,14 @@ export class GradingScalePayloadDto {
   @ValidateNested({ each: true })
   @Type(() => GradingScaleRangeDto)
   ranges!: GradingScaleRangeDto[]
+}
+
+export class SectionItemDto {
+  @IsString()
+  name!: string
+
+  @IsNumber()
+  capacity!: number
 }
 
 export class SeedOrganizationDto {
@@ -101,20 +116,15 @@ export class SeedOrganizationDto {
   @IsString({ each: true })
   excludedSubjects?: string[]
 
-  /**
-   * Custom level names per program.
-   * Key = programKey, value = ordered array of level name strings.
-   * e.g. { college: ['1st Year', '2nd Year'], shs: ['Grade 11', 'Grade 12'] }
-   */
   @IsOptional()
   @IsObject()
   levelConfigs?: Record<string, string[]>
 
-  /**
-   * Per-program grading scale to seed.
-   * Key = programKey, value = scale definition.
-   */
   @IsOptional()
   @IsObject()
   gradingScales?: Record<string, GradingScalePayloadDto>
+
+  @IsOptional()
+  @IsObject()
+  sectionConfigs?: Record<string, SectionItemDto[]>
 }

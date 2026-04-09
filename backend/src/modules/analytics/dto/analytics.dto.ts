@@ -1,5 +1,5 @@
-// @/modules/analytics/dto/analytics.dto.ts
-import { IsOptional, IsUUID } from 'class-validator';
+import { IsOptional, IsEnum, IsUUID } from 'class-validator';
+import { SchoolYearEnrollmentStatus } from '@prisma/client';
 
 export class GradeAnalyticsQueryDto {
   @IsOptional()
@@ -9,4 +9,8 @@ export class GradeAnalyticsQueryDto {
   @IsOptional()
   @IsUUID()
   termId?: string;
+
+  @IsOptional()
+  @IsEnum(SchoolYearEnrollmentStatus)
+  status?: SchoolYearEnrollmentStatus;
 }

@@ -36,7 +36,7 @@ export class EducatorController {
   @Post()
   @Roles('admin')
   async create(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: CreateEducatorDto,
   ) {
     return this.educatorService.create(orgId, dto);
@@ -49,7 +49,7 @@ export class EducatorController {
    */
   @Get()
   async findAll(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: QueryEducatorDto,
   ) {
     return this.educatorService.findAll(orgId, query);
@@ -62,7 +62,7 @@ export class EducatorController {
   @Get(':id')
   async findById(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.educatorService.findById(id, orgId);
   }
@@ -75,7 +75,7 @@ export class EducatorController {
   @Roles('admin')
   async update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateEducatorDto,
   ) {
     return this.educatorService.update(id, orgId, dto);
@@ -91,7 +91,7 @@ export class EducatorController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     await this.educatorService.remove(id, orgId);
   }
@@ -106,7 +106,7 @@ export class EducatorController {
   @HttpCode(HttpStatus.OK)
   async resetPassword(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.educatorService.resetPassword(id, orgId);
   }

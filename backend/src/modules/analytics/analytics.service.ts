@@ -1,99 +1,64 @@
-// @/modules/analytics/analytics.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { AnalyticsRepository } from './analytics.repository';
 import { GradeAnalyticsQueryDto } from './dto/analytics.dto';
 
 @Injectable()
 export class AnalyticsService {
-  constructor(
-    private readonly repo: AnalyticsRepository,
-  ) {}
+  constructor(private readonly repo: AnalyticsRepository) {}
 
-  // ── OVERVIEW ───────────────────────────────────────────────
+  private async resolveSchoolYear(orgId: string, schoolYearId?: string): Promise<string> {
+    if (schoolYearId) return schoolYearId
+    const active = await this.repo.getActiveSchoolYear(orgId)
+    if (!active) throw new NotFoundException('No active school year found.')
+    return active.id
+  }
 
-  async getOverview(orgId: string) {
-    const [
-      totalStudents,
-      activeStudents,
-      pendingStudents,
-      totalEducators,
-      totalClasses,
-    ] = await Promise.all([
-      this.repo.countStudents(orgId),
-      this.repo.countStudentsByStatus(orgId, 'active'),
-      this.repo.countStudentsByStatus(orgId, 'pending'),
+  async getOverview(orgId: string, schoolYearId?: string) {
+    const syId = await this.resolveSchoolYear(orgId, schoolYearId)
+
+    const [totalStudents, pendingStudents, totalEducators, totalClasses] = await Promise.all([
+      this.repo.countStudents(orgId, syId),
+      this.repo.countPendingStudents(orgId, syId),
       this.repo.countEducators(orgId),
-      this.repo.countClasses(orgId),
-    ]);
+      this.repo.countClasses(orgId, syId),
+    ])
 
-    return {
-      totalStudents,
-      activeStudents,
-      pendingStudents,
-      totalEducators,
-      totalClasses,
-    };
+    return { totalStudents, pendingStudents, totalEducators, totalClasses, schoolYearId: syId }
   }
 
-  // ── ENROLLMENT ─────────────────────────────────────────────
-
-  async getEnrollmentBreakdown(orgId: string) {
-    return this.repo.getEnrollmentBreakdown(orgId); // replace the old byStatus logic
+  async getEnrollmentBreakdown(orgId: string, schoolYearId?: string) {
+    const syId = await this.resolveSchoolYear(orgId, schoolYearId)
+    return this.repo.getEnrollmentBreakdown(orgId, syId)
   }
 
-  // ── GRADES (LOCKED ONLY) ───────────────────────────────────
+  async getGradeAnalytics(orgId: string, query: GradeAnalyticsQueryDto, schoolYearId?: string) {
+    const syId = await this.resolveSchoolYear(orgId, schoolYearId)
+    const grades = await this.repo.getLockedGrades(orgId, syId, query)
 
-  async getGradeAnalytics(
-    orgId: string,
-    query: GradeAnalyticsQueryDto,
-  ) {
-    const grades = await this.repo.getLockedGrades(orgId, query);
+    if (!grades.length) return { passingRate: 0, distribution: {} }
 
-    if (!grades.length) {
-      return {
-        passingRate: 0,
-        distribution: {},
-      };
-    }
-
-    let passCount = 0;
-    const distribution: Record<string, number> = {};
-
+    let passCount = 0
+    const distribution: Record<string, number> = {}
     for (const g of grades) {
-      // count passing
-      if (g.final_score >= 75) passCount++;
-
-      // distribution
-      const key = g.final_grade;
-      distribution[key] = (distribution[key] || 0) + 1;
+      if (g.final_score >= 75) passCount++
+      const key = g.final_grade
+      distribution[key] = (distribution[key] || 0) + 1
     }
 
-    return {
-      passingRate: passCount / grades.length,
-      distribution,
-    };
+    return { passingRate: passCount / grades.length, distribution }
   }
 
-  // ── EDUCATOR LOAD ──────────────────────────────────────────
-
-  async getEducatorLoad(orgId: string) {
-    return this.repo.getEducatorLoad(orgId);
+  async getEducatorLoad(orgId: string, schoolYearId?: string) {
+    const syId = await this.resolveSchoolYear(orgId, schoolYearId)
+    return this.repo.getEducatorLoad(orgId, syId)
   }
 
-  // ── ALERTS ─────────────────────────────────────────────────
-
-  async getAlerts(orgId: string) {
-    const [
-      pendingStudents,
-      unlockedClasses,
-    ] = await Promise.all([
-      this.repo.countStudentsByStatus(orgId, 'pending'),
-      this.repo.countUnlockedClasses(orgId),
-    ]);
-
-    return {
-      pendingStudents,
-      unlockedClasses,
-    };
+  async getAlerts(orgId: string, schoolYearId?: string) {
+    const syId = await this.resolveSchoolYear(orgId, schoolYearId)
+    const [pendingStudents, unlockedClasses] = await Promise.all([
+      this.repo.countPendingStudents(orgId, syId),
+      this.repo.countUnlockedClasses(orgId, syId),
+    ])
+    return { pendingStudents, unlockedClasses }
   }
 }

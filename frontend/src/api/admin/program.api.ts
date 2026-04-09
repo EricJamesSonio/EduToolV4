@@ -1,9 +1,7 @@
 import client from "@/api/client";
-import type { Program } from "@/types/admin/program.types";
+import type { Program, ProgramType } from "@/types/admin/program.types";
 
-export type ProgramType =
-  | "daycare" | "kinder" | "elementary" | "jhs"
-  | "shs" | "college" | "custom";
+export type { ProgramType };
 
 export interface CreateProgramRequest {
   schoolYearId: string;
@@ -18,10 +16,9 @@ export interface UpdateProgramRequest {
 
 export const programApi = {
   getAll: async (schoolYearId: string): Promise<Program[]> => {
-    const res = await client.get<{ success: boolean; data: Program[] }>(
-      "/programs",
-      { params: { schoolYearId } },
-    );
+    const res = await client.get<{ success: boolean; data: Program[] }>("/programs", {
+      params: { schoolYearId },
+    });
     return res.data.data;
   },
 

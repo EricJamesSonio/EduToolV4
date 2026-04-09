@@ -17,7 +17,7 @@ export class SectionController {
   @Post()
   @Roles('admin')
   async create(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: CreateSectionDto,
   ) {
     return this.sectionService.create(orgId, dto);
@@ -25,7 +25,7 @@ export class SectionController {
 
   @Get()
   async findAll(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: QuerySectionDto,
   ) {
     return this.sectionService.findAll(orgId, query);
@@ -35,7 +35,7 @@ export class SectionController {
   @Roles('admin')
   async update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateSectionDto,
   ) {
     return this.sectionService.update(id, orgId, dto);
@@ -46,7 +46,7 @@ export class SectionController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     await this.sectionService.remove(id, orgId);
   }

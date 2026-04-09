@@ -25,7 +25,7 @@ export class GradeController {
   @Roles('educator', 'admin')
   getGradesByClass(
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
     return this.gradeService.getGradesByClass(classId, orgId, educatorId);
@@ -37,7 +37,7 @@ export class GradeController {
   getGradesByTerm(
     @Param('classId') classId: string,
     @Param('termId') termId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
     return this.gradeService.getGradesByTerm(classId, termId, orgId, educatorId);
@@ -49,7 +49,7 @@ export class GradeController {
   computeGrades(
     @Param('classId') classId: string,
     @Param('termId') termId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
     return this.gradeService.computeGrades(classId, termId, orgId, educatorId);
@@ -63,7 +63,7 @@ export class GradeController {
     @Param('termId') termId: string,
     @Param('studentId') studentId: string,
     @Body() dto: SetManualScoreDto,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
     return this.gradeService.setManualScore(

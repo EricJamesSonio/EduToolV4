@@ -20,7 +20,7 @@ export class LevelController {
   @Post('bulk-generate')
   @Roles('admin')
   async bulkGenerate(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: BulkGenerateLevelsDto,
   ) {
     return this.levelService.bulkGenerate(orgId, dto);
@@ -28,7 +28,7 @@ export class LevelController {
 
   @Get()
   async getLevels(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: QueryLevelDto,
   ) {
     if (query.schoolYearId) {
@@ -40,7 +40,7 @@ export class LevelController {
   @Post()
   @Roles('admin')
   async createOne(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: CreateLevelDto,
   ) {
     return this.levelService.createOne(orgId, dto);
@@ -50,7 +50,7 @@ export class LevelController {
   @Roles('admin')
   async updateOne(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateLevelDto,
   ) {
     return this.levelService.updateOne(id, orgId, dto);
@@ -60,7 +60,7 @@ export class LevelController {
   @Roles('admin')
   async deleteOne(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     await this.levelService.deleteOne(id, orgId);
     return null;

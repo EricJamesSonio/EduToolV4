@@ -32,7 +32,7 @@ export class MeetingController {
   @Roles('educator')
   create(
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
     @Body() dto: CreateMeetingDto,
   ) {
@@ -43,7 +43,7 @@ export class MeetingController {
   @Roles('educator')
   findAll(
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
     return this.meetingService.findAll(classId, orgId, educatorId);
@@ -54,7 +54,7 @@ export class MeetingController {
   findOne(
     @Param('id') id: string,
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
     return this.meetingService.findOne(id, classId, orgId, educatorId);
@@ -65,7 +65,7 @@ export class MeetingController {
   update(
     @Param('id') id: string,
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
     @Body() dto: UpdateMeetingDto,
   ) {
@@ -78,7 +78,7 @@ export class MeetingController {
   async remove(
     @Param('id') id: string,
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
     await this.meetingService.remove(id, classId, orgId, educatorId);
@@ -90,7 +90,7 @@ export class MeetingController {
   endMeeting(
     @Param('id') id: string,
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
     return this.meetingService.endMeeting(id, classId, orgId, educatorId);
@@ -108,7 +108,7 @@ export class MeetingJoinController {
   @Roles('student')
   requestJoin(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') studentId: string,
   ) {
     return this.meetingService.requestJoin(id, orgId, studentId);
@@ -119,7 +119,7 @@ export class MeetingJoinController {
   respondToJoinRequest(
     @Param('id') id: string,
     @Param('reqId') reqId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
     @Body() dto: RespondJoinRequestDto,
   ) {
@@ -140,7 +140,7 @@ export class StudentMeetingController {
   @Roles('student')
   findAll(
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') studentId: string,
   ) {
     return this.meetingService.findAllForStudent(classId, orgId, studentId);
@@ -151,7 +151,7 @@ export class StudentMeetingController {
   findOne(
     @Param('id') id: string,
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') studentId: string,
   ) {
     return this.meetingService.findOneForStudent(id, classId, orgId, studentId);

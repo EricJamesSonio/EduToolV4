@@ -1,122 +1,243 @@
+// page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { useSemesters, useDeleteSemester } from "@/hooks/admin/useSemester";
-import type { Semester } from "@/types/admin/semester.types";
-import { SemesterCard } from "@/components/admin/semester/SemesterCard";
-import { SemesterFormDialog } from "@/components/admin/semester/SemesterFormDialog";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, CalendarDays } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { Plus, Layers, AlertCircle } from "lucide-react";
 import type { AxiosError } from "axios";
 
+import type { SemesterTemplate, TemplateAssignment } from "@/types/admin/semester-template.types";
+import {
+  useSemesterTemplates,
+  useDeleteSemesterTemplate,
+  useTemplateAssignments,
+} from "@/hooks/admin/useSemesterTemplate";
+import { useQuery } from "@tanstack/react-query";
+import clientApi from "@/api/client";
+import { TemplateFormDialog } from "@/components/admin/semester-settings/TemplateFormDialog";
+import { TemplateCard } from "@/components/admin/semester-settings/TemplateCard";
+import { AssignRow } from "@/components/admin/semester-settings/AssignRow";
+import { PROGRAM_TYPE_LABELS, PROGRAM_TYPE_COLORS } from "@/components/admin/semester-settings/constants";
+
+// -------------------- Types --------------------
+interface Program {
+  id: string;
+  name: string;
+  type: string;
+}
+
+interface ProgramWithAssignment extends Program {
+  semesterAssignment: TemplateAssignment | null;
+}
+
+interface Envelope<T> {
+  success: boolean;
+  data: T;
+}
+
+// -------------------- Fetchers --------------------
+async function fetchPrograms(): Promise<Program[]> {
+  const res = await clientApi.get<Envelope<Program[]>>("/programs");
+  return res.data.data ?? [];
+}
+
+function usePrograms() {
+  return useQuery({
+    queryKey: ["programs"],
+    queryFn: fetchPrograms,
+  });
+}
+
+const errMsg = (e: unknown) =>
+  (e as AxiosError<{ message: string }>)?.response?.data?.message ?? "Something went wrong.";
+
+// -------------------- Component --------------------
 export default function SemesterSettingsPage(): React.JSX.Element {
-  const { data: semesters = [], isLoading } = useSemesters();
-  const deleteMutation = useDeleteSemester();
+  const { data: templates = [], isLoading: tLoading } = useSemesterTemplates();
+  const { data: programs = [], isLoading: pLoading } = usePrograms();
+  const { data: assignments = [], isLoading: aLoading } = useTemplateAssignments();
+  const deleteMutation = useDeleteSemesterTemplate();
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Semester | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Semester | null>(null);
+  const [createFromType, setCreateFromType] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<SemesterTemplate | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SemesterTemplate | null>(null);
+
+  const programsWithAssignment = useMemo<ProgramWithAssignment[]>(() =>
+    programs.map((p) => ({
+      ...p,
+      semesterAssignment: assignments.find((a) => a.program_id === p.id) ?? null,
+    })), [programs, assignments]
+  );
+
+  const templatesByType = useMemo(() => {
+    const map = new Map<string, SemesterTemplate[]>();
+    for (const t of templates) {
+      const arr = map.get(t.program_type) ?? [];
+      arr.push(t);
+      map.set(t.program_type, arr);
+    }
+    return map;
+  }, [templates]);
+
+  const programsByType = useMemo(() => {
+    const map = new Map<string, ProgramWithAssignment[]>();
+    for (const p of programsWithAssignment) {
+      const arr = map.get(p.type) ?? [];
+      arr.push(p);
+      map.set(p.type, arr);
+    }
+    return map;
+  }, [programsWithAssignment]);
+
+  const allTypes = useMemo(
+    () => Array.from(new Set([...templatesByType.keys(), ...programsByType.keys()])),
+    [templatesByType, programsByType]
+  );
 
   const handleDelete = () => {
     if (!deleteTarget) return;
     deleteMutation.mutate(deleteTarget.id, {
-      onSuccess: () => {
-        toast.success("Semester deleted.");
-        setDeleteTarget(null);
-      },
-      onError: (err: unknown) => {
-        const axiosErr = err as AxiosError<{ message: string }>;
-        toast.error(
-          axiosErr?.response?.data?.message ?? "Failed to delete semester."
-        );
-        setDeleteTarget(null);
-      },
+      onSuccess: () => toast.success("Template deleted."),
+      onError: (e) => toast.error(errMsg(e)),
     });
   };
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Semester Settings"
-        description="Configure semesters and their academic terms."
-        actions={
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            New Semester
-          </Button>
-        }
-      />
+  const isLoading = tLoading;
+  const isPanelLoading = pLoading || aLoading;
 
-      {/* List */}
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-14 w-full rounded-lg" />
-          ))}
+  return (
+    <div className="space-y-8 pb-10">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Semester Settings</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Define reusable semester templates per program type, then assign them to programs.
+          </p>
         </div>
-      ) : semesters.length === 0 ? (
-        <div className="rounded-lg border bg-card px-6 py-16 text-center">
-          <CalendarDays className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm font-medium text-muted-foreground">
-            No semesters yet
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Create your first semester to define academic terms.
-          </p>
-          <Button
-            size="sm"
-            variant="outline"
-            className="mt-4"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            New Semester
-          </Button>
+        <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4 mr-1.5" /> New Template
+        </Button>
+      </div>
+
+      {/* Templates */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
         </div>
       ) : (
-        <div className="space-y-2">
-          {semesters.map((semester) => (
-            <SemesterCard
-              key={semester.id}
-              semester={semester}
-              onEdit={() => setEditTarget(semester)}
-              onDelete={() => setDeleteTarget(semester)}
-            />
-          ))}
+        <div className="space-y-10">
+          {allTypes.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-card px-6 py-16 text-center">
+              <Layers className="h-10 w-10 text-muted-foreground/25 mx-auto mb-3" />
+              <p className="text-sm font-medium text-muted-foreground">No templates yet</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                Create your first semester template to define reusable semester and term structures for each program type.
+              </p>
+              <Button size="sm" variant="outline" className="mt-4" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-3.5 w-3.5 mr-1.5" /> New Template
+              </Button>
+            </div>
+          ) : (
+            allTypes.map((type) => {
+              const typeTemplates = templatesByType.get(type) ?? [];
+              const typePrograms = programsByType.get(type) ?? [];
+              const typeColor = PROGRAM_TYPE_COLORS[type] ?? "bg-gray-100 text-gray-600 border-gray-200";
+
+              return (
+                <section key={type} className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={cn("text-xs border px-2 py-0.5", typeColor)}>
+                      {PROGRAM_TYPE_LABELS[type] ?? type}
+                    </Badge>
+                    <div className="flex-1 h-px bg-border" />
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
+                      onClick={() => { setCreateFromType(type); setCreateOpen(true); }}>
+                      <Plus className="h-3 w-3 mr-1" /> Template
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <div className="lg:col-span-3 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Templates</p>
+                      {typeTemplates.length === 0 ? (
+                        <div className="rounded-lg border border-dashed px-4 py-6 text-center text-xs text-muted-foreground">
+                          No templates for this type yet.
+                        </div>
+                      ) : (
+                        typeTemplates.map((t) => (
+                          <TemplateCard key={t.id} template={t} onEdit={() => setEditTarget(t)} onDelete={() => setDeleteTarget(t)} />
+                        ))
+                      )}
+                    </div>
+
+                    <div className="lg:col-span-2 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Assign to Programs</p>
+                      <div className="rounded-lg border bg-card divide-y">
+                        {isPanelLoading ? (
+                          <div className="p-4 space-y-2">
+                            {[1, 2].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
+                          </div>
+                        ) : typePrograms.length === 0 ? (
+                          <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                            No {PROGRAM_TYPE_LABELS[type] ?? type} programs.
+                          </div>
+                        ) : (
+                          <div className="px-3">
+                            {typePrograms.map((p) => (
+                              <AssignRow key={p.id} program={p} templates={typeTemplates} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {!isPanelLoading && typePrograms.some((p) => !p.semesterAssignment) && (
+                        <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
+                          <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+                          <p className="text-[11px] text-amber-700">
+                            Some programs don&apos;t have a template assigned yet.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              );
+            })
+          )}
         </div>
       )}
 
-      {/* Create */}
-      <SemesterFormDialog
+      {/* Dialogs */}
+      <TemplateFormDialog
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={() => { setCreateOpen(false); setCreateFromType(null); }}
+        programType={createFromType as any}
       />
-
-      {/* Edit */}
-      {editTarget && (
-        <SemesterFormDialog
-          open={!!editTarget}
-          onClose={() => setEditTarget(null)}
-          semester={editTarget}
-        />
-      )}
-
-      {/* Delete confirm */}
+      {editTarget && <TemplateFormDialog open={!!editTarget} onClose={() => setEditTarget(null)} template={editTarget} />}
       {deleteTarget && (
-        <ConfirmDialog
-          open
-          title="Delete this semester?"
-          message={`Delete "${deleteTarget.name}"? All terms within it will also be removed.`}
-          confirmLabel="Delete Semester"
-          destructive
-          isLoading={deleteMutation.isPending}
-          onConfirm={handleDelete}
-          onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
-        />
+        <Dialog open onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Delete template?</DialogTitle>
+              <DialogDescription>
+                Delete <strong>&quot;{deleteTarget.name}&quot;</strong>? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+              <Button variant="destructive" disabled={deleteMutation.isPending} onClick={handleDelete}>
+                {deleteMutation.isPending ? "Deleting…" : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

@@ -45,7 +45,7 @@ async findAll(@CurrentUser('org_id') orgId: string) { // <-- change here
   @Roles('admin')
   async update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateSemesterDto,
   ) {
     return this.semesterService.update(id, orgId, dto);
@@ -78,7 +78,7 @@ export class StudentSemesterController {
    */
   @Get()
   @Roles('student')
-  async findAll(@CurrentUser('orgId') orgId: string) {
+  async findAll(@CurrentUser('org_id') orgId: string) {
     const semesters = await this.semesterService.findAll(orgId);
     return semesters.map((s) => ({
       id: s.id,

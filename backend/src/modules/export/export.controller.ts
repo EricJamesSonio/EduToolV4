@@ -22,7 +22,7 @@ export class ExportController {
   @Roles('admin', 'educator')
   async exportCsv(
     @Param('classId') classId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Res() res: Response,
   ) {
     const csv = await this.exportService.buildClassCsv(classId, orgId);
@@ -40,7 +40,7 @@ export class ExportController {
   async exportCard(
     @Param('classId') classId: string,
     @Param('studentId') studentId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Res() res: Response,
   ) {
     const pdfBuffer = await this.exportService.buildClassCard(

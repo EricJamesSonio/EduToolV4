@@ -63,10 +63,30 @@ export class ProgramRepository {
     })
   }
 
-  async findAll(orgId: string, schoolYearId: string) {
+  async findAll(
+    orgId: string,
+    schoolYearId: string,
+    includeAssignment = false,
+  ) {
     return this.db.program.findMany({
-      where: { org_id: orgId, school_year_id: schoolYearId },
-      include: PROGRAM_LIST_INCLUDE,
+      where: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+      },
+      include: {
+        ...PROGRAM_LIST_INCLUDE,
+
+        // ✅ conditional include
+        ...(includeAssignment && {
+          semesterAssignment: {
+            include: {
+              template: {
+                select: { id: true, name: true },
+              },
+            },
+          },
+        }),
+      },
       orderBy: { name: 'asc' },
     })
   }

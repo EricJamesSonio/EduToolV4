@@ -1,4 +1,4 @@
-// SubjectDialog.tsx — full updated file
+// ===== File: frontend\src\components\admin\subject\SubjectDialog.tsx =====
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -27,25 +27,24 @@ interface SubjectFormValues {
   name:        string;
   programId:   string;
   levelId:     string;
-  educatorId:  string;
+  courseId:    string;
+  strandId:    string;
   subjectType: SubjectType;
 }
 
 interface SubjectDialogProps {
-  subject?:           Subject;
-  levels:             Level[];
-  educators:          { id: string; fullName: string }[];
-  schoolYearId?:      string;
+  subject?:            Subject;
+  levels:              Level[];
+  schoolYearId?:       string;
   defaultSubjectType?: SubjectType;
-  open:               boolean;
-  onClose:            () => void;
-  onSaved:            () => void;
+  open:                boolean;
+  onClose:             () => void;
+  onSaved:             () => void;
 }
 
 export function SubjectDialog({
   subject,
   levels,
-  educators,
   schoolYearId,
   defaultSubjectType = "major",
   open,
@@ -66,26 +65,31 @@ export function SubjectDialog({
     defaultValues: {
       name:        subject?.title        ?? "",
       programId:   subject?.realProgramId ?? "",
-      levelId:     subject?.programId    ?? "",
-      educatorId:  subject?.educatorId   ?? "",
+      levelId:     subject?.levelId      ?? "",
+      courseId:    subject?.courseId     ?? "",
+      strandId:    subject?.strandId     ?? "",
       subjectType: (subject?.subjectType ?? defaultSubjectType) as SubjectType,
     },
   });
 
   const selectedProgramId  = watch("programId");
   const selectedLevelId    = watch("levelId");
-  const selectedEducatorId = watch("educatorId");
+  const selectedCourseId   = watch("courseId");
+  const selectedStrandId   = watch("strandId");
   const subjectType        = watch("subjectType");
   const isMinor            = subjectType === "minor";
 
-  // Always fetch programs when schoolYearId is available
+  // Fetch programs first
   const { data: programs = [] } = useQuery({
     queryKey: ["admin", "programs", schoolYearId],
     queryFn:  () => programApi.getAll(schoolYearId!),
     enabled:  !!schoolYearId && !isEdit,
   });
 
-  // Filter levels to selected program
+  // Then detect program type
+  const selectedProgram = programs.find((p) => p.id === selectedProgramId);
+  const programType = selectedProgram?.type ?? "";
+
   const filteredLevels = selectedProgramId
     ? levels.filter((l) => l.program_id === selectedProgramId)
     : [];
@@ -93,15 +97,12 @@ export function SubjectDialog({
   const mutation = useMutation({
     mutationFn: (values: SubjectFormValues) => {
       const payload: CreateSubjectRequest | UpdateSubjectRequest = {
-        name:       values.name,
-        levelId:    values.levelId    || undefined,
-        educatorId: values.educatorId || undefined,
-        ...(isEdit ? {} : {
-          subjectType: values.subjectType,
-          programId:   values.subjectType === "minor"
-            ? values.programId || undefined
-            : undefined,
-        }),
+        name:        values.name,
+        subjectType: values.subjectType,
+        programId:   values.programId || undefined,
+        levelId:     isMinor ? values.levelId || undefined : values.levelId,
+        courseId:    values.courseId || undefined,
+        strandId:    values.strandId || undefined,
       };
       return isEdit
         ? subjectApi.update(subject!.id, payload as UpdateSubjectRequest)
@@ -119,21 +120,36 @@ export function SubjectDialog({
     },
   });
 
-  const handleClose = () => { reset(); onClose(); };
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
+
+  const isMajorCollege = !isMinor && programType === "college";
+  const isMajorSHS = !isMinor && programType === "shs";
+  const isMinorSubject = isMinor;
 
   const isSubmitDisabled =
     mutation.isPending ||
     (!isEdit && !selectedProgramId) ||
-    (!isEdit && !isMinor && !selectedLevelId); // major requires a level
+    (!isEdit && !selectedLevelId && !isMinor) ||
+    (isMajorCollege && !selectedCourseId) ||
+    (isMajorSHS && !selectedStrandId) ||
+    (isMinorSubject && !selectedLevelId);
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) handleClose();
+      }}
+    >
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Subject" : "New Subject"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-1">
 
+        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-1">
           {/* Subject Type — create only */}
           {!isEdit && (
             <div className="space-y-1.5">
@@ -144,11 +160,17 @@ export function SubjectDialog({
                   setValue("subjectType", v as SubjectType);
                   setValue("programId", "");
                   setValue("levelId", "");
+                  setValue("courseId", "");
+                  setValue("strandId", "");
                 }}
               >
                 <TabsList className="w-full h-9">
-                  <TabsTrigger value="major" className="flex-1 text-sm">Major</TabsTrigger>
-                  <TabsTrigger value="minor" className="flex-1 text-sm">Minor</TabsTrigger>
+                  <TabsTrigger value="major" className="flex-1 text-sm">
+                    Major
+                  </TabsTrigger>
+                  <TabsTrigger value="minor" className="flex-1 text-sm">
+                    Minor
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -162,17 +184,22 @@ export function SubjectDialog({
                 value={selectedProgramId}
                 onValueChange={(v) => {
                   setValue("programId", v ?? "");
-                  setValue("levelId", ""); // reset level on program change
+                  setValue("levelId", "");
+                  setValue("courseId", "");
+                  setValue("strandId", "");
                 }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a program">
-                    {programs.find((p) => p.id === selectedProgramId)?.name ?? "Select a program"}
+                    {programs.find((p) => p.id === selectedProgramId)?.name ??
+                      "Select a program"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {programs.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -189,7 +216,9 @@ export function SubjectDialog({
             <Label>
               Level{" "}
               {isMinor && (
-                <span className="text-muted-foreground font-normal">(optional for minor)</span>
+                <span className="text-muted-foreground font-normal">
+                  (optional for minor)
+                </span>
               )}
             </Label>
             <Select
@@ -206,10 +235,9 @@ export function SubjectDialog({
                   }
                 >
                   {!isEdit
-                    ? filteredLevels.find((l) => l.id === selectedLevelId)?.name
-                        ?? (!selectedProgramId ? "Select a program first" : "Select a level")
-                    : levels.find((l) => l.id === selectedLevelId)?.name
-                        ?? "Select a level"}
+                    ? filteredLevels.find((l) => l.id === selectedLevelId)?.name ??
+                      (!selectedProgramId ? "Select a program first" : "Select a level")
+                    : levels.find((l) => l.id === selectedLevelId)?.name ?? "Select a level"}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -231,6 +259,64 @@ export function SubjectDialog({
             )}
           </div>
 
+          {/* Course — Major subjects in College programs */}
+          {!isEdit && !isMinor && programType === "college" && (
+            <div className="space-y-1.5">
+              <Label>
+                Course <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={selectedCourseId}
+                onValueChange={(v) => setValue("courseId", v ?? "")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a course" />
+                </SelectTrigger>
+                <SelectContent>
+                  {programs
+                    .find((p) => p.id === selectedProgramId)
+                    ?.courses?.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {errors.courseId && (
+                <p className="text-xs text-destructive">{errors.courseId.message}</p>
+              )}
+            </div>
+          )}
+
+          {/* Strand — Major subjects in SHS programs */}
+          {!isEdit && !isMinor && programType === "shs" && (
+            <div className="space-y-1.5">
+              <Label>
+                Strand <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={selectedStrandId}
+                onValueChange={(v) => setValue("strandId", v ?? "")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a strand" />
+                </SelectTrigger>
+                <SelectContent>
+                  {programs
+                    .find((p) => p.id === selectedProgramId)
+                    ?.strands?.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {errors.strandId && (
+                <p className="text-xs text-destructive">{errors.strandId.message}</p>
+              )}
+            </div>
+          )}
+
           {/* Subject Name */}
           <div className="space-y-1.5">
             <Label>Subject Name</Label>
@@ -238,7 +324,7 @@ export function SubjectDialog({
               placeholder="e.g. Mathematics, English, Science"
               {...register("name", {
                 required:  "Name is required",
-                minLength: { value: 2,   message: "At least 2 characters" },
+                minLength: { value: 2, message: "At least 2 characters" },
                 maxLength: { value: 100, message: "Max 100 characters" },
               })}
             />
@@ -247,36 +333,21 @@ export function SubjectDialog({
             )}
           </div>
 
-          {/* Educator */}
-          <div className="space-y-1.5">
-            <Label>
-              Assigned Educator{" "}
-              <span className="text-muted-foreground font-normal">(optional)</span>
-            </Label>
-            <Select
-              value={selectedEducatorId}
-              onValueChange={(v) => setValue("educatorId", v ?? "")}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Unassigned">
-                  {educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Unassigned"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
-                {educators.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>{e.fullName}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={mutation.isPending}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={mutation.isPending}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitDisabled}>
-              {mutation.isPending ? "Saving..." : isEdit ? "Save Changes" : "Create Subject"}
+              {mutation.isPending
+                ? "Saving..."
+                : isEdit
+                  ? "Save Changes"
+                  : "Create Subject"}
             </Button>
           </div>
         </form>

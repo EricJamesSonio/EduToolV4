@@ -84,27 +84,35 @@ export class SchedulerTasks {
           const setting = await this.orgEnrollmentSettingService.getByOrg(org_id)
 
           if (setting.auto_unenroll_on_year_end) {
-            // Remove all active class-level enrollments for classes
-            // belonging to this school year
-            const result = await this.db.enrollment.updateMany({
+            // Unenroll class enrollments
+            const classResult = await this.db.enrollment.updateMany({
               where: {
                 org_id,
                 status: 'active',
-                class: {
-                  school_year_id: schoolYearId,
-                  deleted_at:     null,
-                },
+                class: { school_year_id: schoolYearId, deleted_at: null },
               },
               data: { status: 'removed' },
             })
 
+            // Unenroll StudentSchoolYear records
+            const studentResult = await this.db.studentSchoolYear.updateMany({
+              where: {
+                org_id,
+                school_year_id: schoolYearId,
+                status: 'active',
+              },
+              data: {
+                status:        'unenrolled',
+                unenrolled_at: new Date(),
+              },
+            })
+
             this.logger.log(
-              `Auto-unenrolled ${result.count} class enrollment(s) ` +
-              `for school year ${schoolYearId} (org: ${org_id})`,
+              `Auto-unenrolled ${classResult.count} class enrollment(s) and ` +
+              `${studentResult.count} student(s) from school year ${schoolYearId} (org: ${org_id})`,
             )
           }
 
-          // Mark school year as ended regardless of setting
           await this.db.schoolYear.update({
             where: { id: schoolYearId },
             data:  { status: 'ended' },

@@ -56,29 +56,32 @@ enum SchoolYearStatus {
 enum SchoolYearEnrollmentStatus {
   active
   pending
-  unenrolled  // manually or auto unenrolled
+  unenrolled
 }
+
 //////////////////////
 // CORE TABLES
 //////////////////////
 
 model Organization {
-  id               String   @id @default(uuid())
+  id               String  @id @default(uuid())
   name             String
   description      String?
-  email_extension  String?  // e.g. "@edutool.ph"
-  admin_account_id String?  @unique
+
+  email_extension  String  @unique
+
+  admin_account_id String? @unique
 
   accounts Account[]
 }
 
 model OrgEnrollmentSetting {
-  id                          String  @id @default(uuid())
-  org_id                      String  @unique
-  require_semester_reenrollment Boolean @default(false) // if true, students must re-enroll each semester
-  auto_unenroll_on_year_end   Boolean @default(true)   // auto unenroll when school year ends
-  created_at                  DateTime @default(now())
-  updated_at                  DateTime @updatedAt
+  id                            String   @id @default(uuid())
+  org_id                        String   @unique
+  require_semester_reenrollment Boolean  @default(false)
+  auto_unenroll_on_year_end     Boolean  @default(true)
+  created_at                    DateTime @default(now())
+  updated_at                    DateTime @updatedAt
 }
 
 model Account {
@@ -103,6 +106,9 @@ model Profile {
   account_id String   @unique
   full_name  String
   metadata   Json?
+
+  personal_email String?   // NEW FIELD
+
   created_at DateTime @default(now())
 
   account Account @relation(fields: [account_id], references: [id])
@@ -119,12 +125,13 @@ model Program {
   name           String
   type           String
 
-  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
-  courses    Course[]
-  strands    Strand[]
-  levels     Level[]
-  subjects   Subject[]  // minor subjects scoped to this program
+  schoolYear         SchoolYear                 @relation(fields: [school_year_id], references: [id])
+  courses            Course[]
+  strands            Strand[]
+  levels             Level[]
+  subjects           Subject[]
   studentEnrollments StudentProgramEnrollment[]
+  semesterAssignment ProgramSemesterAssignment?
 }
 
 model Course {
@@ -135,10 +142,10 @@ model Course {
   name           String
   code           String?
 
-  schoolYear SchoolYear       @relation(fields: [school_year_id], references: [id])
-  program    Program          @relation(fields: [program_id], references: [id])
-  subjects   Subject[]        // major subjects directly assigned
-  sharings   SubjectSharing[] // minor subjects shared to this course
+  schoolYear         SchoolYear               @relation(fields: [school_year_id], references: [id])
+  program            Program                  @relation(fields: [program_id], references: [id])
+  subjects           Subject[]
+  sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
 }
 
@@ -149,10 +156,10 @@ model Strand {
   program_id     String
   name           String
 
-  schoolYear SchoolYear       @relation(fields: [school_year_id], references: [id])
-  program    Program          @relation(fields: [program_id], references: [id])
-  subjects   Subject[]        // major subjects directly assigned
-  sharings   SubjectSharing[] // minor subjects shared to this strand
+  schoolYear         SchoolYear               @relation(fields: [school_year_id], references: [id])
+  program            Program                  @relation(fields: [program_id], references: [id])
+  subjects           Subject[]
+  sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
 }
 
@@ -163,10 +170,10 @@ model Level {
   program_id     String
   name           String
 
-  schoolYear SchoolYear       @relation(fields: [school_year_id], references: [id])
-  program    Program          @relation(fields: [program_id], references: [id])
-  sections   Section[]
-  sharings   SubjectSharing[] // minor subjects shared to this level (K-12)
+  schoolYear         SchoolYear               @relation(fields: [school_year_id], references: [id])
+  program            Program                  @relation(fields: [program_id], references: [id])
+  sections           Section[]
+  sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
 }
 
@@ -179,16 +186,16 @@ model Section {
   capacity       Int
   deleted_at     DateTime?
 
-  level      Level      @relation(fields: [level_id], references: [id])
-  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
+  level              Level                    @relation(fields: [level_id], references: [id])
+  schoolYear         SchoolYear               @relation(fields: [school_year_id], references: [id])
   studentEnrollments StudentProgramEnrollment[]
 }
 
 model SchoolYear {
-  id         String            @id @default(uuid())
+  id         String           @id @default(uuid())
   org_id     String
   name       String
-  status     SchoolYearStatus  @default(pending)  // was plain String
+  status     SchoolYearStatus @default(pending)
   start_date DateTime?
   end_date   DateTime?
 
@@ -198,9 +205,49 @@ model SchoolYear {
   levels             Level[]
   sections           Section[]
   gradingScales      GradingScale[]
-  gradingSchemes     GradingScheme[]
   studentEnrollments StudentSchoolYear[]
-  semesters Semester[]
+  semesters          Semester[]
+}
+
+model SemesterTemplate {
+  id           String @id @default(uuid())
+  org_id       String
+  program_type String
+  name         String
+
+  semesters   SemesterTemplateItem[]
+  assignments ProgramSemesterAssignment[]
+}
+
+model SemesterTemplateItem {
+  id          String @id @default(uuid())
+  org_id      String
+  template_id String
+  name        String
+  order_index Int
+
+  template SemesterTemplate      @relation(fields: [template_id], references: [id])
+  terms    SemesterTemplateTerm[]
+}
+
+model SemesterTemplateTerm {
+  id          String @id @default(uuid())
+  org_id      String
+  semester_id String
+  name        String
+  order_index Int
+
+  semester SemesterTemplateItem @relation(fields: [semester_id], references: [id])
+}
+
+model ProgramSemesterAssignment {
+  id          String @id @default(uuid())
+  org_id      String
+  program_id  String @unique
+  template_id String
+
+  program  Program          @relation(fields: [program_id], references: [id])
+  template SemesterTemplate @relation(fields: [template_id], references: [id])
 }
 
 model StudentSchoolYear {
@@ -210,26 +257,26 @@ model StudentSchoolYear {
   school_year_id String
   status         SchoolYearEnrollmentStatus @default(pending)
   enrolled_at    DateTime                   @default(now())
-  unenrolled_at  DateTime?                  // set when manually or auto unenrolled
-  notes          String?                    // optional admin notes
+  unenrolled_at  DateTime?
+  notes          String?
 
-  schoolYear          SchoolYear               @relation(fields: [school_year_id], references: [id])
-  programEnrollments  StudentProgramEnrollment[]
+  schoolYear         SchoolYear               @relation(fields: [school_year_id], references: [id])
+  programEnrollments StudentProgramEnrollment[]
 
   @@unique([org_id, student_id, school_year_id])
 }
 
 model StudentProgramEnrollment {
-  id                      String           @id @default(uuid())
-  org_id                  String
-  student_school_year_id  String           // FK to StudentSchoolYear
-  program_id              String
-  level_id                String?          // e.g. 1st Year, Grade 7
-  course_id               String?          // e.g. BSCS (college)
-  strand_id               String?          // e.g. STEM (SHS)
-  section_id              String?          // optional section assignment
-  status                  EnrollmentStatus @default(active)
-  enrolled_at             DateTime         @default(now())
+  id                     String           @id @default(uuid())
+  org_id                 String
+  student_school_year_id String
+  program_id             String
+  level_id               String?
+  course_id              String?
+  strand_id              String?
+  section_id             String?
+  status                 EnrollmentStatus @default(active)
+  enrolled_at            DateTime         @default(now())
 
   studentSchoolYear StudentSchoolYear @relation(fields: [student_school_year_id], references: [id])
   program           Program           @relation(fields: [program_id], references: [id])
@@ -238,7 +285,7 @@ model StudentProgramEnrollment {
   strand            Strand?           @relation(fields: [strand_id], references: [id])
   section           Section?          @relation(fields: [section_id], references: [id])
 
-  @@unique([student_school_year_id, program_id]) // one program per student per school year
+  @@unique([student_school_year_id, program_id])
 }
 
 model Semester {
@@ -249,7 +296,7 @@ model Semester {
   start_date     DateTime
   end_date       DateTime
 
-  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])  // ADD THIS
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
   terms      Term[]
 }
 
@@ -273,9 +320,9 @@ model Subject {
   id           String  @id @default(uuid())
   org_id       String
   name         String
-  subject_type String  @default("major") // "major" | "minor"
-  program_id   String?                   // required for minor subjects; gates sharing scope
-  level_id     String?                    // for major: the specific level; for minor: "home" level
+  subject_type String  @default("major")
+  program_id   String?
+  level_id     String?
   course_id    String?
   strand_id    String?
   educator_id  String?
@@ -283,28 +330,26 @@ model Subject {
   year_level   String?
   term_label   String?
 
-  program       Program?              @relation(fields: [program_id], references: [id])
+  program       Program?             @relation(fields: [program_id], references: [id])
   course        Course?              @relation(fields: [course_id], references: [id])
   strand        Strand?              @relation(fields: [strand_id], references: [id])
   prerequisites SubjectPrerequisite[] @relation("SubjectPrereqs")
   prereqFor     SubjectPrerequisite[] @relation("PrereqFor")
-  sharings      SubjectSharing[]     // only populated for minor subjects
+  sharings      SubjectSharing[]
 }
 
-// Junction table: one minor subject → many courses/strands/levels
-// Exactly one of course_id, strand_id, level_id must be set per row.
 model SubjectSharing {
   id         String  @id @default(uuid())
   org_id     String
-  subject_id String  // must reference a minor subject
-  course_id  String? // share to a college course
-  strand_id  String? // share to a SHS strand
-  level_id   String? // share to a K-12 level
+  subject_id String
+  course_id  String?
+  strand_id  String?
+  level_id   String?
 
-  subject Subject @relation(fields: [subject_id], references: [id])
-  course  Course? @relation(fields: [course_id], references: [id])
-  strand  Strand? @relation(fields: [strand_id], references: [id])
-  level   Level?  @relation(fields: [level_id], references: [id])
+  subject Subject  @relation(fields: [subject_id], references: [id])
+  course  Course?  @relation(fields: [course_id], references: [id])
+  strand  Strand?  @relation(fields: [strand_id], references: [id])
+  level   Level?   @relation(fields: [level_id], references: [id])
 
   @@unique([subject_id, course_id])
   @@unique([subject_id, strand_id])
@@ -318,7 +363,7 @@ model SubjectPrerequisite {
   prerequisite_id String
 
   subject      Subject @relation("SubjectPrereqs", fields: [subject_id], references: [id])
-  prerequisite Subject @relation("PrereqFor",      fields: [prerequisite_id], references: [id])
+  prerequisite Subject @relation("PrereqFor", fields: [prerequisite_id], references: [id])
 
   @@unique([subject_id, prerequisite_id])
 }
@@ -407,24 +452,50 @@ model GradingScale {
 }
 
 //////////////////////
-// GRADING SCHEME
+// GRADING SCHEME TEMPLATES (admin-level, reusable)
+//////////////////////
+
+model GradingSchemeTemplate {
+  id           String  @id @default(uuid())
+  org_id       String
+  name         String
+  program_type String? // optional: "college" | "shs" | "jhs" etc — matches Program.type
+  created_at   DateTime @default(now())
+
+  components GradingSchemeTemplateComponent[]
+}
+
+model GradingSchemeTemplateComponent {
+  id          String  @id @default(uuid())
+  org_id      String
+  template_id String
+  name        String
+  type        String
+  weight      Float
+  max_score   Float?
+  created_at  DateTime @default(now()) 
+
+  template GradingSchemeTemplate @relation(fields: [template_id], references: [id])
+}
+
+//////////////////////
+// GRADING SCHEME (class-level, concrete)
 //////////////////////
 
 model GradingScheme {
-  id             String    @id @default(uuid())
-  org_id         String
-  educator_id    String?
-  class_id       String?
-  school_year_id String
-  name           String
-  is_default     Boolean   @default(false)
-  is_locked      Boolean   @default(false)
-  locked_at      DateTime?
-  created_at     DateTime  @default(now())
+  id          String    @id @default(uuid())
+  org_id      String
+  class_id    String                  // required — every scheme belongs to exactly one class
+  template_id String?                 // optional: trace origin template for auditing
+  name        String
+  is_locked   Boolean   @default(false)
+  locked_at   DateTime?
+  created_at  DateTime  @default(now())
+  is_default Boolean @default(false)
 
-  schoolYear SchoolYear               @relation(fields: [school_year_id], references: [id])
-  class      Class?                   @relation(fields: [class_id], references: [id])
+  class      Class                    @relation(fields: [class_id], references: [id])
   components GradingSchemeComponent[]
+  
 }
 
 model GradingSchemeComponent {
@@ -500,11 +571,11 @@ model Assessment {
 }
 
 model Question {
-  id             String  @id @default(uuid())
-  org_id         String
-  assessment_id  String
-  type           String
-  question_text  String
+  id            String  @id @default(uuid())
+  org_id        String
+  assessment_id String
+  type          String
+  question_text String
   correct_answer String?
 }
 

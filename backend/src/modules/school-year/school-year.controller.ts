@@ -40,7 +40,7 @@ export class SchoolYearController {
    * Returns all school years for the org — all roles can view.
    */
   @Get()
-  async findAll(@CurrentUser('orgId') orgId: string) {
+  async findAll(@CurrentUser('org_id') orgId: string) {
     return this.schoolYearService.findAll(orgId);
   }
 
@@ -54,7 +54,7 @@ export class SchoolYearController {
   @HttpCode(HttpStatus.OK)
   async activate(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.schoolYearService.activate(id, orgId);
   }
@@ -68,7 +68,7 @@ export class SchoolYearController {
   @HttpCode(HttpStatus.OK)
   async end(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.schoolYearService.end(id, orgId);
   }
@@ -81,7 +81,7 @@ export class SchoolYearController {
   @Roles('admin')
   async update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateSchoolYearDto,
   ) {
     return this.schoolYearService.update(id, orgId, dto);

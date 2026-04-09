@@ -94,21 +94,17 @@ export function EnrollmentTab({ schoolYearId, isEnded }: Props) {
       },
     );
   };
-
-  // Derive a minimal Student object from the enrollment for ProgramEnrollmentDialog
-  const programTargetAsStudent: Student | null = programTarget
-    ? {
-        id:        programTarget.student_id,
-        orgId:     programTarget.org_id,
-        fullName:  programTarget.student_id, // replaced below if name is available
-        email:     "",
-        studentId: programTarget.student_id,
-        status:    "active",
-        levelId:   "",
-        sectionId: null,
-        createdAt: "",
-      }
-    : null;
+const programTargetAsStudent: Student | null = programTarget
+  ? {
+      id:        programTarget.student_id,
+      orgId:     programTarget.org_id,
+      fullName:  programTarget.student_id,
+      email:     "",
+      studentId: programTarget.student_id,
+      status:    "active",
+      createdAt: "",
+    }
+  : null;
 
   return (
     <div className="space-y-6">

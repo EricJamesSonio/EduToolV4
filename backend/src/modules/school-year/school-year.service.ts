@@ -84,15 +84,19 @@ export class SchoolYearService {
     return result
   }
 
-  async end(id: string, orgId: string) {
-    const schoolYear = await this.schoolYearRepository.findById(id, orgId)
-    if (!schoolYear) throw new NotFoundException('School year not found.')
-    if (schoolYear.status === 'ended')
-      throw new ConflictException('This school year has already ended.')
-    if (schoolYear.status === 'pending')
-      throw new BadRequestException(
-        'A pending school year cannot be ended. Activate it first.',
-      )
-    return this.schoolYearRepository.updateStatus(id, 'ended')
-  }
+async end(id: string, orgId: string) {
+  const schoolYear = await this.schoolYearRepository.findById(id, orgId)
+  if (!schoolYear) throw new NotFoundException('School year not found.')
+  if (schoolYear.status === 'ended')
+    throw new ConflictException('This school year has already ended.')
+  if (schoolYear.status === 'pending')
+    throw new BadRequestException(
+      'A pending school year cannot be ended. Activate it first.',
+    )
+
+  await this.schoolYearRepository.updateStatus(id, 'ended')
+  await this.schoolYearRepository.unenrollAllStudents(id, orgId)
+
+  return this.schoolYearRepository.findById(id, orgId)
+}
 }

@@ -15,6 +15,9 @@ import { CourseModule } from '@/modules/course/course.module'
 import { StrandModule } from '@/modules/strand/strand.module'
 import { SubjectPrerequisiteModule } from '@/modules/subject-prerequisite/subject-prerequisite.module'
 import { StudentEnrollmentModule } from '@/modules/student-enrollment/student-enrollment.module'
+import { SemesterTemplateModule } from '@/modules/semester-template/semester-template.module'
+import { GradingSchemeTemplateModule } from '@/modules/grading-scheme-template/grading-scheme-template.module';
+
 
 @Module({
   imports: [
@@ -31,7 +34,9 @@ import { StudentEnrollmentModule } from '@/modules/student-enrollment/student-en
     CourseModule,
     StrandModule,
     SubjectPrerequisiteModule,
-    StudentEnrollmentModule
+    StudentEnrollmentModule,
+    SemesterTemplateModule,
+    GradingSchemeTemplateModule
   ],
   exports: [
     AcademicCalendarModule,
@@ -47,6 +52,7 @@ import { StudentEnrollmentModule } from '@/modules/student-enrollment/student-en
     CourseModule,
     StrandModule,
     SubjectPrerequisiteModule,
+    SemesterTemplateModule
   ],
 })
 export class AcademicDomainModule {}

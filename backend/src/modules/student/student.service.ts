@@ -55,6 +55,7 @@ export class StudentService {
       levelId: (meta['levelId'] ?? null) as string | null,
       sectionId: (meta['sectionId'] ?? null) as string | null,
       createdAt: account.created_at as Date,
+      personalEmail: (account.profile?.personal_email ?? null) as string | null,
     };
   }
 

@@ -111,56 +111,61 @@ export class StudentRepository {
     });
   }
 
-  async updateProfile(
-    accountId: string,
-    data: {
-      fullName?: string;
-      email?: string;
-      levelId?: string;
-      sectionId?: string;
-    },
-  ) {
-    return this.db.$transaction(async (tx) => {
-      if (data.email) {
-        await tx.account.update({
-          where: { id: accountId },
-          data: { email: data.email },
-        });
-      }
-
-      const current = await tx.profile.findUnique({
-        where: { account_id: accountId },
-        select: { metadata: true, full_name: true },
-      });
-
-      const currentMeta =
-        current?.metadata &&
-        typeof current.metadata === 'object' &&
-        !Array.isArray(current.metadata)
-          ? (current.metadata as Record<string, any>)
-          : {};
-
-      await tx.profile.update({
-        where: { account_id: accountId },
-        data: {
-          ...(data.fullName ? { full_name: data.fullName } : {}),
-          metadata: {
-            ...currentMeta,
-            ...(data.levelId !== undefined ? { levelId: data.levelId } : {}),
-            ...(data.sectionId !== undefined
-              ? { sectionId: data.sectionId }
-              : {}),
-          },
-        },
-      });
-
-      return tx.account.findUnique({
+ async updateProfile(
+  accountId: string,
+  data: {
+    fullName?: string;
+    email?: string;
+    personal_email?: string | null;
+    levelId?: string;
+    sectionId?: string;
+  },
+) {
+  return this.db.$transaction(async (tx) => {
+    // Update account email if provided
+    if (data.email) {
+      await tx.account.update({
         where: { id: accountId },
-        include: { profile: true },
+        data: { email: data.email },
       });
-    });
-  }
+    }
 
+    // Get current profile metadata
+    const current = await tx.profile.findUnique({
+      where: { account_id: accountId },
+      select: { metadata: true, full_name: true, personal_email: true },
+    });
+
+    const currentMeta =
+      current?.metadata &&
+      typeof current.metadata === 'object' &&
+      !Array.isArray(current.metadata)
+        ? (current.metadata as Record<string, any>)
+        : {};
+
+    // Update profile
+    await tx.profile.update({
+      where: { account_id: accountId },
+      data: {
+        ...(data.fullName ? { full_name: data.fullName } : {}),
+        ...(data.personal_email !== undefined
+          ? { personal_email: data.personal_email ?? null }
+          : {}),
+        metadata: {
+          ...currentMeta,
+          ...(data.levelId !== undefined ? { levelId: data.levelId } : {}),
+          ...(data.sectionId !== undefined ? { sectionId: data.sectionId } : {}),
+        },
+      },
+    });
+
+    // Return updated account with profile
+    return tx.account.findUnique({
+      where: { id: accountId },
+      include: { profile: true },
+    });
+  });
+}
   async updateStatus(accountId: string, status: string) {
     return this.db.account.update({
       where: { id: accountId },

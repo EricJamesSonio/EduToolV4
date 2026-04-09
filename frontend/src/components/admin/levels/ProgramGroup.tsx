@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, BookOpen, Layers, GraduationCap } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  BookOpen,
+  Layers,
+  GraduationCap,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InlineEdit } from "./InlineEdit";
@@ -9,7 +18,7 @@ import { getCountConfig } from "./get-count-config";
 import type { Level } from "@/types/admin/level.types";
 import type { Program, CourseSnapshot, StrandSnapshot } from "@/types/admin/program.types";
 
-// ─── GenerateLevelsRow ────────────────────────────────────────────────────────
+// ─── GenerateLevelsRow (unchanged — only used for empty-state initial generation) ───
 
 interface GenerateLevelsRowProps {
   programType: string;
@@ -73,7 +82,7 @@ function GenerateLevelsRow({
   );
 }
 
-// ─── LevelRow ─────────────────────────────────────────────────────────────────
+// ─── LevelRow (unchanged) ───
 
 interface LevelRowProps {
   level: Level;
@@ -107,7 +116,6 @@ function LevelRow({
       <div className="w-3 shrink-0 flex justify-center">
         <div className="w-px h-4 bg-border" />
       </div>
-
       {isEditing ? (
         <InlineEdit
           value={level.name}
@@ -142,7 +150,7 @@ function LevelRow({
   );
 }
 
-// ─── CourseGroup ──────────────────────────────────────────────────────────────
+// ─── CourseGroup (unchanged) ───
 
 interface CourseGroupProps {
   label: string;
@@ -173,7 +181,6 @@ function CourseGroup({
 
   return (
     <div className="border-t">
-      {/* Course/Strand header row */}
       <button
         className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors text-left"
         onClick={() => setExpanded((p) => !p)}
@@ -192,8 +199,6 @@ function CourseGroup({
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         )}
       </button>
-
-      {/* Level rows nested under course */}
       {expanded && (
         <div className="divide-y bg-muted/5">
           {levels.length === 0 ? (
@@ -222,7 +227,7 @@ function CourseGroup({
   );
 }
 
-// ─── ProgramGroup ─────────────────────────────────────────────────────────────
+// ─── ProgramGroup ───
 
 interface ProgramGroupProps {
   program: Program;
@@ -231,8 +236,11 @@ interface ProgramGroupProps {
   onUpdate: (id: string, name: string) => void;
   onDelete: (level: Level) => void;
   onGenerate: (programId: string, count: number) => void;
+  /** Add a single new level to this program */
+  onAdd: (programId: string) => void;
   isUpdating: boolean;
   isGenerating: boolean;
+  isAdding: boolean;
   updatingId: string | null;
 }
 
@@ -243,8 +251,10 @@ export function ProgramGroup({
   onUpdate,
   onDelete,
   onGenerate,
+  onAdd,
   isUpdating,
   isGenerating,
+  isAdding,
   updatingId,
 }: ProgramGroupProps): React.JSX.Element {
   const [expanded, setExpanded] = useState(true);
@@ -253,14 +263,18 @@ export function ProgramGroup({
 
   const hasCourses = program.courses && program.courses.length > 0;
   const hasStrands = program.strands && program.strands.length > 0;
-  // Use sub-grouping only for programs that have courses or strands
   const useSubGroups = hasCourses || hasStrands;
 
   const subGroups: Array<{ id: string; label: string }> = hasCourses
-    ? program.courses.map((c: CourseSnapshot) => ({ id: c.id, label: c.code ? `${c.code} – ${c.name}` : c.name }))
+    ? program.courses.map((c: CourseSnapshot) => ({
+        id: c.id,
+        label: c.code ? `${c.code} – ${c.name}` : c.name,
+      }))
     : hasStrands
-    ? program.strands.map((s: StrandSnapshot) => ({ id: s.id, label: s.name }))
-    : [];
+      ? program.strands.map((s: StrandSnapshot) => ({ id: s.id, label: s.name }))
+      : [];
+
+  const hasLevels = levels.length > 0;
 
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
@@ -295,13 +309,12 @@ export function ProgramGroup({
                   <p className="text-sm text-muted-foreground">No courses or strands found.</p>
                 </div>
               ) : (
-                // Render each course/strand as its own collapsible with the shared levels inside
                 <div className="divide-y">
                   {subGroups.map((group) => (
                     <CourseGroup
                       key={group.id}
                       label={group.label}
-                      levels={levels} // all levels are shared across courses in the same program
+                      levels={levels}
                       isEnded={isEnded}
                       editingId={editingId}
                       isUpdating={isUpdating}
@@ -319,9 +332,9 @@ export function ProgramGroup({
               )}
             </>
           ) : (
-            /* ── Flat view (elementary, JHS, etc.) ── */
             <>
-              {levels.length === 0 && !showGenerate && (
+              {/* Empty state — show generate row */}
+              {!hasLevels && !showGenerate && (
                 <div className="px-4 py-8 text-center">
                   <Layers className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">No levels yet for this program.</p>
@@ -336,6 +349,7 @@ export function ProgramGroup({
                 </div>
               )}
 
+              {/* Level rows */}
               {levels.map((level) => (
                 <LevelRow
                   key={level.id}
@@ -355,7 +369,7 @@ export function ProgramGroup({
             </>
           )}
 
-          {/* Generate row */}
+          {/* Initial bulk-generate row (empty state only) */}
           {!isEnded && showGenerate && (
             <GenerateLevelsRow
               programType={program.type}
@@ -368,15 +382,16 @@ export function ProgramGroup({
             />
           )}
 
-          {/* Regenerate button */}
-          {!isEnded && !showGenerate && levels.length > 0 && (
-            <div className="px-4 py-2.5">
+          {/* Bottom action bar — shown when levels exist */}
+          {!isEnded && hasLevels && !showGenerate && (
+            <div className="px-4 py-2.5 flex items-center gap-4">
               <button
-                onClick={() => setShowGenerate(true)}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                onClick={() => onAdd(program.id)}
+                disabled={isAdding}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Regenerate levels
+                {isAdding ? "Adding…" : "Add level"}
               </button>
             </div>
           )}

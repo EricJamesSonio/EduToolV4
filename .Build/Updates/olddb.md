@@ -1,0 +1,676 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+//////////////////////
+// ENUMS
+//////////////////////
+
+enum Role {
+  platform_owner
+  admin
+  educator
+  student
+}
+
+enum AccountStatus {
+  active
+  suspended
+  pending
+  dropped
+  transferred
+  graduated
+}
+
+enum EnrollmentStatus {
+  active
+  pending
+  removed
+}
+
+enum SubmissionStatus {
+  draft
+  submitted
+  exempted
+  custom
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+  excused
+}
+
+enum SchoolYearStatus {
+  pending
+  active
+  ended
+}
+
+enum SchoolYearEnrollmentStatus {
+  active
+  pending
+  unenrolled  // manually or auto unenrolled
+}
+//////////////////////
+// CORE TABLES
+//////////////////////
+
+model Organization {
+  id               String   @id @default(uuid())
+  name             String
+  description      String?
+  email_extension  String?  // e.g. "@edutool.ph"
+  admin_account_id String?  @unique
+
+  accounts Account[]
+}
+
+model OrgEnrollmentSetting {
+  id                          String  @id @default(uuid())
+  org_id                      String  @unique
+  require_semester_reenrollment Boolean @default(false) // if true, students must re-enroll each semester
+  auto_unenroll_on_year_end   Boolean @default(true)   // auto unenroll when school year ends
+  created_at                  DateTime @default(now())
+  updated_at                  DateTime @updatedAt
+}
+
+model Account {
+  id         String        @id @default(uuid())
+  org_id     String?
+  role       Role
+  email      String        @unique
+  password   String
+  status     AccountStatus
+  created_at DateTime      @default(now())
+  updated_at DateTime      @updatedAt
+  deleted_at DateTime?
+
+  organization Organization? @relation(fields: [org_id], references: [id])
+  profile      Profile?
+
+  @@unique([org_id, email])
+}
+
+model Profile {
+  id         String   @id @default(uuid())
+  account_id String   @unique
+  full_name  String
+  metadata   Json?
+  created_at DateTime @default(now())
+
+  account Account @relation(fields: [account_id], references: [id])
+}
+
+//////////////////////
+// STRUCTURE
+//////////////////////
+
+model Program {
+  id             String @id @default(uuid())
+  org_id         String
+  school_year_id String
+  name           String
+  type           String
+
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
+  courses    Course[]
+  strands    Strand[]
+  levels     Level[]
+  subjects   Subject[]  // minor subjects scoped to this program
+  studentEnrollments StudentProgramEnrollment[]
+}
+
+model Course {
+  id             String  @id @default(uuid())
+  org_id         String
+  school_year_id String
+  program_id     String
+  name           String
+  code           String?
+
+  schoolYear SchoolYear       @relation(fields: [school_year_id], references: [id])
+  program    Program          @relation(fields: [program_id], references: [id])
+  subjects   Subject[]        // major subjects directly assigned
+  sharings   SubjectSharing[] // minor subjects shared to this course
+  studentEnrollments StudentProgramEnrollment[]
+}
+
+model Strand {
+  id             String @id @default(uuid())
+  org_id         String
+  school_year_id String
+  program_id     String
+  name           String
+
+  schoolYear SchoolYear       @relation(fields: [school_year_id], references: [id])
+  program    Program          @relation(fields: [program_id], references: [id])
+  subjects   Subject[]        // major subjects directly assigned
+  sharings   SubjectSharing[] // minor subjects shared to this strand
+  studentEnrollments StudentProgramEnrollment[]
+}
+
+model Level {
+  id             String @id @default(uuid())
+  org_id         String
+  school_year_id String
+  program_id     String
+  name           String
+
+  schoolYear SchoolYear       @relation(fields: [school_year_id], references: [id])
+  program    Program          @relation(fields: [program_id], references: [id])
+  sections   Section[]
+  sharings   SubjectSharing[] // minor subjects shared to this level (K-12)
+  studentEnrollments StudentProgramEnrollment[]
+}
+
+model Section {
+  id             String    @id @default(uuid())
+  org_id         String
+  level_id       String
+  school_year_id String
+  name           String
+  capacity       Int
+  deleted_at     DateTime?
+
+  level      Level      @relation(fields: [level_id], references: [id])
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
+  studentEnrollments StudentProgramEnrollment[]
+}
+
+model SchoolYear {
+  id         String            @id @default(uuid())
+  org_id     String
+  name       String
+  status     SchoolYearStatus  @default(pending)  // was plain String
+  start_date DateTime?
+  end_date   DateTime?
+
+  programs           Program[]
+  courses            Course[]
+  strands            Strand[]
+  levels             Level[]
+  sections           Section[]
+  gradingScales      GradingScale[]
+  gradingSchemes     GradingScheme[]
+  studentEnrollments StudentSchoolYear[]
+  semesters Semester[]
+}
+
+model StudentSchoolYear {
+  id             String                     @id @default(uuid())
+  org_id         String
+  student_id     String
+  school_year_id String
+  status         SchoolYearEnrollmentStatus @default(pending)
+  enrolled_at    DateTime                   @default(now())
+  unenrolled_at  DateTime?                  // set when manually or auto unenrolled
+  notes          String?                    // optional admin notes
+
+  schoolYear          SchoolYear               @relation(fields: [school_year_id], references: [id])
+  programEnrollments  StudentProgramEnrollment[]
+
+  @@unique([org_id, student_id, school_year_id])
+}
+
+model StudentProgramEnrollment {
+  id                      String           @id @default(uuid())
+  org_id                  String
+  student_school_year_id  String           // FK to StudentSchoolYear
+  program_id              String
+  level_id                String?          // e.g. 1st Year, Grade 7
+  course_id               String?          // e.g. BSCS (college)
+  strand_id               String?          // e.g. STEM (SHS)
+  section_id              String?          // optional section assignment
+  status                  EnrollmentStatus @default(active)
+  enrolled_at             DateTime         @default(now())
+
+  studentSchoolYear StudentSchoolYear @relation(fields: [student_school_year_id], references: [id])
+  program           Program           @relation(fields: [program_id], references: [id])
+  level             Level?            @relation(fields: [level_id], references: [id])
+  course            Course?           @relation(fields: [course_id], references: [id])
+  strand            Strand?           @relation(fields: [strand_id], references: [id])
+  section           Section?          @relation(fields: [section_id], references: [id])
+
+  @@unique([student_school_year_id, program_id]) // one program per student per school year
+}
+
+model Semester {
+  id             String   @id @default(uuid())
+  org_id         String
+  school_year_id String
+  name           String
+  start_date     DateTime
+  end_date       DateTime
+
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])  // ADD THIS
+  terms      Term[]
+}
+
+model Term {
+  id          String   @id @default(uuid())
+  org_id      String
+  semester_id String
+  name        String
+  order_index Int
+  start_date  DateTime
+  end_date    DateTime
+
+  semester Semester @relation(fields: [semester_id], references: [id])
+}
+
+//////////////////////
+// ACADEMIC
+//////////////////////
+
+model Subject {
+  id           String  @id @default(uuid())
+  org_id       String
+  name         String
+  subject_type String  @default("major") // "major" | "minor"
+  program_id   String?                   // required for minor subjects; gates sharing scope
+  level_id     String?                    // for major: the specific level; for minor: "home" level
+  course_id    String?
+  strand_id    String?
+  educator_id  String?
+  is_locked    Boolean @default(false)
+  year_level   String?
+  term_label   String?
+
+  program       Program?              @relation(fields: [program_id], references: [id])
+  course        Course?              @relation(fields: [course_id], references: [id])
+  strand        Strand?              @relation(fields: [strand_id], references: [id])
+  prerequisites SubjectPrerequisite[] @relation("SubjectPrereqs")
+  prereqFor     SubjectPrerequisite[] @relation("PrereqFor")
+  sharings      SubjectSharing[]     // only populated for minor subjects
+}
+
+// Junction table: one minor subject → many courses/strands/levels
+// Exactly one of course_id, strand_id, level_id must be set per row.
+model SubjectSharing {
+  id         String  @id @default(uuid())
+  org_id     String
+  subject_id String  // must reference a minor subject
+  course_id  String? // share to a college course
+  strand_id  String? // share to a SHS strand
+  level_id   String? // share to a K-12 level
+
+  subject Subject @relation(fields: [subject_id], references: [id])
+  course  Course? @relation(fields: [course_id], references: [id])
+  strand  Strand? @relation(fields: [strand_id], references: [id])
+  level   Level?  @relation(fields: [level_id], references: [id])
+
+  @@unique([subject_id, course_id])
+  @@unique([subject_id, strand_id])
+  @@unique([subject_id, level_id])
+}
+
+model SubjectPrerequisite {
+  id              String @id @default(uuid())
+  org_id          String
+  subject_id      String
+  prerequisite_id String
+
+  subject      Subject @relation("SubjectPrereqs", fields: [subject_id], references: [id])
+  prerequisite Subject @relation("PrereqFor",      fields: [prerequisite_id], references: [id])
+
+  @@unique([subject_id, prerequisite_id])
+}
+
+model Class {
+  id             String    @id @default(uuid())
+  org_id         String
+  subject_id     String
+  educator_id    String
+  section_id     String?
+  school_year_id String
+  semester_id    String
+  capacity       Int
+  created_at     DateTime  @default(now())
+  deleted_at     DateTime?
+
+  schedules      ClassSchedule[]
+  enrollments    Enrollment[]
+  gradeLock      GradeLock?
+  ownershipLogs  ClassOwnershipLog[]
+  meetings       Meeting[]
+  grades         Grade[]
+  gradingSchemes GradingScheme[]
+}
+
+model ClassSchedule {
+  id         String   @id @default(uuid())
+  org_id     String
+  class_id   String
+  weekday    Int
+  start_time DateTime
+  end_time   DateTime
+
+  class Class @relation(fields: [class_id], references: [id])
+}
+
+model ClassOwnershipLog {
+  id               String   @id @default(uuid())
+  org_id           String
+  class_id         String
+  from_educator_id String
+  to_educator_id   String
+  reason           String?
+  reassigned_at    DateTime @default(now())
+  reassigned_by    String
+
+  class Class @relation(fields: [class_id], references: [id])
+}
+
+model Enrollment {
+  id         String           @id @default(uuid())
+  org_id     String
+  class_id   String
+  student_id String
+  status     EnrollmentStatus
+  created_at DateTime         @default(now())
+
+  class Class @relation(fields: [class_id], references: [id])
+}
+
+model AcademicCalendar {
+  id             String   @id @default(uuid())
+  org_id         String
+  school_year_id String
+  title          String
+  type           String
+  start_date     DateTime
+  end_date       DateTime
+  description    String?
+  created_at     DateTime @default(now())
+}
+
+model GradingScale {
+  id             String    @id @default(uuid())
+  org_id         String
+  school_year_id String
+  level_id       String
+  name           String
+  ranges         Json
+  is_locked      Boolean   @default(false)
+  locked_at      DateTime?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
+}
+
+//////////////////////
+// GRADING SCHEME
+//////////////////////
+
+model GradingScheme {
+  id             String    @id @default(uuid())
+  org_id         String
+  educator_id    String?
+  class_id       String?
+  school_year_id String
+  name           String
+  is_default     Boolean   @default(false)
+  is_locked      Boolean   @default(false)
+  locked_at      DateTime?
+  created_at     DateTime  @default(now())
+
+  schoolYear SchoolYear               @relation(fields: [school_year_id], references: [id])
+  class      Class?                   @relation(fields: [class_id], references: [id])
+  components GradingSchemeComponent[]
+}
+
+model GradingSchemeComponent {
+  id                String   @id @default(uuid())
+  org_id            String
+  grading_scheme_id String
+  name              String
+  type              String
+  weight            Float
+  max_score         Float?
+  is_optional       Boolean  @default(false)
+  created_at        DateTime @default(now())
+
+  gradingScheme GradingScheme @relation(fields: [grading_scheme_id], references: [id])
+}
+
+//////////////////////
+// LESSONS
+//////////////////////
+
+model Lesson {
+  id          String   @id @default(uuid())
+  org_id      String
+  class_id    String
+  title       String
+  description String?
+  detail      String?
+  week_number Int
+  sub_index   Int
+  created_at  DateTime @default(now())
+}
+
+model LessonConcept {
+  id         String   @id @default(uuid())
+  org_id     String
+  lesson_id  String
+  content    Json
+  created_at DateTime @default(now())
+}
+
+//////////////////////
+// ASSESSMENTS
+//////////////////////
+
+model ManualScore {
+  id         String   @id @default(uuid())
+  org_id     String
+  class_id   String
+  student_id String
+  term_id    String
+  category   String
+  score      Float
+  updated_at DateTime @updatedAt
+
+  @@unique([org_id, class_id, student_id, term_id, category])
+}
+
+model Assessment {
+  id           String    @id @default(uuid())
+  org_id       String
+  class_id     String
+  lesson_id    String?
+  term_id      String
+  type         String
+  total_items  Int
+  release_date DateTime?
+  end_date     DateTime?
+  is_published Boolean   @default(false)
+  created_at   DateTime  @default(now())
+  deleted_at   DateTime?
+
+  submissions Submission[]
+}
+
+model Question {
+  id             String  @id @default(uuid())
+  org_id         String
+  assessment_id  String
+  type           String
+  question_text  String
+  correct_answer String?
+}
+
+model Submission {
+  id            String           @id @default(uuid())
+  org_id        String
+  assessment_id String
+  student_id    String
+  status        SubmissionStatus
+  score         Float?
+  manual_score  Float?
+  submitted_at  DateTime?
+
+  assessment Assessment @relation(fields: [assessment_id], references: [id])
+}
+
+model SubmissionAnswer {
+  id            String   @id @default(uuid())
+  org_id        String
+  submission_id String
+  question_id   String
+  answer        String
+  is_correct    Boolean?
+}
+
+//////////////////////
+// GRADING
+//////////////////////
+
+model Grade {
+  id          String    @id @default(uuid())
+  org_id      String
+  student_id  String
+  class_id    String
+  term_id     String
+  final_score Float
+  final_grade String
+  is_locked   Boolean   @default(false)
+  locked_at   DateTime?
+
+  class Class @relation(fields: [class_id], references: [id])
+
+  @@unique([org_id, student_id, class_id, term_id])
+}
+
+model GradeLock {
+  id         String    @id @default(uuid())
+  org_id     String
+  class_id   String    @unique
+  is_locked  Boolean   @default(false)
+  locked_by  String?
+  locked_at  DateTime?
+  created_at DateTime  @default(now())
+
+  class Class @relation(fields: [class_id], references: [id])
+}
+
+model GradeLockSetting {
+  id             String   @id @default(uuid())
+  org_id         String
+  school_year_id String
+  lock_deadline  DateTime
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@unique([org_id, school_year_id])
+}
+
+//////////////////////
+// ATTENDANCE
+//////////////////////
+
+model AttendanceSession {
+  id          String   @id @default(uuid())
+  org_id      String
+  class_id    String
+  date        DateTime
+  week_number Int
+  sub_index   Int
+}
+
+model AttendanceRecord {
+  id         String           @id @default(uuid())
+  org_id     String
+  session_id String
+  student_id String
+  status     AttendanceStatus
+}
+
+//////////////////////
+// MEETINGS
+//////////////////////
+
+model Meeting {
+  id          String    @id @default(uuid())
+  org_id      String
+  class_id    String
+  educator_id String
+  title       String
+  description String?
+  start_time  DateTime
+  status      String    @default("scheduled")
+  created_at  DateTime  @default(now())
+  deleted_at  DateTime?
+
+  class         Class                @relation(fields: [class_id], references: [id])
+  invites       MeetingInvite[]
+  join_requests MeetingJoinRequest[]
+}
+
+model MeetingInvite {
+  id         String @id @default(uuid())
+  org_id     String
+  meeting_id String
+  student_id String
+
+  meeting Meeting @relation(fields: [meeting_id], references: [id])
+
+  @@unique([meeting_id, student_id])
+}
+
+model MeetingJoinRequest {
+  id         String   @id @default(uuid())
+  org_id     String
+  meeting_id String
+  student_id String
+  status     String   @default("pending")
+  created_at DateTime @default(now())
+
+  meeting Meeting @relation(fields: [meeting_id], references: [id])
+
+  @@unique([meeting_id, student_id])
+}
+
+//////////////////////
+// SYSTEM
+//////////////////////
+
+model Notification {
+  id          String    @id @default(uuid())
+  org_id      String
+  account_id  String
+  type        String
+  payload     Json
+  read_at     DateTime?
+  archived_at DateTime?
+  created_at  DateTime  @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  org_id      String
+  actor_id    String
+  action      String
+  entity_type String
+  entity_id   String
+  metadata    Json?
+  created_at  DateTime @default(now())
+}
+
+model MeetingChatMessage {
+  id          String   @id @default(uuid())
+  org_id      String
+  meeting_id  String
+  sender_id   String
+  sender_name String
+  message     String
+  created_at  DateTime @default(now())
+}

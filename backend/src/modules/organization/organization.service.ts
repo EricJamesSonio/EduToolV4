@@ -25,12 +25,21 @@ export class OrganizationService {
     if (alreadyExists) {
       throw new ConflictException('An organization already exists for this account.')
     }
-    const org = await this.orgRepository.create({
-      name:        dto.name,
-      description: dto.description,
-    })
-    await this.orgRepository.linkToAdmin(adminId, org.id)
-    return org
+
+    try {
+      const org = await this.orgRepository.create({
+        name:            dto.name,
+        description:     dto.description,
+        email_extension: dto.emailExtension,
+      })
+      await this.orgRepository.linkToAdmin(adminId, org.id)
+      return org
+    } catch (e: any) {
+      if (e?.code === 'P2002' && e?.meta?.target?.includes('email_extension')) {
+        throw new ConflictException('This email extension is already in use by another organization.')
+      }
+      throw e
+    }
   }
 
   async getOwn(orgId: string | null) {
@@ -45,18 +54,25 @@ export class OrganizationService {
     }
   }
 
-  async update(orgId: string, dto: UpdateOrganizationDto) {
-    const org = await this.orgRepository.findById(orgId)
-    if (!org) throw new NotFoundException('Organization not found.')
-    return this.orgRepository.update(orgId, {
+async update(orgId: string, dto: UpdateOrganizationDto) {
+  const org = await this.orgRepository.findById(orgId)
+  if (!org) throw new NotFoundException('Organization not found.')
+
+  try {
+    return await this.orgRepository.update(orgId, {
       name:        dto.name,
       description: dto.description,
       ...(dto.emailExtension !== undefined && {
-        email_extension: dto.emailExtension,
+        email_extension: dto.emailExtension ?? undefined,
       }),
     })
+  } catch (e: any) {
+    if (e?.code === 'P2002' && e?.meta?.target?.includes('email_extension')) {
+      throw new ConflictException('This email extension is already in use by another organization.')
+    }
+    throw e
   }
-
+}
   async seed(orgId: string, dto: SeedOrganizationDto) {
     if (!orgId) throw new BadRequestException('No organization found for this account.')
     const org = await this.orgRepository.findById(orgId)
@@ -71,6 +87,7 @@ export class OrganizationService {
       excludedLevels:   dto.excludedLevels,
       excludedSubjects: dto.excludedSubjects,
       levelConfigs:     dto.levelConfigs,
+      sectionConfigs:   dto.sectionConfigs,
       gradingScales:    dto.gradingScales,
     })
 

@@ -42,9 +42,10 @@ interface EditClassDialogProps {
   cls: Class;
   open: boolean;
   onClose: () => void;
+  schoolYearId: string; // ✅ ADD THIS
 }
 
-export function EditClassDialog({ cls, open, onClose }: EditClassDialogProps): React.JSX.Element {
+export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassDialogProps): React.JSX.Element {
   const queryClient = useQueryClient();
 
   const { data: educatorsRaw } = useQuery({
@@ -54,10 +55,9 @@ export function EditClassDialog({ cls, open, onClose }: EditClassDialogProps): R
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
   const { data: sectionsRaw } = useQuery({
-    // Fetch all sections — Class has no levelId field, so we can't pre-filter.
-    // The list is short and scoped to the org by the backend.
-    queryKey: ["admin", "sections"],
-    queryFn: () => sectionApi.getAll(),
+    queryKey: ["admin", "sections", schoolYearId],
+    queryFn: () => sectionApi.getAll(schoolYearId),
+    enabled: !!schoolYearId,
   });
   const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 

@@ -150,6 +150,7 @@ export class EducatorService {
       fullName: account.profile?.full_name ?? null,
       educatorId: meta?.educatorId ?? null,
       createdAt: account.created_at,
+      personalEmail: (account.profile?.personal_email ?? null) as string | null,
     };
   }
 }
