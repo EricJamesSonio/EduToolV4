@@ -149,22 +149,32 @@ function CreateSchoolYearDialog({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>
-                  Start Date{" "}
-                  <span className="text-muted-foreground font-normal">(optional)</span>
-                </Label>
-                <Input type="date" {...register("start_date")} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>
-                  End Date{" "}
-                  <span className="text-muted-foreground font-normal">(optional)</span>
-                </Label>
-                <Input type="date" {...register("end_date")} />
-              </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Start Date</Label>
+              <Input
+                type="date"
+                {...register("start_date", {
+                  required: "Start date is required",
+                })}
+              />
+              {errors.start_date && (
+                <p className="text-xs text-destructive">{errors.start_date.message}</p>
+              )}
             </div>
+            <div className="space-y-1.5">
+              <Label>End Date</Label>
+              <Input
+                type="date"
+                {...register("end_date", {
+                  required: "End date is required",
+                })}
+              />
+              {errors.end_date && (
+                <p className="text-xs text-destructive">{errors.end_date.message}</p>
+              )}
+            </div>
+          </div>
 
             <div className="flex justify-end gap-2">
               <Button
