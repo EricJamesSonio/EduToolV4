@@ -33,10 +33,18 @@ export const SHS_STRANDS = [
 ]
 
 export const COLLEGE_GE_SUBJECTS = [
-  "Oral Communication", "Reading and Writing Skills", "Mathematics in the Modern World",
-  "Understanding the Self", "Contemporary World", "Readings in Philippine History",
-  "Physical Education / Health", "Life and Works of Jose Rizal",
-  "National Service Training Program (NSTP)", "Art Appreciation",
+  "Oral Communication",
+  "Reading and Writing Skills",
+  "Mathematics in the Modern World",
+  "Understanding the Self",
+  "Contemporary World",
+  "Readings in Philippine History",
+  "Physical Education / Health",
+  "Life and Works of Jose Rizal",
+  "Ethics",
+  "Art Appreciation",
+  "Science, Technology, and Society",
+  "National Service Training Program (NSTP)",
 ] as const
 
 export const SHS_MINOR_SUBJECTS = [
@@ -66,7 +74,7 @@ export const LEVEL_MAX: Record<string, number> = {
   elementary: 12,
   jhs:        6,
   shs:        4,
-  college:    6,
+  college:    5,
 }
 
 // Min levels per program
@@ -349,7 +357,10 @@ export const COURSE_SUBJECTS: Record<string, string[]> = {
     "Auditing and Assurance Services","Taxation (Income Tax, Business Tax)",
     "Strategic Cost Management",
     "Governance, Business Ethics, Risk Management, and Internal Control",
-    "Accounting Research","Integrated Review Courses (Board Exam Preparation)",
+    "Accounting Research",
+    "Integrated Review Courses (Board Exam Preparation)",
+    "Advanced Taxation",
+    "CPA Licensure Exam Review",
   ],
   BSCS: [
     "Oral Communication","Reading and Writing Skills","Mathematics in the Modern World",
