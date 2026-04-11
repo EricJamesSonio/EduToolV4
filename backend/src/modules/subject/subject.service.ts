@@ -17,37 +17,30 @@ import {
 export class SubjectService {
   constructor(private readonly subjectRepository: SubjectRepository) {}
 
-  private mapToResponse(subject: any) {
-    return {
-      id:           subject.id,
-      orgId:        subject.org_id,
+private mapToResponse(subject: any) {
+  return {
+    id:           subject.id,
+    orgId:        subject.org_id,
+    title:        subject.name,
+    subjectType:  subject.subject_type ?? 'major',
+    programId:    subject.program_id ?? null,
+    programName:  subject.programName ?? null,
+    programType:  subject.program?.type ?? null,   // ← ADD
+    realProgramId: subject.program_id ?? null,
+    levelId:      subject.level_id ?? null,
+    levelName:    subject.levelName ?? null,
+    courseId:     subject.course_id ?? null,
+    strandId:     subject.strand_id ?? null,
+    lockStatus:   subject.is_locked ? 'locked' : 'unlocked',
+    yearLevel:    subject.year_level ?? null,
+    termLabel:    subject.term_label ?? null,
+    prerequisites: subject.prerequisites ?? [],
+    prereqFor:     subject.prereqFor ?? [],
+    sharings:      subject.sharings ?? [],
+    createdAt:     subject.created_at ?? null,
+    updatedAt:     subject.updated_at ?? null,
+  }
 
-      title:        subject.name,
-      subjectType:  subject.subject_type ?? 'major',
-
-      programId:    subject.program_id ?? null,
-      programName:  subject.programName ?? null,
-      realProgramId: subject.program_id ?? null,
-
-      levelId:      subject.level_id ?? null,
-      levelName:    subject.levelName ?? null,
-
-      courseId:     subject.course_id ?? null,
-      strandId:     subject.strand_id ?? null,
-
-      lockStatus:   subject.is_locked ? 'locked' : 'unlocked',
-
-      yearLevel:    subject.year_level ?? null,
-      termLabel:    subject.term_label ?? null,
-
-      prerequisites: subject.prerequisites ?? [],
-      prereqFor:     subject.prereqFor ?? [],
-
-      sharings:      subject.sharings ?? [],
-
-      createdAt:     subject.created_at ?? null,
-      updatedAt:     subject.updated_at ?? null,
-    };
   }
 
   // validate that major subjects have the right scope fields
@@ -165,33 +158,74 @@ export class SubjectService {
     return this.subjectRepository.findByNameInOrg(name, orgId);
   }
 
-  async share(id: string, orgId: string, dto: ShareSubjectDto) {
-    const targets = [dto.courseId, dto.strandId, dto.levelId].filter(Boolean);
-    if (targets.length !== 1) {
-      throw new BadRequestException(
-        'Exactly one of courseId, strandId, or levelId must be provided.',
-      );
-    }
-
-    const subject = await this.subjectRepository.findById(id, orgId);
-    if (!subject) throw new NotFoundException('Subject not found.');
-
-    if (subject.subject_type !== 'minor') {
-      throw new BadRequestException('Only minor subjects can be shared.');
-    }
-    if (!subject.program_id) {
-      throw new BadRequestException(
-        'Minor subject must have a programId before sharing.',
-      );
-    }
-
-    const sharing = await this.subjectRepository.addSharing(id, orgId, {
-      courseId: dto.courseId,
-      strandId: dto.strandId,
-      levelId:  dto.levelId,
-    });
-    return sharing;
+async share(id: string, orgId: string, dto: ShareSubjectDto) {
+  const targets = [dto.courseId, dto.strandId, dto.levelId].filter(Boolean)
+  if (targets.length !== 1) {
+    throw new BadRequestException(
+      'Exactly one of courseId, strandId, or levelId must be provided.',
+    )
   }
+
+  const subject = await this.subjectRepository.findById(id, orgId)
+  if (!subject) throw new NotFoundException('Subject not found.')
+
+  if (subject.subject_type !== 'minor') {
+    throw new BadRequestException('Only minor subjects can be shared.')
+  }
+
+  if (!subject.program_id) {
+    throw new BadRequestException(
+      'Minor subject must have a programId before sharing.',
+    )
+  }
+
+  if (!subject.level_id) {
+    throw new BadRequestException(
+      'Minor subject must have a levelId before sharing.',
+    )
+  }
+
+  if (dto.courseId) {
+    const course = await this.subjectRepository.findCourseById(dto.courseId, orgId)
+    if (!course) throw new NotFoundException('Course not found.')
+    if (course.program_id !== subject.program_id) {
+      throw new BadRequestException(
+        'Target course does not belong to the same program as this subject.',
+      )
+    }
+  }
+
+  if (dto.strandId) {
+    const strand = await this.subjectRepository.findStrandById(dto.strandId, orgId)
+    if (!strand) throw new NotFoundException('Strand not found.')
+    if (strand.program_id !== subject.program_id) {
+      throw new BadRequestException(
+        'Target strand does not belong to the same program as this subject.',
+      )
+    }
+  }
+
+  if (dto.levelId) {
+    const level = await this.subjectRepository.findLevelById(dto.levelId, orgId)
+    if (!level) throw new NotFoundException('Level not found.')
+    if (level.program_id !== subject.program_id) {
+      throw new BadRequestException(
+        'Target level does not belong to the same program as this subject.',
+      )
+    }
+    if (dto.levelId !== subject.level_id) {
+      throw new BadRequestException(
+        'Minor subject can only be shared to its own level.',
+      )
+    }
+  }
+
+  return this.subjectRepository.addSharing(id, orgId, {
+    courseId: dto.courseId,
+    strandId: dto.strandId,
+    levelId:  dto.levelId,
+  })
+}
 
   async unshare(id: string, sharingId: string, orgId: string) {
     const subject = await this.subjectRepository.findById(id, orgId);

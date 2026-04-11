@@ -1,3 +1,5 @@
+// frontend/src/api/admin/program.api.ts
+
 import client from "@/api/client";
 import type { Program, ProgramType } from "@/types/admin/program.types";
 
@@ -14,27 +16,51 @@ export interface UpdateProgramRequest {
   type?: ProgramType;
 }
 
+// Raw shape from backend
+interface RawProgram {
+  id:             string;
+  org_id:         string;
+  school_year_id: string;
+  name:           string;
+  type:           ProgramType;
+  courses?:       { id: string; name: string; code: string | null }[];
+  strands?:       { id: string; name: string }[];
+}
+
+function mapProgram(raw: RawProgram): Program {
+  return {
+    id:             raw.id,
+    orgId:          raw.org_id,
+    schoolYearId:   raw.school_year_id,   // ← the fix
+    school_year_id: raw.school_year_id,
+    name:           raw.name,
+    type:           raw.type,
+    courses:        raw.courses ?? [],
+    strands:        raw.strands ?? [],
+  }
+}
+
 export const programApi = {
   getAll: async (schoolYearId: string): Promise<Program[]> => {
-    const res = await client.get<{ success: boolean; data: Program[] }>("/programs", {
+    const res = await client.get<{ success: boolean; data: RawProgram[] }>("/programs", {
       params: { schoolYearId },
     });
-    return res.data.data;
+    return res.data.data.map(mapProgram);
   },
 
   getOne: async (id: string): Promise<Program> => {
-    const res = await client.get<{ success: boolean; data: Program }>(`/programs/${id}`);
-    return res.data.data;
+    const res = await client.get<{ success: boolean; data: RawProgram }>(`/programs/${id}`);
+    return mapProgram(res.data.data);
   },
 
   create: async (data: CreateProgramRequest): Promise<Program> => {
-    const res = await client.post<{ success: boolean; data: Program }>("/programs", data);
-    return res.data.data;
+    const res = await client.post<{ success: boolean; data: RawProgram }>("/programs", data);
+    return mapProgram(res.data.data);
   },
 
   update: async (id: string, data: UpdateProgramRequest): Promise<Program> => {
-    const res = await client.patch<{ success: boolean; data: Program }>(`/programs/${id}`, data);
-    return res.data.data;
+    const res = await client.patch<{ success: boolean; data: RawProgram }>(`/programs/${id}`, data);
+    return mapProgram(res.data.data);
   },
 
   delete: async (id: string): Promise<void> => {

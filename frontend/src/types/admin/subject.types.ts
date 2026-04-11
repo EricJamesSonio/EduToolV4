@@ -22,6 +22,7 @@ export interface Subject {
 
   programId: string;
   programName: string;
+  programType: string | null
 
   realProgramId: string | null;
 

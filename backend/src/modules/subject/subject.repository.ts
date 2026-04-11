@@ -175,6 +175,7 @@ export class SubjectRepository {
     const subject = await this.db.subject.findFirst({
       where: { id, org_id: orgId },
       include: {
+        program: { select: { id: true, type: true } },  // ← ADD
         prerequisites: {
           include: {
             prerequisite: { select: { id: true, name: true, year_level: true, term_label: true } },
@@ -185,11 +186,11 @@ export class SubjectRepository {
         },
         sharings: true,
       },
-    });
-    if (!subject) return null;
-    const [enriched]       = await this.enrichSubjects([subject]);
-    const enrichedSharings  = await this.enrichSharings((subject as any).sharings ?? []);
-    return { ...enriched, sharings: enrichedSharings };
+    })
+    if (!subject) return null
+    const [enriched]      = await this.enrichSubjects([subject])
+    const enrichedSharings = await this.enrichSharings((subject as any).sharings ?? [])
+    return { ...enriched, sharings: enrichedSharings }
   }
 
   async update(
@@ -270,5 +271,26 @@ export class SubjectRepository {
       where: { subject_id: subjectId, org_id: orgId },
     });
     return this.enrichSharings(sharings);
+  }
+
+  async findCourseById(courseId: string, orgId: string) {
+    return this.db.course.findFirst({
+      where: { id: courseId, org_id: orgId },
+      select: { id: true, program_id: true },
+    })
+  }
+
+  async findStrandById(strandId: string, orgId: string) {
+    return this.db.strand.findFirst({
+      where: { id: strandId, org_id: orgId },
+      select: { id: true, program_id: true },
+    })
+  }
+
+  async findLevelById(levelId: string, orgId: string) {
+    return this.db.level.findFirst({
+      where: { id: levelId, org_id: orgId },
+      select: { id: true, program_id: true },
+    })
   }
 }

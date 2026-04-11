@@ -226,13 +226,13 @@ function SharingsSection({
       )}
 
       {shareOpen && (
-        <ShareSubjectDialog
-          subject={subject}
-          existingSharings={sharings}
-          schoolYearId={schoolYearId}
-          open={shareOpen}
-          onClose={() => setShareOpen(false)}
-        />
+      <ShareSubjectDialog
+        subject={subject}
+        existingSharings={sharings}
+        schoolYearId={schoolYearId}
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+      />
       )}
 
       {unshareTarget && (
