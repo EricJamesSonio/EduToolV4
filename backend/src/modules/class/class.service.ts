@@ -43,23 +43,80 @@ export class ClassService {
   // Resolve semester automatically from schoolYearId
   // ---------------------------------------------------------------------------
 
-// backend/src/modules/class/class.service.ts
-// Only resolveSemesterId changes — replace the existing method
+private async resolveProgramIdFromSubject(
+  subjectId: string,
+  orgId: string,
+): Promise<string | null> {
+  const subject = await this.db.subject.findFirst({
+    where: { id: subjectId, org_id: orgId },
+    select: {
+      program_id: true,
+      course_id:  true,
+      strand_id:  true,
+      level_id:   true,
+    },
+  })
+
+  if (!subject) return null
+
+  // Direct program link
+  if (subject.program_id) return subject.program_id
+
+  // Via course → program
+  if (subject.course_id) {
+    const course = await this.db.course.findFirst({
+      where: { id: subject.course_id, org_id: orgId },
+      select: { program_id: true },
+    })
+    if (course?.program_id) return course.program_id
+  }
+
+  // Via strand → program
+  if (subject.strand_id) {
+    const strand = await this.db.strand.findFirst({
+      where: { id: subject.strand_id, org_id: orgId },
+      select: { program_id: true },
+    })
+    if (strand?.program_id) return strand.program_id
+  }
+
+  // Via level → program  ← THIS was the missing path
+  if (subject.level_id) {
+    const level = await this.db.level.findFirst({
+      where: { id: subject.level_id, org_id: orgId },
+      select: { program_id: true },
+    })
+    if (level?.program_id) return level.program_id
+  }
+
+  // Via SubjectSharing
+  const sharing = await this.db.subjectSharing.findFirst({
+    where: { subject_id: subjectId, org_id: orgId },
+    select: {
+      course: { select: { program_id: true } },
+      strand: { select: { program_id: true } },
+      level:  { select: { program_id: true } },
+    },
+  })
+
+  if (sharing?.course?.program_id) return sharing.course.program_id
+  if (sharing?.strand?.program_id) return sharing.strand.program_id
+  if (sharing?.level?.program_id)  return sharing.level.program_id
+
+  return null
+}
 
 private async resolveSemesterId(
   schoolYearId: string,
   programId: string,
   orgId: string,
 ): Promise<string> {
-  // 1. Find the semester template assigned to this program
   const assignment = await this.db.programSemesterAssignment.findFirst({
     where: { program_id: programId, org_id: orgId },
     include: {
       template: {
         include: {
-          semesters: {
-            orderBy: { order_index: 'asc' },
-          },
+          semesters: { orderBy: { order_index: 'asc' } },
         },
       },
     },
@@ -71,8 +128,6 @@ private async resolveSemesterId(
     )
   }
 
-  // 2. Find the first Semester record for this school year
-  //    that matches the first semester name in the template
   const firstTemplateSemester = assignment.template.semesters[0]
 
   if (!firstTemplateSemester) {
@@ -81,6 +136,7 @@ private async resolveSemesterId(
     )
   }
 
+  // Try matching by name first
   const semester = await this.db.semester.findFirst({
     where: {
       org_id:         orgId,
@@ -90,51 +146,53 @@ private async resolveSemesterId(
     orderBy: { start_date: 'asc' },
   })
 
-  if (!semester) {
-    // Fallback: just grab any semester for this school year
-    const fallback = await this.db.semester.findFirst({
-      where: { org_id: orgId, school_year_id: schoolYearId },
-      orderBy: { start_date: 'asc' },
-    })
+  if (semester) return semester.id
 
-    if (!fallback) {
-      throw new BadRequestException(
-        'No semesters found for this school year. Please create semesters in Semester Settings first.',
-      )
-    }
-
-    return fallback.id
-  }
-
-  return semester.id
-}
-
-  // ---------------------------------------------------------------------------
-  // CRUD
-  // ---------------------------------------------------------------------------
-
-async create(orgId: string, dto: CreateClassDto) {
-  // Resolve programId from subject so we can find the right semester template
-  const subject = await this.db.subject.findFirst({
-    where: { id: dto.subjectId, org_id: orgId },
-    select: { program_id: true },
+  // Fallback: any semester for this school year
+  const fallback = await this.db.semester.findFirst({
+    where: { org_id: orgId, school_year_id: schoolYearId },
+    orderBy: { start_date: 'asc' },
   })
 
-  if (!subject) {
-    throw new BadRequestException('Subject not found.')
-  }
-
-  if (!subject.program_id) {
+  if (!fallback) {
     throw new BadRequestException(
-      'Subject is not linked to a program. Cannot resolve semester.',
+      'No semesters found for this school year. Please create semesters in Semester Settings first.',
     )
   }
 
-  const semesterId = await this.resolveSemesterId(
-    dto.schoolYearId,
-    subject.program_id,
-    orgId,
-  )
+  return fallback.id
+}
+
+async create(orgId: string, dto: CreateClassDto) {
+  // ── DEBUG ──────────────────────────────────────────────────────────────
+  const subjectDebug = await this.db.subject.findFirst({
+    where: { id: dto.subjectId, org_id: orgId },
+    select: {
+      id:         true,
+      name:       true,
+      program_id: true,
+      course_id:  true,
+      strand_id:  true,
+      level_id:   true,
+    },
+  })
+  console.log('[DEBUG] Subject:', JSON.stringify(subjectDebug, null, 2))
+
+  const sharingDebug = await this.db.subjectSharing.findMany({
+    where: { subject_id: dto.subjectId },
+  })
+  console.log('[DEBUG] Sharings:', JSON.stringify(sharingDebug, null, 2))
+  // ── END DEBUG ──────────────────────────────────────────────────────────
+
+  const programId = await this.resolveProgramIdFromSubject(dto.subjectId, orgId)
+
+  if (!programId) {
+    throw new BadRequestException(
+      'Could not determine the program for this subject. Ensure the subject is properly linked.',
+    )
+  }
+
+  const semesterId = await this.resolveSemesterId(dto.schoolYearId, programId, orgId)
 
   const slots = this.parseSlots(dto.schedules)
   await this.assertNoEducatorConflict(dto.educatorId, orgId, slots)
