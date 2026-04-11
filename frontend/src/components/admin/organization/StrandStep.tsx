@@ -2,21 +2,24 @@ import { BookOpen } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "./ui/Checkbox"
 import { Collapsible } from "./ui/Collapsible"
-import { SHS_STRANDS } from "./constants/seed-data"
 
 interface StrandStepProps {
-  selectedStrands:    Set<string>
-  onToggleStrand:     (strand: string) => void
+  selectedStrands: Set<string>
+  availableStrands: string[]
+  onToggleStrand: (strand: string) => void
   onSelectAllStrands: () => void
   onDeselectAllStrands: () => void
 }
 
 export function StrandStep({
   selectedStrands,
+  availableStrands,
   onToggleStrand,
   onSelectAllStrands,
   onDeselectAllStrands,
 }: StrandStepProps) {
+  if (availableStrands.length === 0) return null
+
   return (
     <div className="space-y-2">
       <Label className="flex items-center gap-1.5">
@@ -25,8 +28,8 @@ export function StrandStep({
       </Label>
       <Collapsible
         title="Senior High School Strands"
-        count={SHS_STRANDS.filter((s) => selectedStrands.has(s)).length}
-        total={SHS_STRANDS.length}
+        count={availableStrands.filter((s) => selectedStrands.has(s)).length}
+        total={availableStrands.length}
         defaultOpen
       >
         <div className="space-y-2">
@@ -47,7 +50,7 @@ export function StrandStep({
             </button>
           </div>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {SHS_STRANDS.map((strand) => (
+            {availableStrands.map((strand) => (
               <Checkbox
                 key={strand}
                 checked={selectedStrands.has(strand)}

@@ -1,44 +1,48 @@
-// frontend/src/components/admin/organization/SeederCard.tsx
-
 "use client"
 
-import { useEffect, useState }                        from "react"
-import { useQuery, useMutation, useQueryClient }      from "@tanstack/react-query"
-import { toast }                                       from "sonner"
-import { isAxiosError }                               from "axios"
-
+import { useEffect, useState } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { isAxiosError } from "axios"
 import { organizationApi } from "@/api/admin/organization.api"
-import { schoolYearApi }   from "@/api/admin/school-year.api"
-
-import { Button }   from "@/components/ui/button"
-import { Label }    from "@/components/ui/label"
-import { cn }       from "@/lib/utils"
+import { schoolYearApi } from "@/api/admin/school-year.api"
+import { programApi } from "@/api/admin/program.api"
+import { courseApi } from "@/api/admin/course.api"
+import { strandApi } from "@/api/admin/strand.api"
+import { levelApi } from "@/api/admin/level.api"
+import { subjectApi } from "@/api/admin/subject.api"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import {
-  CalendarDays, ChevronDown, ChevronRight, Database, Loader2,
+  CalendarDays,
+  ChevronDown,
+  ChevronRight,
+  Database,
+  Loader2,
 } from "lucide-react"
-
-import { SchoolYearStep }   from "./SchoolYearStep"
-import { ProgramStep }      from "./ProgramStep"
-import { LevelStep }        from "./LevelStep"
-import { SectionStep }      from "./SectionStep"
-import { StrandStep }       from "./StrandStep"
-import { CourseStep }       from "./CourseStep"
-import { SubjectStep }      from "./SubjectStep"
+import { SchoolYearStep } from "./SchoolYearStep"
+import { ProgramStep } from "./ProgramStep"
+import { LevelStep } from "./LevelStep"
+import { SectionStep } from "./SectionStep"
+import { StrandStep } from "./StrandStep"
+import { CourseStep } from "./CourseStep"
+import { SubjectStep } from "./SubjectStep"
 import { GradingScaleStep } from "./GradingScaleStep"
-import { useSeedState }     from "./hooks/useSeedState"
+import { useSeedState } from "./hooks/useSeedState"
 import {
-  COLLEGE_COURSES, LEVEL_DEFS, PROGRAMS, SHS_STRANDS, SECTION_DEFAULTS,
+  COLLEGE_COURSES,
+  LEVEL_DEFS,
+  PROGRAMS,
+  SHS_STRANDS,
+  SECTION_DEFAULTS,
 } from "./constants/seed-data"
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface PendingSchoolYear {
-  name:        string
+  name: string
   start_date?: string
-  end_date?:   string
+  end_date?: string
 }
 
 function isShortDurationError(err: unknown): boolean {
@@ -48,24 +52,20 @@ function isShortDurationError(err: unknown): boolean {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function SeederCard() {
   const queryClient = useQueryClient()
   const [collapsed, setCollapsed] = useState(false)
-
-  // Short-duration warning state
   const [pendingSchoolYear, setPendingSchoolYear] =
     useState<PendingSchoolYear | null>(null)
 
   const { data: schoolYears = [], isLoading: syLoading } = useQuery({
     queryKey: ["admin", "school-years"],
-    queryFn:  schoolYearApi.getAll,
+    queryFn: schoolYearApi.getAll,
   })
 
-  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null)
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(
+    null,
+  )
 
   useEffect(() => {
     if (schoolYears.length > 0 && !selectedSchoolYearId) {
@@ -76,30 +76,35 @@ export function SeederCard() {
 
   const createSchoolYearMutation = useMutation({
     mutationFn: ({
-      name, start_date, end_date, confirm_short_duration,
+      name,
+      start_date,
+      end_date,
+      confirm_short_duration,
     }: {
-      name:                    string
-      start_date?:             string
-      end_date?:               string
+      name: string
+      start_date?: string
+      end_date?: string
       confirm_short_duration?: boolean
-    }) => schoolYearApi.create({ name, start_date, end_date, confirm_short_duration }),
-
+    }) =>
+      schoolYearApi.create({
+        name,
+        start_date,
+        end_date,
+        confirm_short_duration,
+      }),
     onSuccess: (result) => {
-      // schoolYearApi.create returns SchoolYearCreateResult — extract .data
       const created = (result as any).data ?? result
       toast.success(`School year "${created.name}" created.`)
       queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] })
       setSelectedSchoolYearId(created.id)
       setPendingSchoolYear(null)
     },
-
     onError: (err: unknown, variables) => {
       if (isShortDurationError(err)) {
-        // Store pending payload and show confirmation dialog
         setPendingSchoolYear({
-          name:        variables.name,
-          start_date:  variables.start_date,
-          end_date:    variables.end_date,
+          name: variables.name,
+          start_date: variables.start_date,
+          end_date: variables.end_date,
         })
         return
       }
@@ -107,7 +112,6 @@ export function SeederCard() {
     },
   })
 
-  // Called when user confirms despite the short-duration warning
   function handleConfirmShortDuration() {
     if (!pendingSchoolYear) return
     createSchoolYearMutation.mutate({
@@ -116,41 +120,104 @@ export function SeederCard() {
     })
   }
 
-  // Called by SchoolYearStep on first attempt (no confirm flag)
-  function handleCreateSchoolYear(name: string, start_date?: string, end_date?: string) {
+  function handleCreateSchoolYear(
+    name: string,
+    start_date?: string,
+    end_date?: string,
+  ) {
     createSchoolYearMutation.mutate({ name, start_date, end_date })
   }
 
-  // ── seed state ─────────────────────────────────────────────────────────────
+  // Fetch existing data for deduplication
+  const { data: existingPrograms = [] } = useQuery({
+    queryKey: ["admin", "programs", selectedSchoolYearId],
+    queryFn: () => programApi.getAll(selectedSchoolYearId!),
+    enabled: !!selectedSchoolYearId,
+  })
+
+  const { data: existingCourses = [] } = useQuery({
+    queryKey: ["admin", "courses", selectedSchoolYearId],
+    queryFn: () =>
+      courseApi.getAll({ schoolYearId: selectedSchoolYearId! }),
+    enabled: !!selectedSchoolYearId,
+  })
+
+  const { data: existingStrands = [] } = useQuery({
+      queryKey: ["admin", "strands", selectedSchoolYearId],
+      queryFn: async () => {
+        const strands = await strandApi.getAll()
+        return Array.isArray(strands) ? strands : []
+      },
+      enabled: !!selectedSchoolYearId,
+    })
+
+  const { data: existingLevels = [] } = useQuery({
+    queryKey: ["admin", "levels", selectedSchoolYearId],
+    queryFn: () => levelApi.getBySchoolYear(selectedSchoolYearId!),
+    enabled: !!selectedSchoolYearId,
+  })
+
+  const { data: existingSubjects = [] } = useQuery({
+    queryKey: ["admin", "subjects", selectedSchoolYearId],
+    queryFn: () => subjectApi.getAll({ schoolYearId: selectedSchoolYearId }),
+    enabled: !!selectedSchoolYearId,
+  })
 
   const {
-    selectedPrograms,  setSelectedPrograms,
-    selectedCourses,   setSelectedCourses,
-    selectedStrands,   setSelectedStrands,
-    selectedSubjects,  setSelectedSubjects,
+    selectedPrograms,
+    setSelectedPrograms,
+    selectedCourses,
+    setSelectedCourses,
+    selectedStrands,
+    setSelectedStrands,
+    selectedSubjects,
+    setSelectedSubjects,
     allSelectableSubjects,
-    levelConfigs, setLevelCount, renameLevelAt,
-    seedGradingScale,      setSeedGradingScale,
-    gradingScaleByProgram, setGradingScaleForProgram,
+    levelConfigs,
+    setLevelCount,
+    renameLevelAt,
+    seedGradingScale,
+    setSeedGradingScale,
+    gradingScaleByProgram,
+    setGradingScaleForProgram,
     resolvedGradingScales,
-    toggleSet, selectAll, deselectAll,
-    sectionConfigs, setSectionsForLevel,
+    toggleSet,
+    selectAll,
+    deselectAll,
+    sectionConfigs,
+    setSectionsForLevel,
   } = useSeedState()
 
   const seedMutation = useMutation({
     mutationFn: organizationApi.seedOrg,
     onSuccess: () => {
-      toast.success("Seed completed! Your programs, levels, and subjects are ready.")
+      toast.success(
+        "Seed completed! Your programs, levels, and subjects are ready.",
+      )
       setCollapsed(true)
+      queryClient.invalidateQueries({ queryKey: ["admin", "programs"] })
+      queryClient.invalidateQueries({ queryKey: ["admin", "courses"] })
+      queryClient.invalidateQueries({ queryKey: ["admin", "strands"] })
+      queryClient.invalidateQueries({ queryKey: ["admin", "levels"] })
+      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] })
     },
     onError: () => toast.error("Seed failed. Please try again."),
   })
 
   function handleSeed() {
-    if (!selectedSchoolYearId) { toast.error("Select or create a school year first."); return }
-    if (selectedPrograms.size === 0) { toast.error("Select at least one program."); return }
+    if (!selectedSchoolYearId) {
+      toast.error("Select or create a school year first.")
+      return
+    }
 
-    const excludedSubjects = allSelectableSubjects.filter((s) => !selectedSubjects.has(s))
+    if (selectedPrograms.size === 0) {
+      toast.error("Select at least one program.")
+      return
+    }
+
+    const excludedSubjects = allSelectableSubjects.filter(
+      (s) => !selectedSubjects.has(s),
+    )
 
     const levelConfigsPayload = Object.fromEntries(
       Array.from(selectedPrograms)
@@ -162,7 +229,10 @@ export function SeederCard() {
       Array.from(selectedPrograms)
         .filter((p) => LEVEL_DEFS[p])
         .flatMap((p) => levelConfigs[p]?.names ?? LEVEL_DEFS[p] ?? [])
-        .map((levelName) => [levelName, sectionConfigs[levelName] ?? SECTION_DEFAULTS]),
+        .map((levelName) => [
+          levelName,
+          sectionConfigs[levelName] ?? SECTION_DEFAULTS,
+        ]),
     )
 
     const gradingScales = seedGradingScale
@@ -175,39 +245,93 @@ export function SeederCard() {
       : undefined
 
     seedMutation.mutate({
-      schoolYearId:    selectedSchoolYearId,
-      programs:        Array.from(selectedPrograms),
-      courses:         selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
-      strands:         selectedPrograms.has("shs")     ? Array.from(selectedStrands) : undefined,
-      levelConfigs:    Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
-      sectionConfigs:  sectionConfigsPayload,
-      excludedSubjects: excludedSubjects.length > 0 ? excludedSubjects : undefined,
+      schoolYearId: selectedSchoolYearId,
+      programs: Array.from(selectedPrograms),
+      courses: selectedPrograms.has("college")
+        ? Array.from(selectedCourses)
+        : undefined,
+      strands: selectedPrograms.has("shs")
+        ? Array.from(selectedStrands)
+        : undefined,
+      levelConfigs:
+        Object.keys(levelConfigsPayload).length > 0
+          ? levelConfigsPayload
+          : undefined,
+      sectionConfigs: sectionConfigsPayload,
+      excludedSubjects:
+        excludedSubjects.length > 0 ? excludedSubjects : undefined,
       gradingScales,
     })
   }
 
+  // Filter out already-existing items
+  const availablePrograms = PROGRAMS.filter(
+    (p) => !existingPrograms.some((ep) => ep.type === p.type),
+  )
+
+  const availableCourses = COLLEGE_COURSES.filter(
+    (c) => !existingCourses.some((ec) => ec.code === c.code),
+  )
+
+  const availableStrands = SHS_STRANDS.filter(
+    (s) => !existingStrands.some((es) => es.name === s),
+  )
+
+  const availableLevels = Array.from(selectedPrograms)
+    .filter((p) => LEVEL_DEFS[p])
+    .flatMap((p) => LEVEL_DEFS[p])
+    .filter((l) => !existingLevels.some((el) => el.name === l.name))
+
+  const availableSubjects = allSelectableSubjects.filter(
+    (s) => !existingSubjects.some((es) => es.title === s),
+  )
+
   const helpers = {
-    toggleProgram:       (key: string)    => toggleSet(selectedPrograms, key, setSelectedPrograms),
-    selectAllPrograms:   ()               => selectAll(PROGRAMS.map((p) => p.key), setSelectedPrograms),
-    deselectAllPrograms: ()               => deselectAll(setSelectedPrograms),
-    toggleStrand:        (s: string)      => toggleSet(selectedStrands, s, setSelectedStrands),
-    selectAllStrands:    ()               => selectAll(SHS_STRANDS, setSelectedStrands),
-    deselectAllStrands:  ()               => deselectAll(setSelectedStrands),
-    toggleCourse:        (c: string)      => toggleSet(selectedCourses, c, setSelectedCourses),
-    selectAllCourses:    ()               => selectAll(COLLEGE_COURSES.map((c) => c.code), setSelectedCourses),
-    deselectAllCourses:  ()               => deselectAll(setSelectedCourses),
-    toggleSubject:       (s: string)      => toggleSet(selectedSubjects, s, setSelectedSubjects),
-    selectAllForGroup:   (subs: string[]) => {
-      const n = new Set(selectedSubjects); subs.forEach((s) => n.add(s)); setSelectedSubjects(n)
+    toggleProgram: (key: string) =>
+      toggleSet(selectedPrograms, key, setSelectedPrograms),
+    selectAllPrograms: () =>
+      selectAll(
+        availablePrograms.map((p) => p.key),
+        setSelectedPrograms,
+      ),
+    deselectAllPrograms: () => deselectAll(setSelectedPrograms),
+    toggleStrand: (s: string) =>
+      toggleSet(selectedStrands, s, setSelectedStrands),
+    selectAllStrands: () =>
+      selectAll(
+        availableStrands,
+        setSelectedStrands,
+      ),
+    deselectAllStrands: () => deselectAll(setSelectedStrands),
+    toggleCourse: (c: string) =>
+      toggleSet(selectedCourses, c, setSelectedCourses),
+    selectAllCourses: () =>
+      selectAll(
+        availableCourses.map((c) => c.code),
+        setSelectedCourses,
+      ),
+    deselectAllCourses: () => deselectAll(setSelectedCourses),
+    toggleSubject: (s: string) =>
+      toggleSet(selectedSubjects, s, setSelectedSubjects),
+    selectAllForGroup: (subs: string[]) => {
+      const n = new Set(selectedSubjects)
+      subs.forEach((s) => n.add(s))
+      setSelectedSubjects(n)
     },
     deselectAllForGroup: (subs: string[]) => {
-      const n = new Set(selectedSubjects); subs.forEach((s) => n.delete(s)); setSelectedSubjects(n)
+      const n = new Set(selectedSubjects)
+      subs.forEach((s) => n.delete(s))
+      setSelectedSubjects(n)
     },
   }
 
   const totalLevelCount = Array.from(selectedPrograms)
     .filter((p) => LEVEL_DEFS[p])
-    .reduce((sum, p) => sum + (levelConfigs[p]?.count ?? LEVEL_DEFS[p].length), 0)
+    .reduce(
+      (sum, p) =>
+        sum + (levelConfigs[p]?.count ?? LEVEL_DEFS[p].length),
+      0,
+    )
 
   const totalSectionCount = Array.from(selectedPrograms)
     .filter((p) => LEVEL_DEFS[p])
@@ -217,18 +341,21 @@ export function SeederCard() {
   const summaryText = !selectedSchoolYearId
     ? "Select a school year to begin."
     : selectedPrograms.size === 0
-    ? "Select at least one program."
-    : [
-        `${selectedPrograms.size} program(s)`,
-        totalLevelCount > 0 && `${totalLevelCount} level(s)`,
-        totalSectionCount > 0 && `${totalSectionCount} section(s)`,
-        selectedPrograms.has("college") && `${Array.from(selectedCourses).length} course(s)`,
-        selectedPrograms.has("shs")     && `${Array.from(selectedStrands).length} strand(s)`,
-        `${allSelectableSubjects.filter((s) => selectedSubjects.has(s)).length} subject(s)`,
-        seedGradingScale && `${Object.keys(resolvedGradingScales).length} grading scale(s)`,
-      ]
-        .filter(Boolean)
-        .join(" · ")
+      ? "Select at least one program."
+      : [
+          `${selectedPrograms.size} program(s)`,
+          totalLevelCount > 0 && `${totalLevelCount} level(s)`,
+          totalSectionCount > 0 && `${totalSectionCount} section(s)`,
+          selectedPrograms.has("college") &&
+            `${Array.from(selectedCourses).length} course(s)`,
+          selectedPrograms.has("shs") &&
+            `${Array.from(selectedStrands).length} strand(s)`,
+          `${availableSubjects.filter((s) => selectedSubjects.has(s)).length} subject(s)`,
+          seedGradingScale &&
+            `${Object.keys(resolvedGradingScales).length} grading scale(s)`,
+        ]
+          .filter(Boolean)
+          .join(" · ")
 
   const derivedSelectedLevels = new Set(
     Array.from(selectedPrograms)
@@ -250,16 +377,19 @@ export function SeederCard() {
               Data Seeder
             </span>
           </div>
-          {collapsed
-            ? <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            : <ChevronDown  className="h-4 w-4 text-muted-foreground" />}
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
         </button>
 
         {!collapsed && (
           <div className="px-6 pb-6 space-y-5">
             <p className="text-sm text-muted-foreground -mt-1">
-              Seed your organization with programs, levels, subjects, and grading scales.
-              Safe to run multiple times — only adds missing data.
+              Seed your organization with programs, levels, subjects, and
+              grading scales. Already-seeded items are hidden to prevent
+              duplicates.
             </p>
 
             <div className="space-y-2">
@@ -278,16 +408,31 @@ export function SeederCard() {
               />
             </div>
 
-            <div className={cn(
-              "space-y-5 transition-opacity",
-              !selectedSchoolYearId ? "opacity-40 pointer-events-none select-none" : "",
-            )}>
-              <ProgramStep {...{
-                selectedPrograms,
-                onToggleProgram:       helpers.toggleProgram,
-                onSelectAllPrograms:   helpers.selectAllPrograms,
-                onDeselectAllPrograms: helpers.deselectAllPrograms,
-              }} />
+            <div
+              className={cn(
+                "space-y-5 transition-opacity",
+                !selectedSchoolYearId
+                  ? "opacity-40 pointer-events-none select-none"
+                  : "",
+              )}
+            >
+              {availablePrograms.length > 0 && (
+                <ProgramStep
+                  {...{
+                    selectedPrograms,
+                    availablePrograms,
+                    onToggleProgram: helpers.toggleProgram,
+                    onSelectAllPrograms: helpers.selectAllPrograms,
+                    onDeselectAllPrograms: helpers.deselectAllPrograms,
+                  }}
+                />
+              )}
+
+              {availablePrograms.length === 0 && existingPrograms.length > 0 && (
+                <div className="rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+                  ✓ All programs already seeded for this school year.
+                </div>
+              )}
 
               {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
                 <LevelStep
@@ -307,35 +452,59 @@ export function SeederCard() {
                 />
               )}
 
-              {selectedPrograms.has("shs") && (
-                <StrandStep {...{
-                  selectedStrands,
-                  onToggleStrand:        helpers.toggleStrand,
-                  onSelectAllStrands:    helpers.selectAllStrands,
-                  onDeselectAllStrands:  helpers.deselectAllStrands,
-                }} />
+              {selectedPrograms.has("shs") && availableStrands.length > 0 && (
+                <StrandStep
+                  {...{
+                    selectedStrands,
+                    availableStrands,
+                    onToggleStrand: helpers.toggleStrand,
+                    onSelectAllStrands: helpers.selectAllStrands,
+                    onDeselectAllStrands: helpers.deselectAllStrands,
+                  }}
+                />
               )}
 
-              {selectedPrograms.has("college") && (
-                <CourseStep {...{
-                  selectedCourses,
-                  onToggleCourse:        helpers.toggleCourse,
-                  onSelectAllCourses:    helpers.selectAllCourses,
-                  onDeselectAllCourses:  helpers.deselectAllCourses,
-                }} />
+              {selectedPrograms.has("shs") &&
+                availableStrands.length === 0 &&
+                existingStrands.length > 0 && (
+                  <div className="rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+                    ✓ All SHS strands already seeded.
+                  </div>
+                )}
+
+              {selectedPrograms.has("college") && availableCourses.length > 0 && (
+                <CourseStep
+                  {...{
+                    selectedCourses,
+                    availableCourses,
+                    onToggleCourse: helpers.toggleCourse,
+                    onSelectAllCourses: helpers.selectAllCourses,
+                    onDeselectAllCourses: helpers.deselectAllCourses,
+                  }}
+                />
               )}
 
-              <SubjectStep
-                selectedPrograms={selectedPrograms}
-                selectedLevels={derivedSelectedLevels}
-                selectedStrands={selectedStrands}
-                selectedCourses={selectedCourses}
-                selectedSubjects={selectedSubjects}
-                onToggleSubject={helpers.toggleSubject}
-                onSelectAllForGroup={helpers.selectAllForGroup}
-                onDeselectAllForGroup={helpers.deselectAllForGroup}
-                allSelectableSubjects={allSelectableSubjects}
-              />
+              {selectedPrograms.has("college") &&
+                availableCourses.length === 0 &&
+                existingCourses.length > 0 && (
+                  <div className="rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+                    ✓ All college courses already seeded.
+                  </div>
+                )}
+
+              {availableSubjects.length > 0 && (
+                <SubjectStep
+                  selectedPrograms={selectedPrograms}
+                  selectedLevels={derivedSelectedLevels}
+                  selectedStrands={selectedStrands}
+                  selectedCourses={selectedCourses}
+                  selectedSubjects={selectedSubjects}
+                  onToggleSubject={helpers.toggleSubject}
+                  onSelectAllForGroup={helpers.selectAllForGroup}
+                  onDeselectAllForGroup={helpers.deselectAllForGroup}
+                  allSelectableSubjects={availableSubjects}
+                />
+              )}
 
               {selectedPrograms.size > 0 && (
                 <div className="border-t pt-5">
@@ -356,14 +525,20 @@ export function SeederCard() {
                 onClick={handleSeed}
                 disabled={
                   seedMutation.isPending ||
-                  !selectedSchoolYearId  ||
+                  !selectedSchoolYearId ||
                   selectedPrograms.size === 0
                 }
               >
                 {seedMutation.isPending ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Seeding...</>
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Seeding...
+                  </>
                 ) : (
-                  <><Database className="mr-2 h-4 w-4" /> Apply Seed</>
+                  <>
+                    <Database className="mr-2 h-4 w-4" />
+                    Apply Seed
+                  </>
                 )}
               </Button>
             </div>
@@ -371,7 +546,6 @@ export function SeederCard() {
         )}
       </div>
 
-      {/* Short-duration warning — sits outside the card to avoid nesting issues */}
       <ConfirmDialog
         open={!!pendingSchoolYear}
         title="School year looks short"
@@ -380,7 +554,9 @@ export function SeederCard() {
         destructive={false}
         isLoading={createSchoolYearMutation.isPending}
         onConfirm={handleConfirmShortDuration}
-        onOpenChange={(o) => { if (!o) setPendingSchoolYear(null) }}
+        onOpenChange={(o) => {
+          if (!o) setPendingSchoolYear(null)
+        }}
       />
     </>
   )

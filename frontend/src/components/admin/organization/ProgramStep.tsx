@@ -1,21 +1,43 @@
 import { Check, Layers } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
-import { PROGRAMS } from "./constants/seed-data"
+import type { Program } from "@/types/admin/program.types"
 
 interface ProgramStepProps {
-  selectedPrograms:    Set<string>
-  onToggleProgram:     (key: string) => void
+  selectedPrograms: Set<string>
+  availablePrograms: Program[]
+  onToggleProgram: (key: string) => void
   onSelectAllPrograms: () => void
   onDeselectAllPrograms: () => void
 }
 
+interface ProgramDef {
+  key: string
+  label: string
+  type: string
+}
+
+const PROGRAM_DEFS: ProgramDef[] = [
+  { key: "daycare", label: "Daycare", type: "daycare" },
+  { key: "kinder", label: "Kindergarten", type: "kinder" },
+  { key: "elementary", label: "Elementary", type: "elementary" },
+  { key: "jhs", label: "Junior High School", type: "jhs" },
+  { key: "shs", label: "Senior High School", type: "shs" },
+  { key: "college", label: "College", type: "college" },
+]
+
 export function ProgramStep({
   selectedPrograms,
+  availablePrograms,
   onToggleProgram,
   onSelectAllPrograms,
   onDeselectAllPrograms,
 }: ProgramStepProps) {
+  const availableProgramKeys = new Set(availablePrograms.map((p) => p.type))
+  const displayPrograms = PROGRAM_DEFS.filter((p) =>
+    availableProgramKeys.has(p.type),
+  )
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -41,23 +63,27 @@ export function ProgramStep({
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {PROGRAMS.map((prog) => (
+        {displayPrograms.map((prog) => (
           <button
             key={prog.key}
             type="button"
             onClick={() => onToggleProgram(prog.key)}
             className={cn(
               "flex items-center gap-2 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 text-sm",
-              selectedPrograms.has(prog.key) && "border-primary bg-primary/5"
+              selectedPrograms.has(prog.key) && "border-primary bg-primary/5",
             )}
           >
-            <div className={cn(
-              "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-              selectedPrograms.has(prog.key)
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-muted-foreground/40"
-            )}>
-              {selectedPrograms.has(prog.key) && <Check className="h-3 w-3" />}
+            <div
+              className={cn(
+                "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                selectedPrograms.has(prog.key)
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-muted-foreground/40",
+              )}
+            >
+              {selectedPrograms.has(prog.key) && (
+                <Check className="h-3 w-3" />
+              )}
             </div>
             {prog.label}
           </button>
