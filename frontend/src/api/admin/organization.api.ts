@@ -1,10 +1,9 @@
-// frontend/src/api/admin/organization.api.ts
 import client from "@/api/client"
 import type { Organization } from "@/types/admin/organization.types"
-import type { AxiosError } from "axios"
+import type { AxiosError }   from "axios"
 
 export interface CreateOrganizationRequest {
-  name:        string
+  name:         string
   description?: string
 }
 
@@ -28,16 +27,18 @@ export interface GradingScalePayload {
 }
 
 export interface SeedOrganizationRequest {
-  schoolYearId:      string
-  programs:          string[]
-  courses?:          string[]
-  strands?:          string[]
-  excludedLevels?:   string[]
-  excludedSubjects?: string[]
-  levelConfigs?:     Record<string, string[]>
-  gradingScales?:    Record<string, GradingScalePayload>
-  sectionConfigs?:   Record<string, { name: string; capacity: number }[]>
+  schoolYearId:          string
+  programs:              string[]
+  courses?:              string[]
+  strands?:              string[]
+  excludedLevels?:       string[]
+  excludedSubjects?:     string[]                        // plain names — for minors/GE
+  excludedLevelSubjects?: Record<string, string[]>       // levelName → plain subject names
+  levelConfigs?:         Record<string, string[]>
+  gradingScales?:        Record<string, GradingScalePayload>
+  sectionConfigs?:       Record<string, { name: string; capacity: number }[]>
 }
+
 export const organizationApi = {
   getOrg: async (): Promise<Organization | null> => {
     try {
