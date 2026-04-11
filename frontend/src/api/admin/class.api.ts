@@ -12,7 +12,6 @@ export interface CreateClassRequest {
   educatorId:   string;
   sectionId?:   string;
   schoolYearId: string;
-  semesterId:   string;
   capacity:     number;
   schedules:    ScheduleSlot[];
 }

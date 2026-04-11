@@ -1,3 +1,5 @@
+// frontend/src/components/admin/class/CreateClassDialog.tsx
+
 "use client";
 
 import { useEffect, useMemo } from "react";
@@ -6,23 +8,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 
-import { classApi } from "@/api/admin/class.api";
+import { classApi }    from "@/api/admin/class.api";
 import type { CreateClassRequest, ScheduleSlot } from "@/api/admin/class.api";
-import { subjectApi } from "@/api/admin/subject.api";
+import { subjectApi }  from "@/api/admin/subject.api";
 import { educatorApi } from "@/api/admin/educator.api";
-import { programApi } from "@/api/admin/program.api";
-import { courseApi } from "@/api/admin/course.api";
-import { strandApi } from "@/api/admin/strand.api";
-import { levelApi } from "@/api/admin/level.api";
-import { sectionApi } from "@/api/admin/section.api";
-import { semesterApi } from "@/api/admin/semester.api";
+import { programApi }  from "@/api/admin/program.api";
+import { courseApi }   from "@/api/admin/course.api";
+import { strandApi }   from "@/api/admin/strand.api";
+import { levelApi }    from "@/api/admin/level.api";
+import { sectionApi }  from "@/api/admin/section.api";
 
-import type { Level } from "@/types/admin/level.types";
+import type { Level }   from "@/types/admin/level.types";
 import type { Subject } from "@/types/admin/subject.types";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button }   from "@/components/ui/button";
+import { Input }    from "@/components/ui/input";
+import { Label }    from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -39,29 +40,28 @@ import { ScheduleSlotFields } from "./ScheduleSlotFields";
 import { toArray } from "@/utils/classes.utils";
 
 export interface ScheduleSlotForm {
-  weekday: string;
+  weekday:   string;
   startTime: string;
-  endTime: string;
+  endTime:   string;
 }
 
 export interface CreateClassForm {
-  programId: string;
-  trackId: string;   // courseId or strandId depending on program type
-  levelId: string;
-  sectionId: string;
-  subjectId: string;
+  programId:  string;
+  trackId:    string;
+  levelId:    string;
+  sectionId:  string;
+  subjectId:  string;
   educatorId: string;
-  semesterId: string;
-  capacity: string;
-  schedules: ScheduleSlotForm[];
+  capacity:   string;
+  schedules:  ScheduleSlotForm[];
 }
 
 interface CreateClassDialogProps {
-  open: boolean;
-  onClose: () => void;
+  open:            boolean;
+  onClose:         () => void;
   defaultSubjectId?: string;
-  schoolYearId: string | null;
-  schoolYearName: string | null; // for display — passed from page
+  schoolYearId:    string | null;
+  schoolYearName:  string | null;
 }
 
 export function CreateClassDialog({
@@ -75,15 +75,14 @@ export function CreateClassDialog({
 
   const methods = useForm<CreateClassForm>({
     defaultValues: {
-      programId: "",
-      trackId: "",
-      levelId: "",
-      sectionId: "",
-      subjectId: defaultSubjectId ?? "",
+      programId:  "",
+      trackId:    "",
+      levelId:    "",
+      sectionId:  "",
+      subjectId:  defaultSubjectId ?? "",
       educatorId: "",
-      semesterId: "",
-      capacity: "30",
-      schedules: [{ weekday: "1", startTime: "08:00", endTime: "09:00" }],
+      capacity:   "30",
+      schedules:  [{ weekday: "1", startTime: "08:00", endTime: "09:00" }],
     },
   });
 
@@ -102,119 +101,91 @@ export function CreateClassDialog({
   const selectedSectionId  = watch("sectionId");
   const selectedSubjectId  = watch("subjectId");
   const selectedEducatorId = watch("educatorId");
-  const selectedSemesterId = watch("semesterId");
 
-  // ── 1. Programs (filtered by school year) ───────────────────────────────
   const { data: programsRaw } = useQuery({
     queryKey: ["admin", "programs", schoolYearId],
-    queryFn:  () => programApi.getAll(schoolYearId!),   // ✅ correct: positional string
+    queryFn:  () => programApi.getAll(schoolYearId!),
     enabled:  !!schoolYearId,
   });
   const programs = toArray<{ id: string; name: string }>(programsRaw);
 
-  // ── 2. Courses + Strands (parallel, triggered by program) ───────────────
   const { data: coursesRaw } = useQuery({
     queryKey: ["admin", "courses", schoolYearId, selectedProgramId],
-    queryFn:  () =>
-      courseApi.getAll({ schoolYearId: schoolYearId!, programId: selectedProgramId! }), // ✅ correct: object with both keys
+    queryFn:  () => courseApi.getAll({ schoolYearId: schoolYearId!, programId: selectedProgramId! }),
     enabled:  !!schoolYearId && !!selectedProgramId,
   });
 
   const { data: strandsRaw } = useQuery({
     queryKey: ["admin", "strands", selectedProgramId],
-    queryFn:  () => strandApi.getAll({ program_id: selectedProgramId! }), // ✅ correct: { program_id }
+    queryFn:  () => strandApi.getAll({ program_id: selectedProgramId! }),
     enabled:  !!selectedProgramId,
   });
 
-  const courses = toArray<{ id: string; name: string }>(coursesRaw);
-  const strands = toArray<{ id: string; name: string }>(strandsRaw);
-
-  // Whichever has results becomes the "track" list.
-  // courses take priority; if none, try strands.
-  const tracks     = courses.length > 0 ? courses : strands;
-  const hasTrack   = tracks.length > 0;
-  // We need to know whether the selected trackId is a courseId or strandId
-  // so we can pass the right param to subjectApi.getAll later.
+  const courses       = toArray<{ id: string; name: string }>(coursesRaw);
+  const strands       = toArray<{ id: string; name: string }>(strandsRaw);
+  const tracks        = courses.length > 0 ? courses : strands;
+  const hasTrack      = tracks.length > 0;
   const isCourseTrack = courses.length > 0;
 
-  // ── 3. Levels (by school year, filtered client-side by program_id) ──────
   const { data: levelsRaw } = useQuery({
     queryKey: ["admin", "levels", "school-year", schoolYearId],
-    queryFn:  () => levelApi.getBySchoolYear(schoolYearId!), // ✅ correct method
+    queryFn:  () => levelApi.getBySchoolYear(schoolYearId!),
     enabled:  !!schoolYearId,
   });
 
   const levels = useMemo<Level[]>(() => {
     const all = toArray<Level>(levelsRaw);
     if (!selectedProgramId) return [];
-    return all.filter((l) => l.program_id === selectedProgramId); // ✅ client-side filter
+    return all.filter((l) => l.program_id === selectedProgramId);
   }, [levelsRaw, selectedProgramId]);
 
-  // ── 4. Sections (by school year + level) ────────────────────────────────
   const { data: sectionsRaw } = useQuery({
     queryKey: ["admin", "sections", schoolYearId, selectedLevelId],
-    queryFn:  () => sectionApi.getAll(schoolYearId!, selectedLevelId!), // ✅ correct: positional args
+    queryFn:  () => sectionApi.getAll(schoolYearId!, selectedLevelId!),
     enabled:  !!schoolYearId && !!selectedLevelId,
   });
   const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 
-  // ── 5. Subjects (filtered by level + course or strand) ──────────────────
-  // Only fetch once levelId is selected — this is the key guard against leakage.
   const { data: subjectsRaw } = useQuery({
     queryKey: [
-      "admin", "subjects",
-      selectedLevelId,
+      "admin", "subjects", selectedLevelId,
       isCourseTrack ? selectedTrackId : undefined,
       !isCourseTrack ? selectedTrackId : undefined,
     ],
     queryFn: () =>
       subjectApi.getAll({
-        levelId:  selectedLevelId!,
+        levelId: selectedLevelId!,
         ...(selectedTrackId && isCourseTrack  ? { courseId: selectedTrackId } : {}),
         ...(selectedTrackId && !isCourseTrack ? { strandId: selectedTrackId } : {}),
       }),
-    enabled: !!selectedLevelId, // ✅ only after level is chosen
+    enabled: !!selectedLevelId,
   });
   const subjects = toArray<Subject>(subjectsRaw);
 
-  // ── 6. Educators (all — no filter needed here) ──────────────────────────
   const { data: educatorsRaw } = useQuery({
     queryKey: ["admin", "educators", "all"],
     queryFn:  () => educatorApi.getAll(),
   });
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
-  // ── 7. Semesters ─────────────────────────────────────────────────────────
-  const { data: semestersRaw } = useQuery({
-    queryKey: ["admin", "semesters"],
-    queryFn:  () => semesterApi.getAll(),
-  });
-  const semesters = toArray<{ id: string; name: string }>(semestersRaw);
-
-  // ── Cascade resets ────────────────────────────────────────────────────────
+  // cascade resets
   useEffect(() => {
-    setValue("trackId",   "");
-    setValue("levelId",   "");
-    setValue("sectionId", "");
-    setValue("subjectId", "");
+    setValue("trackId", ""); setValue("levelId", "");
+    setValue("sectionId", ""); setValue("subjectId", "");
   }, [selectedProgramId, setValue]);
 
   useEffect(() => {
-    setValue("levelId",   "");
-    setValue("sectionId", "");
-    setValue("subjectId", "");
+    setValue("levelId", ""); setValue("sectionId", ""); setValue("subjectId", "");
   }, [selectedTrackId, setValue]);
 
   useEffect(() => {
-    setValue("sectionId", "");
-    setValue("subjectId", "");
+    setValue("sectionId", ""); setValue("subjectId", "");
   }, [selectedLevelId, setValue]);
 
   useEffect(() => {
     setValue("subjectId", "");
   }, [selectedSectionId, setValue]);
 
-  // ── Mutation ──────────────────────────────────────────────────────────────
   const mutation = useMutation({
     mutationFn: (values: CreateClassForm) => {
       const payload: CreateClassRequest = {
@@ -222,7 +193,6 @@ export function CreateClassDialog({
         educatorId:   values.educatorId,
         sectionId:    values.sectionId || undefined,
         schoolYearId: schoolYearId!,
-        semesterId:   values.semesterId,
         capacity:     Number(values.capacity),
         schedules:    values.schedules.map((s) => ({
           weekday:   Number(s.weekday),
@@ -243,10 +213,7 @@ export function CreateClassDialog({
     },
   });
 
-  function handleClose() {
-    reset();
-    onClose();
-  }
+  function handleClose() { reset(); onClose(); }
 
   const isSubmitDisabled =
     mutation.isPending        ||
@@ -255,8 +222,7 @@ export function CreateClassDialog({
     !selectedLevelId          ||
     !selectedSectionId        ||
     !selectedSubjectId        ||
-    !selectedEducatorId       ||
-    !selectedSemesterId;
+    !selectedEducatorId;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
@@ -270,7 +236,7 @@ export function CreateClassDialog({
             onSubmit={handleSubmit((v) => mutation.mutate(v))}
             className="space-y-4 mt-1"
           >
-            {/* ── School Year (read-only) ── */}
+            {/* School Year — read-only */}
             <div className="space-y-1.5">
               <Label>School Year</Label>
               <Input
@@ -279,7 +245,7 @@ export function CreateClassDialog({
               />
             </div>
 
-            {/* ── Program ── */}
+            {/* Program */}
             <div className="space-y-1.5">
               <Label>Program</Label>
               <Select
@@ -289,21 +255,18 @@ export function CreateClassDialog({
               >
                 <SelectTrigger>
                   <span>
-                    {programs.find((p) => p.id === selectedProgramId)?.name ??
-                      "Select program"}
+                    {programs.find((p) => p.id === selectedProgramId)?.name ?? "Select program"}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
                   {programs.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* ── Course / Strand (conditional) ── */}
+            {/* Course / Strand */}
             {hasTrack && (
               <div className="space-y-1.5">
                 <Label>{isCourseTrack ? "Course" : "Strand"}</Label>
@@ -320,16 +283,14 @@ export function CreateClassDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {tracks.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name}
-                      </SelectItem>
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
 
-            {/* ── Level ── */}
+            {/* Level */}
             <div className="space-y-1.5">
               <Label>Level</Label>
               <Select
@@ -339,27 +300,22 @@ export function CreateClassDialog({
               >
                 <SelectTrigger>
                   <span>
-                    {levels.find((l) => l.id === selectedLevelId)?.name ??
-                      "Select level"}
+                    {levels.find((l) => l.id === selectedLevelId)?.name ?? "Select level"}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
                   {levels.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No levels found
-                    </div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No levels found</div>
                   ) : (
                     levels.map((l) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        {l.name}
-                      </SelectItem>
+                      <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                     ))
                   )}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* ── Section ── */}
+            {/* Section */}
             <div className="space-y-1.5">
               <Label>Section</Label>
               <Select
@@ -369,27 +325,22 @@ export function CreateClassDialog({
               >
                 <SelectTrigger>
                   <span>
-                    {sections.find((s) => s.id === selectedSectionId)?.name ??
-                      "Select section"}
+                    {sections.find((s) => s.id === selectedSectionId)?.name ?? "Select section"}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
                   {sections.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No sections for this level
-                    </div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No sections for this level</div>
                   ) : (
                     sections.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                     ))
                   )}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* ── Subject (filtered — only shown after level is selected) ── */}
+            {/* Subject */}
             <div className="space-y-1.5">
               <Label>Subject</Label>
               <Select
@@ -401,27 +352,22 @@ export function CreateClassDialog({
                   <span>
                     {!selectedLevelId
                       ? "Select a level first"
-                      : (subjects.find((s) => s.id === selectedSubjectId)?.title ??
-                          "Select subject")}
+                      : (subjects.find((s) => s.id === selectedSubjectId)?.title ?? "Select subject")}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
                   {subjects.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No subjects for this level
-                    </div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No subjects for this level</div>
                   ) : (
                     subjects.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.title}
-                      </SelectItem>
+                      <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
                     ))
                   )}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* ── Educator ── */}
+            {/* Educator */}
             <div className="space-y-1.5">
               <Label>Educator</Label>
               <Select
@@ -430,44 +376,18 @@ export function CreateClassDialog({
               >
                 <SelectTrigger>
                   <span>
-                    {educators.find((e) => e.id === selectedEducatorId)?.fullName ??
-                      "Select educator"}
+                    {educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Select educator"}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
                   {educators.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.fullName}
-                    </SelectItem>
+                    <SelectItem key={e.id} value={e.id}>{e.fullName}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* ── Semester ── */}
-            <div className="space-y-1.5">
-              <Label>Semester</Label>
-              <Select
-                value={selectedSemesterId}
-                onValueChange={(v) => setValue("semesterId", v ?? "")}
-              >
-                <SelectTrigger>
-                  <span>
-                    {semesters.find((s) => s.id === selectedSemesterId)?.name ??
-                      "Select semester"}
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {semesters.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* ── Capacity ── */}
+            {/* Capacity */}
             <div className="space-y-1.5">
               <Label>Capacity</Label>
               <Input
@@ -479,13 +399,11 @@ export function CreateClassDialog({
                 })}
               />
               {errors.capacity && (
-                <p className="text-xs text-destructive">
-                  {errors.capacity.message}
-                </p>
+                <p className="text-xs text-destructive">{errors.capacity.message}</p>
               )}
             </div>
 
-            {/* ── Schedule ── */}
+            {/* Schedule */}
             <ScheduleSlotFields />
 
             <div className="flex justify-end gap-2 pt-1">
