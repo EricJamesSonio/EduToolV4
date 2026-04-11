@@ -1,37 +1,22 @@
-// @/modules/class/dto/class.dto.ts
+// backend/src/modules/class/dto/class.dto.ts
+
 import {
-  IsString,
-  IsUUID,
-  IsInt,
-  IsOptional,
-  IsBoolean,
-  IsArray,
-  ArrayNotEmpty,
-  IsIn,
-  Min,
-  Max,
-  ValidateNested,
-  MinLength,
-  MaxLength,
+  IsString, IsUUID, IsInt, IsOptional, IsBoolean,
+  IsArray, ArrayNotEmpty, IsIn, Min, Max,
+  ValidateNested, MinLength, MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-// ── Nested: schedule slot ─────────────────────────────────────────────────────
-
 export class ScheduleSlotDto {
-  @IsInt()
-  @Min(0)
-  @Max(6) // 0 = Sunday ... 6 = Saturday
+  @IsInt() @Min(0) @Max(6)
   weekday: number;
 
   @IsString()
-  startTime: string; // HH:mm format
+  startTime: string;
 
   @IsString()
-  endTime: string; // HH:mm format
+  endTime: string;
 }
-
-// ── POST /classes ─────────────────────────────────────────────────────────────
 
 export class CreateClassDto {
   @IsUUID()
@@ -47,11 +32,10 @@ export class CreateClassDto {
   @IsUUID()
   schoolYearId: string;
 
-  @IsUUID()
-  semesterId: string;
+  // Removed semesterId — resolved automatically from schoolYearId in service
 
   @IsInt()
-  @Min(0) // 0 = unlimited
+  @Min(0)
   capacity: number;
 
   @IsArray()
@@ -61,20 +45,14 @@ export class CreateClassDto {
   schedules: ScheduleSlotDto[];
 }
 
-// ── PATCH /classes/:id ────────────────────────────────────────────────────────
-
 export class UpdateClassDto {
-  @IsOptional()
-  @IsUUID()
+  @IsOptional() @IsUUID()
   educatorId?: string;
 
-  @IsOptional()
-  @IsUUID()
+  @IsOptional() @IsUUID()
   sectionId?: string;
 
-  @IsOptional()
-  @IsInt()
-  @Min(0)
+  @IsOptional() @IsInt() @Min(0)
   capacity?: number;
 
   @IsOptional()
@@ -85,52 +63,28 @@ export class UpdateClassDto {
   schedules?: ScheduleSlotDto[];
 }
 
-// ── GET /classes ──────────────────────────────────────────────────────────────
-
 export class QueryClassDto {
-  @IsOptional()
-  @IsUUID()
-  schoolYearId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  semesterId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  educatorId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  subjectId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  sectionId?: string;
+  @IsOptional() @IsUUID() schoolYearId?: string;
+  @IsOptional() @IsUUID() semesterId?:   string;
+  @IsOptional() @IsUUID() educatorId?:   string;
+  @IsOptional() @IsUUID() subjectId?:    string;
+  @IsOptional() @IsUUID() sectionId?:    string;
 }
-
-// ── POST /classes/:id/enroll ──────────────────────────────────────────────────
 
 export class EnrollStudentDto {
   @IsUUID()
   studentId: string;
 }
 
-// ── PATCH /classes/:classId/enrollments/:enrollmentId ────────────────────────
-
 export class UpdateEnrollmentDto {
   @IsIn(['active', 'pending', 'removed'])
   status: 'active' | 'pending' | 'removed';
 }
 
-// ── POST /classes/:id/reassign-educator ───────────────────────────────────────
-
 export class ReassignEducatorDto {
   @IsUUID()
   educatorId: string;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
+  @IsOptional() @IsString() @MaxLength(500)
   reason?: string;
 }
