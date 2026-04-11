@@ -26,13 +26,14 @@ export interface SeedCount {
 }
 
 export interface SeedResult {
-  programs:      SeedCount
-  courses:       SeedCount
-  strands:       SeedCount
-  levels:        SeedCount
-  sections:      SeedCount
-  subjects:      SeedCount
-  gradingScales: SeedCount
+  programs:               SeedCount
+  courses:                SeedCount
+  strands:                SeedCount
+  levels:                 SeedCount
+  sections:               SeedCount
+  subjects:               SeedCount
+  gradingScales:          SeedCount
+  gradingSchemeTemplates: SeedCount
 }
 
 export interface GradingScaleRangeOption {
@@ -61,10 +62,13 @@ export interface OrgSeedOptions {
   gradingScales?:   Record<string, GradingScaleOption>
 }
 
+
+
 @Injectable()
 export class OrgSeederService {
   constructor(private readonly db: DatabaseService) {}
 
+  
   async seedOrg(options: OrgSeedOptions): Promise<SeedResult> {
     const {
       orgId,
@@ -98,21 +102,33 @@ export class OrgSeederService {
     const subjectNameToId: Record<string, string> = {}
 
     const result: SeedResult = {
-      programs:      emptyCount(),
-      courses:       emptyCount(),
-      strands:       emptyCount(),
-      levels:        emptyCount(),
-      sections:      emptyCount(),
-      subjects:      emptyCount(),
-      gradingScales: emptyCount(),
+      programs:               emptyCount(),
+      courses:                emptyCount(),
+      strands:                emptyCount(),
+      levels:                 emptyCount(),
+      sections:               emptyCount(),
+      subjects:               emptyCount(),
+      gradingScales:          emptyCount(),
+      gradingSchemeTemplates: emptyCount(),
     }
+
+    await this.db.orgEnrollmentSetting.upsert({
+      where:  { org_id: orgId },
+      update: {},
+      create: {
+        id:                           seedId('org-enrollment-setting', orgId),
+        org_id:                       orgId,
+        require_semester_reenrollment: false,
+        auto_unenroll_on_year_end:     true,
+      },
+    })
 
     await this.seedPrograms(orgId, schoolYearId, shouldSeedProgram, programMap, result)
     await this.seedCourses(orgId, schoolYearId, shouldSeedProgram, shouldSeedCourse, programMap, courseMap, result)
     await this.seedStrands(orgId, schoolYearId, shouldSeedProgram, shouldSeedStrand, programMap, strandMap, result)
     await this.seedLevelsAndSections(orgId, schoolYearId, shouldSeedProgram, shouldSeedLevel, programMap, levelMap, levelConfigs, sectionConfigs, result)
     await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, levelMap, gradingScales, result)
-    await this.seedGradingSchemes(orgId, shouldSeedProgram)
+    await this.seedGradingSchemes(orgId, shouldSeedProgram, result)
     await this.seedMajorSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, subjectNameToId, result)
     await this.seedMinorSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, programMap, subjectNameToId, result)
     await this.seedPrerequisites(orgId, shouldSeedProgram, levelMap, subjectNameToId)
@@ -320,7 +336,11 @@ export class OrgSeederService {
     }
   }
 
-  private async seedGradingSchemes(orgId: string, shouldSeed: (k: string) => boolean) {
+  private async seedGradingSchemes(
+    orgId:      string,
+    shouldSeed: (k: string) => boolean,
+    result:     SeedResult,
+  ) {
     const schemeProgram: Record<string, string> = {
       'Daycare Scheme':            'daycare',
       'Kindergarten Scheme':       'kinder',
@@ -332,14 +352,25 @@ export class OrgSeederService {
 
     for (const preset of SCHEME_PRESETS) {
       const progKey = schemeProgram[preset.name]
-      if (progKey && !shouldSeed(progKey)) continue
+      if (progKey && !shouldSeed(progKey)) {
+        result.gradingSchemeTemplates.skipped++
+        continue
+      }
 
       const id       = seedId('scheme-template', preset.name, orgId)
       const existing = await this.db.gradingSchemeTemplate.findFirst({ where: { id } })
-      if (existing) continue
+      if (existing) {
+        result.gradingSchemeTemplates.already_exists++
+        continue
+      }
 
       const template = await this.db.gradingSchemeTemplate.create({
-        data: { id, org_id: orgId, name: preset.name },
+        data: {
+          id,
+          org_id:       orgId,
+          name:         preset.name,
+          program_type: progKey ?? null,   // ← now mapped to schema field
+        },
       })
 
       await this.db.gradingSchemeTemplateComponent.createMany({
@@ -350,8 +381,11 @@ export class OrgSeederService {
           name:        c.name,
           type:        c.type,
           weight:      c.weight,
+          max_score:   null,               // ← schema has max_score, was missing
         })),
       })
+
+      result.gradingSchemeTemplates.seeded++
     }
   }
 

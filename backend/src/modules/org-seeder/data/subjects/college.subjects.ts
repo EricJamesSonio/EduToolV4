@@ -3,7 +3,10 @@ import { COLLEGE_COURSES } from '../courses.data'
 
 type CollegeSubjRaw = { name: string; year: string; term: string; prereqs: string[] }
 
-// ── GE / Minor subjects (shared across all college courses) ──────────────────
+/**
+ * College GE (General Education) subjects — MINOR subjects
+ * Shared across ALL college programs, not tied to specific courses
+ */
 const COLLEGE_GE: CollegeSubjRaw[] = [
   { name: 'Mathematics in the Modern World',  year: '1st Year', term: '1st Semester', prereqs: [] },
   { name: 'Purposive Communication',          year: '1st Year', term: '1st Semester', prereqs: [] },
@@ -20,7 +23,10 @@ const COLLEGE_GE: CollegeSubjRaw[] = [
   { name: 'NSTP 2',                           year: '2nd Year', term: '2nd Semester', prereqs: [] },
 ]
 
-// ── Major subjects per course code ───────────────────────────────────────────
+/**
+ * College major subjects by course code
+ * BSIT, BSBA, BSCS, BSHM, BSCRIM, BSTM have dedicated course codes
+ */
 const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
   BSIT: [
     { name: 'Introduction to Computing',          year: '1st Year', term: '1st Semester', prereqs: [] },
@@ -73,7 +79,6 @@ const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
     { name: 'Governance, Business Ethics, Risk Management, and Internal Control',        year: '4th Year', term: '1st Semester', prereqs: ['Auditing Theory'] },
     { name: 'Accounting Research',                                                       year: '4th Year', term: '2nd Semester', prereqs: ['Advanced Financial Accounting and Reporting', 'Management Accounting'] },
     { name: 'Integrated Review Courses (Board Exam Preparation)',                        year: '4th Year', term: '2nd Semester', prereqs: [] },
-    // BSA has a 5th year
     { name: 'Advanced Taxation',                                                         year: '5th Year', term: '1st Semester', prereqs: ['Taxation (Income Tax, Business Tax)'] },
     { name: 'CPA Licensure Exam Review',                                                 year: '5th Year', term: '2nd Semester', prereqs: [] },
   ],
@@ -153,6 +158,9 @@ const COLLEGE_MAJOR: Record<string, CollegeSubjRaw[]> = {
   ],
 }
 
+/**
+ * BSED core subjects
+ */
 const BSED_CORE: CollegeSubjRaw[] = [
   { name: 'The Teaching Profession',                     year: '1st Year', term: '1st Semester', prereqs: [] },
   { name: 'Foundations of Education',                    year: '1st Year', term: '2nd Semester', prereqs: ['The Teaching Profession'] },
@@ -168,39 +176,82 @@ const BSED_CORE: CollegeSubjRaw[] = [
 ]
 
 /**
- * Major subjects for college.
- * levelName = shared year label (e.g. "1st Year")
- * courseCode = course code (e.g. "BSIT") — used for level_id + course_id mapping in the seeder
+ * College major subjects — tied to specific courses (BSIT, BSBA, etc.)
+ * Each subject has: courseCode, year level, term, prerequisites
  */
 export function collegeMajorSubjects(): SubjectDef[] {
   const out: SubjectDef[] = []
 
   for (const course of COLLEGE_COURSES) {
     const majors = COLLEGE_MAJOR[course.code] ?? []
-    for (const s of majors) {
-      // levelName is now just the year label — shared across all courses
-      out.push(subj(s.year, course.code, null, s.name, s.year, s.term, s.prereqs, false))
+
+    for (const m of majors) {
+      out.push(
+        subj(
+          m.year,           // levelName ("1st Year", "2nd Year", etc.)
+          course.code,      // courseCode (BSIT, BSBA, BSCS, etc.)
+          null,             // strandName (not used for college)
+          m.name,           // subject name
+          m.year,           // yearLevel
+          m.term,           // termLabel
+          m.prereqs,        // prerequisites
+          false,            // isMinor = false
+        )
+      )
     }
   }
 
-  // BSED core subjects — seeded for each BSED major course code
+  // BSED core subjects
   for (const s of BSED_CORE) {
-    out.push(subj(s.year, 'BSED', null, s.name, s.year, s.term, s.prereqs, false))
+    out.push(
+      subj(
+        s.year,           // levelName
+        'BSED',           // courseCode
+        null,             // strandName
+        s.name,           // subject name
+        s.year,           // yearLevel
+        s.term,           // termLabel
+        s.prereqs,        // prerequisites
+        false,            // isMinor = false
+      )
+    )
   }
 
   return out
 }
 
 /**
- * Minor (GE) subjects for college — shared across all courses via SubjectSharing.
- * levelName = 'college_ge' (sentinel, not a real level name)
+ * College GE (General Education) subjects — MINOR subjects
+ * NOT tied to any course, strand, or specific level
+ * Shared across ALL college programs
+ * 
+ * These will be stored in Subject table as:
+ *   program_id: null
+ *   level_id: null
+ *   course_id: null
+ *   strand_id: null
+ *   subject_type: 'minor'
+ *   year_level: "1st Year" / "2nd Year"
+ *   term_label: "1st Semester" / "2nd Semester"
  */
 export function collegeMinorSubjects(): SubjectDef[] {
   return COLLEGE_GE.map((s) =>
-    subj('college_ge', null, null, s.name, s.year, s.term, s.prereqs, true),
+    subj(
+      'college_ge',     // levelName (marker for GE subjects)
+      null,             // courseCode (NULL — shared across all courses)
+      null,             // strandName (NULL)
+      s.name,           // subject name
+      s.year,           // yearLevel ("1st Year", "2nd Year")
+      s.term,           // termLabel ("1st Semester", etc.)
+      s.prereqs,        // prerequisites
+      true,             // isMinor = TRUE (these are electives/GE)
+    )
   )
 }
 
+/**
+ * Export all college subjects
+ */
 export function collegeSubjects(): SubjectDef[] {
   return [...collegeMajorSubjects(), ...collegeMinorSubjects()]
 }
