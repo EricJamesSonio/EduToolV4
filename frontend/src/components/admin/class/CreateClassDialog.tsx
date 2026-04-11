@@ -146,20 +146,22 @@ export function CreateClassDialog({
   });
   const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 
-  const { data: subjectsRaw } = useQuery({
-    queryKey: [
-      "admin", "subjects", selectedLevelId,
-      isCourseTrack ? selectedTrackId : undefined,
-      !isCourseTrack ? selectedTrackId : undefined,
-    ],
-    queryFn: () =>
-      subjectApi.getAll({
-        levelId: selectedLevelId!,
-        ...(selectedTrackId && isCourseTrack  ? { courseId: selectedTrackId } : {}),
-        ...(selectedTrackId && !isCourseTrack ? { strandId: selectedTrackId } : {}),
-      }),
-    enabled: !!selectedLevelId,
-  });
+const { data: subjectsRaw } = useQuery({
+  queryKey: [
+    "admin",
+    "subjects",
+    selectedLevelId,
+    isCourseTrack ? selectedTrackId : undefined,
+    !isCourseTrack ? selectedTrackId : undefined,
+  ],
+  queryFn: () => subjectApi.getAll({
+    levelId: selectedLevelId!,
+    ...(selectedTrackId && isCourseTrack  ? { courseId: selectedTrackId } : {}),
+    ...(selectedTrackId && !isCourseTrack ? { strandId: selectedTrackId } : {}),
+  }),
+  enabled: !!selectedLevelId,
+});
+
   const subjects = toArray<Subject>(subjectsRaw);
 
   const { data: educatorsRaw } = useQuery({

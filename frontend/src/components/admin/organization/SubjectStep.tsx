@@ -99,15 +99,14 @@ export function SubjectStep({
               const isMinor = minorSet?.has(subj) ?? false
               return (
                 <div key={subj} className="flex items-center gap-2">
-                  <Checkbox
-                    checked={selectedSubjects.has(subj)}
-                    onChange={() =>
-                      !isDisabled(subj) && onToggleSubject(subj)
-                    }
-                    label={subj}
-                    subtle
-                    disabled={isDisabled(subj)}
-                  />
+                <Checkbox
+                  checked={selectedSubjects.has(subj)}
+                  onChange={() =>
+                    !isDisabled(subj) && onToggleSubject(subj)
+                  }
+                  label={subj}
+                  subtle
+                />
                   <SubjectTypeTag type={isMinor ? "minor" : "major"} />
                 </div>
               )
