@@ -11,13 +11,15 @@ import {
   UpdateSemesterTemplateDto,
   AssignTemplateDto,
 } from './dto/semester-template.dto'
+import { DatabaseService } from '@/core/database/database.provider'
 
 @Injectable()
 export class SemesterTemplateService {
-  constructor(
-    private readonly repo: SemesterTemplateRepository,
-    private readonly programRepo: ProgramRepository,
-  ) {}
+constructor(
+  private readonly repo: SemesterTemplateRepository,
+  private readonly programRepo: ProgramRepository,
+  private readonly db: DatabaseService,
+) {}
 
   async create(orgId: string, dto: CreateSemesterTemplateDto) {
     const duplicate = await this.repo.existsByName(orgId, dto.programType, dto.name)
@@ -41,15 +43,95 @@ export class SemesterTemplateService {
       })),
     })
   }
-async saveTermDates(
-  orgId: string,
-  programId: string,
-  termDates: Array<{ termId: string; startDate: string; endDate: string }>,
-) {
-  const assignment = await this.repo.findAssignmentByProgram(programId, orgId)
-  if (!assignment) throw new NotFoundException('No template assigned to this program.')
-  await this.repo.upsertTermDates(assignment.id, orgId, termDates)
-}
+  async saveTermDates(
+    orgId: string,
+    programId: string,
+    termDates: Array<{ termId: string; startDate: string; endDate: string }>,
+  ) {
+    const assignment = await this.repo.findAssignmentByProgram(programId, orgId)
+    if (!assignment) throw new NotFoundException('No template assigned to this program.')
+
+    await this.repo.upsertTermDates(assignment.id, orgId, termDates)
+
+    // Resolve the program's school_year_id
+    const program = await this.programRepo.findById(programId, orgId)
+    if (!program) throw new NotFoundException('Program not found.')
+
+    // Build a map of termId → dates for quick lookup
+    const dateMap = new Map(
+      termDates.map((td) => [td.termId, { start: new Date(td.startDate), end: new Date(td.endDate) }])
+    )
+
+    // Walk template semesters → terms, upsert Semester + Term rows
+    const template = assignment.template as any
+    for (const semItem of template.semesters) {
+      // Collect dates for all terms in this semester
+      const termDateEntries = semItem.terms
+        .map((t: any) => dateMap.get(t.id))
+        .filter(Boolean) as Array<{ start: Date; end: Date }>
+
+      if (termDateEntries.length === 0) continue
+
+      const semStart = new Date(Math.min(...termDateEntries.map((d) => d.start.getTime())))
+      const semEnd   = new Date(Math.max(...termDateEntries.map((d) => d.end.getTime())))
+
+      // Upsert Semester row (match by org + school_year + name)
+      const existingSemester = await this.db.semester.findFirst({
+        where: {
+          org_id: orgId,
+          school_year_id: program.school_year_id,
+          name: semItem.name,
+        },
+      })
+
+      const semester = existingSemester
+        ? await this.db.semester.update({
+            where: { id: existingSemester.id },
+            data: { start_date: semStart, end_date: semEnd },
+          })
+        : await this.db.semester.create({
+            data: {
+              org_id: orgId,
+              school_year_id: program.school_year_id,
+              name: semItem.name,
+              start_date: semStart,
+              end_date: semEnd,
+            },
+          })
+
+      // Upsert Term rows under this Semester
+      for (const termItem of semItem.terms) {
+        const dates = dateMap.get(termItem.id)
+        if (!dates) continue
+
+        const existingTerm = await this.db.term.findFirst({
+          where: {
+            org_id: orgId,
+            semester_id: semester.id,
+            name: termItem.name,
+          },
+        })
+
+        if (existingTerm) {
+          await this.db.term.update({
+            where: { id: existingTerm.id },
+            data: { start_date: dates.start, end_date: dates.end },
+          })
+        } else {
+          await this.db.term.create({
+            data: {
+              org_id: orgId,
+              semester_id: semester.id,
+              name: termItem.name,
+              order_index: termItem.order_index,
+              start_date: dates.start,
+              end_date: dates.end,
+            },
+          })
+        }
+      }
+    }
+  }
   async findAllForOrg(orgId: string) {
     return this.repo.getAllForOrg(orgId)
   }
