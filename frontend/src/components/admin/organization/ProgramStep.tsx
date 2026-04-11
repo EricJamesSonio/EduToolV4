@@ -1,11 +1,10 @@
 import { Check, Layers } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
-import type { Program } from "@/types/admin/program.types"
 
 interface ProgramStepProps {
   selectedPrograms: Set<string>
-  availablePrograms: Program[]
+  disabledProgramTypes: Set<string>
   onToggleProgram: (key: string) => void
   onSelectAllPrograms: () => void
   onDeselectAllPrograms: () => void
@@ -28,15 +27,12 @@ const PROGRAM_DEFS: ProgramDef[] = [
 
 export function ProgramStep({
   selectedPrograms,
-  availablePrograms,
+  disabledProgramTypes,
   onToggleProgram,
   onSelectAllPrograms,
   onDeselectAllPrograms,
 }: ProgramStepProps) {
-  const availableProgramKeys = new Set(availablePrograms.map((p) => p.type))
-  const displayPrograms = PROGRAM_DEFS.filter((p) =>
-    availableProgramKeys.has(p.type),
-  )
+  const isDisabled = (type: string) => disabledProgramTypes.has(type)
 
   return (
     <div className="space-y-2">
@@ -63,13 +59,17 @@ export function ProgramStep({
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {displayPrograms.map((prog) => (
+        {PROGRAM_DEFS.map((prog) => (
           <button
             key={prog.key}
             type="button"
-            onClick={() => onToggleProgram(prog.key)}
+            onClick={() => !isDisabled(prog.type) && onToggleProgram(prog.key)}
+            disabled={isDisabled(prog.type)}
             className={cn(
-              "flex items-center gap-2 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 text-sm",
+              "flex items-center gap-2 rounded-lg border p-3 text-left transition-colors text-sm",
+              isDisabled(prog.type)
+                ? "opacity-50 cursor-not-allowed bg-muted/30 border-muted-foreground/20"
+                : "hover:bg-muted/50",
               selectedPrograms.has(prog.key) && "border-primary bg-primary/5",
             )}
           >
@@ -85,7 +85,10 @@ export function ProgramStep({
                 <Check className="h-3 w-3" />
               )}
             </div>
-            {prog.label}
+            <span>{prog.label}</span>
+            {isDisabled(prog.type) && (
+              <span className="ml-auto text-xs text-muted-foreground">✓</span>
+            )}
           </button>
         ))}
       </div>

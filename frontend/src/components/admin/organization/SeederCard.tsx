@@ -143,13 +143,17 @@ export function SeederCard() {
   })
 
   const { data: existingStrands = [] } = useQuery({
-      queryKey: ["admin", "strands", selectedSchoolYearId],
-      queryFn: async () => {
-        const strands = await strandApi.getAll()
-        return Array.isArray(strands) ? strands : []
-      },
-      enabled: !!selectedSchoolYearId,
-    })
+    queryKey: ["admin", "strands", selectedSchoolYearId],
+    queryFn: async () => {
+      try {
+        const result = await strandApi.getAll()
+        return Array.isArray(result) ? result : []
+      } catch {
+        return []
+      }
+    },
+    enabled: !!selectedSchoolYearId,
+  })
 
   const { data: existingLevels = [] } = useQuery({
     queryKey: ["admin", "levels", selectedSchoolYearId],
@@ -264,34 +268,21 @@ export function SeederCard() {
     })
   }
 
-  // Filter out already-existing items
-  const availablePrograms = PROGRAMS.filter(
-    (p) => !existingPrograms.some((ep) => ep.type === p.type),
+  // Track which items already exist (don't filter - show all, but mark disabled)
+  const existingProgramTypes = new Set(existingPrograms.map((p) => p.type))
+  const existingCourseCodes = new Set(
+    existingCourses.map((c) => c.code?.trim()).filter(Boolean),
   )
-
-  const availableCourses = COLLEGE_COURSES.filter(
-    (c) => !existingCourses.some((ec) => ec.code === c.code),
-  )
-
-  const availableStrands = SHS_STRANDS.filter(
-    (s) => !existingStrands.some((es) => es.name === s),
-  )
-
-  const availableLevels = Array.from(selectedPrograms)
-    .filter((p) => LEVEL_DEFS[p])
-    .flatMap((p) => LEVEL_DEFS[p])
-    .filter((l) => !existingLevels.some((el) => el.name === l.name))
-
-  const availableSubjects = allSelectableSubjects.filter(
-    (s) => !existingSubjects.some((es) => es.title === s),
-  )
+  const existingStrandNames = new Set(existingStrands.map((s) => s.name))
+  const existingLevelNames = new Set(existingLevels.map((l) => l.name))
+  const existingSubjectTitles = new Set(existingSubjects.map((s) => s.title))
 
   const helpers = {
     toggleProgram: (key: string) =>
       toggleSet(selectedPrograms, key, setSelectedPrograms),
     selectAllPrograms: () =>
       selectAll(
-        availablePrograms.map((p) => p.key),
+        PROGRAMS.map((p) => p.key),
         setSelectedPrograms,
       ),
     deselectAllPrograms: () => deselectAll(setSelectedPrograms),
@@ -299,7 +290,7 @@ export function SeederCard() {
       toggleSet(selectedStrands, s, setSelectedStrands),
     selectAllStrands: () =>
       selectAll(
-        availableStrands,
+        SHS_STRANDS,
         setSelectedStrands,
       ),
     deselectAllStrands: () => deselectAll(setSelectedStrands),
@@ -307,7 +298,7 @@ export function SeederCard() {
       toggleSet(selectedCourses, c, setSelectedCourses),
     selectAllCourses: () =>
       selectAll(
-        availableCourses.map((c) => c.code),
+        COLLEGE_COURSES.map((c) => c.code ?? ""),
         setSelectedCourses,
       ),
     deselectAllCourses: () => deselectAll(setSelectedCourses),
@@ -350,7 +341,7 @@ export function SeederCard() {
             `${Array.from(selectedCourses).length} course(s)`,
           selectedPrograms.has("shs") &&
             `${Array.from(selectedStrands).length} strand(s)`,
-          `${availableSubjects.filter((s) => selectedSubjects.has(s)).length} subject(s)`,
+          `${allSelectableSubjects.filter((s) => selectedSubjects.has(s)).length} subject(s)`,
           seedGradingScale &&
             `${Object.keys(resolvedGradingScales).length} grading scale(s)`,
         ]
@@ -388,8 +379,7 @@ export function SeederCard() {
           <div className="px-6 pb-6 space-y-5">
             <p className="text-sm text-muted-foreground -mt-1">
               Seed your organization with programs, levels, subjects, and
-              grading scales. Already-seeded items are hidden to prevent
-              duplicates.
+              grading scales. Already-seeded items appear grayed out.
             </p>
 
             <div className="space-y-2">
@@ -416,27 +406,20 @@ export function SeederCard() {
                   : "",
               )}
             >
-              {availablePrograms.length > 0 && (
-                <ProgramStep
-                  {...{
-                    selectedPrograms,
-                    availablePrograms,
-                    onToggleProgram: helpers.toggleProgram,
-                    onSelectAllPrograms: helpers.selectAllPrograms,
-                    onDeselectAllPrograms: helpers.deselectAllPrograms,
-                  }}
-                />
-              )}
-
-              {availablePrograms.length === 0 && existingPrograms.length > 0 && (
-                <div className="rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
-                  ✓ All programs already seeded for this school year.
-                </div>
-              )}
+              <ProgramStep
+                {...{
+                  selectedPrograms,
+                  disabledProgramTypes: existingProgramTypes,
+                  onToggleProgram: helpers.toggleProgram,
+                  onSelectAllPrograms: helpers.selectAllPrograms,
+                  onDeselectAllPrograms: helpers.deselectAllPrograms,
+                }}
+              />
 
               {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
                 <LevelStep
                   selectedPrograms={selectedPrograms}
+                  disabledLevelNames={existingLevelNames}
                   levelConfigs={levelConfigs}
                   onSetCount={setLevelCount}
                   onRenameAt={renameLevelAt}
@@ -452,11 +435,11 @@ export function SeederCard() {
                 />
               )}
 
-              {selectedPrograms.has("shs") && availableStrands.length > 0 && (
+              {selectedPrograms.has("shs") && (
                 <StrandStep
                   {...{
                     selectedStrands,
-                    availableStrands,
+                    disabledStrandNames: existingStrandNames,
                     onToggleStrand: helpers.toggleStrand,
                     onSelectAllStrands: helpers.selectAllStrands,
                     onDeselectAllStrands: helpers.deselectAllStrands,
@@ -464,19 +447,11 @@ export function SeederCard() {
                 />
               )}
 
-              {selectedPrograms.has("shs") &&
-                availableStrands.length === 0 &&
-                existingStrands.length > 0 && (
-                  <div className="rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
-                    ✓ All SHS strands already seeded.
-                  </div>
-                )}
-
-              {selectedPrograms.has("college") && availableCourses.length > 0 && (
+              {selectedPrograms.has("college") && (
                 <CourseStep
                   {...{
                     selectedCourses,
-                    availableCourses,
+                    disabledCourseCodes: existingCourseCodes,
                     onToggleCourse: helpers.toggleCourse,
                     onSelectAllCourses: helpers.selectAllCourses,
                     onDeselectAllCourses: helpers.deselectAllCourses,
@@ -484,27 +459,18 @@ export function SeederCard() {
                 />
               )}
 
-              {selectedPrograms.has("college") &&
-                availableCourses.length === 0 &&
-                existingCourses.length > 0 && (
-                  <div className="rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
-                    ✓ All college courses already seeded.
-                  </div>
-                )}
-
-              {availableSubjects.length > 0 && (
-                <SubjectStep
-                  selectedPrograms={selectedPrograms}
-                  selectedLevels={derivedSelectedLevels}
-                  selectedStrands={selectedStrands}
-                  selectedCourses={selectedCourses}
-                  selectedSubjects={selectedSubjects}
-                  onToggleSubject={helpers.toggleSubject}
-                  onSelectAllForGroup={helpers.selectAllForGroup}
-                  onDeselectAllForGroup={helpers.deselectAllForGroup}
-                  allSelectableSubjects={availableSubjects}
-                />
-              )}
+              <SubjectStep
+                selectedPrograms={selectedPrograms}
+                selectedLevels={derivedSelectedLevels}
+                selectedStrands={selectedStrands}
+                selectedCourses={selectedCourses}
+                selectedSubjects={selectedSubjects}
+                disabledSubjectTitles={existingSubjectTitles}
+                onToggleSubject={helpers.toggleSubject}
+                onSelectAllForGroup={helpers.selectAllForGroup}
+                onDeselectAllForGroup={helpers.deselectAllForGroup}
+                allSelectableSubjects={allSelectableSubjects}
+              />
 
               {selectedPrograms.size > 0 && (
                 <div className="border-t pt-5">

@@ -20,6 +20,7 @@ interface SubjectStepProps {
   selectedStrands: Set<string>
   selectedCourses: Set<string>
   selectedSubjects: Set<string>
+  disabledSubjectTitles: Set<string>
   onToggleSubject: (subj: string) => void
   onSelectAllForGroup: (subjects: string[]) => void
   onDeselectAllForGroup: (subjects: string[]) => void
@@ -43,12 +44,15 @@ export function SubjectStep({
   selectedStrands,
   selectedCourses,
   selectedSubjects,
+  disabledSubjectTitles,
   onToggleSubject,
   onSelectAllForGroup,
   onDeselectAllForGroup,
   allSelectableSubjects,
 }: SubjectStepProps) {
   if (allSelectableSubjects.length === 0) return null
+
+  const isDisabled = (title: string) => disabledSubjectTitles.has(title)
 
   function renderSubjectCollapsible(
     key: string,
@@ -62,8 +66,8 @@ export function SubjectStep({
 
     if (availableSubjects.length === 0) return null
 
-    const selCount = availableSubjects.filter((s) =>
-      selectedSubjects.has(s),
+    const selCount = availableSubjects.filter(
+      (s) => selectedSubjects.has(s) && !isDisabled(s),
     ).length
 
     return (
@@ -97,9 +101,12 @@ export function SubjectStep({
                 <div key={subj} className="flex items-center gap-2">
                   <Checkbox
                     checked={selectedSubjects.has(subj)}
-                    onChange={() => onToggleSubject(subj)}
+                    onChange={() =>
+                      !isDisabled(subj) && onToggleSubject(subj)
+                    }
                     label={subj}
                     subtle
+                    disabled={isDisabled(subj)}
                   />
                   <SubjectTypeTag type={isMinor ? "minor" : "major"} />
                 </div>

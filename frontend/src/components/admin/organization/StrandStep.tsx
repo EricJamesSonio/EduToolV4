@@ -5,20 +5,31 @@ import { Collapsible } from "./ui/Collapsible"
 
 interface StrandStepProps {
   selectedStrands: Set<string>
-  availableStrands: string[]
+  disabledStrandNames: Set<string>
   onToggleStrand: (strand: string) => void
   onSelectAllStrands: () => void
   onDeselectAllStrands: () => void
 }
 
+const SHS_STRANDS = [
+  "Accountancy, Business and Management",
+  "Arts and Design",
+  "English for Global Communication",
+  "Filipino, Panitikan at Kultura",
+  "General Academic Strand",
+  "Humanities and Social Sciences",
+  "Information and Communications Technology",
+  "Science, Technology, Engineering and Mathematics",
+]
+
 export function StrandStep({
   selectedStrands,
-  availableStrands,
+  disabledStrandNames,
   onToggleStrand,
   onSelectAllStrands,
   onDeselectAllStrands,
 }: StrandStepProps) {
-  if (availableStrands.length === 0) return null
+  const isDisabled = (name: string) => disabledStrandNames.has(name)
 
   return (
     <div className="space-y-2">
@@ -28,8 +39,9 @@ export function StrandStep({
       </Label>
       <Collapsible
         title="Senior High School Strands"
-        count={availableStrands.filter((s) => selectedStrands.has(s)).length}
-        total={availableStrands.length}
+        count={SHS_STRANDS.filter((s) => selectedStrands.has(s) && !isDisabled(s))
+          .length}
+        total={SHS_STRANDS.length}
         defaultOpen
       >
         <div className="space-y-2">
@@ -50,12 +62,13 @@ export function StrandStep({
             </button>
           </div>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {availableStrands.map((strand) => (
+            {SHS_STRANDS.map((strand) => (
               <Checkbox
                 key={strand}
                 checked={selectedStrands.has(strand)}
-                onChange={() => onToggleStrand(strand)}
+                onChange={() => !isDisabled(strand) && onToggleStrand(strand)}
                 label={strand}
+                disabled={isDisabled(strand)}
               />
             ))}
           </div>

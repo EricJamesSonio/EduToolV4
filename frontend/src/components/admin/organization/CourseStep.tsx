@@ -2,11 +2,11 @@ import { BookOpen } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "./ui/Checkbox"
 import { Collapsible } from "./ui/Collapsible"
-import type { Course } from "@/types/admin/course.types"
+import { COLLEGE_COURSES } from "./constants/seed-data"
 
 interface CourseStepProps {
   selectedCourses: Set<string>
-  availableCourses: Course[]
+  disabledCourseCodes: Set<string>
   onToggleCourse: (code: string) => void
   onSelectAllCourses: () => void
   onDeselectAllCourses: () => void
@@ -14,16 +14,15 @@ interface CourseStepProps {
 
 export function CourseStep({
   selectedCourses,
-  availableCourses,
+  disabledCourseCodes,
   onToggleCourse,
   onSelectAllCourses,
   onDeselectAllCourses,
 }: CourseStepProps) {
-  if (availableCourses.length === 0) return null
+  const isDisabled = (code: string) => disabledCourseCodes.has(code?.trim())
 
-  const courseCodesSet = new Set(availableCourses.map((c) => c.code))
-  const selectedCount = Array.from(selectedCourses).filter((c) =>
-    courseCodesSet.has(c),
+  const selectedCount = COLLEGE_COURSES.filter(
+    (c) => selectedCourses.has(c.code ?? "") && !isDisabled(c.code ?? ""),
   ).length
 
   return (
@@ -35,7 +34,7 @@ export function CourseStep({
       <Collapsible
         title="Bachelor of Secondary Education (BSEd) + Other Courses"
         count={selectedCount}
-        total={availableCourses.length}
+        total={COLLEGE_COURSES.length}
         defaultOpen
       >
         <div className="space-y-2">
@@ -56,13 +55,17 @@ export function CourseStep({
             </button>
           </div>
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {availableCourses.map((course) => (
+            {COLLEGE_COURSES.map((course) => (
               <Checkbox
                 key={course.code}
                 checked={selectedCourses.has(course.code ?? "")}
-                onChange={() => onToggleCourse(course.code ?? "")}
+                onChange={() =>
+                  !isDisabled(course.code ?? "") &&
+                  onToggleCourse(course.code ?? "")
+                }
                 label={`${course.code} - ${course.name}`}
                 subtle
+                disabled={isDisabled(course.code ?? "")}
               />
             ))}
           </div>
