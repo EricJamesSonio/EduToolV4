@@ -28,89 +28,24 @@ import {
   useCreateSemesterTemplate,
   useUpdateSemesterTemplate,
 } from "@/hooks/admin/useSemesterTemplate";
+import {
+  DEFAULT_TEMPLATES,
+  PROGRAM_TYPE_LABELS,
+  PROGRAM_TYPE_DESCRIPTIONS,
+  type LocalTerm,
+  type LocalSemester,
+} from "./semester-templates.constants";
 
 /* =========================
-   TYPES
+   ERROR HANDLING
 ========================= */
-interface LocalTerm {
-  name: string;
-}
-
-interface LocalSemester {
-  name: string;
-  terms: LocalTerm[];
-}
+const errMsg = (e: unknown) =>
+  (e as AxiosError<{ message: string }>)?.response?.data?.message ??
+  "Something went wrong.";
 
 /* =========================
-   ✅ HARDCODED TEMPLATES
+   UTILITIES
 ========================= */
-const DEFAULT_TEMPLATES: Record<ProgramType, LocalSemester[]> = {
-  daycare: [
-    { name: "Level 1", terms: [{ name: "1st Term" }, { name: "2nd Term" }] },
-  ],
-  kinder: [
-    { name: "Kinder", terms: [{ name: "1st Term" }, { name: "2nd Term" }] },
-  ],
-  elementary: [
-    {
-      name: "Grade 1",
-      terms: [
-        { name: "1st Grading" },
-        { name: "2nd Grading" },
-        { name: "3rd Grading" },
-        { name: "4th Grading" },
-      ],
-    },
-  ],
-  jhs: [
-    {
-      name: "Grade 7",
-      terms: [
-        { name: "1st Grading" },
-        { name: "2nd Grading" },
-        { name: "3rd Grading" },
-        { name: "4th Grading" },
-      ],
-    },
-  ],
-  shs: [
-    {
-      name: "Grade 11 - 1st Sem",
-      terms: [{ name: "Midterm" }, { name: "Finals" }],
-    },
-  ],
-  college: [
-    {
-      name: "1st Semester",
-      terms: [{ name: "Midterm" }, { name: "Finals" }],
-    },
-    {
-      name: "2nd Semester",
-      terms: [{ name: "Midterm" }, { name: "Finals" }],
-    },
-  ],
-  custom: [],
-};
-
-/* ========================= */
-
-const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
-  daycare: "Daycare",
-  kinder: "Kinder",
-  elementary: "Elementary",
-  jhs: "Junior High School",
-  shs: "Senior High School",
-  college: "College",
-  custom: "Custom",
-};
-
-interface TemplateFormDialogProps {
-  open: boolean;
-  onClose: () => void;
-  template?: SemesterTemplate;
-  programType?: ProgramType;
-}
-
 function toSemesterDto(semesters: LocalSemester[]) {
   return semesters.map((s, si) => ({
     name: s.name,
@@ -122,9 +57,12 @@ function toSemesterDto(semesters: LocalSemester[]) {
   }));
 }
 
-const errMsg = (e: unknown) =>
-  (e as AxiosError<{ message: string }>)?.response?.data?.message ??
-  "Something went wrong.";
+interface TemplateFormDialogProps {
+  open: boolean;
+  onClose: () => void;
+  template?: SemesterTemplate;
+  programType?: ProgramType;
+}
 
 export function TemplateFormDialog({
   open,
@@ -342,7 +280,12 @@ export function TemplateFormDialog({
                     string,
                   ][]).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
-                      {label}
+                      <div className="flex flex-col">
+                        <span>{label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {PROGRAM_TYPE_DESCRIPTIONS[value]}
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -350,7 +293,7 @@ export function TemplateFormDialog({
             </div>
           )}
 
-          {/* 🔽 EVERYTHING BELOW IS YOUR ORIGINAL UI */}
+          {/* SEMESTERS & TERMS */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Semesters & Terms</Label>

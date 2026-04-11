@@ -2,17 +2,20 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/DataTable";
-import { Button }    from "@/components/ui/button";
-import { Badge }     from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2 } from "lucide-react";
 import type { Section } from "@/types/admin/section.types";
 import type { Program } from "@/types/admin/program.types";
 
 interface SectionTableProps {
   sections: Section[];
-  levelMap: Record<string, { name: string; programName: string; programId: string }>;
+  levelMap: Record<
+    string,
+    { name: string; programName: string; programId: string }
+  >;
   programs: Program[];
-  onEdit:   (section: Section) => void;
+  onEdit: (section: Section) => void;
   onDelete: (section: Section) => void;
 }
 
@@ -23,7 +26,6 @@ export function SectionTable({
   onEdit,
   onDelete,
 }: SectionTableProps): React.JSX.Element {
-
   // Build lookup maps from programs
   const courseMap = Object.fromEntries(
     programs.flatMap((p) =>
@@ -33,6 +35,7 @@ export function SectionTable({
       ])
     )
   );
+
   const strandMap = Object.fromEntries(
     programs.flatMap((p) =>
       (p.strands ?? []).map((s) => [
@@ -54,10 +57,10 @@ export function SectionTable({
       header: "Program / Course / Level",
       id: "context",
       cell: ({ row }) => {
-        const s        = row.original;
-        const levelInfo = levelMap[s.level_id];
-        const course   = s.course_id ? courseMap[s.course_id] : null;
-        const strand   = s.strand_id ? strandMap[s.strand_id] : null;
+        const section = row.original;
+        const levelInfo = levelMap[section.level_id];
+        const course = section.course_id ? courseMap[section.course_id] : null;
+        const strand = section.strand_id ? strandMap[section.strand_id] : null;
 
         if (!levelInfo) {
           return <span className="text-muted-foreground text-xs">—</span>;
@@ -101,13 +104,14 @@ export function SectionTable({
       header: "Students",
       id: "students",
       cell: ({ row }) => {
-        const s     = row.original;
-        const count = s.studentCount ?? 0;
-        const pct   = Math.min((count / s.capacity) * 100, 100);
+        const section = row.original;
+        const count = section.studentCount ?? 0;
+        const pct = Math.min((count / section.capacity) * 100, 100);
+
         return (
           <div className="flex items-center gap-2">
             <span className="text-sm tabular-nums">
-              {count} / {s.capacity}
+              {count} / {section.capacity}
             </span>
             <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
               <div
@@ -123,14 +127,14 @@ export function SectionTable({
       header: "Actions",
       id: "actions",
       cell: ({ row }) => {
-        const s = row.original;
+        const section = row.original;
         return (
           <div className="flex items-center gap-1">
             <Button
               size="sm"
               variant="ghost"
               className="h-7 w-7 p-0"
-              onClick={() => onEdit(s)}
+              onClick={() => onEdit(section)}
               title="Edit section"
             >
               <Pencil className="h-3.5 w-3.5" />
@@ -139,7 +143,7 @@ export function SectionTable({
               size="sm"
               variant="ghost"
               className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              onClick={() => onDelete(s)}
+              onClick={() => onDelete(section)}
               title="Delete section"
             >
               <Trash2 className="h-3.5 w-3.5" />
