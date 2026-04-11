@@ -9,40 +9,40 @@ import { Type } from 'class-transformer';
 
 export class ScheduleSlotDto {
   @IsInt() @Min(0) @Max(6)
-  weekday: number;
+  weekday!: number;
 
   @IsString()
-  startTime: string;
+  startTime!: string;
 
   @IsString()
-  endTime: string;
+  endTime!: string;
 }
 
 export class CreateClassDto {
   @IsUUID()
-  subjectId: string;
+  subjectId!: string;
 
   @IsUUID()
-  educatorId: string;
+  educatorId!: string;
 
   @IsOptional()
   @IsUUID()
   sectionId?: string;
 
   @IsUUID()
-  schoolYearId: string;
+  schoolYearId!: string;
 
   // Removed semesterId — resolved automatically from schoolYearId in service
 
   @IsInt()
   @Min(0)
-  capacity: number;
+  capacity!: number;
 
   @IsArray()
   @ArrayNotEmpty()
   @ValidateNested({ each: true })
   @Type(() => ScheduleSlotDto)
-  schedules: ScheduleSlotDto[];
+  schedules!: ScheduleSlotDto[];
 }
 
 export class UpdateClassDto {
@@ -73,17 +73,17 @@ export class QueryClassDto {
 
 export class EnrollStudentDto {
   @IsUUID()
-  studentId: string;
+  studentId!: string;
 }
 
 export class UpdateEnrollmentDto {
   @IsIn(['active', 'pending', 'removed'])
-  status: 'active' | 'pending' | 'removed';
+  status!: 'active' | 'pending' | 'removed';
 }
 
 export class ReassignEducatorDto {
   @IsUUID()
-  educatorId: string;
+  educatorId!: string;
 
   @IsOptional() @IsString() @MaxLength(500)
   reason?: string;
