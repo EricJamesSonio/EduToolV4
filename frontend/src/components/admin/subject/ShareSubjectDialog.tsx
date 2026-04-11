@@ -8,6 +8,9 @@ import { courseApi } from "@/api/admin/course.api";
 import { levelApi } from "@/api/admin/level.api";
 import { strandApi } from "@/api/admin/strand.api";
 import type { Subject, SubjectSharing } from "@/types/admin/subject.types";
+import type { Course } from "@/types/admin/course.types";
+import type { Strand } from "@/types/admin/strand.types";
+import type { Level } from "@/types/admin/level.types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -58,18 +61,20 @@ export function ShareSubjectDialog({
   const isSimple = !isCollege && !isSHS;
 
   // Fetch courses — only for college programs
+  // Courses API expects: { schoolYearId, programId? }
   const { data: allCourses = [], isLoading: coursesLoading } = useQuery({
     queryKey: ["admin", "courses", programId, schoolYearId],
     queryFn: () =>
-      courseApi.getAll({ programId: programId!, schoolYearId }),
+      courseApi.getAll({ schoolYearId, programId: programId! }),
     enabled: !!programId && open && isCollege,
   });
 
   // Fetch strands — only for SHS programs
+  // Strands API expects: { program_id? } (snake_case!)
   const { data: allStrands = [], isLoading: strandsLoading } = useQuery({
     queryKey: ["admin", "strands", programId, schoolYearId],
     queryFn: () =>
-      strandApi.getAll({ programId: programId!, schoolYearId }),
+      strandApi.getAll({ program_id: programId! }),
     enabled: !!programId && open && isSHS,
   });
 
@@ -82,18 +87,15 @@ export function ShareSubjectDialog({
 
   const isLoading = coursesLoading || strandsLoading || levelsLoading;
 
-  // Filter data based on program type
-  const courses = isCollege
-    ? allCourses.filter((c: any) => c.level_id === subjectLevelId)
-    : [];
+// Filter data based on program type
+  // Courses and Strands are already filtered by program_id in the API query
+  const courses: Course[] = isCollege ? allCourses : [];
 
-  const strands = isSHS
-    ? allStrands.filter((s: any) => s.level_id === subjectLevelId)
-    : [];
+  const strands: Strand[] = isSHS ? allStrands : [];
 
-  const levelTargets = isSimple
+  const levelTargets: Level[] = isSimple
     ? allLevels.filter(
-        (l: any) =>
+        (l: Level) =>
           l.id === subjectLevelId && l.program_id === programId
       )
     : [];
@@ -132,17 +134,17 @@ export function ShareSubjectDialog({
     }
 
     const allTargets: ShareTarget[] = [
-      ...courses.map((c: any) => ({
+      ...courses.map((c: Course) => ({
         type: "course" as const,
         id: c.id,
         name: c.name,
       })),
-      ...strands.map((s: any) => ({
+      ...strands.map((s: Strand) => ({
         type: "strand" as const,
         id: s.id,
         name: s.name,
       })),
-      ...levelTargets.map((l: any) => ({
+      ...levelTargets.map((l: Level) => ({
         type: "level" as const,
         id: l.id,
         name: l.name,
@@ -242,7 +244,7 @@ export function ShareSubjectDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Share2 className="h-4 w-4" />
-            Share "{subject.title}"
+            Share &quot;{subject.title}&quot;
           </DialogTitle>
         </DialogHeader>
 
@@ -275,7 +277,7 @@ export function ShareSubjectDialog({
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Courses
                   </p>
-                  {courses.map((c: any) =>
+                  {courses.map((c: Course) =>
                     renderItem(c.id, c.name)
                   )}
                 </div>
@@ -287,7 +289,7 @@ export function ShareSubjectDialog({
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Strands
                   </p>
-                  {strands.map((s: any) =>
+                  {strands.map((s: Strand) =>
                     renderItem(s.id, s.name)
                   )}
                 </div>
@@ -299,7 +301,7 @@ export function ShareSubjectDialog({
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Level
                   </p>
-                  {levelTargets.map((l: any) =>
+                  {levelTargets.map((l: Level) =>
                     renderItem(l.id, l.name)
                   )}
                 </div>

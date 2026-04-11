@@ -61,6 +61,7 @@ interface SubjectResponse {
 
   programId: string | null;
   programName?: string | null;
+  programType?: string | null;
   realProgramId?: string | null;
 
   levelId: string | null;
@@ -68,6 +69,9 @@ interface SubjectResponse {
 
   courseId: string | null;
   strandId?: string | null;
+
+  educatorId?: string | null;
+  educatorName?: string | null;
 
   lockStatus: "locked" | "unlocked";
 
@@ -102,6 +106,7 @@ function mapSubject(s: SubjectResponse): Subject {
 
     programId: s.programId ?? "",
     programName: s.programName ?? "",
+    programType: s.programType ?? null,
     realProgramId: s.realProgramId ?? null,
 
     levelId: s.levelId ?? null,
@@ -109,6 +114,9 @@ function mapSubject(s: SubjectResponse): Subject {
 
     courseId: s.courseId,
     strandId: s.strandId ?? null,
+
+    educatorId: s.educatorId ?? null,
+    educatorName: s.educatorName ?? null,
 
     lockStatus: s.lockStatus,
 
@@ -124,7 +132,6 @@ function mapSubject(s: SubjectResponse): Subject {
     updatedAt: s.updatedAt ?? "",
   };
 }
-
 // ==============================
 // API
 // ==============================
