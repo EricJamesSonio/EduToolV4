@@ -62,4 +62,10 @@ export const semesterTemplateApi = {
   removeAssignment: async (programId: string): Promise<void> => {
     await clientApi.delete(`/semester-templates/assignments/${programId}`)
   },
+saveTermDates: async (
+  programId: string,
+  termDates: { termId: string; startDate: string; endDate: string }[],
+): Promise<void> => {
+  await clientApi.post(`/semester-templates/assignments/${programId}/term-dates`, { termDates })
+},
 }

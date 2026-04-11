@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,6 @@ import { cn } from "@/lib/utils";
 import { Plus, Layers, AlertCircle } from "lucide-react";
 import type { AxiosError } from "axios";
 import type { ProgramType } from "@/types/admin/semester-template.types";
-
 import type {
   SemesterTemplate,
   TemplateAssignment,
@@ -44,8 +42,8 @@ import {
   PROGRAM_TYPE_LABELS,
   PROGRAM_TYPE_COLORS,
 } from "@/components/admin/semester-settings/constants";
+import type { SchoolYear } from "@/types/admin/school-year.types";
 
-// -------------------- Types --------------------
 interface Program {
   id: string;
   name: string;
@@ -57,18 +55,11 @@ interface ProgramWithAssignment extends Program {
   semesterAssignment: TemplateAssignment | null;
 }
 
-interface SchoolYear {
-  id: string;
-  name: string;
-  status: string;
-}
-
 interface Envelope<T> {
   success: boolean;
   data: T;
 }
 
-// -------------------- Fetchers --------------------
 async function fetchPrograms(schoolYearId: string): Promise<Program[]> {
   const res = await clientApi.get<Envelope<Program[]>>("/programs", {
     params: { schoolYearId },
@@ -88,9 +79,7 @@ const errMsg = (e: unknown) =>
   (e as AxiosError<{ message: string }>)?.response?.data?.message ??
   "Something went wrong.";
 
-// -------------------- Component --------------------
 export default function SemesterSettingsPage(): React.JSX.Element {
-  // ── School Years
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
   const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
 
@@ -101,29 +90,30 @@ export default function SemesterSettingsPage(): React.JSX.Element {
     }
   }, [schoolYears, selectedYearId]);
 
-  // ── Templates (always load, not school-year dependent)
-  const { data: templates = [], isLoading: tLoading } = useSemesterTemplates();
+const selectedSchoolYear = (schoolYears as SchoolYear[]).find(
+  (sy) => sy.id === selectedYearId
+) ?? null;
 
-  // ── Programs & Assignments (school-year dependent)
+  const { data: templates = [], isLoading: tLoading } = useSemesterTemplates();
   const { data: programs = [], isLoading: pLoading } =
     useProgramsBySchoolYear(selectedYearId ?? undefined);
   const { data: assignments = [], isLoading: aLoading } =
-    useTemplateAssignments(selectedYearId)
+    useTemplateAssignments(selectedYearId);
 
   const deleteMutation = useDeleteSemesterTemplate();
 
-  // ── Dialog State
   const [createOpen, setCreateOpen] = useState(false);
   const [createFromType, setCreateFromType] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<SemesterTemplate | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SemesterTemplate | null>(null);
 
-  // ── Memoized groupings
-  const programsWithAssignment = useMemo<ProgramWithAssignment[]>(() =>
-    programs.map((p) => ({
-      ...p,
-      semesterAssignment: assignments.find((a) => a.program_id === p.id) ?? null,
-    })),
+  const programsWithAssignment = useMemo<ProgramWithAssignment[]>(
+    () =>
+      programs.map((p) => ({
+        ...p,
+        semesterAssignment:
+          assignments.find((a) => a.program_id === p.id) ?? null,
+      })),
     [programs, assignments]
   );
 
@@ -147,7 +137,6 @@ export default function SemesterSettingsPage(): React.JSX.Element {
     return map;
   }, [programsWithAssignment]);
 
-  // ── Types for each section
   const templateTypes = useMemo(
     () => Array.from(templatesByType.keys()),
     [templatesByType]
@@ -177,7 +166,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
   return (
     <div className="space-y-10 pb-10">
       {/* ════════════════════════════════════════════════════════════ */}
-      {/* ══ SECTION 1: Global Template Library ══ */}
+      {/* ══ SECTION 1: Global Template Library ══                   */}
       {/* ════════════════════════════════════════════════════════════ */}
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-4">
@@ -191,7 +180,8 @@ export default function SemesterSettingsPage(): React.JSX.Element {
             </p>
           </div>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-1.5" /> New Template
+            <Plus className="h-4 w-4 mr-1.5" />
+            New Template
           </Button>
         </div>
 
@@ -218,17 +208,17 @@ export default function SemesterSettingsPage(): React.JSX.Element {
               className="mt-4"
               onClick={() => setCreateOpen(true)}
             >
-              <Plus className="h-3.5 w-3.5 mr-1.5" /> New Template
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              New Template
             </Button>
           </div>
         ) : (
           <div className="space-y-6">
             {templateTypes.map((type) => {
               const typeTemplates = templatesByType.get(type) ?? [];
-              const typeColor =
-                PROGRAM_TYPE_COLORS[type] ??
-                "bg-gray-100 text-gray-600 border-gray-200";
-
+const typeColor =
+  PROGRAM_TYPE_COLORS[type as ProgramType] ??
+  "bg-gray-100 text-gray-600 border-gray-200";
               return (
                 <section key={type} className="space-y-3">
                   <div className="flex items-center gap-2">
@@ -236,7 +226,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                       variant="outline"
                       className={cn("text-xs border px-2 py-0.5", typeColor)}
                     >
-                      {PROGRAM_TYPE_LABELS[type] ?? type}
+                   {PROGRAM_TYPE_LABELS[type as ProgramType] ?? type}
                     </Badge>
                     <div className="flex-1 h-px bg-border" />
                     <Button
@@ -248,7 +238,8 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                         setCreateOpen(true);
                       }}
                     >
-                      <Plus className="h-3 w-3 mr-1" /> Template
+                      <Plus className="h-3 w-3 mr-1" />
+                      Template
                     </Button>
                   </div>
                   <div className="space-y-2">
@@ -271,7 +262,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
       <div className="border-t" />
 
       {/* ════════════════════════════════════════════════════════════ */}
-      {/* ══ SECTION 2: Assign to Programs (school-year scoped) ══ */}
+      {/* ══ SECTION 2: Assign to Programs (school-year scoped) ══   */}
       {/* ════════════════════════════════════════════════════════════ */}
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -280,7 +271,8 @@ export default function SemesterSettingsPage(): React.JSX.Element {
               Assign to Programs
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Select a school year to assign semester templates to its programs.
+              Select a school year to assign semester templates and configure
+              term dates for its programs.
             </p>
           </div>
 
@@ -309,6 +301,18 @@ export default function SemesterSettingsPage(): React.JSX.Element {
           </Select>
         </div>
 
+        {/* School year date range hint */}
+        {selectedSchoolYear?.start_date && selectedSchoolYear?.end_date && (
+          <p className="text-xs text-muted-foreground">
+            School year range:{" "}
+            <span className="font-medium text-foreground">
+              {new Date(selectedSchoolYear.start_date).toLocaleDateString()} –{" "}
+              {new Date(selectedSchoolYear.end_date).toLocaleDateString()}
+            </span>
+            . Term dates must fall within this range.
+          </p>
+        )}
+
         {/* Programs by type */}
         {!selectedYearId ? (
           <p className="text-sm text-muted-foreground">
@@ -329,10 +333,9 @@ export default function SemesterSettingsPage(): React.JSX.Element {
             {programTypes.map((type) => {
               const typePrograms = programsByType.get(type) ?? [];
               const compatibleTemplates = templatesByType.get(type) ?? [];
-              const typeColor =
-                PROGRAM_TYPE_COLORS[type] ??
-                "bg-gray-100 text-gray-600 border-gray-200";
-
+const typeColor =
+  PROGRAM_TYPE_COLORS[type as ProgramType] ??
+  "bg-gray-100 text-gray-600 border-gray-200";
               return (
                 <section key={type} className="space-y-3">
                   <div className="flex items-center gap-2">
@@ -340,7 +343,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                       variant="outline"
                       className={cn("text-xs border px-2 py-0.5", typeColor)}
                     >
-                      {PROGRAM_TYPE_LABELS[type] ?? type}
+                     {PROGRAM_TYPE_LABELS[type as ProgramType] ?? type}
                     </Badge>
                     <div className="flex-1 h-px bg-border" />
                   </div>
@@ -351,6 +354,10 @@ export default function SemesterSettingsPage(): React.JSX.Element {
                           key={p.id}
                           program={p}
                           templates={compatibleTemplates}
+                          schoolYearStart={
+                            selectedSchoolYear?.start_date ?? null
+                          }
+                          schoolYearEnd={selectedSchoolYear?.end_date ?? null}
                         />
                       ))}
                     </div>
@@ -371,7 +378,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
       </div>
 
       {/* ════════════════════════════════════════════════════════════ */}
-      {/* ══ Dialogs ══ */}
+      {/* ══ Dialogs ══                                              */}
       {/* ════════════════════════════════════════════════════════════ */}
       <TemplateFormDialog
         open={createOpen}
@@ -379,8 +386,9 @@ export default function SemesterSettingsPage(): React.JSX.Element {
           setCreateOpen(false);
           setCreateFromType(null);
         }}
-programType={createFromType as ProgramType ?? undefined}
+        programType={(createFromType as ProgramType) ?? undefined}
       />
+
       {editTarget && (
         <TemplateFormDialog
           open={!!editTarget}
@@ -388,6 +396,7 @@ programType={createFromType as ProgramType ?? undefined}
           template={editTarget}
         />
       )}
+
       {deleteTarget && (
         <Dialog
           open
@@ -404,10 +413,7 @@ programType={createFromType as ProgramType ?? undefined}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setDeleteTarget(null)}
-              >
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
                 Cancel
               </Button>
               <Button

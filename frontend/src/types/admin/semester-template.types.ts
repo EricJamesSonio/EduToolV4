@@ -23,6 +23,14 @@ export interface SemesterTemplate {
   semesters: SemesterTemplateItem[];
 }
 
+export interface TermDate {
+  id: string;
+  term_id: string;
+  assignment_id: string;
+  start_date: string;
+  end_date: string;
+}
+
 export interface TemplateAssignment {
   id: string;
   program_id: string;
@@ -34,6 +42,7 @@ export interface TemplateAssignment {
     type: string;
     school_year_id: string;
   };
+  termDates: TermDate[]; // merged here ✅
 }
 
 export interface SemesterTemplateCreateDto {
@@ -64,4 +73,9 @@ export interface SemesterTemplateUpdateDto {
 export interface AssignTemplateDto {
   programId: string;
   templateId: string;
+  termDates?: {
+    termId: string;
+    startDate: string;
+    endDate: string;
+  }[];
 }
