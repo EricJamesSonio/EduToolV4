@@ -39,6 +39,8 @@ export default function SectionsPage(): React.JSX.Element {
   const {
     sections,
     isLoading: sectionsLoading,
+    filterProgramId,        // ← add
+    setFilterProgramId,     // ← add
     filterLevelId,
     setFilterLevelId,
     deleteTarget,
@@ -57,9 +59,12 @@ export default function SectionsPage(): React.JSX.Element {
 
   const isLoading = sectionsLoading || levelsLoading;
 
-  const filteredSections = sections.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredSections = sections.filter((s) => {
+    const matchesSearch  = s.name.toLowerCase().includes(search.toLowerCase());
+    const matchesProgram = filterProgramId === "all"
+      || levelMap[s.level_id]?.programId === filterProgramId;
+    return matchesSearch && matchesProgram;
+  });
 
   function handleSaved(): void {
     queryClient.invalidateQueries({ queryKey: ["admin", "sections", schoolYearId] });
@@ -87,6 +92,7 @@ export default function SectionsPage(): React.JSX.Element {
         isLoading={syLoading}
         selectedId={schoolYearId}
         onSelect={(id) => {
+          setFilterProgramId("all");
           setSchoolYearId(id);
           setFilterLevelId("all");
           setSearch("");
@@ -105,9 +111,16 @@ export default function SectionsPage(): React.JSX.Element {
               className="pl-8 w-56 h-9"
             />
           </div>
+
           <SectionLevelFilter
+            programs={programs}
+            filterProgramId={filterProgramId}
+            onProgramChange={(id) => {
+              setFilterProgramId(id);
+              setSearch("");
+            }}
             filterLevelId={filterLevelId}
-            onFilterChange={setFilterLevelId}
+            onLevelChange={setFilterLevelId}
             grouped={grouped}
             levelMap={levelMap}
           />
