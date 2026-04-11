@@ -43,57 +43,126 @@ export class ClassService {
   // Resolve semester automatically from schoolYearId
   // ---------------------------------------------------------------------------
 
-  private async resolveSemesterId(schoolYearId: string, orgId: string): Promise<string> {
-    // Pick the first semester that belongs to this school year for this org.
-    // Semester settings page is responsible for creating them — we just look one up.
-    const semester = await this.db.semester.findFirst({
-      where: { school_year_id: schoolYearId, org_id: orgId },
+// backend/src/modules/class/class.service.ts
+// Only resolveSemesterId changes — replace the existing method
+
+private async resolveSemesterId(
+  schoolYearId: string,
+  programId: string,
+  orgId: string,
+): Promise<string> {
+  // 1. Find the semester template assigned to this program
+  const assignment = await this.db.programSemesterAssignment.findFirst({
+    where: { program_id: programId, org_id: orgId },
+    include: {
+      template: {
+        include: {
+          semesters: {
+            orderBy: { order_index: 'asc' },
+          },
+        },
+      },
+    },
+  })
+
+  if (!assignment) {
+    throw new BadRequestException(
+      'No semester template is assigned to this program. Please assign one in Semester Settings before creating classes.',
+    )
+  }
+
+  // 2. Find the first Semester record for this school year
+  //    that matches the first semester name in the template
+  const firstTemplateSemester = assignment.template.semesters[0]
+
+  if (!firstTemplateSemester) {
+    throw new BadRequestException(
+      'The assigned semester template has no semesters defined.',
+    )
+  }
+
+  const semester = await this.db.semester.findFirst({
+    where: {
+      org_id:         orgId,
+      school_year_id: schoolYearId,
+      name:           firstTemplateSemester.name,
+    },
+    orderBy: { start_date: 'asc' },
+  })
+
+  if (!semester) {
+    // Fallback: just grab any semester for this school year
+    const fallback = await this.db.semester.findFirst({
+      where: { org_id: orgId, school_year_id: schoolYearId },
       orderBy: { start_date: 'asc' },
     })
 
-    if (!semester) {
+    if (!fallback) {
       throw new BadRequestException(
-        'No semester found for this school year. Please set up semesters in Semester Settings before creating classes.',
+        'No semesters found for this school year. Please create semesters in Semester Settings first.',
       )
     }
 
-    return semester.id
+    return fallback.id
   }
+
+  return semester.id
+}
 
   // ---------------------------------------------------------------------------
   // CRUD
   // ---------------------------------------------------------------------------
 
-  async create(orgId: string, dto: CreateClassDto) {
-    const semesterId = await this.resolveSemesterId(dto.schoolYearId, orgId)
+async create(orgId: string, dto: CreateClassDto) {
+  // Resolve programId from subject so we can find the right semester template
+  const subject = await this.db.subject.findFirst({
+    where: { id: dto.subjectId, org_id: orgId },
+    select: { program_id: true },
+  })
 
-    const slots = this.parseSlots(dto.schedules)
-    await this.assertNoEducatorConflict(dto.educatorId, orgId, slots)
+  if (!subject) {
+    throw new BadRequestException('Subject not found.')
+  }
 
-    if (dto.sectionId) {
-      await this.assertNoSectionConflict(dto.sectionId, orgId, slots)
-    }
+  if (!subject.program_id) {
+    throw new BadRequestException(
+      'Subject is not linked to a program. Cannot resolve semester.',
+    )
+  }
 
-    const cls = await this.classRepository.create({
-      orgId,
-      subjectId:    dto.subjectId,
-      educatorId:   dto.educatorId,
-      sectionId:    dto.sectionId,
-      schoolYearId: dto.schoolYearId,
-      semesterId,               // resolved, not from client
-      capacity:     dto.capacity,
+  const semesterId = await this.resolveSemesterId(
+    dto.schoolYearId,
+    subject.program_id,
+    orgId,
+  )
+
+  const slots = this.parseSlots(dto.schedules)
+  await this.assertNoEducatorConflict(dto.educatorId, orgId, slots)
+
+  if (dto.sectionId) {
+    await this.assertNoSectionConflict(dto.sectionId, orgId, slots)
+  }
+
+  const cls = await this.classRepository.create({
+    orgId,
+    subjectId:    dto.subjectId,
+    educatorId:   dto.educatorId,
+    sectionId:    dto.sectionId,
+    schoolYearId: dto.schoolYearId,
+    semesterId,
+    capacity:     dto.capacity,
+  })
+
+  await this.classRepository.replaceSchedules(orgId, cls.id, slots)
+
+  this.attendanceService
+    .generateSessionsForClass(cls.id, orgId)
+    .catch((err) => {
+      console.error(`[AttendanceService] Failed to generate sessions for class ${cls.id}:`, err)
     })
 
-    await this.classRepository.replaceSchedules(orgId, cls.id, slots)
-
-    this.attendanceService
-      .generateSessionsForClass(cls.id, orgId)
-      .catch((err) => {
-        console.error(`[AttendanceService] Failed to generate sessions for class ${cls.id}:`, err)
-      })
-
-    return this.classRepository.findById(cls.id, orgId)
-  }
+  return this.classRepository.findById(cls.id, orgId)
+}
 
   // --- everything below is unchanged from your original ---
 
