@@ -1,19 +1,23 @@
+// frontend/src/app/admin/school-years/page.tsx
+
 "use client";
 
-import { useState } from "react";
+import { useState }                          from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-import { schoolYearApi } from "@/api/admin/school-year.api";
-import { PageHeader }    from "@/components/shared/PageHeader";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { StatusBadge }   from "@/components/shared/StatusBadge";
-import { EmptyState }    from "@/components/shared/EmptyState";
-import { Button }   from "@/components/ui/button";
-import { Input }    from "@/components/ui/input";
-import { Label }    from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useForm }                           from "react-hook-form";
+import { toast }                             from "sonner";
+import { useRouter }                         from "next/navigation";
+import { isAxiosError }                      from "axios";
+
+import { schoolYearApi }   from "@/api/admin/school-year.api";
+import { PageHeader }      from "@/components/shared/PageHeader";
+import { ConfirmDialog }   from "@/components/shared/ConfirmDialog";
+import { StatusBadge }     from "@/components/shared/StatusBadge";
+import { EmptyState }      from "@/components/shared/EmptyState";
+import { Button }          from "@/components/ui/button";
+import { Input }           from "@/components/ui/input";
+import { Label }           from "@/components/ui/label";
+import { Skeleton }        from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -21,16 +25,39 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Plus, Eye, CalendarDays } from "lucide-react";
+
 import type { SchoolYear } from "@/types/admin/school-year.types";
 import { cn }         from "@/lib/utils";
 import { formatDate } from "@/utils/date.util";
-import type { AxiosError } from "axios";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface CreateForm {
   name:       string;
   start_date: string;
   end_date:   string;
 }
+
+interface ShortDurationWarning {
+  pendingValues: CreateForm;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function isShortDurationError(err: unknown): boolean {
+  return (
+    isAxiosError(err) &&
+    err.response?.data?.error === "SHORT_DURATION_WARNING"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CreateSchoolYearDialog
+// ---------------------------------------------------------------------------
 
 function CreateSchoolYearDialog({
   open,
@@ -40,89 +67,142 @@ function CreateSchoolYearDialog({
   onClose: () => void;
 }): React.JSX.Element {
   const queryClient = useQueryClient();
+
+  const [shortDurationWarning, setShortDurationWarning] =
+    useState<ShortDurationWarning | null>(null);
+
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<CreateForm>({ defaultValues: { name: "", start_date: "", end_date: "" } });
+  } = useForm<CreateForm>({
+    defaultValues: { name: "", start_date: "", end_date: "" },
+  });
 
   const mutation = useMutation({
-    mutationFn: (values: CreateForm) =>
+    mutationFn: (payload: CreateForm & { confirm_short_duration?: boolean }) =>
       schoolYearApi.create({
-        name:        values.name,
-        start_date:  values.start_date || undefined,
-        end_date:    values.end_date   || undefined,
+        name:                    payload.name,
+        start_date:              payload.start_date  || undefined,
+        end_date:                payload.end_date    || undefined,
+        confirm_short_duration:  payload.confirm_short_duration,
       }),
+
     onSuccess: () => {
       toast.success("School year created.");
       queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
       reset();
+      setShortDurationWarning(null);
       onClose();
     },
-    onError: () => toast.error("Failed to create school year."),
+
+    onError: (err: unknown, variables) => {
+      if (isShortDurationError(err)) {
+        // Intercept — show confirmation dialog instead of error toast
+        setShortDurationWarning({ pendingValues: variables });
+        return;
+      }
+      toast.error("Failed to create school year.");
+    },
   });
 
   const onSubmit = (values: CreateForm) => mutation.mutate(values);
 
+  const handleClose = () => {
+    reset();
+    setShortDurationWarning(null);
+    onClose();
+  };
+
+  // User confirmed despite the short-duration warning — re-submit with flag
+  const handleConfirmShortDuration = () => {
+    if (!shortDurationWarning) return;
+    mutation.mutate({
+      ...shortDurationWarning.pendingValues,
+      confirm_short_duration: true,
+    });
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>New School Year</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-1">
-          <div className="space-y-1.5">
-            <Label htmlFor="sy-name">Title</Label>
-            <Input
-              id="sy-name"
-              placeholder="e.g. School Year 2026-2027"
-              {...register("name", {
-                required:  "Title is required",
-                minLength: { value: 2,   message: "At least 2 characters" },
-                maxLength: { value: 100, message: "Max 100 characters" },
-              })}
-            />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
-          </div>
+    <>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New School Year</DialogTitle>
+          </DialogHeader>
 
-          <div className="grid grid-cols-2 gap-3">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-1">
             <div className="space-y-1.5">
-              <Label>
-                Start Date{" "}
-                <span className="text-muted-foreground font-normal">(optional)</span>
-              </Label>
-              <Input type="date" {...register("start_date")} />
+              <Label htmlFor="sy-name">Title</Label>
+              <Input
+                id="sy-name"
+                placeholder="e.g. School Year 2026-2027"
+                {...register("name", {
+                  required:  "Title is required",
+                  minLength: { value: 2,   message: "At least 2 characters" },
+                  maxLength: { value: 100, message: "Max 100 characters" },
+                })}
+              />
+              {errors.name && (
+                <p className="text-xs text-destructive">{errors.name.message}</p>
+              )}
             </div>
-            <div className="space-y-1.5">
-              <Label>
-                End Date{" "}
-                <span className="text-muted-foreground font-normal">(optional)</span>
-              </Label>
-              <Input type="date" {...register("end_date")} />
-            </div>
-          </div>
 
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => { reset(); onClose(); }}
-              disabled={mutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Creating..." : "Create"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>
+                  Start Date{" "}
+                  <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <Input type="date" {...register("start_date")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>
+                  End Date{" "}
+                  <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <Input type="date" {...register("end_date")} />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={mutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending ? "Creating..." : "Create"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Short-duration warning confirmation */}
+      <ConfirmDialog
+        open={!!shortDurationWarning}
+        title="School year looks short"
+        message="This school year doesn't span a full year. This might be a mistake — are you sure you want to proceed?"
+        confirmLabel="Yes, create it"
+        destructive={false}
+        isLoading={mutation.isPending}
+        onConfirm={handleConfirmShortDuration}
+        onOpenChange={(o) => {
+          if (!o) setShortDurationWarning(null);
+        }}
+      />
+    </>
   );
 }
+
+// ---------------------------------------------------------------------------
+// SchoolYearCard
+// ---------------------------------------------------------------------------
 
 function SchoolYearCard({
   year,
@@ -131,8 +211,9 @@ function SchoolYearCard({
   year:      SchoolYear;
   hasActive: boolean;
 }): React.JSX.Element {
-  const router = useRouter();
+  const router      = useRouter();
   const queryClient = useQueryClient();
+
   const [confirmAction, setConfirmAction] = useState<"activate" | "end" | null>(null);
 
   const activateMutation = useMutation({
@@ -142,8 +223,11 @@ function SchoolYearCard({
       queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
       setConfirmAction(null);
     },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to activate.");
+    onError: (err: unknown) => {
+      const msg = isAxiosError(err)
+        ? (err.response?.data?.message ?? "Failed to activate.")
+        : "Failed to activate.";
+      toast.error(msg);
       setConfirmAction(null);
     },
   });
@@ -186,11 +270,9 @@ function SchoolYearCard({
           year.status === "active" && "border-primary/30 bg-primary/5"
         )}
       >
-        {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <h3 className="font-semibold text-base">{year.name}</h3>
-            {/* Date range */}
             {(year.start_date || year.end_date) && (
               <p className="text-xs text-muted-foreground">
                 {year.start_date ? formatDate(year.start_date) : "—"}
@@ -202,7 +284,6 @@ function SchoolYearCard({
           <StatusBadge status={year.status} />
         </div>
 
-        {/* Actions */}
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
@@ -258,6 +339,10 @@ function SchoolYearCard({
     </>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 
 export default function SchoolYearsPage(): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);

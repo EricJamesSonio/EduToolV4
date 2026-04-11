@@ -1,16 +1,20 @@
+// frontend/src/api/admin/school-year.api.ts
+
 import client from "@/api/client";
 import type { SchoolYear } from "@/types/admin/school-year.types";
 
 export interface CreateSchoolYearRequest {
-  name:        string;
-  start_date?: string;
-  end_date?:   string;
+  name:                   string;
+  start_date?:            string;
+  end_date?:              string;
+  confirm_short_duration?: boolean;
 }
 
 export interface UpdateSchoolYearRequest {
-  name?:       string;
-  start_date?: string | null;
-  end_date?:   string | null;
+  name?:                  string;
+  start_date?:            string | null;
+  end_date?:              string | null;
+  confirm_short_duration?: boolean;
 }
 
 export const schoolYearApi = {
