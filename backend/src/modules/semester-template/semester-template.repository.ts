@@ -159,10 +159,30 @@ async assignToProgram(data: {
 }
 
   async removeAssignment(programId: string, orgId: string) {
-    return this.db.programSemesterAssignment.deleteMany({
-      where: { program_id: programId, org_id: orgId },
-    });
-  }
+      return this.db.$transaction(async (tx) => {
+        // Step 1: Find the assignment with its term dates
+        const assignment = await tx.programSemesterAssignment.findFirst({
+          where: { program_id: programId, org_id: orgId },
+          include: { termDates: true },
+        });
+
+        if (!assignment) {
+          return { count: 0 };
+        }
+
+        // Step 2: Delete term dates first (children have RESTRICT FK)
+        if (assignment.termDates && assignment.termDates.length > 0) {
+          await tx.programSemesterTermDate.deleteMany({
+            where: { assignment_id: assignment.id },
+          });
+        }
+
+        // Step 3: Now delete the assignment
+        return await tx.programSemesterAssignment.deleteMany({
+          where: { program_id: programId, org_id: orgId },
+        });
+      });
+    }
 
   /** Get all assignments, no school-year filter */
   async findAllAssignments(orgId: string) {
