@@ -41,7 +41,15 @@ export class SemesterTemplateService {
       })),
     })
   }
-
+async saveTermDates(
+  orgId: string,
+  programId: string,
+  termDates: Array<{ termId: string; startDate: string; endDate: string }>,
+) {
+  const assignment = await this.repo.findAssignmentByProgram(programId, orgId)
+  if (!assignment) throw new NotFoundException('No template assigned to this program.')
+  await this.repo.upsertTermDates(assignment.id, orgId, termDates)
+}
   async findAllForOrg(orgId: string) {
     return this.repo.getAllForOrg(orgId)
   }
@@ -99,26 +107,26 @@ export class SemesterTemplateService {
     await this.repo.delete(id)
   }
 
-  async assignToProgram(orgId: string, dto: AssignTemplateDto) {
-    const template = await this.repo.findById(dto.templateId, orgId)
-    if (!template) throw new NotFoundException('Semester template not found.')
+async assignToProgram(orgId: string, dto: AssignTemplateDto) {
+  const template = await this.repo.findById(dto.templateId, orgId)
+  if (!template) throw new NotFoundException('Semester template not found.')
 
-    // ✅ Validate program exists and type matches
-    const program = await this.programRepo.findById(dto.programId, orgId)
-    if (!program) throw new NotFoundException('Program not found.')
+  const program = await this.programRepo.findById(dto.programId, orgId)
+  if (!program) throw new NotFoundException('Program not found.')
 
-    if (template.program_type !== program.type) {
-      throw new BadRequestException(
-        `Template type "${template.program_type}" does not match program type "${program.type}".`,
-      )
-    }
-
-    return this.repo.assignToProgram({
-      orgId,
-      programId: dto.programId,
-      templateId: dto.templateId,
-    })
+  if (template.program_type !== program.type) {
+    throw new BadRequestException(
+      `Template type "${template.program_type}" does not match program type "${program.type}".`,
+    )
   }
+
+  return this.repo.assignToProgram({
+    orgId,
+    programId: dto.programId,
+    templateId: dto.templateId,
+    termDates: dto.termDates,
+  })
+}
 
   async removeAssignment(programId: string, orgId: string) {
     await this.repo.removeAssignment(programId, orgId)

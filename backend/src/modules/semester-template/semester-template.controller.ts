@@ -110,4 +110,14 @@ export class SemesterTemplateController {
     }
     return this.service.findAllForOrg(orgId)
   }
+
+  @Post('assignments/:programId/term-dates')
+  @Roles('admin')
+  async saveTermDates(
+    @Param('programId') programId: string,
+    @CurrentUser('org_id') orgId: string,
+    @Body() body: { termDates: Array<{ termId: string; startDate: string; endDate: string }> },
+  ) {
+    return this.service.saveTermDates(orgId, programId, body.termDates)
+  }
 }
