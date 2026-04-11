@@ -133,12 +133,13 @@ export default function SectionsPage(): React.JSX.Element {
           onCreateClick={() => setCreateOpen(true)}
         />
       ) : (
-        <SectionTable
-          sections={filteredSections}
-          levelMap={levelMap}
-          onEdit={setEditTarget}
-          onDelete={setDeleteTarget}
-        />
+      <SectionTable
+        sections={filteredSections}
+        levelMap={levelMap}
+        programs={programs}
+        onEdit={setEditTarget}
+        onDelete={setDeleteTarget}
+      />
       )}
 
       {createOpen && schoolYearId && (
