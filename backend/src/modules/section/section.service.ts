@@ -18,10 +18,28 @@ export class SectionService {
     });
     if (!level) throw new NotFoundException('Level not found.');
 
+    // Validate course if provided
+    if (dto.courseId) {
+      const course = await this.db.course.findFirst({
+        where: { id: dto.courseId, org_id: orgId },
+      });
+      if (!course) throw new NotFoundException('Course not found.');
+    }
+
+    // Validate strand if provided
+    if (dto.strandId) {
+      const strand = await this.db.strand.findFirst({
+        where: { id: dto.strandId, org_id: orgId },
+      });
+      if (!strand) throw new NotFoundException('Strand not found.');
+    }
+
     return this.sectionRepository.create({
       orgId,
       levelId:      dto.levelId,
       schoolYearId: dto.schoolYearId,
+      courseId:     dto.courseId,
+      strandId:     dto.strandId,
       name:         dto.name,
       capacity:     dto.capacity,
     });
