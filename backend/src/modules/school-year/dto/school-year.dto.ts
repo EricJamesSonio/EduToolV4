@@ -1,3 +1,5 @@
+// backend/src/modules/school-year/dto/school-year.dto.ts
+
 import {
   IsString,
   IsNotEmpty,
@@ -5,6 +7,7 @@ import {
   MaxLength,
   IsOptional,
   IsDateString,
+  IsBoolean,
 } from 'class-validator'
 
 export class CreateSchoolYearDto {
@@ -21,6 +24,10 @@ export class CreateSchoolYearDto {
   @IsOptional()
   @IsDateString()
   end_date?: string
+
+  @IsOptional()
+  @IsBoolean()
+  confirm_short_duration?: boolean
 }
 
 export class UpdateSchoolYearDto {
@@ -37,4 +44,13 @@ export class UpdateSchoolYearDto {
   @IsOptional()
   @IsDateString()
   end_date?: string
+
+  @IsOptional()
+  @IsBoolean()
+  confirm_short_duration?: boolean
+}
+
+export interface SchoolYearCreateResult {
+  data:     unknown   // tighten to SchoolYearEntity if you import it here
+  warning?: string
 }

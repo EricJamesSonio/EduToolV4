@@ -122,11 +122,11 @@ export function EditProgramDialog({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(PROGRAM_TYPE_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
+{Object.entries(PROGRAM_TYPE_LABELS).map(([value, label]) => (
+  <SelectItem key={value} value={value}>
+    {label}
+  </SelectItem>
+))}
               </SelectContent>
             </Select>
           </div>

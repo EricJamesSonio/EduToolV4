@@ -1,4 +1,3 @@
-// frontend/src/components/admin/organization/SubjectStep.tsx
 "use client"
 
 import { BookOpen } from "lucide-react"
@@ -16,13 +15,14 @@ import {
 } from "./constants/seed-data"
 
 interface SubjectStepProps {
-  selectedPrograms:      Set<string>
-  selectedLevels:        Set<string>
-  selectedStrands:       Set<string>
-  selectedCourses:       Set<string>
-  selectedSubjects:      Set<string>
-  onToggleSubject:       (subj: string) => void
-  onSelectAllForGroup:   (subjects: string[]) => void
+  selectedPrograms: Set<string>
+  selectedLevels: Set<string>
+  selectedStrands: Set<string>
+  selectedCourses: Set<string>
+  selectedSubjects: Set<string>
+  disabledSubjectTitles: Set<string>
+  onToggleSubject: (subj: string) => void
+  onSelectAllForGroup: (subjects: string[]) => void
   onDeselectAllForGroup: (subjects: string[]) => void
   allSelectableSubjects: string[]
 }
@@ -44,6 +44,7 @@ export function SubjectStep({
   selectedStrands,
   selectedCourses,
   selectedSubjects,
+  disabledSubjectTitles,
   onToggleSubject,
   onSelectAllForGroup,
   onDeselectAllForGroup,
@@ -51,43 +52,61 @@ export function SubjectStep({
 }: SubjectStepProps) {
   if (allSelectableSubjects.length === 0) return null
 
+  const isDisabled = (title: string) => disabledSubjectTitles.has(title)
+
   function renderSubjectCollapsible(
     key: string,
     title: string,
     subjects: string[],
     minorSet?: Set<string>,
   ) {
-    const selCount = subjects.filter((s) => selectedSubjects.has(s)).length
+    const availableSubjects = subjects.filter((s) =>
+      allSelectableSubjects.includes(s),
+    )
+
+    if (availableSubjects.length === 0) return null
+
+    const selCount = availableSubjects.filter(
+      (s) => selectedSubjects.has(s) && !isDisabled(s),
+    ).length
+
     return (
-      <Collapsible key={key} title={title} count={selCount} total={subjects.length}>
+      <Collapsible
+        key={key}
+        title={title}
+        count={selCount}
+        total={availableSubjects.length}
+      >
         <div className="space-y-2">
           <div className="flex gap-3 mb-2">
             <button
               type="button"
               className="text-xs text-primary hover:underline"
-              onClick={() => onSelectAllForGroup(subjects)}
+              onClick={() => onSelectAllForGroup(availableSubjects)}
             >
               All
             </button>
             <button
               type="button"
               className="text-xs text-muted-foreground hover:underline"
-              onClick={() => onDeselectAllForGroup(subjects)}
+              onClick={() => onDeselectAllForGroup(availableSubjects)}
             >
               None
             </button>
           </div>
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {subjects.map((subj) => {
+            {availableSubjects.map((subj) => {
               const isMinor = minorSet?.has(subj) ?? false
               return (
                 <div key={subj} className="flex items-center gap-2">
-                  <Checkbox
-                    checked={selectedSubjects.has(subj)}
-                    onChange={() => onToggleSubject(subj)}
-                    label={subj}
-                    subtle
-                  />
+                <Checkbox
+                  checked={selectedSubjects.has(subj)}
+                  onChange={() =>
+                    !isDisabled(subj) && onToggleSubject(subj)
+                  }
+                  label={subj}
+                  subtle
+                />
                   <SubjectTypeTag type={isMinor ? "minor" : "major"} />
                 </div>
               )
@@ -107,11 +126,15 @@ export function SubjectStep({
         </Label>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">major</Badge>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
+              major
+            </Badge>
             = unique per level/course
           </span>
           <span className="flex items-center gap-1">
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">minor</Badge>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+              minor
+            </Badge>
             = shared across all
           </span>
         </div>
@@ -124,8 +147,12 @@ export function SubjectStep({
           LEVEL_DEFS[prog]
             .filter((lvl) => selectedLevels.has(lvl))
             .map((lvl) =>
-              renderSubjectCollapsible(lvl, lvl, LEVEL_SUBJECTS[lvl] ?? [])
-            )
+              renderSubjectCollapsible(
+                lvl,
+                lvl,
+                LEVEL_SUBJECTS[lvl] ?? [],
+              ),
+            ),
         )}
 
       {/* SHS strand subjects — first 10 are minors */}
@@ -136,7 +163,7 @@ export function SubjectStep({
             `SHS – ${strand}`,
             SHS_STRAND_SUBJECTS[strand] ?? [],
             SHS_MINOR_SET,
-          )
+          ),
         )}
 
       {/* College course subjects — first 10 (GE) are minors */}
@@ -147,7 +174,7 @@ export function SubjectStep({
             `${code} Subjects`,
             COURSE_SUBJECTS[code] ?? [],
             COLLEGE_GE_SET,
-          )
+          ),
         )}
     </div>
   )

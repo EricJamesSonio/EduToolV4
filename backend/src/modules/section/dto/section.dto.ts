@@ -1,5 +1,11 @@
 import {
-  IsString, IsOptional, IsInt, IsUUID, MinLength, MaxLength, Min,
+  IsString,
+  IsOptional,
+  IsInt,
+  IsUUID,
+  MinLength,
+  MaxLength,
+  Min,
 } from 'class-validator';
 
 export class CreateSectionDto {
@@ -8,6 +14,14 @@ export class CreateSectionDto {
 
   @IsUUID()
   schoolYearId!: string;
+
+  @IsOptional()
+  @IsUUID()
+  courseId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  strandId?: string;
 
   @IsString()
   @MinLength(1)
@@ -40,4 +54,12 @@ export class QuerySectionDto {
   @IsOptional()
   @IsUUID()
   levelId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  courseId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  strandId?: string;
 }

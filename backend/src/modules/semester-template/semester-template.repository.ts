@@ -135,17 +135,28 @@ export class SemesterTemplateRepository {
     ]);
   }
 
-  async assignToProgram(data: { orgId: string; programId: string; templateId: string }) {
-    return this.db.programSemesterAssignment.upsert({
-      where: { program_id: data.programId },
-      update: { template_id: data.templateId },
-      create: {
-        org_id: data.orgId,
-        program_id: data.programId,
-        template_id: data.templateId,
-      },
-    });
+async assignToProgram(data: {
+  orgId: string
+  programId: string
+  templateId: string
+  termDates?: Array<{ termId: string; startDate: string; endDate: string }>
+}) {
+  const assignment = await this.db.programSemesterAssignment.upsert({
+    where: { program_id: data.programId },
+    update: { template_id: data.templateId },
+    create: {
+      org_id: data.orgId,
+      program_id: data.programId,
+      template_id: data.templateId,
+    },
+  })
+
+  if (data.termDates && data.termDates.length > 0) {
+    await this.upsertTermDates(assignment.id, data.orgId, data.termDates)
   }
+
+  return assignment
+}
 
   async removeAssignment(programId: string, orgId: string) {
     return this.db.programSemesterAssignment.deleteMany({
@@ -170,4 +181,55 @@ export class SemesterTemplateRepository {
       include: { template: { include: TEMPLATE_INCLUDE } },
     });
   }
+  async findAllBySchoolYear(orgId: string, schoolYearId: string) {
+    // Get all templates that are assigned to at least one program in this school year
+    return this.db.semesterTemplate.findMany({
+      where: {
+        org_id: orgId,
+        assignments: {
+          some: {
+            program: { school_year_id: schoolYearId },
+          },
+        },
+      },
+      include: TEMPLATE_INCLUDE,
+      orderBy: { name: 'asc' },
+    });
+  }
+
+async findAssignmentsBySchoolYear(orgId: string, schoolYearId: string) {
+  return this.db.programSemesterAssignment.findMany({
+    where: {
+      org_id: orgId,
+      program: { school_year_id: schoolYearId },
+    },
+    include: {
+      template: { include: TEMPLATE_INCLUDE },
+      program: { select: { id: true, name: true, type: true, school_year_id: true } },
+      termDates: true,
+    },
+  })
+}async upsertTermDates(
+  assignmentId: string,
+  orgId: string,
+  termDates: Array<{ termId: string; startDate: string; endDate: string }>,
+) {
+  await this.db.$transaction(
+    termDates.map((td) =>
+      this.db.programSemesterTermDate.upsert({
+        where: { assignment_id_term_id: { assignment_id: assignmentId, term_id: td.termId } },
+        update: { start_date: new Date(td.startDate), end_date: new Date(td.endDate) },
+        create: {
+          org_id: orgId,
+          assignment_id: assignmentId,
+          term_id: td.termId,
+          start_date: new Date(td.startDate),
+          end_date: new Date(td.endDate),
+        },
+      }),
+    ),
+  )
+}
+
+
 }

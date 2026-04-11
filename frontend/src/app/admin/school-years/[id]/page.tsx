@@ -1,393 +1,22 @@
 "use client";
 
 import { use, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm }   from "react-hook-form";
-import { toast }     from "sonner";
-import Link          from "next/link";
-import { useRouter } from "next/navigation";
+import { useQuery }      from "@tanstack/react-query";
+import Link              from "next/link";
 
-import { schoolYearApi }       from "@/api/admin/school-year.api";
-import { academicCalendarApi } from "@/api/admin/academic-calendar.api";
-import type { CalendarEventType } from "@/types/admin/calendar.types";
-import type { CalendarEvent }     from "@/types/admin/calendar.types";
-import type { SchoolYear }        from "@/types/admin/school-year.types";
+import { schoolYearApi } from "@/api/admin/school-year.api";
 
 import { EnrollmentTab } from "@/components/admin/enrollment/EnrollmentTab";
+import { OverviewTab }   from "@/components/admin/school-years/OverviewTab";
+import { CalendarTab }   from "@/components/admin/school-years/CalendarTab";
+import { ProgramsTab }   from "@/components/admin/school-years/ProgramsTab";
 import { StatusBadge }   from "@/components/shared/StatusBadge";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { DataTable }     from "@/components/shared/DataTable";
 
-import { Button }   from "@/components/ui/button";
-import { Input }    from "@/components/ui/input";
-import { Label }    from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  ChevronLeft,
-  Plus,
-  Pencil,
-  Trash2,
-  AlertTriangle,
-  Users,
-} from "lucide-react";
+import { AlertTriangle, BookOpen, ChevronLeft, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-import { ColumnDef }  from "@tanstack/react-table";
-import { cn }         from "@/lib/utils";
-import { formatDate } from "@/utils/date.util";
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-type Tab = "overview" | "enrollments" | "calendar";
-
-const EVENT_TYPE_LABELS: Record<CalendarEventType, string> = {
-  holiday:       "Holiday",
-  no_class_day:  "No Class Day",
-  exam_week:     "Exam Week",
-  special_event: "Special Event",
-};
-
-// ── Overview ──────────────────────────────────────────────────────────────────
-
-function OverviewTab({ schoolYear }: { schoolYear: SchoolYear }): React.JSX.Element {
-  return (
-    <div className="rounded-lg border bg-card divide-y">
-      <div className="flex items-center gap-4 px-4 py-3">
-        <span className="w-32 text-sm text-muted-foreground shrink-0">Title</span>
-        <span className="text-sm font-medium">{schoolYear.name}</span>
-      </div>
-      <div className="flex items-center gap-4 px-4 py-3">
-        <span className="w-32 text-sm text-muted-foreground shrink-0">Status</span>
-        <StatusBadge status={schoolYear.status} />
-      </div>
-      <div className="flex items-center gap-4 px-4 py-3">
-        <span className="w-32 text-sm text-muted-foreground shrink-0">Start Date</span>
-        <span className="text-sm">
-          {schoolYear.start_date ? formatDate(schoolYear.start_date) : "—"}
-        </span>
-      </div>
-      <div className="flex items-center gap-4 px-4 py-3">
-        <span className="w-32 text-sm text-muted-foreground shrink-0">End Date</span>
-        <span className="text-sm">
-          {schoolYear.end_date ? formatDate(schoolYear.end_date) : "—"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ── Calendar ──────────────────────────────────────────────────────────────────
-
-interface CalendarEventForm {
-  title:       string;
-  type:        CalendarEventType;
-  startDate:   string;
-  endDate:     string;
-  description: string;
-}
-
-function EventFormDialog({
-  mode,
-  event,
-  schoolYearId: _schoolYearId,
-  isLoading,
-  onClose,
-  onSubmit,
-}: {
-  mode:         "create" | "edit";
-  event?:       CalendarEvent;
-  schoolYearId: string;
-  isLoading:    boolean;
-  onClose:      () => void;
-  onSubmit:     (
-    values: Omit<CalendarEventForm, "schoolYearId"> & { schoolYearId?: string },
-  ) => void;
-}): React.JSX.Element {
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<CalendarEventForm>({
-    defaultValues: {
-      title:       event?.title ?? "",
-      type:        event?.type  ?? "holiday",
-      startDate:   event?.start_date?.slice(0, 10) ?? "",
-      endDate:     event?.end_date?.slice(0, 10)   ?? "",
-      description: event?.description ?? "",
-    },
-  });
-
-  const selectedType = watch("type");
-
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === "create" ? "Add Event" : "Edit Event"}
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-1">
-          <div className="space-y-1.5">
-            <Label>Title</Label>
-            <Input
-              placeholder="e.g. Christmas Holiday"
-              {...register("title", { required: "Title is required" })}
-            />
-            {errors.title && (
-              <p className="text-xs text-destructive">{errors.title.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Type</Label>
-            <Select
-              value={selectedType}
-              onValueChange={(v) => setValue("type", v as CalendarEventType)}
-            >
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Start Date</Label>
-              <Input
-                type="date"
-                {...register("startDate", { required: "Required" })}
-              />
-              {errors.startDate && (
-                <p className="text-xs text-destructive">{errors.startDate.message}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label>End Date</Label>
-              <Input
-                type="date"
-                {...register("endDate", { required: "Required" })}
-              />
-              {errors.endDate && (
-                <p className="text-xs text-destructive">{errors.endDate.message}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>
-              Notes{" "}
-              <span className="text-muted-foreground font-normal">(optional)</span>
-            </Label>
-            <Textarea rows={2} {...register("description")} />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading
-                ? "Saving..."
-                : mode === "create" ? "Add Event" : "Save Changes"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CalendarTab({ schoolYearId }: { schoolYearId: string }): React.JSX.Element {
-  const queryClient = useQueryClient();
-  const [eventDialog, setEventDialog] = useState<{
-    mode: "create" | "edit";
-    event?: CalendarEvent;
-  } | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null);
-
-  const { data: events, isLoading } = useQuery({
-    queryKey: ["admin", "calendar", schoolYearId],
-    queryFn:  () => academicCalendarApi.getAll(schoolYearId),
-  });
-
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ["admin", "calendar", schoolYearId] });
-
-  const createMutation = useMutation({
-    mutationFn: academicCalendarApi.create,
-    onSuccess: (res) => {
-      if (res.warning) toast.warning(res.warning);
-      else toast.success("Event added.");
-      invalidate();
-      setEventDialog(null);
-    },
-    onError: () => toast.error("Failed to add event."),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id:   string;
-      data: Parameters<typeof academicCalendarApi.update>[1];
-    }) => academicCalendarApi.update(id, data),
-    onSuccess: (res) => {
-      if (res.warning) toast.warning(res.warning);
-      else toast.success("Event updated.");
-      invalidate();
-      setEventDialog(null);
-    },
-    onError: () => toast.error("Failed to update event."),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => academicCalendarApi.remove(id),
-    onSuccess: () => {
-      toast.success("Event deleted.");
-      invalidate();
-      setDeleteTarget(null);
-    },
-    onError: () => toast.error("Failed to delete event."),
-  });
-
-  const columns: ColumnDef<CalendarEvent>[] = [
-    {
-      accessorKey: "start_date",
-      header: "Date",
-      cell: ({ row }) => (
-        <span className="text-sm">
-          {formatDate(row.original.start_date)}
-          {row.original.start_date !== row.original.end_date && (
-            <span className="text-muted-foreground">
-              {" "}– {formatDate(row.original.end_date)}
-            </span>
-          )}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "type",
-      header: "Type",
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {EVENT_TYPE_LABELS[row.original.type]}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "title",
-      header: "Title",
-      cell: ({ row }) => (
-        <span className="font-medium text-sm">{row.original.title}</span>
-      ),
-    },
-    {
-      accessorKey: "description",
-      header: "Notes",
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {row.original.description ?? "—"}
-        </span>
-      ),
-    },
-    {
-      id: "actions",
-      header: "",
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button
-            variant="ghost" size="icon" className="h-7 w-7"
-            onClick={() => setEventDialog({ mode: "edit", event: row.original })}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost" size="icon"
-            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => setDeleteTarget(row.original)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      ),
-    },
-  ];
-
-  return (
-    <>
-      <div className="flex justify-end mb-3">
-        <Button size="sm" onClick={() => setEventDialog({ mode: "create" })}>
-          <Plus className="mr-1.5 h-4 w-4" /> Add Event
-        </Button>
-      </div>
-
-      <DataTable
-        columns={columns}
-        data={events ?? []}
-        isLoading={isLoading}
-        emptyTitle="No events yet"
-        emptyDescription="Add holidays, exam weeks, or other calendar events."
-      />
-
-      {eventDialog && (
-        <EventFormDialog
-          mode={eventDialog.mode}
-          event={eventDialog.event}
-          schoolYearId={schoolYearId}
-          isLoading={createMutation.isPending || updateMutation.isPending}
-          onClose={() => setEventDialog(null)}
-          onSubmit={(values) => {
-            if (eventDialog.mode === "create") {
-              createMutation.mutate({ ...values, schoolYearId });
-            } else if (eventDialog.event) {
-              updateMutation.mutate({ id: eventDialog.event.id, data: values });
-            }
-          }}
-        />
-      )}
-
-      {deleteTarget && (
-        <ConfirmDialog
-          open
-          title="Delete event?"
-          message={`Delete "${deleteTarget.title}"? This cannot be undone.`}
-          confirmLabel="Delete"
-          destructive
-          isLoading={deleteMutation.isPending}
-          onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
-          onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
-        />
-      )}
-    </>
-  );
-}
-
-// ── Page ──────────────────────────────────────────────────────────────────────
+import type { Tab } from "@/components/admin/school-years/constants";
 
 export default function SchoolYearDetailPage({
   params,
@@ -395,7 +24,6 @@ export default function SchoolYearDetailPage({
   params: Promise<{ id: string }>;
 }): React.JSX.Element {
   const { id } = use(params);
-  const router  = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
   const { data: schoolYear, isLoading } = useQuery({
@@ -422,10 +50,10 @@ export default function SchoolYearDetailPage({
 
   const isEnded = schoolYear.status === "ended";
 
-  const TABS: { key: Tab | "levels"; label: string; href?: string; icon?: React.ReactNode }[] = [
+  const TABS: { key: Tab; label: string; icon?: React.ReactNode }[] = [
     { key: "overview",    label: "Overview" },
-    { key: "enrollments", label: "Enrollments", icon: <Users className="inline mr-1.5 h-3.5 w-3.5" /> },
-    { key: "levels",      label: "Levels",      href: `/admin/school-years/${id}/levels` },
+    { key: "enrollments", label: "Enrollments", icon: <Users    className="inline mr-1.5 h-3.5 w-3.5" /> },
+    { key: "programs",    label: "Programs",    icon: <BookOpen className="inline mr-1.5 h-3.5 w-3.5" /> },
     { key: "calendar",    label: "Calendar" },
   ];
 
@@ -455,15 +83,11 @@ export default function SchoolYearDetailPage({
       )}
 
       {/* Tabs */}
-
       <div className="border-b flex gap-0">
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => {
-              if (tab.href) router.push(tab.href);
-              else setActiveTab(tab.key as Tab);
-            }}
+            onClick={() => setActiveTab(tab.key)}
             className={cn(
               "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
               activeTab === tab.key
@@ -477,10 +101,11 @@ export default function SchoolYearDetailPage({
         ))}
       </div>
 
-      {/* Tab content */}
+      {/* Content */}
       <div>
         {activeTab === "overview"    && <OverviewTab schoolYear={schoolYear} />}
         {activeTab === "enrollments" && <EnrollmentTab schoolYearId={id} isEnded={isEnded} />}
+        {activeTab === "programs"    && <ProgramsTab schoolYearId={id} isEnded={isEnded} />}
         {activeTab === "calendar"    && <CalendarTab schoolYearId={id} />}
       </div>
     </div>

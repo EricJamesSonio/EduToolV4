@@ -20,7 +20,7 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator'
 export class SemesterTemplateController {
   constructor(private readonly service: SemesterTemplateService) {}
 
-  // Templates CRUD — scoped by programType query param
+  // ── Templates CRUD ──
   @Post()
   @Roles('admin')
   async create(
@@ -30,27 +30,45 @@ export class SemesterTemplateController {
     return this.service.create(orgId, dto)
   }
 
-@Get()
-@Roles('admin')
-async findAll(
-  @CurrentUser('org_id') orgId: string,
-  @Query('schoolYearId') schoolYearId?: string,  // Make optional
-) {
-  if (schoolYearId) {
-    // Get templates with assignments for this school year
-    return this.service.findAllBySchoolYear(orgId, schoolYearId)
+  @Get('for-org')
+  @Roles('admin')
+  async findAllForOrg(
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.service.findAllForOrg(orgId)
   }
-  // Get ALL templates for org (no assignment filter)
-  return this.service.findAllForOrg(orgId)
-}
 
-@Get('for-org')
-@Roles('admin')
-async findAllForOrg(
-  @CurrentUser('org_id') orgId: string,
-) {
-  return this.service.findAllForOrg(orgId)
-}
+  // ── Assignments ── (static routes BEFORE parameterized)
+  @Get('assignments/by-school-year')
+  @Roles('admin')
+  async findAssignments(
+    @CurrentUser('org_id') orgId: string,
+    @Query('schoolYearId') schoolYearId: string,
+  ) {
+    return this.service.findAssignmentsBySchoolYear(orgId, schoolYearId)
+  }
+
+  @Post('assignments')
+  @Roles('admin')
+  async assign(
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: AssignTemplateDto,
+  ) {
+    // Optional: add type-check guard here if needed
+    return this.service.assignToProgram(orgId, dto)
+  }
+
+  @Delete('assignments/:programId')
+  @Roles('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeAssignment(
+    @Param('programId') programId: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    await this.service.removeAssignment(programId, orgId)
+  }
+
+  // ── Parameterized routes (LAST) ──
   @Get(':id')
   @Roles('admin')
   async findOne(
@@ -80,32 +98,26 @@ async findAllForOrg(
     await this.service.remove(id, orgId)
   }
 
-  // Assignments — per school year view
-  @Get('assignments/by-school-year')
+  // Optional: default findAll (with schoolYearId query)
+  @Get()
   @Roles('admin')
-  async findAssignments(
+  async findAll(
     @CurrentUser('org_id') orgId: string,
-    @Query('schoolYearId') schoolYearId: string,
+    @Query('schoolYearId') schoolYearId?: string,
   ) {
-    return this.service.findAssignmentsBySchoolYear(orgId, schoolYearId)
+    if (schoolYearId) {
+      return this.service.findAllBySchoolYear(orgId, schoolYearId)
+    }
+    return this.service.findAllForOrg(orgId)
   }
 
-  @Post('assignments')
+  @Post('assignments/:programId/term-dates')
   @Roles('admin')
-  async assign(
-    @CurrentUser('org_id') orgId: string,
-    @Body() dto: AssignTemplateDto,
-  ) {
-    return this.service.assignToProgram(orgId, dto)
-  }
-
-  @Delete('assignments/:programId')
-  @Roles('admin')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async removeAssignment(
+  async saveTermDates(
     @Param('programId') programId: string,
     @CurrentUser('org_id') orgId: string,
+    @Body() body: { termDates: Array<{ termId: string; startDate: string; endDate: string }> },
   ) {
-    await this.service.removeAssignment(programId, orgId)
+    return this.service.saveTermDates(orgId, programId, body.termDates)
   }
 }

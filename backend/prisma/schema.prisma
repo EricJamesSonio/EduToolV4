@@ -147,6 +147,7 @@ model Course {
   subjects           Subject[]
   sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
+  sections Section[]
 }
 
 model Strand {
@@ -161,6 +162,7 @@ model Strand {
   subjects           Subject[]
   sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
+  sections Section[]
 }
 
 model Level {
@@ -181,12 +183,16 @@ model Section {
   id             String    @id @default(uuid())
   org_id         String
   level_id       String
+  course_id      String?
+  strand_id      String?
   school_year_id String
   name           String
   capacity       Int
   deleted_at     DateTime?
 
   level              Level                    @relation(fields: [level_id], references: [id])
+  course             Course?                  @relation(fields: [course_id], references: [id])
+  strand             Strand?                  @relation(fields: [strand_id], references: [id])
   schoolYear         SchoolYear               @relation(fields: [school_year_id], references: [id])
   studentEnrollments StudentProgramEnrollment[]
 }
@@ -237,7 +243,8 @@ model SemesterTemplateTerm {
   name        String
   order_index Int
 
-  semester SemesterTemplateItem @relation(fields: [semester_id], references: [id])
+  semester  SemesterTemplateItem        @relation(fields: [semester_id], references: [id])
+  termDates ProgramSemesterTermDate[]   // ← ADD THIS
 }
 
 model ProgramSemesterAssignment {
@@ -246,8 +253,9 @@ model ProgramSemesterAssignment {
   program_id  String @unique
   template_id String
 
-  program  Program          @relation(fields: [program_id], references: [id])
-  template SemesterTemplate @relation(fields: [template_id], references: [id])
+  program   Program          @relation(fields: [program_id], references: [id])
+  template  SemesterTemplate @relation(fields: [template_id], references: [id])
+  termDates ProgramSemesterTermDate[]   // ← ADD THIS
 }
 
 model StudentSchoolYear {
@@ -496,6 +504,20 @@ model GradingScheme {
   class      Class                    @relation(fields: [class_id], references: [id])
   components GradingSchemeComponent[]
   
+}
+
+model ProgramSemesterTermDate {
+  id            String   @id @default(uuid())
+  org_id        String
+  assignment_id String
+  term_id       String
+  start_date    DateTime
+  end_date      DateTime
+
+  assignment ProgramSemesterAssignment @relation(fields: [assignment_id], references: [id])
+  term       SemesterTemplateTerm      @relation(fields: [term_id], references: [id])
+
+  @@unique([assignment_id, term_id])
 }
 
 model GradingSchemeComponent {

@@ -4,6 +4,8 @@ import type { Section } from "@/types/admin/section.types";
 export interface CreateSectionRequest {
   levelId:      string;
   schoolYearId: string;
+  courseId?:    string;
+  strandId?:    string;
   name:         string;
   capacity:     number;
 }

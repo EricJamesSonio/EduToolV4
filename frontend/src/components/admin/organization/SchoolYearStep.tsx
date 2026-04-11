@@ -1,3 +1,5 @@
+// frontend/src/components/admin/organization/SchoolYearStep.tsx
+
 import { useState } from "react"
 import { Check, Loader2, Plus } from "lucide-react"
 import { Badge }    from "@/components/ui/badge"
@@ -29,15 +31,25 @@ export function SchoolYearStep({
   const [newName,    setNewName]    = useState("")
   const [startDate,  setStartDate]  = useState("")
   const [endDate,    setEndDate]    = useState("")
+  const [errors,     setErrors]     = useState<{ name?: string; startDate?: string; endDate?: string }>({})
+
+  function validate(): boolean {
+    const e: typeof errors = {}
+    if (!newName.trim())  e.name      = "Title is required"
+    if (!startDate)       e.startDate = "Start date is required"
+    if (!endDate)         e.endDate   = "End date is required"
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
 
   function handleCreate() {
-    const trimmed = newName.trim()
-    if (!trimmed) return
-    onCreate(trimmed, startDate || undefined, endDate || undefined)
+    if (!validate()) return
+    onCreate(newName.trim(), startDate, endDate)
     setNewName("")
     setStartDate("")
     setEndDate("")
     setShowCreate(false)
+    setErrors({})
   }
 
   function handleCancel() {
@@ -45,6 +57,7 @@ export function SchoolYearStep({
     setNewName("")
     setStartDate("")
     setEndDate("")
+    setErrors({})
   }
 
   return (
@@ -72,32 +85,24 @@ export function SchoolYearStep({
                     <span className="font-medium block truncate">{sy.name}</span>
                     {(sy.start_date || sy.end_date) && (
                       <span className="text-xs text-muted-foreground block">
-                        {sy.start_date
-                          ? new Date(sy.start_date).toLocaleDateString()
-                          : "—"}
+                        {sy.start_date ? new Date(sy.start_date).toLocaleDateString() : "—"}
                         {" – "}
-                        {sy.end_date
-                          ? new Date(sy.end_date).toLocaleDateString()
-                          : "—"}
+                        {sy.end_date ? new Date(sy.end_date).toLocaleDateString() : "—"}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-2">
                     <Badge
                       variant={
-                        sy.status === "active"
-                          ? "default"
-                          : sy.status === "ended"
-                          ? "secondary"
-                          : "outline"
+                        sy.status === "active" ? "default"
+                        : sy.status === "ended" ? "secondary"
+                        : "outline"
                       }
                       className="text-xs capitalize"
                     >
                       {sy.status}
                     </Badge>
-                    {selectedId === sy.id && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
+                    {selectedId === sy.id && <Check className="h-4 w-4 text-primary" />}
                   </div>
                 </button>
               ))}
@@ -112,40 +117,56 @@ export function SchoolYearStep({
 
           {showCreate ? (
             <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+              {/* Title */}
               <div className="space-y-1.5">
                 <Label className="text-xs">School Year Title</Label>
                 <Input
                   autoFocus
                   placeholder="e.g. S.Y. 2025–2026"
                   value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
+                  onChange={(e) => {
+                    setNewName(e.target.value)
+                    if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }))
+                  }}
                   onKeyDown={(e) => e.key === "Enter" && handleCreate()}
                 />
+                {errors.name && (
+                  <p className="text-xs text-destructive">{errors.name}</p>
+                )}
               </div>
+
+              {/* Dates */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">
-                    Start Date{" "}
-                    <span className="text-muted-foreground font-normal">(optional)</span>
-                  </Label>
+                  <Label className="text-xs">Start Date</Label>
                   <Input
                     type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => {
+                      setStartDate(e.target.value)
+                      if (errors.startDate) setErrors((prev) => ({ ...prev, startDate: undefined }))
+                    }}
                   />
+                  {errors.startDate && (
+                    <p className="text-xs text-destructive">{errors.startDate}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">
-                    End Date{" "}
-                    <span className="text-muted-foreground font-normal">(optional)</span>
-                  </Label>
+                  <Label className="text-xs">End Date</Label>
                   <Input
                     type="date"
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    onChange={(e) => {
+                      setEndDate(e.target.value)
+                      if (errors.endDate) setErrors((prev) => ({ ...prev, endDate: undefined }))
+                    }}
                   />
+                  {errors.endDate && (
+                    <p className="text-xs text-destructive">{errors.endDate}</p>
+                  )}
                 </div>
               </div>
+
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -153,17 +174,9 @@ export function SchoolYearStep({
                   onClick={handleCreate}
                   disabled={isCreating || !newName.trim()}
                 >
-                  {isCreating
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : "Create"
-                  }
+                  {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleCancel}
-                >
+                <Button type="button" size="sm" variant="ghost" onClick={handleCancel}>
                   Cancel
                 </Button>
               </div>

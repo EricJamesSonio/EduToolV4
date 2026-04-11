@@ -2,21 +2,35 @@ import { BookOpen } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "./ui/Checkbox"
 import { Collapsible } from "./ui/Collapsible"
-import { SHS_STRANDS } from "./constants/seed-data"
 
 interface StrandStepProps {
-  selectedStrands:    Set<string>
-  onToggleStrand:     (strand: string) => void
+  selectedStrands: Set<string>
+  disabledStrandNames: Set<string>
+  onToggleStrand: (strand: string) => void
   onSelectAllStrands: () => void
   onDeselectAllStrands: () => void
 }
 
+const SHS_STRANDS = [
+  "Accountancy, Business and Management",
+  "Arts and Design",
+  "English for Global Communication",
+  "Filipino, Panitikan at Kultura",
+  "General Academic Strand",
+  "Humanities and Social Sciences",
+  "Information and Communications Technology",
+  "Science, Technology, Engineering and Mathematics",
+]
+
 export function StrandStep({
   selectedStrands,
+  disabledStrandNames,
   onToggleStrand,
   onSelectAllStrands,
   onDeselectAllStrands,
 }: StrandStepProps) {
+  const isDisabled = (name: string) => disabledStrandNames.has(name)
+
   return (
     <div className="space-y-2">
       <Label className="flex items-center gap-1.5">
@@ -25,7 +39,8 @@ export function StrandStep({
       </Label>
       <Collapsible
         title="Senior High School Strands"
-        count={SHS_STRANDS.filter((s) => selectedStrands.has(s)).length}
+        count={SHS_STRANDS.filter((s) => selectedStrands.has(s) && !isDisabled(s))
+          .length}
         total={SHS_STRANDS.length}
         defaultOpen
       >
@@ -51,8 +66,9 @@ export function StrandStep({
               <Checkbox
                 key={strand}
                 checked={selectedStrands.has(strand)}
-                onChange={() => onToggleStrand(strand)}
+                onChange={() => !isDisabled(strand) && onToggleStrand(strand)}
                 label={strand}
+                disabled={isDisabled(strand)}
               />
             ))}
           </div>

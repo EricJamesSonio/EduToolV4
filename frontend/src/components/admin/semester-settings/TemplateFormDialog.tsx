@@ -20,19 +20,18 @@ import {
 } from "@/components/ui/select";
 import { Plus, X, GripVertical } from "lucide-react";
 import type { AxiosError } from "axios";
-import type { SemesterTemplate, ProgramType } from "@/types/admin/semester-template.types";
+import type {
+  SemesterTemplate,
+  ProgramType,
+} from "@/types/admin/semester-template.types";
 import {
   useCreateSemesterTemplate,
   useUpdateSemesterTemplate,
 } from "@/hooks/admin/useSemesterTemplate";
 
-const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
-  college: "College",
-  shs: "Senior High School",
-  jhs: "Junior High School",
-  elementary: "Elementary",
-};
-
+/* =========================
+   TYPES
+========================= */
 interface LocalTerm {
   name: string;
 }
@@ -42,11 +41,74 @@ interface LocalSemester {
   terms: LocalTerm[];
 }
 
+/* =========================
+   ✅ HARDCODED TEMPLATES
+========================= */
+const DEFAULT_TEMPLATES: Record<ProgramType, LocalSemester[]> = {
+  daycare: [
+    { name: "Level 1", terms: [{ name: "1st Term" }, { name: "2nd Term" }] },
+  ],
+  kinder: [
+    { name: "Kinder", terms: [{ name: "1st Term" }, { name: "2nd Term" }] },
+  ],
+  elementary: [
+    {
+      name: "Grade 1",
+      terms: [
+        { name: "1st Grading" },
+        { name: "2nd Grading" },
+        { name: "3rd Grading" },
+        { name: "4th Grading" },
+      ],
+    },
+  ],
+  jhs: [
+    {
+      name: "Grade 7",
+      terms: [
+        { name: "1st Grading" },
+        { name: "2nd Grading" },
+        { name: "3rd Grading" },
+        { name: "4th Grading" },
+      ],
+    },
+  ],
+  shs: [
+    {
+      name: "Grade 11 - 1st Sem",
+      terms: [{ name: "Midterm" }, { name: "Finals" }],
+    },
+  ],
+  college: [
+    {
+      name: "1st Semester",
+      terms: [{ name: "Midterm" }, { name: "Finals" }],
+    },
+    {
+      name: "2nd Semester",
+      terms: [{ name: "Midterm" }, { name: "Finals" }],
+    },
+  ],
+  custom: [],
+};
+
+/* ========================= */
+
+const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
+  daycare: "Daycare",
+  kinder: "Kinder",
+  elementary: "Elementary",
+  jhs: "Junior High School",
+  shs: "Senior High School",
+  college: "College",
+  custom: "Custom",
+};
+
 interface TemplateFormDialogProps {
   open: boolean;
   onClose: () => void;
   template?: SemesterTemplate;
-  programType?: ProgramType; // Auto-set when creating from category
+  programType?: ProgramType;
 }
 
 function toSemesterDto(semesters: LocalSemester[]) {
@@ -71,13 +133,16 @@ export function TemplateFormDialog({
   programType: initialProgramType,
 }: TemplateFormDialogProps): React.JSX.Element {
   const isEdit = !!template;
+
   const createMutation = useCreateSemesterTemplate();
   const updateMutation = useUpdateSemesterTemplate();
   const isPending = createMutation.isPending || updateMutation.isPending;
+
   const [name, setName] = useState(template?.name ?? "");
   const [programType, setProgramType] = useState<ProgramType | "">(
     initialProgramType ?? ""
   );
+
   const [semesters, setSemesters] = useState<LocalSemester[]>(() => {
     if (template?.semesters?.length) {
       return [...template.semesters]
@@ -89,31 +154,52 @@ export function TemplateFormDialog({
             .map((t) => ({ name: t.name })),
         }));
     }
-    return [
-      { name: "1st Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
-      { name: "2nd Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
-    ];
+
+    if (initialProgramType) {
+      return DEFAULT_TEMPLATES[initialProgramType];
+    }
+
+    return [];
   });
 
-  // Sync state when dialog opens
+  /* =========================
+     INIT / RESET
+  ========================= */
   useEffect(() => {
     if (open) {
       setName(template?.name ?? "");
       setProgramType(initialProgramType ?? "");
-      if (!template?.semesters?.length) {
-        setSemesters([
-          { name: "1st Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
-          { name: "2nd Semester", terms: [{ name: "Midterm" }, { name: "Finals" }] },
-        ]);
+
+      if (template?.semesters?.length) {
+        setSemesters(
+          [...template.semesters]
+            .sort((a, b) => a.order_index - b.order_index)
+            .map((s) => ({
+              name: s.name,
+              terms: [...(s.terms ?? [])]
+                .sort((a, b) => a.order_index - b.order_index)
+                .map((t) => ({ name: t.name })),
+            }))
+        );
+      } else if (initialProgramType) {
+        setSemesters(DEFAULT_TEMPLATES[initialProgramType]);
+      } else {
+        setSemesters([]);
       }
     }
   }, [open, template, initialProgramType]);
+
+  /* =========================
+     ACTIONS
+  ========================= */
 
   const addSemester = () =>
     setSemesters((prev) => [
       ...prev,
       {
-        name: `${prev.length + 1}${["st", "nd", "rd"][prev.length] ?? "th"} Semester`,
+        name: `${prev.length + 1}${
+          ["st", "nd", "rd"][prev.length] ?? "th"
+        } Semester`,
         terms: [],
       },
     ]);
@@ -130,7 +216,10 @@ export function TemplateFormDialog({
     setSemesters((prev) =>
       prev.map((s, i) =>
         i === si
-          ? { ...s, terms: [...s.terms, { name: `Term ${s.terms.length + 1}` }] }
+          ? {
+              ...s,
+              terms: [...s.terms, { name: `Term ${s.terms.length + 1}` }],
+            }
           : s
       )
     );
@@ -138,7 +227,9 @@ export function TemplateFormDialog({
   const removeTerm = (si: number, ti: number) =>
     setSemesters((prev) =>
       prev.map((s, i) =>
-        i === si ? { ...s, terms: s.terms.filter((_, j) => j !== ti) } : s
+        i === si
+          ? { ...s, terms: s.terms.filter((_, j) => j !== ti) }
+          : s
       )
     );
 
@@ -146,41 +237,35 @@ export function TemplateFormDialog({
     setSemesters((prev) =>
       prev.map((s, i) =>
         i === si
-          ? { ...s, terms: s.terms.map((t, j) => (j === ti ? { name: val } : t)) }
+          ? {
+              ...s,
+              terms: s.terms.map((t, j) =>
+                j === ti ? { name: val } : t
+              ),
+            }
           : s
       )
     );
 
+  /* =========================
+     SUBMIT
+  ========================= */
+
   const handleSubmit = () => {
-    console.log("handleSubmit called!");
-    console.log("name:", name);
-    console.log("programType:", programType);
-    console.log("semesters:", semesters);
-    console.log("isEdit:", isEdit);
-
-    if (!name.trim()) {
-      console.log("Validation failed: no name");
-      return toast.error("Template name is required.");
-    }
-    if (!isEdit && !programType) {
-      console.log("Validation failed: no programType");
+    if (!name.trim()) return toast.error("Template name is required.");
+    if (!isEdit && !programType)
       return toast.error("Program type is required.");
-    }
-    if (semesters.length === 0) {
-      console.log("Validation failed: no semesters");
+    if (semesters.length === 0)
       return toast.error("Add at least one semester.");
-    }
-    const semestersDto = toSemesterDto(semesters);
 
-    console.log("All validations passed. Creating template with:", {
-      name: name.trim(),
-      programType: programType,
-      semesters: semestersDto,
-    });
+    const semestersDto = toSemesterDto(semesters);
 
     if (isEdit) {
       updateMutation.mutate(
-        { id: template.id, dto: { name: name.trim(), semesters: semestersDto } },
+        {
+          id: template.id,
+          dto: { name: name.trim(), semesters: semestersDto },
+        },
         {
           onSuccess: () => {
             toast.success("Template updated.");
@@ -206,6 +291,8 @@ export function TemplateFormDialog({
       );
     }
   };
+
+  /* ========================= */
 
   return (
     <Dialog
@@ -234,7 +321,6 @@ export function TemplateFormDialog({
             />
           </div>
 
-          {/* Program Type — only for create, hide if passed from category */}
           {!isEdit && !initialProgramType && (
             <div className="space-y-1.5">
               <Label>
@@ -242,18 +328,19 @@ export function TemplateFormDialog({
               </Label>
               <Select
                 value={programType}
-                onValueChange={(v) => setProgramType(v as ProgramType)}
+                onValueChange={(v) => {
+                  setProgramType(v as ProgramType);
+                  setSemesters(DEFAULT_TEMPLATES[v as ProgramType]);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select program type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(
-                    Object.entries(PROGRAM_TYPE_LABELS) as [
-                      ProgramType,
-                      string,
-                    ][]
-                  ).map(([value, label]) => (
+                  {(Object.entries(PROGRAM_TYPE_LABELS) as [
+                    ProgramType,
+                    string,
+                  ][]).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>
@@ -263,16 +350,7 @@ export function TemplateFormDialog({
             </div>
           )}
 
-          {/* Program Type Display — when passed from category */}
-          {!isEdit && initialProgramType && (
-            <div className="space-y-1.5">
-              <Label>Program Type</Label>
-              <div className="px-3 py-2 rounded-md bg-muted text-sm">
-                {PROGRAM_TYPE_LABELS[initialProgramType]}
-              </div>
-            </div>
-          )}
-
+          {/* 🔽 EVERYTHING BELOW IS YOUR ORIGINAL UI */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Semesters & Terms</Label>
@@ -303,7 +381,9 @@ export function TemplateFormDialog({
                     <Input
                       className="h-8 text-sm font-medium bg-background"
                       value={sem.name}
-                      onChange={(e) => updateSemesterName(si, e.target.value)}
+                      onChange={(e) =>
+                        updateSemesterName(si, e.target.value)
+                      }
                     />
                     <Button
                       type="button"

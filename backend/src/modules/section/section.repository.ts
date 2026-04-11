@@ -5,10 +5,14 @@ import { DatabaseService } from '@/core/database/database.provider';
 export class SectionRepository {
   constructor(private readonly db: DatabaseService) {}
 
+
+
   async create(data: {
     orgId:        string;
     levelId:      string;
     schoolYearId: string;
+    courseId?:    string;
+    strandId?:    string;
     name:         string;
     capacity:     number;
   }) {
@@ -17,19 +21,30 @@ export class SectionRepository {
         org_id:         data.orgId,
         level_id:       data.levelId,
         school_year_id: data.schoolYearId,
+        course_id:      data.courseId ?? null,
+        strand_id:      data.strandId ?? null,
         name:           data.name,
         capacity:       data.capacity,
       },
     });
   }
 
-  async findAll(orgId: string, schoolYearId?: string, levelId?: string) {
+
+  async findAll(
+    orgId:        string,
+    schoolYearId?: string,
+    levelId?:      string,
+    courseId?:     string,
+    strandId?:     string,
+  ) {
     const sections = await this.db.section.findMany({
       where: {
         org_id:     orgId,
         deleted_at: null,
         ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
-        ...(levelId      ? { level_id: levelId }            : {}),
+        ...(levelId      ? { level_id:       levelId }      : {}),
+        ...(courseId     ? { course_id:      courseId }     : {}),
+        ...(strandId     ? { strand_id:      strandId }     : {}),
       },
       orderBy: [{ level_id: 'asc' }, { name: 'asc' }],
     });

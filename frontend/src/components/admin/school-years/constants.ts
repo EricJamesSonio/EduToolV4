@@ -7,4 +7,4 @@ export const EVENT_TYPE_LABELS: Record<CalendarEventType, string> = {
   special_event: "Special Event",
 };
 
-export type Tab = "overview" | "enrollments" | "calendar";
+export type Tab = "overview" | "enrollments" | "programs" | "calendar";

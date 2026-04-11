@@ -22,6 +22,7 @@ export interface Subject {
 
   programId: string;
   programName: string;
+  programType: string | null
 
   realProgramId: string | null;
 
@@ -30,6 +31,9 @@ export interface Subject {
 
   courseId: string | null;
   strandId: string | null;
+
+  educatorId: string | null;
+  educatorName: string | null;
 
   lockStatus: SubjectLockStatus;
 

@@ -95,86 +95,125 @@ export class SubjectRepository {
     return { ...enriched, sharings: [] };
   }
 
-  async findAll(
-    orgId: string,
-    filters: {
-      schoolYearId?: string;
-      programId?:    string;
-      levelId?:      string;
-      search?:       string;
-      courseId?:     string;
-      strandId?:     string;
-      scope?:        'open' | 'coupled';
-      yearLevel?:    string;
-      termLabel?:    string;
-      subjectType?:  string;
+async findAll(
+  orgId: string,
+  filters: {
+    schoolYearId?: string;
+    programId?: string;
+    levelId?: string;
+    search?: string;
+    courseId?: string;
+    strandId?: string;
+    scope?: 'open' | 'coupled';
+    yearLevel?: string;
+    termLabel?: string;
+    subjectType?: string;
+  },
+) {
+  let courseFilter: Record<string, unknown> = {};
+  if (filters.scope === 'open') {
+    courseFilter = { course_id: null };
+  } else if (filters.scope === 'coupled') {
+    courseFilter = { course_id: { not: null } };
+  } else if (filters.courseId) {
+    courseFilter = { OR: [{ course_id: null }, { course_id: filters.courseId }] };
+  } else if (filters.strandId) {
+    courseFilter = { OR: [{ strand_id: null }, { strand_id: filters.strandId }] };
+  }
+
+  let levelFilter: Record<string, unknown> = {};
+  if (filters.levelId) {
+    levelFilter = { level_id: filters.levelId };
+  } else if (filters.schoolYearId) {
+    const levels = await this.db.level.findMany({
+      where: { school_year_id: filters.schoolYearId },
+      select: { id: true },
+    });
+    const levelIds = levels.map((l) => l.id);
+    levelFilter = { OR: [{ level_id: { in: levelIds } }, { level_id: null }] };
+  }
+
+  // Query base subjects
+  const subjects = await this.db.subject.findMany({
+    where: {
+      org_id: orgId,
+      ...levelFilter,
+      ...(filters.programId ? { program_id: filters.programId } : {}),
+      ...(filters.subjectType ? { subject_type: filters.subjectType } : {}),
+      ...(filters.yearLevel ? { year_level: filters.yearLevel } : {}),
+      ...(filters.termLabel ? { term_label: filters.termLabel } : {}),
+      ...(filters.search ? { name: { contains: filters.search, mode: 'insensitive' } } : {}),
+      ...courseFilter,
     },
-  ) {
-    let courseFilter: Record<string, unknown> = {};
-    if (filters.scope === 'open') {
-      courseFilter = { course_id: null };
-    } else if (filters.scope === 'coupled') {
-      courseFilter = { course_id: { not: null } };
-    } else if (filters.courseId) {
-      courseFilter = { OR: [{ course_id: null }, { course_id: filters.courseId }] };
-    } else if (filters.strandId) {
-      courseFilter = { OR: [{ strand_id: null }, { strand_id: filters.strandId }] };
-    }
+    include: {
+      prerequisites: {
+        include: {
+          prerequisite: {
+            select: { id: true, name: true, year_level: true, term_label: true },
+          },
+        },
+      },
+      sharings: true,
+    },
+    orderBy: [{ year_level: 'asc' }, { term_label: 'asc' }, { name: 'asc' }],
+  });
 
-    let levelFilter: Record<string, unknown> = {};
-    if (filters.levelId) {
-      levelFilter = { level_id: filters.levelId };
-    } else if (filters.schoolYearId) {
-      const levels = await this.db.level.findMany({
-        where:  { school_year_id: filters.schoolYearId },
-        select: { id: true },
-      });
-      const levelIds = levels.map((l) => l.id);
-      levelFilter = { OR: [{ level_id: { in: levelIds } }, { level_id: null }] };
-    }
-
-    const subjects = await this.db.subject.findMany({
+  // Query shared minor subjects (if levelId is specified)
+  let sharedMinorSubjects: any[] = [];
+  if (filters.levelId) {
+    sharedMinorSubjects = await this.db.subject.findMany({
       where: {
         org_id: orgId,
-        ...levelFilter,
-        ...(filters.programId   ? { program_id:   filters.programId }                              : {}),
-        ...(filters.subjectType ? { subject_type: filters.subjectType }                            : {}),
-        ...(filters.yearLevel   ? { year_level:   filters.yearLevel }                              : {}),
-        ...(filters.termLabel   ? { term_label:   filters.termLabel }                              : {}),
-        ...(filters.search      ? { name: { contains: filters.search, mode: 'insensitive' } }      : {}),
-        ...courseFilter,
+        subject_type: 'minor',
+        sharings: {
+          some: { level_id: filters.levelId },
+        },
       },
       include: {
         prerequisites: {
           include: {
-            prerequisite: { select: { id: true, name: true, year_level: true, term_label: true } },
+            prerequisite: {
+              select: { id: true, name: true, year_level: true, term_label: true },
+            },
           },
         },
         sharings: true,
       },
       orderBy: [{ year_level: 'asc' }, { term_label: 'asc' }, { name: 'asc' }],
     });
+  }
 
-    const enriched        = await this.enrichSubjects(subjects);
-    const allSharings     = subjects.flatMap((s: any) => s.sharings ?? []);
-    const enrichedSharings = await this.enrichSharings(allSharings);
+  // Merge both lists (avoiding duplicates)
+  const allSubjects = [
+    ...subjects,
+    ...sharedMinorSubjects.filter(
+      (shared) => !subjects.some((s) => s.id === shared.id),
+    ),
+  ];
 
-    const sharingsBySubject = enrichedSharings.reduce<Record<string, any[]>>((acc, sh) => {
+  const enriched = await this.enrichSubjects(allSubjects);
+  const allSharings = allSubjects.flatMap((s: any) => s.sharings ?? []);
+  const enrichedSharings = await this.enrichSharings(allSharings);
+  const sharingsBySubject = enrichedSharings.reduce<Record<string, any[]>>(
+    (acc, sh) => {
       if (!acc[sh.subjectId]) acc[sh.subjectId] = [];
       acc[sh.subjectId].push(sh);
       return acc;
-    }, {});
+    },
+    {},
+  );
 
-    return enriched.map((s: any) => ({
-      ...s,
-      sharings: sharingsBySubject[s.id] ?? [],
-    }));
-  }
+  return enriched.map((s: any) => ({
+    ...s,
+    sharings: sharingsBySubject[s.id] ?? [],
+  }));
+}
 
   async findById(id: string, orgId: string) {
     const subject = await this.db.subject.findFirst({
       where: { id, org_id: orgId },
       include: {
+        program: { select: { id: true, type: true } },  // ← ADD
         prerequisites: {
           include: {
             prerequisite: { select: { id: true, name: true, year_level: true, term_label: true } },
@@ -185,11 +224,11 @@ export class SubjectRepository {
         },
         sharings: true,
       },
-    });
-    if (!subject) return null;
-    const [enriched]       = await this.enrichSubjects([subject]);
-    const enrichedSharings  = await this.enrichSharings((subject as any).sharings ?? []);
-    return { ...enriched, sharings: enrichedSharings };
+    })
+    if (!subject) return null
+    const [enriched]      = await this.enrichSubjects([subject])
+    const enrichedSharings = await this.enrichSharings((subject as any).sharings ?? [])
+    return { ...enriched, sharings: enrichedSharings }
   }
 
   async update(
@@ -270,5 +309,26 @@ export class SubjectRepository {
       where: { subject_id: subjectId, org_id: orgId },
     });
     return this.enrichSharings(sharings);
+  }
+
+  async findCourseById(courseId: string, orgId: string) {
+    return this.db.course.findFirst({
+      where: { id: courseId, org_id: orgId },
+      select: { id: true, program_id: true },
+    })
+  }
+
+  async findStrandById(strandId: string, orgId: string) {
+    return this.db.strand.findFirst({
+      where: { id: strandId, org_id: orgId },
+      select: { id: true, program_id: true },
+    })
+  }
+
+  async findLevelById(levelId: string, orgId: string) {
+    return this.db.level.findFirst({
+      where: { id: levelId, org_id: orgId },
+      select: { id: true, program_id: true },
+    })
   }
 }

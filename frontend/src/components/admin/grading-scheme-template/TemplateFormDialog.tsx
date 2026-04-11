@@ -25,15 +25,10 @@ import {
   useCreateSemesterTemplate,
   useUpdateSemesterTemplate,
 } from "@/hooks/admin/useSemesterTemplate";
+import { PROGRAM_TYPE_LABELS } from "@/components/admin/semester-settings/constants";
+import type { ProgramType } from "@/types/admin/semester-template.types";
 
-type ProgramType = "college" | "shs" | "jhs" | "elementary";
 
-const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
-  college: "College",
-  shs: "Senior High School",
-  jhs: "Junior High School",
-  elementary: "Elementary",
-};
 
 interface LocalTerm {
   name: string;
@@ -250,16 +245,11 @@ export function TemplateFormDialog({
                   <SelectValue placeholder="Select program type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(
-                    Object.entries(PROGRAM_TYPE_LABELS) as [
-                      ProgramType,
-                      string,
-                    ][]
-                  ).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
+  {Object.entries(PROGRAM_TYPE_LABELS).map(([value, label]) => (
+  <SelectItem key={value} value={value}>
+    {label}
+  </SelectItem>
+))}
                 </SelectContent>
               </Select>
             </div>
