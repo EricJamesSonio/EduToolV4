@@ -417,13 +417,13 @@ export function SeederCard() {
               />
 
               {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
-                <LevelStep
-                  selectedPrograms={selectedPrograms}
-                  disabledLevelNames={existingLevelNames}
-                  levelConfigs={levelConfigs}
-                  onSetCount={setLevelCount}
-                  onRenameAt={renameLevelAt}
-                />
+              <LevelStep
+                selectedPrograms={selectedPrograms}
+                disabledLevelNames={existingLevelNames}   // ← passed but LevelStep doesn't accept it
+                levelConfigs={levelConfigs}
+                onSetCount={setLevelCount}
+                onRenameAt={renameLevelAt}
+              />
               )}
 
               {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (

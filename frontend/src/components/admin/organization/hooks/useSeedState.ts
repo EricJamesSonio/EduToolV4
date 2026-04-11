@@ -1,5 +1,5 @@
 // frontend/src/components/admin/organization/hooks/useSeedState.ts
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   COLLEGE_COURSES,
   COURSE_SUBJECTS,
@@ -78,25 +78,39 @@ export function useSeedState() {
 
   const allSelectableSubjects = useMemo(() => {
     const out = new Set<string>()
+
     selectedPrograms.forEach((prog) => {
       if (LEVEL_DEFS[prog]) {
         levelConfigs[prog]?.names.forEach((lvl) => {
           LEVEL_SUBJECTS[lvl]?.forEach((s) => out.add(s))
         })
       }
+
       if (prog === "shs") {
         selectedStrands.forEach((strand) => {
           SHS_STRAND_SUBJECTS[strand]?.forEach((s) => out.add(s))
         })
       }
+
       if (prog === "college") {
         selectedCourses.forEach((code) => {
           COURSE_SUBJECTS[code]?.forEach((s) => out.add(s))
         })
       }
     })
+
     return Array.from(out)
   }, [selectedPrograms, levelConfigs, selectedStrands, selectedCourses])
+
+  // ✅ FIX: साफ stale selectedSubjects when selectable set shrinks
+  useEffect(() => {
+    setSelectedSubjects((prev) => {
+      const valid = new Set(allSelectableSubjects)
+      const cleaned = new Set([...prev].filter((s) => valid.has(s)))
+
+      return cleaned.size === prev.size ? prev : cleaned
+    })
+  }, [allSelectableSubjects])
 
   // ── Grading Scale ─────────────────────────────────────────────────────────
   const [seedGradingScale, setSeedGradingScale] = useState(true)
@@ -111,11 +125,13 @@ export function useSeedState() {
 
   const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => {
     const out: Record<string, GradingScalePreset> = {}
+
     Array.from(selectedPrograms).forEach((prog) => {
       const key = gradingScaleByProgram[prog] ?? GRADING_SCALE_PRESETS[0].key
       const preset = GRADING_SCALE_PRESETS.find((p) => p.key === key)
       if (preset) out[prog] = preset
     })
+
     return out
   }, [selectedPrograms, gradingScaleByProgram])
 
@@ -124,11 +140,13 @@ export function useSeedState() {
     setLevelConfigs((prev) => {
       const existing = prev[prog] ?? { count: 0, names: [] }
       const newNames = generateLevelNames(prog, count)
+
       const merged = newNames.map((defaultName, i) => {
         const oldName = existing.names[i]
         const defaultAtI = generateLevelNames(prog, existing.count)[i]
         return oldName && oldName !== defaultAtI ? oldName : defaultName
       })
+
       return { ...prev, [prog]: { count, names: merged } }
     })
   }
@@ -180,6 +198,7 @@ export function useSeedState() {
     selectedStrands, setSelectedStrands,
     selectedSubjects, setSelectedSubjects,
     allSelectableSubjects,
+
     levelConfigs,
     setLevelCount,
     renameLevelAt,

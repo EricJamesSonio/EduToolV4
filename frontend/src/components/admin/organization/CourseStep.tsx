@@ -32,7 +32,7 @@ export function CourseStep({
         College Courses
       </Label>
       <Collapsible
-        title="Bachelor of Secondary Education (BSEd) + Other Courses"
+        title="College Courses"
         count={selectedCount}
         total={COLLEGE_COURSES.length}
         defaultOpen

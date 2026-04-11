@@ -11,16 +11,7 @@ interface StrandStepProps {
   onDeselectAllStrands: () => void
 }
 
-const SHS_STRANDS = [
-  "Accountancy, Business and Management",
-  "Arts and Design",
-  "English for Global Communication",
-  "Filipino, Panitikan at Kultura",
-  "General Academic Strand",
-  "Humanities and Social Sciences",
-  "Information and Communications Technology",
-  "Science, Technology, Engineering and Mathematics",
-]
+import { SHS_STRANDS } from "./constants/seed-data"
 
 export function StrandStep({
   selectedStrands,
