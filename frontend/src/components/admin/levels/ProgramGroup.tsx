@@ -16,9 +16,11 @@ import { Button } from "@/components/ui/button";
 import { InlineEdit } from "./InlineEdit";
 import { getCountConfig } from "./get-count-config";
 import type { Level } from "@/types/admin/level.types";
-import type { Program, CourseSnapshot, StrandSnapshot } from "@/types/admin/program.types";
-
-// ─── GenerateLevelsRow (unchanged — only used for empty-state initial generation) ───
+import type {
+  Program,
+  CourseSnapshot,
+  StrandSnapshot,
+} from "@/types/admin/program.types";
 
 interface GenerateLevelsRowProps {
   programType: string;
@@ -81,8 +83,6 @@ function GenerateLevelsRow({
     </div>
   );
 }
-
-// ─── LevelRow (unchanged) ───
 
 interface LevelRowProps {
   level: Level;
@@ -149,8 +149,6 @@ function LevelRow({
     </div>
   );
 }
-
-// ─── CourseGroup (unchanged) ───
 
 interface CourseGroupProps {
   label: string;
@@ -227,8 +225,6 @@ function CourseGroup({
   );
 }
 
-// ─── ProgramGroup ───
-
 interface ProgramGroupProps {
   program: Program;
   levels: Level[];
@@ -236,7 +232,6 @@ interface ProgramGroupProps {
   onUpdate: (id: string, name: string) => void;
   onDelete: (level: Level) => void;
   onGenerate: (programId: string, count: number) => void;
-  /** Add a single new level to this program */
   onAdd: (programId: string) => void;
   isUpdating: boolean;
   isGenerating: boolean;
@@ -271,8 +266,8 @@ export function ProgramGroup({
         label: c.code ? `${c.code} – ${c.name}` : c.name,
       }))
     : hasStrands
-      ? program.strands.map((s: StrandSnapshot) => ({ id: s.id, label: s.name }))
-      : [];
+    ? program.strands.map((s: StrandSnapshot) => ({ id: s.id, label: s.name }))
+    : [];
 
   const hasLevels = levels.length > 0;
 
@@ -301,43 +296,46 @@ export function ProgramGroup({
 
       {expanded && (
         <div className="border-t divide-y">
+
           {/* ── Sub-grouped view (college / SHS) ── */}
           {useSubGroups ? (
-            <>
-              {subGroups.length === 0 ? (
-                <div className="px-4 py-6 text-center">
-                  <p className="text-sm text-muted-foreground">No courses or strands found.</p>
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {subGroups.map((group) => (
-                    <CourseGroup
-                      key={group.id}
-                      label={group.label}
-                      levels={levels}
-                      isEnded={isEnded}
-                      editingId={editingId}
-                      isUpdating={isUpdating}
-                      updatingId={updatingId}
-                      onEdit={(id) => setEditingId(id)}
-                      onCancelEdit={() => setEditingId(null)}
-                      onSave={(id, name) => {
-                        onUpdate(id, name);
-                        setEditingId(null);
-                      }}
-                      onDelete={onDelete}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
+            subGroups.length === 0 ? (
+              <div className="px-4 py-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No courses or strands found.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {subGroups.map((group) => (
+                  <CourseGroup
+                    key={group.id}
+                    label={group.label}
+                    levels={levels}
+                    isEnded={isEnded}
+                    editingId={editingId}
+                    isUpdating={isUpdating}
+                    updatingId={updatingId}
+                    onEdit={(id) => setEditingId(id)}
+                    onCancelEdit={() => setEditingId(null)}
+                    onSave={(id, name) => {
+                      onUpdate(id, name);
+                      setEditingId(null);
+                    }}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </div>
+            )
           ) : (
             <>
-              {/* Empty state — show generate row */}
+              {/* Empty state — no levels, no generate row open */}
               {!hasLevels && !showGenerate && (
                 <div className="px-4 py-8 text-center">
                   <Layers className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No levels yet for this program.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No levels yet for this program.
+                  </p>
                   {!isEnded && (
                     <button
                       onClick={() => setShowGenerate(true)}
@@ -369,7 +367,9 @@ export function ProgramGroup({
             </>
           )}
 
-          {/* Initial bulk-generate row (empty state only) */}
+          {/* ── Always-visible controls (both branches) ── */}
+
+          {/* Generate row */}
           {!isEnded && showGenerate && (
             <GenerateLevelsRow
               programType={program.type}
@@ -382,8 +382,8 @@ export function ProgramGroup({
             />
           )}
 
-          {/* Bottom action bar — shown when levels exist */}
-          {!isEnded && hasLevels && !showGenerate && (
+          {/* Action bar — shown when levels exist OR when using sub-groups with no levels */}
+          {!isEnded && !showGenerate && (hasLevels || useSubGroups) && (
             <div className="px-4 py-2.5 flex items-center gap-4">
               <button
                 onClick={() => onAdd(program.id)}
@@ -393,8 +393,16 @@ export function ProgramGroup({
                 <Plus className="h-3.5 w-3.5" />
                 {isAdding ? "Adding…" : "Add level"}
               </button>
+              <button
+                onClick={() => setShowGenerate(true)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                Generate levels
+              </button>
             </div>
           )}
+
         </div>
       )}
     </div>
