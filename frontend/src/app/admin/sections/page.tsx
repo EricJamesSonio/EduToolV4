@@ -39,8 +39,12 @@ export default function SectionsPage(): React.JSX.Element {
   const {
     sections,
     isLoading: sectionsLoading,
-    filterProgramId,        // ← add
-    setFilterProgramId,     // ← add
+    filterProgramId,
+    setFilterProgramId,
+    filterCourseId,       // ← add
+    setFilterCourseId,    // ← add
+    filterStrandId,       // ← add
+    setFilterStrandId,    // ← add
     filterLevelId,
     setFilterLevelId,
     deleteTarget,
@@ -92,8 +96,10 @@ export default function SectionsPage(): React.JSX.Element {
         isLoading={syLoading}
         selectedId={schoolYearId}
         onSelect={(id) => {
-          setFilterProgramId("all");
           setSchoolYearId(id);
+          setFilterProgramId("all");
+          setFilterCourseId("all");
+          setFilterStrandId("all");
           setFilterLevelId("all");
           setSearch("");
         }}
@@ -119,6 +125,10 @@ export default function SectionsPage(): React.JSX.Element {
               setFilterProgramId(id);
               setSearch("");
             }}
+            filterCourseId={filterCourseId}
+            onCourseChange={setFilterCourseId}
+            filterStrandId={filterStrandId}
+            onStrandChange={setFilterStrandId}
             filterLevelId={filterLevelId}
             onLevelChange={setFilterLevelId}
             grouped={grouped}

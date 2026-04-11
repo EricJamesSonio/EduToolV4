@@ -9,6 +9,8 @@ export function useSections(schoolYearId: string | null) {
   const queryClient = useQueryClient();
 
   const [filterProgramId, setFilterProgramId] = useState<string>("all");
+  const [filterCourseId,  setFilterCourseId]  = useState<string>("all");
+  const [filterStrandId,  setFilterStrandId]  = useState<string>("all");
   const [filterLevelId,   setFilterLevelId]   = useState<string>("all");
   const [deleteTarget,    setDeleteTarget]     = useState<Section | null>(null);
 
@@ -18,15 +20,28 @@ export function useSections(schoolYearId: string | null) {
     enabled:  !!schoolYearId,
   });
 
-  // Reset level filter when program changes
   function handleSetFilterProgramId(id: string) {
     setFilterProgramId(id);
+    setFilterCourseId("all");
+    setFilterStrandId("all");
+    setFilterLevelId("all");
+  }
+
+  function handleSetFilterCourseId(id: string) {
+    setFilterCourseId(id);
+    setFilterLevelId("all");
+  }
+
+  function handleSetFilterStrandId(id: string) {
+    setFilterStrandId(id);
     setFilterLevelId("all");
   }
 
   const sections = allSections.filter((s) => {
-    const matchesLevel   = filterLevelId   === "all" || s.level_id === filterLevelId;
-    return matchesLevel;
+    const matchesLevel  = filterLevelId  === "all" || s.level_id  === filterLevelId;
+    const matchesCourse = filterCourseId === "all" || (s as Section & { course_id?: string }).course_id === filterCourseId;
+    const matchesStrand = filterStrandId === "all" || (s as Section & { strand_id?: string }).strand_id === filterStrandId;
+    return matchesLevel && matchesCourse && matchesStrand;
   });
 
   const deleteMutation = useMutation({
@@ -47,6 +62,10 @@ export function useSections(schoolYearId: string | null) {
     isLoading,
     filterProgramId,
     setFilterProgramId: handleSetFilterProgramId,
+    filterCourseId,
+    setFilterCourseId:  handleSetFilterCourseId,
+    filterStrandId,
+    setFilterStrandId:  handleSetFilterStrandId,
     filterLevelId,
     setFilterLevelId,
     deleteTarget,
