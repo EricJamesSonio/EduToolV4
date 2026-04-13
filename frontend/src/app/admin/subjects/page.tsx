@@ -70,10 +70,12 @@ export default function SubjectsPage(): React.JSX.Element {
         {...filters}
         schoolYears={schoolYears}
         programs={programs}
+        levels={levels}
         courses={courses}
         strands={strands}
         syLoading={syLoading}
         programsLoading={programsLoading}
+        levelsLoading={levelsLoading}
       />
 
       {/* Tabs — pass setActiveTab so clicking Minor/Major actually works */}

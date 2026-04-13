@@ -1,3 +1,4 @@
+// frontend\src\components\admin\subject\SubjectFilters.tsx
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import {
   Select,
@@ -9,17 +10,19 @@ import {
 import type { FiltersState, FiltersActions } from "./hooks/useSubjectFilters";
 import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { Program } from "@/types/admin/program.types";
-import type { Course,  } from "@/types/admin/course.types";
+import type { Level } from "@/types/admin/level.types";
+import type { Course } from "@/types/admin/course.types";
 import type { Strand } from "@/types/admin/strand.types";
-
 
 interface SubjectFiltersProps extends FiltersState, FiltersActions {
   schoolYears: SchoolYear[];
   programs: Program[];
+  levels: Level[];
   courses: Course[];
   strands: Strand[];
   syLoading: boolean;
   programsLoading: boolean;
+  levelsLoading: boolean;
 }
 
 export function SubjectFilters({
@@ -35,14 +38,28 @@ export function SubjectFilters({
   setSelectedStrandId,
   schoolYears,
   programs,
+  levels,
   courses,
   strands,
   syLoading,
   programsLoading,
+  levelsLoading,
 }: SubjectFiltersProps) {
+  // Levels are filtered based on the selected course or strand
+const visibleLevels = (() => {
+  if (selectedProgramId === "all") return [];
+  return levels.filter((l) => l.program_id === selectedProgramId);
+})();
+
+  // Whether the selected program has courses or strands (determines if we skip straight to levels)
+  const hasCourses = courses.length > 0;
+  const hasStrands = strands.length > 0;
+const showLevels =
+  selectedProgramId !== "all" && visibleLevels.length > 0;
+
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {/* School Year Selector */}
+      {/* School Year */}
       <SchoolYearSelector
         schoolYears={schoolYears}
         isLoading={syLoading}
@@ -52,7 +69,7 @@ export function SubjectFilters({
 
       {selectedSchoolYearId && (
         <>
-          {/* Program Filter */}
+          {/* Program */}
           <Select
             value={selectedProgramId}
             onValueChange={(v) => {
@@ -66,8 +83,8 @@ export function SubjectFilters({
               <SelectValue placeholder="All Programs">
                 {selectedProgramId === "all"
                   ? "All Programs"
-                  : programs.find((p) => p.id === selectedProgramId)?.name ??
-                    "All Programs"}
+                  : (programs.find((p) => p.id === selectedProgramId)?.name ??
+                    "All Programs")}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -90,18 +107,22 @@ export function SubjectFilters({
             </SelectContent>
           </Select>
 
-          {/* Course Filter */}
-          {selectedProgramId !== "all" && courses.length > 0 && (
+          {/* Course — shown only when the program has courses */}
+          {selectedProgramId !== "all" && hasCourses && (
             <Select
               value={selectedCourseId}
-              onValueChange={(v) => setSelectedCourseId(v ?? "all")}
+              onValueChange={(v) => {
+                setSelectedCourseId(v ?? "all");
+                setSelectedStrandId("all"); // mutually exclusive with strand
+                setFilterLevelId("all");
+              }}
             >
               <SelectTrigger className="w-40 h-9 text-sm">
                 <SelectValue placeholder="All Courses">
                   {selectedCourseId === "all"
                     ? "All Courses"
-                    : courses.find((c) => c.id === selectedCourseId)?.name ??
-                      "All Courses"}
+                    : (courses.find((c) => c.id === selectedCourseId)?.name ??
+                      "All Courses")}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -115,18 +136,22 @@ export function SubjectFilters({
             </Select>
           )}
 
-          {/* Strand Filter */}
-          {selectedProgramId !== "all" && strands.length > 0 && (
+          {/* Strand — shown only when the program has strands */}
+          {selectedProgramId !== "all" && hasStrands && (
             <Select
               value={selectedStrandId}
-              onValueChange={(v) => setSelectedStrandId(v ?? "all")}
+              onValueChange={(v) => {
+                setSelectedStrandId(v ?? "all");
+                setSelectedCourseId("all"); // mutually exclusive with course
+                setFilterLevelId("all");
+              }}
             >
               <SelectTrigger className="w-40 h-9 text-sm">
                 <SelectValue placeholder="All Strands">
                   {selectedStrandId === "all"
                     ? "All Strands"
-                    : strands.find((s) => s.id === selectedStrandId)?.name ??
-                      "All Strands"}
+                    : (strands.find((s) => s.id === selectedStrandId)?.name ??
+                      "All Strands")}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -140,7 +165,38 @@ export function SubjectFilters({
             </Select>
           )}
 
-          {/* Level Filter - NOT shown, as it's handled by course/strand */}
+          {/* Level — shown after course/strand is picked, or directly if program has neither */}
+          {showLevels && (
+            <Select
+              value={filterLevelId}
+              onValueChange={(v) => setFilterLevelId(v ?? "all")}
+            >
+              <SelectTrigger className="w-40 h-9 text-sm">
+                <SelectValue placeholder="All Levels">
+                  {filterLevelId === "all"
+                    ? "All Levels"
+                    : (visibleLevels.find((l) => l.id === filterLevelId)
+                        ?.name ?? "All Levels")}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {levelsLoading ? (
+                  <div className="p-2 text-sm text-muted-foreground">
+                    Loading levels...
+                  </div>
+                ) : (
+                  <>
+                    <SelectItem value="all">All Levels</SelectItem>
+                    {visibleLevels.map((level) => (
+                      <SelectItem key={level.id} value={level.id}>
+                        {level.name}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          )}
         </>
       )}
     </div>
