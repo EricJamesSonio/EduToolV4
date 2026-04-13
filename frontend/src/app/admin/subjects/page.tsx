@@ -119,14 +119,17 @@ export default function SubjectsPage(): React.JSX.Element {
     enabled: !!selectedSchoolYearId,
   });
 
-  // Courses - only if program selected and supports courses
+  // Courses - only if program selected
   const { data: courses = [] } = useQuery({
-    queryKey: ["admin", "courses", selectedProgramId],
-    queryFn: () => courseApi.getAll({ schoolYearId: selectedSchoolYearId!, programId: selectedProgramId }),
+    queryKey: ["admin", "courses", selectedSchoolYearId, selectedProgramId],
+    queryFn: () => courseApi.getAll({ 
+      schoolYearId: selectedSchoolYearId!,
+      programId: selectedProgramId 
+    }),
     enabled: selectedProgramId !== "all" && !!selectedSchoolYearId,
   });
 
-  // Strands - only if program selected and supports strands
+  // Strands - only if program selected
   const { data: strands = [] } = useQuery({
     queryKey: ["admin", "strands", selectedProgramId],
     queryFn: () => strandApi.getAll({ program_id: selectedProgramId }),
@@ -246,11 +249,17 @@ export default function SubjectsPage(): React.JSX.Element {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Programs</SelectItem>
-                {programs.map((program) => (
-                  <SelectItem key={program.id} value={program.id}>
-                    {program.name}
-                  </SelectItem>
-                ))}
+                {programsLoading ? (
+                  <div className="p-2 text-sm text-muted-foreground">Loading programs...</div>
+                ) : programs.length === 0 ? (
+                  <div className="p-2 text-sm text-muted-foreground">No programs found</div>
+                ) : (
+                  programs.map((program) => (
+                    <SelectItem key={program.id} value={program.id}>
+                      {program.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
 
