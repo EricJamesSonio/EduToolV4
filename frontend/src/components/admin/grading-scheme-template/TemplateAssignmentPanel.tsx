@@ -52,6 +52,8 @@ export function TemplateAssignmentPanel({
 }: TemplateAssignmentPanelProps) {
   const [selectedMode, setSelectedMode] = useState<"program" | "class">("program");
   const [pendingApply, setPendingApply] = useState<PendingProgramApply | null>(null);
+  const [programTemplates, setProgramTemplates] = useState<Record<string, string>>({});
+  const [classTemplates, setClassTemplates] = useState<Record<string, string>>({});
 
   const applyToProgram = useApplyTemplateToProgram();
   const applyToClass = useApplyTemplateToClass();
@@ -82,6 +84,12 @@ export function TemplateAssignmentPanel({
             `Template applied to ${res.appliedCount} class${res.appliedCount !== 1 ? "es" : ""}.`
           );
           setPendingApply(null);
+          // Clear the selected template for this program after successful apply
+          setProgramTemplates((prev) => {
+            const next = { ...prev };
+            delete next[pendingApply.programId];
+            return next;
+          });
         },
         onError: (e) => {
           const err = e as AxiosError<{ message: string }>;
@@ -96,7 +104,15 @@ export function TemplateAssignmentPanel({
     applyToClass.mutate(
       { classId, templateId },
       {
-        onSuccess: () => toast.success("Template applied to class."),
+        onSuccess: () => {
+          toast.success("Template applied to class.");
+          // Clear the selected template for this class after successful apply
+          setClassTemplates((prev) => {
+            const next = { ...prev };
+            delete next[classId];
+            return next;
+          });
+        },
         onError: (e) => {
           const err = e as AxiosError<{ message: string }>;
           toast.error(err?.response?.data?.message ?? "Failed to apply.");
@@ -154,9 +170,11 @@ export function TemplateAssignmentPanel({
                     </p>
                   </div>
                   <Select
-                    onValueChange={(templateId) =>
-                      handleProgramTemplateSelect(prog, templateId)
-                    }
+                    value={programTemplates[prog.id] ?? ""}
+                    onValueChange={(templateId) => {
+                      setProgramTemplates((prev) => ({ ...prev, [prog.id]: templateId }));
+                      handleProgramTemplateSelect(prog, templateId);
+                    }}
                     disabled={isPending || prog.classes.length === 0}
                   >
                     <SelectTrigger className="h-8 w-40 text-xs">
@@ -199,9 +217,11 @@ export function TemplateAssignmentPanel({
                       >
                         <span className="flex-1 truncate text-xs">{cls.name}</span>
                         <Select
-                          onValueChange={(templateId) =>
-                            handleApplyToClass(cls.id, templateId)
-                          }
+                          value={classTemplates[cls.id] ?? ""}
+                          onValueChange={(templateId) => {
+                            setClassTemplates((prev) => ({ ...prev, [cls.id]: templateId }));
+                            handleApplyToClass(cls.id, templateId);
+                          }}
                           disabled={isPending}
                         >
                           <SelectTrigger className="h-7 w-36 text-xs">
