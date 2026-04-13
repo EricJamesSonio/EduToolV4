@@ -136,7 +136,7 @@ export class OrgSeederService {
     await this.seedCourses(orgId, schoolYearId, shouldSeedProgram, shouldSeedCourse, programMap, courseMap, result)
     await this.seedStrands(orgId, schoolYearId, shouldSeedProgram, shouldSeedStrand, programMap, strandMap, result)
     await this.seedLevelsAndSections(orgId, schoolYearId, shouldSeedProgram, shouldSeedLevel, programMap, levelMap, levelConfigs, sectionConfigs, result)
-    await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, levelMap, gradingScales, result)
+    await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, programMap, gradingScales, result)
     await this.seedGradingSchemes(orgId, shouldSeedProgram, result)
     await this.seedSemesterTemplates(orgId, shouldSeedProgram, programMap, result)
     await this.seedMajorSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, subjectNameToId, result)
@@ -304,47 +304,49 @@ private async seedGradingScales(
   orgId:         string,
   schoolYearId:  string,
   shouldSeed:    (k: string) => boolean,
-  levelMap:      Record<string, string>,
+  programMap:    Record<string, string>,  // CHANGED: back to programMap
   gradingScales: Record<string, GradingScaleOption>,
   result:        SeedResult,
 ) {
-    const assignments = Object.keys(gradingScales).length > 0
-      ? Object.entries(gradingScales).flatMap(([progKey, scale]) =>
-          !shouldSeed(progKey) ? [] :
-          Object.entries(levelMap).map(([levelName, levelId]) => ({
-            levelName, levelId, scaleName: scale.name, ranges: scale.ranges as any,
-          }))
-        )
-      : buildScaleAssignments()
-          .filter((sa) => shouldSeed(sa.programKey) && levelMap[sa.levelName])
-          .map((sa) => ({
-            levelName: sa.levelName,
-            levelId:   levelMap[sa.levelName],
-            scaleName: sa.scaleName,
-            ranges:    sa.ranges,
-          }))
+  const assignments = Object.keys(gradingScales).length > 0
+    ? Object.entries(gradingScales)
+        .filter(([progKey]) => shouldSeed(progKey) && programMap[progKey])
+        .map(([progKey, scale]) => ({
+          programKey: progKey,
+          programId: programMap[progKey],
+          scaleName: scale.name,
+          ranges: scale.ranges as any,
+        }))
+    : buildScaleAssignments()
+        .filter((sa) => shouldSeed(sa.programKey) && programMap[sa.programKey])
+        .map((sa) => ({
+          programKey: sa.programKey,
+          programId: programMap[sa.programKey],
+          scaleName: sa.scaleName,
+          ranges: sa.ranges,
+        }))
 
-    for (const { levelName: _levelName, levelId, scaleName, ranges } of assignments) {
-      const id       = seedId('scale', _levelName, scaleName, schoolYearId, orgId)
-      const existing = await this.db.gradingScale.findFirst({ where: { id } })
-      if (existing) {
-        result.gradingScales.already_exists++
-      } else {
+  for (const { programKey, programId, scaleName, ranges } of assignments) {
+    const id = seedId('scale', programKey, scaleName, schoolYearId, orgId)
+    const existing = await this.db.gradingScale.findFirst({ where: { id } })
+    if (existing) {
+      result.gradingScales.already_exists++
+    } else {
       await this.db.gradingScale.create({
         data: {
           id,
-          org_id:         orgId,
+          org_id: orgId,
           school_year_id: schoolYearId,
-          program_id:     levelId,
-          name:           scaleName,
+          program_id: programId,  // ✅ NOW CORRECT
+          name: scaleName,
           ranges,
-          is_locked:      false,
+          is_locked: false,
         },
       })
-        result.gradingScales.seeded++
-      }
+      result.gradingScales.seeded++
     }
   }
+}
 
   private async seedGradingSchemes(
     orgId:      string,

@@ -1,71 +1,45 @@
-import { COLLEGE_COURSES, YEAR_LABELS } from './courses.data'
+import { COLLEGE_COURSES } from './courses.data'
 
 export const SCALE_K12 = [
-  { min: 90, max: 100, label: 'Outstanding' },
-  { min: 85, max: 89,  label: 'Very Satisfactory' },
-  { min: 80, max: 84,  label: 'Satisfactory' },
-  { min: 75, max: 79,  label: 'Fairly Satisfactory' },
-  { min: 0,  max: 74,  label: 'Did Not Meet Expectations' },
+  { minPercent: 90, maxPercent: 100, gradeValue: '1.0', remark: 'Outstanding', isPassing: true },
+  { minPercent: 85, maxPercent: 89, gradeValue: '2.0', remark: 'Very Satisfactory', isPassing: true },
+  { minPercent: 80, maxPercent: 84, gradeValue: '3.0', remark: 'Satisfactory', isPassing: true },
+  { minPercent: 75, maxPercent: 79, gradeValue: '4.0', remark: 'Fairly Satisfactory', isPassing: true },
+  { minPercent: 0, maxPercent: 74, gradeValue: '5.0', remark: 'Did Not Meet', isPassing: false },
 ]
 
 export const SCALE_COLLEGE = [
-  { min: 97, max: 100, label: '1.0 – Excellent' },
-  { min: 93, max: 96,  label: '1.25 – Very Good' },
-  { min: 89, max: 92,  label: '1.5 – Very Good' },
-  { min: 85, max: 88,  label: '1.75 – Good' },
-  { min: 82, max: 84,  label: '2.0 – Good' },
-  { min: 78, max: 81,  label: '2.25 – Satisfactory' },
-  { min: 75, max: 77,  label: '2.5 – Satisfactory' },
-  { min: 70, max: 74,  label: '2.75 – Passing' },
-  { min: 65, max: 69,  label: '3.0 – Passing' },
-  { min: 55, max: 64,  label: '4.0 – Conditional Fail' },
-  { min: 0,  max: 54,  label: '5.0 – Fail' },
+  { minPercent: 97, maxPercent: 100, gradeValue: '1.0', remark: 'Excellent', isPassing: true },
+  { minPercent: 93, maxPercent: 96, gradeValue: '1.25', remark: 'Very Good', isPassing: true },
+  { minPercent: 89, maxPercent: 92, gradeValue: '1.5', remark: 'Very Good', isPassing: true },
+  { minPercent: 85, maxPercent: 88, gradeValue: '1.75', remark: 'Good', isPassing: true },
+  { minPercent: 82, maxPercent: 84, gradeValue: '2.0', remark: 'Good', isPassing: true },
+  { minPercent: 78, maxPercent: 81, gradeValue: '2.25', remark: 'Satisfactory', isPassing: true },
+  { minPercent: 75, maxPercent: 77, gradeValue: '2.5', remark: 'Satisfactory', isPassing: true },
+  { minPercent: 70, maxPercent: 74, gradeValue: '2.75', remark: 'Passing', isPassing: true },
+  { minPercent: 65, maxPercent: 69, gradeValue: '3.0', remark: 'Passing', isPassing: true },
+  { minPercent: 55, maxPercent: 64, gradeValue: '4.0', remark: 'Conditional', isPassing: false },
+  { minPercent: 0, maxPercent: 54, gradeValue: '5.0', remark: 'Fail', isPassing: false },
 ]
 
 export const SCALE_PASSFAIL = [
-  { min: 75, max: 100, label: 'P – Pass' },
-  { min: 0,  max: 74,  label: 'F – Fail' },
+  { minPercent: 75, maxPercent: 100, gradeValue: 'P', remark: 'Pass', isPassing: true },
+  { minPercent: 0, maxPercent: 74, gradeValue: 'F', remark: 'Fail', isPassing: false },
 ]
 
 export type ScaleAssignment = {
   programKey: string
-  levelName:  string
-  scaleName:  string
-  ranges:     object
+  scaleName: string
+  ranges: object
 }
 
 export function buildScaleAssignments(): ScaleAssignment[] {
-  const out: ScaleAssignment[] = []
-
-  for (const name of ['Daycare 1', 'Daycare 2']) {
-    out.push({ programKey: 'daycare', levelName: name, scaleName: 'Pass/Fail Scale', ranges: SCALE_PASSFAIL })
-  }
-
-  for (const name of ['Kinder 1', 'Kinder 2']) {
-    out.push({ programKey: 'kinder', levelName: name, scaleName: 'Pass/Fail Scale', ranges: SCALE_PASSFAIL })
-  }
-
-  for (let g = 1; g <= 6; g++) {
-    out.push({ programKey: 'elementary', levelName: `Grade ${g}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
-  }
-
-  for (let g = 7; g <= 10; g++) {
-    out.push({ programKey: 'jhs', levelName: `Grade ${g}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
-  }
-
-  for (const grade of ['Grade 11', 'Grade 12']) {
-    out.push({ programKey: 'shs', levelName: grade, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
-  }
-
-  const maxYears = Math.max(...COLLEGE_COURSES.map((c) => c.years))
-  for (let y = 1; y <= maxYears; y++) {
-    out.push({
-      programKey: 'college',
-      levelName:  YEAR_LABELS[y - 1],
-      scaleName:  'College Numeric Scale (1.0–5.0)',
-      ranges:     SCALE_COLLEGE,
-    })
-  }
-
-  return out
+  return [
+    { programKey: 'daycare', scaleName: 'Pass/Fail Scale', ranges: SCALE_PASSFAIL },
+    { programKey: 'kinder', scaleName: 'Pass/Fail Scale', ranges: SCALE_PASSFAIL },
+    { programKey: 'elementary', scaleName: 'K-12 Scale', ranges: SCALE_K12 },
+    { programKey: 'jhs', scaleName: 'K-12 Scale', ranges: SCALE_K12 },
+    { programKey: 'shs', scaleName: 'K-12 Scale', ranges: SCALE_K12 },
+    { programKey: 'college', scaleName: 'College Numeric Scale', ranges: SCALE_COLLEGE },
+  ]
 }
