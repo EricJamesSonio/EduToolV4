@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle2, Circle, ChevronDown, ChevronUp, CalendarDays } from "lucide-react"
+import { CheckCircle2, Circle, ChevronDown, ChevronUp, CalendarDays, AlertCircle } from "lucide-react"
 import type { AxiosError } from "axios"
 import type { SemesterTemplate, TemplateAssignment, TermDate } from "@/types/admin/semester-template.types"
 import { useAssignTemplate, useRemoveTemplateAssignment } from "@/hooks/admin/useSemesterTemplate"
@@ -99,7 +99,7 @@ export function AssignRow({ program, templates, schoolYearStart, schoolYearEnd }
       assignMutation.mutate(
         { programId: program.id, templateId },
         {
-          onSuccess: () => { toast.success("Template assigned."); setExpanded(true) },
+          onSuccess: () => { toast.success("Template assigned. Set term dates to complete setup."); setExpanded(true) },
           onError: (e) => toast.error(errMsg(e)),
         }
       )
@@ -127,28 +127,105 @@ export function AssignRow({ program, templates, schoolYearStart, schoolYearEnd }
     })
   }
 
+  /**
+   * Validates that all terms have complete dates
+   * Returns { isValid: boolean, missingTerms: string[] }
+   */
+  const validateAllTermDates = (): { isValid: boolean; missingTerms: string[] } => {
+    const missing: string[] = []
+    
+    for (const term of allTerms) {
+      const dates = termDates[term.id!]
+      const { startDate = "", endDate = "" } = dates || {}
+      
+      if (!startDate || !endDate) {
+        missing.push(`${term.semesterName} · ${term.name}`)
+      }
+    }
+    
+    return {
+      isValid: missing.length === 0,
+      missingTerms: missing,
+    }
+  }
+
+  /**
+   * Validates individual term date rules
+   */
+  const validateTermDateRules = (
+    payload: Array<{ termId: string; startDate: string; endDate: string }>
+  ): { isValid: boolean; error: string | null } => {
+    // startDate < endDate
+    for (const p of payload) {
+      if (p.startDate >= p.endDate) {
+        return {
+          isValid: false,
+          error: `Invalid dates: start date must be before end date.`,
+        }
+      }
+    }
+
+    // Terms should be chronological (optional but nice)
+    for (let i = 0; i < payload.length - 1; i++) {
+      if (payload[i].endDate > payload[i + 1].startDate) {
+        return {
+          isValid: false,
+          error: `Terms should not overlap. Check term order.`,
+        }
+      }
+    }
+
+    return { isValid: true, error: null }
+  }
+
+  /**
+   * Gets the current validation status for the save button
+   */
+  const getValidationStatus = (): { isValid: boolean; message: string | null } => {
+    const { isValid, missingTerms } = validateAllTermDates()
+    
+    if (!isValid) {
+      return {
+        isValid: false,
+        message: `Missing dates for ${missingTerms.length} term(s)`,
+      }
+    }
+
+    return { isValid: true, message: null }
+  }
+
+  const validationStatus = getValidationStatus()
+
   const handleSaveDates = async () => {
+    // Step 1: Validate all terms have dates
+    const validation = validateAllTermDates()
+    if (!validation.isValid) {
+      const missingList = validation.missingTerms.map((t) => `• ${t}`).join("\n")
+      toast.error(
+        `Cannot save: Missing dates for:\n${missingList}`,
+        { duration: 4000 }
+      )
+      return
+    }
+
+    // Step 2: Build payload
     const payload = Object.entries(termDates)
       .filter(([, v]) => v.startDate && v.endDate)
       .map(([termId, v]) => ({ termId, startDate: v.startDate, endDate: v.endDate }))
 
-    if (payload.length === 0) {
-      toast.error("Please set at least one term's dates.")
+    // Step 3: Validate date rules
+    const ruleValidation = validateTermDateRules(payload)
+    if (!ruleValidation.isValid) {
+      toast.error(ruleValidation.error || "Invalid date configuration.")
       return
     }
 
-    // Validate: startDate must be before endDate
-    for (const p of payload) {
-      if (p.startDate >= p.endDate) {
-        toast.error("Each term's start date must be before its end date.")
-        return
-      }
-    }
-
+    // Step 4: Save to backend
     setSavingDates(true)
     try {
       await semesterTemplateApi.saveTermDates(program.id, payload)
-      toast.success("Term dates saved.")
+      toast.success("Term dates saved successfully!")
+      setExpanded(false) // ← Auto-close after save
     } catch (e) {
       toast.error(errMsg(e))
     } finally {
@@ -202,29 +279,41 @@ export function AssignRow({ program, templates, schoolYearStart, schoolYearEnd }
       {/* Term dates panel */}
       {expanded && current && allTerms.length > 0 && (
         <div className="ml-7 rounded-md border bg-muted/30 p-3 space-y-3">
-          <p className="text-xs text-muted-foreground font-medium">
-            Set term dates
-            {syMin && syMax && (
-              <span className="ml-1 text-muted-foreground/60">(within {syMin} – {syMax})</span>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-xs text-muted-foreground font-medium">
+              Set term dates
+              {syMin && syMax && (
+                <span className="ml-1 text-muted-foreground/60">(within {syMin} – {syMax})</span>
+              )}
+            </p>
+            {!validationStatus.isValid && (
+              <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                <span>{validationStatus.message}</span>
+              </div>
             )}
-          </p>
+          </div>
 
           <div className="space-y-2">
             {allTerms.map((term, idx) => {
               const dates = termDates[term.id!] ?? { startDate: "", endDate: "" }
               const prevEndDate = idx > 0 ? termDates[allTerms[idx - 1].id!]?.endDate : undefined
               const minStart = prevEndDate ? addOneDay(prevEndDate) : syMin
+              const hasStartDate = !!dates.startDate
+              const hasEndDate = !!dates.endDate
+              const isComplete = hasStartDate && hasEndDate
 
               return (
-                <div key={term.id} className="grid grid-cols-[1fr_auto_auto] gap-2 items-end">
+                <div key={term.id} className="grid grid-cols-[1fr_auto_auto] gap-2 items-end p-2 rounded border border-transparent hover:border-border/50 bg-background/50">
                   <div>
-                    <Label className="text-[10px] text-muted-foreground mb-1 block">
+                    <Label className="text-[10px] text-muted-foreground mb-1 block font-medium">
                       {term.semesterName} · {term.name}
+                      {!isComplete && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <div className="flex gap-1.5 items-center">
                       <Input
                         type="date"
-                        className="h-7 text-xs"
+                        className={`h-7 text-xs ${!hasStartDate ? "border-amber-300 bg-amber-50/30" : ""}`}
                         value={dates.startDate}
                         min={minStart || syMin}
                         max={syMax}
@@ -233,7 +322,7 @@ export function AssignRow({ program, templates, schoolYearStart, schoolYearEnd }
                       <span className="text-xs text-muted-foreground">→</span>
                       <Input
                         type="date"
-                        className="h-7 text-xs"
+                        className={`h-7 text-xs ${!hasEndDate ? "border-amber-300 bg-amber-50/30" : ""}`}
                         value={dates.endDate}
                         min={dates.startDate || syMin}
                         max={syMax}
@@ -246,9 +335,24 @@ export function AssignRow({ program, templates, schoolYearStart, schoolYearEnd }
             })}
           </div>
 
-          <Button size="sm" className="h-7 text-xs" onClick={handleSaveDates} disabled={savingDates}>
-            {savingDates ? "Saving…" : "Save dates"}
-          </Button>
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              size="sm"
+              className="h-7 text-xs"
+              onClick={handleSaveDates}
+              disabled={savingDates || !validationStatus.isValid}
+            >
+              {savingDates ? "Saving…" : "Save dates"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={() => setExpanded(false)}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       )}
     </div>

@@ -23,7 +23,6 @@ export class CreateOrganizationDto {
   @MaxLength(500)
   description?: string
 
-  // ✅ FIXED: now truly optional
   @IsOptional()
   @IsString()
   @Matches(/^@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
@@ -44,7 +43,6 @@ export class UpdateOrganizationDto {
   @MaxLength(500)
   description?: string
 
-  // ✅ FIXED: removed `| null`, handled in service instead
   @IsOptional()
   @IsString()
   @Matches(/^@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
@@ -114,7 +112,11 @@ export class SeedOrganizationDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  excludedSubjects?: string[]
+  excludedSubjects?: string[]   // plain names — minors/GE only
+
+  @IsOptional()
+  @IsObject()
+  excludedLevelSubjects?: Record<string, string[]>   // levelName → plain subject names
 
   @IsOptional()
   @IsObject()

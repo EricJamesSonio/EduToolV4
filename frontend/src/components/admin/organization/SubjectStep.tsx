@@ -1,9 +1,9 @@
 "use client"
 
 import { BookOpen } from "lucide-react"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "./ui/Checkbox"
+import { Label }    from "@/components/ui/label"
+import { Badge }    from "@/components/ui/badge"
+import { Checkbox }    from "./ui/Checkbox"
 import { Collapsible } from "./ui/Collapsible"
 import {
   COURSE_SUBJECTS,
@@ -12,19 +12,21 @@ import {
   SHS_STRAND_SUBJECTS,
   COLLEGE_GE_SET,
   SHS_MINOR_SET,
+  subjectKey,
+  parseSubjectKey,
 } from "./constants/seed-data"
 
 interface SubjectStepProps {
-  selectedPrograms: Set<string>
-  selectedLevels: Set<string>
-  selectedStrands: Set<string>
-  selectedCourses: Set<string>
-  selectedSubjects: Set<string>
-  disabledSubjectTitles: Set<string>
-  onToggleSubject: (subj: string) => void
-  onSelectAllForGroup: (subjects: string[]) => void
-  onDeselectAllForGroup: (subjects: string[]) => void
-  allSelectableSubjects: string[]
+  selectedPrograms:      Set<string>
+  selectedLevels:        Set<string>
+  selectedStrands:       Set<string>
+  selectedCourses:       Set<string>
+  selectedSubjects:      Set<string>        // compound keys: "Grade 1::Filipino"
+  disabledSubjectTitles: Set<string>        // plain names from existing subjects
+  onToggleSubject:       (key: string) => void
+  onSelectAllForGroup:   (keys: string[]) => void
+  onDeselectAllForGroup: (keys: string[]) => void
+  allSelectableSubjects: string[]           // compound keys
 }
 
 function SubjectTypeTag({ type }: { type: "major" | "minor" }) {
@@ -52,61 +54,67 @@ export function SubjectStep({
 }: SubjectStepProps) {
   if (allSelectableSubjects.length === 0) return null
 
-  const isDisabled = (title: string) => disabledSubjectTitles.has(title)
+  // disabledSubjectTitles uses plain names — check against parsed subject name
+  function isDisabled(key: string): boolean {
+    const { subjectName } = parseSubjectKey(key)
+    return disabledSubjectTitles.has(subjectName)
+  }
 
   function renderSubjectCollapsible(
-    key: string,
-    title: string,
-    subjects: string[],
-    minorSet?: Set<string>,
+    collapsibleKey: string,
+    title:          string,
+    groupName:      string,          // level name, strand name, or course code
+    plainSubjects:  string[],        // plain subject names from LEVEL_SUBJECTS etc.
+    minorSet?:      Set<string>,
   ) {
-    const availableSubjects = subjects.filter((s) =>
-      allSelectableSubjects.includes(s),
-    )
+    // Build compound keys for this group
+    const groupKeys = plainSubjects.map((s) => subjectKey(groupName, s))
 
-    if (availableSubjects.length === 0) return null
+    // Only show keys that are in the selectable set
+    const availableKeys = groupKeys.filter((k) => allSelectableSubjects.includes(k))
+    if (availableKeys.length === 0) return null
 
-    const selCount = availableSubjects.filter(
-      (s) => selectedSubjects.has(s) && !isDisabled(s),
+    const selCount = availableKeys.filter(
+      (k) => selectedSubjects.has(k) && !isDisabled(k),
     ).length
 
     return (
       <Collapsible
-        key={key}
+        key={collapsibleKey}
         title={title}
         count={selCount}
-        total={availableSubjects.length}
+        total={availableKeys.length}
       >
         <div className="space-y-2">
           <div className="flex gap-3 mb-2">
             <button
               type="button"
               className="text-xs text-primary hover:underline"
-              onClick={() => onSelectAllForGroup(availableSubjects)}
+              onClick={() => onSelectAllForGroup(availableKeys)}
             >
               All
             </button>
             <button
               type="button"
               className="text-xs text-muted-foreground hover:underline"
-              onClick={() => onDeselectAllForGroup(availableSubjects)}
+              onClick={() => onDeselectAllForGroup(availableKeys)}
             >
               None
             </button>
           </div>
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {availableSubjects.map((subj) => {
-              const isMinor = minorSet?.has(subj) ?? false
+            {availableKeys.map((key) => {
+              const { subjectName } = parseSubjectKey(key)
+              const isMinor         = minorSet?.has(subjectName) ?? false
               return (
-                <div key={subj} className="flex items-center gap-2">
-                <Checkbox
-                  checked={selectedSubjects.has(subj)}
-                  onChange={() =>
-                    !isDisabled(subj) && onToggleSubject(subj)
-                  }
-                  label={subj}
-                  subtle
-                />
+                <div key={key} className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selectedSubjects.has(key)}
+                    onChange={() => !isDisabled(key) && onToggleSubject(key)}
+                    label={subjectName}
+                    subtle
+                    disabled={isDisabled(key)}
+                  />
                   <SubjectTypeTag type={isMinor ? "minor" : "major"} />
                 </div>
               )
@@ -140,7 +148,7 @@ export function SubjectStep({
         </div>
       </div>
 
-      {/* Level subjects — K-12 has no minors */}
+      {/* Level subjects — each level is its own group */}
       {Array.from(selectedPrograms)
         .filter((p) => LEVEL_DEFS[p])
         .flatMap((prog) =>
@@ -150,28 +158,31 @@ export function SubjectStep({
               renderSubjectCollapsible(
                 lvl,
                 lvl,
+                lvl,
                 LEVEL_SUBJECTS[lvl] ?? [],
               ),
             ),
         )}
 
-      {/* SHS strand subjects — first 10 are minors */}
+      {/* SHS strand subjects */}
       {selectedPrograms.has("shs") &&
         Array.from(selectedStrands).map((strand) =>
           renderSubjectCollapsible(
             strand,
             `SHS – ${strand}`,
+            strand,
             SHS_STRAND_SUBJECTS[strand] ?? [],
             SHS_MINOR_SET,
           ),
         )}
 
-      {/* College course subjects — first 10 (GE) are minors */}
+      {/* College course subjects */}
       {selectedPrograms.has("college") &&
         Array.from(selectedCourses).map((code) =>
           renderSubjectCollapsible(
             code,
             `${code} Subjects`,
+            code,
             COURSE_SUBJECTS[code] ?? [],
             COLLEGE_GE_SET,
           ),

@@ -4,15 +4,12 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-
 import { sectionApi } from "@/api/admin/section.api";
 import type { Section } from "@/types/admin/section.types";
 import type { Level }   from "@/types/admin/level.types";
-
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { Skeleton }      from "@/components/ui/skeleton";
-import { Badge }         from "@/components/ui/badge";
-
+import { ConfirmDialog }    from "@/components/shared/ConfirmDialog";
+import { Skeleton }         from "@/components/ui/skeleton";
+import { Badge }            from "@/components/ui/badge";
 import { SectionFormDialog } from "./SectionFormDialog";
 import type { SectionFormValues } from "./SectionFormDialog";
 
@@ -20,24 +17,39 @@ interface SectionsPanelProps {
   level:        Level;
   schoolYearId: string;
   isEnded:      boolean;
+  courseId?:    string; // college
+  strandId?:    string; // SHS
 }
 
 export function SectionsPanel({
   level,
   schoolYearId,
   isEnded,
+  courseId,
+  strandId,
 }: SectionsPanelProps): React.JSX.Element {
   const queryClient = useQueryClient();
-
   const [dialogOpen,   setDialogOpen]   = useState(false);
   const [editTarget,   setEditTarget]   = useState<Section | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Section | null>(null);
 
-  const qKey = ["admin", "sections", schoolYearId, level.id];
+  // Query key scoped to course/strand if present
+  const qKey = [
+    "admin", "sections", schoolYearId, level.id,
+    ...(courseId ? [courseId] : []),
+    ...(strandId ? [strandId] : []),
+  ];
 
   const { data: sections = [], isLoading } = useQuery({
     queryKey: qKey,
     queryFn:  () => sectionApi.getAll(schoolYearId, level.id),
+  });
+
+  // Filter client-side by course/strand since backend may not filter yet
+  const visibleSections = sections.filter((s) => {
+    if (courseId) return (s as Section & { course_id?: string }).course_id === courseId;
+    if (strandId) return (s as Section & { strand_id?: string }).strand_id === strandId;
+    return true;
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: qKey });
@@ -47,6 +59,8 @@ export function SectionsPanel({
       sectionApi.create({
         levelId:      level.id,
         schoolYearId,
+        courseId:     courseId ?? undefined,
+        strandId:     strandId ?? undefined,
         name:         vals.name,
         capacity:     Number(vals.capacity),
       }),
@@ -90,9 +104,9 @@ export function SectionsPanel({
       <div className="flex items-center justify-between px-6 py-2.5">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Sections
-          {sections.length > 0 && (
+          {visibleSections.length > 0 && (
             <span className="ml-1.5 font-normal normal-case">
-              ({sections.length})
+              ({visibleSections.length})
             </span>
           )}
         </span>
@@ -114,13 +128,11 @@ export function SectionsPanel({
             <Skeleton key={i} className="h-7 w-full rounded" />
           ))}
         </div>
-      ) : sections.length === 0 ? (
-        <p className="px-6 pb-3 text-xs text-muted-foreground">
-          No sections yet.
-        </p>
+      ) : visibleSections.length === 0 ? (
+        <p className="px-6 pb-3 text-xs text-muted-foreground">No sections yet.</p>
       ) : (
         <div className="px-6 pb-3 space-y-1">
-          {sections.map((sec) => (
+          {visibleSections.map((sec) => (
             <div
               key={sec.id}
               className="flex items-center justify-between gap-3 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
@@ -131,10 +143,7 @@ export function SectionsPanel({
                   cap. {sec.capacity}
                 </span>
                 {sec.studentCount > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="text-xs font-normal px-1.5 py-0"
-                  >
+                  <Badge variant="secondary" className="text-xs font-normal px-1.5 py-0">
                     {sec.studentCount}{" "}
                     {sec.studentCount === 1 ? "student" : "students"}
                   </Badge>
@@ -169,7 +178,6 @@ export function SectionsPanel({
           onSubmit={(vals) => createMutation.mutate(vals)}
         />
       )}
-
       {editTarget && (
         <SectionFormDialog
           mode="edit"
@@ -182,7 +190,6 @@ export function SectionsPanel({
           onSubmit={(vals) => updateMutation.mutate(vals)}
         />
       )}
-
       {deleteTarget && (
         <ConfirmDialog
           open

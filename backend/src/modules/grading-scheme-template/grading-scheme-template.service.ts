@@ -98,9 +98,9 @@ async applyToProgram(orgId: string, dto: ApplyTemplateToProgramDto) {
     orgId,
   );
 
-  if (classIds.length === 0) {
-    throw new BadRequestException('No classes found in this program.');
-  }
+if (classIds.length === 0) {
+  return { success: true, appliedCount: 0 };
+}
 
   // Create/update grading scheme for each class
   const results = await Promise.all(

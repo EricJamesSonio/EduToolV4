@@ -41,4 +41,5 @@ export interface Class {
   schedules: ClassSchedule[];
   createdAt: string;
   updatedAt?: string;
+  programId?: string;
 }

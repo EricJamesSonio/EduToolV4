@@ -1,5 +1,4 @@
 import { COLLEGE_COURSES, YEAR_LABELS } from './courses.data'
-import { SHS_STRANDS } from './strands.data'
 
 export const SCALE_K12 = [
   { min: 90, max: 100, label: 'Outstanding' },
@@ -54,12 +53,10 @@ export function buildScaleAssignments(): ScaleAssignment[] {
     out.push({ programKey: 'jhs', levelName: `Grade ${g}`, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
   }
 
-  // SHS — one scale per shared grade level (Grade 11, Grade 12)
   for (const grade of ['Grade 11', 'Grade 12']) {
     out.push({ programKey: 'shs', levelName: grade, scaleName: 'K-12 Scale', ranges: SCALE_K12 })
   }
 
-  // College — one scale per shared year level (1st Year … 5th Year)
   const maxYears = Math.max(...COLLEGE_COURSES.map((c) => c.years))
   for (let y = 1; y <= maxYears; y++) {
     out.push({

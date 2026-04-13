@@ -11,12 +11,12 @@ import { LEVEL_DEFS, LEVEL_MAX, LEVEL_MIN, PROGRAMS, generateLevelNames } from "
 import type { ProgramLevelConfig } from "./hooks/useSeedState"
 
 interface LevelStepProps {
-  selectedPrograms: Set<string>
-  levelConfigs:     Record<string, ProgramLevelConfig>
-  onSetCount:       (prog: string, count: number) => void
-  onRenameAt:       (prog: string, index: number, name: string) => void
+  selectedPrograms:   Set<string>
+  disabledLevelNames: Set<string>
+  levelConfigs:       Record<string, ProgramLevelConfig>
+  onSetCount:         (prog: string, count: number) => void
+  onRenameAt:         (prog: string, index: number, name: string) => void
 }
-
 function CountStepper({
   value,
   min,

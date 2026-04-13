@@ -1,48 +1,43 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
-import { isAxiosError } from "axios"
-import { organizationApi } from "@/api/admin/organization.api"
-import { schoolYearApi } from "@/api/admin/school-year.api"
-import { programApi } from "@/api/admin/program.api"
-import { courseApi } from "@/api/admin/course.api"
-import { strandApi } from "@/api/admin/strand.api"
-import { levelApi } from "@/api/admin/level.api"
-import { subjectApi } from "@/api/admin/subject.api"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { cn } from "@/lib/utils"
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
-import {
-  CalendarDays,
-  ChevronDown,
-  ChevronRight,
-  Database,
-  Loader2,
-} from "lucide-react"
-import { SchoolYearStep } from "./SchoolYearStep"
-import { ProgramStep } from "./ProgramStep"
-import { LevelStep } from "./LevelStep"
-import { SectionStep } from "./SectionStep"
-import { StrandStep } from "./StrandStep"
-import { CourseStep } from "./CourseStep"
-import { SubjectStep } from "./SubjectStep"
+import { useEffect, useState }                       from "react"
+import { useQuery, useMutation, useQueryClient }      from "@tanstack/react-query"
+import { toast }                                      from "sonner"
+import { isAxiosError }                               from "axios"
+import { organizationApi }                            from "@/api/admin/organization.api"
+import { schoolYearApi }                              from "@/api/admin/school-year.api"
+import { programApi }                                 from "@/api/admin/program.api"
+import { courseApi }                                  from "@/api/admin/course.api"
+import { strandApi }                                  from "@/api/admin/strand.api"
+import { levelApi }                                   from "@/api/admin/level.api"
+import { subjectApi }                                 from "@/api/admin/subject.api"
+import { Button }                                     from "@/components/ui/button"
+import { Label }                                      from "@/components/ui/label"
+import { cn }                                         from "@/lib/utils"
+import { ConfirmDialog }                              from "@/components/shared/ConfirmDialog"
+import { CalendarDays, ChevronDown, ChevronRight, Database, Loader2 } from "lucide-react"
+import { SchoolYearStep }   from "./SchoolYearStep"
+import { ProgramStep }      from "./ProgramStep"
+import { LevelStep }        from "./LevelStep"
+import { SectionStep }      from "./SectionStep"
+import { StrandStep }       from "./StrandStep"
+import { CourseStep }       from "./CourseStep"
+import { SubjectStep }      from "./SubjectStep"
 import { GradingScaleStep } from "./GradingScaleStep"
-import { useSeedState } from "./hooks/useSeedState"
+import { useSeedState }     from "./hooks/useSeedState"
 import {
   COLLEGE_COURSES,
   LEVEL_DEFS,
   PROGRAMS,
   SHS_STRANDS,
   SECTION_DEFAULTS,
+  parseSubjectKey,
 } from "./constants/seed-data"
 
 interface PendingSchoolYear {
-  name: string
+  name:        string
   start_date?: string
-  end_date?: string
+  end_date?:   string
 }
 
 function isShortDurationError(err: unknown): boolean {
@@ -54,18 +49,15 @@ function isShortDurationError(err: unknown): boolean {
 
 export function SeederCard() {
   const queryClient = useQueryClient()
-  const [collapsed, setCollapsed] = useState(false)
-  const [pendingSchoolYear, setPendingSchoolYear] =
-    useState<PendingSchoolYear | null>(null)
+  const [collapsed, setCollapsed]               = useState(false)
+  const [pendingSchoolYear, setPendingSchoolYear] = useState<PendingSchoolYear | null>(null)
 
   const { data: schoolYears = [], isLoading: syLoading } = useQuery({
     queryKey: ["admin", "school-years"],
-    queryFn: schoolYearApi.getAll,
+    queryFn:  schoolYearApi.getAll,
   })
 
-  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(
-    null,
-  )
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null)
 
   useEffect(() => {
     if (schoolYears.length > 0 && !selectedSchoolYearId) {
@@ -81,17 +73,12 @@ export function SeederCard() {
       end_date,
       confirm_short_duration,
     }: {
-      name: string
-      start_date?: string
-      end_date?: string
+      name:                   string
+      start_date?:            string
+      end_date?:              string
       confirm_short_duration?: boolean
     }) =>
-      schoolYearApi.create({
-        name,
-        start_date,
-        end_date,
-        confirm_short_duration,
-      }),
+      schoolYearApi.create({ name, start_date, end_date, confirm_short_duration }),
     onSuccess: (result) => {
       const created = (result as any).data ?? result
       toast.success(`School year "${created.name}" created.`)
@@ -102,9 +89,9 @@ export function SeederCard() {
     onError: (err: unknown, variables) => {
       if (isShortDurationError(err)) {
         setPendingSchoolYear({
-          name: variables.name,
+          name:       variables.name,
           start_date: variables.start_date,
-          end_date: variables.end_date,
+          end_date:   variables.end_date,
         })
         return
       }
@@ -114,37 +101,28 @@ export function SeederCard() {
 
   function handleConfirmShortDuration() {
     if (!pendingSchoolYear) return
-    createSchoolYearMutation.mutate({
-      ...pendingSchoolYear,
-      confirm_short_duration: true,
-    })
+    createSchoolYearMutation.mutate({ ...pendingSchoolYear, confirm_short_duration: true })
   }
 
-  function handleCreateSchoolYear(
-    name: string,
-    start_date?: string,
-    end_date?: string,
-  ) {
+  function handleCreateSchoolYear(name: string, start_date?: string, end_date?: string) {
     createSchoolYearMutation.mutate({ name, start_date, end_date })
   }
 
-  // Fetch existing data for deduplication
   const { data: existingPrograms = [] } = useQuery({
     queryKey: ["admin", "programs", selectedSchoolYearId],
-    queryFn: () => programApi.getAll(selectedSchoolYearId!),
-    enabled: !!selectedSchoolYearId,
+    queryFn:  () => programApi.getAll(selectedSchoolYearId!),
+    enabled:  !!selectedSchoolYearId,
   })
 
   const { data: existingCourses = [] } = useQuery({
     queryKey: ["admin", "courses", selectedSchoolYearId],
-    queryFn: () =>
-      courseApi.getAll({ schoolYearId: selectedSchoolYearId! }),
-    enabled: !!selectedSchoolYearId,
+    queryFn:  () => courseApi.getAll({ schoolYearId: selectedSchoolYearId! }),
+    enabled:  !!selectedSchoolYearId,
   })
 
   const { data: existingStrands = [] } = useQuery({
     queryKey: ["admin", "strands", selectedSchoolYearId],
-    queryFn: async () => {
+    queryFn:  async () => {
       try {
         const result = await strandApi.getAll()
         return Array.isArray(result) ? result : []
@@ -157,47 +135,34 @@ export function SeederCard() {
 
   const { data: existingLevels = [] } = useQuery({
     queryKey: ["admin", "levels", selectedSchoolYearId],
-    queryFn: () => levelApi.getBySchoolYear(selectedSchoolYearId!),
-    enabled: !!selectedSchoolYearId,
+    queryFn:  () => levelApi.getBySchoolYear(selectedSchoolYearId!),
+    enabled:  !!selectedSchoolYearId,
   })
 
   const { data: existingSubjects = [] } = useQuery({
     queryKey: ["admin", "subjects", selectedSchoolYearId],
-    queryFn: () => subjectApi.getAll({ schoolYearId: selectedSchoolYearId }),
-    enabled: !!selectedSchoolYearId,
+    queryFn:  () => subjectApi.getAll({ schoolYearId: selectedSchoolYearId }),
+    enabled:  !!selectedSchoolYearId,
   })
 
   const {
-    selectedPrograms,
-    setSelectedPrograms,
-    selectedCourses,
-    setSelectedCourses,
-    selectedStrands,
-    setSelectedStrands,
-    selectedSubjects,
-    setSelectedSubjects,
+    selectedPrograms,   setSelectedPrograms,
+    selectedCourses,    setSelectedCourses,
+    selectedStrands,    setSelectedStrands,
+    selectedSubjects,   setSelectedSubjects,
     allSelectableSubjects,
-    levelConfigs,
-    setLevelCount,
-    renameLevelAt,
-    seedGradingScale,
-    setSeedGradingScale,
-    gradingScaleByProgram,
-    setGradingScaleForProgram,
+    levelConfigs,       setLevelCount,      renameLevelAt,
+    seedGradingScale,   setSeedGradingScale,
+    gradingScaleByProgram, setGradingScaleForProgram,
     resolvedGradingScales,
-    toggleSet,
-    selectAll,
-    deselectAll,
-    sectionConfigs,
-    setSectionsForLevel,
+    toggleSet, selectAll, deselectAll,
+    sectionConfigs,     setSectionsForLevel,
   } = useSeedState()
 
   const seedMutation = useMutation({
     mutationFn: organizationApi.seedOrg,
     onSuccess: () => {
-      toast.success(
-        "Seed completed! Your programs, levels, and subjects are ready.",
-      )
+      toast.success("Seed completed! Your programs, levels, and subjects are ready.")
       setCollapsed(true)
       queryClient.invalidateQueries({ queryKey: ["admin", "programs"] })
       queryClient.invalidateQueries({ queryKey: ["admin", "courses"] })
@@ -213,15 +178,22 @@ export function SeederCard() {
       toast.error("Select or create a school year first.")
       return
     }
-
     if (selectedPrograms.size === 0) {
       toast.error("Select at least one program.")
       return
     }
 
-    const excludedSubjects = allSelectableSubjects.filter(
-      (s) => !selectedSubjects.has(s),
-    )
+    // Build excludedLevelSubjects: { "Grade 1": ["Filipino"], "Grade 2": ["Filipino"] }
+    // from compound keys that are NOT in selectedSubjects
+    const excludedLevelSubjects: Record<string, string[]> = {}
+    allSelectableSubjects
+      .filter((key) => !selectedSubjects.has(key))
+      .forEach((key) => {
+        const { groupName, subjectName } = parseSubjectKey(key)
+        if (!groupName) return
+        if (!excludedLevelSubjects[groupName]) excludedLevelSubjects[groupName] = []
+        excludedLevelSubjects[groupName].push(subjectName)
+      })
 
     const levelConfigsPayload = Object.fromEntries(
       Array.from(selectedPrograms)
@@ -250,79 +222,50 @@ export function SeederCard() {
 
     seedMutation.mutate({
       schoolYearId: selectedSchoolYearId,
-      programs: Array.from(selectedPrograms),
-      courses: selectedPrograms.has("college")
-        ? Array.from(selectedCourses)
-        : undefined,
-      strands: selectedPrograms.has("shs")
-        ? Array.from(selectedStrands)
-        : undefined,
+      programs:     Array.from(selectedPrograms),
+      courses:      selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
+      strands:      selectedPrograms.has("shs")     ? Array.from(selectedStrands) : undefined,
       levelConfigs:
-        Object.keys(levelConfigsPayload).length > 0
-          ? levelConfigsPayload
-          : undefined,
+        Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
       sectionConfigs: sectionConfigsPayload,
-      excludedSubjects:
-        excludedSubjects.length > 0 ? excludedSubjects : undefined,
+      excludedLevelSubjects:
+        Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
       gradingScales,
     })
   }
 
-  // Track which items already exist (don't filter - show all, but mark disabled)
-  const existingProgramTypes = new Set(existingPrograms.map((p) => p.type))
-  const existingCourseCodes = new Set(
-    existingCourses.map((c) => c.code?.trim()).filter(Boolean),
-  )
-  const existingStrandNames = new Set(existingStrands.map((s) => s.name))
-  const existingLevelNames = new Set(existingLevels.map((l) => l.name))
+  const existingProgramTypes  = new Set(existingPrograms.map((p) => p.type))
+  const existingCourseCodes   = new Set(existingCourses.map((c) => c.code?.trim()).filter(Boolean))
+  const existingStrandNames   = new Set(existingStrands.map((s) => s.name))
+  const existingLevelNames    = new Set(existingLevels.map((l) => l.name))
   const existingSubjectTitles = new Set(existingSubjects.map((s) => s.title))
 
   const helpers = {
-    toggleProgram: (key: string) =>
-      toggleSet(selectedPrograms, key, setSelectedPrograms),
-    selectAllPrograms: () =>
-      selectAll(
-        PROGRAMS.map((p) => p.key),
-        setSelectedPrograms,
-      ),
+    toggleProgram:      (key: string) => toggleSet(selectedPrograms, key, setSelectedPrograms),
+    selectAllPrograms:  () => selectAll(PROGRAMS.map((p) => p.key), setSelectedPrograms),
     deselectAllPrograms: () => deselectAll(setSelectedPrograms),
-    toggleStrand: (s: string) =>
-      toggleSet(selectedStrands, s, setSelectedStrands),
-    selectAllStrands: () =>
-      selectAll(
-        SHS_STRANDS,
-        setSelectedStrands,
-      ),
+    toggleStrand:       (s: string) => toggleSet(selectedStrands, s, setSelectedStrands),
+    selectAllStrands:   () => selectAll(SHS_STRANDS, setSelectedStrands),
     deselectAllStrands: () => deselectAll(setSelectedStrands),
-    toggleCourse: (c: string) =>
-      toggleSet(selectedCourses, c, setSelectedCourses),
-    selectAllCourses: () =>
-      selectAll(
-        COLLEGE_COURSES.map((c) => c.code ?? ""),
-        setSelectedCourses,
-      ),
+    toggleCourse:       (c: string) => toggleSet(selectedCourses, c, setSelectedCourses),
+    selectAllCourses:   () => selectAll(COLLEGE_COURSES.map((c) => c.code ?? ""), setSelectedCourses),
     deselectAllCourses: () => deselectAll(setSelectedCourses),
-    toggleSubject: (s: string) =>
-      toggleSet(selectedSubjects, s, setSelectedSubjects),
-    selectAllForGroup: (subs: string[]) => {
+    toggleSubject:      (key: string) => toggleSet(selectedSubjects, key, setSelectedSubjects),
+    selectAllForGroup:  (keys: string[]) => {
       const n = new Set(selectedSubjects)
-      subs.forEach((s) => n.add(s))
+      keys.forEach((k) => n.add(k))
       setSelectedSubjects(n)
     },
-    deselectAllForGroup: (subs: string[]) => {
+    deselectAllForGroup: (keys: string[]) => {
       const n = new Set(selectedSubjects)
-      subs.forEach((s) => n.delete(s))
+      keys.forEach((k) => n.delete(k))
       setSelectedSubjects(n)
     },
   }
 
   const totalLevelCount = Array.from(selectedPrograms)
     .filter((p) => LEVEL_DEFS[p])
-    .reduce(
-      (sum, p) =>
-        sum + (levelConfigs[p]?.count ?? LEVEL_DEFS[p].length),
-      0,
-    )
+    .reduce((sum, p) => sum + (levelConfigs[p]?.count ?? LEVEL_DEFS[p].length), 0)
 
   const totalSectionCount = Array.from(selectedPrograms)
     .filter((p) => LEVEL_DEFS[p])
@@ -332,21 +275,18 @@ export function SeederCard() {
   const summaryText = !selectedSchoolYearId
     ? "Select a school year to begin."
     : selectedPrograms.size === 0
-      ? "Select at least one program."
-      : [
-          `${selectedPrograms.size} program(s)`,
-          totalLevelCount > 0 && `${totalLevelCount} level(s)`,
-          totalSectionCount > 0 && `${totalSectionCount} section(s)`,
-          selectedPrograms.has("college") &&
-            `${Array.from(selectedCourses).length} course(s)`,
-          selectedPrograms.has("shs") &&
-            `${Array.from(selectedStrands).length} strand(s)`,
-          `${allSelectableSubjects.filter((s) => selectedSubjects.has(s)).length} subject(s)`,
-          seedGradingScale &&
-            `${Object.keys(resolvedGradingScales).length} grading scale(s)`,
-        ]
-          .filter(Boolean)
-          .join(" · ")
+    ? "Select at least one program."
+    : [
+        `${selectedPrograms.size} program(s)`,
+        totalLevelCount > 0 && `${totalLevelCount} level(s)`,
+        totalSectionCount > 0 && `${totalSectionCount} section(s)`,
+        selectedPrograms.has("college") && `${Array.from(selectedCourses).length} course(s)`,
+        selectedPrograms.has("shs")     && `${Array.from(selectedStrands).length} strand(s)`,
+        `${allSelectableSubjects.filter((k) => selectedSubjects.has(k)).length} subject(s)`,
+        seedGradingScale && `${Object.keys(resolvedGradingScales).length} grading scale(s)`,
+      ]
+        .filter(Boolean)
+        .join(" · ")
 
   const derivedSelectedLevels = new Set(
     Array.from(selectedPrograms)
@@ -378,8 +318,8 @@ export function SeederCard() {
         {!collapsed && (
           <div className="px-6 pb-6 space-y-5">
             <p className="text-sm text-muted-foreground -mt-1">
-              Seed your organization with programs, levels, subjects, and
-              grading scales. Already-seeded items appear grayed out.
+              Seed your organization with programs, levels, subjects, and grading scales.
+              Already-seeded items appear grayed out.
             </p>
 
             <div className="space-y-2">
@@ -401,19 +341,15 @@ export function SeederCard() {
             <div
               className={cn(
                 "space-y-5 transition-opacity",
-                !selectedSchoolYearId
-                  ? "opacity-40 pointer-events-none select-none"
-                  : "",
+                !selectedSchoolYearId ? "opacity-40 pointer-events-none select-none" : "",
               )}
             >
               <ProgramStep
-                {...{
-                  selectedPrograms,
-                  disabledProgramTypes: existingProgramTypes,
-                  onToggleProgram: helpers.toggleProgram,
-                  onSelectAllPrograms: helpers.selectAllPrograms,
-                  onDeselectAllPrograms: helpers.deselectAllPrograms,
-                }}
+                selectedPrograms={selectedPrograms}
+                disabledProgramTypes={existingProgramTypes}
+                onToggleProgram={helpers.toggleProgram}
+                onSelectAllPrograms={helpers.selectAllPrograms}
+                onDeselectAllPrograms={helpers.deselectAllPrograms}
               />
 
               {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
@@ -437,25 +373,21 @@ export function SeederCard() {
 
               {selectedPrograms.has("shs") && (
                 <StrandStep
-                  {...{
-                    selectedStrands,
-                    disabledStrandNames: existingStrandNames,
-                    onToggleStrand: helpers.toggleStrand,
-                    onSelectAllStrands: helpers.selectAllStrands,
-                    onDeselectAllStrands: helpers.deselectAllStrands,
-                  }}
+                  selectedStrands={selectedStrands}
+                  disabledStrandNames={existingStrandNames}
+                  onToggleStrand={helpers.toggleStrand}
+                  onSelectAllStrands={helpers.selectAllStrands}
+                  onDeselectAllStrands={helpers.deselectAllStrands}
                 />
               )}
 
               {selectedPrograms.has("college") && (
                 <CourseStep
-                  {...{
-                    selectedCourses,
-                    disabledCourseCodes: existingCourseCodes,
-                    onToggleCourse: helpers.toggleCourse,
-                    onSelectAllCourses: helpers.selectAllCourses,
-                    onDeselectAllCourses: helpers.deselectAllCourses,
-                  }}
+                  selectedCourses={selectedCourses}
+                  disabledCourseCodes={existingCourseCodes}
+                  onToggleCourse={helpers.toggleCourse}
+                  onSelectAllCourses={helpers.selectAllCourses}
+                  onDeselectAllCourses={helpers.deselectAllCourses}
                 />
               )}
 

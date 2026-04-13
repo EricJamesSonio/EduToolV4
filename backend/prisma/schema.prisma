@@ -132,6 +132,7 @@ model Program {
   subjects           Subject[]
   studentEnrollments StudentProgramEnrollment[]
   semesterAssignment ProgramSemesterAssignment?
+  gradingScales     GradingScale[]
 }
 
 model Course {
@@ -338,9 +339,11 @@ model Subject {
   year_level   String?
   term_label   String?
 
-  program       Program?             @relation(fields: [program_id], references: [id])
-  course        Course?              @relation(fields: [course_id], references: [id])
-  strand        Strand?              @relation(fields: [strand_id], references: [id])
+  program       Program?              @relation(fields: [program_id], references: [id])
+  course        Course?               @relation(fields: [course_id], references: [id])
+  strand        Strand?               @relation(fields: [strand_id], references: [id])
+  classes       Class[]
+
   prerequisites SubjectPrerequisite[] @relation("SubjectPrereqs")
   prereqFor     SubjectPrerequisite[] @relation("PrereqFor")
   sharings      SubjectSharing[]
@@ -387,6 +390,8 @@ model Class {
   capacity       Int
   created_at     DateTime  @default(now())
   deleted_at     DateTime?
+
+  subject        Subject   @relation(fields: [subject_id], references: [id])
 
   schedules      ClassSchedule[]
   enrollments    Enrollment[]
@@ -448,17 +453,22 @@ model GradingScale {
   id             String    @id @default(uuid())
   org_id         String
   school_year_id String
-  level_id       String
+
+  program_id     String    
+
   name           String
   ranges         Json
+
   is_locked      Boolean   @default(false)
   locked_at      DateTime?
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt
 
   schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
-}
+  program    Program    @relation(fields: [program_id], references: [id])
 
+  @@unique([school_year_id, program_id])
+}
 //////////////////////
 // GRADING SCHEME TEMPLATES (admin-level, reusable)
 //////////////////////

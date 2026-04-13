@@ -83,7 +83,21 @@ export class ClassRepository {
         ...(filters.subjectId ? { subject_id: filters.subjectId } : {}),
         ...(filters.sectionId ? { section_id: filters.sectionId } : {}),
       },
-      include: { schedules: true },
+      include: {
+        schedules: true,
+        subject: {
+          select: {
+            id:         true,
+            name:       true,
+            program_id: true,
+            course_id:  true,
+            strand_id:  true,
+            level_id:   true,
+            course:     { select: { program_id: true } },
+            strand:     { select: { program_id: true } },
+          },
+        },
+      },
       orderBy: { created_at: 'desc' },
     })
   }

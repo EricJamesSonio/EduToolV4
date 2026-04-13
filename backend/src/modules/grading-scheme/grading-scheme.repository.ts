@@ -142,32 +142,55 @@ export class GradingSchemeRepository {
     return this.create(orgId, classId, templateId, name, components);
   }
 
-  async findClassIdsByProgram(programId: string, orgId: string): Promise<string[]> {
-    // 1. Get all subjects under the program
-    const subjects = await this.db.subject.findMany({
-      where: {
-        org_id: orgId,
-        program_id: programId,
-      },
+async findClassIdsByProgram(programId: string, orgId: string): Promise<string[]> {
+  // Resolve all course/strand/level IDs that belong to this program
+  const [courses, strands, levels] = await Promise.all([
+    this.db.course.findMany({
+      where: { org_id: orgId, program_id: programId },
       select: { id: true },
-    });
-
-    const subjectIds = subjects.map((s) => s.id);
-
-    // 2. Get classes using subject_id
-    const classes = await this.db.class.findMany({
-      where: {
-        org_id: orgId,
-        deleted_at: null,
-        subject_id: {
-          in: subjectIds,
-        },
-      },
+    }),
+    this.db.strand.findMany({
+      where: { org_id: orgId, program_id: programId },
       select: { id: true },
-    });
+    }),
+    this.db.level.findMany({
+      where: { org_id: orgId, program_id: programId },
+      select: { id: true },
+    }),
+  ]);
 
-    return classes.map((c) => c.id);
-  }
+  const courseIds = courses.map((c) => c.id);
+  const strandIds = strands.map((s) => s.id);
+  const levelIds  = levels.map((l) => l.id);
+
+  // Find all subjects linked to this program directly or via course/strand/level
+  const subjects = await this.db.subject.findMany({
+    where: {
+      org_id: orgId,
+      OR: [
+        { program_id: programId },
+        ...(courseIds.length ? [{ course_id: { in: courseIds } }] : []),
+        ...(strandIds.length ? [{ strand_id: { in: strandIds } }] : []),
+        ...(levelIds.length  ? [{ level_id:  { in: levelIds  } }] : []),
+      ],
+    },
+    select: { id: true },
+  });
+
+  const subjectIds = subjects.map((s) => s.id);
+  if (subjectIds.length === 0) return [];
+
+  const classes = await this.db.class.findMany({
+    where: {
+      org_id:     orgId,
+      deleted_at: null,
+      subject_id: { in: subjectIds },
+    },
+    select: { id: true },
+  });
+
+  return classes.map((c) => c.id);
+}
 
   async lockByClassId(classId: string) {
     return this.db.gradingScheme.updateMany({

@@ -5,11 +5,18 @@ import {
 import { Type } from 'class-transformer';
 
 export enum ComponentType {
-  QUIZ     = 'quiz',
-  ACTIVITY = 'activity',
-  EXAM     = 'exam',
-  CUSTOM   = 'custom',
-  MANUAL   = 'manual',
+  WRITTEN_WORK         = 'written_work',
+  PERFORMANCE_TASK     = 'performance_task',
+  QUARTERLY_ASSESSMENT = 'quarterly_assessment',
+  EXAM                 = 'exam',
+  QUIZ                 = 'quiz',
+  PROJECT              = 'project',
+  RECITATION           = 'recitation',
+  ATTENDANCE           = 'attendance',
+  ACTIVITY             = 'activity',
+  CUSTOM               = 'custom',
+  MANUAL               = 'manual',
+  OTHER                = 'other',
 }
 
 export class GradingSchemeComponentDto {

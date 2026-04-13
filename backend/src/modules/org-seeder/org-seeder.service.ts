@@ -7,6 +7,7 @@ import { SHS_STRAND_DEFS }                           from './data/strands.data'
 import { buildLevelDefs }                            from './data/levels.data'
 import { buildScaleAssignments }                     from './data/grading-scale.data'
 import { SCHEME_PRESETS }                            from './data/grading-schemes.data'
+import { SEMESTER_TEMPLATES }                        from './data/semester-templates.data'
 import { allMajorSubjects, allMinorSubjects, allSubjects, deriveProgramKey } from './data/subjects'
 
 const SEED_NAMESPACE = '1b671a64-40d5-491e-99b0-da01ff1f3341'
@@ -26,13 +27,15 @@ export interface SeedCount {
 }
 
 export interface SeedResult {
-  programs:      SeedCount
-  courses:       SeedCount
-  strands:       SeedCount
-  levels:        SeedCount
-  sections:      SeedCount
-  subjects:      SeedCount
-  gradingScales: SeedCount
+  programs:               SeedCount
+  courses:                SeedCount
+  strands:                SeedCount
+  levels:                 SeedCount
+  sections:               SeedCount
+  subjects:               SeedCount
+  gradingScales:          SeedCount
+    gradingSchemeTemplates: SeedCount
+  semesterTemplates:      SeedCount
 }
 
 export interface GradingScaleRangeOption {
@@ -49,22 +52,26 @@ export interface GradingScaleOption {
 }
 
 export interface OrgSeedOptions {
-  orgId:            string
-  schoolYearId:     string
-  programs:         string[]
-  courses?:         string[]
-  strands?:         string[]
-  excludedLevels?:  string[]
-  excludedSubjects?: string[]
-  levelConfigs?:    Record<string, string[]>
-  sectionConfigs?:  Record<string, { name: string; capacity: number }[]>
-  gradingScales?:   Record<string, GradingScaleOption>
+  orgId:                 string
+  schoolYearId:          string
+  programs:              string[]
+  courses?:              string[]
+  strands?:              string[]
+  excludedLevels?:       string[]
+  excludedSubjects?:     string[]
+  excludedLevelSubjects?: Record<string, string[]>
+  levelConfigs?:         Record<string, string[]>
+  sectionConfigs?:       Record<string, { name: string; capacity: number }[]>
+  gradingScales?:        Record<string, GradingScaleOption>
 }
+
+
 
 @Injectable()
 export class OrgSeederService {
   constructor(private readonly db: DatabaseService) {}
 
+  
   async seedOrg(options: OrgSeedOptions): Promise<SeedResult> {
     const {
       orgId,
@@ -74,6 +81,7 @@ export class OrgSeederService {
       strands          = [],
       excludedLevels   = [],
       excludedSubjects = [],
+      excludedLevelSubjects = {} as Record<string, string[]>,
       levelConfigs     = {},
       sectionConfigs   = {},
       gradingScales    = {},
@@ -85,11 +93,15 @@ export class OrgSeederService {
     const excludedLevelSet = new Set(excludedLevels)
     const excludedSubjSet  = new Set(excludedSubjects)
 
-    const shouldSeedProgram = (key: string)  => selectedPrograms.has(key)
+    const shouldSeedProgram = (key: string) => selectedPrograms.has(key)
     const shouldSeedCourse  = (code: string) => courses.length === 0 || selectedCourses.has(code)
     const shouldSeedStrand  = (name: string) => strands.length === 0 || selectedStrands.has(name)
     const shouldSeedLevel   = (name: string) => !excludedLevelSet.has(name)
-    const shouldSeedSubject = (name: string) => !excludedSubjSet.has(name)
+    const shouldSeedSubject = (name: string, levelName?: string) => {
+      if (excludedSubjSet.has(name)) return false
+      if (levelName && excludedLevelSubjects[levelName]?.includes(name)) return false
+      return true
+    }
 
     const programMap:      Record<string, string> = {}
     const courseMap:       Record<string, string> = {}
@@ -98,21 +110,35 @@ export class OrgSeederService {
     const subjectNameToId: Record<string, string> = {}
 
     const result: SeedResult = {
-      programs:      emptyCount(),
-      courses:       emptyCount(),
-      strands:       emptyCount(),
-      levels:        emptyCount(),
-      sections:      emptyCount(),
-      subjects:      emptyCount(),
-      gradingScales: emptyCount(),
+      programs:               emptyCount(),
+      courses:                emptyCount(),
+      strands:                emptyCount(),
+      levels:                 emptyCount(),
+      sections:               emptyCount(),
+      subjects:               emptyCount(),
+      gradingScales:          emptyCount(),
+      gradingSchemeTemplates: emptyCount(),
+      semesterTemplates:      emptyCount(),
     }
+
+    await this.db.orgEnrollmentSetting.upsert({
+      where:  { org_id: orgId },
+      update: {},
+      create: {
+        id:                           seedId('org-enrollment-setting', orgId),
+        org_id:                       orgId,
+        require_semester_reenrollment: false,
+        auto_unenroll_on_year_end:     true,
+      },
+    })
 
     await this.seedPrograms(orgId, schoolYearId, shouldSeedProgram, programMap, result)
     await this.seedCourses(orgId, schoolYearId, shouldSeedProgram, shouldSeedCourse, programMap, courseMap, result)
     await this.seedStrands(orgId, schoolYearId, shouldSeedProgram, shouldSeedStrand, programMap, strandMap, result)
     await this.seedLevelsAndSections(orgId, schoolYearId, shouldSeedProgram, shouldSeedLevel, programMap, levelMap, levelConfigs, sectionConfigs, result)
     await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, levelMap, gradingScales, result)
-    await this.seedGradingSchemes(orgId, shouldSeedProgram)
+    await this.seedGradingSchemes(orgId, shouldSeedProgram, result)
+    await this.seedSemesterTemplates(orgId, shouldSeedProgram, programMap, result)
     await this.seedMajorSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, subjectNameToId, result)
     await this.seedMinorSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, programMap, subjectNameToId, result)
     await this.seedPrerequisites(orgId, shouldSeedProgram, levelMap, subjectNameToId)
@@ -320,7 +346,11 @@ export class OrgSeederService {
     }
   }
 
-  private async seedGradingSchemes(orgId: string, shouldSeed: (k: string) => boolean) {
+  private async seedGradingSchemes(
+    orgId:      string,
+    shouldSeed: (k: string) => boolean,
+    result:     SeedResult,
+  ) {
     const schemeProgram: Record<string, string> = {
       'Daycare Scheme':            'daycare',
       'Kindergarten Scheme':       'kinder',
@@ -332,14 +362,25 @@ export class OrgSeederService {
 
     for (const preset of SCHEME_PRESETS) {
       const progKey = schemeProgram[preset.name]
-      if (progKey && !shouldSeed(progKey)) continue
+      if (progKey && !shouldSeed(progKey)) {
+        result.gradingSchemeTemplates.skipped++
+        continue
+      }
 
       const id       = seedId('scheme-template', preset.name, orgId)
       const existing = await this.db.gradingSchemeTemplate.findFirst({ where: { id } })
-      if (existing) continue
+      if (existing) {
+        result.gradingSchemeTemplates.already_exists++
+        continue
+      }
 
       const template = await this.db.gradingSchemeTemplate.create({
-        data: { id, org_id: orgId, name: preset.name },
+        data: {
+          id,
+          org_id:       orgId,
+          name:         preset.name,
+          program_type: progKey ?? null,   // ← now mapped to schema field
+        },
       })
 
       await this.db.gradingSchemeTemplateComponent.createMany({
@@ -350,15 +391,124 @@ export class OrgSeederService {
           name:        c.name,
           type:        c.type,
           weight:      c.weight,
+          max_score:   null,               // ← schema has max_score, was missing
         })),
       })
+
+      result.gradingSchemeTemplates.seeded++
+   
+    }
+  }
+
+  private async seedSemesterTemplates(
+    orgId:       string,
+    shouldSeed:  (k: string) => boolean,
+    programMap:  Record<string, string>,
+    result:      SeedResult,
+  ) {
+    for (const tpl of SEMESTER_TEMPLATES) {
+      if (!shouldSeed(tpl.programType)) {
+        result.semesterTemplates.skipped++
+        continue
+      }
+
+      const programId = programMap[tpl.programType]
+      if (!programId) {
+        result.semesterTemplates.skipped++
+        continue
+      }
+
+      // 1. SemesterTemplate
+      const templateId = seedId('sem-template', tpl.programType, orgId)
+      const existing   = await this.db.semesterTemplate.findFirst({ where: { id: templateId } })
+      if (existing) {
+        result.semesterTemplates.already_exists++
+
+        // still need to assign to program if not yet assigned
+        await this.db.programSemesterAssignment.upsert({
+          where:  { program_id: programId },
+          update: {},
+          create: {
+            id:          seedId('sem-assignment', programId, orgId),
+            org_id:      orgId,
+            program_id:  programId,
+            template_id: existing.id,
+          },
+        })
+        continue
+      }
+
+      const template = await this.db.semesterTemplate.create({
+        data: {
+          id:           templateId,
+          org_id:       orgId,
+          program_type: tpl.programType,
+          name:         tpl.name,
+        },
+      })
+
+      // 2. SemesterTemplateItem + SemesterTemplateTerm
+      const termIds: string[] = []   // collect for ProgramSemesterTermDate placeholders
+
+      for (const sem of tpl.semesters) {
+        const semItemId = seedId('sem-item', tpl.programType, sem.name, orgId)
+        const semItem   = await this.db.semesterTemplateItem.create({
+          data: {
+            id:          semItemId,
+            org_id:      orgId,
+            template_id: template.id,
+            name:        sem.name,
+            order_index: sem.order_index,
+          },
+        })
+
+        for (const term of sem.terms) {
+          const termId = seedId('sem-term', tpl.programType, sem.name, term.name, orgId)
+          await this.db.semesterTemplateTerm.create({
+            data: {
+              id:          termId,
+              org_id:      orgId,
+              semester_id: semItem.id,
+              name:        term.name,
+              order_index: term.order_index,
+            },
+          })
+          termIds.push(termId)
+        }
+      }
+
+      // 3. ProgramSemesterAssignment
+      const assignment = await this.db.programSemesterAssignment.create({
+        data: {
+          id:          seedId('sem-assignment', programId, orgId),
+          org_id:      orgId,
+          program_id:  programId,
+          template_id: template.id,
+        },
+      })
+
+      // 4. ProgramSemesterTermDate — seeded with null dates as placeholders
+      //    Admin fills actual dates when activating the school year
+      await this.db.programSemesterTermDate.createMany({
+        data: termIds.map((termId) => ({
+          id:            seedId('sem-term-date', assignment.id, termId),
+          org_id:        orgId,
+          assignment_id: assignment.id,
+          term_id:       termId,
+          start_date:    new Date('1970-01-01'),  // placeholder — admin sets real dates
+          end_date:      new Date('1970-01-01'),
+        })),
+        skipDuplicates: true,
+      })
+
+      result.semesterTemplates.seeded++
     }
   }
 
   private async seedMajorSubjects(
     orgId:           string,
     shouldSeedP:     (k: string) => boolean,
-    shouldSeedSubj:  (name: string) => boolean,
+    shouldSeedSubj:  (name: string, levelName?: string) => boolean,
     levelMap:        Record<string, string>,
     courseMap:       Record<string, string>,
     strandMap:       Record<string, string>,
@@ -370,7 +520,7 @@ export class OrgSeederService {
     )
 
     for (const s of subjectDefs) {
-      if (!shouldSeedSubj(s.name)) { result.subjects.skipped++; continue }
+      if (!shouldSeedSubj(s.name, s.levelName)) { result.subjects.skipped++; continue }
       const levelId  = levelMap[s.levelName]
       if (!levelId) { result.subjects.skipped++; continue }
       const courseId = s.courseCode ? courseMap[s.courseCode] : null
@@ -408,7 +558,7 @@ export class OrgSeederService {
   private async seedMinorSubjects(
     orgId:           string,
     shouldSeedP:     (k: string) => boolean,
-    shouldSeedSubj:  (name: string) => boolean,
+    shouldSeedSubj:  (name: string, levelName?: string) => boolean,
     levelMap:        Record<string, string>,
     courseMap:       Record<string, string>,
     strandMap:       Record<string, string>,

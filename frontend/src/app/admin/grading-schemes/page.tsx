@@ -5,21 +5,25 @@ import { useState, useEffect, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/shared/PageHeader";
+
 import { GradingSchemeTemplateList } from "@/components/admin/grading-scheme-template/GradingSchemeTemplateList";
 import { TemplateAssignmentPanel } from "@/components/admin/grading-scheme-template/TemplateAssignmentPanel";
 import { TemplateFormDialog } from "@/components/admin/grading-scheme-template/TemplateFormDialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useGradingSchemeTemplates } from "@/hooks/admin/useGradingSchemeTemplates";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { useQuery } from "@tanstack/react-query";
 import clientApi from "@/api/client";
-import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
+import { classApi } from "@/api/admin/class.api";
 
-interface Class {
-  id: string;
-  name: string;
-}
+import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
+import type { Class } from "@/types/admin/class.types";
 
 interface Program {
   id: string;
@@ -27,9 +31,6 @@ interface Program {
   type: string;
 }
 
-interface ProgramWithClasses extends Program {
-  classes: Class[];
-}
 
 interface Envelope<T> {
   success: boolean;
@@ -43,13 +44,6 @@ async function fetchPrograms(schoolYearId: string): Promise<Program[]> {
   return res.data.data ?? [];
 }
 
-async function fetchClasses(schoolYearId: string): Promise<Class[]> {
-  const res = await clientApi.get<Envelope<Class[]>>("/classes", {
-    params: { schoolYearId },
-  });
-  return res.data.data ?? [];
-}
-
 function usePrograms(schoolYearId: string) {
   return useQuery({
     queryKey: ["programs", schoolYearId],
@@ -58,36 +52,43 @@ function usePrograms(schoolYearId: string) {
   });
 }
 
-function useClasses(schoolYearId: string) {
-  return useQuery({
-    queryKey: ["classes", schoolYearId],
-    queryFn: () => fetchClasses(schoolYearId),
-    enabled: !!schoolYearId,
-  });
-}
-
 export default function GradingSchemesPage(): React.JSX.Element {
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
   const [selectedYearId, setSelectedYearId] = useState<string>("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<GradingSchemeTemplate | null>(null);
+  const [editTarget, setEditTarget] =
+    useState<GradingSchemeTemplate | null>(null);
 
   useEffect(() => {
     if (!selectedYearId && schoolYears.length > 0) {
-      const active = schoolYears.find((sy: any) => sy.status === "active");
+      const active = schoolYears.find((sy) => sy.status === "active");
       setSelectedYearId(active?.id ?? schoolYears[0].id);
     }
   }, [schoolYears, selectedYearId]);
 
-  const { data: templates = [], isLoading: tLoading } = useGradingSchemeTemplates();
-  const { data: programs = [], isLoading: pLoading } = usePrograms(selectedYearId);
-  const { data: classes = [] } = useClasses(selectedYearId);
+  const { data: templates = [], isLoading: tLoading } =
+    useGradingSchemeTemplates();
 
-  // Enrich programs with their classes
-  const programsWithClasses = useMemo<ProgramWithClasses[]>(() => {
+  const { data: programs = [], isLoading: pLoading } =
+    usePrograms(selectedYearId);
+
+  // ✅ FIXED: use classApi instead of raw fetch
+  const { data: classes = [] } = useQuery({
+    queryKey: ["admin", "classes", selectedYearId],
+    queryFn: () => classApi.getAll({ schoolYearId: selectedYearId }),
+    enabled: !!selectedYearId,
+  });
+
+  const programsWithClasses = useMemo(() => {
     return programs.map((prog) => ({
       ...prog,
-      classes: classes.filter((cls: any) => cls.programId === prog.id),
+      classes: classes
+        .filter((cls) => cls.programId === prog.id)
+        .map((cls) => ({
+          id: cls.id,
+          name: cls.title ?? cls.subjectName ?? cls.subjectId,
+          programId: cls.programId,
+        })),
     }));
   }, [programs, classes]);
 
@@ -97,9 +98,12 @@ export default function GradingSchemesPage(): React.JSX.Element {
     <div className="space-y-8 pb-10">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Grading Scheme Templates</h1>
+          <h1 className="text-xl font-semibold tracking-tight">
+            Grading Scheme Templates
+          </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Create reusable grading scheme templates and apply them to programs or individual classes.
+            Create reusable grading scheme templates and apply them to programs
+            or individual classes.
           </p>
         </div>
         <Button size="sm" onClick={() => setCreateOpen(true)}>
@@ -141,16 +145,23 @@ export default function GradingSchemesPage(): React.JSX.Element {
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 School Year
               </p>
-              <Select value={selectedYearId} onValueChange={(v) => setSelectedYearId(v)}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Select school year…" />
-                </SelectTrigger>
+              <Select
+                value={selectedYearId}
+                onValueChange={(v) => setSelectedYearId(v ?? "")}
+              >
+<SelectTrigger className="h-8 text-xs">
+  <span className="truncate text-xs">
+    {schoolYears.find((sy) => sy.id === selectedYearId)?.name ?? "Select school year…"}
+  </span>
+</SelectTrigger>
                 <SelectContent>
-                  {schoolYears.map((sy: any) => (
+                  {schoolYears.map((sy) => (
                     <SelectItem key={sy.id} value={sy.id} className="text-xs">
                       {sy.name}
                       {sy.status === "active" && (
-                        <span className="ml-1.5 text-emerald-600 text-[10px]">• Active</span>
+                        <span className="ml-1.5 text-emerald-600 text-[10px]">
+                          • Active
+                        </span>
                       )}
                     </SelectItem>
                   ))}

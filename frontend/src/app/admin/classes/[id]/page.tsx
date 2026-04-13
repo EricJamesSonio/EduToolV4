@@ -4,7 +4,8 @@ import { use, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-
+// Add import
+import { useGradingSchemeByClass } from "@/hooks/admin/useGradingSchemes";
 import { classApi } from "@/api/admin/class.api";
 import { subjectApi } from "@/api/admin/subject.api";
 import { educatorApi } from "@/api/admin/educator.api";
@@ -22,6 +23,7 @@ import { ClassInfoCard } from "@/components/admin/class/detail/ClassInfoCard";
 import { EnrolledStudentsList } from "@/components/admin/class/detail/EnrolledStudentsList";
 import { EditClassDialog } from "@/components/admin/class/detail/EditClassDialog";
 import { EnrollStudentDialog } from "@/components/admin/class/detail/EnrollStudentDialog";
+import { ClassGradingSchemeCard } from "@/components/admin/class/detail/ClassGradingSchemeCard";
 
 export default function ClassDetailPage({
   params,
@@ -50,6 +52,9 @@ export default function ClassDetailPage({
     enabled: !!id,
   });
   const enrollments = toArray<EnrollmentResponse>(enrollmentsRaw);
+
+  // After the enrollmentsRaw query, add:
+const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClass(id);
 
   // ── Lookup queries ────────────────────────────────────────────────────────
   const { data: subjectsRaw } = useQuery({
@@ -163,6 +168,12 @@ export default function ClassDetailPage({
 
       <ClassInfoCard cls={enrichedCls} enrolledCount={enrolledCount} />
 
+<ClassGradingSchemeCard
+  classId={id}
+  scheme={gradingScheme ?? null}
+  isLoading={schemeLoading}
+  isArchived={isArchived}
+/>
       <EnrolledStudentsList
         enrollments={enrollments}
         isLoading={enrollmentsLoading}

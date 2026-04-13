@@ -39,6 +39,12 @@ export default function SectionsPage(): React.JSX.Element {
   const {
     sections,
     isLoading: sectionsLoading,
+    filterProgramId,
+    setFilterProgramId,
+    filterCourseId,       // ← add
+    setFilterCourseId,    // ← add
+    filterStrandId,       // ← add
+    setFilterStrandId,    // ← add
     filterLevelId,
     setFilterLevelId,
     deleteTarget,
@@ -57,9 +63,12 @@ export default function SectionsPage(): React.JSX.Element {
 
   const isLoading = sectionsLoading || levelsLoading;
 
-  const filteredSections = sections.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredSections = sections.filter((s) => {
+    const matchesSearch  = s.name.toLowerCase().includes(search.toLowerCase());
+    const matchesProgram = filterProgramId === "all"
+      || levelMap[s.level_id]?.programId === filterProgramId;
+    return matchesSearch && matchesProgram;
+  });
 
   function handleSaved(): void {
     queryClient.invalidateQueries({ queryKey: ["admin", "sections", schoolYearId] });
@@ -88,6 +97,9 @@ export default function SectionsPage(): React.JSX.Element {
         selectedId={schoolYearId}
         onSelect={(id) => {
           setSchoolYearId(id);
+          setFilterProgramId("all");
+          setFilterCourseId("all");
+          setFilterStrandId("all");
           setFilterLevelId("all");
           setSearch("");
         }}
@@ -105,9 +117,20 @@ export default function SectionsPage(): React.JSX.Element {
               className="pl-8 w-56 h-9"
             />
           </div>
+
           <SectionLevelFilter
+            programs={programs}
+            filterProgramId={filterProgramId}
+            onProgramChange={(id) => {
+              setFilterProgramId(id);
+              setSearch("");
+            }}
+            filterCourseId={filterCourseId}
+            onCourseChange={setFilterCourseId}
+            filterStrandId={filterStrandId}
+            onStrandChange={setFilterStrandId}
             filterLevelId={filterLevelId}
-            onFilterChange={setFilterLevelId}
+            onLevelChange={setFilterLevelId}
             grouped={grouped}
             levelMap={levelMap}
           />
@@ -133,12 +156,13 @@ export default function SectionsPage(): React.JSX.Element {
           onCreateClick={() => setCreateOpen(true)}
         />
       ) : (
-        <SectionTable
-          sections={filteredSections}
-          levelMap={levelMap}
-          onEdit={setEditTarget}
-          onDelete={setDeleteTarget}
-        />
+      <SectionTable
+        sections={filteredSections}
+        levelMap={levelMap}
+        programs={programs}
+        onEdit={setEditTarget}
+        onDelete={setDeleteTarget}
+      />
       )}
 
       {createOpen && schoolYearId && (

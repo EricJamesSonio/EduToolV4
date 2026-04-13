@@ -107,21 +107,22 @@ export default function ProgramDetailPage({
         )}
       </div>
 
-      {showCourses && (
-        <CoursesSection
-          programId={id}
-          schoolYearId={schoolYearId}
-          courses={program.courses ?? []}
-        />
-      )}
-
-      {showStrands && (
-        <StrandsSection
-          programId={id}
-          schoolYearId={schoolYearId}
-          strands={program.strands ?? []}
-        />
-      )}
+    {showCourses && (
+      <CoursesSection
+        program={program}
+        schoolYearId={schoolYearId}
+        courses={program.courses ?? []}
+        isEnded={false}
+      />
+    )}
+    {showStrands && (
+      <StrandsSection
+        programId={id}
+        schoolYearId={schoolYearId}
+        strands={program.strands ?? []}
+        isEnded={false}
+      />
+    )}
 
       {!showCourses && !showStrands && (
         <div className="rounded-lg border bg-card px-6 py-8 text-center">
