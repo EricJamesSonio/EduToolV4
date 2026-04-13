@@ -338,9 +338,11 @@ model Subject {
   year_level   String?
   term_label   String?
 
-  program       Program?             @relation(fields: [program_id], references: [id])
-  course        Course?              @relation(fields: [course_id], references: [id])
-  strand        Strand?              @relation(fields: [strand_id], references: [id])
+  program       Program?              @relation(fields: [program_id], references: [id])
+  course        Course?               @relation(fields: [course_id], references: [id])
+  strand        Strand?               @relation(fields: [strand_id], references: [id])
+  classes       Class[]
+
   prerequisites SubjectPrerequisite[] @relation("SubjectPrereqs")
   prereqFor     SubjectPrerequisite[] @relation("PrereqFor")
   sharings      SubjectSharing[]
@@ -387,6 +389,8 @@ model Class {
   capacity       Int
   created_at     DateTime  @default(now())
   deleted_at     DateTime?
+
+  subject        Subject   @relation(fields: [subject_id], references: [id])
 
   schedules      ClassSchedule[]
   enrollments    Enrollment[]
