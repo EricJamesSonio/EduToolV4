@@ -1,30 +1,33 @@
 "use client"
 
-import { useEffect, useState }                       from "react"
-import { useQuery, useMutation, useQueryClient }      from "@tanstack/react-query"
-import { toast }                                      from "sonner"
-import { isAxiosError }                               from "axios"
-import { organizationApi }                            from "@/api/admin/organization.api"
-import { schoolYearApi }                              from "@/api/admin/school-year.api"
-import { programApi }                                 from "@/api/admin/program.api"
-import { courseApi }                                  from "@/api/admin/course.api"
-import { strandApi }                                  from "@/api/admin/strand.api"
-import { levelApi }                                   from "@/api/admin/level.api"
-import { subjectApi }                                 from "@/api/admin/subject.api"
-import { Button }                                     from "@/components/ui/button"
-import { Label }                                      from "@/components/ui/label"
-import { cn }                                         from "@/lib/utils"
-import { ConfirmDialog }                              from "@/components/shared/ConfirmDialog"
+import { useEffect, useState } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { isAxiosError } from "axios"
+import { organizationApi } from "@/api/admin/organization.api"
+import { schoolYearApi } from "@/api/admin/school-year.api"
+import { programApi } from "@/api/admin/program.api"
+import { courseApi } from "@/api/admin/course.api"
+import { strandApi } from "@/api/admin/strand.api"
+import { levelApi } from "@/api/admin/level.api"
+import { subjectApi } from "@/api/admin/subject.api"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { CalendarDays, ChevronDown, ChevronRight, Database, Loader2 } from "lucide-react"
-import { SchoolYearStep }   from "./SchoolYearStep"
-import { ProgramStep }      from "./ProgramStep"
-import { LevelStep }        from "./LevelStep"
-import { SectionStep }      from "./SectionStep"
-import { StrandStep }       from "./StrandStep"
-import { CourseStep }       from "./CourseStep"
-import { SubjectStep }      from "./SubjectStep"
+
+import { SchoolYearStep } from "./SchoolYearStep"
+import { ProgramStep } from "./ProgramStep"
+import { LevelStep } from "./LevelStep"
+import { SectionStep } from "./SectionStep"
+import { StrandStep } from "./StrandStep"
+import { CourseStep } from "./CourseStep"
+import { SubjectStep } from "./SubjectStep"
 import { GradingScaleStep } from "./GradingScaleStep"
-import { useSeedState }     from "./hooks/useSeedState"
+import { GradingSchemeStep } from "./GradingSchemeStep"
+import { SemesterTemplateStep } from "./SemesterTemplateStep"
+import { useSeedState } from "./hooks/useSeedState"
 import {
   COLLEGE_COURSES,
   LEVEL_DEFS,
@@ -42,14 +45,13 @@ interface PendingSchoolYear {
 
 function isShortDurationError(err: unknown): boolean {
   return (
-    isAxiosError(err) &&
-    err.response?.data?.error === "SHORT_DURATION_WARNING"
+    isAxiosError(err) && err.response?.data?.error === "SHORT_DURATION_WARNING"
   )
 }
 
 export function SeederCard() {
   const queryClient = useQueryClient()
-  const [collapsed, setCollapsed]               = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const [pendingSchoolYear, setPendingSchoolYear] = useState<PendingSchoolYear | null>(null)
 
   const { data: schoolYears = [], isLoading: syLoading } = useQuery({
@@ -77,8 +79,7 @@ export function SeederCard() {
       start_date?:            string
       end_date?:              string
       confirm_short_duration?: boolean
-    }) =>
-      schoolYearApi.create({ name, start_date, end_date, confirm_short_duration }),
+    }) => schoolYearApi.create({ name, start_date, end_date, confirm_short_duration }),
     onSuccess: (result) => {
       const created = (result as any).data ?? result
       toast.success(`School year "${created.name}" created.`)
@@ -101,7 +102,10 @@ export function SeederCard() {
 
   function handleConfirmShortDuration() {
     if (!pendingSchoolYear) return
-    createSchoolYearMutation.mutate({ ...pendingSchoolYear, confirm_short_duration: true })
+    createSchoolYearMutation.mutate({
+      ...pendingSchoolYear,
+      confirm_short_duration: true,
+    })
   }
 
   function handleCreateSchoolYear(name: string, start_date?: string, end_date?: string) {
@@ -146,17 +150,36 @@ export function SeederCard() {
   })
 
   const {
-    selectedPrograms,   setSelectedPrograms,
-    selectedCourses,    setSelectedCourses,
-    selectedStrands,    setSelectedStrands,
-    selectedSubjects,   setSelectedSubjects,
+    selectedPrograms,
+    setSelectedPrograms,
+    selectedCourses,
+    setSelectedCourses,
+    selectedStrands,
+    setSelectedStrands,
+    selectedSubjects,
+    setSelectedSubjects,
     allSelectableSubjects,
-    levelConfigs,       setLevelCount,      renameLevelAt,
-    seedGradingScale,   setSeedGradingScale,
-    gradingScaleByProgram, setGradingScaleForProgram,
+    levelConfigs,
+    setLevelCount,
+    renameLevelAt,
+    seedGradingScale,
+    setSeedGradingScale,
+    gradingScaleByProgram,
+    setGradingScaleForProgram,
     resolvedGradingScales,
-    toggleSet, selectAll, deselectAll,
-    sectionConfigs,     setSectionsForLevel,
+    seedGradingSchemes,
+    setSeedGradingSchemes,
+    gradingSchemesByProgram,
+    toggleGradingScheme,
+    seedSemesterTemplates,
+    setSeedSemesterTemplates,
+    semesterTemplatesByProgram,
+    toggleSemesterTemplate,
+    toggleSet,
+    selectAll,
+    deselectAll,
+    sectionConfigs,
+    setSectionsForLevel,
   } = useSeedState()
 
   const seedMutation = useMutation({
@@ -183,8 +206,6 @@ export function SeederCard() {
       return
     }
 
-    // Build excludedLevelSubjects: { "Grade 1": ["Filipino"], "Grade 2": ["Filipino"] }
-    // from compound keys that are NOT in selectedSubjects
     const excludedLevelSubjects: Record<string, string[]> = {}
     allSelectableSubjects
       .filter((key) => !selectedSubjects.has(key))
@@ -224,20 +245,18 @@ export function SeederCard() {
       schoolYearId: selectedSchoolYearId,
       programs:     Array.from(selectedPrograms),
       courses:      selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
-      strands:      selectedPrograms.has("shs")     ? Array.from(selectedStrands) : undefined,
-      levelConfigs:
-        Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
+      strands:      selectedPrograms.has("shs") ? Array.from(selectedStrands) : undefined,
+      levelConfigs: Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
       sectionConfigs: sectionConfigsPayload,
-      excludedLevelSubjects:
-        Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
+      excludedLevelSubjects: Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
       gradingScales,
     })
   }
 
-  const existingProgramTypes  = new Set(existingPrograms.map((p) => p.type))
-  const existingCourseCodes   = new Set(existingCourses.map((c) => c.code?.trim()).filter(Boolean))
-  const existingStrandNames   = new Set(existingStrands.map((s) => s.name))
-  const existingLevelNames    = new Set(existingLevels.map((l) => l.name))
+  const existingProgramTypes = new Set(existingPrograms.map((p) => p.type))
+  const existingCourseCodes = new Set(existingCourses.map((c) => c.code?.trim()).filter(Boolean))
+  const existingStrandNames = new Set(existingStrands.map((s) => s.name))
+  const existingLevelNames = new Set(existingLevels.map((l) => l.name))
   const existingSubjectTitles = new Set(existingSubjects.map((s) => s.title))
 
   const helpers = {
@@ -272,6 +291,13 @@ export function SeederCard() {
     .flatMap((p) => levelConfigs[p]?.names ?? LEVEL_DEFS[p] ?? [])
     .reduce((sum, lvl) => sum + (sectionConfigs[lvl]?.length ?? 2), 0)
 
+  const selectedGradingSchemes = Array.from(selectedPrograms).filter(
+    (p) => gradingSchemesByProgram[p] !== false
+  ).length
+  const selectedSemesterTemplates = Array.from(selectedPrograms).filter(
+    (p) => semesterTemplatesByProgram[p] !== false
+  ).length
+
   const summaryText = !selectedSchoolYearId
     ? "Select a school year to begin."
     : selectedPrograms.size === 0
@@ -281,9 +307,11 @@ export function SeederCard() {
         totalLevelCount > 0 && `${totalLevelCount} level(s)`,
         totalSectionCount > 0 && `${totalSectionCount} section(s)`,
         selectedPrograms.has("college") && `${Array.from(selectedCourses).length} course(s)`,
-        selectedPrograms.has("shs")     && `${Array.from(selectedStrands).length} strand(s)`,
+        selectedPrograms.has("shs") && `${Array.from(selectedStrands).length} strand(s)`,
         `${allSelectableSubjects.filter((k) => selectedSubjects.has(k)).length} subject(s)`,
         seedGradingScale && `${Object.keys(resolvedGradingScales).length} grading scale(s)`,
+        seedGradingSchemes && `${selectedGradingSchemes} grading scheme(s)`,
+        seedSemesterTemplates && `${selectedSemesterTemplates} semester template(s)`,
       ]
         .filter(Boolean)
         .join(" · ")
@@ -318,15 +346,14 @@ export function SeederCard() {
         {!collapsed && (
           <div className="px-6 pb-6 space-y-5">
             <p className="text-sm text-muted-foreground -mt-1">
-              Seed your organization with programs, levels, subjects, and grading scales.
+              Seed your organization with programs, levels, subjects, grading scales, schemes, and semester templates.
               Already-seeded items appear grayed out.
             </p>
 
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
                 <CalendarDays className="h-3.5 w-3.5" />
-                School Year
-                <span className="text-destructive ml-0.5">*</span>
+                School Year <span className="text-destructive ml-0.5">*</span>
               </Label>
               <SchoolYearStep
                 schoolYears={schoolYears}
@@ -405,13 +432,29 @@ export function SeederCard() {
               />
 
               {selectedPrograms.size > 0 && (
-                <div className="border-t pt-5">
+                <div className="border-t pt-5 space-y-5">
                   <GradingScaleStep
                     selectedPrograms={selectedPrograms}
                     seedGradingScale={seedGradingScale}
                     gradingScaleByProgram={gradingScaleByProgram}
                     onToggleSeed={setSeedGradingScale}
                     onSelectPreset={setGradingScaleForProgram}
+                  />
+
+                  <GradingSchemeStep
+                    selectedPrograms={selectedPrograms}
+                    seedGradingSchemes={seedGradingSchemes}
+                    gradingSchemesByProgram={gradingSchemesByProgram}
+                    onToggleSeed={setSeedGradingSchemes}
+                    onToggleScheme={toggleGradingScheme}
+                  />
+
+                  <SemesterTemplateStep
+                    selectedPrograms={selectedPrograms}
+                    seedSemesterTemplates={seedSemesterTemplates}
+                    semesterTemplatesByProgram={semesterTemplatesByProgram}
+                    onToggleSeed={setSeedSemesterTemplates}
+                    onToggleTemplate={toggleSemesterTemplate}
                   />
                 </div>
               )}

@@ -141,11 +141,11 @@ export class GradeRepository {
 
   // ───────── GRADING SCALE ─────────
 
-  async findGradingScale(levelId: string, schoolYearId: string, orgId: string) {
+  async findGradingScale(programId: string, schoolYearId: string, orgId: string) {
     return this.db.gradingScale.findFirst({
       where: {
         org_id: orgId,
-        level_id: levelId,
+        program_id: programId,
         school_year_id: schoolYearId,
       },
     });

@@ -37,6 +37,10 @@ interface SubjectDialogProps {
   levels:              Level[];
   schoolYearId?:       string;
   defaultSubjectType?: SubjectType;
+  defaultProgramId?:   string;
+  defaultCourseId?:    string;
+  defaultStrandId?:    string;
+  defaultLevelId?:     string;
   open:                boolean;
   onClose:             () => void;
   onSaved:             () => void;
@@ -47,6 +51,10 @@ export function SubjectDialog({
   levels,
   schoolYearId,
   defaultSubjectType = "major",
+  defaultProgramId,
+  defaultCourseId,
+  defaultStrandId,
+  defaultLevelId,
   open,
   onClose,
   onSaved,
@@ -64,10 +72,10 @@ export function SubjectDialog({
   } = useForm<SubjectFormValues>({
     defaultValues: {
       name:        subject?.title        ?? "",
-      programId:   subject?.realProgramId ?? "",
-      levelId:     subject?.levelId      ?? "",
-      courseId:    subject?.courseId     ?? "",
-      strandId:    subject?.strandId     ?? "",
+      programId:   subject?.realProgramId ?? defaultProgramId ?? "",
+      levelId:     subject?.levelId      ?? defaultLevelId    ?? "",
+      courseId:    subject?.courseId     ?? defaultCourseId   ?? "",
+      strandId:    subject?.strandId     ?? defaultStrandId   ?? "",
       subjectType: (subject?.subjectType ?? defaultSubjectType) as SubjectType,
     },
   });
@@ -121,7 +129,14 @@ export function SubjectDialog({
   });
 
   const handleClose = () => {
-    reset();
+    reset({
+      name:        "",
+      programId:   defaultProgramId ?? "",
+      levelId:     defaultLevelId   ?? "",
+      courseId:    defaultCourseId  ?? "",
+      strandId:    defaultStrandId  ?? "",
+      subjectType: defaultSubjectType,
+    });
     onClose();
   };
 
@@ -156,13 +171,12 @@ export function SubjectDialog({
               <Label>Subject Type</Label>
               <Tabs
                 value={subjectType}
-                onValueChange={(v) => {
-                  setValue("subjectType", v as SubjectType);
-                  setValue("programId", "");
-                  setValue("levelId", "");
-                  setValue("courseId", "");
-                  setValue("strandId", "");
-                }}
+  onValueChange={(v) => {
+    setValue("subjectType", v as SubjectType);
+    setValue("levelId",  defaultLevelId  ?? "");
+    setValue("courseId", defaultCourseId ?? "");
+    setValue("strandId", defaultStrandId ?? "");
+  }}
               >
                 <TabsList className="w-full h-9">
                   <TabsTrigger value="major" className="flex-1 text-sm">

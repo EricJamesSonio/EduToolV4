@@ -1,4 +1,3 @@
-// @/modules/grading-scale/grading-scale.controller.ts
 import {
   Controller,
   Post,
@@ -26,9 +25,7 @@ export class GradingScaleController {
   constructor(private readonly gradingScaleService: GradingScaleService) {}
 
   /**
-   * POST /grading-scales  @Roles(ADMIN)
-   * Creates a grading scale for a level + school year.
-   * Validates full 0–100 range coverage with no gaps or overlaps.
+   * Create a new grading scale for a program & school year
    */
   @Post()
   @Roles('admin')
@@ -40,9 +37,7 @@ export class GradingScaleController {
   }
 
   /**
-   * GET /grading-scales
-   * Returns all grading scales. Filterable by ?levelId= and ?schoolYearId=
-   * All authenticated roles can view.
+   * Get all grading scales (optionally filtered by programId, schoolYearId)
    */
   @Get()
   async findAll(
@@ -53,8 +48,7 @@ export class GradingScaleController {
   }
 
   /**
-   * PATCH /grading-scales/:id  @Roles(ADMIN)
-   * Updates name or ranges. Blocked if scale is locked.
+   * Update a grading scale by ID
    */
   @Patch(':id')
   @Roles('admin')

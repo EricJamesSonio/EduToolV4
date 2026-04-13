@@ -1,5 +1,3 @@
-// frontend/src/hooks/admin/useGradingScales.ts
-
 import {
   useQuery,
   useMutation,
@@ -16,7 +14,7 @@ import type {
 } from "@/api/admin/grading-scale.api";
 
 export const useGradingScales = (
-  query?: GetGradingScalesQuery,
+  query?: GetGradingScalesQuery
 ): UseQueryResult<GradingScale[], unknown> => {
   return useQuery<GradingScale[], unknown>({
     queryKey: ["gradingScales", query],
@@ -30,7 +28,6 @@ export const useCreateGradingScale = (): UseMutationResult<
   CreateGradingScaleRequest
 > => {
   const queryClient = useQueryClient();
-
   return useMutation<GradingScale, unknown, CreateGradingScaleRequest>({
     mutationFn: gradingScaleApi.create,
     onSuccess: () => {
@@ -45,7 +42,6 @@ export const useUpdateGradingScale = (): UseMutationResult<
   { id: string; data: UpdateGradingScaleRequest }
 > => {
   const queryClient = useQueryClient();
-
   return useMutation<
     GradingScale,
     unknown,

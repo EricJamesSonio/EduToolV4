@@ -1,13 +1,11 @@
-// frontend/src/api/admin/grading-scale.api.ts
-
 import client from "@/api/client";
 import type { GradingScale, GradeRange } from "@/types/admin/grading-scale.types";
 
 export interface CreateGradingScaleRequest {
-  levelId: string;
+  programId: string; // CHANGED from levelId → programId
   schoolYearId: string;
   name: string;
-  ranges: GradeRange[];  // now correctly typed — fields match backend GradeRangeDto
+  ranges: GradeRange[]; // now correctly typed — fields match backend GradeRangeDto
 }
 
 export interface UpdateGradingScaleRequest {
@@ -16,26 +14,39 @@ export interface UpdateGradingScaleRequest {
 }
 
 export interface GetGradingScalesQuery {
-  levelId?: string;
+  programId?: string; // CHANGED from levelId → programId
   schoolYearId?: string;
 }
 
 export const gradingScaleApi = {
   getAll: async (query?: GetGradingScalesQuery): Promise<GradingScale[]> => {
-    const res = await client.get<{ success: boolean; data: GradingScale[] }>("/grading-scales", { params: query });
-    return res.data.data;  // ← unwrap the actual array
+    const res = await client.get<{ success: boolean; data: GradingScale[] }>(
+      "/grading-scales",
+      { params: query }
+    );
+    return res.data.data; // ← unwrap the actual array
   },
 
   create: async (data: CreateGradingScaleRequest): Promise<GradingScale> => {
-    const res = await client.post<{ success: boolean; data: GradingScale }>("/grading-scales", data);
+    const res = await client.post<{ success: boolean; data: GradingScale }>(
+      "/grading-scales",
+      data
+    );
     return res.data.data;
   },
 
-  update: async (id: string, data: UpdateGradingScaleRequest): Promise<GradingScale> => {
-    const res = await client.patch<{ success: boolean; data: GradingScale }>(`/grading-scales/${id}`, data);
+  update: async (
+    id: string,
+    data: UpdateGradingScaleRequest
+  ): Promise<GradingScale> => {
+    const res = await client.patch<{ success: boolean; data: GradingScale }>(
+      `/grading-scales/${id}`,
+      data
+    );
     return res.data.data;
   },
+
   delete: async (id: string): Promise<void> => {
-  await client.delete(`/grading-scales/${id}`);
-},
+    await client.delete(`/grading-scales/${id}`);
+  },
 };

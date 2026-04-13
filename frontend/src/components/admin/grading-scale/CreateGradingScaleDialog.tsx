@@ -5,10 +5,14 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
-import { levelApi } from "@/api/admin/level.api";
+import { programApi } from "@/api/admin/program.api"; // CHANGED from levelApi → programApi
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import type { GradeRange } from "@/types/admin/grading-scale.types";
-import { GradingScaleRangeEditor, validateRanges } from "./GradingScaleRangeEditor";
+import type { Program } from "@/types/admin/program.types";
+import {
+  GradingScaleRangeEditor,
+  validateRanges,
+} from "./GradingScaleRangeEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,29 +31,33 @@ import {
 } from "@/components/ui/select";
 import type { AxiosError } from "axios";
 
-// ─── Default starter ranges ───────────────────────────────────────────────────
-
 const DEFAULT_RANGES: GradeRange[] = [
-  { minPercent: 0, maxPercent: 74, gradeValue: "5.00", remark: "Failed", isPassing: false },
-  { minPercent: 74, maxPercent: 100, gradeValue: "1.00", remark: "Excellent", isPassing: true },
+  {
+    minPercent: 0,
+    maxPercent: 74,
+    gradeValue: "5.00",
+    remark: "Failed",
+    isPassing: false,
+  },
+  {
+    minPercent: 74,
+    maxPercent: 100,
+    gradeValue: "1.00",
+    remark: "Excellent",
+    isPassing: true,
+  },
 ];
-
-// ─── Form values ──────────────────────────────────────────────────────────────
 
 interface FormValues {
   name: string;
   schoolYearId: string;
-  levelId: string;
+  programId: string; // CHANGED from levelId → programId
 }
-
-// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface CreateGradingScaleDialogProps {
   open: boolean;
   onClose: () => void;
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function CreateGradingScaleDialog({
   open,
@@ -57,7 +65,9 @@ export function CreateGradingScaleDialog({
 }: CreateGradingScaleDialogProps) {
   const queryClient = useQueryClient();
   const [ranges, setRanges] = useState<GradeRange[]>(DEFAULT_RANGES);
-  const [rangeErrors, setRangeErrors] = useState<ReturnType<typeof validateRanges>>([]);
+  const [rangeErrors, setRangeErrors] = useState<
+    ReturnType<typeof validateRanges>
+  >([]);
   const [submitted, setSubmitted] = useState(false);
 
   const {
@@ -68,14 +78,12 @@ export function CreateGradingScaleDialog({
     setValue,
     formState: { errors },
   } = useForm<FormValues>({
-    defaultValues: { name: "", schoolYearId: "", levelId: "" },
+    defaultValues: { name: "", schoolYearId: "", programId: "" }, // CHANGED
   });
 
-const schoolYearId = watch("schoolYearId");
-const levelId = watch("levelId");
+  const schoolYearId = watch("schoolYearId");
+  const programId = watch("programId"); // CHANGED from levelId → programId
 
-
-  // Reset on close
   useEffect(() => {
     if (!open) {
       reset();
@@ -91,15 +99,16 @@ const levelId = watch("levelId");
     enabled: open,
   });
 
-    const { data: levels = [] } = useQuery({
-    queryKey: ["admin", "levels", schoolYearId],
-    queryFn: () => levelApi.getBySchoolYear(schoolYearId!),
+  // CHANGED: Fetch programs instead of levels
+  const { data: programs = [] } = useQuery({
+    queryKey: ["admin", "programs", schoolYearId],
+    queryFn: () => programApi.getAll(schoolYearId!),
     enabled: open && !!schoolYearId,
-    });
+  });
 
-  // Reset levelId when school year changes
+  // CHANGED: Reset programId when schoolYearId changes
   useEffect(() => {
-    setValue("levelId", "");
+    setValue("programId", "");
   }, [schoolYearId, setValue]);
 
   const mutation = useMutation({
@@ -110,7 +119,9 @@ const levelId = watch("levelId");
       onClose();
     },
     onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to create grading scale.");
+      toast.error(
+        err?.response?.data?.message ?? "Failed to create grading scale."
+      );
     },
   });
 
@@ -123,12 +134,11 @@ const levelId = watch("levelId");
     mutation.mutate({
       name: values.name,
       schoolYearId: values.schoolYearId,
-      levelId: values.levelId,
+      programId: values.programId, // CHANGED from levelId → programId
       ranges,
     });
   };
 
-  // Live-validate ranges after first submit attempt
   const handleRangesChange = (next: GradeRange[]) => {
     setRanges(next);
     if (submitted) setRangeErrors(validateRanges(next));
@@ -154,7 +164,7 @@ const levelId = watch("levelId");
             )}
           </div>
 
-          {/* School Year + Level — side by side */}
+          {/* School Year + Program — side by side */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>School Year</Label>
@@ -174,30 +184,40 @@ const levelId = watch("levelId");
                 </SelectContent>
               </Select>
               {!schoolYearId && submitted && (
-                <p className="text-xs text-destructive">School year is required.</p>
+                <p className="text-xs text-destructive">
+                  School year is required.
+                </p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label>Level</Label>
+              <Label>Program</Label> {/* CHANGED from "Level" */}
               <Select
-                value={levelId}
-                onValueChange={(v) => setValue("levelId", v ?? "")}
+                value={programId}
+                onValueChange={(v) => setValue("programId", v ?? "")}
                 disabled={!schoolYearId}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={schoolYearId ? "Select level" : "Select school year first"} />
+                  <SelectValue
+                    placeholder={
+                      schoolYearId
+                        ? "Select program" // CHANGED
+                        : "Select school year first"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {levels.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>
-                      {l.name}
+                  {programs.map((p: Program) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {!levelId && submitted && (
-                <p className="text-xs text-destructive">Level is required.</p>
+              {!programId && submitted && (
+                <p className="text-xs text-destructive">
+                  Program is required.
+                </p>
               )}
             </div>
           </div>
@@ -215,7 +235,12 @@ const levelId = watch("levelId");
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={mutation.isPending}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={mutation.isPending}>

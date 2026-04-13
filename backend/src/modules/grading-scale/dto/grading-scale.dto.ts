@@ -1,4 +1,3 @@
-// @/modules/grading-scale/dto/grading-scale.dto.ts
 import {
   IsString,
   IsOptional,
@@ -14,54 +13,48 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-// ── Grade range item ──────────────────────────────────────────────────────────
-
 export class GradeRangeDto {
   @IsNumber()
   @Min(0)
   @Max(100)
-  minPercent: number;
+  minPercent!: number;
 
   @IsNumber()
   @Min(0)
   @Max(100)
-  maxPercent: number;
+  maxPercent!: number;
 
   @IsString()
   @MinLength(1)
   @MaxLength(20)
-  gradeValue: string; // e.g. "1.0", "A", "Excellent"
+  gradeValue!: string; // e.g. "1.0", "A", "Excellent"
 
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  remark: string; // e.g. "Passed", "Failed", "Incomplete"
+  remark!: string; // e.g. "Passed", "Failed", "Incomplete"
 
   @IsBoolean()
-  isPassing: boolean;
+  isPassing!: boolean;
 }
-
-// ── POST /grading-scales ──────────────────────────────────────────────────────
 
 export class CreateGradingScaleDto {
   @IsUUID()
-  levelId: string;
+  programId!: string;
 
   @IsUUID()
-  schoolYearId: string;
+  schoolYearId!: string;
 
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => GradeRangeDto)
-  ranges: GradeRangeDto[];
+  ranges!: GradeRangeDto[];
 }
-
-// ── PATCH /grading-scales/:id ─────────────────────────────────────────────────
 
 export class UpdateGradingScaleDto {
   @IsOptional()
@@ -77,12 +70,10 @@ export class UpdateGradingScaleDto {
   ranges?: GradeRangeDto[];
 }
 
-// ── GET /grading-scales ───────────────────────────────────────────────────────
-
 export class QueryGradingScaleDto {
   @IsOptional()
   @IsUUID()
-  levelId?: string;
+  programId?: string;
 
   @IsOptional()
   @IsUUID()

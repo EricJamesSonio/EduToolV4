@@ -1,129 +1,53 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { subjectApi } from "@/api/admin/subject.api";
-import { levelApi } from "@/api/admin/level.api";
-import { educatorApi } from "@/api/admin/educator.api";
-import { schoolYearApi } from "@/api/admin/school-year.api";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner"; // kept for potential future use; harmless
 import type { Subject } from "@/types/admin/subject.types";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { DataTable } from "@/components/shared/DataTable";
+import { PageHeader }   from "@/components/shared/PageHeader";
+import { Button }       from "@/components/ui/button";
+import { Plus }         from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, BookOpen } from "lucide-react";
 import { SubjectDialog } from "@/components/admin/subject/SubjectDialog";
-import { useSubjectColumns } from "@/components/admin/subject/SubjectColumns";
-import type { AxiosError } from "axios";
-import type { SubjectType } from "@/types/admin/subject.types";
+import { SubjectFilters }    from "@/components/admin/subject/SubjectFilters";
+import { SubjectTabs }       from "@/components/admin/subject/SubjectTabs";
+import { SubjectSearch }     from "@/components/admin/subject/SubjectSearch";
+import { SubjectTable }      from "@/components/admin/subject/SubjectTable";
+import { SubjectEmptyState } from "@/components/admin/subject/SubjectEmptyState";
+import { useSubjectFilters } from "@/components/admin/subject/hooks/useSubjectFilters";
+import { useSubjectQueries } from "@/components/admin/subject/hooks/useSubjectQueries";
+import { useSubjectMutations } from "@/components/admin/subject/hooks/useSubjectMutations";
 
 export default function SubjectsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
+  const filters = useSubjectFilters();
 
-  const { data: schoolYears = [], isLoading: syLoading } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: schoolYearApi.getAll,
-  });
+  const [createOpen,    setCreateOpen]    = useState(false);
+  const [lockTarget,    setLockTarget]    = useState<Subject | null>(null);
+  const [unlockTarget,  setUnlockTarget]  = useState<Subject | null>(null);
+  const [searchQuery,   setSearchQuery]   = useState("");
 
-  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<
-    string | null
-  >(null);
+  const {
+    schoolYears, syLoading,
+    programs, programsLoading,
+    levels, levelsLoading,
+    courses, strands,
+    educators, educatorsLoading,
+    subjects, subjectsLoading,
+  } = useSubjectQueries(filters);
 
-  useEffect(() => {
-    if (schoolYears.length > 0 && !selectedSchoolYearId) {
-      const active = schoolYears.find((sy) => sy.status === "active");
-      setSelectedSchoolYearId(active?.id ?? schoolYears[0].id);
-    }
-  }, [schoolYears, selectedSchoolYearId]);
+  const { lockMutation, unlockMutation } = useSubjectMutations(
+    queryClient,
+    setLockTarget,
+    setUnlockTarget,
+  );
 
-  // Tab: "major" | "minor"
-  const [activeTab, setActiveTab] = useState<SubjectType>("major");
+  const isLoading =
+    levelsLoading || educatorsLoading || subjectsLoading || programsLoading;
 
-  const [filterLevelId, setFilterLevelId] = useState<string>("all");
-
-  // Reset level filter when school year or tab changes
-  useEffect(() => {
-    setFilterLevelId("all");
-  }, [selectedSchoolYearId, activeTab]);
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [lockTarget, setLockTarget] = useState<Subject | null>(null);
-  const [unlockTarget, setUnlockTarget] = useState<Subject | null>(null);
-
-  const { data: levels = [], isLoading: levelsLoading } = useQuery({
-    queryKey: ["admin", "levels", selectedSchoolYearId],
-    queryFn: () => levelApi.getBySchoolYear(selectedSchoolYearId!),
-    enabled: !!selectedSchoolYearId,
-  });
-
-  const { data: educators = [], isLoading: educatorsLoading } = useQuery({
-    queryKey: ["admin", "educators", "all"],
-    queryFn: () => educatorApi.getAll(),
-    select: (data) => (Array.isArray(data) ? data : []),
-  });
-
-  const { data: subjects = [], isLoading: subjectsLoading } = useQuery<
-    Subject[]
-  >({
-    queryKey: [
-      "admin",
-      "subjects",
-      selectedSchoolYearId,
-      filterLevelId,
-      activeTab,
-    ],
-    queryFn: () =>
-      subjectApi.getAll({
-        schoolYearId: selectedSchoolYearId!,
-        levelId: filterLevelId !== "all" ? filterLevelId : undefined,
-        subjectType: activeTab,
-      }),
-    enabled: !!selectedSchoolYearId,
-  });
-
-  const lockMutation = useMutation({
-    mutationFn: (id: string) => subjectApi.lock(id),
-    onSuccess: () => {
-      toast.success("Subject locked.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
-      setLockTarget(null);
-    },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to lock subject.");
-      setLockTarget(null);
-    },
-  });
-
-  const unlockMutation = useMutation({
-    mutationFn: (id: string) => subjectApi.unlock(id),
-    onSuccess: () => {
-      toast.success("Subject unlocked.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
-      setUnlockTarget(null);
-    },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(
-        err?.response?.data?.message ?? "Failed to unlock subject.",
-      );
-      setUnlockTarget(null);
-    },
-  });
-
-  const columns = useSubjectColumns(setLockTarget, setUnlockTarget);
-  const isLoading = levelsLoading || educatorsLoading || subjectsLoading;
+  const filteredSubjects = subjects.filter((subject) =>
+    subject.title.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   return (
     <div className="space-y-6">
@@ -133,129 +57,80 @@ export default function SubjectsPage(): React.JSX.Element {
           <Button
             onClick={() => setCreateOpen(true)}
             size="sm"
-            disabled={!selectedSchoolYearId}
+            disabled={!filters.selectedSchoolYearId}
           >
             <Plus className="mr-1.5 h-4 w-4" />
-            {activeTab === "minor" ? "New Minor Subject" : "New Subject"}
+            {filters.activeTab === "minor" ? "New Minor Subject" : "New Subject"}
           </Button>
         }
       />
 
-      {/* ── Filter bar ── */}
-      <div className="flex flex-wrap items-center gap-3">
-        <SchoolYearSelector
-          schoolYears={schoolYears}
-          isLoading={syLoading}
-          selectedId={selectedSchoolYearId}
-          onSelect={setSelectedSchoolYearId}
-        />
+      {/* Filters — spread so each setter is passed as an individual prop */}
+      <SubjectFilters
+        {...filters}
+        schoolYears={schoolYears}
+        programs={programs}
+        levels={levels}
+        courses={courses}
+        strands={strands}
+        syLoading={syLoading}
+        programsLoading={programsLoading}
+        levelsLoading={levelsLoading}
+      />
 
-        {selectedSchoolYearId && (
-          <Select
-            value={filterLevelId}
-            onValueChange={(v) => setFilterLevelId(v ?? "all")}
-          >
-            <SelectTrigger className="w-52 h-9 text-sm">
-              <SelectValue placeholder="All Levels">
-                {filterLevelId === "all"
-                  ? "All Levels"
-                  : levels.find((l) => l.id === filterLevelId)?.name ??
-                    "All Levels"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Levels</SelectItem>
-              {levels.map((level) => (
-                <SelectItem key={level.id} value={level.id}>
-                  {level.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
+      {/* Tabs — pass setActiveTab so clicking Minor/Major actually works */}
+      <SubjectTabs
+        filters={filters}
+        onTabChange={filters.setActiveTab}
+      />
 
-      {/* ── Major / Minor tabs ── */}
-      {selectedSchoolYearId && (
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as SubjectType)}
-        >
-          <TabsList className="h-9">
-            <TabsTrigger value="major" className="text-sm px-4">
-              Major Subjects
-            </TabsTrigger>
-            <TabsTrigger value="minor" className="text-sm px-4">
-              Minor Subjects
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      )}
-
-      {/* ── No school year ── */}
-      {!selectedSchoolYearId && !syLoading && (
-        <EmptyState
-          icon={BookOpen}
-          title="No school year selected"
-          description="Select a school year above to view subjects."
+      {/* Search */}
+      {filters.selectedSchoolYearId && (
+        <SubjectSearch
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          resultCount={filteredSubjects.length}
         />
       )}
 
-      {/* ── Table ── */}
-      {selectedSchoolYearId && (
-        <>
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-12 w-full rounded-lg" />
-              ))}
-            </div>
-          ) : subjects.length === 0 ? (
-            <EmptyState
-              icon={BookOpen}
-              title={`No ${activeTab} subjects found`}
-              description={
-                filterLevelId !== "all"
-                  ? `No ${activeTab} subjects for this level yet.`
-                  : `No ${activeTab} subjects found for this school year.`
-              }
-              action={{
-                label:
-                  activeTab === "minor"
-                    ? "New Minor Subject"
-                    : "New Subject",
-                onClick: () => setCreateOpen(true),
-              }}
-            />
-          ) : (
-            <>
-              {/* Minor tab: show sharing badges above the table */}
-              {activeTab === "minor" && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>Minor subjects can be shared to courses, strands, or levels within their program.</span>
-                </div>
-              )}
-              <DataTable columns={columns} data={subjects} />
-            </>
-          )}
-        </>
-      )}
-
-      {/* ── Dialogs ── */}
-      {createOpen && (
-        <SubjectDialog
-          levels={levels}
-          educators={educators}
-          schoolYearId={selectedSchoolYearId ?? undefined}
-          // Pre-set subjectType based on active tab
-          defaultSubjectType={activeTab}
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
-          onSaved={() =>
-            queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] })
-          }
+      {/* Table or empty state */}
+      {filters.selectedSchoolYearId ? (
+        <SubjectTable
+          isLoading={isLoading}
+          subjects={filteredSubjects}
+          activeTab={filters.activeTab}
+          filterLevelId={filters.filterLevelId}
+          selectedCourseId={filters.selectedCourseId}
+          selectedStrandId={filters.selectedStrandId}
+          selectedProgramId={filters.selectedProgramId}
+          onLockClick={setLockTarget}
+          onUnlockClick={setUnlockTarget}
+        />
+      ) : (
+        <SubjectEmptyState
+          showNoSchoolYear
+          onCreateClick={() => setCreateOpen(true)}
         />
       )}
+
+      {/* Dialogs */}
+{createOpen && (
+  <SubjectDialog
+    levels={levels}
+    educators={educators}
+    schoolYearId={filters.selectedSchoolYearId ?? undefined}
+    defaultSubjectType={filters.activeTab}
+    defaultProgramId={filters.selectedProgramId !== "all" ? filters.selectedProgramId : undefined}
+    defaultCourseId={filters.selectedCourseId  !== "all" ? filters.selectedCourseId  : undefined}
+    defaultStrandId={filters.selectedStrandId  !== "all" ? filters.selectedStrandId  : undefined}
+    defaultLevelId={filters.filterLevelId      !== "all" ? filters.filterLevelId     : undefined}
+    open={createOpen}
+    onClose={() => setCreateOpen(false)}
+    onSaved={() => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
+    }}
+  />
+)}
 
       {lockTarget && (
         <ConfirmDialog
@@ -266,9 +141,7 @@ export default function SubjectsPage(): React.JSX.Element {
           destructive={false}
           isLoading={lockMutation.isPending}
           onConfirm={() => lockMutation.mutate(lockTarget.id)}
-          onOpenChange={(o) => {
-            if (!o) setLockTarget(null);
-          }}
+          onOpenChange={(o) => { if (!o) setLockTarget(null); }}
         />
       )}
 
@@ -281,9 +154,7 @@ export default function SubjectsPage(): React.JSX.Element {
           destructive={false}
           isLoading={unlockMutation.isPending}
           onConfirm={() => unlockMutation.mutate(unlockTarget.id)}
-          onOpenChange={(o) => {
-            if (!o) setUnlockTarget(null);
-          }}
+          onOpenChange={(o) => { if (!o) setUnlockTarget(null); }}
         />
       )}
     </div>

@@ -136,10 +136,15 @@ export class OrgSeederService {
     await this.seedCourses(orgId, schoolYearId, shouldSeedProgram, shouldSeedCourse, programMap, courseMap, result)
     await this.seedStrands(orgId, schoolYearId, shouldSeedProgram, shouldSeedStrand, programMap, strandMap, result)
     await this.seedLevelsAndSections(orgId, schoolYearId, shouldSeedProgram, shouldSeedLevel, programMap, levelMap, levelConfigs, sectionConfigs, result)
-    await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, levelMap, gradingScales, result)
+    await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, programMap, gradingScales, result)
     await this.seedGradingSchemes(orgId, shouldSeedProgram, result)
     await this.seedSemesterTemplates(orgId, shouldSeedProgram, programMap, result)
-    await this.seedMajorSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, subjectNameToId, result)
+await this.seedMajorSubjects(
+  orgId, shouldSeedProgram, shouldSeedSubject,
+  levelMap, courseMap, strandMap,
+  programMap,
+  subjectNameToId, result,
+)
     await this.seedMinorSubjects(orgId, shouldSeedProgram, shouldSeedSubject, levelMap, courseMap, strandMap, programMap, subjectNameToId, result)
     await this.seedPrerequisites(orgId, shouldSeedProgram, levelMap, subjectNameToId)
 
@@ -300,51 +305,53 @@ export class OrgSeederService {
     }
   }
 
-  private async seedGradingScales(
-    orgId:         string,
-    schoolYearId:  string,
-    shouldSeed:    (k: string) => boolean,
-    levelMap:      Record<string, string>,
-    gradingScales: Record<string, GradingScaleOption>,
-    result:        SeedResult,
-  ) {
-    const assignments = Object.keys(gradingScales).length > 0
-      ? Object.entries(gradingScales).flatMap(([progKey, scale]) =>
-          !shouldSeed(progKey) ? [] :
-          Object.entries(levelMap).map(([levelName, levelId]) => ({
-            levelName, levelId, scaleName: scale.name, ranges: scale.ranges as any,
-          }))
-        )
-      : buildScaleAssignments()
-          .filter((sa) => shouldSeed(sa.programKey) && levelMap[sa.levelName])
-          .map((sa) => ({
-            levelName: sa.levelName,
-            levelId:   levelMap[sa.levelName],
-            scaleName: sa.scaleName,
-            ranges:    sa.ranges,
-          }))
+private async seedGradingScales(
+  orgId:         string,
+  schoolYearId:  string,
+  shouldSeed:    (k: string) => boolean,
+  programMap:    Record<string, string>,  // CHANGED: back to programMap
+  gradingScales: Record<string, GradingScaleOption>,
+  result:        SeedResult,
+) {
+  const assignments = Object.keys(gradingScales).length > 0
+    ? Object.entries(gradingScales)
+        .filter(([progKey]) => shouldSeed(progKey) && programMap[progKey])
+        .map(([progKey, scale]) => ({
+          programKey: progKey,
+          programId: programMap[progKey],
+          scaleName: scale.name,
+          ranges: scale.ranges as any,
+        }))
+    : buildScaleAssignments()
+        .filter((sa) => shouldSeed(sa.programKey) && programMap[sa.programKey])
+        .map((sa) => ({
+          programKey: sa.programKey,
+          programId: programMap[sa.programKey],
+          scaleName: sa.scaleName,
+          ranges: sa.ranges,
+        }))
 
-    for (const { levelName: _levelName, levelId, scaleName, ranges } of assignments) {
-      const id       = seedId('scale', _levelName, scaleName, schoolYearId, orgId)
-      const existing = await this.db.gradingScale.findFirst({ where: { id } })
-      if (existing) {
-        result.gradingScales.already_exists++
-      } else {
-        await this.db.gradingScale.create({
-          data: {
-            id,
-            org_id:         orgId,
-            school_year_id: schoolYearId,
-            level_id:       levelId,
-            name:           scaleName,
-            ranges,
-            is_locked:      false,
-          },
-        })
-        result.gradingScales.seeded++
-      }
+  for (const { programKey, programId, scaleName, ranges } of assignments) {
+    const id = seedId('scale', programKey, scaleName, schoolYearId, orgId)
+    const existing = await this.db.gradingScale.findFirst({ where: { id } })
+    if (existing) {
+      result.gradingScales.already_exists++
+    } else {
+      await this.db.gradingScale.create({
+        data: {
+          id,
+          org_id: orgId,
+          school_year_id: schoolYearId,
+          program_id: programId,  // ✅ NOW CORRECT
+          name: scaleName,
+          ranges,
+          is_locked: false,
+        },
+      })
+      result.gradingScales.seeded++
     }
   }
+}
 
   private async seedGradingSchemes(
     orgId:      string,
@@ -505,55 +512,65 @@ export class OrgSeederService {
     }
   }
 
-  private async seedMajorSubjects(
-    orgId:           string,
-    shouldSeedP:     (k: string) => boolean,
-    shouldSeedSubj:  (name: string, levelName?: string) => boolean,
-    levelMap:        Record<string, string>,
-    courseMap:       Record<string, string>,
-    strandMap:       Record<string, string>,
-    subjectNameToId: Record<string, string>,
-    result:          SeedResult,
-  ) {
-    const subjectDefs = allMajorSubjects().filter((s) =>
-      shouldSeedP(deriveProgramKey(s.levelName)),
-    )
-
-    for (const s of subjectDefs) {
-      if (!shouldSeedSubj(s.name, s.levelName)) { result.subjects.skipped++; continue }
-      const levelId  = levelMap[s.levelName]
-      if (!levelId) { result.subjects.skipped++; continue }
-      const courseId = s.courseCode ? courseMap[s.courseCode] : null
-      const strandId = s.strandName ? strandMap[s.strandName] : null
-      if (s.courseCode && !courseId) { result.subjects.skipped++; continue }
-      if (s.strandName && !strandId) { result.subjects.skipped++; continue }
-
-      const id       = seedId('subject', s.levelName, s.courseCode ?? 'none', s.strandName ?? 'none', s.name, orgId)
-      const existing = await this.db.subject.findFirst({ where: { id } })
-
-      if (existing) {
-        subjectNameToId[s.name] = existing.id
-        result.subjects.already_exists++
-      } else {
-        const created = await this.db.subject.create({
-          data: {
-            id,
-            org_id:       orgId,
-            subject_type: 'major',
-            level_id:     levelId,
-            course_id:    courseId ?? undefined,
-            strand_id:    strandId ?? undefined,
-            name:         s.name,
-            year_level:   s.yearLevel,
-            term_label:   s.termLabel,
-            is_locked:    false,
-          },
-        })
-        subjectNameToId[s.name] = created.id
-        result.subjects.seeded++
-      }
+private async seedMajorSubjects(
+  orgId:           string,
+  shouldSeedP:     (k: string) => boolean,
+  shouldSeedSubj:  (name: string, levelName?: string) => boolean,
+  levelMap:        Record<string, string>,
+  courseMap:       Record<string, string>,
+  strandMap:       Record<string, string>,
+  programMap:      Record<string, string>,    // ← ADD this param (was missing)
+  subjectNameToId: Record<string, string>,
+  result:          SeedResult,
+) {
+  const subjectDefs = allMajorSubjects().filter((s) =>
+    shouldSeedP(deriveProgramKey(s.levelName)),
+  )
+ 
+  for (const s of subjectDefs) {
+    if (!shouldSeedSubj(s.name, s.levelName)) { result.subjects.skipped++; continue }
+ 
+    // Derive program_id from levelName
+    const progKey   = deriveProgramKey(s.levelName)
+    const programId = programMap[progKey]
+    if (!programId) { result.subjects.skipped++; continue }
+ 
+    const levelId  = levelMap[s.levelName]
+    if (!levelId) { result.subjects.skipped++; continue }
+ 
+    const courseId = s.courseCode ? courseMap[s.courseCode] : null
+    const strandId = s.strandName ? strandMap[s.strandName] : null
+ 
+    if (s.courseCode && !courseId) { result.subjects.skipped++; continue }
+    if (s.strandName && !strandId) { result.subjects.skipped++; continue }
+ 
+    const id       = seedId('subject', s.levelName, s.courseCode ?? 'none', s.strandName ?? 'none', s.name, orgId)
+    const existing = await this.db.subject.findFirst({ where: { id } })
+ 
+    if (existing) {
+      subjectNameToId[s.name] = existing.id
+      result.subjects.already_exists++
+    } else {
+      const created = await this.db.subject.create({
+        data: {
+          id,
+          org_id:       orgId,
+          subject_type: 'major',
+          program_id:   programId,       // ← NOW CORRECTLY SET
+          level_id:     levelId,
+          course_id:    courseId ?? undefined,
+          strand_id:    strandId ?? undefined,
+          name:         s.name,
+          year_level:   s.yearLevel,
+          term_label:   s.termLabel,
+          is_locked:    false,
+        },
+      })
+      subjectNameToId[s.name] = created.id
+      result.subjects.seeded++
     }
   }
+}
 
   private async seedMinorSubjects(
     orgId:           string,

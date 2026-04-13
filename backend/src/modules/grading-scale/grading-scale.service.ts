@@ -1,5 +1,3 @@
-// backend/src/modules/grading-scale/grading-scale.service.ts
-
 import {
   Injectable,
   NotFoundException,
@@ -19,12 +17,11 @@ import { GradingScaleEntity, GradeRangeEntity } from './entity/grading-scale.ent
 export class GradingScaleService {
   constructor(private readonly gradingScaleRepository: GradingScaleRepository) {}
 
-  // Maps raw Prisma snake_case record → camelCase entity
   private mapToEntity(scale: Record<string, unknown>): GradingScaleEntity {
     return {
       id: scale.id as string,
       orgId: scale.org_id as string,
-      levelId: scale.level_id as string,
+      programId: scale.program_id as string, // CHANGED from levelId → programId
       schoolYearId: scale.school_year_id as string,
       name: scale.name as string,
       ranges: scale.ranges as GradeRangeEntity[],
@@ -64,26 +61,24 @@ export class GradingScaleService {
       );
     }
 
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1];
-    const curr = sorted[i];
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = sorted[i - 1];
+      const curr = sorted[i];
 
-    // Overlap
-    if (curr.minPercent <= prev.maxPercent) {
-      throw new BadRequestException(
-        `Ranges "${prev.gradeValue}" and "${curr.gradeValue}" overlap.`,
-      );
-    }
+      if (curr.minPercent <= prev.maxPercent) {
+        throw new BadRequestException(
+          `Ranges "${prev.gradeValue}" and "${curr.gradeValue}" overlap.`,
+        );
+      }
 
-    // Gap (FIXED)
-    if (curr.minPercent !== prev.maxPercent + 1) {
-      throw new BadRequestException(
-        `There is a gap between ranges "${prev.gradeValue}" ` +
-        `(ends at ${prev.maxPercent}%) and "${curr.gradeValue}" ` +
-        `(starts at ${curr.minPercent}%).`,
-      );
+      if (curr.minPercent !== prev.maxPercent + 1) {
+        throw new BadRequestException(
+          `There is a gap between ranges "${prev.gradeValue}" ` +
+            `(ends at ${prev.maxPercent}%) and "${curr.gradeValue}" ` +
+            `(starts at ${curr.minPercent}%).`,
+        );
+      }
     }
-  }
 
     const hasPassingRange = ranges.some((r) => r.isPassing);
     if (!hasPassingRange) {
@@ -94,15 +89,16 @@ export class GradingScaleService {
   }
 
   async create(orgId: string, dto: CreateGradingScaleDto): Promise<GradingScaleEntity> {
-    const existing = await this.gradingScaleRepository.findByLevelAndYear(
+    // CHANGED: Check by programId instead of levelId
+    const existing = await this.gradingScaleRepository.findByProgramAndYear(
       orgId,
-      dto.levelId,
+      dto.programId,
       dto.schoolYearId,
     );
 
     if (existing) {
       throw new ConflictException(
-        'A grading scale already exists for this level and school year.',
+        'A grading scale already exists for this program and school year.',
       );
     }
 
@@ -110,7 +106,7 @@ export class GradingScaleService {
 
     const scale = await this.gradingScaleRepository.create({
       orgId,
-      levelId: dto.levelId,
+      programId: dto.programId, // CHANGED from levelId → programId
       schoolYearId: dto.schoolYearId,
       name: dto.name,
       ranges: dto.ranges,
@@ -119,10 +115,14 @@ export class GradingScaleService {
     return this.mapToEntity(scale as Record<string, unknown>);
   }
 
-  async findAll(orgId: string, query: QueryGradingScaleDto): Promise<GradingScaleEntity[]> {
+  async findAll(
+    orgId: string,
+    query: QueryGradingScaleDto,
+  ): Promise<GradingScaleEntity[]> {
+    // CHANGED: Pass programId instead of levelId
     const scales = await this.gradingScaleRepository.findAll(
       orgId,
-      query.levelId,
+      query.programId,
       query.schoolYearId,
     );
 
@@ -187,13 +187,14 @@ export class GradingScaleService {
 
   async resolveGrade(
     orgId: string,
-    levelId: string,
+    programId: string, // CHANGED from levelId → programId
     schoolYearId: string,
     percent: number,
   ): Promise<{ gradeValue: string; remark: string; isPassing: boolean } | null> {
-    const scale = await this.gradingScaleRepository.findByLevelAndYear(
+    // CHANGED: Find by programId instead of levelId
+    const scale = await this.gradingScaleRepository.findByProgramAndYear(
       orgId,
-      levelId,
+      programId,
       schoolYearId,
     );
 
@@ -205,7 +206,11 @@ export class GradingScaleService {
     );
 
     return match
-      ? { gradeValue: match.gradeValue, remark: match.remark, isPassing: match.isPassing }
+      ? {
+          gradeValue: match.gradeValue,
+          remark: match.remark,
+          isPassing: match.isPassing,
+        }
       : null;
   }
 

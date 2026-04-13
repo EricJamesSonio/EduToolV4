@@ -165,16 +165,20 @@ export default function SectionsPage(): React.JSX.Element {
       />
       )}
 
-      {createOpen && schoolYearId && (
-        <SectionDialog
-          levels={levels}
-          programs={programs}
-          schoolYearId={schoolYearId}
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
-          onSaved={handleSaved}
-        />
-      )}
+    {createOpen && schoolYearId && (
+      <SectionDialog
+        levels={levels}
+        programs={programs}
+        schoolYearId={schoolYearId}
+        defaultProgramId={filterProgramId !== "all" ? filterProgramId : undefined}
+        defaultCourseId={filterCourseId   !== "all" ? filterCourseId  : undefined}
+        defaultStrandId={filterStrandId   !== "all" ? filterStrandId  : undefined}
+        defaultLevelId={filterLevelId     !== "all" ? filterLevelId   : undefined}
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSaved={handleSaved}
+      />
+    )}
 
       {editTarget && (
         <SectionDialog
