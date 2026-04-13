@@ -68,6 +68,11 @@ export default function SubjectsPage(): React.JSX.Element {
     setSelectedStrandId("all");
   }, [selectedSchoolYearId, activeTab]);
 
+  // Reset level when course/strand changes
+  useEffect(() => {
+    setFilterLevelId("all");
+  }, [selectedCourseId, selectedStrandId]);
+
   // ━━━━━ Dialog State ━━━━━
   const [createOpen, setCreateOpen] = useState(false);
   const [lockTarget, setLockTarget] = useState<Subject | null>(null);
@@ -83,14 +88,33 @@ export default function SubjectsPage(): React.JSX.Element {
     enabled: !!selectedSchoolYearId,
   });
 
-  // Levels - either all or filtered by program
+  // Levels - smart filtering based on what's selected
+  // If course is selected → fetch levels for that course
+  // If strand is selected → fetch levels for that strand
+  // Otherwise → fetch levels for school year
   const { data: levels = [], isLoading: levelsLoading } = useQuery({
-    queryKey: ["admin", "levels", selectedSchoolYearId, selectedProgramId],
-    queryFn: () => {
-      if (selectedProgramId === "all") {
-        return levelApi.getBySchoolYear(selectedSchoolYearId!);
+    queryKey: [
+      "admin",
+      "levels",
+      selectedSchoolYearId,
+      selectedCourseId,
+      selectedStrandId,
+    ],
+    queryFn: async () => {
+      if (!selectedSchoolYearId) return [];
+
+      // If course is selected, fetch levels for that course
+      if (selectedCourseId !== "all") {
+        return levelApi.getByCourse(selectedSchoolYearId, selectedCourseId);
       }
-      return levelApi.getByProgram(selectedProgramId);
+
+      // If strand is selected, fetch levels for that strand
+      if (selectedStrandId !== "all") {
+        return levelApi.getByStrand(selectedSchoolYearId, selectedStrandId);
+      }
+
+      // Otherwise, fetch all levels for the school year
+      return levelApi.getBySchoolYear(selectedSchoolYearId);
     },
     enabled: !!selectedSchoolYearId,
   });
@@ -98,14 +122,14 @@ export default function SubjectsPage(): React.JSX.Element {
   // Courses - only if program selected and supports courses
   const { data: courses = [] } = useQuery({
     queryKey: ["admin", "courses", selectedProgramId],
-    queryFn: () => courseApi.findByProgram(selectedProgramId),
-    enabled: selectedProgramId !== "all",
+    queryFn: () => courseApi.getAll({ schoolYearId: selectedSchoolYearId!, programId: selectedProgramId }),
+    enabled: selectedProgramId !== "all" && !!selectedSchoolYearId,
   });
 
   // Strands - only if program selected and supports strands
   const { data: strands = [] } = useQuery({
     queryKey: ["admin", "strands", selectedProgramId],
-    queryFn: () => strandApi.findByProgram(selectedProgramId),
+    queryFn: () => strandApi.getAll({ program_id: selectedProgramId }),
     enabled: selectedProgramId !== "all",
   });
 
@@ -230,29 +254,6 @@ export default function SubjectsPage(): React.JSX.Element {
               </SelectContent>
             </Select>
 
-            {/* Level filter */}
-            <Select
-              value={filterLevelId}
-              onValueChange={(v) => setFilterLevelId(v ?? "all")}
-            >
-              <SelectTrigger className="w-44 h-9 text-sm">
-                <SelectValue placeholder="All Levels">
-                  {filterLevelId === "all"
-                    ? "All Levels"
-                    : levels.find((l) => l.id === filterLevelId)?.name ??
-                      "All Levels"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Levels</SelectItem>
-                {levels.map((level) => (
-                  <SelectItem key={level.id} value={level.id}>
-                    {level.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             {/* Course filter - show only if program selected and has courses */}
             {selectedProgramId !== "all" && courses.length > 0 && (
               <Select
@@ -302,6 +303,29 @@ export default function SubjectsPage(): React.JSX.Element {
                 </SelectContent>
               </Select>
             )}
+
+            {/* Level filter - now dynamically populated based on course/strand */}
+            <Select
+              value={filterLevelId}
+              onValueChange={(v) => setFilterLevelId(v ?? "all")}
+            >
+              <SelectTrigger className="w-44 h-9 text-sm">
+                <SelectValue placeholder="All Levels">
+                  {filterLevelId === "all"
+                    ? "All Levels"
+                    : levels.find((l) => l.id === filterLevelId)?.name ??
+                      "All Levels"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Levels</SelectItem>
+                {levels.map((level) => (
+                  <SelectItem key={level.id} value={level.id}>
+                    {level.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </>
         )}
       </div>
@@ -348,6 +372,10 @@ export default function SubjectsPage(): React.JSX.Element {
               description={
                 filterLevelId !== "all"
                   ? `No ${activeTab} subjects for this level yet.`
+                  : selectedCourseId !== "all"
+                  ? `No ${activeTab} subjects for this course yet.`
+                  : selectedStrandId !== "all"
+                  ? `No ${activeTab} subjects for this strand yet.`
                   : selectedProgramId !== "all"
                   ? `No ${activeTab} subjects for this program yet.`
                   : `No ${activeTab} subjects found for this school year.`

@@ -1,16 +1,25 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
-import { LevelService }    from './level.service';
+import { LevelService } from './level.service';
 import {
-  UpdateLevelDto, QueryLevelDto,
-  CreateLevelDto, BulkGenerateLevelsDto,
+  UpdateLevelDto,
+  QueryLevelDto,
+  CreateLevelDto,
+  BulkGenerateLevelsDto,
 } from './dto/level.dto';
-import { AuthGuard }       from '@/commons/guards/auth.guard';
-import { RolesGuard }      from '@/commons/guards/role.guard';
-import { Roles }           from '@/commons/decorators/roles.decorator';
-import { CurrentUser }     from '@/commons/decorators/current-user.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { Roles } from '@/commons/decorators/roles.decorator';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('levels')
 @UseGuards(AuthGuard, RolesGuard)
@@ -31,9 +40,21 @@ export class LevelController {
     @CurrentUser('org_id') orgId: string,
     @Query() query: QueryLevelDto,
   ) {
+    // Filter by course if courseId is provided
+    if (query.courseId && query.schoolYearId) {
+      return this.levelService.getByCourse(orgId, query.schoolYearId, query.courseId);
+    }
+
+    // Filter by strand if strandId is provided
+    if (query.strandId && query.schoolYearId) {
+      return this.levelService.getByStrand(orgId, query.schoolYearId, query.strandId);
+    }
+
+    // Otherwise, return all levels for school year (or all if no school year)
     if (query.schoolYearId) {
       return this.levelService.getBySchoolYear(orgId, query.schoolYearId);
     }
+
     return this.levelService.getAll(orgId);
   }
 

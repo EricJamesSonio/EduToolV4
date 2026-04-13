@@ -1,4 +1,3 @@
-// @/modules/level/dto/level.dto.ts
 import {
   IsString,
   IsOptional,
@@ -9,12 +8,7 @@ import {
   IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-// add at the bottom of the file
 import { IsInt, Min, Max } from 'class-validator';
-
-
-
-// ── Single level item inside a defaults payload ───────────────────────────────
 
 export class LevelItemDto {
   @IsOptional()
@@ -30,11 +24,8 @@ export class LevelItemDto {
   name: string;
 }
 
-// ── PATCH /levels/defaults ────────────────────────────────────────────────────
-
 /**
- * Admin replaces or adds level entries in the org's default template.
- * The full desired list is sent; the service diffs and upserts.
+ * DTO for updating default levels
  */
 export class UpdateLevelDefaultsDto {
   @IsArray()
@@ -43,9 +34,9 @@ export class UpdateLevelDefaultsDto {
   levels: LevelItemDto[];
 }
 
-// level.dto.ts
-
-
+/**
+ * DTO for creating a new level
+ */
 export class CreateLevelDto {
   @IsUUID()
   programId: string;
@@ -59,8 +50,9 @@ export class CreateLevelDto {
   name: string;
 }
 
-// ── PATCH /levels/:id ─────────────────────────────────────────────────────────
-
+/**
+ * DTO for updating a level
+ */
 export class UpdateLevelDto {
   @IsOptional()
   @IsString()
@@ -69,16 +61,28 @@ export class UpdateLevelDto {
   name?: string;
 }
 
-// ── GET /levels?schoolYearId= ─────────────────────────────────────────────────
-
+/**
+ * DTO for querying levels
+ * Supports filtering by:
+ * - schoolYearId (with optional courseId or strandId)
+ */
 export class QueryLevelDto {
   @IsOptional()
   @IsUUID()
   schoolYearId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  courseId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  strandId?: string;
 }
 
-
-
+/**
+ * DTO for bulk generating levels
+ */
 export class BulkGenerateLevelsDto {
   @IsUUID()
   programId: string;

@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LevelRepository } from './level.repository';
-import { UpdateLevelDefaultsDto, UpdateLevelDto, CreateLevelDto, BulkGenerateLevelsDto } from './dto/level.dto';
+import {
+  UpdateLevelDefaultsDto,
+  UpdateLevelDto,
+  CreateLevelDto,
+  BulkGenerateLevelsDto,
+} from './dto/level.dto';
 import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
@@ -11,8 +16,7 @@ export class LevelService {
   ) {}
 
   /**
-   * Returns all levels for the org, grouped by program.
-   * Used by the frontend as the org's "default level template".
+   * Get default levels (not scoped to school year)
    */
   async getDefaults(orgId: string) {
     return this.db.level.findMany({
@@ -23,14 +27,10 @@ export class LevelService {
   }
 
   /**
-   * Bulk-upserts level rows for the org from UpdateLevelDefaultsDto.
-   *   - dto.levels[n].id present  → update name only
-   *   - dto.levels[n].id absent   → skip (school_year_id required by schema;
-   *     add schoolYearId to LevelItemDto and CreateLevelDto path if creates needed here)
+   * Update default level names
    */
   async updateDefaults(orgId: string, dto: UpdateLevelDefaultsDto) {
     const toUpdate = dto.levels.filter((l) => !!l.id);
-
     return this.db.$transaction(
       toUpdate.map((l) =>
         this.db.level.update({
@@ -41,14 +41,45 @@ export class LevelService {
     );
   }
 
+  /**
+   * Get all levels for a school year
+   */
   async getAll(orgId: string, schoolYearId?: string) {
     return this.levelRepository.findAll(orgId, schoolYearId);
   }
 
+  /**
+   * Get levels by school year and program
+   */
   async getBySchoolYear(orgId: string, schoolYearId: string) {
     return this.levelRepository.findBySchoolYear(orgId, schoolYearId);
   }
 
+  /**
+   * Get levels for a specific course (via sections)
+   */
+  async getByCourse(orgId: string, schoolYearId: string, courseId: string) {
+    return this.levelRepository.findByCourseAndSchoolYear(
+      orgId,
+      schoolYearId,
+      courseId,
+    );
+  }
+
+  /**
+   * Get levels for a specific strand (via sections)
+   */
+  async getByStrand(orgId: string, schoolYearId: string, strandId: string) {
+    return this.levelRepository.findByStrandAndSchoolYear(
+      orgId,
+      schoolYearId,
+      strandId,
+    );
+  }
+
+  /**
+   * Seed levels from defaults
+   */
   async seedFromDefaults(
     orgId: string,
     schoolYearId: string,
@@ -57,22 +88,34 @@ export class LevelService {
     return this.levelRepository.seedFromDefaults(orgId, schoolYearId, programMap);
   }
 
+  /**
+   * Update a level
+   */
   async updateOne(id: string, orgId: string, dto: UpdateLevelDto) {
     const existing = await this.levelRepository.findById(id, orgId);
     if (!existing) throw new NotFoundException('Level not found.');
     return this.levelRepository.update(id, { name: dto.name });
   }
 
+  /**
+   * Create a new level
+   */
   async createOne(orgId: string, dto: CreateLevelDto) {
     return this.levelRepository.create(orgId, dto);
   }
 
+  /**
+   * Delete a level
+   */
   async deleteOne(id: string, orgId: string) {
     const existing = await this.levelRepository.findById(id, orgId);
     if (!existing) throw new NotFoundException('Level not found.');
     return this.levelRepository.delete(id);
   }
 
+  /**
+   * Bulk generate levels for a program
+   */
   async bulkGenerate(orgId: string, dto: BulkGenerateLevelsDto) {
     const program = await this.db.program.findFirst({
       where: { id: dto.programId, org_id: orgId },

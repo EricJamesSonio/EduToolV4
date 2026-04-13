@@ -8,13 +8,14 @@ export class LevelRepository {
 
   async findBySchoolYear(orgId: string, schoolYearId: string) {
     return this.db.level.findMany({
-      where: { org_id: orgId, school_year_id: schoolYearId },
+      where: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+      },
       orderBy: [{ program_id: 'asc' }, { name: 'asc' }],
     })
   }
 
-  // Rebuild levels for a new school year from static program definitions
-  // Uses program records already seeded for that school year
   async seedFromDefaults(
     orgId: string,
     schoolYearId: string,
@@ -41,11 +42,16 @@ export class LevelRepository {
   }
 
   async findById(id: string, orgId: string) {
-    return this.db.level.findFirst({ where: { id, org_id: orgId } })
+    return this.db.level.findFirst({
+      where: { id, org_id: orgId },
+    })
   }
 
   async update(id: string, data: { name?: string }) {
-    return this.db.level.update({ where: { id }, data })
+    return this.db.level.update({
+      where: { id },
+      data,
+    })
   }
 
   async create(orgId: string, data: {
@@ -64,7 +70,9 @@ export class LevelRepository {
   }
 
   async delete(id: string) {
-    return this.db.level.delete({ where: { id } })
+    return this.db.level.delete({
+      where: { id },
+    })
   }
 
   async findAll(orgId: string, schoolYearId?: string) {
@@ -83,7 +91,11 @@ export class LevelRepository {
     schoolYearId: string,
   ): Promise<void> {
     await this.db.level.deleteMany({
-      where: { org_id: orgId, program_id: programId, school_year_id: schoolYearId },
+      where: {
+        org_id: orgId,
+        program_id: programId,
+        school_year_id: schoolYearId,
+      },
     })
   }
 
@@ -106,6 +118,64 @@ export class LevelRepository {
         org_id:         levels[0].orgId,
         program_id:     levels[0].programId,
         school_year_id: levels[0].schoolYearId,
+      },
+      orderBy: { name: 'asc' },
+    })
+  }
+
+  async findByCourseAndSchoolYear(
+    orgId: string,
+    schoolYearId: string,
+    courseId: string,
+  ) {
+    // Get all sections that belong to this course in this school year
+    const sections = await this.db.section.findMany({
+      where: {
+        org_id:         orgId,
+        school_year_id: schoolYearId,
+        course_id:      courseId,
+      },
+      select: { level_id: true },
+      distinct: ['level_id'],
+    })
+
+    if (sections.length === 0) return []
+
+    // Extract unique level IDs and fetch them
+    const levelIds = sections.map((s) => s.level_id)
+    return this.db.level.findMany({
+      where: {
+        id: { in: levelIds },
+        org_id: orgId,
+      },
+      orderBy: { name: 'asc' },
+    })
+  }
+
+  async findByStrandAndSchoolYear(
+    orgId: string,
+    schoolYearId: string,
+    strandId: string,
+  ) {
+    // Get all sections that belong to this strand in this school year
+    const sections = await this.db.section.findMany({
+      where: {
+        org_id:         orgId,
+        school_year_id: schoolYearId,
+        strand_id:      strandId,
+      },
+      select: { level_id: true },
+      distinct: ['level_id'],
+    })
+
+    if (sections.length === 0) return []
+
+    // Extract unique level IDs and fetch them
+    const levelIds = sections.map((s) => s.level_id)
+    return this.db.level.findMany({
+      where: {
+        id: { in: levelIds },
+        org_id: orgId,
       },
       orderBy: { name: 'asc' },
     })
