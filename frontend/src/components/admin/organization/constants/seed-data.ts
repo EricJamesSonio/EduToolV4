@@ -25,48 +25,25 @@ export const COLLEGE_COURSES = [
 ]
 
 export const SHS_STRANDS = [
-  "ABM",
-  "STEM",
-  "HUMSS",
-  "GAS",
-  "ICT",
-  "HE",
-  "IA",
-  "Agri-Fishery",
-  "Sports",
-  "Arts and Design",
+  "ABM", "STEM", "HUMSS", "GAS", "ICT", "HE", "IA", "Agri-Fishery", "Sports", "Arts and Design",
 ]
 
 export const COLLEGE_GE_SUBJECTS = [
-  "Oral Communication",
-  "Reading and Writing Skills",
-  "Mathematics in the Modern World",
-  "Understanding the Self",
-  "Contemporary World",
-  "Readings in Philippine History",
-  "Physical Education / Health",
-  "Life and Works of Jose Rizal",
-  "Ethics",
-  "Art Appreciation",
-  "Science, Technology, and Society",
-  "National Service Training Program (NSTP)",
+  "Oral Communication", "Reading and Writing Skills", "Mathematics in the Modern World",
+  "Understanding the Self", "Contemporary World", "Readings in Philippine History",
+  "Physical Education / Health", "Life and Works of Jose Rizal", "Ethics", "Art Appreciation",
+  "Science, Technology, and Society", "National Service Training Program (NSTP)",
 ] as const
 
 export const SHS_MINOR_SUBJECTS = [
-  "Oral Communication",
-  "Reading and Writing Skills",
-  "Mathematics in the Modern World",
-  "Understanding the Self",
-  "Contemporary World",
-  "Readings in Philippine History",
-  "Physical Education / Health",
-  "Life and Works of Jose Rizal",
-  "National Service Training Program (NSTP)",
+  "Oral Communication", "Reading and Writing Skills", "Mathematics in the Modern World",
+  "Understanding the Self", "Contemporary World", "Readings in Philippine History",
+  "Physical Education / Health", "Life and Works of Jose Rizal", "National Service Training Program (NSTP)",
   "Art Appreciation",
 ] as const
 
 export const COLLEGE_GE_SET = new Set<string>(COLLEGE_GE_SUBJECTS)
-export const SHS_MINOR_SET  = new Set<string>(SHS_MINOR_SUBJECTS)
+export const SHS_MINOR_SET = new Set<string>(SHS_MINOR_SUBJECTS)
 
 export const LEVEL_DEFS: Record<string, string[]> = {
   daycare:    ["Daycare 1", "Daycare 2"],
@@ -77,6 +54,231 @@ export const LEVEL_DEFS: Record<string, string[]> = {
   college:    ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"],
 }
 
+// ===== GRADING SCHEMES =====
+export type GradingSchemeComponent = {
+  name: string
+  type: string
+  weight: number
+  isOptional: boolean
+}
+
+export type GradingSchemeTemplate = {
+  name: string
+  programType: string
+  components: GradingSchemeComponent[]
+}
+
+export const GRADING_SCHEME_TEMPLATES: GradingSchemeTemplate[] = [
+  {
+    name: 'Daycare Scheme',
+    programType: 'daycare',
+    components: [
+      { name: 'Play and Activities', type: 'activity', weight: 40, isOptional: false },
+      { name: 'Participation', type: 'manual', weight: 30, isOptional: false },
+      { name: 'Behavior', type: 'manual', weight: 20, isOptional: false },
+      { name: 'Health and Hygiene', type: 'manual', weight: 10, isOptional: false },
+    ],
+  },
+  {
+    name: 'Kindergarten Scheme',
+    programType: 'kinder',
+    components: [
+      { name: 'Quizzes', type: 'quiz', weight: 20, isOptional: false },
+      { name: 'Activities', type: 'activity', weight: 30, isOptional: false },
+      { name: 'Behavior', type: 'manual', weight: 20, isOptional: false },
+      { name: 'Projects', type: 'activity', weight: 30, isOptional: false },
+    ],
+  },
+  {
+    name: 'Elementary Scheme',
+    programType: 'elementary',
+    components: [
+      { name: 'Quizzes', type: 'quiz', weight: 25, isOptional: false },
+      { name: 'Activities', type: 'activity', weight: 25, isOptional: false },
+      { name: 'Behavior', type: 'manual', weight: 20, isOptional: false },
+      { name: 'Projects', type: 'activity', weight: 20, isOptional: false },
+      { name: 'Exams', type: 'exam', weight: 10, isOptional: false },
+    ],
+  },
+  {
+    name: 'High School Scheme',
+    programType: 'jhs',
+    components: [
+      { name: 'Quizzes', type: 'quiz', weight: 20, isOptional: false },
+      { name: 'Activities', type: 'activity', weight: 20, isOptional: false },
+      { name: 'Behavior', type: 'manual', weight: 20, isOptional: false },
+      { name: 'Exams', type: 'exam', weight: 40, isOptional: false },
+    ],
+  },
+  {
+    name: 'Senior High School Scheme',
+    programType: 'shs',
+    components: [
+      { name: 'Quizzes', type: 'quiz', weight: 20, isOptional: false },
+      { name: 'Activities', type: 'activity', weight: 20, isOptional: false },
+      { name: 'Behavior', type: 'manual', weight: 10, isOptional: false },
+      { name: 'Projects', type: 'activity', weight: 10, isOptional: false },
+      { name: 'Exams', type: 'exam', weight: 40, isOptional: false },
+    ],
+  },
+  {
+    name: 'College Scheme',
+    programType: 'college',
+    components: [
+      { name: 'Quizzes', type: 'quiz', weight: 20, isOptional: false },
+      { name: 'Activities', type: 'activity', weight: 20, isOptional: false },
+      { name: 'Behavior', type: 'manual', weight: 20, isOptional: false },
+      { name: 'Exams', type: 'exam', weight: 40, isOptional: false },
+    ],
+  },
+]
+
+// ===== SEMESTER TEMPLATES =====
+export type SemesterTerm = {
+  name: string
+  order_index: number
+}
+
+export type SemesterItem = {
+  name: string
+  order_index: number
+  terms: SemesterTerm[]
+}
+
+export type SemesterTemplate = {
+  name: string
+  programType: string
+  semesters: SemesterItem[]
+}
+
+export const SEMESTER_TEMPLATES: SemesterTemplate[] = [
+  {
+    name: 'Daycare / Kinder Template',
+    programType: 'daycare',
+    semesters: [
+      {
+        name: 'Whole Year',
+        order_index: 0,
+        terms: [
+          { name: '1st Quarter', order_index: 0 },
+          { name: '2nd Quarter', order_index: 1 },
+          { name: '3rd Quarter', order_index: 2 },
+          { name: '4th Quarter', order_index: 3 },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Kinder Template',
+    programType: 'kinder',
+    semesters: [
+      {
+        name: 'Whole Year',
+        order_index: 0,
+        terms: [
+          { name: '1st Quarter', order_index: 0 },
+          { name: '2nd Quarter', order_index: 1 },
+          { name: '3rd Quarter', order_index: 2 },
+          { name: '4th Quarter', order_index: 3 },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Elementary Semester Template',
+    programType: 'elementary',
+    semesters: [
+      {
+        name: '1st Semester',
+        order_index: 0,
+        terms: [
+          { name: '1st Quarter', order_index: 0 },
+          { name: '2nd Quarter', order_index: 1 },
+        ],
+      },
+      {
+        name: '2nd Semester',
+        order_index: 1,
+        terms: [
+          { name: '3rd Quarter', order_index: 0 },
+          { name: '4th Quarter', order_index: 1 },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Junior High School Semester Template',
+    programType: 'jhs',
+    semesters: [
+      {
+        name: '1st Semester',
+        order_index: 0,
+        terms: [
+          { name: '1st Quarter', order_index: 0 },
+          { name: '2nd Quarter', order_index: 1 },
+        ],
+      },
+      {
+        name: '2nd Semester',
+        order_index: 1,
+        terms: [
+          { name: '3rd Quarter', order_index: 0 },
+          { name: '4th Quarter', order_index: 1 },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Senior High School Semester Template',
+    programType: 'shs',
+    semesters: [
+      {
+        name: '1st Semester',
+        order_index: 0,
+        terms: [
+          { name: '1st Quarter', order_index: 0 },
+          { name: '2nd Quarter', order_index: 1 },
+        ],
+      },
+      {
+        name: '2nd Semester',
+        order_index: 1,
+        terms: [
+          { name: '3rd Quarter', order_index: 0 },
+          { name: '4th Quarter', order_index: 1 },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'College Semester Template',
+    programType: 'college',
+    semesters: [
+      {
+        name: '1st Semester',
+        order_index: 0,
+        terms: [
+          { name: 'Midterm', order_index: 0 },
+          { name: 'Finals', order_index: 1 },
+        ],
+      },
+      {
+        name: '2nd Semester',
+        order_index: 1,
+        terms: [
+          { name: 'Midterm', order_index: 0 },
+          { name: 'Finals', order_index: 1 },
+        ],
+      },
+    ],
+  },
+]
+
+export const SEMESTER_TEMPLATE_BY_PROGRAM: Record<string, SemesterTemplate> = Object.fromEntries(
+  SEMESTER_TEMPLATES.map((t) => [t.programType, t])
+)
+
+// ===== REST OF EXISTING DATA =====
 export const LEVEL_MAX: Record<string, number> = {
   daycare:    5,
   kinder:     3,
@@ -109,10 +311,6 @@ export function generateLevelNames(prog: string, count: number): string[] {
   }
 }
 
-// ─── Subject key helpers ───────────────────────────────────────────────────────
-// All subject state uses compound keys: "Grade 1::Filipino"
-// This ensures Grade 1 Filipino and Grade 2 Filipino are distinct entries.
-
 export const SUBJECT_SEP = "::"
 
 export function subjectKey(groupName: string, subjectName: string): string {
@@ -128,40 +326,22 @@ export function parseSubjectKey(key: string): { groupName: string; subjectName: 
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-
 export const LEVEL_SUBJECTS: Record<string, string[]> = {
   "Daycare 1": [
-    "Language and Literacy",
-    "Cognitive and Numeracy Skills",
-    "Physical Development, Health, and Safety",
-    "Social and Emotional Development",
-    "Creative Arts and Music",
-    "Understanding the World / Discovery",
+    "Language and Literacy", "Cognitive and Numeracy Skills", "Physical Development, Health, and Safety",
+    "Social and Emotional Development", "Creative Arts and Music", "Understanding the World / Discovery",
   ],
   "Daycare 2": [
-    "Language and Literacy",
-    "Cognitive and Numeracy Skills",
-    "Physical Development, Health, and Safety",
-    "Social and Emotional Development",
-    "Creative Arts and Music",
-    "Understanding the World / Discovery",
+    "Language and Literacy", "Cognitive and Numeracy Skills", "Physical Development, Health, and Safety",
+    "Social and Emotional Development", "Creative Arts and Music", "Understanding the World / Discovery",
   ],
   "Kinder 1": [
-    "Language, Literacy, and Communication",
-    "Mathematical Thinking",
-    "Physical Development, Health, and Safety",
-    "Social and Emotional Development / Values Formation",
-    "Creative Arts",
-    "Understanding the World / Discovery",
+    "Language, Literacy, and Communication", "Mathematical Thinking", "Physical Development, Health, and Safety",
+    "Social and Emotional Development / Values Formation", "Creative Arts", "Understanding the World / Discovery",
   ],
   "Kinder 2": [
-    "Language, Literacy, and Communication",
-    "Mathematical Thinking",
-    "Physical Development, Health, and Safety",
-    "Social and Emotional Development / Values Formation",
-    "Creative Arts",
-    "Understanding the World / Discovery",
+    "Language, Literacy, and Communication", "Mathematical Thinking", "Physical Development, Health, and Safety",
+    "Social and Emotional Development / Values Formation", "Creative Arts", "Understanding the World / Discovery",
   ],
   "Grade 1":  ["English","Mathematics","Science","Filipino","Araling Panlipunan","MAPEH","Edukasyon sa Pagpapakatao (ESP)"],
   "Grade 2":  ["English","Mathematics","Science","Filipino","Araling Panlipunan","MAPEH","Edukasyon sa Pagpapakatao (ESP)"],
@@ -457,12 +637,78 @@ export const COURSE_SUBJECTS: Record<string, string[]> = {
     "Curriculum Development","Field Study (Practice Teaching Preparation)",
     "Practice Teaching / Internship",
   ],
-  "BSED-ENG":  ["Oral Communication","Reading and Writing Skills","Mathematics in the Modern World","Understanding the Self","Contemporary World","Readings in Philippine History","Physical Education / Health","Life and Works of Jose Rizal","Ethics","Art Appreciation","Science, Technology, and Society","National Service Training Program (NSTP)","The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
-  "BSED-MATH": ["Oral Communication","Reading and Writing Skills","Mathematics in the Modern World","Understanding the Self","Contemporary World","Readings in Philippine History","Physical Education / Health","Life and Works of Jose Rizal","Ethics","Art Appreciation","Science, Technology, and Society","National Service Training Program (NSTP)","The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
-  "BSED-SCI":  ["Oral Communication","Reading and Writing Skills","Mathematics in the Modern World","Understanding the Self","Contemporary World","Readings in Philippine History","Physical Education / Health","Life and Works of Jose Rizal","Ethics","Art Appreciation","Science, Technology, and Society","National Service Training Program (NSTP)","The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
-  "BSED-SS":   ["Oral Communication","Reading and Writing Skills","Mathematics in the Modern World","Understanding the Self","Contemporary World","Readings in Philippine History","Physical Education / Health","Life and Works of Jose Rizal","Ethics","Art Appreciation","Science, Technology, and Society","National Service Training Program (NSTP)","The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
-  "BSED-FIL":  ["Oral Communication","Reading and Writing Skills","Mathematics in the Modern World","Understanding the Self","Contemporary World","Readings in Philippine History","Physical Education / Health","Life and Works of Jose Rizal","Ethics","Art Appreciation","Science, Technology, and Society","National Service Training Program (NSTP)","The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
-  "BSED-TLE":  ["Oral Communication","Reading and Writing Skills","Mathematics in the Modern World","Understanding the Self","Contemporary World","Readings in Philippine History","Physical Education / Health","Life and Works of Jose Rizal","Ethics","Art Appreciation","Science, Technology, and Society","National Service Training Program (NSTP)","The Teaching Profession","Foundations of Education","Child and Adolescent Development","Principles of Teaching","Facilitating Learner-Centered Teaching","Educational Technology","Assessment of Learning 1","Assessment of Learning 2","Curriculum Development","Field Study (Practice Teaching Preparation)","Practice Teaching / Internship"],
+  "BSED-ENG": [
+    "Oral Communication","Reading and Writing Skills","Mathematics in the Modern World",
+    "Understanding the Self","Contemporary World","Readings in Philippine History",
+    "Physical Education / Health","Life and Works of Jose Rizal",
+    "Ethics","Art Appreciation","Science, Technology, and Society",
+    "National Service Training Program (NSTP)",
+    "The Teaching Profession","Foundations of Education","Child and Adolescent Development",
+    "Principles of Teaching","Facilitating Learner-Centered Teaching",
+    "Educational Technology","Assessment of Learning 1","Assessment of Learning 2",
+    "Curriculum Development","Field Study (Practice Teaching Preparation)",
+    "Practice Teaching / Internship"
+  ],
+  "BSED-MATH": [
+    "Oral Communication","Reading and Writing Skills","Mathematics in the Modern World",
+    "Understanding the Self","Contemporary World","Readings in Philippine History",
+    "Physical Education / Health","Life and Works of Jose Rizal",
+    "Ethics","Art Appreciation","Science, Technology, and Society",
+    "National Service Training Program (NSTP)",
+    "The Teaching Profession","Foundations of Education","Child and Adolescent Development",
+    "Principles of Teaching","Facilitating Learner-Centered Teaching",
+    "Educational Technology","Assessment of Learning 1","Assessment of Learning 2",
+    "Curriculum Development","Field Study (Practice Teaching Preparation)",
+    "Practice Teaching / Internship"
+  ],
+  "BSED-SCI": [
+    "Oral Communication","Reading and Writing Skills","Mathematics in the Modern World",
+    "Understanding the Self","Contemporary World","Readings in Philippine History",
+    "Physical Education / Health","Life and Works of Jose Rizal",
+    "Ethics","Art Appreciation","Science, Technology, and Society",
+    "National Service Training Program (NSTP)",
+    "The Teaching Profession","Foundations of Education","Child and Adolescent Development",
+    "Principles of Teaching","Facilitating Learner-Centered Teaching",
+    "Educational Technology","Assessment of Learning 1","Assessment of Learning 2",
+    "Curriculum Development","Field Study (Practice Teaching Preparation)",
+    "Practice Teaching / Internship"
+  ],
+  "BSED-SS": [
+    "Oral Communication","Reading and Writing Skills","Mathematics in the Modern World",
+    "Understanding the Self","Contemporary World","Readings in Philippine History",
+    "Physical Education / Health","Life and Works of Jose Rizal",
+    "Ethics","Art Appreciation","Science, Technology, and Society",
+    "National Service Training Program (NSTP)",
+    "The Teaching Profession","Foundations of Education","Child and Adolescent Development",
+    "Principles of Teaching","Facilitating Learner-Centered Teaching",
+    "Educational Technology","Assessment of Learning 1","Assessment of Learning 2",
+    "Curriculum Development","Field Study (Practice Teaching Preparation)",
+    "Practice Teaching / Internship"
+  ],
+  "BSED-FIL": [
+    "Oral Communication","Reading and Writing Skills","Mathematics in the Modern World",
+    "Understanding the Self","Contemporary World","Readings in Philippine History",
+    "Physical Education / Health","Life and Works of Jose Rizal",
+    "Ethics","Art Appreciation","Science, Technology, and Society",
+    "National Service Training Program (NSTP)",
+    "The Teaching Profession","Foundations of Education","Child and Adolescent Development",
+    "Principles of Teaching","Facilitating Learner-Centered Teaching",
+    "Educational Technology","Assessment of Learning 1","Assessment of Learning 2",
+    "Curriculum Development","Field Study (Practice Teaching Preparation)",
+    "Practice Teaching / Internship"
+  ],
+  "BSED-TLE": [
+    "Oral Communication","Reading and Writing Skills","Mathematics in the Modern World",
+    "Understanding the Self","Contemporary World","Readings in Philippine History",
+    "Physical Education / Health","Life and Works of Jose Rizal",
+    "Ethics","Art Appreciation","Science, Technology, and Society",
+    "National Service Training Program (NSTP)",
+    "The Teaching Profession","Foundations of Education","Child and Adolescent Development",
+    "Principles of Teaching","Facilitating Learner-Centered Teaching",
+    "Educational Technology","Assessment of Learning 1","Assessment of Learning 2",
+    "Curriculum Development","Field Study (Practice Teaching Preparation)",
+    "Practice Teaching / Internship"
+  ],
 }
 
 export const SECTION_DEFAULTS: { name: string; capacity: number }[] = [

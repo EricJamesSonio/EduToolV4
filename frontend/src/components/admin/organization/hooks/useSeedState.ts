@@ -7,6 +7,8 @@ import {
   SHS_STRAND_SUBJECTS,
   SHS_STRANDS,
   GRADING_SCALE_PRESETS,
+  GRADING_SCHEME_TEMPLATES,
+  SEMESTER_TEMPLATES,
   SECTION_DEFAULTS,
   generateLevelNames,
   subjectKey,
@@ -39,9 +41,24 @@ function buildInitialSectionConfigs(): Record<string, SectionConfig> {
   return out
 }
 
+function buildInitialGradingSchemesByProgram(): Record<string, boolean> {
+  const out: Record<string, boolean> = {}
+  GRADING_SCHEME_TEMPLATES.forEach((scheme) => {
+    out[scheme.programType] = true
+  })
+  return out
+}
+
+function buildInitialSemesterTemplatesByProgram(): Record<string, boolean> {
+  const out: Record<string, boolean> = {}
+  SEMESTER_TEMPLATES.forEach((tpl) => {
+    out[tpl.programType] = true
+  })
+  return out
+}
+
 export function useSeedState() {
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set())
-
   const [levelConfigs, setLevelConfigs] = useState<Record<string, ProgramLevelConfig>>(() => {
     const initial: Record<string, ProgramLevelConfig> = {}
     Object.entries(LEVEL_DEFS).forEach(([prog, names]) => {
@@ -49,7 +66,6 @@ export function useSeedState() {
     })
     return initial
   })
-
   const [sectionConfigs, setSectionConfigs] = useState<Record<string, SectionConfig>>(
     buildInitialSectionConfigs,
   )
@@ -57,12 +73,8 @@ export function useSeedState() {
   const [selectedCourses, setSelectedCourses] = useState<Set<string>>(
     new Set(COLLEGE_COURSES.map((c) => c.code)),
   )
+  const [selectedStrands, setSelectedStrands] = useState<Set<string>>(new Set(SHS_STRANDS))
 
-  const [selectedStrands, setSelectedStrands] = useState<Set<string>>(
-    new Set(SHS_STRANDS),
-  )
-
-  // selectedSubjects uses compound keys: "Grade 1::Filipino"
   const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(() => {
     const all = new Set<string>()
     Object.entries(LEVEL_SUBJECTS).forEach(([lvl, subjects]) =>
@@ -77,7 +89,6 @@ export function useSeedState() {
     return all
   })
 
-  // allSelectableSubjects uses compound keys too
   const allSelectableSubjects = useMemo(() => {
     const out = new Set<string>()
     selectedPrograms.forEach((prog) => {
@@ -100,17 +111,16 @@ export function useSeedState() {
     return Array.from(out)
   }, [selectedPrograms, levelConfigs, selectedStrands, selectedCourses])
 
-  // Clean up stale selections when programs/strands/courses change
   useEffect(() => {
     setSelectedSubjects((prev) => {
-      const valid   = new Set(allSelectableSubjects)
+      const valid = new Set(allSelectableSubjects)
       const cleaned = new Set([...prev].filter((s) => valid.has(s)))
       return cleaned.size === prev.size ? prev : cleaned
     })
   }, [allSelectableSubjects])
 
+  // ===== GRADING SCALES =====
   const [seedGradingScale, setSeedGradingScale] = useState(true)
-
   const [gradingScaleByProgram, setGradingScaleByProgram] = useState<Record<string, string>>(
     () => ({ ...DEFAULT_PRESET_PER_PROGRAM }),
   )
@@ -122,19 +132,46 @@ export function useSeedState() {
   const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => {
     const out: Record<string, GradingScalePreset> = {}
     Array.from(selectedPrograms).forEach((prog) => {
-      const key    = gradingScaleByProgram[prog] ?? GRADING_SCALE_PRESETS[0].key
+      const key = gradingScaleByProgram[prog] ?? GRADING_SCALE_PRESETS[0].key
       const preset = GRADING_SCALE_PRESETS.find((p) => p.key === key)
       if (preset) out[prog] = preset
     })
     return out
   }, [selectedPrograms, gradingScaleByProgram])
 
+  // ===== GRADING SCHEMES =====
+  const [seedGradingSchemes, setSeedGradingSchemes] = useState(true)
+  const [gradingSchemesByProgram, setGradingSchemesByProgram] = useState<Record<string, boolean>>(
+    buildInitialGradingSchemesByProgram,
+  )
+
+  function toggleGradingScheme(programType: string, enabled: boolean) {
+    setGradingSchemesByProgram((prev) => ({
+      ...prev,
+      [programType]: enabled,
+    }))
+  }
+
+  // ===== SEMESTER TEMPLATES =====
+  const [seedSemesterTemplates, setSeedSemesterTemplates] = useState(true)
+  const [semesterTemplatesByProgram, setSemesterTemplatesByProgram] = useState<Record<string, boolean>>(
+    buildInitialSemesterTemplatesByProgram,
+  )
+
+  function toggleSemesterTemplate(programType: string, enabled: boolean) {
+    setSemesterTemplatesByProgram((prev) => ({
+      ...prev,
+      [programType]: enabled,
+    }))
+  }
+
+  // ===== LEVEL & SECTION MANAGEMENT =====
   function setLevelCount(prog: string, count: number) {
     setLevelConfigs((prev) => {
       const existing = prev[prog] ?? { count: 0, names: [] }
       const newNames = generateLevelNames(prog, count)
-      const merged   = newNames.map((defaultName, i) => {
-        const oldName    = existing.names[i]
+      const merged = newNames.map((defaultName, i) => {
+        const oldName = existing.names[i]
         const defaultAtI = generateLevelNames(prog, existing.count)[i]
         return oldName && oldName !== defaultAtI ? oldName : defaultName
       })
@@ -146,11 +183,11 @@ export function useSeedState() {
     setLevelConfigs((prev) => {
       const existing = prev[prog]
       if (!existing) return prev
-      const names   = [...existing.names]
+      const names = [...existing.names]
       const oldName = names[index]
-      names[index]  = newName
+      names[index] = newName
       setSectionConfigs((prevSec) => {
-        const next    = { ...prevSec }
+        const next = { ...prevSec }
         const current = next[oldName] ?? SECTION_DEFAULTS.map((s) => ({ ...s }))
         delete next[oldName]
         next[newName] = current
@@ -164,6 +201,7 @@ export function useSeedState() {
     setSectionConfigs((prev) => ({ ...prev, [levelName]: sections }))
   }
 
+  // ===== UTILITY FUNCTIONS =====
   function toggleSet(set: Set<string>, key: string, setter: (s: Set<string>) => void) {
     const next = new Set(set)
     if (next.has(key)) next.delete(key)
@@ -180,6 +218,7 @@ export function useSeedState() {
   }
 
   return {
+    // Programs & Structure
     selectedPrograms,
     setSelectedPrograms,
     selectedCourses,
@@ -189,16 +228,34 @@ export function useSeedState() {
     selectedSubjects,
     setSelectedSubjects,
     allSelectableSubjects,
+
+    // Levels & Sections
     levelConfigs,
     setLevelCount,
     renameLevelAt,
     sectionConfigs,
     setSectionsForLevel: renameLevelSections,
+
+    // Grading Scales
     seedGradingScale,
     setSeedGradingScale,
     gradingScaleByProgram,
     setGradingScaleForProgram,
     resolvedGradingScales,
+
+    // Grading Schemes
+    seedGradingSchemes,
+    setSeedGradingSchemes,
+    gradingSchemesByProgram,
+    toggleGradingScheme,
+
+    // Semester Templates
+    seedSemesterTemplates,
+    setSeedSemesterTemplates,
+    semesterTemplatesByProgram,
+    toggleSemesterTemplate,
+
+    // Utilities
     toggleSet,
     selectAll,
     deselectAll,
