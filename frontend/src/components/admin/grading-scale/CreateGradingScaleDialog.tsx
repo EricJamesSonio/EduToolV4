@@ -8,6 +8,7 @@ import { gradingScaleApi } from "@/api/admin/grading-scale.api";
 import { programApi } from "@/api/admin/program.api"; // CHANGED from levelApi → programApi
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import type { GradeRange } from "@/types/admin/grading-scale.types";
+import type { Program } from "@/types/admin/program.types";
 import {
   GradingScaleRangeEditor,
   validateRanges,
@@ -101,7 +102,7 @@ export function CreateGradingScaleDialog({
   // CHANGED: Fetch programs instead of levels
   const { data: programs = [] } = useQuery({
     queryKey: ["admin", "programs", schoolYearId],
-    queryFn: () => programApi.findAll({ schoolYearId: schoolYearId! }),
+    queryFn: () => programApi.getAll(schoolYearId!),
     enabled: open && !!schoolYearId,
   });
 
@@ -206,7 +207,7 @@ export function CreateGradingScaleDialog({
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {programs.map((p) => (
+                  {programs.map((p: Program) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
                     </SelectItem>
