@@ -300,14 +300,14 @@ export class OrgSeederService {
     }
   }
 
-  private async seedGradingScales(
-    orgId:         string,
-    schoolYearId:  string,
-    shouldSeed:    (k: string) => boolean,
-    levelMap:      Record<string, string>,
-    gradingScales: Record<string, GradingScaleOption>,
-    result:        SeedResult,
-  ) {
+private async seedGradingScales(
+  orgId:         string,
+  schoolYearId:  string,
+  shouldSeed:    (k: string) => boolean,
+  levelMap:      Record<string, string>,
+  gradingScales: Record<string, GradingScaleOption>,
+  result:        SeedResult,
+) {
     const assignments = Object.keys(gradingScales).length > 0
       ? Object.entries(gradingScales).flatMap(([progKey, scale]) =>
           !shouldSeed(progKey) ? [] :
@@ -330,17 +330,17 @@ export class OrgSeederService {
       if (existing) {
         result.gradingScales.already_exists++
       } else {
-        await this.db.gradingScale.create({
-          data: {
-            id,
-            org_id:         orgId,
-            school_year_id: schoolYearId,
-            level_id:       levelId,
-            name:           scaleName,
-            ranges,
-            is_locked:      false,
-          },
-        })
+      await this.db.gradingScale.create({
+        data: {
+          id,
+          org_id:         orgId,
+          school_year_id: schoolYearId,
+          program_id:     levelId,
+          name:           scaleName,
+          ranges,
+          is_locked:      false,
+        },
+      })
         result.gradingScales.seeded++
       }
     }

@@ -112,18 +112,18 @@ export class GradeLockRepository {
     return subject?.level_id ?? null;
   }
 
-  async lockGradingScale(
-    levelId: string,
-    schoolYearId: string,
-    orgId: string,
-  ) {
-    return this.db.gradingScale.updateMany({
-      where: {
-        org_id: orgId,
-        level_id: levelId,
-        school_year_id: schoolYearId,
-        is_locked: false,
-      },
+async lockGradingScale(
+  programId: string,            // ✅ CHANGED
+  schoolYearId: string,
+  orgId: string,
+) {
+  return this.db.gradingScale.updateMany({
+    where: {
+      org_id: orgId,
+      program_id: programId,     // ✅ CHANGED
+      school_year_id: schoolYearId,
+      is_locked: false,
+    },
       data: {
         is_locked: true,
         locked_at: new Date(),
