@@ -113,11 +113,11 @@ export function TemplateFormDialog({
   const totalWeight = components.reduce((sum, c) => sum + (c.weight || 0), 0);
   const isValid = totalWeight === 100;
 
-  const addComponent = () =>
-    setComponents((prev) => [
-      ...prev,
-      { name: "", type: "other", weight: 0 },
-    ]);
+const addComponent = () =>
+  setComponents((prev) => [
+    ...prev,
+    { name: "", type: "other", weight: 0 },
+  ]);
 
   const removeComponent = (i: number) =>
     setComponents((prev) => prev.filter((_, idx) => idx !== i));
@@ -167,7 +167,7 @@ export function TemplateFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-3xl w-full">
+      <DialogContent className="max-w-3xl w-full" style={{ maxWidth: "56rem" }}>
         <DialogHeader className="pb-2">
           <DialogTitle className="text-lg">
             {isEdit ? "Edit Grading Scheme Template" : "New Grading Scheme Template"}
