@@ -222,15 +222,30 @@ async create(orgId: string, dto: CreateClassDto) {
   return this.classRepository.findById(cls.id, orgId)
 }
 
-  // --- everything below is unchanged from your original ---
+    // --- everything below is unchanged from your original ---
 
   async findAll(orgId: string, query: QueryClassDto) {
-    return this.classRepository.findAll(orgId, {
+    const classes = await this.classRepository.findAll(orgId, {
       schoolYearId: query.schoolYearId,
       semesterId:   query.semesterId,
       educatorId:   query.educatorId,
       subjectId:    query.subjectId,
       sectionId:    query.sectionId,
+    })
+
+    return classes.map((cls) => {
+      const subject = (cls as any).subject
+      const programId =
+        subject?.program_id ??
+        subject?.course?.program_id ??
+        subject?.strand?.program_id ??
+        null
+
+      return {
+        ...cls,
+        program_id:    programId,
+        subject_name:  subject?.name ?? null,
+      }
     })
   }
 
