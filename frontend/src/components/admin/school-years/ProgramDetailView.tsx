@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, GraduationCap } from "lucide-react";
@@ -7,8 +6,6 @@ import { levelApi }   from "@/api/admin/level.api";
 import { programApi } from "@/api/admin/program.api";
 import type { Program } from "@/types/admin/program.types";
 import { PROGRAM_TYPE_LABELS, PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
-import { CoursesSection } from "@/components/admin/program/CoursesSection";
-import { StrandsSection } from "@/components/admin/program/StrandsSection";
 import { Badge }    from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn }       from "@/lib/utils";
@@ -29,18 +26,14 @@ export function ProgramDetailView({
   isEnded,
   onBack,
 }: ProgramDetailViewProps): React.JSX.Element {
-  const isCollege = program.type === "college";
-  const isSHS     = program.type === "shs";
-  // Programs with sub-groups: subjects are managed in Subjects tab with course/strand filters
-  // Programs without sub-groups: "View Subjects" button on each level row drives the Subjects tab
+  const isCollege    = program.type === "college";
+  const isSHS        = program.type === "shs";
   const hasSubGroups = isCollege || isSHS;
 
   const typeLabel = PROGRAM_TYPE_LABELS[program.type] ?? program.type;
   const typeColor = PROGRAM_TYPE_COLORS[program.type] ?? "";
 
-  // Inner tab state
   const [activeTab,      setActiveTab]      = useState<ProgramDetailTab>("levels");
-  // levelId pre-selected when coming from "View Subjects" on a level row
   const [subjectLevelId, setSubjectLevelId] = useState<string | undefined>(undefined);
 
   const { data: freshProgram } = useQuery({
@@ -55,17 +48,14 @@ export function ProgramDetailView({
 
   const activeProgram = freshProgram ?? program;
 
-  // Called by LevelWithSectionsList when user clicks "View Subjects" on a level
   const handleViewSubjects = (levelId: string) => {
     setSubjectLevelId(levelId);
     setActiveTab("subjects");
   };
 
-  // Build inner tab list dynamically based on program type
+  // Courses and Strands tabs are removed — they live inside LevelWithSectionsList now
   const tabs: { key: ProgramDetailTab; label: string }[] = [
     { key: "levels",   label: "Levels & Sections" },
-    ...(isCollege ? [{ key: "courses" as ProgramDetailTab, label: "Courses" }]  : []),
-    ...(isSHS     ? [{ key: "strands" as ProgramDetailTab, label: "Strands" }]  : []),
     { key: "subjects", label: "Subjects" },
   ];
 
@@ -91,7 +81,7 @@ export function ProgramDetailView({
         </div>
       </div>
 
-      {/* Inner tabs */}
+      {/* Tabs */}
       <div className="border-b flex gap-0">
         {tabs.map((tab) => (
           <button
@@ -111,38 +101,15 @@ export function ProgramDetailView({
 
       {/* Tab content */}
       <div>
-        {/* Levels & Sections */}
         {activeTab === "levels" && (
           <LevelWithSectionsList
             schoolYearId={schoolYearId}
             programId={program.id}
             isEnded={isEnded}
-            // Only pass the shortcut for programs without courses/strands
             onViewSubjects={!hasSubGroups ? handleViewSubjects : undefined}
           />
         )}
 
-        {/* Courses (college only) */}
-        {activeTab === "courses" && isCollege && (
-          <CoursesSection
-            program={activeProgram}
-            schoolYearId={schoolYearId}
-            courses={activeProgram.courses ?? []}
-            isEnded={isEnded}
-          />
-        )}
-
-        {/* Strands (SHS only) */}
-        {activeTab === "strands" && isSHS && (
-          <StrandsSection
-            program={activeProgram}
-            schoolYearId={schoolYearId}
-            strands={activeProgram.strands ?? []}
-            isEnded={isEnded}
-          />
-        )}
-
-        {/* Subjects */}
         {activeTab === "subjects" && (
           levelsLoading ? (
             <Skeleton className="h-40 w-full rounded-lg" />

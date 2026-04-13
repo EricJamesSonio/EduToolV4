@@ -1,12 +1,18 @@
 "use client";
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronRight, Layers, BookOpen } from "lucide-react";
+import {
+  ChevronRight,
+  Layers,
+  BookOpen,
+  Plus,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { levelApi }   from "@/api/admin/level.api";
 import { programApi } from "@/api/admin/program.api";
-import type { Level }           from "@/types/admin/level.types";
+import type { Level }                        from "@/types/admin/level.types";
 import type { CourseSnapshot, StrandSnapshot } from "@/types/admin/program.types";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Skeleton }      from "@/components/ui/skeleton";
@@ -14,19 +20,288 @@ import { Badge }         from "@/components/ui/badge";
 import { Button }        from "@/components/ui/button";
 import { ProgramGroup }  from "@/components/admin/levels/ProgramGroup";
 import { SectionsPanel } from "./SectionsPanel";
+import { cn }            from "@/lib/utils";
 
 interface LevelWithSectionsListProps {
   schoolYearId:    string;
   programId:       string;
   isEnded:         boolean;
-  /** Called when user clicks "View Subjects" on a level row (no-course/strand programs only) */
   onViewSubjects?: (levelId: string) => void;
 }
 
-function expandKey(levelId: string, subId?: string): string {
-  return subId ? `${subId}:${levelId}` : levelId;
+// ─── Flat (non-college / non-SHS) ────────────────────────────────────────────
+function FlatLevels({
+  levels,
+  schoolYearId,
+  isEnded,
+  onViewSubjects,
+}: {
+  levels:          Level[];
+  schoolYearId:    string;
+  isEnded:         boolean;
+  onViewSubjects?: (levelId: string) => void;
+}): React.JSX.Element {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  return (
+    <div className="border-t divide-y">
+      {levels.map((level) => (
+        <div key={level.id}>
+          <div className="flex items-center gap-2 px-4 py-2.5 hover:bg-muted/30 transition-colors">
+            <button
+              onClick={() => toggle(level.id)}
+              className="flex items-center gap-2 flex-1 text-left min-w-0"
+            >
+              <ChevronRight
+                className={cn(
+                  "h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0",
+                  expanded.has(level.id) && "rotate-90",
+                )}
+              />
+              <span className="text-xs font-medium text-muted-foreground">
+                {level.name}
+              </span>
+              <span className="text-xs text-muted-foreground">— sections</span>
+            </button>
+            {onViewSubjects && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-primary hover:text-primary hover:bg-primary/10 shrink-0"
+                onClick={() => onViewSubjects(level.id)}
+              >
+                <BookOpen className="h-3 w-3 mr-1" />
+                View Subjects
+              </Button>
+            )}
+          </div>
+          {expanded.has(level.id) && (
+            <SectionsPanel
+              level={level}
+              schoolYearId={schoolYearId}
+              isEnded={isEnded}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
+// ─── College: Course → Levels → Sections ─────────────────────────────────────
+function CollegeLevels({
+  courses,
+  levels,
+  schoolYearId,
+  isEnded,
+}: {
+  courses:      CourseSnapshot[];
+  levels:       Level[];
+  schoolYearId: string;
+  isEnded:      boolean;
+}): React.JSX.Element {
+  // key = `${courseId}:${levelId}`
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // track which courses are collapsed
+  const [collapsedCourses, setCollapsedCourses] = useState<Set<string>>(new Set());
+
+  const toggleLevel = (courseId: string, levelId: string) => {
+    const key = `${courseId}:${levelId}`;
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const toggleCourse = (courseId: string) =>
+    setCollapsedCourses((prev) => {
+      const next = new Set(prev);
+      next.has(courseId) ? next.delete(courseId) : next.add(courseId);
+      return next;
+    });
+
+  if (courses.length === 0) {
+    return (
+      <p className="px-4 py-4 text-sm text-muted-foreground border-t">
+        No courses found for this program.
+      </p>
+    );
+  }
+
+  return (
+    <div className="border-t divide-y">
+      {courses.map((course) => {
+        const isCourseCollapsed = collapsedCourses.has(course.id);
+        return (
+          <div key={course.id}>
+            {/* Course header row */}
+            <button
+              onClick={() => toggleCourse(course.id)}
+              className="w-full flex items-center gap-2 px-4 py-2.5 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
+            >
+              <ChevronRight
+                className={cn(
+                  "h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0",
+                  !isCourseCollapsed && "rotate-90",
+                )}
+              />
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {course.code ? `${course.code} – ${course.name}` : course.name}
+              </span>
+            </button>
+
+            {/* Levels under this course */}
+            {!isCourseCollapsed && (
+              <div className="divide-y">
+                {levels.map((level) => {
+                  const key = `${course.id}:${level.id}`;
+                  return (
+                    <div key={level.id}>
+                      <button
+                        onClick={() => toggleLevel(course.id, level.id)}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 pl-10 hover:bg-muted/30 transition-colors text-left"
+                      >
+                        <ChevronRight
+                          className={cn(
+                            "h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0",
+                            expanded.has(key) && "rotate-90",
+                          )}
+                        />
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {level.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">— sections</span>
+                      </button>
+                      {expanded.has(key) && (
+                        <SectionsPanel
+                          level={level}
+                          schoolYearId={schoolYearId}
+                          isEnded={isEnded}
+                          courseId={course.id}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── SHS: Strand → Levels → Sections ─────────────────────────────────────────
+function SHSLevels({
+  strands,
+  levels,
+  schoolYearId,
+  isEnded,
+}: {
+  strands:      StrandSnapshot[];
+  levels:       Level[];
+  schoolYearId: string;
+  isEnded:      boolean;
+}): React.JSX.Element {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [collapsedStrands, setCollapsedStrands] = useState<Set<string>>(new Set());
+
+  const toggleLevel = (strandId: string, levelId: string) => {
+    const key = `${strandId}:${levelId}`;
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const toggleStrand = (strandId: string) =>
+    setCollapsedStrands((prev) => {
+      const next = new Set(prev);
+      next.has(strandId) ? next.delete(strandId) : next.add(strandId);
+      return next;
+    });
+
+  if (strands.length === 0) {
+    return (
+      <p className="px-4 py-4 text-sm text-muted-foreground border-t">
+        No strands found for this program.
+      </p>
+    );
+  }
+
+  return (
+    <div className="border-t divide-y">
+      {strands.map((strand) => {
+        const isStrandCollapsed = collapsedStrands.has(strand.id);
+        return (
+          <div key={strand.id}>
+            {/* Strand header row */}
+            <button
+              onClick={() => toggleStrand(strand.id)}
+              className="w-full flex items-center gap-2 px-4 py-2.5 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
+            >
+              <ChevronRight
+                className={cn(
+                  "h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0",
+                  !isStrandCollapsed && "rotate-90",
+                )}
+              />
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {strand.name}
+              </span>
+            </button>
+
+            {!isStrandCollapsed && (
+              <div className="divide-y">
+                {levels.map((level) => {
+                  const key = `${strand.id}:${level.id}`;
+                  return (
+                    <div key={level.id}>
+                      <button
+                        onClick={() => toggleLevel(strand.id, level.id)}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 pl-10 hover:bg-muted/30 transition-colors text-left"
+                      >
+                        <ChevronRight
+                          className={cn(
+                            "h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0",
+                            expanded.has(key) && "rotate-90",
+                          )}
+                        />
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {level.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">— sections</span>
+                      </button>
+                      {expanded.has(key) && (
+                        <SectionsPanel
+                          level={level}
+                          schoolYearId={schoolYearId}
+                          isEnded={isEnded}
+                          strandId={strand.id}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Root export ──────────────────────────────────────────────────────────────
 export function LevelWithSectionsList({
   schoolYearId,
   programId,
@@ -34,7 +309,6 @@ export function LevelWithSectionsList({
   onViewSubjects,
 }: LevelWithSectionsListProps): React.JSX.Element {
   const queryClient = useQueryClient();
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<Level | null>(null);
   const [updatingId,   setUpdatingId]   = useState<string | null>(null);
 
@@ -93,15 +367,6 @@ export function LevelWithSectionsList({
     onError: () => toast.error("Failed to delete level."),
   });
 
-  const toggle = (levelId: string, subId?: string) => {
-    const key = expandKey(levelId, subId);
-    setExpandedKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-  };
-
   if (isLoading || !program) {
     return (
       <div className="space-y-2">
@@ -119,14 +384,16 @@ export function LevelWithSectionsList({
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-semibold">Levels</span>
+            <span className="text-sm font-semibold">
+              {hasSubGroups ? "Levels & Sections" : "Levels & Sections"}
+            </span>
             <Badge variant="secondary" className="text-xs font-normal">
               {levels.length}
             </Badge>
           </div>
         </div>
 
-        {/* ProgramGroup handles all level CRUD UI */}
+        {/* ProgramGroup: handles level CRUD UI (rename, delete, generate, add) */}
         <ProgramGroup
           program={program}
           levels={levels}
@@ -141,159 +408,32 @@ export function LevelWithSectionsList({
           updatingId={updatingId}
         />
 
-        {/* Sections — flat for non-college/SHS, with "View Subjects" shortcut */}
+        {/* Sections — nested by program type */}
         {levels.length > 0 && !hasSubGroups && (
-          <div className="border-t divide-y">
-            {levels.map((level) => {
-              const key = expandKey(level.id);
-              return (
-                <div key={level.id}>
-                  <div className="flex items-center gap-2 px-4 py-2.5 hover:bg-muted/30 transition-colors">
-                    {/* Expand sections toggle */}
-                    <button
-                      onClick={() => toggle(level.id)}
-                      className="flex items-center gap-2 flex-1 text-left min-w-0"
-                    >
-                      <ChevronRight
-                        className={`h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0 ${
-                          expandedKeys.has(key) ? "rotate-90" : ""
-                        }`}
-                      />
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {level.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground">— sections</span>
-                    </button>
-
-                    {/* View Subjects shortcut */}
-                    {onViewSubjects && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs text-primary hover:text-primary hover:bg-primary/10 shrink-0"
-                        onClick={() => onViewSubjects(level.id)}
-                      >
-                        <BookOpen className="h-3 w-3 mr-1" />
-                        View Subjects
-                      </Button>
-                    )}
-                  </div>
-
-                  {expandedKeys.has(key) && (
-                    <SectionsPanel
-                      level={level}
-                      schoolYearId={schoolYearId}
-                      isEnded={isEnded}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <FlatLevels
+            levels={levels}
+            schoolYearId={schoolYearId}
+            isEnded={isEnded}
+            onViewSubjects={onViewSubjects}
+          />
         )}
 
-        {/* Sections — grouped by course (college) */}
         {levels.length > 0 && isCollege && (
-          <div className="border-t divide-y">
-            {courses.length === 0 ? (
-              <p className="px-4 py-4 text-sm text-muted-foreground">
-                No courses found for this program.
-              </p>
-            ) : (
-              courses.map((course) => (
-                <div key={course.id} className="divide-y">
-                  {/* Course header */}
-                  <div className="px-4 py-2 bg-muted/20">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      {course.code ? `${course.code} – ${course.name}` : course.name}
-                    </span>
-                  </div>
-                  {/* Levels under this course */}
-                  {levels.map((level) => {
-                    const key = expandKey(level.id, course.id);
-                    return (
-                      <div key={level.id}>
-                        <button
-                          onClick={() => toggle(level.id, course.id)}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-muted/30 transition-colors text-left pl-8"
-                        >
-                          <ChevronRight
-                            className={`h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0 ${
-                              expandedKeys.has(key) ? "rotate-90" : ""
-                            }`}
-                          />
-                          <span className="text-xs font-medium text-muted-foreground">
-                            {level.name}
-                          </span>
-                          <span className="text-xs text-muted-foreground">— sections</span>
-                        </button>
-                        {expandedKeys.has(key) && (
-                          <SectionsPanel
-                            level={level}
-                            schoolYearId={schoolYearId}
-                            isEnded={isEnded}
-                            courseId={course.id}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))
-            )}
-          </div>
+          <CollegeLevels
+            courses={courses}
+            levels={levels}
+            schoolYearId={schoolYearId}
+            isEnded={isEnded}
+          />
         )}
 
-        {/* Sections — grouped by strand (SHS) */}
         {levels.length > 0 && isSHS && (
-          <div className="border-t divide-y">
-            {strands.length === 0 ? (
-              <p className="px-4 py-4 text-sm text-muted-foreground">
-                No strands found for this program.
-              </p>
-            ) : (
-              strands.map((strand) => (
-                <div key={strand.id} className="divide-y">
-                  {/* Strand header */}
-                  <div className="px-4 py-2 bg-muted/20">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      {strand.name}
-                    </span>
-                  </div>
-                  {/* Levels under this strand */}
-                  {levels.map((level) => {
-                    const key = expandKey(level.id, strand.id);
-                    return (
-                      <div key={level.id}>
-                        <button
-                          onClick={() => toggle(level.id, strand.id)}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-muted/30 transition-colors text-left pl-8"
-                        >
-                          <ChevronRight
-                            className={`h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0 ${
-                              expandedKeys.has(key) ? "rotate-90" : ""
-                            }`}
-                          />
-                          <span className="text-xs font-medium text-muted-foreground">
-                            {level.name}
-                          </span>
-                          <span className="text-xs text-muted-foreground">— sections</span>
-                        </button>
-                        {expandedKeys.has(key) && (
-                          <SectionsPanel
-                            level={level}
-                            schoolYearId={schoolYearId}
-                            isEnded={isEnded}
-                            strandId={strand.id}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))
-            )}
-          </div>
+          <SHSLevels
+            strands={strands}
+            levels={levels}
+            schoolYearId={schoolYearId}
+            isEnded={isEnded}
+          />
         )}
       </div>
 
@@ -301,7 +441,7 @@ export function LevelWithSectionsList({
         <ConfirmDialog
           open
           title="Delete this level?"
-          message={`Delete "${deleteTarget.name}"? This cannot be undone. Any classes or students linked to this level may be affected.`}
+          message={`Delete "${deleteTarget.name}"? This cannot be undone.`}
           confirmLabel="Delete Level"
           destructive
           isLoading={deleteMutation.isPending}
