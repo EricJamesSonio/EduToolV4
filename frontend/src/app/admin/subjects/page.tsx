@@ -1,23 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { subjectApi } from "@/api/admin/subject.api";
-import { schoolYearApi } from "@/api/admin/school-year.api";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner"; // kept for potential future use; harmless
 import type { Subject } from "@/types/admin/subject.types";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { PageHeader }   from "@/components/shared/PageHeader";
+import { Button }       from "@/components/ui/button";
+import { Plus }         from "lucide-react";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { SubjectDialog } from "@/components/admin/subject/SubjectDialog";
-import type { AxiosError } from "axios";
-import type { SubjectType } from "@/types/admin/subject.types";
-
-// Import modular components
-import { SubjectFilters } from "@/components/admin/subject/SubjectFilters";
-import { SubjectTabs } from "@/components/admin/subject/SubjectTabs";
-import { SubjectSearch } from "@/components/admin/subject/SubjectSearch";
-import { SubjectTable } from "@/components/admin/subject/SubjectTable";
+import { SubjectFilters }    from "@/components/admin/subject/SubjectFilters";
+import { SubjectTabs }       from "@/components/admin/subject/SubjectTabs";
+import { SubjectSearch }     from "@/components/admin/subject/SubjectSearch";
+import { SubjectTable }      from "@/components/admin/subject/SubjectTable";
 import { SubjectEmptyState } from "@/components/admin/subject/SubjectEmptyState";
 import { useSubjectFilters } from "@/components/admin/subject/hooks/useSubjectFilters";
 import { useSubjectQueries } from "@/components/admin/subject/hooks/useSubjectQueries";
@@ -25,46 +20,33 @@ import { useSubjectMutations } from "@/components/admin/subject/hooks/useSubject
 
 export default function SubjectsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
-
-  // ━━━━━ Filter State ━━━━━
   const filters = useSubjectFilters();
 
-  // ━━━━━ Dialog State ━━━━━
-  const [createOpen, setCreateOpen] = useState(false);
-  const [lockTarget, setLockTarget] = useState<Subject | null>(null);
-  const [unlockTarget, setUnlockTarget] = useState<Subject | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [createOpen,    setCreateOpen]    = useState(false);
+  const [lockTarget,    setLockTarget]    = useState<Subject | null>(null);
+  const [unlockTarget,  setUnlockTarget]  = useState<Subject | null>(null);
+  const [searchQuery,   setSearchQuery]   = useState("");
 
-  // ━━━━━ Queries ━━━━━
   const {
-    schoolYears,
-    syLoading,
-    programs,
-    programsLoading,
-    levels,
-    levelsLoading,
-    courses,
-    strands,
-    educators,
-    educatorsLoading,
-    subjects,
-    subjectsLoading,
+    schoolYears, syLoading,
+    programs, programsLoading,
+    levels, levelsLoading,
+    courses, strands,
+    educators, educatorsLoading,
+    subjects, subjectsLoading,
   } = useSubjectQueries(filters);
 
-  // ━━━━━ Mutations ━━━━━
   const { lockMutation, unlockMutation } = useSubjectMutations(
     queryClient,
     setLockTarget,
-    setUnlockTarget
+    setUnlockTarget,
   );
 
-  // ━━━━━ Derived State ━━━━━
   const isLoading =
     levelsLoading || educatorsLoading || subjectsLoading || programsLoading;
 
-  // Filter subjects by search query
   const filteredSubjects = subjects.filter((subject) =>
-    subject.title.toLowerCase().includes(searchQuery.toLowerCase())
+    subject.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -83,9 +65,9 @@ export default function SubjectsPage(): React.JSX.Element {
         }
       />
 
-      {/* ━━━━━ Filters ━━━━━ */}
+      {/* Filters — spread so each setter is passed as an individual prop */}
       <SubjectFilters
-        filters={filters}
+        {...filters}
         schoolYears={schoolYears}
         programs={programs}
         courses={courses}
@@ -94,10 +76,13 @@ export default function SubjectsPage(): React.JSX.Element {
         programsLoading={programsLoading}
       />
 
-      {/* ━━━━━ Tabs ━━━━━ */}
-      <SubjectTabs filters={filters} />
+      {/* Tabs — pass setActiveTab so clicking Minor/Major actually works */}
+      <SubjectTabs
+        filters={filters}
+        onTabChange={filters.setActiveTab}
+      />
 
-      {/* ━━━━━ Search ━━━━━ */}
+      {/* Search */}
       {filters.selectedSchoolYearId && (
         <SubjectSearch
           searchQuery={searchQuery}
@@ -106,7 +91,7 @@ export default function SubjectsPage(): React.JSX.Element {
         />
       )}
 
-      {/* ━━━━━ Empty State or Table ━━━━━ */}
+      {/* Table or empty state */}
       {filters.selectedSchoolYearId ? (
         <SubjectTable
           isLoading={isLoading}
@@ -126,7 +111,7 @@ export default function SubjectsPage(): React.JSX.Element {
         />
       )}
 
-      {/* ━━━━━ Dialogs ━━━━━ */}
+      {/* Dialogs */}
       {createOpen && (
         <SubjectDialog
           levels={levels}
@@ -135,9 +120,9 @@ export default function SubjectsPage(): React.JSX.Element {
           defaultSubjectType={filters.activeTab}
           open={createOpen}
           onClose={() => setCreateOpen(false)}
-          onSaved={() =>
-            queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] })
-          }
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
+          }}
         />
       )}
 
@@ -150,9 +135,7 @@ export default function SubjectsPage(): React.JSX.Element {
           destructive={false}
           isLoading={lockMutation.isPending}
           onConfirm={() => lockMutation.mutate(lockTarget.id)}
-          onOpenChange={(o) => {
-            if (!o) setLockTarget(null);
-          }}
+          onOpenChange={(o) => { if (!o) setLockTarget(null); }}
         />
       )}
 
@@ -165,14 +148,9 @@ export default function SubjectsPage(): React.JSX.Element {
           destructive={false}
           isLoading={unlockMutation.isPending}
           onConfirm={() => unlockMutation.mutate(unlockTarget.id)}
-          onOpenChange={(o) => {
-            if (!o) setUnlockTarget(null);
-          }}
+          onOpenChange={(o) => { if (!o) setUnlockTarget(null); }}
         />
       )}
     </div>
   );
 }
-
-// Import ConfirmDialog at the end to avoid circular dependencies
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";

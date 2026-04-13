@@ -6,8 +6,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { FiltersState, FiltersActions } from "../hooks/useSubjectFilters";
-import type { SchoolYear, Program, Course, Strand } from "@/types/admin";
+import type { FiltersState, FiltersActions } from "./hooks/useSubjectFilters";
+import type { SchoolYear } from "@/types/admin/school-year.types";
+import type { Program } from "@/types/admin/program.types";
+import type { Course,  } from "@/types/admin/course.types";
+import type { Strand } from "@/types/admin/strand.types";
+
 
 interface SubjectFiltersProps extends FiltersState, FiltersActions {
   schoolYears: SchoolYear[];
