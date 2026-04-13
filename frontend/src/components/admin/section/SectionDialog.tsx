@@ -37,13 +37,17 @@ interface SectionFormValues {
 }
 
 interface SectionDialogProps {
-  section?:     Section;
-  levels:       EnrichedLevel[];
-  programs:     Program[];
-  schoolYearId: string;
-  open:         boolean;
-  onClose:      () => void;
-  onSaved:      () => void;
+  section?:          Section;
+  levels:            EnrichedLevel[];
+  programs:          Program[];
+  schoolYearId:      string;
+  defaultProgramId?: string;
+  defaultCourseId?:  string;
+  defaultStrandId?:  string;
+  defaultLevelId?:   string;
+  open:              boolean;
+  onClose:           () => void;
+  onSaved:           () => void;
 }
 
 export function SectionDialog({
@@ -51,6 +55,10 @@ export function SectionDialog({
   levels,
   programs,
   schoolYearId,
+  defaultProgramId,
+  defaultCourseId,
+  defaultStrandId,
+  defaultLevelId,
   open,
   onClose,
   onSaved,
@@ -61,10 +69,10 @@ export function SectionDialog({
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } =
     useForm<SectionFormValues>({
       defaultValues: {
-        programId: "",
-        courseId:  "",
-        strandId:  "",
-        levelId:   section?.level_id ?? "",
+        programId: defaultProgramId ?? "",
+        courseId:  defaultCourseId  ?? "",
+        strandId:  defaultStrandId  ?? "",
+        levelId:   section?.level_id ?? defaultLevelId ?? "",
         name:      section?.name     ?? "",
         capacity:  section?.capacity ?? 30,
       },
@@ -140,7 +148,14 @@ export function SectionDialog({
   });
 
   function handleClose(): void {
-    reset();
+    reset({
+      programId: defaultProgramId ?? "",
+      courseId:  defaultCourseId  ?? "",
+      strandId:  defaultStrandId  ?? "",
+      levelId:   defaultLevelId   ?? "",
+      name:      "",
+      capacity:  30,
+    });
     onClose();
   }
 

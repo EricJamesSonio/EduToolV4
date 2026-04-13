@@ -1,13 +1,10 @@
-// frontend/src/components/admin/class/CreateClassDialog.tsx
-
+// frontend\src\components\admin\class\CreateClassDialog.tsx
 "use client";
-
 import { useEffect, useMemo } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-
 import { classApi }    from "@/api/admin/class.api";
 import type { CreateClassRequest, ScheduleSlot } from "@/api/admin/class.api";
 import { subjectApi }  from "@/api/admin/subject.api";
@@ -17,27 +14,21 @@ import { courseApi }   from "@/api/admin/course.api";
 import { strandApi }   from "@/api/admin/strand.api";
 import { levelApi }    from "@/api/admin/level.api";
 import { sectionApi }  from "@/api/admin/section.api";
-
 import type { Level }   from "@/types/admin/level.types";
 import type { Subject } from "@/types/admin/subject.types";
-
 import { Button }   from "@/components/ui/button";
 import { Input }    from "@/components/ui/input";
 import { Label }    from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
+import { Badge }    from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { ScheduleSlotFields } from "./ScheduleSlotFields";
 import { toArray } from "@/utils/classes.utils";
+import {
+  loadClassDraft,
+  clearClassDraft,
+  useClassDraftAutosave,
+} from "@/components/admin/class/hooks//useClassDraft";
 
 export interface ScheduleSlotForm {
   weekday:   string;
@@ -56,12 +47,23 @@ export interface CreateClassForm {
   schedules:  ScheduleSlotForm[];
 }
 
+const EMPTY_DEFAULTS: CreateClassForm = {
+  programId:  "",
+  trackId:    "",
+  levelId:    "",
+  sectionId:  "",
+  subjectId:  "",
+  educatorId: "",
+  capacity:   "30",
+  schedules:  [{ weekday: "1", startTime: "08:00", endTime: "09:00" }],
+};
+
 interface CreateClassDialogProps {
-  open:            boolean;
-  onClose:         () => void;
+  open:             boolean;
+  onClose:          () => void;
   defaultSubjectId?: string;
-  schoolYearId:    string | null;
-  schoolYearName:  string | null;
+  schoolYearId:     string | null;
+  schoolYearName:   string | null;
 }
 
 export function CreateClassDialog({
@@ -73,34 +75,31 @@ export function CreateClassDialog({
 }: CreateClassDialogProps): React.JSX.Element {
   const queryClient = useQueryClient();
 
+  // Load draft once on mount — fall back to empty defaults
+  const draft = loadClassDraft();
+  const hasDraft = !!draft && Object.keys(draft).length > 0;
+
   const methods = useForm<CreateClassForm>({
     defaultValues: {
-      programId:  "",
-      trackId:    "",
-      levelId:    "",
-      sectionId:  "",
-      subjectId:  defaultSubjectId ?? "",
-      educatorId: "",
-      capacity:   "30",
-      schedules:  [{ weekday: "1", startTime: "08:00", endTime: "09:00" }],
+      ...EMPTY_DEFAULTS,
+      ...draft,
+      // URL param always wins over draft for subjectId
+      subjectId: defaultSubjectId ?? draft?.subjectId ?? "",
     },
   });
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors },
-  } = methods;
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = methods;
+  const formValues = watch();
 
-  const selectedProgramId  = watch("programId");
-  const selectedTrackId    = watch("trackId");
-  const selectedLevelId    = watch("levelId");
-  const selectedSectionId  = watch("sectionId");
-  const selectedSubjectId  = watch("subjectId");
-  const selectedEducatorId = watch("educatorId");
+  // Autosave whenever any field changes
+  useClassDraftAutosave(formValues);
+
+  const selectedProgramId  = formValues.programId;
+  const selectedTrackId    = formValues.trackId;
+  const selectedLevelId    = formValues.levelId;
+  const selectedSectionId  = formValues.sectionId;
+  const selectedSubjectId  = formValues.subjectId;
+  const selectedEducatorId = formValues.educatorId;
 
   const { data: programsRaw } = useQuery({
     queryKey: ["admin", "programs", schoolYearId],
@@ -132,7 +131,6 @@ export function CreateClassDialog({
     queryFn:  () => levelApi.getBySchoolYear(schoolYearId!),
     enabled:  !!schoolYearId,
   });
-
   const levels = useMemo<Level[]>(() => {
     const all = toArray<Level>(levelsRaw);
     if (!selectedProgramId) return [];
@@ -146,22 +144,19 @@ export function CreateClassDialog({
   });
   const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 
-const { data: subjectsRaw } = useQuery({
-  queryKey: [
-    "admin",
-    "subjects",
-    selectedLevelId,
-    isCourseTrack ? selectedTrackId : undefined,
-    !isCourseTrack ? selectedTrackId : undefined,
-  ],
-  queryFn: () => subjectApi.getAll({
-    levelId: selectedLevelId!,
-    ...(selectedTrackId && isCourseTrack  ? { courseId: selectedTrackId } : {}),
-    ...(selectedTrackId && !isCourseTrack ? { strandId: selectedTrackId } : {}),
-  }),
-  enabled: !!selectedLevelId,
-});
-
+  const { data: subjectsRaw } = useQuery({
+    queryKey: [
+      "admin", "subjects", selectedLevelId,
+      isCourseTrack ? selectedTrackId : undefined,
+      !isCourseTrack ? selectedTrackId : undefined,
+    ],
+    queryFn: () => subjectApi.getAll({
+      levelId: selectedLevelId!,
+      ...(selectedTrackId && isCourseTrack  ? { courseId: selectedTrackId } : {}),
+      ...(selectedTrackId && !isCourseTrack ? { strandId: selectedTrackId } : {}),
+    }),
+    enabled: !!selectedLevelId,
+  });
   const subjects = toArray<Subject>(subjectsRaw);
 
   const { data: educatorsRaw } = useQuery({
@@ -170,18 +165,23 @@ const { data: subjectsRaw } = useQuery({
   });
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
-  // cascade resets
+  // Cascade resets — only clear downstream fields, not ones loaded from draft
   useEffect(() => {
-    setValue("trackId", ""); setValue("levelId", "");
-    setValue("sectionId", ""); setValue("subjectId", "");
+    setValue("trackId",   "");
+    setValue("levelId",   "");
+    setValue("sectionId", "");
+    setValue("subjectId", "");
   }, [selectedProgramId, setValue]);
 
   useEffect(() => {
-    setValue("levelId", ""); setValue("sectionId", ""); setValue("subjectId", "");
+    setValue("levelId",   "");
+    setValue("sectionId", "");
+    setValue("subjectId", "");
   }, [selectedTrackId, setValue]);
 
   useEffect(() => {
-    setValue("sectionId", ""); setValue("subjectId", "");
+    setValue("sectionId", "");
+    setValue("subjectId", "");
   }, [selectedLevelId, setValue]);
 
   useEffect(() => {
@@ -206,8 +206,9 @@ const { data: subjectsRaw } = useQuery({
     },
     onSuccess: () => {
       toast.success("Class created.");
+      clearClassDraft(); // ← clear on success
       queryClient.invalidateQueries({ queryKey: ["admin", "classes"] });
-      reset();
+      reset(EMPTY_DEFAULTS);
       onClose();
     },
     onError: (err: AxiosError<{ message: string }>) => {
@@ -215,36 +216,45 @@ const { data: subjectsRaw } = useQuery({
     },
   });
 
-  function handleClose() { reset(); onClose(); }
+  function handleClose(): void {
+    // Just close — draft is preserved so user can resume
+    onClose();
+  }
+
+  function handleDiscard(): void {
+    clearClassDraft(); // ← clear on explicit discard
+    reset(EMPTY_DEFAULTS);
+    onClose();
+  }
 
   const isSubmitDisabled =
-    mutation.isPending        ||
-    !selectedProgramId        ||
+    mutation.isPending     ||
+    !selectedProgramId     ||
     (hasTrack && !selectedTrackId) ||
-    !selectedLevelId          ||
-    !selectedSectionId        ||
-    !selectedSubjectId        ||
+    !selectedLevelId       ||
+    !selectedSectionId     ||
+    !selectedSubjectId     ||
     !selectedEducatorId;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New Class</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            New Class
+            {hasDraft && (
+              <Badge variant="secondary" className="text-xs font-normal">
+                Draft restored
+              </Badge>
+            )}
+          </DialogTitle>
         </DialogHeader>
-
         <FormProvider {...methods}>
-          <form
-            onSubmit={handleSubmit((v) => mutation.mutate(v))}
-            className="space-y-4 mt-1"
-          >
+          <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-1">
             {/* School Year — read-only */}
             <div className="space-y-1.5">
               <Label>School Year</Label>
-              <Input
-                value={schoolYearName ?? schoolYearId ?? "No school year selected"}
-                disabled
-              />
+              <Input value={schoolYearName ?? schoolYearId ?? "No school year selected"} disabled />
             </div>
 
             {/* Program */}
@@ -256,9 +266,7 @@ const { data: subjectsRaw } = useQuery({
                 disabled={!schoolYearId}
               >
                 <SelectTrigger>
-                  <span>
-                    {programs.find((p) => p.id === selectedProgramId)?.name ?? "Select program"}
-                  </span>
+                  <span>{programs.find((p) => p.id === selectedProgramId)?.name ?? "Select program"}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {programs.map((p) => (
@@ -278,10 +286,7 @@ const { data: subjectsRaw } = useQuery({
                   disabled={!selectedProgramId}
                 >
                   <SelectTrigger>
-                    <span>
-                      {tracks.find((t) => t.id === selectedTrackId)?.name ??
-                        `Select ${isCourseTrack ? "course" : "strand"}`}
-                    </span>
+                    <span>{tracks.find((t) => t.id === selectedTrackId)?.name ?? `Select ${isCourseTrack ? "course" : "strand"}`}</span>
                   </SelectTrigger>
                   <SelectContent>
                     {tracks.map((t) => (
@@ -301,9 +306,7 @@ const { data: subjectsRaw } = useQuery({
                 disabled={!selectedProgramId || (hasTrack && !selectedTrackId)}
               >
                 <SelectTrigger>
-                  <span>
-                    {levels.find((l) => l.id === selectedLevelId)?.name ?? "Select level"}
-                  </span>
+                  <span>{levels.find((l) => l.id === selectedLevelId)?.name ?? "Select level"}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {levels.length === 0 ? (
@@ -326,9 +329,7 @@ const { data: subjectsRaw } = useQuery({
                 disabled={!selectedLevelId}
               >
                 <SelectTrigger>
-                  <span>
-                    {sections.find((s) => s.id === selectedSectionId)?.name ?? "Select section"}
-                  </span>
+                  <span>{sections.find((s) => s.id === selectedSectionId)?.name ?? "Select section"}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {sections.length === 0 ? (
@@ -377,9 +378,7 @@ const { data: subjectsRaw } = useQuery({
                 onValueChange={(v) => setValue("educatorId", v ?? "")}
               >
                 <SelectTrigger>
-                  <span>
-                    {educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Select educator"}
-                  </span>
+                  <span>{educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Select educator"}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {educators.map((e) => (
@@ -409,8 +408,12 @@ const { data: subjectsRaw } = useQuery({
             <ScheduleSlotFields />
 
             <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="outline" onClick={handleClose}>
-                Cancel
+              {/* Discard clears draft; Cancel just closes and preserves it */}
+              <Button type="button" variant="ghost" onClick={handleDiscard} disabled={mutation.isPending}>
+                Discard
+              </Button>
+              <Button type="button" variant="outline" onClick={handleClose} disabled={mutation.isPending}>
+                Save & Close
               </Button>
               <Button type="submit" disabled={isSubmitDisabled}>
                 {mutation.isPending ? "Creating..." : "Create Class"}
