@@ -149,9 +149,11 @@ export default function GradingSchemesPage(): React.JSX.Element {
                 value={selectedYearId}
                 onValueChange={(v) => setSelectedYearId(v ?? "")}
               >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Select school year…" />
-                </SelectTrigger>
+<SelectTrigger className="h-8 text-xs">
+  <span className="truncate text-xs">
+    {schoolYears.find((sy) => sy.id === selectedYearId)?.name ?? "Select school year…"}
+  </span>
+</SelectTrigger>
                 <SelectContent>
                   {schoolYears.map((sy) => (
                     <SelectItem key={sy.id} value={sy.id} className="text-xs">

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner"; 
+import { toast } from "sonner";
+import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -51,26 +52,32 @@ export function TemplateAssignmentPanel({
   isLoading,
 }: TemplateAssignmentPanelProps) {
   const [selectedMode, setSelectedMode] = useState<"program" | "class">("program");
-  const [pendingApply, setPendingApply] = useState<PendingProgramApply | null>(null);
+
+  // Controlled select values — keyed by program/class id
   const [programTemplates, setProgramTemplates] = useState<Record<string, string>>({});
-  const [classTemplates, setClassTemplates] = useState<Record<string, string>>({});
+  const [classTemplates, setClassTemplates]     = useState<Record<string, string>>({});
+
+  // Track which ones have been successfully applied
+  const [appliedPrograms, setAppliedPrograms] = useState<Set<string>>(new Set());
+  const [appliedClasses, setAppliedClasses]   = useState<Set<string>>(new Set());
+
+  const [pendingApply, setPendingApply] = useState<PendingProgramApply | null>(null);
 
   const applyToProgram = useApplyTemplateToProgram();
-  const applyToClass = useApplyTemplateToClass();
-  const isPending = applyToProgram.isPending || applyToClass.isPending;
+  const applyToClass   = useApplyTemplateToClass();
+  const isPending      = applyToProgram.isPending || applyToClass.isPending;
 
-  const handleProgramTemplateSelect = (
-    prog: ProgramInfo,
-    templateId: string
-  ) => {
-    const template = templates.find((t) => t.id === templateId);
-    if (!template) return;
+  const getTemplateName = (id: string) =>
+    templates.find((t) => t.id === id)?.name ?? id;
+
+  const handleProgramTemplateSelect = (prog: ProgramInfo, templateId: string) => {
+    setProgramTemplates((prev) => ({ ...prev, [prog.id]: templateId }));
     setPendingApply({
-      programId: prog.id,
-      programName: prog.name,
+      programId:    prog.id,
+      programName:  prog.name,
       templateId,
-      templateName: template.name,
-      classCount: prog.classes.length,
+      templateName: getTemplateName(templateId),
+      classCount:   prog.classes.length,
     });
   };
 
@@ -80,42 +87,39 @@ export function TemplateAssignmentPanel({
       { programId: pendingApply.programId, templateId: pendingApply.templateId },
       {
         onSuccess: (res) => {
+          const count = res.appliedCount ?? 0;
           toast.success(
-            `Template applied to ${res.appliedCount} class${res.appliedCount !== 1 ? "es" : ""}.`
+            count > 0
+              ? `Applied "${pendingApply.templateName}" to ${count} class${count !== 1 ? "es" : ""}.`
+              : `Template saved. No classes found in this program yet.`
           );
+          setAppliedPrograms((prev) => new Set(prev).add(pendingApply.programId));
           setPendingApply(null);
-          // Clear the selected template for this program after successful apply
-          setProgramTemplates((prev) => {
-            const next = { ...prev };
-            delete next[pendingApply.programId];
-            return next;
-          });
         },
         onError: (e) => {
           const err = e as AxiosError<{ message: string }>;
           toast.error(err?.response?.data?.message ?? "Failed to apply.");
+          // Reset the select on error
+          setProgramTemplates((prev) => ({ ...prev, [pendingApply.programId]: "" }));
           setPendingApply(null);
         },
       }
     );
   };
 
-  const handleApplyToClass = (classId: string, templateId: string) => {
+  const handleApplyToClass = (cls: ClassInfo, templateId: string) => {
+    setClassTemplates((prev) => ({ ...prev, [cls.id]: templateId }));
     applyToClass.mutate(
-      { classId, templateId },
+      { classId: cls.id, templateId },
       {
         onSuccess: () => {
-          toast.success("Template applied to class.");
-          // Clear the selected template for this class after successful apply
-          setClassTemplates((prev) => {
-            const next = { ...prev };
-            delete next[classId];
-            return next;
-          });
+          toast.success(`Applied "${getTemplateName(templateId)}" to "${cls.name}".`);
+          setAppliedClasses((prev) => new Set(prev).add(cls.id));
         },
         onError: (e) => {
           const err = e as AxiosError<{ message: string }>;
           toast.error(err?.response?.data?.message ?? "Failed to apply.");
+          setClassTemplates((prev) => ({ ...prev, [cls.id]: "" }));
         },
       }
     );
@@ -161,7 +165,7 @@ export function TemplateAssignmentPanel({
               programs.map((prog) => (
                 <div
                   key={prog.id}
-                  className="flex items-center gap-2 py-2 px-1 border rounded"
+                  className="flex items-center gap-2 py-2 px-3 border rounded-lg"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{prog.name}</p>
@@ -169,16 +173,22 @@ export function TemplateAssignmentPanel({
                       {prog.classes.length} class{prog.classes.length !== 1 ? "es" : ""}
                     </p>
                   </div>
+                  {appliedPrograms.has(prog.id) && programTemplates[prog.id] && (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  )}
                   <Select
                     value={programTemplates[prog.id] ?? ""}
-                    onValueChange={(templateId) => {
-                      setProgramTemplates((prev) => ({ ...prev, [prog.id]: templateId }));
-                      handleProgramTemplateSelect(prog, templateId);
-                    }}
-                    disabled={isPending || prog.classes.length === 0}
+                    onValueChange={(templateId) =>
+                      handleProgramTemplateSelect(prog, templateId)
+                    }
+                    disabled={isPending}
                   >
-                    <SelectTrigger className="h-8 w-40 text-xs">
-                      <SelectValue placeholder="Select template…" />
+                    <SelectTrigger className="h-8 w-44 text-xs">
+                      <SelectValue placeholder="Select template…">
+                        {programTemplates[prog.id]
+                          ? getTemplateName(programTemplates[prog.id])
+                          : "Select template…"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {templates.map((t) => (
@@ -201,8 +211,8 @@ export function TemplateAssignmentPanel({
               <p className="text-xs text-muted-foreground py-4">No programs found</p>
             ) : (
               programs.map((prog) => (
-                <div key={prog.id} className="rounded border p-3 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">
+                <div key={prog.id} className="rounded-lg border p-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     {prog.name}
                   </p>
                   {prog.classes.length === 0 ? (
@@ -213,19 +223,27 @@ export function TemplateAssignmentPanel({
                     prog.classes.map((cls) => (
                       <div
                         key={cls.id}
-                        className="flex items-center gap-2 py-1.5 px-1 bg-muted/30 rounded"
+                        className="flex items-center gap-2 py-1.5 px-2 bg-muted/30 rounded"
                       >
-                        <span className="flex-1 truncate text-xs">{cls.name}</span>
+                        <span className="flex-1 truncate text-xs font-medium">
+                          {cls.name}
+                        </span>
+                        {appliedClasses.has(cls.id) && classTemplates[cls.id] && (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                        )}
                         <Select
                           value={classTemplates[cls.id] ?? ""}
-                          onValueChange={(templateId) => {
-                            setClassTemplates((prev) => ({ ...prev, [cls.id]: templateId }));
-                            handleApplyToClass(cls.id, templateId);
-                          }}
+                          onValueChange={(templateId) =>
+                            handleApplyToClass(cls, templateId)
+                          }
                           disabled={isPending}
                         >
-                          <SelectTrigger className="h-7 w-36 text-xs">
-                            <SelectValue placeholder="Template…" />
+                          <SelectTrigger className="h-7 w-40 text-xs">
+                            <SelectValue placeholder="Template…">
+                              {classTemplates[cls.id]
+                                ? getTemplateName(classTemplates[cls.id])
+                                : "Template…"}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {templates.map((t) => (
@@ -255,7 +273,16 @@ export function TemplateAssignmentPanel({
           destructive={false}
           isLoading={applyToProgram.isPending}
           onConfirm={confirmApplyToProgram}
-          onOpenChange={(o) => { if (!o) setPendingApply(null); }}
+          onOpenChange={(o) => {
+            if (!o) {
+              // Reset select if user cancels
+              setProgramTemplates((prev) => ({
+                ...prev,
+                [pendingApply.programId]: "",
+              }));
+              setPendingApply(null);
+            }
+          }}
         />
       )}
     </>
