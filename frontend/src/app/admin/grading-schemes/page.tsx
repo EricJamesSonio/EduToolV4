@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader } from "@/components/shared/PageHeader";
+
 import { GradingSchemeTemplateList } from "@/components/admin/grading-scheme-template/GradingSchemeTemplateList";
 import { TemplateAssignmentPanel } from "@/components/admin/grading-scheme-template/TemplateAssignmentPanel";
 import { TemplateFormDialog } from "@/components/admin/grading-scheme-template/TemplateFormDialog";
@@ -31,9 +31,6 @@ interface Program {
   type: string;
 }
 
-interface ProgramWithClasses extends Program {
-  classes: Class[];
-}
 
 interface Envelope<T> {
   success: boolean;
@@ -64,7 +61,7 @@ export default function GradingSchemesPage(): React.JSX.Element {
 
   useEffect(() => {
     if (!selectedYearId && schoolYears.length > 0) {
-      const active = schoolYears.find((sy: any) => sy.status === "active");
+      const active = schoolYears.find((sy) => sy.status === "active");
       setSelectedYearId(active?.id ?? schoolYears[0].id);
     }
   }, [schoolYears, selectedYearId]);
@@ -82,11 +79,16 @@ export default function GradingSchemesPage(): React.JSX.Element {
     enabled: !!selectedYearId,
   });
 
-  // Enrich programs with their classes
-  const programsWithClasses = useMemo<ProgramWithClasses[]>(() => {
+  const programsWithClasses = useMemo(() => {
     return programs.map((prog) => ({
       ...prog,
-      classes: classes.filter((cls) => cls.programId === prog.id),
+      classes: classes
+        .filter((cls) => cls.programId === prog.id)
+        .map((cls) => ({
+          id: cls.id,
+          name: cls.title ?? cls.subjectName ?? cls.subjectId,
+          programId: cls.programId,
+        })),
     }));
   }, [programs, classes]);
 
@@ -145,13 +147,13 @@ export default function GradingSchemesPage(): React.JSX.Element {
               </p>
               <Select
                 value={selectedYearId}
-                onValueChange={(v) => setSelectedYearId(v)}
+                onValueChange={(v) => setSelectedYearId(v ?? "")}
               >
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Select school year…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {schoolYears.map((sy: any) => (
+                  {schoolYears.map((sy) => (
                     <SelectItem key={sy.id} value={sy.id} className="text-xs">
                       {sy.name}
                       {sy.status === "active" && (

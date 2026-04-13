@@ -77,6 +77,7 @@ interface RawClass {
   schedules:         RawSchedule[];
   created_at:        string;
   updated_at?:       string;
+  program_id?: string;
 }
 
 interface ApiResponse<T> {
@@ -126,6 +127,7 @@ function mapClass(raw: RawClass): Class {
     schedules:       (raw.schedules ?? []).map(mapSchedule),
     createdAt:       raw.created_at,
     updatedAt:       raw.updated_at,
+    programId: raw.program_id,
   };
 }
 
