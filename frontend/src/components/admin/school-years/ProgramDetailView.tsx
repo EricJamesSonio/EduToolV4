@@ -102,12 +102,12 @@ export function ProgramDetailView({
       {/* Tab content */}
       <div>
         {activeTab === "levels" && (
-          <LevelWithSectionsList
-            schoolYearId={schoolYearId}
-            programId={program.id}
-            isEnded={isEnded}
-            onViewSubjects={!hasSubGroups ? handleViewSubjects : undefined}
-          />
+        <LevelWithSectionsList
+          schoolYearId={schoolYearId}
+          programId={program.id}
+          isEnded={isEnded}
+          onViewSubjects={handleViewSubjects}
+        />
         )}
 
         {activeTab === "subjects" && (
