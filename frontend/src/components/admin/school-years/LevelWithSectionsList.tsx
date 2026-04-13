@@ -289,7 +289,8 @@ function CourseGroupBlock({
 }: {
   course:    CourseSnapshot;
   levels:    Level[];
-  listProps: Omit<React.ComponentProps<typeof LevelList>, "levels" | "courseId" | "strandId" | "onViewSubjects">;
+  listProps: Omit<React.ComponentProps<typeof LevelList>, "levels" | "courseId" | "strandId">;
+
 }): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(false);
   const label = course.code ? `${course.code} – ${course.name}` : course.name;
@@ -329,7 +330,7 @@ function StrandGroupBlock({
 }: {
   strand:    StrandSnapshot;
   levels:    Level[];
-  listProps: Omit<React.ComponentProps<typeof LevelList>, "levels" | "courseId" | "strandId" | "onViewSubjects">;
+  listProps: Omit<React.ComponentProps<typeof LevelList>, "levels" | "courseId" | "strandId">;
 }): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -435,11 +436,11 @@ export function LevelWithSectionsList({
     );
   }
 
-  // Shared props passed down to every LevelList instance
-  const listProps = {
+const listProps = {
     schoolYearId,
     isEnded,
     programType:  program.type,
+    onViewSubjects,                // ← add this
     onRename:     (id: string, name: string) => updateMutation.mutate({ id, name }),
     onDelete:     (level: Level) => setDeleteTarget(level),
     onAdd:        () => createMutation.mutate(`Level ${levels.length + 1}`),
