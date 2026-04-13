@@ -6,9 +6,11 @@ import {
   MinLength,
   MaxLength,
   IsUUID,
+  IsInt,
+  Min,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { IsInt, Min, Max } from 'class-validator';
 
 export class LevelItemDto {
   @IsOptional()
@@ -16,12 +18,12 @@ export class LevelItemDto {
   id?: string; // present when updating an existing level row
 
   @IsUUID()
-  programId: string;
+  programId!: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  name: string;
+  name!: string;
 }
 
 /**
@@ -31,7 +33,7 @@ export class UpdateLevelDefaultsDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => LevelItemDto)
-  levels: LevelItemDto[];
+  levels!: LevelItemDto[];
 }
 
 /**
@@ -39,15 +41,15 @@ export class UpdateLevelDefaultsDto {
  */
 export class CreateLevelDto {
   @IsUUID()
-  programId: string;
+  programId!: string;
 
   @IsUUID()
-  schoolYearId: string;
+  schoolYearId!: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  name: string;
+  name!: string;
 }
 
 /**
@@ -85,13 +87,13 @@ export class QueryLevelDto {
  */
 export class BulkGenerateLevelsDto {
   @IsUUID()
-  programId: string;
+  programId!: string;
 
   @IsUUID()
-  schoolYearId: string;
+  schoolYearId!: string;
 
   @IsInt()
   @Min(1)
   @Max(20)
-  count: number;
+  count!: number;
 }
