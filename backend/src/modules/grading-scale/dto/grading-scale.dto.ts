@@ -17,43 +17,43 @@ export class GradeRangeDto {
   @IsNumber()
   @Min(0)
   @Max(100)
-  minPercent: number;
+  minPercent!: number;
 
   @IsNumber()
   @Min(0)
   @Max(100)
-  maxPercent: number;
+  maxPercent!: number;
 
   @IsString()
   @MinLength(1)
   @MaxLength(20)
-  gradeValue: string; // e.g. "1.0", "A", "Excellent"
+  gradeValue!: string; // e.g. "1.0", "A", "Excellent"
 
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  remark: string; // e.g. "Passed", "Failed", "Incomplete"
+  remark!: string; // e.g. "Passed", "Failed", "Incomplete"
 
   @IsBoolean()
-  isPassing: boolean;
+  isPassing!: boolean;
 }
 
 export class CreateGradingScaleDto {
   @IsUUID()
-  programId: string; // CHANGED from levelId → programId
+  programId!: string;
 
   @IsUUID()
-  schoolYearId: string;
+  schoolYearId!: string;
 
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => GradeRangeDto)
-  ranges: GradeRangeDto[];
+  ranges!: GradeRangeDto[];
 }
 
 export class UpdateGradingScaleDto {
@@ -73,7 +73,7 @@ export class UpdateGradingScaleDto {
 export class QueryGradingScaleDto {
   @IsOptional()
   @IsUUID()
-  programId?: string; // CHANGED from levelId → programId
+  programId?: string;
 
   @IsOptional()
   @IsUUID()
