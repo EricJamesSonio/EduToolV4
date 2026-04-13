@@ -1,4 +1,3 @@
-// @/modules/grading-scale/dto/grading-scale.dto.ts
 import {
   IsString,
   IsOptional,
@@ -13,8 +12,6 @@ import {
   Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-
-// ── Grade range item ──────────────────────────────────────────────────────────
 
 export class GradeRangeDto {
   @IsNumber()
@@ -41,11 +38,9 @@ export class GradeRangeDto {
   isPassing: boolean;
 }
 
-// ── POST /grading-scales ──────────────────────────────────────────────────────
-
 export class CreateGradingScaleDto {
   @IsUUID()
-  levelId: string;
+  programId: string; // CHANGED from levelId → programId
 
   @IsUUID()
   schoolYearId: string;
@@ -61,8 +56,6 @@ export class CreateGradingScaleDto {
   ranges: GradeRangeDto[];
 }
 
-// ── PATCH /grading-scales/:id ─────────────────────────────────────────────────
-
 export class UpdateGradingScaleDto {
   @IsOptional()
   @IsString()
@@ -77,12 +70,10 @@ export class UpdateGradingScaleDto {
   ranges?: GradeRangeDto[];
 }
 
-// ── GET /grading-scales ───────────────────────────────────────────────────────
-
 export class QueryGradingScaleDto {
   @IsOptional()
   @IsUUID()
-  levelId?: string;
+  programId?: string; // CHANGED from levelId → programId
 
   @IsOptional()
   @IsUUID()

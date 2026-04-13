@@ -1,4 +1,3 @@
-// @/modules/grading-scale/grading-scale.repository.ts
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 
@@ -8,7 +7,7 @@ export class GradingScaleRepository {
 
   async create(data: {
     orgId: string;
-    levelId: string;
+    programId: string; // CHANGED from levelId → programId
     schoolYearId: string;
     name: string;
     ranges: object;
@@ -16,7 +15,7 @@ export class GradingScaleRepository {
     return this.db.gradingScale.create({
       data: {
         org_id: data.orgId,
-        level_id: data.levelId,
+        program_id: data.programId, // CHANGED from level_id → program_id
         school_year_id: data.schoolYearId,
         name: data.name,
         ranges: data.ranges,
@@ -26,11 +25,12 @@ export class GradingScaleRepository {
     });
   }
 
-  async findAll(orgId: string, levelId?: string, schoolYearId?: string) {
+  async findAll(orgId: string, programId?: string, schoolYearId?: string) {
+    // CHANGED: levelId → programId parameter
     return this.db.gradingScale.findMany({
       where: {
         org_id: orgId,
-        ...(levelId ? { level_id: levelId } : {}),
+        ...(programId ? { program_id: programId } : {}), // CHANGED
         ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
       },
       orderBy: { created_at: 'desc' },
@@ -43,13 +43,17 @@ export class GradingScaleRepository {
     });
   }
 
-  async findByLevelAndYear(
+  async findByProgramAndYear(
     orgId: string,
-    levelId: string,
+    programId: string, // CHANGED from levelId → programId
     schoolYearId: string,
   ) {
     return this.db.gradingScale.findFirst({
-      where: { org_id: orgId, level_id: levelId, school_year_id: schoolYearId },
+      where: {
+        org_id: orgId,
+        program_id: programId, // CHANGED from level_id → program_id
+        school_year_id: schoolYearId,
+      },
     });
   }
 
