@@ -82,51 +82,51 @@ export function TemplateAssignmentPanel({
   };
 
   useEffect(() => {
-  if (selectedMode !== "class") return;
-  setClassTemplates((prev) => {
-    const next = { ...prev };
-    programs.forEach((prog) => {
-      const progTemplateId = programTemplates[prog.id];
-      if (!progTemplateId) return;
-      prog.classes.forEach((cls) => {
-        // Only set if not already individually overridden
-        if (!next[cls.id]) {
-          next[cls.id] = progTemplateId;
-        }
+    if (selectedMode !== "class") return;
+    setClassTemplates((prev) => {
+      const next = { ...prev };
+      programs.forEach((prog) => {
+        const progTemplateId = programTemplates[prog.id];
+        if (!progTemplateId) return;
+        prog.classes.forEach((cls) => {
+          // Only set if not already individually overridden
+          if (!next[cls.id]) {
+            next[cls.id] = progTemplateId;
+          }
+        });
       });
+      return next;
     });
-    return next;
-  });
-}, [selectedMode, programs, programTemplates]);
+  }, [selectedMode, programs, programTemplates]);
 
-const confirmApplyToProgram = () => {
-  if (!pendingApply) return;
-  applyToProgram.mutate(
-    { programId: pendingApply.programId, templateId: pendingApply.templateId },
-    {
-      onSuccess: (res) => {
-        const count = res.appliedCount ?? 0;
-        toast.success(...);
-        setAppliedPrograms((prev) => new Set(prev).add(pendingApply.programId));
+  const confirmApplyToProgram = () => {
+    if (!pendingApply) return;
+    applyToProgram.mutate(
+      { programId: pendingApply.programId, templateId: pendingApply.templateId },
+      {
+        onSuccess: (res) => {
+          const count = res.appliedCount ?? 0;
+          toast.success(`Applied "${pendingApply.templateName}" to ${count} classes.`);
+          setAppliedPrograms((prev) => new Set(prev).add(pendingApply.programId));
 
-        // Pre-populate all classes of this program with the same template
-        const prog = programs.find((p) => p.id === pendingApply.programId);
-        if (prog) {
-          setClassTemplates((prev) => {
-            const next = { ...prev };
-            prog.classes.forEach((cls) => {
-              next[cls.id] = pendingApply.templateId;
+          // Pre-populate all classes of this program with the same template
+          const prog = programs.find((p) => p.id === pendingApply.programId);
+          if (prog) {
+            setClassTemplates((prev) => {
+              const next = { ...prev };
+              prog.classes.forEach((cls) => {
+                next[cls.id] = pendingApply.templateId;
+              });
+              return next;
             });
-            return next;
-          });
-          setAppliedClasses((prev) => {
-            const next = new Set(prev);
-            prog.classes.forEach((cls) => next.add(cls.id));
-            return next;
-          });
-        }
-        setPendingApply(null);
-      },
+            setAppliedClasses((prev) => {
+              const next = new Set(prev);
+              prog.classes.forEach((cls) => next.add(cls.id));
+              return next;
+            });
+          }
+          setPendingApply(null);
+        },
         onError: (e) => {
           const err = e as AxiosError<{ message: string }>;
           toast.error(err?.response?.data?.message ?? "Failed to apply.");
@@ -229,7 +229,6 @@ const confirmApplyToProgram = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  
                 </div>
               ))
             )}
