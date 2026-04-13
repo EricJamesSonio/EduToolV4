@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -81,21 +81,52 @@ export function TemplateAssignmentPanel({
     });
   };
 
-  const confirmApplyToProgram = () => {
-    if (!pendingApply) return;
-    applyToProgram.mutate(
-      { programId: pendingApply.programId, templateId: pendingApply.templateId },
-      {
-        onSuccess: (res) => {
-          const count = res.appliedCount ?? 0;
-          toast.success(
-            count > 0
-              ? `Applied "${pendingApply.templateName}" to ${count} class${count !== 1 ? "es" : ""}.`
-              : `Template saved. No classes found in this program yet.`
-          );
-          setAppliedPrograms((prev) => new Set(prev).add(pendingApply.programId));
-          setPendingApply(null);
-        },
+  useEffect(() => {
+  if (selectedMode !== "class") return;
+  setClassTemplates((prev) => {
+    const next = { ...prev };
+    programs.forEach((prog) => {
+      const progTemplateId = programTemplates[prog.id];
+      if (!progTemplateId) return;
+      prog.classes.forEach((cls) => {
+        // Only set if not already individually overridden
+        if (!next[cls.id]) {
+          next[cls.id] = progTemplateId;
+        }
+      });
+    });
+    return next;
+  });
+}, [selectedMode, programs, programTemplates]);
+
+const confirmApplyToProgram = () => {
+  if (!pendingApply) return;
+  applyToProgram.mutate(
+    { programId: pendingApply.programId, templateId: pendingApply.templateId },
+    {
+      onSuccess: (res) => {
+        const count = res.appliedCount ?? 0;
+        toast.success(...);
+        setAppliedPrograms((prev) => new Set(prev).add(pendingApply.programId));
+
+        // Pre-populate all classes of this program with the same template
+        const prog = programs.find((p) => p.id === pendingApply.programId);
+        if (prog) {
+          setClassTemplates((prev) => {
+            const next = { ...prev };
+            prog.classes.forEach((cls) => {
+              next[cls.id] = pendingApply.templateId;
+            });
+            return next;
+          });
+          setAppliedClasses((prev) => {
+            const next = new Set(prev);
+            prog.classes.forEach((cls) => next.add(cls.id));
+            return next;
+          });
+        }
+        setPendingApply(null);
+      },
         onError: (e) => {
           const err = e as AxiosError<{ message: string }>;
           toast.error(err?.response?.data?.message ?? "Failed to apply.");
@@ -198,6 +229,7 @@ export function TemplateAssignmentPanel({
                       ))}
                     </SelectContent>
                   </Select>
+                  
                 </div>
               ))
             )}
