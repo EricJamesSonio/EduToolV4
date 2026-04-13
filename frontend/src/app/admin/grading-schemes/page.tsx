@@ -9,17 +9,21 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { GradingSchemeTemplateList } from "@/components/admin/grading-scheme-template/GradingSchemeTemplateList";
 import { TemplateAssignmentPanel } from "@/components/admin/grading-scheme-template/TemplateAssignmentPanel";
 import { TemplateFormDialog } from "@/components/admin/grading-scheme-template/TemplateFormDialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useGradingSchemeTemplates } from "@/hooks/admin/useGradingSchemeTemplates";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { useQuery } from "@tanstack/react-query";
 import clientApi from "@/api/client";
-import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
+import { classApi } from "@/api/admin/class.api";
 
-interface Class {
-  id: string;
-  name: string;
-}
+import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
+import type { Class } from "@/types/admin/class.types";
 
 interface Program {
   id: string;
@@ -43,13 +47,6 @@ async function fetchPrograms(schoolYearId: string): Promise<Program[]> {
   return res.data.data ?? [];
 }
 
-async function fetchClasses(schoolYearId: string): Promise<Class[]> {
-  const res = await clientApi.get<Envelope<Class[]>>("/classes", {
-    params: { schoolYearId },
-  });
-  return res.data.data ?? [];
-}
-
 function usePrograms(schoolYearId: string) {
   return useQuery({
     queryKey: ["programs", schoolYearId],
@@ -58,19 +55,12 @@ function usePrograms(schoolYearId: string) {
   });
 }
 
-function useClasses(schoolYearId: string) {
-  return useQuery({
-    queryKey: ["classes", schoolYearId],
-    queryFn: () => fetchClasses(schoolYearId),
-    enabled: !!schoolYearId,
-  });
-}
-
 export default function GradingSchemesPage(): React.JSX.Element {
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
   const [selectedYearId, setSelectedYearId] = useState<string>("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<GradingSchemeTemplate | null>(null);
+  const [editTarget, setEditTarget] =
+    useState<GradingSchemeTemplate | null>(null);
 
   useEffect(() => {
     if (!selectedYearId && schoolYears.length > 0) {
@@ -79,15 +69,24 @@ export default function GradingSchemesPage(): React.JSX.Element {
     }
   }, [schoolYears, selectedYearId]);
 
-  const { data: templates = [], isLoading: tLoading } = useGradingSchemeTemplates();
-  const { data: programs = [], isLoading: pLoading } = usePrograms(selectedYearId);
-  const { data: classes = [] } = useClasses(selectedYearId);
+  const { data: templates = [], isLoading: tLoading } =
+    useGradingSchemeTemplates();
+
+  const { data: programs = [], isLoading: pLoading } =
+    usePrograms(selectedYearId);
+
+  // ✅ FIXED: use classApi instead of raw fetch
+  const { data: classes = [] } = useQuery({
+    queryKey: ["admin", "classes", selectedYearId],
+    queryFn: () => classApi.getAll({ schoolYearId: selectedYearId }),
+    enabled: !!selectedYearId,
+  });
 
   // Enrich programs with their classes
   const programsWithClasses = useMemo<ProgramWithClasses[]>(() => {
     return programs.map((prog) => ({
       ...prog,
-      classes: classes.filter((cls: any) => cls.programId === prog.id),
+      classes: classes.filter((cls) => cls.programId === prog.id),
     }));
   }, [programs, classes]);
 
@@ -97,9 +96,12 @@ export default function GradingSchemesPage(): React.JSX.Element {
     <div className="space-y-8 pb-10">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Grading Scheme Templates</h1>
+          <h1 className="text-xl font-semibold tracking-tight">
+            Grading Scheme Templates
+          </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Create reusable grading scheme templates and apply them to programs or individual classes.
+            Create reusable grading scheme templates and apply them to programs
+            or individual classes.
           </p>
         </div>
         <Button size="sm" onClick={() => setCreateOpen(true)}>
@@ -141,7 +143,10 @@ export default function GradingSchemesPage(): React.JSX.Element {
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 School Year
               </p>
-              <Select value={selectedYearId} onValueChange={(v) => setSelectedYearId(v)}>
+              <Select
+                value={selectedYearId}
+                onValueChange={(v) => setSelectedYearId(v)}
+              >
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Select school year…" />
                 </SelectTrigger>
@@ -150,7 +155,9 @@ export default function GradingSchemesPage(): React.JSX.Element {
                     <SelectItem key={sy.id} value={sy.id} className="text-xs">
                       {sy.name}
                       {sy.status === "active" && (
-                        <span className="ml-1.5 text-emerald-600 text-[10px]">• Active</span>
+                        <span className="ml-1.5 text-emerald-600 text-[10px]">
+                          • Active
+                        </span>
                       )}
                     </SelectItem>
                   ))}
