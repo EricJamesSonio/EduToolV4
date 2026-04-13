@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronRight, Layers } from "lucide-react";
+import { ChevronRight, Layers, BookOpen } from "lucide-react";
 import { levelApi }   from "@/api/admin/level.api";
 import { programApi } from "@/api/admin/program.api";
 import type { Level }           from "@/types/admin/level.types";
@@ -11,18 +11,18 @@ import type { CourseSnapshot, StrandSnapshot } from "@/types/admin/program.types
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Skeleton }      from "@/components/ui/skeleton";
 import { Badge }         from "@/components/ui/badge";
+import { Button }        from "@/components/ui/button";
 import { ProgramGroup }  from "@/components/admin/levels/ProgramGroup";
 import { SectionsPanel } from "./SectionsPanel";
 
 interface LevelWithSectionsListProps {
-  schoolYearId: string;
-  programId:    string;
-  isEnded:      boolean;
+  schoolYearId:    string;
+  programId:       string;
+  isEnded:         boolean;
+  /** Called when user clicks "View Subjects" on a level row (no-course/strand programs only) */
+  onViewSubjects?: (levelId: string) => void;
 }
 
-// Expanded key: for flat programs → levelId
-//               for college      → `${courseId}:${levelId}`
-//               for SHS          → `${strandId}:${levelId}`
 function expandKey(levelId: string, subId?: string): string {
   return subId ? `${subId}:${levelId}` : levelId;
 }
@@ -31,6 +31,7 @@ export function LevelWithSectionsList({
   schoolYearId,
   programId,
   isEnded,
+  onViewSubjects,
 }: LevelWithSectionsListProps): React.JSX.Element {
   const queryClient = useQueryClient();
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
@@ -49,8 +50,8 @@ export function LevelWithSectionsList({
 
   const levels = allLevels.filter((l) => l.program_id === programId);
 
-  const isCollege = program?.type === "college";
-  const isSHS     = program?.type === "shs";
+  const isCollege    = program?.type === "college";
+  const isSHS        = program?.type === "shs";
   const hasSubGroups = isCollege || isSHS;
 
   const courses: CourseSnapshot[] = program?.courses ?? [];
@@ -140,27 +141,44 @@ export function LevelWithSectionsList({
           updatingId={updatingId}
         />
 
-        {/* Sections — flat for non-college/SHS */}
+        {/* Sections — flat for non-college/SHS, with "View Subjects" shortcut */}
         {levels.length > 0 && !hasSubGroups && (
           <div className="border-t divide-y">
             {levels.map((level) => {
               const key = expandKey(level.id);
               return (
                 <div key={level.id}>
-                  <button
-                    onClick={() => toggle(level.id)}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-muted/30 transition-colors text-left"
-                  >
-                    <ChevronRight
-                      className={`h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0 ${
-                        expandedKeys.has(key) ? "rotate-90" : ""
-                      }`}
-                    />
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {level.name}
-                    </span>
-                    <span className="text-xs text-muted-foreground">— sections</span>
-                  </button>
+                  <div className="flex items-center gap-2 px-4 py-2.5 hover:bg-muted/30 transition-colors">
+                    {/* Expand sections toggle */}
+                    <button
+                      onClick={() => toggle(level.id)}
+                      className="flex items-center gap-2 flex-1 text-left min-w-0"
+                    >
+                      <ChevronRight
+                        className={`h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0 ${
+                          expandedKeys.has(key) ? "rotate-90" : ""
+                        }`}
+                      />
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {level.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">— sections</span>
+                    </button>
+
+                    {/* View Subjects shortcut */}
+                    {onViewSubjects && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-primary hover:text-primary hover:bg-primary/10 shrink-0"
+                        onClick={() => onViewSubjects(level.id)}
+                      >
+                        <BookOpen className="h-3 w-3 mr-1" />
+                        View Subjects
+                      </Button>
+                    )}
+                  </div>
+
                   {expandedKeys.has(key) && (
                     <SectionsPanel
                       level={level}

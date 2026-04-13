@@ -5,17 +5,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, BookOpen } from "lucide-react";
 import type { AxiosError } from "axios";
-
 import { subjectApi } from "@/api/admin/subject.api";
 import type { Subject, SubjectType } from "@/types/admin/subject.types";
 import type { Level }   from "@/types/admin/level.types";
 import type { Program } from "@/types/admin/program.types";
-
 import { DataTable }    from "@/components/shared/DataTable";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { SubjectDialog } from "@/components/admin/subject/SubjectDialog";
 import { useSubjectColumns } from "@/components/admin/subject/SubjectColumns";
-
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -27,10 +24,11 @@ import {
 } from "@/components/ui/select";
 
 interface SubjectsSectionProps {
-  program:      Program;
-  schoolYearId: string;
-  levels:       Level[];
-  isEnded:      boolean;
+  program:        Program;
+  schoolYearId:   string;
+  levels:         Level[];
+  isEnded:        boolean;
+  initialLevelId?: string; // pre-select a level (from "View Subjects" button on a level row)
 }
 
 export function SubjectsSection({
@@ -38,11 +36,12 @@ export function SubjectsSection({
   schoolYearId,
   levels,
   isEnded,
+  initialLevelId,
 }: SubjectsSectionProps): React.JSX.Element {
   const queryClient = useQueryClient();
 
   const [activeTab,      setActiveTab]      = useState<SubjectType>("major");
-  const [filterLevelId,  setFilterLevelId]  = useState<string>("all");
+  const [filterLevelId,  setFilterLevelId]  = useState<string>(initialLevelId ?? "all");
   const [filterCourseId, setFilterCourseId] = useState<string>("all");
   const [filterStrandId, setFilterStrandId] = useState<string>("all");
   const [createOpen,     setCreateOpen]     = useState(false);
@@ -52,14 +51,18 @@ export function SubjectsSection({
   const isSHS     = program.type === "shs";
   const isCollege = program.type === "college";
 
-  // Reset filters when tab or program changes
+  // When initialLevelId changes (user clicks a different level's "View Subjects"),
+  // sync the filter without resetting course/strand filters.
   useEffect(() => {
-    setFilterLevelId("all");
+    if (initialLevelId) setFilterLevelId(initialLevelId);
+  }, [initialLevelId]);
+
+  useEffect(() => {
+    setFilterLevelId(initialLevelId ?? "all");
     setFilterCourseId("all");
     setFilterStrandId("all");
   }, [activeTab, program.id]);
 
-  // Levels scoped to this program only
   const programLevels = levels.filter((l) => l.program_id === program.id);
 
   const qKey = [
@@ -69,28 +72,28 @@ export function SubjectsSection({
 
   const { data: subjects = [], isLoading } = useQuery<Subject[]>({
     queryKey: qKey,
-queryFn: () =>
-  subjectApi.getAll({
-    schoolYearId,
-    subjectType:  activeTab,
-    levelId:      filterLevelId  !== "all" ? filterLevelId  : undefined,
-    courseId:     filterCourseId !== "all" ? filterCourseId : undefined,
-    strandId:     filterStrandId !== "all" ? filterStrandId : undefined,
-  }).then((subjects) => {
-  if (activeTab === "minor") return subjects; // minors: no program filter
-
-  const courseIds = new Set(program.courses?.map((c) => c.id) ?? []);
-  const strandIds = new Set(program.strands?.map((s) => s.id) ?? []);
-  const levelIds  = new Set(
-    levels.filter((l) => l.program_id === program.id).map((l) => l.id)
-  );
-
-  return subjects.filter((s) => {
-    if (s.courseId) return courseIds.has(s.courseId);
-    if (s.strandId) return strandIds.has(s.strandId);
-    return s.levelId ? levelIds.has(s.levelId) : false;
-  });
-}),
+    queryFn: () =>
+      subjectApi
+        .getAll({
+          schoolYearId,
+          subjectType:  activeTab,
+          levelId:      filterLevelId  !== "all" ? filterLevelId  : undefined,
+          courseId:     filterCourseId !== "all" ? filterCourseId : undefined,
+          strandId:     filterStrandId !== "all" ? filterStrandId : undefined,
+        })
+        .then((subjects) => {
+          if (activeTab === "minor") return subjects;
+          const courseIds = new Set(program.courses?.map((c) => c.id) ?? []);
+          const strandIds = new Set(program.strands?.map((s) => s.id) ?? []);
+          const levelIds  = new Set(
+            levels.filter((l) => l.program_id === program.id).map((l) => l.id),
+          );
+          return subjects.filter((s) => {
+            if (s.courseId) return courseIds.has(s.courseId);
+            if (s.strandId) return strandIds.has(s.strandId);
+            return s.levelId ? levelIds.has(s.levelId) : false;
+          });
+        }),
   });
 
   const invalidate = () =>
@@ -132,6 +135,11 @@ queryFn: () =>
           <div className="flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-semibold">Subjects</span>
+            {filterLevelId !== "all" && (
+              <span className="text-xs text-muted-foreground">
+                — {programLevels.find((l) => l.id === filterLevelId)?.name}
+              </span>
+            )}
           </div>
           {!isEnded && (
             <Button

@@ -8,3 +8,5 @@ export const EVENT_TYPE_LABELS: Record<CalendarEventType, string> = {
 };
 
 export type Tab = "overview" | "enrollments" | "programs" | "calendar";
+
+export type ProgramDetailTab = "levels" | "courses" | "strands" | "subjects";
