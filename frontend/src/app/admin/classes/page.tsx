@@ -1,7 +1,7 @@
 // ===== File: frontend\src\app\admin\classes\page.tsx =====
 "use client";
 
-import { Suspense, useState, useMemo, useEffect } from "react";
+import { Suspense, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -60,16 +60,14 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
     string | null
   >(null);
 
-  // ✅ Set default (active → first)
-  useEffect(() => {
-    if (!selectedSchoolYearId && schoolYears.length > 0) {
-      const defaultId =
-        schoolYears.find((sy) => sy.status === "active")?.id ??
-        schoolYears[0].id;
-
-      setSelectedSchoolYearId(defaultId);
-    }
-  }, [schoolYears, selectedSchoolYearId]);
+useEffect(() => {
+  if (!selectedSchoolYearId && schoolYears.length > 0) {
+    const defaultId =
+      schoolYears.find((sy) => sy.status === "active")?.id ??
+      schoolYears[0].id;
+    setSelectedSchoolYearId(defaultId);
+  }
+}, [schoolYears, selectedSchoolYearId])
 
   // ===== Queries scoped to School Year =====
   const { data: classesRaw, isLoading } = useQuery({

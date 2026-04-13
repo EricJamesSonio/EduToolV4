@@ -1,17 +1,22 @@
 "use client";
+
+import { useEffect } from "react";
 import { CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
 } from "@/components/ui/select";
 import type { SchoolYear } from "@/types/admin/school-year.types";
 
 interface SchoolYearSelectorProps {
   schoolYears: SchoolYear[];
-  isLoading:   boolean;
-  selectedId:  string | null;
-  onSelect:    (id: string) => void;
+  isLoading: boolean;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }
 
 export function SchoolYearSelector({
@@ -20,10 +25,22 @@ export function SchoolYearSelector({
   selectedId,
   onSelect,
 }: SchoolYearSelectorProps): React.JSX.Element {
+  // Auto-select the active year (or first) when no selection exists yet
+  useEffect(() => {
+    if (!selectedId && schoolYears.length > 0) {
+      const defaultId =
+        schoolYears.find((sy) => sy.status === "active")?.id ??
+        schoolYears[0].id;
+      onSelect(defaultId);
+    }
+  }, [schoolYears, selectedId, onSelect]);
+
   if (isLoading) return <Skeleton className="h-9 w-48" />;
 
   if (schoolYears.length === 0) {
-    return <p className="text-sm text-muted-foreground">No school years found.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">No school years found.</p>
+    );
   }
 
   const selected = schoolYears.find((sy) => sy.id === selectedId);
@@ -33,10 +50,11 @@ export function SchoolYearSelector({
       <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
       <Select
         value={selectedId ?? ""}
-        onValueChange={(value) => { if (value) onSelect(value); }}
+        onValueChange={(value) => {
+          if (value) onSelect(value);
+        }}
       >
         <SelectTrigger className="w-52 h-9 text-sm">
-          {/* Render label explicitly — never rely on SelectValue children after async load */}
           <span className="truncate">
             {selected?.name ?? "Select school year"}
           </span>
