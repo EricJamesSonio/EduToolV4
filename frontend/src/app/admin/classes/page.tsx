@@ -60,14 +60,6 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
     string | null
   >(null);
 
-useEffect(() => {
-  if (!selectedSchoolYearId && schoolYears.length > 0) {
-    const defaultId =
-      schoolYears.find((sy) => sy.status === "active")?.id ??
-      schoolYears[0].id;
-    setSelectedSchoolYearId(defaultId);
-  }
-}, [schoolYears, selectedSchoolYearId])
 
   // ===== Queries scoped to School Year =====
   const { data: classesRaw, isLoading } = useQuery({
@@ -204,7 +196,13 @@ useEffect(() => {
         }
       />
 
-      <ClassesFilterBar {...filters} />
+<ClassesFilterBar
+  filterSemesterId={filters.filterSemesterId}
+  filterEducatorId={filters.filterEducatorId}
+  setFilterSemesterId={filters.setFilterSemesterId}
+  setFilterEducatorId={filters.setFilterEducatorId}
+  schoolYearId={selectedSchoolYearId}
+/>
 
       {isLoading ? (
         <div className="space-y-2">

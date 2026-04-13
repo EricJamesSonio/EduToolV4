@@ -1,10 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { schoolYearApi } from "@/api/admin/school-year.api";
 import { semesterApi } from "@/api/admin/semester.api";
 import { educatorApi } from "@/api/admin/educator.api";
-import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { Semester } from "@/types/admin/semester.types";
 import {
   Select,
@@ -20,28 +18,18 @@ type ClassFiltersState = ReturnType<typeof useClassFilters>;
 
 type ClassesFilterBarProps = Pick<
   ClassFiltersState,
-  | "filterSchoolYearId"
-  | "filterSemesterId"
-  | "filterEducatorId"
-  | "handleSchoolYearChange"
-  | "setFilterSemesterId"
-  | "setFilterEducatorId"
->;
+  "filterSemesterId" | "filterEducatorId" | "setFilterSemesterId" | "setFilterEducatorId"
+> & {
+  schoolYearId: string | null;
+};
 
 export function ClassesFilterBar({
-  filterSchoolYearId,
   filterSemesterId,
   filterEducatorId,
-  handleSchoolYearChange,
   setFilterSemesterId,
   setFilterEducatorId,
+  schoolYearId,
 }: ClassesFilterBarProps): React.JSX.Element {
-  const { data: schoolYearsRaw } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: () => schoolYearApi.getAll(),
-  });
-  const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
-
   const { data: educatorsRaw } = useQuery({
     queryKey: ["admin", "educators", "all"],
     queryFn: () => educatorApi.getAll(),
@@ -49,34 +37,19 @@ export function ClassesFilterBar({
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
   const { data: semestersRaw } = useQuery({
-    queryKey: ["admin", "semesters", filterSchoolYearId],
+    queryKey: ["admin", "semesters", schoolYearId],
     queryFn: () => semesterApi.getAll(),
-    enabled: filterSchoolYearId !== "all",
+    enabled: !!schoolYearId,
   });
   const semesters = toArray<Semester>(semestersRaw);
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      {/* School Year */}
-      <Select value={filterSchoolYearId} onValueChange={(v) => handleSchoolYearChange(v ?? "all")}>
-        <SelectTrigger className="w-52">
-          <SelectValue placeholder="All School Years" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All School Years</SelectItem>
-          {schoolYears.map((sy) => (
-            <SelectItem key={sy.id} value={sy.id}>
-              {sy.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
       {/* Semester */}
       <Select
         value={filterSemesterId}
         onValueChange={(v) => setFilterSemesterId(v ?? "all")}
-        disabled={filterSchoolYearId === "all"}
+        disabled={!schoolYearId}
       >
         <SelectTrigger className="w-44">
           <SelectValue placeholder="All Semesters" />
