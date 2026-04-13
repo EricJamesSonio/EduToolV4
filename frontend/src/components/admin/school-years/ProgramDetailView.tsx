@@ -125,18 +125,20 @@ export function ProgramDetailView({
         {/* Courses (college only) */}
         {activeTab === "courses" && isCollege && (
           <CoursesSection
-            programId={activeProgram.id}
+            program={activeProgram}
             schoolYearId={schoolYearId}
             courses={activeProgram.courses ?? []}
+            isEnded={isEnded}
           />
         )}
 
         {/* Strands (SHS only) */}
         {activeTab === "strands" && isSHS && (
           <StrandsSection
-            programId={activeProgram.id}
+            program={activeProgram}
             schoolYearId={schoolYearId}
             strands={activeProgram.strands ?? []}
+            isEnded={isEnded}
           />
         )}
 
