@@ -31,12 +31,12 @@ export function useSubjectFilters(): FiltersState & FiltersActions {
   const [selectedStrandId, setSelectedStrandId] = useState<string>("all");
 
   // Reset filters when school year or tab changes
-  useEffect(() => {
+    useEffect(() => {
     setSelectedProgramId("all");
     setFilterLevelId("all");
     setSelectedCourseId("all");
     setSelectedStrandId("all");
-  }, [selectedSchoolYearId, activeTab]);
+    }, [selectedSchoolYearId]);
 
   // Reset level when course/strand changes
   useEffect(() => {

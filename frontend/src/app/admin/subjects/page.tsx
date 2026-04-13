@@ -114,19 +114,23 @@ export default function SubjectsPage(): React.JSX.Element {
       )}
 
       {/* Dialogs */}
-      {createOpen && (
-        <SubjectDialog
-          levels={levels}
-          educators={educators}
-          schoolYearId={filters.selectedSchoolYearId ?? undefined}
-          defaultSubjectType={filters.activeTab}
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
-          onSaved={() => {
-            queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
-          }}
-        />
-      )}
+{createOpen && (
+  <SubjectDialog
+    levels={levels}
+    educators={educators}
+    schoolYearId={filters.selectedSchoolYearId ?? undefined}
+    defaultSubjectType={filters.activeTab}
+    defaultProgramId={filters.selectedProgramId !== "all" ? filters.selectedProgramId : undefined}
+    defaultCourseId={filters.selectedCourseId  !== "all" ? filters.selectedCourseId  : undefined}
+    defaultStrandId={filters.selectedStrandId  !== "all" ? filters.selectedStrandId  : undefined}
+    defaultLevelId={filters.filterLevelId      !== "all" ? filters.filterLevelId     : undefined}
+    open={createOpen}
+    onClose={() => setCreateOpen(false)}
+    onSaved={() => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
+    }}
+  />
+)}
 
       {lockTarget && (
         <ConfirmDialog
