@@ -1,5 +1,3 @@
-// frontend/src/app/admin/school-years/helpers.ts
-
 import { isAxiosError } from "axios";
 
 export function isShortDurationError(err: unknown): boolean {
