@@ -14,7 +14,12 @@ import { GradeLockOverrideDialog } from "@/components/admin/grade-lock/GradeLock
 import { GradeLockStats } from "@/components/admin/grade-lock/GradeLockStats"
 
 import { useGradeLockColumns } from "@/hooks/admin/useGradeLockColumns"
-import { useGradeLocks, useGradeLockSettings } from "@/hooks/admin/useGradeLocks"
+import {
+  useGradeLocks,
+  useGradeLockSettings,
+  useAssignGradeLock,
+} from "@/hooks/admin/useGradeLocks"
+
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears"
 
 import type { GradeLock } from "@/types/admin/grade-lock.types"
@@ -34,7 +39,8 @@ export default function GradeLockPage(): React.ReactElement {
   )
   const { data: settings } = useGradeLockSettings()
 
-  const columns = useGradeLockColumns(setOverrideTarget)
+  // ✅ NEW: assign hook
+  const assignTemplate = useAssignGradeLock()
 
   const locks = useMemo(
     () => (Array.isArray(gradeLocks) ? gradeLocks : []),
@@ -50,7 +56,9 @@ export default function GradeLockPage(): React.ReactElement {
     return templates.find((t) => t.is_default) ?? templates[0] ?? null
   }, [templates])
 
-  // ✅ FIXED FILTERING (USES IDs)
+  // ─────────────────────────────────────────────
+  // FILTERED LOCKS
+  // ─────────────────────────────────────────────
   const filteredLocks = useMemo(() => {
     let result = locks
 
@@ -78,8 +86,7 @@ export default function GradeLockPage(): React.ReactElement {
 
     if (selectedLevel) {
       result = result.filter(
-        (lock) =>
-          lock.class?.subject?.level_id === selectedLevel
+        (lock) => lock.class?.subject?.level_id === selectedLevel
       )
     }
 
@@ -98,6 +105,39 @@ export default function GradeLockPage(): React.ReactElement {
     setSelectedCourseStrand("")
     setSelectedLevel("")
   }
+
+  // ─────────────────────────────────────────────
+  // APPLY TEMPLATE (SINGLE)
+  // ─────────────────────────────────────────────
+  const handleApplyTemplate = async (lock: GradeLock) => {
+    if (!activeTemplate) return
+
+    await assignTemplate.mutateAsync({
+      classId: lock.class_id,
+      settingId: activeTemplate.id,
+    })
+  }
+
+  // ─────────────────────────────────────────────
+  // APPLY TEMPLATE (BULK)
+  // ─────────────────────────────────────────────
+  const handleBulkApplyTemplate = async () => {
+    if (!activeTemplate || filteredLocks.length === 0) return
+
+    await Promise.all(
+      filteredLocks.map((lock) =>
+        assignTemplate.mutateAsync({
+          classId: lock.class_id,
+          settingId: activeTemplate.id,
+        })
+      )
+    )
+  }
+
+  // ─────────────────────────────────────────────
+  // COLUMNS (UPDATED)
+  // ─────────────────────────────────────────────
+  const columns = useGradeLockColumns(setOverrideTarget, handleApplyTemplate)
 
   return (
     <div className="space-y-8 p-6">
@@ -180,6 +220,17 @@ export default function GradeLockPage(): React.ReactElement {
 
       {/* STATS */}
       <GradeLockStats gradeLocks={filteredLocks} />
+
+      {/* 🔥 BULK ACTION */}
+      <div className="flex justify-end">
+        <Button
+          onClick={handleBulkApplyTemplate}
+          disabled={!activeTemplate || filteredLocks.length === 0}
+          className="gap-2"
+        >
+          Apply Template to All Filtered ({filteredLocks.length})
+        </Button>
+      </div>
 
       {/* TABLE */}
       <DataTable
