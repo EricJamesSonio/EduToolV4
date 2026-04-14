@@ -1,3 +1,4 @@
+// frontend\src\components\admin\school-years\ProgramDetailView.tsx
 "use client";
 
 import { useState } from "react";
@@ -15,6 +16,7 @@ import { cn }       from "@/lib/utils";
 import { LevelWithSectionsList } from "./LevelWithSectionsList";
 import { SubjectsSection }       from "./SubjectsSection";
 import { ProgramEnrollmentView } from "./ProgramEnrollmentView";
+import { useEnrollmentDrilldown } from "@/components/admin/school-years/hooks/useEnrollmentDrilldown";
 import type { ProgramDetailTab } from "./constants";
 
 interface ProgramDetailViewProps {
@@ -37,7 +39,11 @@ export function ProgramDetailView({
   const typeLabel = PROGRAM_TYPE_LABELS[program.type] ?? program.type;
   const typeColor = PROGRAM_TYPE_COLORS[program.type] ?? "";
 
-  const [activeTab,      setActiveTab]      = useState<ProgramDetailTab>("levels");
+  // ← swap useState for URL-based tab
+  const { state, selectProgramTab } = useEnrollmentDrilldown();
+  const activeTab = (state.programTab ?? "levels") as ProgramDetailTab;
+
+  // subjectLevelId still needs local state — it's transient UI only
   const [subjectLevelId, setSubjectLevelId] = useState<string | undefined>(undefined);
 
   const { data: freshProgram } = useQuery({
@@ -54,13 +60,13 @@ export function ProgramDetailView({
 
   const handleViewSubjects = (levelId: string) => {
     setSubjectLevelId(levelId);
-    setActiveTab("subjects");
+    selectProgramTab("subjects"); // ← writes to URL
   };
 
   const tabs: { key: ProgramDetailTab; label: string }[] = [
     { key: "levels",     label: "Levels & Sections" },
-    ...(isCollege ? [{ key: "courses"    as ProgramDetailTab, label: "Courses"    }] : []),
-    ...(isSHS     ? [{ key: "strands"    as ProgramDetailTab, label: "Strands"    }] : []),
+    ...(isCollege ? [{ key: "courses"  as ProgramDetailTab, label: "Courses" }] : []),
+    ...(isSHS     ? [{ key: "strands"  as ProgramDetailTab, label: "Strands" }] : []),
     { key: "subjects",   label: "Subjects" },
     { key: "enrollment", label: "Enrollment" },
   ];
@@ -92,7 +98,7 @@ export function ProgramDetailView({
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => selectProgramTab(tab.key)} // ← writes to URL
             className={cn(
               "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
               activeTab === tab.key
