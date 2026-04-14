@@ -69,15 +69,16 @@ export const gradeLockApi = {
 
   // ─── Class Locks ──────────────────────────
 
-  getLocks: async (
-    schoolYearId?: string
-  ): Promise<GradeLock[]> => {
-    const res = await client.get<ApiResponse<GradeLock[]>>(
-      "/grade-lock/classes",
-      { params: schoolYearId ? { schoolYearId } : {} }
-    )
-    return res.data.data ?? []
-  },
+getLocks: async (params?: { schoolYearId?: string }): Promise<GradeLock[]> => {
+  const res = await client.get<ApiResponse<GradeLock[]>>(
+    "/grade-lock/classes",
+    {
+      params, // ✅ pass object directly
+    }
+  )
+
+  return res.data.data ?? []
+},
 
   lockClass: async (
     classId: string,

@@ -80,7 +80,14 @@ export const useUpdateGradeLockSetting = () => {
 export const useGradeLocks = (schoolYearId?: string) => {
   return useQuery<GradeLock[]>({
     queryKey: [...gradeLockKeys.classes(), schoolYearId],
-    queryFn: gradeLockApi.getLocks,
+
+    // ✅ FIX: wrap it so ONLY schoolYearId is passed
+    queryFn: () =>
+      gradeLockApi.getLocks({
+        schoolYearId,
+      }),
+
+    enabled: !!schoolYearId, // optional but recommended
   })
 }
 
