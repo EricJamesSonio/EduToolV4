@@ -1,515 +1,349 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, } from '@nestjs/common'
-import { DatabaseService } from '@/core/database/database.provider'
-import { AuditLogService } from '../audit-log/audit-log.service'
-import { CreateGradeLockSettingDto } from './dto/grade-lock.dto'
-import { GradeLockValidator } from './grade-lock.validator'
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common'
+import { GradeLockRepository } from './grade-lock.repository'
+import {
+  CreateGradeLockSettingDto,
+  UpdateGradeLockSettingDto,
+  AssignSettingDto,
+  LockClassDto,
+  UnlockClassDto,
+  OverrideGradeLockDto,
+} from './dto/grade-lock.dto'
 
 @Injectable()
 export class GradeLockService {
-  constructor(
-    private readonly db: DatabaseService,
-    private readonly auditLog: AuditLogService,
-    private readonly validator: GradeLockValidator,
-  ) {}
+  constructor(private readonly repo: GradeLockRepository) {}
 
-  /**
-   * Create or update lock deadline setting for a school year
-   */
+  // ─── Settings ──────────────────────────────────────────────────────────────
+
   async createSetting(orgId: string, dto: CreateGradeLockSettingDto) {
-    const schoolYear = await this.db.schoolYear.findUnique({
-      where: { id: dto.schoolYearId },
-    })
-
-    if (!schoolYear) {
-      throw new NotFoundException('School year not found')
+    if (dto.is_default) {
+      await this.repo.clearDefaultSettings(orgId)
     }
 
-    const lockDeadline = new Date(dto.lockDeadline)
-    const now = new Date()
-
-    if (lockDeadline < now) {
-      throw new BadRequestException('Lock deadline cannot be in the past')
-    }
-
-    const setting = await this.db.gradeLockSetting.upsert({
-      where: {
-        org_id_school_year_id: {
-          org_id: orgId,
-          school_year_id: dto.schoolYearId,
-        },
-      },
-      update: {
-        lock_deadline: lockDeadline,
-        updated_at: new Date(),
-      },
-      create: {
-        org_id: orgId,
-        school_year_id: dto.schoolYearId,
-        lock_deadline: lockDeadline,
-      },
+    return this.repo.createSetting(orgId, {
+      name: dto.name,
+      description: dto.description,
+      lockType: dto.lockType,
+      lock_deadline: dto.lock_deadline ? new Date(dto.lock_deadline) : null,
+      deadlineDays: dto.deadlineDays ?? null,
+      allowOverride: dto.allowOverride,
+      is_default: dto.is_default ?? false,
     })
-
-    await this.auditLog.logAdminAction({
-      orgId,
-      actorId: 'system',
-      action: 'GRADE_LOCK_DEADLINE_SET',
-      entityType: 'GRADE_LOCK_SETTING',
-      entityId: setting.id,
-      metadata: {
-        schoolYearId: dto.schoolYearId,
-        deadline: lockDeadline.toISOString(),
-      },
-    })
-
-    return setting
   }
 
-  /**
-   * Get lock deadline setting for a school year
-   */
-  async getSetting(orgId: string, schoolYearId: string) {
-    const setting = await this.db.gradeLockSetting.findUnique({
-      where: {
-        org_id_school_year_id: {
-          org_id: orgId,
-          school_year_id: schoolYearId,
-        },
-      },
-    })
-
-    if (!setting) {
-      return null // No deadline set yet
-    }
-
-    return setting
+  async getSettings(orgId: string) {
+    const settings = await this.repo.findAllSettings(orgId)
+    return settings.map((s) => ({
+      ...s,
+      used_in_classes: s._count.gradeLocks,
+      _count: undefined,
+    }))
   }
 
-  /**
-   * Lock a class (educator action)
-   */
-  async lockClass(
-    classId: string,
-    userId: string,
-    orgId: string,
-  ) {
-    const cls = await this.db.class.findUnique({
-      where: { id: classId },
-    })
+  async getSetting(orgId: string, settingId: string) {
+    const setting = await this.repo.findSettingById(orgId, settingId)
+    if (!setting) throw new NotFoundException('Grade lock setting not found')
+    return { ...setting, used_in_classes: setting._count.gradeLocks, _count: undefined }
+  }
 
-    if (!cls) {
-      throw new NotFoundException('Class not found')
+  async updateSetting(orgId: string, settingId: string, dto: UpdateGradeLockSettingDto) {
+    await this.getSetting(orgId, settingId) // throws if not found
+
+    if (dto.is_default) {
+      await this.repo.clearDefaultSettings(orgId, settingId)
     }
 
-    if (cls.educator_id !== userId) {
-      throw new ForbiddenException('You do not own this class')
-    }
-
-    const lockSetting = await this.db.gradeLockSetting.findUnique({
-      where: {
-        org_id_school_year_id: {
-          org_id: orgId,
-          school_year_id: cls.school_year_id,
-        },
-      },
+    return this.repo.updateSetting(settingId, {
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.description !== undefined && { description: dto.description }),
+      ...(dto.lockType !== undefined && { lockType: dto.lockType }),
+      ...(dto.lock_deadline !== undefined && {
+        lock_deadline: dto.lock_deadline ? new Date(dto.lock_deadline) : null,
+      }),
+      ...(dto.deadlineDays !== undefined && { deadlineDays: dto.deadlineDays }),
+      ...(dto.allowOverride !== undefined && { allowOverride: dto.allowOverride }),
+      ...(dto.is_default !== undefined && { is_default: dto.is_default }),
     })
+  }
 
-    const now = new Date()
+  async deleteSetting(orgId: string, settingId: string) {
+    await this.getSetting(orgId, settingId)
 
-    if (lockSetting && now > lockSetting.lock_deadline) {
-      throw new ForbiddenException(
-        `Cannot lock class after deadline (${lockSetting.lock_deadline.toISOString()})`
+    const activeCount = await this.repo.countActiveLocksForSetting(orgId, settingId)
+    if (activeCount > 0) {
+      throw new ConflictException(
+        `Cannot delete: ${activeCount} class(es) are currently locked with this setting`,
       )
     }
 
-    const gradeLock = await this.db.gradeLock.upsert({
-      where: { class_id: classId },
-      update: {
-        is_locked: true,
-        locked_by: userId,
-        locked_at: now,
-      },
-      create: {
-        org_id: orgId,
-        class_id: classId,
-        is_locked: true,
-        locked_by: userId,
-        locked_at: now,
-      },
+    await this.repo.deleteLocksForSetting(orgId, settingId)
+    await this.repo.deleteSetting(settingId)
+
+    return { success: true }
+  }
+
+  // ─── Assignment ────────────────────────────────────────────────────────────
+
+  async assignSetting(orgId: string, actorId: string, dto: AssignSettingDto) {
+    const [cls, setting] = await Promise.all([
+      this.repo.findClassById(dto.class_id),
+      this.repo.findSettingById(orgId, dto.setting_id),
+    ])
+
+    if (!cls || cls.deleted_at) throw new NotFoundException('Class not found')
+    if (!setting) throw new NotFoundException('Grade lock setting not found')
+
+    const existing = await this.repo.findLockByClassId(dto.class_id)
+    if (existing?.is_locked) {
+      throw new ForbiddenException('Cannot reassign setting: class is currently locked')
+    }
+
+    const gradeLock = await this.repo.upsertLock(orgId, dto.class_id, dto.setting_id)
+
+    await this.repo.createEvent({
+      org_id: orgId,
+      class_id: dto.class_id,
+      actor_id: actorId,
+      type: 'request',
+      reason: 'Setting assigned',
     })
 
-    await this.lockGradingScaleForClass(classId, orgId)
-
-    await this.auditLog.logAdminAction({
-      orgId,
-      actorId: userId,
-      action: 'EDUCATOR_CLASS_LOCK',
-      entityType: 'CLASS',
-      entityId: classId,
-      metadata: {
-        lockedAt: now.toISOString(),
-      },
-    })
-
-    return { success: true, gradeLock }
+    return gradeLock
   }
 
   /**
-   * Unlock a class (educator or admin action)
+   * Called by class.service.ts after class creation.
+   * Priority: provided setting_id → org default → skip (admin assigns later)
    */
-  async unlockClass(
-    classId: string,
-    userId: string,
-    userRole: string,
+  async autoAssignOnClassCreate(
     orgId: string,
-  ) {
-    const cls = await this.db.class.findUnique({
-      where: { id: classId },
+    classId: string,
+    settingId?: string,
+  ): Promise<void> {
+    const resolvedId = settingId ?? (await this.repo.findDefaultSetting(orgId))?.id
+    if (!resolvedId) return
+
+    await this.repo.createLock(orgId, classId, resolvedId)
+  }
+
+  // ─── Lock / Unlock ─────────────────────────────────────────────────────────
+
+  async lockClass(classId: string, userId: string, orgId: string, dto: LockClassDto = {}) {
+    const cls = await this.repo.findClassById(classId)
+    if (!cls) throw new NotFoundException('Class not found')
+    if (cls.educator_id !== userId) throw new ForbiddenException('You do not own this class')
+
+    const gradeLock = await this.repo.findLockByClassId(classId)
+    if (!gradeLock) throw new NotFoundException('No grade lock setting assigned to this class')
+    if (gradeLock.is_locked) throw new ConflictException('Class is already locked')
+
+    const { isExpired, deadline } = this.resolveDeadline(gradeLock.setting)
+    if (isExpired) {
+      throw new ForbiddenException(
+        `Cannot lock class after deadline (${deadline?.toISOString()})`,
+      )
+    }
+
+    const updated = await this.repo.setLocked(classId, userId)
+    await this.repo.lockGradingScaleForClass(classId, orgId)
+    await this.repo.createEvent({
+      org_id: orgId,
+      class_id: classId,
+      actor_id: userId,
+      type: 'lock',
+      reason: dto.reason,
     })
 
-    if (!cls) {
-      throw new NotFoundException('Class not found')
-    }
+    return { success: true, gradeLock: updated }
+  }
+
+  async unlockClass(classId: string, userId: string, userRole: string, orgId: string, dto: UnlockClassDto) {
+    const cls = await this.repo.findClassById(classId)
+    if (!cls) throw new NotFoundException('Class not found')
 
     if (userRole !== 'admin' && cls.educator_id !== userId) {
       throw new ForbiddenException('You do not own this class')
     }
 
+    const gradeLock = await this.repo.findLockByClassId(classId)
+    if (!gradeLock) throw new NotFoundException('No grade lock assigned to this class')
+    if (!gradeLock.is_locked) throw new BadRequestException('Class is not locked')
+
     if (userRole !== 'admin') {
-      const lockSetting = await this.db.gradeLockSetting.findUnique({
-        where: {
-          org_id_school_year_id: {
-            org_id: orgId,
-            school_year_id: cls.school_year_id,
-          },
-        },
-      })
-
-      const now = new Date()
-
-      if (lockSetting && now > lockSetting.lock_deadline) {
-        throw new ForbiddenException(
-          `Cannot unlock class after deadline. Contact administrator.`
-        )
+      const { isExpired } = this.resolveDeadline(gradeLock.setting)
+      if (isExpired) {
+        throw new ForbiddenException('Cannot unlock class after deadline. Contact administrator.')
       }
     }
 
-    const lock = await this.db.gradeLock.findUnique({
-      where: { class_id: classId },
+    const updated = await this.repo.setUnlocked(classId)
+
+    const action = userRole === 'admin' ? 'ADMIN_CLASS_UNLOCK_OVERRIDE' : 'EDUCATOR_CLASS_UNLOCK'
+    await this.repo.createEvent({
+      org_id: orgId,
+      class_id: classId,
+      actor_id: userId,
+      type: 'unlock',
+      reason: dto.reason,
+      metadata: { action, userRole },
     })
 
-    if (!lock || !lock.is_locked) {
-      throw new BadRequestException('Class is not locked')
+    return { success: true, gradeLock: updated }
+  }
+
+  async overrideLock(classId: string, userId: string, orgId: string, dto: OverrideGradeLockDto) {
+    const gradeLock = await this.repo.findLockByClassId(classId)
+    if (!gradeLock) throw new NotFoundException('No grade lock assigned to this class')
+    if (!gradeLock.is_locked) throw new BadRequestException('Class is not locked — nothing to override')
+    if (!gradeLock.setting.allowOverride) {
+      throw new ForbiddenException('This lock setting does not permit overrides')
     }
 
-    const now = new Date()
+    const updated = await this.repo.setUnlocked(classId)
 
-    const updatedLock = await this.db.gradeLock.update({
-      where: { class_id: classId },
-      data: {
-        is_locked: false,
-        locked_by: null,
-        locked_at: null,
-      },
-    })
-
-    const action =
-      userRole === 'admin'
-        ? 'ADMIN_CLASS_UNLOCK_OVERRIDE'
-        : 'EDUCATOR_CLASS_UNLOCK'
-
-    await this.auditLog.logAdminAction({
-      orgId,
-      actorId: userId,
-      action,
-      entityType: 'CLASS',
-      entityId: classId,
+    await this.repo.createEvent({
+      org_id: orgId,
+      class_id: classId,
+      actor_id: userId,
+      type: 'override',
+      reason: dto.reason,
       metadata: {
-        unlockedAt: now.toISOString(),
-        userRole,
+        previous_locked_by: gradeLock.locked_by,
+        previous_locked_at: gradeLock.locked_at,
       },
     })
 
-    return { success: true, gradeLock: updatedLock }
+    return { success: true, gradeLock: updated }
   }
 
-  /**
-   * Get all class locks for organization
-   */
+  // ─── Queries ───────────────────────────────────────────────────────────────
+
   async getClassLocks(orgId: string) {
-    const classes = await this.db.class.findMany({
-      where: {
-        org_id: orgId,
-        deleted_at: null,
-      },
-      select: {
-        id: true,
-        subject_id: true,
-        educator_id: true,
-        school_year_id: true,
-        subject: {
-          include: {
-            program: {
-              select: { id: true, name: true },
-            },
-            course: {
-              select: { id: true, name: true },
-            },
-            strand: {
-              select: { id: true, name: true },
-            },
-            level: {
-              select: { id: true, name: true },
-            },
-          },
-        },
-        gradeLock: true,
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    })
-
-    // Fetch educator names separately (batch to avoid N+1)
-    const educatorIds = [...new Set(classes.map((c) => c.educator_id))]
-    const educators = await this.db.profile.findMany({
-      where: {
-        user_id: { in: educatorIds },
-      },
-      select: {
-        user_id: true,
-        first_name: true,
-        last_name: true,
-      },
-    })
-
-    const educatorMap = new Map(
-      educators.map((e) => [e.user_id, `${e.first_name} ${e.last_name}`])
-    )
-
-    return classes.map((cls) =>
-      this.mapClassToGradeLock(cls, orgId, educatorMap)
-    )
+    const locks = await this.repo.findAllLocksWithClass(orgId)
+    return this.hydrateLocks(locks, orgId)
   }
 
-  /**
-   * Get class locks filtered by school year
-   */
   async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
-    const classes = await this.db.class.findMany({
-      where: {
-        org_id: orgId,
-        school_year_id: schoolYearId,
-        deleted_at: null,
-      },
-      select: {
-        id: true,
-        subject_id: true,
-        educator_id: true,
-        school_year_id: true,
-        subject: {
-          include: {
-            program: {
-              select: { id: true, name: true },
-            },
-            course: {
-              select: { id: true, name: true },
-            },
-            strand: {
-              select: { id: true, name: true },
-            },
-            level: {
-              select: { id: true, name: true },
-            },
-          },
-        },
-        gradeLock: true,
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    })
-
-    // Fetch educator names separately (batch to avoid N+1)
-    const educatorIds = [...new Set(classes.map((c) => c.educator_id))]
-    const educators = await this.db.profile.findMany({
-      where: {
-        user_id: { in: educatorIds },
-      },
-      select: {
-        user_id: true,
-        first_name: true,
-        last_name: true,
-      },
-    })
-
-    const educatorMap = new Map(
-      educators.map((e) => [e.user_id, `${e.first_name} ${e.last_name}`])
-    )
-
-    return classes.map((cls) =>
-      this.mapClassToGradeLock(cls, orgId, educatorMap)
-    )
+    const locks = await this.repo.findLocksBySchoolYear(orgId, schoolYearId)
+    return this.hydrateLocks(locks, orgId)
   }
 
-  /**
-   * Auto-lock classes after deadline
-   */
+  async getEventsForClass(orgId: string, classId: string) {
+    return this.repo.findEventsByClassId(orgId, classId)
+  }
+
+  // ─── Auto-lock ─────────────────────────────────────────────────────────────
+
   async autoLockExpiredClasses(orgId: string) {
     const now = new Date()
+    let lockedCount = 0
 
-    const expiredSettings = await this.db.gradeLockSetting.findMany({
-      where: {
+    // 1. Absolute deadline locks
+    const deadlineLocks = await this.repo.findExpiredUnlockedLocks(orgId, now)
+    for (const lock of deadlineLocks) {
+      await this.repo.setLocked(lock.class_id, 'system')
+      await this.repo.createEvent({
         org_id: orgId,
-        lock_deadline: {
-          lte: now,
-        },
-      },
-    })
-
-    for (const setting of expiredSettings) {
-      const classes = await this.db.class.findMany({
-        where: {
-          school_year_id: setting.school_year_id,
-        },
+        class_id: lock.class_id,
+        actor_id: 'system',
+        type: 'lock',
+        reason: 'Auto-locked: deadline passed',
+        metadata: { lock_deadline: lock.setting.lock_deadline },
       })
+      lockedCount++
+    }
 
-      for (const cls of classes) {
-        const existingLock = await this.db.gradeLock.findUnique({
-          where: {
-            class_id: cls.id,
-          },
+    // 2. deadlineDays-based locks (computed against school year end_date)
+    const relativeLocks = await this.repo.findUnlockedLocksWithSchoolYear(orgId)
+    for (const lock of relativeLocks) {
+      const endDate = (lock.class as any).schoolYear?.end_date
+      if (!endDate || lock.setting.deadlineDays == null) continue
+
+      const deadline = new Date(endDate)
+      deadline.setDate(deadline.getDate() - lock.setting.deadlineDays)
+
+      if (now >= deadline) {
+        await this.repo.setLocked(lock.class_id, 'system')
+        await this.repo.createEvent({
+          org_id: orgId,
+          class_id: lock.class_id,
+          actor_id: 'system',
+          type: 'lock',
+          reason: 'Auto-locked: relative deadline passed',
+          metadata: { computed_deadline: deadline.toISOString(), deadlineDays: lock.setting.deadlineDays },
         })
-
-        if (!existingLock?.is_locked) {
-          await this.db.gradeLock.upsert({
-            where: {
-              class_id: cls.id,
-            },
-            update: {
-              is_locked: true,
-              locked_by: 'system',
-              locked_at: now,
-            },
-            create: {
-              org_id: orgId,
-              class_id: cls.id,
-              is_locked: true,
-              locked_by: 'system',
-              locked_at: now,
-            },
-          })
-
-          await this.auditLog.logAdminAction({
-            orgId,
-            actorId: 'system',
-            action: 'AUTO_GRADE_LOCK_DEADLINE',
-            entityType: 'CLASS',
-            entityId: cls.id,
-            metadata: {
-              schoolYearId: setting.school_year_id,
-              autoLockedAt: now.toISOString(),
-            },
-          })
-        }
+        lockedCount++
       }
     }
 
-    return { success: true, lockedCount: expiredSettings.length }
+    return { success: true, lockedCount }
   }
 
-  /**
-   * Lock grading scales when a class is locked
-   */
-  private async lockGradingScaleForClass(classId: string, orgId: string) {
-    const cls = await this.db.class.findUnique({
-      where: { id: classId },
-      include: {
-        subject: {
-          select: {
-            level_id: true,
-          },
-        },
-      },
-    })
+  // ─── Private Helpers ───────────────────────────────────────────────────────
 
-    if (!cls?.subject?.level_id) {
-      return // No level associated
+  private resolveDeadline(setting: {
+    lock_deadline?: Date | null
+    deadlineDays?: number | null
+  }): { isExpired: boolean; deadline: Date | null } {
+    if (setting.lock_deadline) {
+      return {
+        isExpired: new Date() > setting.lock_deadline,
+        deadline: setting.lock_deadline,
+      }
     }
-
-    const level = await this.db.level.findUnique({
-      where: { id: cls.subject.level_id },
-      select: {
-        program_id: true,
-        school_year_id: true,
-      },
-    })
-
-    if (!level) {
-      return
-    }
-
-    await this.db.gradingScale.updateMany({
-      where: {
-        org_id: orgId,
-        program_id: level.program_id,
-        school_year_id: level.school_year_id,
-        is_locked: false,
-      },
-      data: {
-        is_locked: true,
-        locked_at: new Date(),
-      },
-    })
+    // deadlineDays requires school year context — caller handles that case separately
+    return { isExpired: false, deadline: null }
   }
 
-  /**
-   * Map class data to GradeLock response format
-   * Enriches with educator name and subject name for table display
-   */
-  private mapClassToGradeLock(
-    cls: any,
-    orgId: string,
-    educatorMap: Map<string, string>
-  ) {
-    const educatorName = educatorMap.get(cls.educator_id) || 'Unknown Educator'
-    const subjectName = cls.subject?.name || 'Unknown Subject'
-    const lockStatus = cls.gradeLock?.is_locked
-      ? 'locked'
-      : cls.gradeLock?.locked_by === 'system'
-        ? 'auto_locked'
-        : 'unlocked'
+  private async hydrateLocks(locks: any[], orgId: string) {
+    const educatorIds = [...new Set(locks.map((l) => l.class.educator_id))]
+    const profiles = await this.repo.findProfilesByAccountIds(educatorIds)
+    const educatorMap = new Map(profiles.map((p) => [p.account_id, p.full_name ?? 'Unknown Educator']))
+
+    return locks.map((lock) => this.mapLock(lock, orgId, educatorMap))
+  }
+
+  private mapLock(lock: any, orgId: string, educatorMap: Map<string, string>) {
+    const { setting } = lock
+    const educatorName = educatorMap.get(lock.class.educator_id) ?? 'Unknown Educator'
+    const subjectName = lock.class.subject?.name ?? 'Unknown Subject'
+
+    const lockStatus = lock.is_locked
+      ? lock.locked_by === 'system' ? 'auto_locked' : 'locked'
+      : 'unlocked'
+
+    const { deadline } = this.resolveDeadline(setting)
 
     return {
-      id: cls.gradeLock?.id ?? cls.id,
+      id: lock.id,
       org_id: orgId,
-      class_id: cls.id,
-      is_locked: cls.gradeLock?.is_locked ?? false,
-      locked_by: cls.gradeLock?.locked_by ?? null,
-      locked_at: cls.gradeLock?.locked_at ?? null,
-      created_at: cls.gradeLock?.created_at ?? cls.created_at,
-      // Flat fields for table display (column accessors)
+      class_id: lock.class_id,
+      is_locked: lock.is_locked,
+      locked_by: lock.locked_by,
+      locked_at: lock.locked_at,
+      created_at: lock.created_at,
+      lockStatus,
+      deadline,
+      setting: {
+        id: setting.id,
+        name: setting.name,
+        lockType: setting.lockType,
+        allowOverride: setting.allowOverride,
+      },
       className: subjectName,
       educatorName,
-      semesterName: 'TBD', // TODO: fetch from semester table if needed
-      termName: 'TBD', // TODO: fetch from term table if needed
-      lockStatus,
-      deadline: null, // TODO: fetch from lock settings
-      // Original nested structure for filters
       class: {
-        id: cls.id,
-        subject_id: cls.subject_id,
-        educator_id: cls.educator_id,
-        school_year_id: cls.school_year_id,
-        subject: cls.subject
-          ? {
-              id: cls.subject.id,
-              name: cls.subject.name,
-              program: cls.subject.program ?? null,
-              course: cls.subject.course ?? null,
-              strand: cls.subject.strand ?? null,
-              level: cls.subject.level ?? null,
-            }
-          : null,
+        id: lock.class.id,
+        subject_id: lock.class.subject_id,
+        educator_id: lock.class.educator_id,
+        school_year_id: lock.class.school_year_id,
+        subject: lock.class.subject ?? null,
       },
     }
   }

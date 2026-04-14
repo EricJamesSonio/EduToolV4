@@ -1,124 +1,150 @@
-// ===== File: backend/src/modules/grade-lock/grade-lock.controller.ts =====
-
 import {
   Controller,
   Post,
   Get,
+  Put,
+  Delete,
   Param,
   Query,
   Body,
   UseGuards,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common'
-import { BadRequestException } from '@nestjs/common'
 import { GradeLockService } from './grade-lock.service'
 import { AuthGuard } from '@/commons/guards/auth.guard'
 import { RolesGuard } from '@/commons/guards/role.guard'
 import { Roles } from '@/commons/decorators/roles.decorator'
 import { CurrentUser } from '@/commons/decorators/current-user.decorator'
-import { CreateGradeLockSettingDto, QueryGradeLockDto } from './dto/grade-lock.dto'
+import {
+  CreateGradeLockSettingDto,
+  UpdateGradeLockSettingDto,
+  AssignSettingDto,
+  LockClassDto,
+  UnlockClassDto,
+  OverrideGradeLockDto,
+  QueryGradeLockDto,
+} from './dto/grade-lock.dto'
 
 @Controller('grade-lock')
 @UseGuards(AuthGuard, RolesGuard)
 export class GradeLockController {
   constructor(private readonly service: GradeLockService) {}
 
-  /**
-   * ADMIN: Create/update lock deadline for a school year
-   * POST /grade-lock/settings
-   */
+  // ─── Settings ──────────────────────────────────────────────────────────────
+
   @Post('settings')
   @Roles('admin')
   @HttpCode(HttpStatus.CREATED)
-  async createSetting(
-    @CurrentUser() user: any,
-    @Body() dto: CreateGradeLockSettingDto,
-  ) {
-    const orgId = user.org_id
-    return this.service.createSetting(orgId, dto)
+  createSetting(@CurrentUser() user: any, @Body() dto: CreateGradeLockSettingDto) {
+    return this.service.createSetting(user.org_id, dto)
   }
 
-  /**
-   * GET: Fetch lock deadline for a school year
-   * GET /grade-lock/settings?schoolYearId=XXX
-   */
   @Get('settings')
+  @Roles('admin')
   @HttpCode(HttpStatus.OK)
-  async getSetting(
-    @CurrentUser() user: any,
-    @Query() query: QueryGradeLockDto,
-  ) {
-    if (!query.schoolYearId) {
-      throw new BadRequestException('schoolYearId is required')
-    }
-    const orgId = user.org_id
-    const setting = await this.service.getSetting(orgId, query.schoolYearId)
-    return setting || { message: 'No deadline set for this school year' }
+  getSettings(@CurrentUser() user: any) {
+    return this.service.getSettings(user.org_id)
   }
 
-  /**
-   * EDUCATOR: Manually lock their class (before deadline)
-   * POST /grade-lock/:classId/lock
-   */
+  @Get('settings/:id')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  getSetting(@CurrentUser() user: any, @Param('id') settingId: string) {
+    return this.service.getSetting(user.org_id, settingId)
+  }
+
+  @Put('settings/:id')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  updateSetting(
+    @CurrentUser() user: any,
+    @Param('id') settingId: string,
+    @Body() dto: UpdateGradeLockSettingDto,
+  ) {
+    return this.service.updateSetting(user.org_id, settingId, dto)
+  }
+
+  @Delete('settings/:id')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  deleteSetting(@CurrentUser() user: any, @Param('id') settingId: string) {
+    return this.service.deleteSetting(user.org_id, settingId)
+  }
+
+  // ─── Assignment ────────────────────────────────────────────────────────────
+
+  @Post('assign')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  assignSetting(@CurrentUser() user: any, @Body() dto: AssignSettingDto) {
+    return this.service.assignSetting(user.org_id, user.id, dto)
+  }
+
+  // ─── Lock Actions ──────────────────────────────────────────────────────────
+
   @Post(':classId/lock')
   @Roles('educator')
   @HttpCode(HttpStatus.OK)
-  async lockClass(
+  lockClass(
     @Param('classId') classId: string,
     @CurrentUser() user: any,
+    @Body() dto: LockClassDto,
   ) {
-    const userId = user.id
-    const orgId = user.org_id
-    return this.service.lockClass(classId, userId, orgId)
+    return this.service.lockClass(classId, user.id, user.org_id, dto)
   }
 
-  /**
-   * EDUCATOR/ADMIN: Unlock a class
-   * - Educators can unlock BEFORE deadline
-   * - Admins can unlock ANYTIME (override)
-   * POST /grade-lock/:classId/unlock
-   */
   @Post(':classId/unlock')
   @Roles('educator', 'admin')
   @HttpCode(HttpStatus.OK)
-  async unlockClass(
+  unlockClass(
     @Param('classId') classId: string,
     @CurrentUser() user: any,
+    @Body() dto: UnlockClassDto,
   ) {
-    const userId = user.id
-    const userRole = user.role
-    const orgId = user.org_id
-    return this.service.unlockClass(classId, userId, userRole, orgId)
+    return this.service.unlockClass(classId, user.id, user.role, user.org_id, dto)
   }
 
-  /**
-   * ADMIN: Get all class locks for organization (optionally filtered by school year)
-   * GET /grade-lock/classes?schoolYearId={id}
-   */
+  @Post(':classId/override')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  overrideLock(
+    @Param('classId') classId: string,
+    @CurrentUser() user: any,
+    @Body() dto: OverrideGradeLockDto,
+  ) {
+    return this.service.overrideLock(classId, user.id, user.org_id, dto)
+  }
+
+  // ─── Queries ───────────────────────────────────────────────────────────────
+
   @Get('classes')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
-  async getClassLocks(
+  getClassLocks(
     @CurrentUser() user: any,
     @Query('schoolYearId') schoolYearId?: string,
   ) {
-    const orgId = user.org_id
     if (schoolYearId) {
-      return this.service.getClassLocksBySchoolYear(orgId, schoolYearId)
+      return this.service.getClassLocksBySchoolYear(user.org_id, schoolYearId)
     }
-    return this.service.getClassLocks(orgId)
+    return this.service.getClassLocks(user.org_id)
   }
 
-  /**
-   * INTERNAL: Auto-lock expired classes (can be called by scheduler)
-   * POST /grade-lock/auto-lock
-   */
+  @Get(':classId/events')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  getEventsForClass(@CurrentUser() user: any, @Param('classId') classId: string) {
+    return this.service.getEventsForClass(user.org_id, classId)
+  }
+
+  // ─── Auto-lock ─────────────────────────────────────────────────────────────
+
   @Post('auto-lock')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
-  async autoLock(@CurrentUser() user: any) {
-    const orgId = user.org_id
-    return this.service.autoLockExpiredClasses(orgId)
+  autoLock(@CurrentUser() user: any) {
+    return this.service.autoLockExpiredClasses(user.org_id)
   }
 }
