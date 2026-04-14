@@ -1,8 +1,8 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { Calendar } from "lucide-react";
-import { toast } from "sonner";
+import { useState, useEffect } from "react"
+import { Calendar } from "lucide-react"
+import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
@@ -10,63 +10,82 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   useCreateGradeLockSetting,
   useUpdateGradeLockSetting,
-} from "@/hooks/admin/useGradeLocks";
+} from "@/hooks/admin/useGradeLocks"
 
 interface GradeLockSettingModalProps {
-  open: boolean;
-  onClose: () => void;
-  schoolYearId: string;
-  existingDeadline?: string | null;
+  open: boolean
+  onClose: () => void
+  existingSetting?: {
+    id: string
+    name?: string
+    lock_deadline?: string
+  } | null
 }
 
 export function GradeLockSettingModal({
   open,
   onClose,
-  schoolYearId,
-  existingDeadline,
+  existingSetting,
 }: GradeLockSettingModalProps): React.ReactElement {
-  const isEdit = !!existingDeadline;
-  const [deadline, setDeadline] = useState(
-    existingDeadline
-      ? new Date(existingDeadline).toISOString().slice(0, 16)
-      : ""
-  );
+  const isEdit = !!existingSetting
 
-  const createMutation = useCreateGradeLockSetting();
-  const updateMutation = useUpdateGradeLockSetting();
-  const isPending = createMutation.isPending || updateMutation.isPending;
+const [name, setName] = useState(existingSetting?.name ?? "")
+const [deadline, setDeadline] = useState(
+  existingSetting?.lock_deadline
+    ? new Date(existingSetting.lock_deadline).toISOString().slice(0, 16)
+    : ""
+)
+
+useEffect(() => {
+  setName(existingSetting?.name ?? "")
+  setDeadline(
+    existingSetting?.lock_deadline
+      ? new Date(existingSetting.lock_deadline).toISOString().slice(0, 16)
+      : ""
+  )
+}, [existingSetting?.id])
+
+  const createMutation = useCreateGradeLockSetting()
+  const updateMutation = useUpdateGradeLockSetting()
+  const isPending = createMutation.isPending || updateMutation.isPending
 
   const handleSubmit = async (): Promise<void> => {
-    if (!deadline) return;
+    if (!name.trim() || !deadline) return
+
     try {
-      if (isEdit) {
+      if (isEdit && existingSetting?.id) {
         await updateMutation.mutateAsync({
-          schoolYearId,
-          lockDeadline: new Date(deadline).toISOString(),
-        });
+          id: existingSetting.id,
+          data: {
+            name,
+            lock_deadline: new Date(deadline).toISOString(),
+          },
+        })
+
+        toast.success("Template updated successfully")
       } else {
         await createMutation.mutateAsync({
-          schoolYearId,
-          lockDeadline: new Date(deadline).toISOString(),
-        });
+          name,
+          lock_deadline: new Date(deadline).toISOString(),
+          lockType: "hard",
+          allowOverride: true,
+        })
+
+        toast.success("Template created successfully")
       }
-      toast.success(
-        isEdit
-          ? "Lock window updated."
-          : "Lock window opened. Educators have been notified."
-      );
-      onClose();
+
+      onClose()
     } catch {
-      toast.error("Failed to save grade lock setting.");
+      toast.error("Failed to save grade lock template.")
     }
-  };
+  }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -74,25 +93,33 @@ export function GradeLockSettingModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            {isEdit ? "Update Lock Window" : "Open Lock Window"}
+            {isEdit ? "Update Lock Template" : "Create Lock Template"}
           </DialogTitle>
+
           <DialogDescription>
-            Set the deadline by which educators must lock their class grades.
-            After this date, grades will be auto-locked.
+            Create reusable grade lock templates that can be applied to school years and classes.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="lock-deadline">Lock Deadline</Label>
+            <Label>Template Name</Label>
             <Input
-              id="lock-deadline"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Final Exams Lock Policy"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Lock Deadline</Label>
+            <Input
               type="datetime-local"
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Educators will be notified and must lock grades by this date.
+              This will be used when applying the template to school years.
             </p>
           </div>
         </div>
@@ -101,15 +128,16 @@ export function GradeLockSettingModal({
           <Button variant="outline" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!deadline || isPending}>
+
+          <Button onClick={handleSubmit} disabled={!name || !deadline || isPending}>
             {isPending
               ? "Saving…"
               : isEdit
-              ? "Update Window"
-              : "Open Window"}
+              ? "Update Template"
+              : "Create Template"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

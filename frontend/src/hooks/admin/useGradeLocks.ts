@@ -1,187 +1,227 @@
-// ===== File: frontend/src/hooks/admin/useGradeLocks.ts =====
-
 import {
   useQuery,
   useMutation,
   useQueryClient,
-  UseQueryResult,
-  UseMutationResult,
 } from "@tanstack/react-query"
+
 import { gradeLockApi } from "@/api/admin/grade-lock.api"
-import type { GradeLockSetting, GradeLock, GradeLockResponse } from "@/types/admin/grade-lock.types"
+import type {
+  GradeLock,
+  GradeLockSetting,
+  GradeLockResponse,
+  AutoLockResponse,
+} from "@/types/admin/grade-lock.types"
+
 import { toast } from "sonner"
 
-/**
- * GET lock deadline for a school year
- */
-export const useGradeLockSetting = (
-  schoolYearId: string
-): UseQueryResult<GradeLockSetting | null, unknown> => {
-  return useQuery<GradeLockSetting | null>({
-    queryKey: ["gradeLock", "setting", schoolYearId],
-    queryFn: () => gradeLockApi.getSetting(schoolYearId),
-    enabled: !!schoolYearId,
+// ─────────────────────────────────────────────
+// QUERY KEYS (important cleanup)
+// ─────────────────────────────────────────────
+
+const gradeLockKeys = {
+  all: ["gradeLock"] as const,
+  settings: () => [...gradeLockKeys.all, "settings"] as const,
+  classes: () => [...gradeLockKeys.all, "classes"] as const,
+}
+
+//
+// ─── SETTINGS ─────────────────────────────────
+//
+
+export const useGradeLockSettings = () => {
+  return useQuery<GradeLockSetting[]>({
+    queryKey: gradeLockKeys.settings(),
+    queryFn: gradeLockApi.getSettings,
   })
 }
 
-/**
- * CREATE/SET lock deadline
- */
-export const useCreateGradeLockSetting = (): UseMutationResult<
-  GradeLockSetting,
-  unknown,
-  { schoolYearId: string; lockDeadline: string }
-> => {
-  const queryClient = useQueryClient()
+export const useCreateGradeLockSetting = () => {
+  const qc = useQueryClient()
 
-  return useMutation<
-    GradeLockSetting,
-    unknown,
-    { schoolYearId: string; lockDeadline: string }
-  >({
-    mutationFn: (data) => gradeLockApi.createSetting(data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["gradeLock", "setting", variables.schoolYearId],
-      })
-      toast.success("Lock deadline set successfully")
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to set lock deadline")
-    },
-  })
-}
-
-/**
- * UPDATE lock deadline
- */
-export const useUpdateGradeLockSetting = (): UseMutationResult<
-  GradeLockSetting,
-  unknown,
-  { schoolYearId: string; lockDeadline: string }
-> => {
-  const queryClient = useQueryClient()
-
-  return useMutation<
-    GradeLockSetting,
-    unknown,
-    { schoolYearId: string; lockDeadline: string }
-  >({
-    mutationFn: ({ schoolYearId, lockDeadline }) =>
-      gradeLockApi.updateSetting(schoolYearId, lockDeadline),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["gradeLock", "setting", variables.schoolYearId],
-      })
-      toast.success("Lock deadline updated successfully")
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to update lock deadline")
-    },
-  })
-}
-
-/**
- * GET all class locks (filtered by school year)
- */
-export const useGradeLocks = (
-  schoolYearId?: string
-): UseQueryResult<GradeLock[], unknown> => {
-  return useQuery<GradeLock[]>({
-    queryKey: ["gradeLock", "classes", schoolYearId],
-    queryFn: () => gradeLockApi.getLocks(schoolYearId),
-    enabled: !!schoolYearId,
-  })
-}
-
-/**
- * EDUCATOR: Lock their class (before deadline)
- */
-export const useLockClass = (): UseMutationResult<
-  GradeLockResponse,
-  unknown,
-  { classId: string }
-> => {
-  const queryClient = useQueryClient()
-
-  return useMutation<GradeLockResponse, unknown, { classId: string }>({
-    mutationFn: ({ classId }) => gradeLockApi.lockClass(classId),
+  return useMutation({
+    mutationFn: gradeLockApi.createSetting,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gradeLock"] })
+      qc.invalidateQueries({ queryKey: gradeLockKeys.settings() })
+      toast.success("Setting created successfully")
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to create setting")
+    },
+  })
+}
+
+export const useUpdateGradeLockSetting = () => {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string
+      data: any
+    }) => gradeLockApi.updateSetting(id, data),
+
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: gradeLockKeys.settings() })
+      toast.success("Setting updated successfully")
+    },
+
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to update setting")
+    },
+  })
+}
+
+//
+// ─── CLASS LOCKS ─────────────────────────────
+//
+
+export const useGradeLocks = (schoolYearId?: string) => {
+  return useQuery<GradeLock[]>({
+    queryKey: [...gradeLockKeys.classes(), schoolYearId],
+
+    // ✅ FIX: wrap it so ONLY schoolYearId is passed
+    queryFn: () =>
+      gradeLockApi.getLocks({
+        schoolYearId,
+      }),
+
+    enabled: !!schoolYearId, // optional but recommended
+  })
+}
+
+export const useAssignSetting = () => {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      classId,
+      settingId,
+    }: {
+      classId: string
+      settingId: string
+    }) => gradeLockApi.assignSetting(classId, settingId),
+
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: gradeLockKeys.classes() })
+      toast.success("Template applied")
+    },
+
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to apply template")
+    },
+  })
+}
+
+export const useAssignGradeLock = () => {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      classId,
+      settingId,
+    }: {
+      classId: string
+      settingId: string
+    }) => gradeLockApi.assignSetting(classId, settingId),
+
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: gradeLockKeys.classes() })
+      toast.success("Template applied to class")
+    },
+
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to apply template")
+    },
+  })
+}
+export const useLockClass = () => {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      classId,
+      reason,
+    }: {
+      classId: string
+      reason?: string
+    }) => gradeLockApi.lockClass(classId, reason),
+
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: gradeLockKeys.classes() })
       toast.success("Class locked successfully")
     },
+
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || "Failed to lock class")
     },
   })
 }
 
-/**
- * EDUCATOR/ADMIN: Unlock a class
- * - Educators: only before deadline
- * - Admins: anytime (override)
- */
-export const useUnlockClass = (): UseMutationResult<
-  GradeLockResponse,
-  unknown,
-  { classId: string }
-> => {
-  const queryClient = useQueryClient()
+export const useUnlockClass = () => {
+  const qc = useQueryClient()
 
-  return useMutation<GradeLockResponse, unknown, { classId: string }>({
-    mutationFn: ({ classId }) => gradeLockApi.unlockClass(classId),
+  return useMutation({
+    mutationFn: ({
+      classId,
+      reason,
+    }: {
+      classId: string
+      reason: string
+    }) => gradeLockApi.unlockClass(classId, reason),
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gradeLock"] })
+      qc.invalidateQueries({ queryKey: gradeLockKeys.classes() })
       toast.success("Class unlocked successfully")
     },
+
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || "Failed to unlock class")
     },
   })
 }
 
-/**
- * ADMIN: Unlock with override (after deadline)
- * Alias for unlockClass - backend handles role-based logic
- */
-export const useUnlockOverride = (): UseMutationResult<
-  GradeLockResponse,
-  unknown,
-  { classId: string }
-> => {
-  const queryClient = useQueryClient()
+export const useOverrideLock = () => {
+  const qc = useQueryClient()
 
-  return useMutation<GradeLockResponse, unknown, { classId: string }>({
-    mutationFn: ({ classId }) => gradeLockApi.unlockOverride(classId),
+  return useMutation({
+    mutationFn: ({
+      classId,
+      reason,
+    }: {
+      classId: string
+      reason: string
+    }) => gradeLockApi.overrideLock(classId, reason),
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gradeLock"] })
-      toast.success("Class unlocked (admin override)")
+      qc.invalidateQueries({ queryKey: gradeLockKeys.classes() })
+      toast.success("Lock overridden successfully")
     },
+
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to unlock class")
+      toast.error(error?.response?.data?.message || "Failed to override lock")
     },
   })
 }
 
-/**
- * AUTO-LOCK: Manually trigger auto-lock for expired classes
- * (Optional - mainly for testing or manual triggering)
- */
-export const useAutoLockExpiredClasses = (): UseMutationResult<
-  { success: boolean; lockedCount: number },
-  unknown,
-  void
-> => {
-  const queryClient = useQueryClient()
+//
+// ─── AUTO LOCK ───────────────────────────────
+//
 
-  return useMutation<{ success: boolean; lockedCount: number }, unknown, void>({
-    mutationFn: () => gradeLockApi.autoLock(),
+export const useAutoLockExpiredClasses = () => {
+  const qc = useQueryClient()
+
+  return useMutation<AutoLockResponse, unknown, void>({
+    mutationFn: gradeLockApi.autoLock,
+
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["gradeLock"] })
+      qc.invalidateQueries({ queryKey: gradeLockKeys.classes() })
       toast.success(`Auto-locked ${data.lockedCount} classes`)
     },
+
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to auto-lock classes")
+      toast.error(error?.response?.data?.message || "Auto-lock failed")
     },
   })
 }

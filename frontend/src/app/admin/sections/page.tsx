@@ -16,7 +16,7 @@ import { SectionDialog } from "@/components/admin/section/SectionDialog";
 import { SectionTable } from "@/components/admin/section/SectionTable";
 import { SectionLevelFilter } from "@/components/admin/section/SectionLevelFilter";
 import { SectionEmptyState } from "@/components/admin/section/SectionEmptyState";
-import { SchoolYearSelector } from "@/components/admin/program/SchoolYearSelector";
+import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { programApi } from "@/api/admin/program.api";
 import type { Section } from "@/types/admin/section.types";
 

@@ -1,8 +1,8 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
+import { useState } from "react"
+import { AlertTriangle } from "lucide-react"
+import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
@@ -10,17 +10,17 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useUnlockOverride } from "@/hooks/admin/useGradeLocks";
-import type { GradeLock } from "@/types/admin/grade-lock.types";
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { useOverrideLock } from "@/hooks/admin/useGradeLocks"
+import type { GradeLock } from "@/types/admin/grade-lock.types"
 
 interface GradeLockOverrideDialogProps {
-  open: boolean;
-  onClose: () => void;
-  gradeLock: GradeLock | null;
+  open: boolean
+  onClose: () => void
+  gradeLock: GradeLock | null
 }
 
 export function GradeLockOverrideDialog({
@@ -28,25 +28,33 @@ export function GradeLockOverrideDialog({
   onClose,
   gradeLock,
 }: GradeLockOverrideDialogProps): React.ReactElement {
-  const [reason, setReason] = useState("");
-  const unlockMutation = useUnlockOverride();
+  const [reason, setReason] = useState("")
+  const overrideLock = useOverrideLock()
 
   const handleConfirm = async (): Promise<void> => {
-    if (!gradeLock || !reason.trim()) return;
+    if (!gradeLock || !reason.trim()) return
+
     try {
-      await unlockMutation.mutateAsync({ classId: gradeLock.classId, reason });
-      toast.success(`Grades unlocked for ${gradeLock.className}. Action logged.`);
-      setReason("");
-      onClose();
+      await overrideLock.mutateAsync({
+        classId: gradeLock.class_id,
+        reason,
+      })
+
+      toast.success(
+        `Grades unlocked for ${gradeLock.className}. Action logged.`
+      )
+
+      setReason("")
+      onClose()
     } catch {
-      toast.error("Failed to override grade lock.");
+      toast.error("Failed to override grade lock.")
     }
-  };
+  }
 
   const handleClose = (): void => {
-    setReason("");
-    onClose();
-  };
+    setReason("")
+    onClose()
+  }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
@@ -56,20 +64,21 @@ export function GradeLockOverrideDialog({
             <AlertTriangle className="h-4 w-4" />
             Override Grade Lock
           </DialogTitle>
+
           <DialogDescription>
             Unlock grades for{" "}
             <span className="font-medium text-foreground">
               {gradeLock?.className}
             </span>
-            ? This action will be permanently logged in the Audit Log.
+            ? This action is permanently logged in the audit trail.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            Unlocking is irreversible without initiating another grade lock.
-            The educator will be able to modify grades again.
+            This will allow educators to modify grades again until re-locked.
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="override-reason">
               Reason <span className="text-destructive">*</span>
@@ -88,19 +97,20 @@ export function GradeLockOverrideDialog({
           <Button
             variant="outline"
             onClick={handleClose}
-            disabled={unlockMutation.isPending}
+            disabled={overrideLock.isPending}
           >
             Cancel
           </Button>
+
           <Button
             variant="destructive"
             onClick={handleConfirm}
-            disabled={!reason.trim() || unlockMutation.isPending}
+            disabled={!reason.trim() || overrideLock.isPending}
           >
-            {unlockMutation.isPending ? "Processing…" : "Confirm Override"}
+            {overrideLock.isPending ? "Processing…" : "Confirm Override"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

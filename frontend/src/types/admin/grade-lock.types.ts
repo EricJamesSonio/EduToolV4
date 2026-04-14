@@ -3,10 +3,31 @@ export type GradeLockStatus = 'unlocked' | 'locked' | 'auto_locked'
 export interface GradeLockSetting {
   id: string
   org_id: string
-  school_year_id: string
-  lock_deadline: string
+  name: string
+  description?: string | null
+  lockType: 'hard' | 'soft' | 'flexible'
+  lock_deadline?: string | null
+  deadlineDays?: number | null
+  allowOverride: boolean
+  is_default: boolean
   created_at: string
-  updated_at: string
+}
+
+export interface GradeLockClassSubject {
+  id: string
+  name: string
+  program?: { id: string; name: string } | null
+  course?: { id: string; name: string } | null
+  strand?: { id: string; name: string } | null
+  level?: { id: string; name: string } | null
+}
+
+export interface GradeLockClass {
+  id: string
+  subject_id: string
+  educator_id: string
+  school_year_id: string
+  subject?: GradeLockClassSubject | null
 }
 
 export interface GradeLock {
@@ -17,50 +38,23 @@ export interface GradeLock {
   locked_by: string | null
   locked_at: string | null
   created_at: string
-  // Flat fields for table display (from backend mapping)
+
+  lockStatus: GradeLockStatus
+  deadline?: string | null
+
   className?: string
   educatorName?: string
-  semesterName?: string
-  termName?: string
-  lockStatus?: GradeLockStatus
-  deadline?: string | null
-  // Original nested structure for filters
-  class?: {
-    id: string
-    subject_id: string
-    educator_id: string
-    school_year_id: string
-    subject?: {
-      id: string
-      name: string
-      program?: {
-        id: string
-        name: string
-      } | null
-      course?: {
-        id: string
-        name: string
-      } | null
-      strand?: {
-        id: string
-        name: string
-      } | null
-      level?: {
-        id: string
-        name: string
-      } | null
-    } | null
-  }
-}
 
-export interface GradeLockOverride {
-  classId: string
-  termId: string
-  reason: string
+  class: GradeLockClass
 }
 
 export interface GradeLockResponse {
   success: boolean
   gradeLock?: GradeLock
   reason?: string
+}
+
+export interface AutoLockResponse {
+  success: boolean
+  lockedCount: number
 }

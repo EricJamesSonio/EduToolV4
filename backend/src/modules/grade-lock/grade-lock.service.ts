@@ -224,15 +224,68 @@ export class GradeLockService {
 
   // ─── Queries ───────────────────────────────────────────────────────────────
 
-  async getClassLocks(orgId: string) {
-    const locks = await this.repo.findAllLocksWithClass(orgId)
-    return this.hydrateLocks(locks, orgId)
-  }
+async getClassLocks(orgId: string) {
+  const [classes, locks] = await Promise.all([
+    this.repo.findAllClassesWithRelations(orgId),
+    this.repo.findAllLocksWithClass(orgId),
+  ])
 
-  async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
-    const locks = await this.repo.findLocksBySchoolYear(orgId, schoolYearId)
-    return this.hydrateLocks(locks, orgId)
-  }
+  const lockMap = new Map(locks.map((l) => [l.class_id, l]))
+
+  const merged = classes.map((cls) => {
+    const existingLock = lockMap.get(cls.id)
+
+    if (existingLock) return existingLock
+
+    // 👇 create virtual "unlocked" lock
+    return {
+      id: `virtual-${cls.id}`,
+      org_id: orgId,
+      class_id: cls.id,
+      is_locked: false,
+      locked_by: null,
+      locked_at: null,
+      created_at: cls.created_at,
+      setting: null,
+      class: cls,
+    }
+  })
+
+  return this.hydrateLocks(merged, orgId)
+}
+
+async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
+  const [classes, locks] = await Promise.all([
+    this.repo.findAllClassesWithRelations(orgId),
+    this.repo.findLocksBySchoolYear(orgId, schoolYearId),
+  ])
+
+  const filteredClasses = classes.filter(
+    (cls) => cls.school_year_id === schoolYearId
+  )
+
+  const lockMap = new Map(locks.map((l) => [l.class_id, l]))
+
+  const merged = filteredClasses.map((cls) => {
+    const existingLock = lockMap.get(cls.id)
+
+    if (existingLock) return existingLock
+
+    return {
+      id: `virtual-${cls.id}`,
+      org_id: orgId,
+      class_id: cls.id,
+      is_locked: false,
+      locked_by: null,
+      locked_at: null,
+      created_at: cls.created_at,
+      setting: null,
+      class: cls,
+    }
+  })
+
+  return this.hydrateLocks(merged, orgId)
+}
 
   async getEventsForClass(orgId: string, classId: string) {
     return this.repo.findEventsByClassId(orgId, classId)
@@ -310,15 +363,22 @@ export class GradeLockService {
   }
 
   private mapLock(lock: any, orgId: string, educatorMap: Map<string, string>) {
-    const { setting } = lock
-    const educatorName = educatorMap.get(lock.class.educator_id) ?? 'Unknown Educator'
+    const setting = lock.setting ?? null
+
+    const educatorName =
+      educatorMap.get(lock.class.educator_id) ?? 'Unknown Educator'
+
     const subjectName = lock.class.subject?.name ?? 'Unknown Subject'
 
     const lockStatus = lock.is_locked
-      ? lock.locked_by === 'system' ? 'auto_locked' : 'locked'
+      ? lock.locked_by === 'system'
+        ? 'auto_locked'
+        : 'locked'
       : 'unlocked'
 
-    const { deadline } = this.resolveDeadline(setting)
+    const { deadline } = setting
+      ? this.resolveDeadline(setting)
+      : { deadline: null }
 
     return {
       id: lock.id,
@@ -330,14 +390,19 @@ export class GradeLockService {
       created_at: lock.created_at,
       lockStatus,
       deadline,
-      setting: {
-        id: setting.id,
-        name: setting.name,
-        lockType: setting.lockType,
-        allowOverride: setting.allowOverride,
-      },
+
+      setting: setting
+        ? {
+            id: setting.id,
+            name: setting.name,
+            lockType: setting.lockType,
+            allowOverride: setting.allowOverride,
+          }
+        : null,
+
       className: subjectName,
       educatorName,
+
       class: {
         id: lock.class.id,
         subject_id: lock.class.subject_id,
