@@ -7,6 +7,7 @@ import { GradeLockRepository } from './grade-lock.repository';
 import { GradeEducatorModule } from '../grade/educator/grade-educator.module'; // 👈 updated
 import { ClassModule } from '../class/class.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { GradeLockValidator } from './grade-lock.validator';
 
 @Module({
   imports: [
@@ -16,6 +17,6 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
   ],
   exports : [GradeLockService],
   controllers: [GradeLockController],
-  providers: [GradeLockService, GradeLockRepository],
+  providers: [GradeLockService, GradeLockRepository, GradeLockValidator],
 })
 export class GradeLockModule {}

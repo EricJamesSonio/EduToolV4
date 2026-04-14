@@ -1,6 +1,5 @@
-// backend/src/modules/student/student.repository.ts
-
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
@@ -42,37 +41,62 @@ export class StudentRepository {
   async findAll(
     orgId: string,
     filters: {
-      search?: string;
-      status?: string;
-      levelId?: string;
-      sectionId?: string;
+      search?:       string;
+      status?:       string;
+      schoolYearId?: string;
+      programId?:    string;
+      courseId?:     string;
+      strandId?:     string;
+      levelId?:      string;
+      sectionId?:    string;
     },
   ) {
+    const { search, status, schoolYearId, programId, courseId, strandId, levelId, sectionId } = filters;
+
+    const hasHierarchyFilter = schoolYearId || programId || courseId || strandId || levelId || sectionId;
+
+    // Account has no Prisma relation to StudentSchoolYear (student_id is a plain String,
+    // no @relation declared on Account). We resolve matching student_ids first via a
+    // two-step query, then filter Account with id IN [...].
+    let matchingStudentIds: string[] | null = null;
+
+    if (hasHierarchyFilter) {
+      const matchingSSY = await this.db.studentSchoolYear.findMany({
+        where: {
+          org_id: orgId,
+          ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
+          programEnrollments: {
+            some: {
+              org_id: orgId,
+              ...(programId ? { program_id: programId } : {}),
+              ...(courseId  ? { course_id:  courseId  } : {}),
+              ...(strandId  ? { strand_id:  strandId  } : {}),
+              ...(levelId   ? { level_id:   levelId   } : {}),
+              ...(sectionId ? { section_id: sectionId } : {}),
+            },
+          },
+        },
+        select: { student_id: true },
+      });
+
+      matchingStudentIds = matchingSSY.map((r) => r.student_id);
+
+      // Short-circuit — no students matched the hierarchy, no need to continue
+      if (matchingStudentIds.length === 0) return [];
+    }
+
     return this.db.account.findMany({
       where: {
-        org_id: orgId,
-        role: 'student',
+        org_id:     orgId,
+        role:       'student',
         deleted_at: null,
-        ...(filters.status ? { status: filters.status as any } : {}),
-        ...(filters.search
+        ...(matchingStudentIds !== null ? { id: { in: matchingStudentIds } } : {}),
+        ...(status ? { status: status as any } : {}),
+        ...(search
           ? {
               OR: [
-                {
-                  profile: {
-                    full_name: {
-                      contains: filters.search,
-                      mode: 'insensitive',
-                    },
-                  },
-                },
-                {
-                  profile: {
-                    metadata: {
-                      path: ['studentId'],
-                      string_contains: filters.search,
-                    },
-                  },
-                },
+                { profile: { full_name: { contains: search, mode: 'insensitive' } } },
+                { profile: { metadata: { path: ['studentId'], string_contains: search } } },
               ],
             }
           : {}),
@@ -98,74 +122,55 @@ export class StudentRepository {
   async findByStudentId(studentId: string, orgId: string) {
     return this.db.profile.findFirst({
       where: {
-        metadata: {
-          path: ['studentId'],
-          equals: studentId,
-        },
-        account: {
-          org_id: orgId,
-          deleted_at: null,
-        },
+        metadata: { path: ['studentId'], equals: studentId },
+        account: { org_id: orgId, deleted_at: null },
       },
       include: { account: true },
     });
   }
 
- async updateProfile(
-  accountId: string,
-  data: {
-    fullName?: string;
-    email?: string;
-    personal_email?: string | null;
-    levelId?: string;
-    sectionId?: string;
-  },
-) {
-  return this.db.$transaction(async (tx) => {
-    // Update account email if provided
-    if (data.email) {
-      await tx.account.update({
-        where: { id: accountId },
-        data: { email: data.email },
+  async updateProfile(
+    accountId: string,
+    data: {
+      fullName?: string;
+      email?: string;
+      personal_email?: string | null;
+      levelId?: string;
+      sectionId?: string;
+    },
+  ) {
+    return this.db.$transaction(async (tx) => {
+      if (data.email) {
+        await tx.account.update({ where: { id: accountId }, data: { email: data.email } });
+      }
+
+      const current = await tx.profile.findUnique({
+        where: { account_id: accountId },
+        select: { metadata: true, full_name: true, personal_email: true },
       });
-    }
 
-    // Get current profile metadata
-    const current = await tx.profile.findUnique({
-      where: { account_id: accountId },
-      select: { metadata: true, full_name: true, personal_email: true },
-    });
+      const currentMeta =
+        current?.metadata && typeof current.metadata === 'object' && !Array.isArray(current.metadata)
+          ? (current.metadata as Record<string, any>)
+          : {};
 
-    const currentMeta =
-      current?.metadata &&
-      typeof current.metadata === 'object' &&
-      !Array.isArray(current.metadata)
-        ? (current.metadata as Record<string, any>)
-        : {};
-
-    // Update profile
-    await tx.profile.update({
-      where: { account_id: accountId },
-      data: {
-        ...(data.fullName ? { full_name: data.fullName } : {}),
-        ...(data.personal_email !== undefined
-          ? { personal_email: data.personal_email ?? null }
-          : {}),
-        metadata: {
-          ...currentMeta,
-          ...(data.levelId !== undefined ? { levelId: data.levelId } : {}),
-          ...(data.sectionId !== undefined ? { sectionId: data.sectionId } : {}),
+      await tx.profile.update({
+        where: { account_id: accountId },
+        data: {
+          ...(data.fullName ? { full_name: data.fullName } : {}),
+          ...(data.personal_email !== undefined ? { personal_email: data.personal_email ?? null } : {}),
+          metadata: {
+            ...currentMeta,
+            ...(data.levelId   !== undefined ? { levelId:   data.levelId   } : {}),
+            ...(data.sectionId !== undefined ? { sectionId: data.sectionId } : {}),
+          },
         },
-      },
-    });
+      });
 
-    // Return updated account with profile
-    return tx.account.findUnique({
-      where: { id: accountId },
-      include: { profile: true },
+      return tx.account.findUnique({ where: { id: accountId }, include: { profile: true } });
     });
-  });
-}
+  }
+
   async updateStatus(accountId: string, status: string) {
     return this.db.account.update({
       where: { id: accountId },
@@ -197,17 +202,13 @@ export class StudentRepository {
         status: { not: 'removed' },
         class: { deleted_at: null },
       },
-      include: {
-        class: { include: { schedules: true } },
-      },
+      include: { class: { include: { schedules: true } } },
       orderBy: { created_at: 'asc' },
     });
   }
 
   async findEnrollmentById(id: string, orgId: string) {
-    return this.db.enrollment.findFirst({
-      where: { id, org_id: orgId },
-    });
+    return this.db.enrollment.findFirst({ where: { id, org_id: orgId } });
   }
 
   async removeEnrollment(enrollmentId: string) {
@@ -217,53 +218,29 @@ export class StudentRepository {
     });
   }
 
-  /**
-   * Returns the subset of emails (from the given list) that already exist in the org.
-   * Used for batch duplicate checking during bulk import.
-   */
   async findEmailsInBatch(emails: string[], orgId: string): Promise<string[]> {
     if (emails.length === 0) return [];
-
     const accounts = await this.db.account.findMany({
-      where: {
-        email: { in: emails },
-        org_id: orgId,
-        deleted_at: null,
-      },
+      where: { email: { in: emails }, org_id: orgId, deleted_at: null },
       select: { email: true },
     });
-
     return accounts.map((a) => a.email);
   }
 
-  /**
-   * Returns the subset of studentIds (from the given list) that already exist in the org.
-   * Pulls all profiles and filters in JS — Prisma Json path filter does not support `in`.
-   */
-  async findStudentIdsInBatch(
-    studentIds: string[],
-    orgId: string,
-  ): Promise<string[]> {
+  async findStudentIdsInBatch(studentIds: string[], orgId: string): Promise<string[]> {
     if (studentIds.length === 0) return [];
-
     const profiles = await this.db.profile.findMany({
-      where: {
-        account: { org_id: orgId, deleted_at: null },
-      },
+      where: { account: { org_id: orgId, deleted_at: null } },
       select: { metadata: true },
     });
-
     const existingSet = new Set(
       profiles
         .map((p) => {
           const meta = p.metadata as Record<string, unknown> | null;
-          return typeof meta?.['studentId'] === 'string'
-            ? meta['studentId']
-            : null;
+          return typeof meta?.['studentId'] === 'string' ? meta['studentId'] : null;
         })
         .filter((id): id is string => id !== null),
     );
-
     return studentIds.filter((id) => existingSet.has(id));
   }
 }

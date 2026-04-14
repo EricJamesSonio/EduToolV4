@@ -55,13 +55,14 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
+    autoResetPageIndex: false,   // ← add this
     state: {
       sorting,
       ...(rowSelection !== undefined ? { rowSelection } : {}),
     },
     ...(onRowSelectionChange ? { onRowSelectionChange } : {}),
     enableRowSelection: !!onRowSelectionChange,
-  });
+  })
 
   return (
     <div className={cn("relative w-full", className)}>

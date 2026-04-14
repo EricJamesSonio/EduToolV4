@@ -178,6 +178,8 @@ model Level {
   sections           Section[]
   sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
+  subjects Subject[]
+
 }
 
 model Section {
@@ -342,6 +344,7 @@ model Subject {
   program       Program?              @relation(fields: [program_id], references: [id])
   course        Course?               @relation(fields: [course_id], references: [id])
   strand        Strand?               @relation(fields: [strand_id], references: [id])
+  level         Level?                @relation(fields: [level_id], references: [id])
   classes       Class[]
 
   prerequisites SubjectPrerequisite[] @relation("SubjectPrereqs")

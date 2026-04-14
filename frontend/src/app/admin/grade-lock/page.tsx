@@ -1,31 +1,76 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { format } from "date-fns";
-import { Lock, Settings } from "lucide-react";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { DataTable } from "@/components/shared/DataTable";
-import { Button } from "@/components/ui/button";
-import { GradeLockSettingModal } from "@/components/admin/grade-lock/GradeLockSettingModal";
-import { GradeLockOverrideDialog } from "@/components/admin/grade-lock/GradeLockOverrideDialog";
-import { GradeLockStats } from "@/components/admin/grade-lock/GradeLockStats";
-import { useGradeLockColumns } from "@/hooks/admin/useGradeLockColumns";
-import { useGradeLocks, useGradeLockSetting } from "@/hooks/admin/useGradeLocks";
-import type { GradeLock } from "@/types/admin/grade-lock.types";
-
-// NOTE: Replace with actual active school year from context/store
-const ACTIVE_SCHOOL_YEAR_ID    = "active-school-year-id";
-const ACTIVE_SCHOOL_YEAR_LABEL = "S.Y. 2024–2025";
+import { useState, useMemo } from "react"
+import { format } from "date-fns"
+import { Lock, Settings } from "lucide-react"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { DataTable } from "@/components/shared/DataTable"
+import { Button } from "@/components/ui/button"
+import { GradeLockHierarchyFilter } from "@/components/admin/grade-lock/GradeLockHierarchyFilter"
+import { GradeLockSettingModal } from "@/components/admin/grade-lock/GradeLockSettingModal"
+import { GradeLockOverrideDialog } from "@/components/admin/grade-lock/GradeLockOverrideDialog"
+import { GradeLockStats } from "@/components/admin/grade-lock/GradeLockStats"
+import { useGradeLockColumns } from "@/hooks/admin/useGradeLockColumns"
+import { useGradeLocks, useGradeLockSetting } from "@/hooks/admin/useGradeLocks"
+import { useSchoolYears } from "@/hooks/admin/useSchoolYears"
+import type { GradeLock } from "@/types/admin/grade-lock.types"
 
 export default function GradeLockPage(): React.ReactElement {
-  const [settingModalOpen, setSettingModalOpen] = useState(false);
-  const [overrideTarget, setOverrideTarget]     = useState<GradeLock | null>(null);
+  const [settingModalOpen, setSettingModalOpen] = useState(false)
+  const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null)
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null)
 
-  const { data: gradeLocks, isLoading } = useGradeLocks();
-  const { data: setting }               = useGradeLockSetting(ACTIVE_SCHOOL_YEAR_ID);
-  const columns                         = useGradeLockColumns(setOverrideTarget);
+  // Filter state lives here — no callback needed
+  const [selectedProgram, setSelectedProgram] = useState<string>("")
+  const [selectedCourseStrand, setSelectedCourseStrand] = useState<string>("")
+  const [selectedLevel, setSelectedLevel] = useState<string>("")
 
-  const locks = Array.isArray(gradeLocks) ? gradeLocks : [];
+  const { data: schoolYears, isLoading: schoolYearsLoading } = useSchoolYears()
+  const { data: gradeLocks, isLoading } = useGradeLocks(selectedSchoolYearId ?? undefined)
+  const { data: setting } = useGradeLockSetting(selectedSchoolYearId ?? "")
+  const columns = useGradeLockColumns(setOverrideTarget)
+
+  const locks = useMemo(
+    () => (Array.isArray(gradeLocks) ? gradeLocks : []),
+    [gradeLocks]
+  )
+
+  // All filtering computed here — single source of truth, no state ping-pong
+  const filteredLocks = useMemo(() => {
+    let result = locks
+
+    if (selectedSchoolYearId) {
+      result = result.filter(
+        (lock) => lock.class?.school_year_id === selectedSchoolYearId
+      )
+    }
+    if (selectedProgram) {
+      result = result.filter(
+        (lock) => lock.class?.subject?.program?.name === selectedProgram
+      )
+    }
+    if (selectedCourseStrand) {
+      result = result.filter(
+        (lock) =>
+          lock.class?.subject?.course?.name === selectedCourseStrand ||
+          lock.class?.subject?.strand?.name === selectedCourseStrand
+      )
+    }
+    if (selectedLevel) {
+      result = result.filter(
+        (lock) => lock.class?.subject?.level?.name === selectedLevel
+      )
+    }
+
+    return result
+  }, [locks, selectedSchoolYearId, selectedProgram, selectedCourseStrand, selectedLevel])
+
+  const handleSchoolYearSelect = (id: string | null) => {
+    setSelectedSchoolYearId(id)
+    setSelectedProgram("")
+    setSelectedCourseStrand("")
+    setSelectedLevel("")
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -40,37 +85,53 @@ export default function GradeLockPage(): React.ReactElement {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-3">
+      {setting?.lock_deadline && (
         <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
-          <span className="text-muted-foreground">Active School Year</span>
-          <span className="font-medium">{ACTIVE_SCHOOL_YEAR_LABEL}</span>
+          <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-muted-foreground">Lock deadline:</span>
+          <span className="font-medium">
+            {format(new Date(setting.lock_deadline), "MMM d, yyyy h:mm a")}
+          </span>
         </div>
-        {setting?.deadline && (
-          <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
-            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">Lock deadline:</span>
-            <span className="font-medium">
-              {format(new Date(setting.deadline), "MMM d, yyyy h:mm a")}
-            </span>
-          </div>
-        )}
-      </div>
+      )}
 
-      <GradeLockStats gradeLocks={locks} />
+      <GradeLockHierarchyFilter
+        schoolYears={schoolYears ?? []}
+        schoolYearsLoading={schoolYearsLoading}
+        gradeLocks={locks}
+        gradeLockLoading={isLoading}
+        selectedSchoolYearId={selectedSchoolYearId ?? ""}
+        selectedProgram={selectedProgram}
+        selectedCourseStrand={selectedCourseStrand}
+        selectedLevel={selectedLevel}
+        filteredCount={filteredLocks.length}
+        onSchoolYearSelect={handleSchoolYearSelect}
+        onProgramChange={setSelectedProgram}
+        onCourseStrandChange={(value) => {
+          setSelectedCourseStrand(value)
+          setSelectedLevel("")
+        }}
+        onLevelChange={setSelectedLevel}
+        onReset={() => {
+          handleSchoolYearSelect(null)
+        }}
+      />
+
+      <GradeLockStats gradeLocks={filteredLocks} />
 
       <DataTable
         columns={columns}
-        data={locks}
+        data={filteredLocks}
         isLoading={isLoading}
         emptyTitle="No classes found"
-        emptyDescription="No grade lock records exist yet. Open a lock window to get started."
+        emptyDescription="No grade lock records exist. Try adjusting your filters."
       />
 
       <GradeLockSettingModal
         open={settingModalOpen}
         onClose={() => setSettingModalOpen(false)}
-        schoolYearId={ACTIVE_SCHOOL_YEAR_ID}
-        existingDeadline={setting?.deadline}
+        schoolYearId={selectedSchoolYearId ?? ""}
+        existingDeadline={setting?.lock_deadline}
       />
 
       <GradeLockOverrideDialog
@@ -79,5 +140,5 @@ export default function GradeLockPage(): React.ReactElement {
         gradeLock={overrideTarget}
       />
     </div>
-  );
+  )
 }

@@ -28,7 +28,7 @@ export class SchedulerTasks {
         distinct: ['org_id'],
       })
       for (const { org_id } of orgs) {
-        if (org_id) await this.gradeLockService.autoLock(org_id)
+        if (org_id) await this.gradeLockService.autoLockExpiredClasses(org_id)
       }
     } catch (err) {
       this.logger.error('Auto grade lock failed', err)
