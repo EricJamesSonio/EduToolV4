@@ -30,9 +30,8 @@ export class CreateStudentDto {
   @IsString()
   @MinLength(1)
   @MaxLength(50)
-  studentId!: string; // Admin-assigned student ID
+  studentId!: string;
 
-  // levelId and sectionId are now managed via enrollment — not required on creation
   @IsOptional()
   @IsUUID()
   levelId?: string;
@@ -80,6 +79,28 @@ export class QueryStudentDto {
   @IsOptional()
   @IsEnum(StudentStatus)
   status?: StudentStatus;
+
+  // ── Hierarchy filters ────────────────────────────────────────────────────
+
+  @IsOptional()
+  @Transform(({ value }) => value || undefined)
+  @IsUUID()
+  schoolYearId?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value || undefined)
+  @IsUUID()
+  programId?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value || undefined)
+  @IsUUID()
+  courseId?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value || undefined)
+  @IsUUID()
+  strandId?: string;
 
   @IsOptional()
   @Transform(({ value }) => value || undefined)

@@ -29,8 +29,15 @@ export interface UpdateStudentStatusRequest {
 }
 
 export interface GetStudentsQuery {
-  search?: string;
-  status?: StudentStatus;
+  search?:       string;
+  status?:       StudentStatus;
+  // Hierarchy filters — each narrows the result set
+  schoolYearId?: string;
+  programId?:    string;
+  courseId?:     string;
+  strandId?:     string;
+  levelId?:      string;
+  sectionId?:    string;
 }
 
 export interface StudentEnrollment {
