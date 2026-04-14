@@ -1,461 +1,109 @@
-# EduTool — Technology Stack Document v1.0
+# EduTool
 
-## 1. Overview
+EduTool is a **multi-tenant SaaS school management system** built to handle flexible academic structures across different types of institutions.
 
-This document defines the official technology stack for **EduTool**, a multi-tenant academic management platform designed for schools. The selected technologies prioritize scalability, maintainability, developer productivity, and real-time capabilities required by the system architecture described in the EduTool planning document.
+## Overview
 
-The stack follows a **modern SaaS architecture** with clear separation between frontend, backend, database, and infrastructure layers.
+EduTool is designed around a **platform → organization → user** model:
 
----
+- **Platform Owner**
+  - Manages the overall system
+  - Creates accounts for school **Admins**
 
-# 2. Core Technology Stack
+- **Admin**
+  - Manages a specific school (organization portal)
+  - Creates and manages:
+    - Educators
+    - Students
+  - Controls the academic structure and setup
 
-## 2.1 Programming Language
+- **Educators**
+  - Handle classes, subjects, and grading
 
-Primary Language: **TypeScript**
+- **Students**
+  - Enrolled into programs, levels, and classes
 
-TypeScript is used across the entire system to ensure type safety, maintainable code, and shared types between the frontend and backend.
-
-Benefits:
-
-* Strong typing for large-scale systems
-* Reduced runtime errors
-* Shared models between API and UI
-* Excellent tooling and ecosystem
-
----
-
-# 3. Frontend Architecture
-
-## 3.1 Frontend Framework
-
-Framework: **Next.js**
-
-Next.js is the primary frontend framework used to build the EduTool user interface for Admins, Educators, and Students.
-
-Key Features Used:
-
-* App Router architecture
-* Server Components
-* Client Components
-* Built-in routing
-* Middleware for authentication
-* Optimized production builds
-
-Benefits:
-
-* Fast performance
-* Structured routing system
-* Built-in optimization
-* Excellent integration with React ecosystem
+Each organization runs in its own **scoped portal**, meaning all data, users, and configurations are isolated per school.
 
 ---
 
-## 3.2 UI Library
+## Academic Management
 
-Library: **React**
+EduTool allows admins to fully customize their academic structure:
 
-React is used as the core UI library within the Next.js framework.
+### Programs
+Supports different types of programs such as:
+- College
+- Elementary
+- Senior High School (SHS)
+- Tech-Voc
+- Or any custom program
 
-Responsibilities:
+### Levels
+Programs can define their own levels:
+- Grade 1, Grade 2, etc.
+- 1st Year, 2nd Year, etc.
 
-* Component-based UI
-* Interactive dashboards
-* Assessment interfaces
-* Meeting rooms
-* Dynamic forms
-
----
-
-## 3.3 Styling System
-
-Primary Styling Framework: **Tailwind CSS**
-
-Tailwind CSS provides utility-based styling for rapid UI development and consistent design.
-
-Benefits:
-
-* Fast development
-* Consistent spacing and layout
-* No large CSS files
-* Easily customizable design system
+### Structure
+Admins can manage:
+- Sections
+- Classes
+- Subjects
 
 ---
 
-## 3.4 Frontend State Management
+## Grading System
 
-Primary Tools:
+EduTool includes a flexible and reusable grading system:
 
-* React Context
-* Server Actions
-* TanStack Query (React Query)
+- **Grading Schemes**
+  - Configurable templates
+  - Reusable across programs and levels
 
-Responsibilities:
+- **Grading Scales**
+  - Define how scores convert to grades
+  - Reusable globally
 
-* API data fetching
-* cache management
-* background data updates
-* mutation handling
-
----
-
-# 4. Backend Architecture
-
-## 4.1 Backend Framework
-
-Framework: **NestJS**
-
-NestJS is the backend framework used to implement the EduTool API and core system services.
-
-Architecture Style:
-
-* Modular architecture
-* Dependency injection
-* Service-oriented modules
-
-Major Backend Modules:
-
-* Authentication
-* Organization Management
-* Admin Management
-* Student Management
-* Educator Management
-* Subject Management
-* Class Management
-* Lesson Management
-* Assessment System
-* Attendance Management
-* Grade System
-* Meeting System
-* Notification System
-* Audit Logs
-* Analytics
-
-Benefits:
-
-* Enterprise architecture
-* TypeScript-native framework
-* Clean module structure
-* Built-in dependency injection
-* Strong ecosystem
+- **Grade Locks**
+  - Can be applied per school year or context
+  - Used to finalize and control grade editing
 
 ---
 
-## 4.2 API Design
+## Reusable Templates
 
-API Type: **REST API**
+To reduce repetitive setup, EduTool provides reusable components:
 
-The backend exposes REST endpoints consumed by the Next.js frontend.
-
-API Responsibilities:
-
-* authentication
-* student management
-* class management
-* assessment operations
-* grading
-* meeting control
-* notification handling
+- Grading schemes (global templates)
+- Grading scales
+- Calendar templates
 
 ---
 
-# 5. Database Layer
+## Organization Data Seeder
 
-## 5.1 Database Engine
+EduTool includes an **organization seeder** feature that allows admins to quickly set up a school by selecting predefined options.
 
-Database: **PostgreSQL**
+This can automatically generate:
+- Programs
+- Levels
+- Basic academic structure
 
-PostgreSQL is the primary relational database used to store all EduTool data.
-
-Reasons for Selection:
-
-* Strong relational capabilities
-* ACID compliance
-* reliable transactions
-* powerful indexing
-* scalability for large datasets
-
-Data Stored Includes:
-
-* organizations
-* students
-* educators
-* sections
-* subjects
-* classes
-* enrollments
-* lessons
-* assessments
-* submissions
-* grades
-* attendance records
-* meetings
-* audit logs
+This makes setup **fast, consistent, and easy**.
 
 ---
 
-## 5.2 ORM (Object Relational Mapper)
+## Key Highlights
 
-ORM: **Prisma**
-
-Prisma provides database access and schema management.
-
-Responsibilities:
-
-* schema modeling
-* database migrations
-* type-safe queries
-* relationship mapping
-
-Benefits:
-
-* strong TypeScript support
-* auto-generated types
-* simplified database queries
-* safer data operations
+- Multi-tenant SaaS architecture
+- Scoped organization-based portals
+- Flexible academic structure (programs, levels, classes)
+- Reusable grading and calendar systems
+- Configurable grade locking
+- Fast setup using data seeder
 
 ---
 
-# 6. Real-Time Systems
+## Summary
 
-## 6.1 Real-Time Communication
-
-Technology: **Socket.IO**
-
-Socket.IO is used for real-time communication between the server and connected clients.
-
-Use Cases:
-
-* live meeting rooms
-* real-time notifications
-* live attendance updates
-* assessment status updates
-
----
-
-# 7. Background Job Processing
-
-## 7.1 Job Queue
-
-Queue System: **BullMQ**
-
-BullMQ handles asynchronous background tasks.
-
-Example Jobs:
-
-* AI assessment generation
-* concept extraction
-* scheduled notifications
-* automated cleanup tasks
-
----
-
-## 7.2 Queue Storage
-
-Queue Backend: **Redis**
-
-Redis is used to power BullMQ job queues and caching.
-
-Responsibilities:
-
-* background job storage
-* caching layer
-* temporary data storage
-* real-time state coordination
-
----
-
-# 8. Video Meeting System
-
-EduTool includes a built-in video meeting system for educators and students.
-
-Primary Technology: **WebRTC**
-
-Capabilities:
-
-* real-time video communication
-* audio streaming
-* screen sharing
-* peer-to-peer connections
-
-Optional Media Server (for scaling):
-
-* mediasoup
-
----
-
-# 9. Authentication System
-
-Authentication Method:
-
-* Email + Password login
-* Credentials generated by Admin
-* Session-based authentication using secure cookies
-
-Security Components:
-
-* JWT tokens
-* HTTP-only cookies
-* role-based access guards
-* password hashing
-
-Password Hashing Algorithm:
-
-* bcrypt
-
----
-
-# 10. File Storage
-
-Storage System:
-
-* Cloud Object Storage
-
-Example Providers:
-
-* AWS S3
-* DigitalOcean Spaces
-
-Use Cases:
-
-* document attachments
-* generated exports
-* future media uploads
-
----
-
-# 11. Export Generation
-
-Export Formats:
-
-* PDF
-* CSV
-
-Libraries Used:
-
-* PDF generation library for class cards
-* CSV generator for data exports
-
----
-
-# 12. Deployment Infrastructure
-
-## 12.1 Containerization
-
-Container Platform: **Docker**
-
-Docker is used to package the application and its dependencies.
-
-Benefits:
-
-* reproducible environments
-* simplified deployment
-* easier scaling
-
----
-
-## 12.2 Hosting Infrastructure
-
-Possible Hosting Platforms:
-
-Cloud Providers:
-
-* AWS
-* DigitalOcean
-* Google Cloud
-
-Components Hosted:
-
-* API server
-* frontend server
-* database
-* Redis
-* background workers
-
----
-
-# 13. Version Control
-
-Version Control System: **Git**
-
-Repository Hosting Options:
-
-* GitHub
-* GitLab
-
----
-
-# 14. Development Tools
-
-Code Editor:
-
-* Visual Studio Code
-
-Package Manager:
-
-* npm or pnpm
-
-Code Quality Tools:
-
-* ESLint
-* Prettier
-
----
-
-# 15. System Architecture Summary
-
-Frontend
-
-* Next.js
-* React
-* Tailwind CSS
-* TypeScript
-
-Backend
-
-* NestJS
-* REST API
-* TypeScript
-
-Database
-
-* PostgreSQL
-* Prisma ORM
-
-Real-Time
-
-* Socket.IO
-
-Background Jobs
-
-* BullMQ
-* Redis
-
-Meetings
-
-* WebRTC
-* mediasoup (optional)
-
-Infrastructure
-
-* Docker
-* Cloud hosting
-
----
-
-# 16. Future Technology Extensions
-
-Potential future integrations may include:
-
-* AI-assisted grading
-* advanced analytics pipelines
-* real-time collaborative learning tools
-* mobile application clients
-* offline learning capabilities
-
-These features can be integrated into the current architecture without major structural changes.
-
----
-
-EduTool
-Technology Stack Document v1.0
+EduTool is built to be a **flexible and scalable foundation** for schools, allowing administrators to freely model their academic system while keeping everything structured and manageable.
