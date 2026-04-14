@@ -3,9 +3,11 @@
 import { useMemo } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { format } from "date-fns"
-import { Unlock } from "lucide-react"
+import { Unlock, Wand2 } from "lucide-react"
+
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+
 import type { GradeLock, GradeLockStatus } from "@/types/admin/grade-lock.types"
 
 function lockStatusVariant(
@@ -33,11 +35,7 @@ function lockStatusLabel(status: GradeLockStatus): string {
 }
 
 function calculateLockStatus(lock: GradeLock): GradeLockStatus {
-  // Use the lockStatus field from backend if available
-  if (lock.lockStatus) {
-    return lock.lockStatus
-  }
-  // Fallback: calculate from is_locked flag
+  if (lock.lockStatus) return lock.lockStatus
   if (lock.is_locked) {
     return lock.locked_by === "system" ? "auto_locked" : "locked"
   }
@@ -45,39 +43,18 @@ function calculateLockStatus(lock: GradeLock): GradeLockStatus {
 }
 
 export function useGradeLockColumns(
-  onOverride: (lock: GradeLock) => void
+  onOverride: (lock: GradeLock) => void,
+  onApplyTemplate: (lock: GradeLock) => void
 ): ColumnDef<GradeLock>[] {
-  return useMemo<ColumnDef<GradeLock>[]>(
+  return useMemo(
     () => [
       {
         accessorKey: "className",
         header: "Class",
-        cell: ({ row }) => (
-          <span className="font-medium">
-            {row.original.className || "Unknown Class"}
-          </span>
-        ),
       },
       {
         accessorKey: "educatorName",
         header: "Educator",
-        cell: ({ row }) => (
-          <span>{row.original.educatorName || "Unknown Educator"}</span>
-        ),
-      },
-      {
-        accessorKey: "semesterName",
-        header: "Semester",
-        cell: ({ row }) => (
-          <span>{row.original.semesterName || "—"}</span>
-        ),
-      },
-      {
-        accessorKey: "termName",
-        header: "Term",
-        cell: ({ row }) => (
-          <span>{row.original.termName || "—"}</span>
-        ),
       },
       {
         id: "lockStatus",
@@ -96,13 +73,8 @@ export function useGradeLockColumns(
         header: "Deadline",
         cell: ({ row }) => {
           const deadline = row.original.deadline
-          if (!deadline)
-            return <span className="text-muted-foreground">—</span>
-          return (
-            <span className="tabular-nums text-sm">
-              {format(new Date(deadline), "MMM d, yyyy h:mm a")}
-            </span>
-          )
+          if (!deadline) return "—"
+          return format(new Date(deadline), "MMM d, yyyy h:mm a")
         },
       },
       {
@@ -114,25 +86,42 @@ export function useGradeLockColumns(
           const isLocked =
             status === "locked" || status === "auto_locked"
 
-          return isLocked ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-destructive hover:text-destructive"
-              onClick={(e) => {
-                e.stopPropagation()
-                onOverride(lock)
-              }}
-            >
-              <Unlock className="h-3.5 w-3.5" />
-              Override Lock
-            </Button>
-          ) : (
-            <span className="text-xs text-muted-foreground">—</span>
+          return (
+            <div className="flex gap-2">
+              {/* APPLY TEMPLATE */}
+              <Button
+                size="sm"
+                variant="secondary"
+                className="gap-1.5"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onApplyTemplate(lock)
+                }}
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                Apply
+              </Button>
+
+              {/* OVERRIDE */}
+              {isLocked && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOverride(lock)
+                  }}
+                >
+                  <Unlock className="h-3.5 w-3.5" />
+                  Override
+                </Button>
+              )}
+            </div>
           )
         },
       },
     ],
-    [onOverride]
+    [onOverride, onApplyTemplate]
   )
 }

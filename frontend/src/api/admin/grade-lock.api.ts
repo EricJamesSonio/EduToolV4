@@ -121,4 +121,20 @@ getLocks: async (params?: { schoolYearId?: string }): Promise<GradeLock[]> => {
     )
     return res.data.data
   },
+
+assignSetting: async (
+  classId: string,
+  settingId: string
+): Promise<GradeLock> => {
+  const res = await client.post<ApiResponse<GradeLock>>(
+    "/grade-lock/assign",
+    {
+      class_id: classId,
+      setting_id: settingId,
+    }
+  )
+  return res.data.data
+},
+
+
 }

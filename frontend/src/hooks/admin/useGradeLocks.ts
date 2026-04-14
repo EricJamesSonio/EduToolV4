@@ -91,6 +91,51 @@ export const useGradeLocks = (schoolYearId?: string) => {
   })
 }
 
+export const useAssignSetting = () => {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      classId,
+      settingId,
+    }: {
+      classId: string
+      settingId: string
+    }) => gradeLockApi.assignSetting(classId, settingId),
+
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: gradeLockKeys.classes() })
+      toast.success("Template applied")
+    },
+
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to apply template")
+    },
+  })
+}
+
+export const useAssignGradeLock = () => {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      classId,
+      settingId,
+    }: {
+      classId: string
+      settingId: string
+    }) => gradeLockApi.assignSetting(classId, settingId),
+
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: gradeLockKeys.classes() })
+      toast.success("Template applied to class")
+    },
+
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to apply template")
+    },
+  })
+}
 export const useLockClass = () => {
   const qc = useQueryClient()
 
