@@ -2,11 +2,18 @@
 
 import { useState, useMemo } from "react"
 import { format } from "date-fns"
-import { Lock, Settings, Layers } from "lucide-react"
+import { Lock, Settings, Layers, Pencil } from "lucide-react"
 
 import { PageHeader } from "@/components/shared/PageHeader"
 import { DataTable } from "@/components/shared/DataTable"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 import { GradeLockHierarchyFilter } from "@/components/admin/grade-lock/GradeLockHierarchyFilter"
 import { GradeLockSettingModal } from "@/components/admin/grade-lock/GradeLockSettingModal"
@@ -15,9 +22,7 @@ import { GradeLockStats } from "@/components/admin/grade-lock/GradeLockStats"
 
 import { useGradeLockColumns } from "@/hooks/admin/useGradeLockColumns"
 import { useGradeLocks, useGradeLockSettings, useAssignSetting } from "@/hooks/admin/useGradeLocks"
-
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears"
-
 
 import type { GradeLock } from "@/types/admin/grade-lock.types"
 
@@ -27,16 +32,15 @@ export default function GradeLockPage(): React.ReactElement {
 
   const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null)
   const [applyTarget, setApplyTarget] = useState<GradeLock | null>(null)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
 
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null)
   const [selectedProgram, setSelectedProgram] = useState("")
   const [selectedCourseStrand, setSelectedCourseStrand] = useState("")
   const [selectedLevel, setSelectedLevel] = useState("")
-
+const [editTarget, setEditTarget] = useState<GradeLockSetting | null>(null)
   const { data: schoolYears, isLoading: schoolYearsLoading } = useSchoolYears()
-  const { data: gradeLocks, isLoading } = useGradeLocks(
-    selectedSchoolYearId ?? undefined
-  )
+  const { data: gradeLocks, isLoading } = useGradeLocks(selectedSchoolYearId ?? undefined)
   const { data: settings } = useGradeLockSettings()
 
   const locks = useMemo(
@@ -53,10 +57,8 @@ export default function GradeLockPage(): React.ReactElement {
     return templates.find((t) => t.is_default) ?? templates[0] ?? null
   }, [templates])
 
-  // =============================
-  // APPLY HANDLER (safe hook)
-  // =============================
   const handleApplyTemplate = (lock: GradeLock) => {
+    setSelectedTemplateId(activeTemplate?.id ?? templates[0]?.id ?? "")
     setApplyTarget(lock)
   }
 
@@ -66,9 +68,6 @@ export default function GradeLockPage(): React.ReactElement {
 
   const columns = useGradeLockColumns(handleOverride, handleApplyTemplate)
 
-  // =============================
-  // FILTERING
-  // =============================
   const filteredLocks = useMemo(() => {
     let result = locks
 
@@ -101,13 +100,7 @@ export default function GradeLockPage(): React.ReactElement {
     }
 
     return result
-  }, [
-    locks,
-    selectedSchoolYearId,
-    selectedProgram,
-    selectedCourseStrand,
-    selectedLevel,
-  ])
+  }, [locks, selectedSchoolYearId, selectedProgram, selectedCourseStrand, selectedLevel])
 
   const handleSchoolYearSelect = (id: string | null) => {
     setSelectedSchoolYearId(id)
@@ -115,6 +108,11 @@ export default function GradeLockPage(): React.ReactElement {
     setSelectedCourseStrand("")
     setSelectedLevel("")
   }
+
+  const selectedTemplate = useMemo(
+    () => templates.find((t) => t.id === selectedTemplateId) ?? null,
+    [templates, selectedTemplateId]
+  )
 
   return (
     <div className="space-y-8 p-6">
@@ -132,36 +130,46 @@ export default function GradeLockPage(): React.ReactElement {
       />
 
       {/* ================= GLOBAL TEMPLATES ================= */}
-      <div className="rounded-lg border p-4 space-y-2 bg-muted/30">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Layers className="h-4 w-4" />
-          Global Grade Lock Templates
-        </div>
+{/* ================= GLOBAL TEMPLATES ================= */}
+{/* ================= GLOBAL TEMPLATES ================= */}
+<div className="rounded-lg border p-4 space-y-2 bg-muted/30">
+  <div className="flex items-center gap-2 text-sm font-medium">
+    <Layers className="h-4 w-4" />
+    Global Grade Lock Templates
+  </div>
 
-        {activeTemplate ? (
-          <div className="text-sm text-muted-foreground">
-            Active Template:{" "}
-            <span className="font-medium text-foreground">
-              {activeTemplate.name}
+  {templates.length > 0 ? (
+    <div className="space-y-1">
+      {templates.map((t) => (
+        <div key={t.id} className="text-sm text-muted-foreground flex items-center gap-2">
+          <span className="font-medium text-foreground">{t.name}</span>
+          {t.is_default && (
+            <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+              default
             </span>
-
-            {activeTemplate.lock_deadline && (
-              <span className="ml-2">
-                (Deadline:{" "}
-                {format(
-                  new Date(activeTemplate.lock_deadline),
-                  "MMM d, yyyy h:mm a"
-                )}
-                )
-              </span>
-            )}
-          </div>
-        ) : (
-          <div className="text-sm text-muted-foreground">
-            No templates configured yet.
-          </div>
-        )}
-      </div>
+          )}
+          {t.lock_deadline && (
+            <span>
+              — Deadline: {format(new Date(t.lock_deadline), "MMM d, yyyy h:mm a")}
+            </span>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 px-2 ml-auto"
+            onClick={() => setEditTarget(t)}
+          >
+            <Pencil className="h-3 w-3" />
+          </Button>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="text-sm text-muted-foreground">
+      No templates configured yet.
+    </div>
+  )}
+</div>
 
       {/* ================= GLOBAL RULE ================= */}
       {activeTemplate?.lock_deadline && (
@@ -169,10 +177,7 @@ export default function GradeLockPage(): React.ReactElement {
           <Lock className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-muted-foreground">Global Rule:</span>
           <span className="font-medium">
-            {format(
-              new Date(activeTemplate.lock_deadline),
-              "MMM d, yyyy h:mm a"
-            )}
+            {format(new Date(activeTemplate.lock_deadline), "MMM d, yyyy h:mm a")}
           </span>
         </div>
       )}
@@ -212,19 +217,46 @@ export default function GradeLockPage(): React.ReactElement {
       {applyTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md rounded-lg bg-background p-6 space-y-4">
-            
+
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Layers className="h-4 w-4 text-primary" />
-              Are you sure?
+              Apply Template
             </h2>
 
             <p className="text-sm text-muted-foreground">
-              You are about to apply the current template to:
-              <br />
+              Applying to:{" "}
               <span className="font-medium text-foreground">
                 {applyTarget.className}
               </span>
             </p>
+
+            {/* Template selector */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Select Template</label>
+              <Select
+                value={selectedTemplateId}
+                onValueChange={setSelectedTemplateId}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a template..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}{t.is_default ? " (default)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Selected template details */}
+              {selectedTemplate?.lock_deadline && (
+                <p className="text-xs text-muted-foreground">
+                  Deadline:{" "}
+                  {format(new Date(selectedTemplate.lock_deadline), "MMM d, yyyy h:mm a")}
+                </p>
+              )}
+            </div>
 
             <p className="text-xs text-muted-foreground">
               This may override existing lock configuration.
@@ -238,29 +270,32 @@ export default function GradeLockPage(): React.ReactElement {
                 Cancel
               </Button>
 
-<Button
-  disabled={isApplying || !activeTemplate}
-  onClick={() => {
-    if (!applyTarget || !activeTemplate) return
-    assignSetting(
-      { classId: applyTarget.class_id, settingId: activeTemplate.id },
-      { onSuccess: () => setApplyTarget(null) }
-    )
-  }}
->
-  {isApplying ? "Applying..." : "Yes, Apply"}
-</Button>
+              <Button
+                disabled={isApplying || !selectedTemplateId}
+                onClick={() => {
+                  if (!applyTarget || !selectedTemplateId) return
+                  assignSetting(
+                    { classId: applyTarget.class_id, settingId: selectedTemplateId },
+                    { onSuccess: () => setApplyTarget(null) }
+                  )
+                }}
+              >
+                {isApplying ? "Applying..." : "Yes, Apply"}
+              </Button>
             </div>
           </div>
         </div>
       )}
 
       {/* ================= MODALS ================= */}
-      <GradeLockSettingModal
-        open={settingModalOpen}
-        onClose={() => setSettingModalOpen(false)}
-        existingSetting={activeTemplate}
-      />
+    <GradeLockSettingModal
+      open={settingModalOpen || !!editTarget}
+      onClose={() => {
+        setSettingModalOpen(false)
+        setEditTarget(null)
+      }}
+      existingSetting={editTarget ?? (settingModalOpen ? activeTemplate : null)}
+    />
 
       <GradeLockOverrideDialog
         open={!!overrideTarget}

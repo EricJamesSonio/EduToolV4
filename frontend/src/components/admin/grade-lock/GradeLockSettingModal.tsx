@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Calendar } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -36,12 +36,21 @@ export function GradeLockSettingModal({
 }: GradeLockSettingModalProps): React.ReactElement {
   const isEdit = !!existingSetting
 
-  const [name, setName] = useState(existingSetting?.name ?? "")
-  const [deadline, setDeadline] = useState(
+const [name, setName] = useState(existingSetting?.name ?? "")
+const [deadline, setDeadline] = useState(
+  existingSetting?.lock_deadline
+    ? new Date(existingSetting.lock_deadline).toISOString().slice(0, 16)
+    : ""
+)
+
+useEffect(() => {
+  setName(existingSetting?.name ?? "")
+  setDeadline(
     existingSetting?.lock_deadline
       ? new Date(existingSetting.lock_deadline).toISOString().slice(0, 16)
       : ""
   )
+}, [existingSetting?.id])
 
   const createMutation = useCreateGradeLockSetting()
   const updateMutation = useUpdateGradeLockSetting()
