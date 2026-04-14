@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, GraduationCap } from "lucide-react";
@@ -6,11 +7,14 @@ import { levelApi }   from "@/api/admin/level.api";
 import { programApi } from "@/api/admin/program.api";
 import type { Program } from "@/types/admin/program.types";
 import { PROGRAM_TYPE_LABELS, PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
+import { CoursesSection }        from "@/components/admin/program/CoursesSection";
+import { StrandsSection }        from "@/components/admin/program/StrandsSection";
 import { Badge }    from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn }       from "@/lib/utils";
 import { LevelWithSectionsList } from "./LevelWithSectionsList";
 import { SubjectsSection }       from "./SubjectsSection";
+import { ProgramEnrollmentView } from "./ProgramEnrollmentView";
 import type { ProgramDetailTab } from "./constants";
 
 interface ProgramDetailViewProps {
@@ -53,10 +57,12 @@ export function ProgramDetailView({
     setActiveTab("subjects");
   };
 
-  // Courses and Strands tabs are removed — they live inside LevelWithSectionsList now
   const tabs: { key: ProgramDetailTab; label: string }[] = [
-    { key: "levels",   label: "Levels & Sections" },
-    { key: "subjects", label: "Subjects" },
+    { key: "levels",     label: "Levels & Sections" },
+    ...(isCollege ? [{ key: "courses"    as ProgramDetailTab, label: "Courses"    }] : []),
+    ...(isSHS     ? [{ key: "strands"    as ProgramDetailTab, label: "Strands"    }] : []),
+    { key: "subjects",   label: "Subjects" },
+    { key: "enrollment", label: "Enrollment" },
   ];
 
   return (
@@ -81,7 +87,7 @@ export function ProgramDetailView({
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Inner tabs */}
       <div className="border-b flex gap-0">
         {tabs.map((tab) => (
           <button
@@ -102,12 +108,30 @@ export function ProgramDetailView({
       {/* Tab content */}
       <div>
         {activeTab === "levels" && (
-        <LevelWithSectionsList
-          schoolYearId={schoolYearId}
-          programId={program.id}
-          isEnded={isEnded}
-          onViewSubjects={handleViewSubjects}
-        />
+          <LevelWithSectionsList
+            schoolYearId={schoolYearId}
+            programId={program.id}
+            isEnded={isEnded}
+            onViewSubjects={!hasSubGroups ? handleViewSubjects : undefined}
+          />
+        )}
+
+        {activeTab === "courses" && isCollege && (
+          <CoursesSection
+            program={activeProgram}
+            schoolYearId={schoolYearId}
+            courses={activeProgram.courses ?? []}
+            isEnded={isEnded}
+          />
+        )}
+
+        {activeTab === "strands" && isSHS && (
+          <StrandsSection
+            program={activeProgram}
+            schoolYearId={schoolYearId}
+            strands={activeProgram.strands ?? []}
+            isEnded={isEnded}
+          />
         )}
 
         {activeTab === "subjects" && (
@@ -120,6 +144,19 @@ export function ProgramDetailView({
               levels={allLevels}
               isEnded={isEnded}
               initialLevelId={subjectLevelId}
+            />
+          )
+        )}
+
+        {activeTab === "enrollment" && (
+          levelsLoading ? (
+            <Skeleton className="h-40 w-full rounded-lg" />
+          ) : (
+            <ProgramEnrollmentView
+              program={activeProgram}
+              schoolYearId={schoolYearId}
+              levels={allLevels}
+              isEnded={isEnded}
             />
           )
         )}

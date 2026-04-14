@@ -35,7 +35,7 @@ export class AcademicCalendarController {
   @Post()
   @Roles('admin')
   async create(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: CreateCalendarEventDto,
   ) {
     return this.calendarService.create(orgId, dto);
@@ -49,7 +49,7 @@ export class AcademicCalendarController {
    */
   @Get()
   async findAll(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: QueryCalendarEventDto,
   ) {
     return this.calendarService.findAll(orgId, query);
@@ -63,7 +63,7 @@ export class AcademicCalendarController {
   @Roles('admin')
   async update(
     @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateCalendarEventDto,
   ) {
     return this.calendarService.update(id, orgId, dto);

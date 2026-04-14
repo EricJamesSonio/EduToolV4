@@ -1,18 +1,17 @@
+// frontend\src\components\admin\school-years\ProgramsTab.tsx
 "use client";
 
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, BookOpen, GraduationCap } from "lucide-react";
+import { ChevronRight, BookOpen, GraduationCap, Users } from "lucide-react";
 import Link from "next/link";
-
 import { programApi } from "@/api/admin/program.api";
+import { useSchoolYearEnrollments } from "@/hooks/admin/useStudentEnrollment";
+import { useEnrollmentDrilldown } from "@/components/admin/school-years/hooks/useEnrollmentDrilldown";
 import type { Program } from "@/types/admin/program.types";
 import { PROGRAM_TYPE_LABELS, PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
-
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge }    from "@/components/ui/badge";
 import { cn }       from "@/lib/utils";
-
 import { ProgramDetailView } from "./ProgramDetailView";
 
 interface ProgramsTabProps {
@@ -20,16 +19,18 @@ interface ProgramsTabProps {
   isEnded:      boolean;
 }
 
-export function ProgramsTab({
-  schoolYearId,
-  isEnded,
-}: ProgramsTabProps): React.JSX.Element {
-  const [selected, setSelected] = useState<Program | null>(null);
+export function ProgramsTab({ schoolYearId, isEnded }: ProgramsTabProps): React.JSX.Element {
+  const { state, selectProgram, backToPrograms } = useEnrollmentDrilldown();
 
-  const { data: programs = [], isLoading } = useQuery({
+  const { data: programs = [], isLoading: programsLoading } = useQuery({
     queryKey: ["admin", "programs", schoolYearId],
     queryFn:  () => programApi.getAll(schoolYearId),
   });
+
+  const { data: enrollments = [], isLoading: enrollmentsLoading } =
+    useSchoolYearEnrollments(schoolYearId);
+
+  const selected = programs.find((p) => p.id === state.programId) ?? null;
 
   if (selected) {
     return (
@@ -37,10 +38,12 @@ export function ProgramsTab({
         program={selected}
         schoolYearId={schoolYearId}
         isEnded={isEnded}
-        onBack={() => setSelected(null)}
+        onBack={backToPrograms}
       />
     );
   }
+
+  const isLoading = programsLoading || enrollmentsLoading;
 
   if (isLoading) {
     return (
@@ -77,11 +80,14 @@ export function ProgramsTab({
         const typeColor   = PROGRAM_TYPE_COLORS[program.type] ?? "";
         const courseCount = program.courses?.length ?? 0;
         const strandCount = program.strands?.length ?? 0;
+        const studentCount = enrollments.filter((e) =>
+          e.programEnrollments?.some((pe) => pe.program_id === program.id),
+        ).length;
 
         return (
           <button
             key={program.id}
-            onClick={() => setSelected(program)}
+            onClick={() => selectProgram(program.id)}
             className="w-full rounded-lg border bg-card p-4 text-left hover:bg-muted/30 transition-colors group"
           >
             <div className="flex items-center justify-between gap-3">
@@ -105,6 +111,10 @@ export function ProgramsTab({
                         {strandCount} {strandCount === 1 ? "strand" : "strands"}
                       </span>
                     )}
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <Users className="h-3 w-3" />
+                      {studentCount} {studentCount === 1 ? "student" : "students"}
+                    </span>
                   </div>
                 </div>
               </div>
