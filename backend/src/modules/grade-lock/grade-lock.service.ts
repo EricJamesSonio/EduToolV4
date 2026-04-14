@@ -252,18 +252,22 @@ export class GradeLockService {
   }
 
   /**
-   * INTERNAL: Get all class locks for admin dashboard
+   * INTERNAL: Get all class locks with full hierarchy
    */
   async getClassLocks(orgId: string) {
     return this.db.gradeLock.findMany({
       where: { org_id: orgId },
       include: {
         class: {
-          select: {
-            id: true,
-            subject_id: true,
-            educator_id: true,
-            school_year_id: true,
+          include: {
+            subject: {
+              include: {
+                program: { select: { id: true, name: true } },
+                course: { select: { id: true, name: true } },
+                strand: { select: { id: true, name: true } },
+                level: { select: { id: true, name: true } },
+              },
+            },
           },
         },
       },
@@ -272,7 +276,7 @@ export class GradeLockService {
   }
 
   /**
-   * INTERNAL: Get class locks filtered by school year
+   * INTERNAL: Get class locks filtered by school year with full hierarchy
    */
   async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
     return this.db.gradeLock.findMany({
@@ -284,11 +288,15 @@ export class GradeLockService {
       },
       include: {
         class: {
-          select: {
-            id: true,
-            subject_id: true,
-            educator_id: true,
-            school_year_id: true,
+          include: {
+            subject: {
+              include: {
+                program: { select: { id: true, name: true } },
+                course: { select: { id: true, name: true } },
+                strand: { select: { id: true, name: true } },
+                level: { select: { id: true, name: true } },
+              },
+            },
           },
         },
       },
