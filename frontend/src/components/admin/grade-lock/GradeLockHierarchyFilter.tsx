@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -10,6 +10,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+
+import { programApi } from "@/api/admin/program.api"
+import { courseApi } from "@/api/admin/course.api"
+import { strandApi } from "@/api/admin/strand.api"
+import { levelApi } from "@/api/admin/level.api"
+
 import type { SchoolYear } from "@/types/admin/school-year.types"
 import type { GradeLock } from "@/types/admin/grade-lock.types"
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector"
@@ -19,11 +25,14 @@ interface GradeLockHierarchyFilterProps {
   schoolYearsLoading: boolean
   gradeLocks: GradeLock[]
   gradeLockLoading: boolean
+
   selectedSchoolYearId: string
   selectedProgram: string
   selectedCourseStrand: string
   selectedLevel: string
+
   filteredCount: number
+
   onSchoolYearSelect: (id: string | null) => void
   onProgramChange: (value: string) => void
   onCourseStrandChange: (value: string) => void
@@ -47,72 +56,75 @@ export function GradeLockHierarchyFilter({
   onLevelChange,
   onReset,
 }: GradeLockHierarchyFilterProps): React.JSX.Element {
-  const programs = useMemo(() => {
-    if (!selectedSchoolYearId) return []
-    return Array.from(
-      new Set(
-        gradeLocks
-          .filter((lock) => lock.class?.school_year_id === selectedSchoolYearId)
-          .map((lock) => lock.class?.subject?.program?.name)
-          .filter((name): name is string => Boolean(name))
-      )
-    )
-  }, [selectedSchoolYearId, gradeLocks])
 
-  const coursesStrands = useMemo(() => {
-    if (!selectedProgram) return []
-    return Array.from(
-      new Set(
-        gradeLocks
-          .filter(
-            (lock) =>
-              lock.class?.school_year_id === selectedSchoolYearId &&
-              lock.class?.subject?.program?.name === selectedProgram
-          )
-          .map((lock) => {
-            const course = lock.class?.subject?.course?.name
-            const strand = lock.class?.subject?.strand?.name
-            return course ?? strand
-          })
-          .filter((name): name is string => Boolean(name))
-      )
-    )
-  }, [selectedProgram, selectedSchoolYearId, gradeLocks])
+  // ─────────────────────────────────────────
+  // PROGRAMS (NOW API-DRIVEN)
+  // ─────────────────────────────────────────
+  const { data: programs = [], isLoading: loadingPrograms } = useQuery({
+    queryKey: ["programs", selectedSchoolYearId],
+    queryFn: () => programApi.getAll(selectedSchoolYearId),
+    enabled: !!selectedSchoolYearId,
+  })
 
-  const levels = useMemo(() => {
-    if (!selectedProgram) return []
-    return Array.from(
-      new Set(
-        gradeLocks
-          .filter((lock) => {
-            const subject = lock.class?.subject
-            if (lock.class?.school_year_id !== selectedSchoolYearId) return false
-            if (subject?.program?.name !== selectedProgram) return false
-            if (coursesStrands.length > 0 && !selectedCourseStrand) return false
-            if (
-              selectedCourseStrand &&
-              subject?.course?.name !== selectedCourseStrand &&
-              subject?.strand?.name !== selectedCourseStrand
-            )
-              return false
-            return true
-          })
-          .map((lock) => lock.class?.subject?.level?.name)
-          .filter((name): name is string => Boolean(name))
-      )
-    )
-  }, [selectedCourseStrand, selectedProgram, selectedSchoolYearId, gradeLocks, coursesStrands])
+  const selectedProgramObj = programs.find((p) => p.id === selectedProgram)
+  const programType = selectedProgramObj?.type
 
+  // ─────────────────────────────────────────
+  // COURSES
+  // ─────────────────────────────────────────
+  const { data: courses = [], isLoading: loadingCourses } = useQuery({
+    queryKey: ["courses", selectedSchoolYearId, selectedProgram],
+    queryFn: () =>
+      courseApi.getAll({
+        schoolYearId: selectedSchoolYearId,
+        programId: selectedProgram,
+      }),
+    enabled: !!selectedSchoolYearId && !!selectedProgram && programType === "college",
+  })
+
+  // ─────────────────────────────────────────
+  // STRANDS
+  // ─────────────────────────────────────────
+  const { data: strands = [], isLoading: loadingStrands } = useQuery({
+    queryKey: ["strands", selectedProgram],
+    queryFn: () => strandApi.getAll({ program_id: selectedProgram }),
+    enabled: !!selectedProgram && programType === "shs",
+  })
+
+  // ─────────────────────────────────────────
+  // LEVELS
+  // ─────────────────────────────────────────
+  const levelsEnabled =
+    !!selectedSchoolYearId &&
+    !!selectedProgram &&
+    (
+      (programType === "college" && !!selectedCourseStrand) ||
+      (programType === "shs" && !!selectedCourseStrand) ||
+      (!programType)
+    )
+
+  const { data: levels = [], isLoading: loadingLevels } = useQuery({
+    queryKey: ["levels", selectedSchoolYearId, selectedProgram],
+    queryFn: () => levelApi.getBySchoolYear(selectedSchoolYearId),
+    enabled: levelsEnabled,
+    select: (all) => all.filter((l) => l.program_id === selectedProgram),
+  })
+
+  // ─────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────
   const hasFilters =
     !!selectedSchoolYearId ||
     !!selectedProgram ||
     !!selectedCourseStrand ||
     !!selectedLevel
 
-  // show course/strand step only if program has them
-  const hasCourseStrand = coursesStrands.length > 0
-  // show level step only after course/strand is resolved
-  const levelStepReady = selectedProgram && (!hasCourseStrand || selectedCourseStrand)
+  const hasCourseStrand =
+    programType === "college" || programType === "shs"
+
+  const levelStepReady =
+    selectedProgram &&
+    (!hasCourseStrand || selectedCourseStrand)
 
   if (schoolYearsLoading || gradeLockLoading) {
     return <Skeleton className="h-10 w-full" />
@@ -120,68 +132,121 @@ export function GradeLockHierarchyFilter({
 
   return (
     <div className="space-y-4">
+
       <div className="flex flex-wrap gap-3 items-center">
-        {/* Step 1 — School Year: always visible */}
-<SchoolYearSelector
-  schoolYears={schoolYears ?? []}
-  isLoading={schoolYearsLoading}
-  selectedId={selectedSchoolYearId}
-  onSelect={(id) => onSchoolYearSelect(id)}
-/>
 
-        {/* Step 2 — Program: visible after school year */}
+        {/* ─── School Year ───────────────────────── */}
+        <SchoolYearSelector
+          schoolYears={schoolYears ?? []}
+          isLoading={schoolYearsLoading}
+          selectedId={selectedSchoolYearId}
+          onSelect={(id) => {
+            onSchoolYearSelect(id)
+            onProgramChange("")
+            onCourseStrandChange("")
+            onLevelChange("")
+          }}
+        />
+
+        {/* ─── Program ───────────────────────────── */}
         {selectedSchoolYearId && (
-          <Select
-            value={selectedProgram}
-            onValueChange={onProgramChange}
-            disabled={programs.length === 0}
-          >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select Program" />
-            </SelectTrigger>
-            <SelectContent>
-              {programs.map((prog) => (
-                <SelectItem key={prog} value={prog}>
-                  {prog}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          loadingPrograms ? (
+            <Skeleton className="h-9 w-44" />
+          ) : (
+            <Select
+              value={selectedProgram}
+              onValueChange={(val) => {
+                onProgramChange(val)
+                onCourseStrandChange("")
+                onLevelChange("")
+              }}
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Select Program" />
+              </SelectTrigger>
+              <SelectContent>
+                {programs.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
         )}
 
-        {/* Step 3 — Course / Strand: visible only if program has them */}
-        {selectedProgram && hasCourseStrand && (
-          <Select
-            value={selectedCourseStrand}
-            onValueChange={onCourseStrandChange}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Select Course / Strand" />
-            </SelectTrigger>
-            <SelectContent>
-              {coursesStrands.map((cs) => (
-                <SelectItem key={cs} value={cs}>
-                  {cs}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* ─── Course / Strand ───────────────────── */}
+        {selectedProgram && programType === "college" && (
+          loadingCourses ? (
+            <Skeleton className="h-9 w-44" />
+          ) : (
+            <Select
+              value={selectedCourseStrand}
+              onValueChange={(val) => {
+                onCourseStrandChange(val)
+                onLevelChange("")
+              }}
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Select Course" />
+              </SelectTrigger>
+              <SelectContent>
+                {courses.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
         )}
 
-        {/* Step 4 — Level: visible after course/strand resolved (or skipped if none) */}
-        {levelStepReady && levels.length > 0 && (
-          <Select value={selectedLevel} onValueChange={onLevelChange}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select Level" />
-            </SelectTrigger>
-            <SelectContent>
-              {levels.map((level) => (
-                <SelectItem key={level} value={level}>
-                  {level}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {selectedProgram && programType === "shs" && (
+          loadingStrands ? (
+            <Skeleton className="h-44" />
+          ) : (
+            <Select
+              value={selectedCourseStrand}
+              onValueChange={(val) => {
+                onCourseStrandChange(val)
+                onLevelChange("")
+              }}
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Select Strand" />
+              </SelectTrigger>
+              <SelectContent>
+                {strands.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
+        )}
+
+        {/* ─── Level ─────────────────────────────── */}
+        {levelStepReady && (
+          loadingLevels ? (
+            <Skeleton className="h-9 w-36" />
+          ) : (
+            <Select
+              value={selectedLevel}
+              onValueChange={onLevelChange}
+            >
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="Select Level" />
+              </SelectTrigger>
+              <SelectContent>
+                {levels.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>
+                    {l.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
         )}
 
         {hasFilters && (
