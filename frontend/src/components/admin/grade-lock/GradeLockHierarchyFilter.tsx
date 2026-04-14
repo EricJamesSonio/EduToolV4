@@ -12,6 +12,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import type { SchoolYear } from "@/types/admin/school-year.types"
 import type { GradeLock } from "@/types/admin/grade-lock.types"
+import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector"
 
 interface GradeLockHierarchyFilterProps {
   schoolYears: SchoolYear[]
@@ -121,20 +122,12 @@ export function GradeLockHierarchyFilter({
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center">
         {/* Step 1 — School Year: always visible */}
-<Select value={selectedSchoolYearId} onValueChange={(value) => onSchoolYearSelect(value || null)}>
-  <SelectTrigger className="w-48">
-    <SelectValue placeholder="Select School Year">
-      {selectedSchoolYearId ? schoolYears?.find((sy) => sy.id === selectedSchoolYearId)?.name : "Select School Year"}
-    </SelectValue>
-  </SelectTrigger>
-  <SelectContent>
-    {schoolYears?.map((sy) => (
-      <SelectItem key={sy.id} value={sy.id}>
-        {sy.name}
-      </SelectItem>
-    ))}
-  </SelectContent>
-</Select>
+<SchoolYearSelector
+  schoolYears={schoolYears ?? []}
+  isLoading={schoolYearsLoading}
+  selectedId={selectedSchoolYearId}
+  onSelect={(id) => onSchoolYearSelect(id)}
+/>
 
         {/* Step 2 — Program: visible after school year */}
         {selectedSchoolYearId && (
