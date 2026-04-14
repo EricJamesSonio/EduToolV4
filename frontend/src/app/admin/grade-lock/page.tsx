@@ -8,22 +8,23 @@ import { Lock, Settings } from "lucide-react"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { DataTable } from "@/components/shared/DataTable"
 import { Button } from "@/components/ui/button"
+import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector"
 import { GradeLockSettingModal } from "@/components/admin/grade-lock/GradeLockSettingModal"
 import { GradeLockOverrideDialog } from "@/components/admin/grade-lock/GradeLockOverrideDialog"
 import { GradeLockStats } from "@/components/admin/grade-lock/GradeLockStats"
 import { useGradeLockColumns } from "@/hooks/admin/useGradeLockColumns"
 import { useGradeLocks, useGradeLockSetting } from "@/hooks/admin/useGradeLocks"
+import { useSchoolYears } from "@/hooks/admin/useSchoolYears"
 import type { GradeLock } from "@/types/admin/grade-lock.types"
-
-const ACTIVE_SCHOOL_YEAR_ID = "active-school-year-id"
-const ACTIVE_SCHOOL_YEAR_LABEL = "S.Y. 2024–2025"
 
 export default function GradeLockPage(): React.ReactElement {
   const [settingModalOpen, setSettingModalOpen] = useState(false)
   const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null)
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null)
 
+  const { data: schoolYears, isLoading: schoolYearsLoading } = useSchoolYears()
   const { data: gradeLocks, isLoading } = useGradeLocks()
-  const { data: setting } = useGradeLockSetting(ACTIVE_SCHOOL_YEAR_ID)
+  const { data: setting } = useGradeLockSetting(selectedSchoolYearId ?? "")
   const columns = useGradeLockColumns(setOverrideTarget)
 
   const locks = Array.isArray(gradeLocks) ? gradeLocks : []
@@ -41,11 +42,13 @@ export default function GradeLockPage(): React.ReactElement {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
-          <span className="text-muted-foreground">Active School Year</span>
-          <span className="font-medium">{ACTIVE_SCHOOL_YEAR_LABEL}</span>
-        </div>
+      <div className="flex flex-wrap items-center gap-4">
+        <SchoolYearSelector
+          schoolYears={schoolYears ?? []}
+          isLoading={schoolYearsLoading}
+          selectedId={selectedSchoolYearId}
+          onSelect={setSelectedSchoolYearId}
+        />
 
         {setting?.lock_deadline && (
           <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
@@ -71,7 +74,7 @@ export default function GradeLockPage(): React.ReactElement {
       <GradeLockSettingModal
         open={settingModalOpen}
         onClose={() => setSettingModalOpen(false)}
-        schoolYearId={ACTIVE_SCHOOL_YEAR_ID}
+        schoolYearId={selectedSchoolYearId ?? ""}
         existingDeadline={setting?.lock_deadline}
       />
 
