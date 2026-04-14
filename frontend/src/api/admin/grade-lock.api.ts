@@ -1,138 +1,93 @@
-// ===== File: frontend/src/api/admin/grade-lock.api.ts =====
-
 import client from "@/api/client"
 import type {
   GradeLock,
   GradeLockSetting,
   GradeLockResponse,
+  AutoLockResponse,
 } from "@/types/admin/grade-lock.types"
 
 export interface CreateGradeLockSettingRequest {
-  schoolYearId: string
-  lockDeadline: string
+  name: string
+  description?: string
+  lockType: 'hard' | 'soft' | 'flexible'
+  lock_deadline?: string
+  deadlineDays?: number
+  allowOverride: boolean
+  is_default?: boolean
 }
 
 export const gradeLockApi = {
-  /**
-   * Get lock deadline for a school year
-   * GET /grade-lock/settings?schoolYearId={id}
-   */
-  getSetting: async (
-    schoolYearId: string
-  ): Promise<GradeLockSetting | null> => {
-    try {
-      const res = await client.get<{
-        success: boolean
-        data: GradeLockSetting
-      }>("/grade-lock/settings", {
-        params: { schoolYearId },
-      })
+  // ─── Settings ─────────────────────────────
 
-      return res.data.data
-    } catch (error: any) {
-      if (error?.response?.status === 404) {
-        return null
-      }
-      throw error
-    }
+  getSettings: async (): Promise<GradeLockSetting[]> => {
+    const res = await client.get<GradeLockSetting[]>("/grade-lock/settings")
+    return res.data
   },
 
-  /**
-   * Create/set lock deadline for a school year
-   * POST /grade-lock/settings
-   */
   createSetting: async (
     data: CreateGradeLockSettingRequest
   ): Promise<GradeLockSetting> => {
-    const res = await client.post<{
-      success: boolean
-      data: GradeLockSetting
-    }>("/grade-lock/settings", data)
-
-    return res.data.data
+    const res = await client.post<GradeLockSetting>(
+      "/grade-lock/settings",
+      data
+    )
+    return res.data
   },
 
-  /**
-   * Update lock deadline for a school year
-   * (backend uses upsert via POST)
-   */
   updateSetting: async (
-    schoolYearId: string,
-    lockDeadline: string
+    id: string,
+    data: Partial<CreateGradeLockSettingRequest>
   ): Promise<GradeLockSetting> => {
-    const res = await client.post<{
-      success: boolean
-      data: GradeLockSetting
-    }>("/grade-lock/settings", {
-      schoolYearId,
-      lockDeadline,
-    })
-
-    return res.data.data
+    const res = await client.put<GradeLockSetting>(
+      `/grade-lock/settings/${id}`,
+      data
+    )
+    return res.data
   },
 
-  /**
-   * Get all class locks for organization
-   * GET /grade-lock/classes
-   */
+  // ─── Class Locks ──────────────────────────
+
   getLocks: async (): Promise<GradeLock[]> => {
-    const res = await client.get<{
-      success: boolean
-      data: GradeLock[]
-    }>("/grade-lock/classes")
-
-    return res.data.data
+    const res = await client.get<GradeLock[]>("/grade-lock/classes")
+    return res.data
   },
 
-  /**
-   * Educator: Lock their class (before deadline)
-   * POST /grade-lock/:classId/lock
-   */
-  lockClass: async (classId: string): Promise<GradeLockResponse> => {
-    const res = await client.post<{
-      success: boolean
-      data: GradeLockResponse
-    }>(`/grade-lock/${classId}/lock`)
-
-    return res.data.data
+  lockClass: async (classId: string, reason?: string): Promise<GradeLockResponse> => {
+    const res = await client.post<GradeLockResponse>(
+      `/grade-lock/${classId}/lock`,
+      { reason }
+    )
+    return res.data
   },
 
-  /**
-   * Educator/Admin: Unlock a class
-   * - Educators: only before deadline
-   * - Admins: anytime (override)
-   */
-  unlockClass: async (classId: string): Promise<GradeLockResponse> => {
-    const res = await client.post<{
-      success: boolean
-      data: GradeLockResponse
-    }>(`/grade-lock/${classId}/unlock`)
-
-    return res.data.data
+  unlockClass: async (
+    classId: string,
+    reason: string
+  ): Promise<GradeLockResponse> => {
+    const res = await client.post<GradeLockResponse>(
+      `/grade-lock/${classId}/unlock`,
+      { reason }
+    )
+    return res.data
   },
 
-  /**
-   * Admin: Unlock with override (alias for unlockClass)
-   */
-  unlockOverride: async (classId: string): Promise<GradeLockResponse> => {
-    const res = await client.post<{
-      success: boolean
-      data: GradeLockResponse
-    }>(`/grade-lock/${classId}/unlock`)
-
-    return res.data.data
+  overrideLock: async (
+    classId: string,
+    reason: string
+  ): Promise<GradeLockResponse> => {
+    const res = await client.post<GradeLockResponse>(
+      `/grade-lock/${classId}/override`,
+      { reason }
+    )
+    return res.data
   },
 
-  /**
-   * Auto-lock expired classes
-   * NOTE: This one might NOT be wrapped the same way depending on backend
-   */
-  autoLock: async (): Promise<{ success: boolean; lockedCount: number }> => {
-    const res = await client.post<{
-      success: boolean
-      lockedCount: number
-    }>("/grade-lock/auto-lock")
+  // ─── Auto Lock ────────────────────────────
 
+  autoLock: async (): Promise<AutoLockResponse> => {
+    const res = await client.post<AutoLockResponse>(
+      "/grade-lock/auto-lock"
+    )
     return res.data
   },
 }
