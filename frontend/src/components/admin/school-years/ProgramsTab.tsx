@@ -2,17 +2,15 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, BookOpen, GraduationCap } from "lucide-react";
+import { ChevronRight, BookOpen, GraduationCap, Users } from "lucide-react";
 import Link from "next/link";
-
 import { programApi } from "@/api/admin/program.api";
+import { useSchoolYearEnrollments } from "@/hooks/admin/useStudentEnrollment";
 import type { Program } from "@/types/admin/program.types";
 import { PROGRAM_TYPE_LABELS, PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
-
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge }    from "@/components/ui/badge";
 import { cn }       from "@/lib/utils";
-
 import { ProgramDetailView } from "./ProgramDetailView";
 
 interface ProgramsTabProps {
@@ -26,10 +24,14 @@ export function ProgramsTab({
 }: ProgramsTabProps): React.JSX.Element {
   const [selected, setSelected] = useState<Program | null>(null);
 
-  const { data: programs = [], isLoading } = useQuery({
+  const { data: programs = [], isLoading: programsLoading } = useQuery({
     queryKey: ["admin", "programs", schoolYearId],
     queryFn:  () => programApi.getAll(schoolYearId),
   });
+
+  // Fetch enrollments once here so program cards can show counts
+  const { data: enrollments = [], isLoading: enrollmentsLoading } =
+    useSchoolYearEnrollments(schoolYearId);
 
   if (selected) {
     return (
@@ -41,6 +43,8 @@ export function ProgramsTab({
       />
     );
   }
+
+  const isLoading = programsLoading || enrollmentsLoading;
 
   if (isLoading) {
     return (
@@ -78,6 +82,11 @@ export function ProgramsTab({
         const courseCount = program.courses?.length ?? 0;
         const strandCount = program.strands?.length ?? 0;
 
+        // Count students enrolled in this program (client-side filter)
+        const studentCount = enrollments.filter((e) =>
+          e.programEnrollments?.some((pe) => pe.program_id === program.id),
+        ).length;
+
         return (
           <button
             key={program.id}
@@ -105,6 +114,11 @@ export function ProgramsTab({
                         {strandCount} {strandCount === 1 ? "strand" : "strands"}
                       </span>
                     )}
+                    {/* Student count badge */}
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <Users className="h-3 w-3" />
+                      {studentCount} {studentCount === 1 ? "student" : "students"}
+                    </span>
                   </div>
                 </div>
               </div>
