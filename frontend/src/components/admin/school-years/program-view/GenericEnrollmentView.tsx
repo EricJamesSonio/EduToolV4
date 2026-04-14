@@ -1,4 +1,4 @@
-// frontend\src\components\admin\school-years\program-view\GenericEnrollmentView.tsx
+
 "use client";
 
 import { Users } from "lucide-react";
