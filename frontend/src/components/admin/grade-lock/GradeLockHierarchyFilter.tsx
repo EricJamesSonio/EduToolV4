@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo , useEffect} from "react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -90,43 +90,38 @@ export function GradeLockHierarchyFilter({
     )
   }, [selectedCourseStrand, selectedProgram, selectedSchoolYear, gradeLocks])
 
-  // Apply filters
-  const filteredLocks = useMemo(() => {
-    let result = gradeLocks
+const filteredLocks = useMemo(() => {
+  let result = gradeLocks
 
-    if (selectedSchoolYear) {
-      result = result.filter(
-        (lock) => lock.class?.school_year_id === selectedSchoolYear
-      )
-    }
-    if (selectedProgram) {
-      result = result.filter(
-        (lock) => lock.class?.subject?.program?.name === selectedProgram
-      )
-    }
-    if (selectedCourseStrand) {
-      result = result.filter(
-        (lock) =>
-          lock.class?.subject?.course?.name === selectedCourseStrand ||
-          lock.class?.subject?.strand?.name === selectedCourseStrand
-      )
-    }
-    if (selectedLevel) {
-      result = result.filter(
-        (lock) => lock.class?.subject?.level?.name === selectedLevel
-      )
-    }
+  if (selectedSchoolYear) {
+    result = result.filter(
+      (lock) => lock.class?.school_year_id === selectedSchoolYear
+    )
+  }
+  if (selectedProgram) {
+    result = result.filter(
+      (lock) => lock.class?.subject?.program?.name === selectedProgram
+    )
+  }
+  if (selectedCourseStrand) {
+    result = result.filter(
+      (lock) =>
+        lock.class?.subject?.course?.name === selectedCourseStrand ||
+        lock.class?.subject?.strand?.name === selectedCourseStrand
+    )
+  }
+  if (selectedLevel) {
+    result = result.filter(
+      (lock) => lock.class?.subject?.level?.name === selectedLevel
+    )
+  }
 
-    onFilter(result)
-    return result
-  }, [
-    selectedSchoolYear,
-    selectedProgram,
-    selectedCourseStrand,
-    selectedLevel,
-    gradeLocks,
-    onFilter,
-  ])
+  return result
+}, [selectedSchoolYear, selectedProgram, selectedCourseStrand, selectedLevel, gradeLocks])
+
+useEffect(() => {
+  onFilter(filteredLocks)
+}, [filteredLocks, onFilter])
 
   const handleReset = () => {
     setSelectedSchoolYear("")
