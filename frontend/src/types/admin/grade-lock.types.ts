@@ -1,4 +1,4 @@
-export type GradeLockStatus = "unlocked" | "locked" | "auto_locked"
+export type GradeLockStatus = 'unlocked' | 'locked' | 'auto_locked'
 
 export interface GradeLockSetting {
   id: string
@@ -17,6 +17,14 @@ export interface GradeLock {
   locked_by: string | null
   locked_at: string | null
   created_at: string
+  // Flat fields for table display (from backend mapping)
+  className?: string
+  educatorName?: string
+  semesterName?: string
+  termName?: string
+  lockStatus?: GradeLockStatus
+  deadline?: string | null
+  // Original nested structure for filters
   class?: {
     id: string
     subject_id: string
@@ -25,10 +33,22 @@ export interface GradeLock {
     subject?: {
       id: string
       name: string
-      program?: { id: string; name: string } | null
-      course?: { id: string; name: string } | null
-      strand?: { id: string; name: string } | null
-      level?: { id: string; name: string } | null
+      program?: {
+        id: string
+        name: string
+      } | null
+      course?: {
+        id: string
+        name: string
+      } | null
+      strand?: {
+        id: string
+        name: string
+      } | null
+      level?: {
+        id: string
+        name: string
+      } | null
     } | null
   }
 }

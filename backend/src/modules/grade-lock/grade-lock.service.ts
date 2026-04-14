@@ -1,11 +1,4 @@
-// ===== File: backend/src/modules/grade-lock/grade-lock.service.ts =====
-
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  BadRequestException,
-} from '@nestjs/common'
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, } from '@nestjs/common'
 import { DatabaseService } from '@/core/database/database.provider'
 import { AuditLogService } from '../audit-log/audit-log.service'
 import { CreateGradeLockSettingDto } from './dto/grade-lock.dto'
@@ -20,13 +13,13 @@ export class GradeLockService {
   ) {}
 
   /**
-   * ADMIN: Create or update lock deadline for a school year
+   * Create or update lock deadline setting for a school year
    */
   async createSetting(orgId: string, dto: CreateGradeLockSettingDto) {
-    // Validate school year exists
     const schoolYear = await this.db.schoolYear.findUnique({
       where: { id: dto.schoolYearId },
     })
+
     if (!schoolYear) {
       throw new NotFoundException('School year not found')
     }
@@ -58,7 +51,7 @@ export class GradeLockService {
 
     await this.auditLog.logAdminAction({
       orgId,
-      actorId: 'system', // or pass from user
+      actorId: 'system',
       action: 'GRADE_LOCK_DEADLINE_SET',
       entityType: 'GRADE_LOCK_SETTING',
       entityId: setting.id,
@@ -72,7 +65,7 @@ export class GradeLockService {
   }
 
   /**
-   * ADMIN/EDUCATOR: Get lock setting for a school year
+   * Get lock deadline setting for a school year
    */
   async getSetting(orgId: string, schoolYearId: string) {
     const setting = await this.db.gradeLockSetting.findUnique({
@@ -92,17 +85,13 @@ export class GradeLockService {
   }
 
   /**
-   * EDUCATOR: Manually lock their class (before deadline)
-   * Rules:
-   * - Can only lock BEFORE deadline
-   * - Can only lock their own class
+   * Lock a class (educator action)
    */
   async lockClass(
     classId: string,
     userId: string,
     orgId: string,
   ) {
-    // ===== STEP 1: Validate class exists and belongs to educator =====
     const cls = await this.db.class.findUnique({
       where: { id: classId },
     })
@@ -115,7 +104,6 @@ export class GradeLockService {
       throw new ForbiddenException('You do not own this class')
     }
 
-    // ===== STEP 2: Check deadline =====
     const lockSetting = await this.db.gradeLockSetting.findUnique({
       where: {
         org_id_school_year_id: {
@@ -133,7 +121,6 @@ export class GradeLockService {
       )
     }
 
-    // ===== STEP 3: Update/Create GradeLock =====
     const gradeLock = await this.db.gradeLock.upsert({
       where: { class_id: classId },
       update: {
@@ -150,10 +137,8 @@ export class GradeLockService {
       },
     })
 
-    // ===== STEP 4: Lock the grading scale for this class's level =====
     await this.lockGradingScaleForClass(classId, orgId)
 
-    // ===== STEP 5: Audit log =====
     await this.auditLog.logAdminAction({
       orgId,
       actorId: userId,
@@ -169,8 +154,7 @@ export class GradeLockService {
   }
 
   /**
-   * EDUCATOR: Unlock their class (before deadline only)
-   * ADMIN: Can unlock anytime (override)
+   * Unlock a class (educator or admin action)
    */
   async unlockClass(
     classId: string,
@@ -178,7 +162,6 @@ export class GradeLockService {
     userRole: string,
     orgId: string,
   ) {
-    // ===== STEP 1: Validate class exists =====
     const cls = await this.db.class.findUnique({
       where: { id: classId },
     })
@@ -187,12 +170,10 @@ export class GradeLockService {
       throw new NotFoundException('Class not found')
     }
 
-    // ===== STEP 2: Check permissions =====
     if (userRole !== 'admin' && cls.educator_id !== userId) {
       throw new ForbiddenException('You do not own this class')
     }
 
-    // ===== STEP 3: Educators cannot unlock after deadline =====
     if (userRole !== 'admin') {
       const lockSetting = await this.db.gradeLockSetting.findUnique({
         where: {
@@ -204,6 +185,7 @@ export class GradeLockService {
       })
 
       const now = new Date()
+
       if (lockSetting && now > lockSetting.lock_deadline) {
         throw new ForbiddenException(
           `Cannot unlock class after deadline. Contact administrator.`
@@ -211,7 +193,6 @@ export class GradeLockService {
       }
     }
 
-    // ===== STEP 4: Check if locked =====
     const lock = await this.db.gradeLock.findUnique({
       where: { class_id: classId },
     })
@@ -220,8 +201,8 @@ export class GradeLockService {
       throw new BadRequestException('Class is not locked')
     }
 
-    // ===== STEP 5: Unlock =====
     const now = new Date()
+
     const updatedLock = await this.db.gradeLock.update({
       where: { class_id: classId },
       data: {
@@ -231,10 +212,10 @@ export class GradeLockService {
       },
     })
 
-    // ===== STEP 6: Audit log =====
-    const action = userRole === 'admin'
-      ? 'ADMIN_CLASS_UNLOCK_OVERRIDE'
-      : 'EDUCATOR_CLASS_UNLOCK'
+    const action =
+      userRole === 'admin'
+        ? 'ADMIN_CLASS_UNLOCK_OVERRIDE'
+        : 'EDUCATOR_CLASS_UNLOCK'
 
     await this.auditLog.logAdminAction({
       orgId,
@@ -252,89 +233,158 @@ export class GradeLockService {
   }
 
   /**
-   * INTERNAL: Get all class locks with full hierarchy
+   * Get all class locks for organization
    */
-async getClassLocks(orgId: string) {
-  const classes = await this.db.class.findMany({
-    where: { org_id: orgId, deleted_at: null },
-    select: {
-      id: true,
-      subject_id: true,
-      educator_id: true,
-      school_year_id: true,
-      subject: {
-        include: {
-          program: { select: { id: true, name: true } },
-          course: { select: { id: true, name: true } },
-          strand: { select: { id: true, name: true } },
-          level: { select: { id: true, name: true } },
-        },
+  async getClassLocks(orgId: string) {
+    const classes = await this.db.class.findMany({
+      where: {
+        org_id: orgId,
+        deleted_at: null,
       },
-      gradeLock: true,
-    },
-    orderBy: { created_at: 'desc' },
-  })
+      select: {
+        id: true,
+        subject_id: true,
+        educator_id: true,
+        school_year_id: true,
+        subject: {
+          include: {
+            program: {
+              select: { id: true, name: true },
+            },
+            course: {
+              select: { id: true, name: true },
+            },
+            strand: {
+              select: { id: true, name: true },
+            },
+            level: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+        gradeLock: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    })
 
-  return classes.map((cls) => this.mapClassToGradeLock(cls, orgId))
-}
+    // Fetch educator names separately (batch to avoid N+1)
+    const educatorIds = [...new Set(classes.map((c) => c.educator_id))]
+    const educators = await this.db.profile.findMany({
+      where: {
+        user_id: { in: educatorIds },
+      },
+      select: {
+        user_id: true,
+        first_name: true,
+        last_name: true,
+      },
+    })
+
+    const educatorMap = new Map(
+      educators.map((e) => [e.user_id, `${e.first_name} ${e.last_name}`])
+    )
+
+    return classes.map((cls) =>
+      this.mapClassToGradeLock(cls, orgId, educatorMap)
+    )
+  }
 
   /**
-   * INTERNAL: Get class locks filtered by school year with full hierarchy
+   * Get class locks filtered by school year
    */
-async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
-  const classes = await this.db.class.findMany({
-    where: { org_id: orgId, school_year_id: schoolYearId, deleted_at: null },
-    select: {
-      id: true,
-      subject_id: true,
-      educator_id: true,
-      school_year_id: true,
-      subject: {
-        include: {
-          program: { select: { id: true, name: true } },
-          course: { select: { id: true, name: true } },
-          strand: { select: { id: true, name: true } },
-          level: { select: { id: true, name: true } },
-        },
+  async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
+    const classes = await this.db.class.findMany({
+      where: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        deleted_at: null,
       },
-      gradeLock: true,
-    },
-    orderBy: { created_at: 'desc' },
-  })
+      select: {
+        id: true,
+        subject_id: true,
+        educator_id: true,
+        school_year_id: true,
+        subject: {
+          include: {
+            program: {
+              select: { id: true, name: true },
+            },
+            course: {
+              select: { id: true, name: true },
+            },
+            strand: {
+              select: { id: true, name: true },
+            },
+            level: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+        gradeLock: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    })
 
-  return classes.map((cls) => this.mapClassToGradeLock(cls, orgId))
-}
+    // Fetch educator names separately (batch to avoid N+1)
+    const educatorIds = [...new Set(classes.map((c) => c.educator_id))]
+    const educators = await this.db.profile.findMany({
+      where: {
+        user_id: { in: educatorIds },
+      },
+      select: {
+        user_id: true,
+        first_name: true,
+        last_name: true,
+      },
+    })
+
+    const educatorMap = new Map(
+      educators.map((e) => [e.user_id, `${e.first_name} ${e.last_name}`])
+    )
+
+    return classes.map((cls) =>
+      this.mapClassToGradeLock(cls, orgId, educatorMap)
+    )
+  }
 
   /**
-   * INTERNAL: Auto-lock classes when deadline passes (can be called by scheduler if needed, but NOT required)
-   * We don't use cron - instead we check deadline dynamically in canEditGrades()
+   * Auto-lock classes after deadline
    */
   async autoLockExpiredClasses(orgId: string) {
     const now = new Date()
 
-    // Find all expired lock settings
     const expiredSettings = await this.db.gradeLockSetting.findMany({
       where: {
         org_id: orgId,
-        lock_deadline: { lte: now },
+        lock_deadline: {
+          lte: now,
+        },
       },
     })
 
     for (const setting of expiredSettings) {
-      // Get all classes in this school year
       const classes = await this.db.class.findMany({
-        where: { school_year_id: setting.school_year_id },
+        where: {
+          school_year_id: setting.school_year_id,
+        },
       })
 
       for (const cls of classes) {
         const existingLock = await this.db.gradeLock.findUnique({
-          where: { class_id: cls.id },
+          where: {
+            class_id: cls.id,
+          },
         })
 
-        // Only auto-lock if not already locked
         if (!existingLock?.is_locked) {
           await this.db.gradeLock.upsert({
-            where: { class_id: cls.id },
+            where: {
+              class_id: cls.id,
+            },
             update: {
               is_locked: true,
               locked_by: 'system',
@@ -368,10 +418,9 @@ async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
   }
 
   /**
-   * INTERNAL: Lock grading scale for a class's level
+   * Lock grading scales when a class is locked
    */
   private async lockGradingScaleForClass(classId: string, orgId: string) {
-    // Get class -> subject -> level
     const cls = await this.db.class.findUnique({
       where: { id: classId },
       include: {
@@ -387,17 +436,18 @@ async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
       return // No level associated
     }
 
-    // Now find grading scales for this level's program
     const level = await this.db.level.findUnique({
       where: { id: cls.subject.level_id },
-      select: { program_id: true, school_year_id: true },
+      select: {
+        program_id: true,
+        school_year_id: true,
+      },
     })
 
     if (!level) {
       return
     }
 
-    // Lock grading scale for this program + school year
     await this.db.gradingScale.updateMany({
       where: {
         org_id: orgId,
@@ -411,31 +461,56 @@ async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
       },
     })
   }
-  private mapClassToGradeLock(cls: any, orgId: string) {
-  return {
-    id: cls.gradeLock?.id ?? cls.id,
-    org_id: orgId,
-    class_id: cls.id,
-    is_locked: cls.gradeLock?.is_locked ?? false,
-    locked_by: cls.gradeLock?.locked_by ?? null,
-    locked_at: cls.gradeLock?.locked_at ?? null,
-    created_at: cls.gradeLock?.created_at ?? cls.created_at,
-    class: {
-      id: cls.id,
-      subject_id: cls.subject_id,
-      educator_id: cls.educator_id,
-      school_year_id: cls.school_year_id,
-      subject: cls.subject
-        ? {
-            id: cls.subject.id,
-            name: cls.subject.name,
-            program: cls.subject.program ?? null,
-            course: cls.subject.course ?? null,
-            strand: cls.subject.strand ?? null,
-            level: cls.subject.level ?? null,
-          }
-        : null,
-    },
+
+  /**
+   * Map class data to GradeLock response format
+   * Enriches with educator name and subject name for table display
+   */
+  private mapClassToGradeLock(
+    cls: any,
+    orgId: string,
+    educatorMap: Map<string, string>
+  ) {
+    const educatorName = educatorMap.get(cls.educator_id) || 'Unknown Educator'
+    const subjectName = cls.subject?.name || 'Unknown Subject'
+    const lockStatus = cls.gradeLock?.is_locked
+      ? 'locked'
+      : cls.gradeLock?.locked_by === 'system'
+        ? 'auto_locked'
+        : 'unlocked'
+
+    return {
+      id: cls.gradeLock?.id ?? cls.id,
+      org_id: orgId,
+      class_id: cls.id,
+      is_locked: cls.gradeLock?.is_locked ?? false,
+      locked_by: cls.gradeLock?.locked_by ?? null,
+      locked_at: cls.gradeLock?.locked_at ?? null,
+      created_at: cls.gradeLock?.created_at ?? cls.created_at,
+      // Flat fields for table display (column accessors)
+      className: subjectName,
+      educatorName,
+      semesterName: 'TBD', // TODO: fetch from semester table if needed
+      termName: 'TBD', // TODO: fetch from term table if needed
+      lockStatus,
+      deadline: null, // TODO: fetch from lock settings
+      // Original nested structure for filters
+      class: {
+        id: cls.id,
+        subject_id: cls.subject_id,
+        educator_id: cls.educator_id,
+        school_year_id: cls.school_year_id,
+        subject: cls.subject
+          ? {
+              id: cls.subject.id,
+              name: cls.subject.name,
+              program: cls.subject.program ?? null,
+              course: cls.subject.course ?? null,
+              strand: cls.subject.strand ?? null,
+              level: cls.subject.level ?? null,
+            }
+          : null,
+      },
+    }
   }
-}
 }
