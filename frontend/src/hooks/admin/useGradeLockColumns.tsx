@@ -43,8 +43,7 @@ function calculateLockStatus(lock: GradeLock): GradeLockStatus {
 }
 
 export function useGradeLockColumns(
-  onOverride: (lock: GradeLock) => void,
-  onApplyTemplate: (lock: GradeLock) => void
+  onOverride: (lock: GradeLock) => void
 ): ColumnDef<GradeLock>[] {
   return useMemo(
     () => [
