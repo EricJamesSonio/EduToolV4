@@ -16,6 +16,10 @@ school year:"
     enrollment - uuid dispaly fix
     when the student enrolled in program and level, automatically enroll in all class of that program and level , as default
     prevent student from enrolling in 2 programs lol and levels etc., just one only in that school year
+    and 
+    sections - move the student in section also
 
 schedule page:
     new page! categroies and shown all.
+
+    
