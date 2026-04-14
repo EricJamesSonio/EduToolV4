@@ -106,22 +106,25 @@ export function AssignSectionDialog({
               No sections available for this scope.
             </p>
           ) : (
-            <Select value={selectedSectionId} onValueChange={setSelectedSectionId}>
-              <SelectTrigger className="h-9 text-sm">
-                <SelectValue placeholder="Select a section" />
-              </SelectTrigger>
-              <SelectContent>
-                {sections.map((sec) => (
-                  <SelectItem key={sec.id} value={sec.id}>
-                    <span>{sec.name}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      cap. {sec.capacity}
-                      {sec.studentCount !== undefined && ` · ${sec.studentCount} enrolled`}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+<Select value={selectedSectionId} onValueChange={setSelectedSectionId}>
+  <SelectTrigger className="h-9 text-sm">
+    <SelectValue placeholder="Select a section">
+      {/* ↓ resolve id → name explicitly */}
+      {sections.find((s) => s.id === selectedSectionId)?.name ?? "Select a section"}
+    </SelectValue>
+  </SelectTrigger>
+  <SelectContent>
+    {sections.map((sec) => (
+      <SelectItem key={sec.id} value={sec.id}>
+        {sec.name}
+        <span className="ml-2 text-xs text-muted-foreground">
+          cap. {sec.capacity}
+          {sec.studentCount !== undefined && ` · ${sec.studentCount} enrolled`}
+        </span>
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
           )}
         </div>
 

@@ -16,6 +16,7 @@ interface GenericEnrollmentViewProps {
   allEnrollments: StudentSchoolYearEnrollment[];
   schoolYearId:   string;
   isEnded:        boolean;
+  studentMap:     Map<string, string>;
 }
 
 export function GenericEnrollmentView({
@@ -24,6 +25,7 @@ export function GenericEnrollmentView({
   allEnrollments,
   schoolYearId,
   isEnded,
+  studentMap,
 }: GenericEnrollmentViewProps) {
   const [selectedLevelId, setSelectedLevelId] = useState<string | null>(null);
 
@@ -46,6 +48,7 @@ export function GenericEnrollmentView({
           isEnded={isEnded}
           enrollContext={{ program_id: program.id, level_id: selectedLevelId }}
           allEnrollments={allEnrollments}
+          studentMap={studentMap} 
         />
       </div>
     );
