@@ -265,7 +265,6 @@ export class GradeLockService {
                 program: { select: { id: true, name: true } },
                 course: { select: { id: true, name: true } },
                 strand: { select: { id: true, name: true } },
-                level: { select: { id: true, name: true } },
               },
             },
           },
@@ -293,8 +292,6 @@ export class GradeLockService {
               include: {
                 program: { select: { id: true, name: true } },
                 course: { select: { id: true, name: true } },
-                strand: { select: { id: true, name: true } },
-                level: { select: { id: true, name: true } },
               },
             },
           },
