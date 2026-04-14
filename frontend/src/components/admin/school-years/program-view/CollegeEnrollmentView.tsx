@@ -33,8 +33,8 @@ export function CollegeEnrollmentView({
   isEnded,
   studentMap,
 }: CollegeEnrollmentViewProps) {
-  const { state, selectCourse, selectLevel, backToPrograms, backToCourse } =
-    useEnrollmentDrilldown();
+const { state, selectCourse, selectLevel, backToPrograms, backToCourseList } =
+  useEnrollmentDrilldown();
 
   const selectedCourseId = state.courseId;
   const selectedLevelId  = state.levelId;
@@ -47,11 +47,11 @@ export function CollegeEnrollmentView({
     const students = getStudentsInCourseLevel(allEnrollments, program.id, selectedCourseId, selectedLevelId);
     return (
       <div className="space-y-3">
-        <Breadcrumb crumbs={[
-          { label: "All Courses", onClick: backToPrograms },
-          { label: course?.name ?? "Course", onClick: backToCourse },
-          { label: level?.name ?? "Level" },
-        ]} />
+<Breadcrumb crumbs={[
+  { label: "All Courses", onClick: backToPrograms },
+  { label: course?.name ?? "Course", onClick: backToCourseList }, // ← renamed
+  { label: level?.name ?? "Level" },
+]} />
         <StudentListPanel
           title={`${course?.name ?? ""} — ${level?.name ?? ""}`}
           students={students}
@@ -71,10 +71,10 @@ export function CollegeEnrollmentView({
     const courseStudents = getStudentsInCourse(allEnrollments, program.id, selectedCourseId);
     return (
       <div className="space-y-3">
-        <Breadcrumb crumbs={[
-          { label: "All Courses", onClick: backToPrograms },
-          { label: course?.name ?? "Course" },
-        ]} />
+<Breadcrumb crumbs={[
+  { label: "All Courses", onClick: backToPrograms },
+  { label: course?.name ?? "Course" },
+]} />
         <div className="rounded-lg border bg-card overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
             <Layers className="h-4 w-4 text-muted-foreground" />

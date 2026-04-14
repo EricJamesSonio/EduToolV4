@@ -33,8 +33,8 @@ export function SHSEnrollmentView({
   isEnded,
   studentMap,
 }: SHSEnrollmentViewProps) {
-  const { state, selectStrand, selectLevel, backToPrograms, backToStrand } =
-    useEnrollmentDrilldown();
+const { state, selectStrand, selectLevel, backToPrograms, backToStrandList } =
+  useEnrollmentDrilldown();
 
   const selectedStrandId = state.strandId;
   const selectedLevelId  = state.levelId;
@@ -49,7 +49,7 @@ export function SHSEnrollmentView({
       <div className="space-y-3">
         <Breadcrumb crumbs={[
           { label: "All Strands", onClick: backToPrograms },
-          { label: strand?.name ?? "Strand", onClick: backToStrand },
+          { label: strand?.name ?? "Strand", onClick: backToStrandList },
           { label: level?.name ?? "Level" },
         ]} />
         <StudentListPanel
@@ -73,7 +73,7 @@ export function SHSEnrollmentView({
       <div className="space-y-3">
         <Breadcrumb crumbs={[
           { label: "All Strands", onClick: backToPrograms },
-          { label: strand?.name ?? "Strand" },
+          { label: strand?.name ?? "Strand" }, // ← no onClick, no level crumb — we're AT the strand
         ]} />
         <div className="rounded-lg border bg-card overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">

@@ -1,35 +1,33 @@
 // frontend\src\hooks\admin\useEnrollmentDrilldown.ts
 "use client";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
+import type { ProgramDetailTab } from "@/components/admin/school-years/constants";
 
 export interface DrilldownState {
   programId:  string | null;
+  programTab: ProgramDetailTab | null;
   courseId:   string | null;
   strandId:   string | null;
   levelId:    string | null;
 }
 
 export function useEnrollmentDrilldown() {
-  const router     = useRouter();
-  const pathname   = usePathname();
-  const params     = useSearchParams();
+  const router = useRouter();
+  const params = useSearchParams();
 
   const state: DrilldownState = {
-    programId: params.get("programId"),
-    courseId:  params.get("courseId"),
-    strandId:  params.get("strandId"),
-    levelId:   params.get("levelId"),
+    programId:  params.get("programId"),
+    programTab: params.get("programTab") as ProgramDetailTab | null,
+    courseId:   params.get("courseId"),
+    strandId:   params.get("strandId"),
+    levelId:    params.get("levelId"),
   };
 
   const push = useCallback(
     (next: Partial<DrilldownState>) => {
       const url = new URL(window.location.href);
-      // Always preserve tab
-      const tab = url.searchParams.get("tab") ?? "programs";
-      url.searchParams.set("tab", tab);
 
-      // Apply new state — null means remove the param
       (Object.entries(next) as [keyof DrilldownState, string | null][]).forEach(
         ([key, val]) => {
           if (val === null || val === undefined) {
@@ -42,43 +40,50 @@ export function useEnrollmentDrilldown() {
 
       router.replace(url.pathname + url.search);
     },
-    [router, pathname],
+    [router],
   );
 
   const selectProgram = useCallback(
     (programId: string) =>
-      push({ programId, courseId: null, strandId: null, levelId: null }),
+      push({ programId, programTab: null, courseId: null, strandId: null, levelId: null }),
     [push],
   );
 
-  const selectCourse = useCallback(
-    (courseId: string) =>
-      push({ courseId, strandId: null, levelId: null }),
-    [push],
-  );
+const selectProgramTab = useCallback(
+  (tab: ProgramDetailTab) =>
+    push({ programTab: tab, courseId: null, strandId: null, levelId: null }),
+  [push],
+);
 
-  const selectStrand = useCallback(
-    (strandId: string) =>
-      push({ strandId, courseId: null, levelId: null }),
-    [push],
-  );
+const selectCourse = useCallback(
+  (courseId: string) => push({ programTab: "enrollment", courseId, strandId: null, levelId: null }),
+  [push],
+);
 
-  const selectLevel = useCallback(
-    (levelId: string) => push({ levelId }),
-    [push],
-  );
+const selectStrand = useCallback(
+  (strandId: string) => push({ programTab: "enrollment", strandId, courseId: null, levelId: null }),
+  [push],
+);
 
+ const selectLevel = useCallback(
+  (levelId: string) => push({ programTab: "enrollment", levelId }),
+  [push],
+);
+
+  // Goes back to program list
   const backToPrograms = useCallback(
-    () => push({ programId: null, courseId: null, strandId: null, levelId: null }),
+    () => push({ programId: null, programTab: null, courseId: null, strandId: null, levelId: null }),
     [push],
   );
 
-  const backToCourse = useCallback(
+  // Goes back to course list (clears level only)
+  const backToCourseList = useCallback(
     () => push({ levelId: null }),
     [push],
   );
 
-  const backToStrand = useCallback(
+  // Goes back to strand list (clears level only)
+  const backToStrandList = useCallback(
     () => push({ levelId: null }),
     [push],
   );
@@ -86,11 +91,12 @@ export function useEnrollmentDrilldown() {
   return {
     state,
     selectProgram,
+    selectProgramTab,
     selectCourse,
     selectStrand,
     selectLevel,
     backToPrograms,
-    backToCourse,
-    backToStrand,
+    backToCourseList,
+    backToStrandList,
   };
 }
