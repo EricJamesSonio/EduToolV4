@@ -14,13 +14,13 @@ import {
 import { BadRequestException } from '@nestjs/common'
 import { GradeLockService } from './grade-lock.service'
 import { AuthGuard } from '@/commons/guards/auth.guard'
-import { RoleGuard } from '@/commons/guards/role.guard'
+import { RolesGuard } from '@/commons/guards/role.guard'
 import { Roles } from '@/commons/decorators/roles.decorator'
 import { CurrentUser } from '@/commons/decorators/current-user.decorator'
 import { CreateGradeLockSettingDto, QueryGradeLockDto } from './dto/grade-lock.dto'
 
 @Controller('grade-lock')
-@UseGuards(AuthGuard, RoleGuard)
+@UseGuards(AuthGuard, RolesGuard)
 export class GradeLockController {
   constructor(private readonly service: GradeLockService) {}
 
