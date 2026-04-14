@@ -432,6 +432,7 @@ async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
             program: cls.subject.program ?? null,
             course: cls.subject.course ?? null,
             strand: cls.subject.strand ?? null,
+            level: cls.subject.level ?? null,
           }
         : null,
     },
