@@ -1,6 +1,8 @@
+// frontend\src\app\admin\school-years\[id]\page.tsx
 "use client";
 
 import { use, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery }      from "@tanstack/react-query";
 import Link              from "next/link";
 import { schoolYearApi } from "@/api/admin/school-year.api";
@@ -19,13 +21,23 @@ export default function SchoolYearDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }): React.JSX.Element {
-  const { id } = use(params);
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const { id }       = use(params);
+  const searchParams = useSearchParams();
+
+  const initialTab = (searchParams.get("tab") as Tab | null) ?? "overview";
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   const { data: schoolYear, isLoading } = useQuery({
     queryKey: ["admin", "school-years", id],
     queryFn:  () => schoolYearApi.getById(id),
   });
+
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", tab);
+    window.history.replaceState(null, "", url.toString());
+  };
 
   if (isLoading) {
     return (
@@ -83,7 +95,7 @@ export default function SchoolYearDetailPage({
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => handleTabChange(tab.key)}
             className={cn(
               "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
               activeTab === tab.key
@@ -99,10 +111,10 @@ export default function SchoolYearDetailPage({
 
       {/* Content */}
       <div>
-        {activeTab === "overview"    && <OverviewTab schoolYear={schoolYear} />}
-        {activeTab === "enrollment"  && <EnrollmentTab schoolYearId={id} isEnded={isEnded} />}
-        {activeTab === "programs"    && <ProgramsTab schoolYearId={id} isEnded={isEnded} />}
-        {activeTab === "calendar"    && <CalendarTab schoolYearId={id} />}
+        {activeTab === "overview"   && <OverviewTab schoolYear={schoolYear} />}
+        {activeTab === "enrollment" && <EnrollmentTab schoolYearId={id} isEnded={isEnded} />}
+        {activeTab === "programs"   && <ProgramsTab schoolYearId={id} isEnded={isEnded} />}
+        {activeTab === "calendar"   && <CalendarTab schoolYearId={id} />}
       </div>
     </div>
   );
