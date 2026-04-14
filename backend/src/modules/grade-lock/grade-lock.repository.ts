@@ -286,6 +286,26 @@ export class GradeLockRepository {
     })
   }
 
+  async findAllClassesWithRelations(orgId: string) {
+    return this.db.class.findMany({
+      where: {
+        org_id: orgId,
+        deleted_at: null,
+      },
+      include: {
+        subject: {
+          include: {
+            program: { select: { id: true, name: true } },
+            course:  { select: { id: true, name: true } },
+            strand:  { select: { id: true, name: true } },
+            level:   { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    })
+  }
+
   async findProfilesByAccountIds(accountIds: string[]) {
     return this.db.profile.findMany({
       where: { account_id: { in: accountIds } },
