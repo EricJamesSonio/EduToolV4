@@ -259,12 +259,17 @@ export class GradeLockService {
       where: { org_id: orgId },
       include: {
         class: {
-          include: {
+          select: {
+            id: true,
+            subject_id: true,
+            educator_id: true,
+            school_year_id: true,
             subject: {
               include: {
                 program: { select: { id: true, name: true } },
                 course: { select: { id: true, name: true } },
                 strand: { select: { id: true, name: true } },
+                level: { select: { id: true, name: true } },
               },
             },
           },
@@ -279,19 +284,20 @@ export class GradeLockService {
    */
   async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
     return this.db.gradeLock.findMany({
-      where: {
-        org_id: orgId,
-        class: {
-          school_year_id: schoolYearId,
-        },
-      },
+      where: { org_id: orgId, class: { school_year_id: schoolYearId } },
       include: {
         class: {
-          include: {
+          select: {
+            id: true,
+            subject_id: true,
+            educator_id: true,
+            school_year_id: true,
             subject: {
               include: {
                 program: { select: { id: true, name: true } },
                 course: { select: { id: true, name: true } },
+                strand: { select: { id: true, name: true } },
+                level: { select: { id: true, name: true } },
               },
             },
           },
