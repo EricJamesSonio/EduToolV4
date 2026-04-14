@@ -254,58 +254,54 @@ export class GradeLockService {
   /**
    * INTERNAL: Get all class locks with full hierarchy
    */
-  async getClassLocks(orgId: string) {
-    return this.db.gradeLock.findMany({
-      where: { org_id: orgId },
-      include: {
-        class: {
-          select: {
-            id: true,
-            subject_id: true,
-            educator_id: true,
-            school_year_id: true,
-            subject: {
-              include: {
-                program: { select: { id: true, name: true } },
-                course: { select: { id: true, name: true } },
-                strand: { select: { id: true, name: true } },
-                level: { select: { id: true, name: true } },
-              },
-            },
-          },
+async getClassLocks(orgId: string) {
+  const classes = await this.db.class.findMany({
+    where: { org_id: orgId, deleted_at: null },
+    select: {
+      id: true,
+      subject_id: true,
+      educator_id: true,
+      school_year_id: true,
+      subject: {
+        include: {
+          program: { select: { id: true, name: true } },
+          course: { select: { id: true, name: true } },
+          strand: { select: { id: true, name: true } },
         },
       },
-      orderBy: { locked_at: 'desc' },
-    })
-  }
+      gradeLock: true,
+    },
+    orderBy: { created_at: 'desc' },
+  })
+
+  return classes.map((cls) => this.mapClassToGradeLock(cls, orgId))
+}
 
   /**
    * INTERNAL: Get class locks filtered by school year with full hierarchy
    */
-  async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
-    return this.db.gradeLock.findMany({
-      where: { org_id: orgId, class: { school_year_id: schoolYearId } },
-      include: {
-        class: {
-          select: {
-            id: true,
-            subject_id: true,
-            educator_id: true,
-            school_year_id: true,
-            subject: {
-              include: {
-                program: { select: { id: true, name: true } },
-                course: { select: { id: true, name: true } },
-                strand: { select: { id: true, name: true } },
-                level: { select: { id: true, name: true } },
-              },
-            },
-          },
+async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
+  const classes = await this.db.class.findMany({
+    where: { org_id: orgId, school_year_id: schoolYearId, deleted_at: null },
+    select: {
+      id: true,
+      subject_id: true,
+      educator_id: true,
+      school_year_id: true,
+      subject: {
+        include: {
+          program: { select: { id: true, name: true } },
+          course: { select: { id: true, name: true } },
+          strand: { select: { id: true, name: true } },
         },
       },
-      orderBy: { locked_at: 'desc' },
-    })
-  }
+      gradeLock: true,
+    },
+    orderBy: { created_at: 'desc' },
+  })
+
+  return classes.map((cls) => this.mapClassToGradeLock(cls, orgId))
+}
 
   /**
    * INTERNAL: Auto-lock classes when deadline passes (can be called by scheduler if needed, but NOT required)
@@ -413,4 +409,30 @@ export class GradeLockService {
       },
     })
   }
+  private mapClassToGradeLock(cls: any, orgId: string) {
+  return {
+    id: cls.gradeLock?.id ?? cls.id,
+    org_id: orgId,
+    class_id: cls.id,
+    is_locked: cls.gradeLock?.is_locked ?? false,
+    locked_by: cls.gradeLock?.locked_by ?? null,
+    locked_at: cls.gradeLock?.locked_at ?? null,
+    created_at: cls.gradeLock?.created_at ?? cls.created_at,
+    class: {
+      id: cls.id,
+      subject_id: cls.subject_id,
+      educator_id: cls.educator_id,
+      school_year_id: cls.school_year_id,
+      subject: cls.subject
+        ? {
+            id: cls.subject.id,
+            name: cls.subject.name,
+            program: cls.subject.program ?? null,
+            course: cls.subject.course ?? null,
+            strand: cls.subject.strand ?? null,
+          }
+        : null,
+    },
+  }
+}
 }
