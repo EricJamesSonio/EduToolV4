@@ -1,8 +1,6 @@
-// ===== File: frontend/src/app/admin/grade-lock/page.tsx =====
-
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useMemo } from "react"
 import { format } from "date-fns"
 import { Lock, Settings } from "lucide-react"
 import { PageHeader } from "@/components/shared/PageHeader"
@@ -21,19 +19,58 @@ export default function GradeLockPage(): React.ReactElement {
   const [settingModalOpen, setSettingModalOpen] = useState(false)
   const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null)
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null)
-  const [filteredLocks, setFilteredLocks] = useState<GradeLock[]>([])
+
+  // Filter state lives here — no callback needed
+  const [selectedProgram, setSelectedProgram] = useState<string>("")
+  const [selectedCourseStrand, setSelectedCourseStrand] = useState<string>("")
+  const [selectedLevel, setSelectedLevel] = useState<string>("")
 
   const { data: schoolYears, isLoading: schoolYearsLoading } = useSchoolYears()
   const { data: gradeLocks, isLoading } = useGradeLocks(selectedSchoolYearId ?? undefined)
   const { data: setting } = useGradeLockSetting(selectedSchoolYearId ?? "")
   const columns = useGradeLockColumns(setOverrideTarget)
 
-  const locks = Array.isArray(gradeLocks) ? gradeLocks : []
+  const locks = useMemo(
+    () => (Array.isArray(gradeLocks) ? gradeLocks : []),
+    [gradeLocks]
+  )
 
-  // ✅ memoized handler
-  const handleFilter = useCallback((filtered: GradeLock[]) => {
-    setFilteredLocks(filtered)
-  }, [])
+  // All filtering computed here — single source of truth, no state ping-pong
+  const filteredLocks = useMemo(() => {
+    let result = locks
+
+    if (selectedSchoolYearId) {
+      result = result.filter(
+        (lock) => lock.class?.school_year_id === selectedSchoolYearId
+      )
+    }
+    if (selectedProgram) {
+      result = result.filter(
+        (lock) => lock.class?.subject?.program?.name === selectedProgram
+      )
+    }
+    if (selectedCourseStrand) {
+      result = result.filter(
+        (lock) =>
+          lock.class?.subject?.course?.name === selectedCourseStrand ||
+          lock.class?.subject?.strand?.name === selectedCourseStrand
+      )
+    }
+    if (selectedLevel) {
+      result = result.filter(
+        (lock) => lock.class?.subject?.level?.name === selectedLevel
+      )
+    }
+
+    return result
+  }, [locks, selectedSchoolYearId, selectedProgram, selectedCourseStrand, selectedLevel])
+
+  const handleSchoolYearSelect = (id: string | null) => {
+    setSelectedSchoolYearId(id)
+    setSelectedProgram("")
+    setSelectedCourseStrand("")
+    setSelectedLevel("")
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -58,14 +95,26 @@ export default function GradeLockPage(): React.ReactElement {
         </div>
       )}
 
-      {/* Hierarchical Filter */}
       <GradeLockHierarchyFilter
         schoolYears={schoolYears ?? []}
         schoolYearsLoading={schoolYearsLoading}
         gradeLocks={locks}
         gradeLockLoading={isLoading}
-        onFilter={handleFilter} // ✅ replaced
-        onSchoolYearSelect={setSelectedSchoolYearId}
+        selectedSchoolYearId={selectedSchoolYearId ?? ""}
+        selectedProgram={selectedProgram}
+        selectedCourseStrand={selectedCourseStrand}
+        selectedLevel={selectedLevel}
+        filteredCount={filteredLocks.length}
+        onSchoolYearSelect={handleSchoolYearSelect}
+        onProgramChange={setSelectedProgram}
+        onCourseStrandChange={(value) => {
+          setSelectedCourseStrand(value)
+          setSelectedLevel("")
+        }}
+        onLevelChange={setSelectedLevel}
+        onReset={() => {
+          handleSchoolYearSelect(null)
+        }}
       />
 
       <GradeLockStats gradeLocks={filteredLocks} />

@@ -1,8 +1,6 @@
-// ===== File: frontend/src/components/admin/grade-lock/GradeLockHierarchyFilter.tsx =====
-
 "use client"
 
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -20,8 +18,16 @@ interface GradeLockHierarchyFilterProps {
   schoolYearsLoading: boolean
   gradeLocks: GradeLock[]
   gradeLockLoading: boolean
-  onFilter: (filtered: GradeLock[]) => void
+  selectedSchoolYearId: string
+  selectedProgram: string
+  selectedCourseStrand: string
+  selectedLevel: string
+  filteredCount: number
   onSchoolYearSelect: (id: string | null) => void
+  onProgramChange: (value: string) => void
+  onCourseStrandChange: (value: string) => void
+  onLevelChange: (value: string) => void
+  onReset: () => void
 }
 
 export function GradeLockHierarchyFilter({
@@ -29,53 +35,50 @@ export function GradeLockHierarchyFilter({
   schoolYearsLoading,
   gradeLocks,
   gradeLockLoading,
-  onFilter,
+  selectedSchoolYearId,
+  selectedProgram,
+  selectedCourseStrand,
+  selectedLevel,
+  filteredCount,
   onSchoolYearSelect,
+  onProgramChange,
+  onCourseStrandChange,
+  onLevelChange,
+  onReset,
 }: GradeLockHierarchyFilterProps): React.JSX.Element {
-  const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>("")
-  const [selectedProgram, setSelectedProgram] = useState<string>("")
-  const [selectedCourseStrand, setSelectedCourseStrand] = useState<string>("")
-  const [selectedLevel, setSelectedLevel] = useState<string>("")
 
-  // ✅ ref to stabilize onFilter
-  const onFilterRef = useRef(onFilter)
-
-  useEffect(() => {
-    onFilterRef.current = onFilter
-  }, [onFilter])
-
-  // Extract programs
   const programs = useMemo(() => {
-    if (!selectedSchoolYear) return []
+    if (!selectedSchoolYearId) return []
     return Array.from(
       new Set(
         gradeLocks
-          .filter((lock) => lock.class?.school_year_id === selectedSchoolYear)
+          .filter((lock) => lock.class?.school_year_id === selectedSchoolYearId)
           .map((lock) => lock.class?.subject?.program?.name)
-          .filter(Boolean)
+          .filter((name): name is string => Boolean(name))
       )
     )
-  }, [selectedSchoolYear, gradeLocks])
+  }, [selectedSchoolYearId, gradeLocks])
 
-  // Extract courses/strands
   const coursesStrands = useMemo(() => {
     if (!selectedProgram) return []
-    const items = gradeLocks
-      .filter(
-        (lock) =>
-          lock.class?.school_year_id === selectedSchoolYear &&
-          lock.class?.subject?.program?.name === selectedProgram
+    return Array.from(
+      new Set(
+        gradeLocks
+          .filter(
+            (lock) =>
+              lock.class?.school_year_id === selectedSchoolYearId &&
+              lock.class?.subject?.program?.name === selectedProgram
+          )
+          .map((lock) => {
+            const course = lock.class?.subject?.course?.name
+            const strand = lock.class?.subject?.strand?.name
+            return course ?? strand
+          })
+          .filter((name): name is string => Boolean(name))
       )
-      .map((lock) => {
-        const course = lock.class?.subject?.course?.name
-        const strand = lock.class?.subject?.strand?.name
-        return course || strand
-      })
+    )
+  }, [selectedProgram, selectedSchoolYearId, gradeLocks])
 
-    return Array.from(new Set(items.filter(Boolean)))
-  }, [selectedProgram, selectedSchoolYear, gradeLocks])
-
-  // Extract levels
   const levels = useMemo(() => {
     if (!selectedCourseStrand) return []
     return Array.from(
@@ -83,66 +86,22 @@ export function GradeLockHierarchyFilter({
         gradeLocks
           .filter(
             (lock) =>
-              lock.class?.school_year_id === selectedSchoolYear &&
+              lock.class?.school_year_id === selectedSchoolYearId &&
               lock.class?.subject?.program?.name === selectedProgram &&
               (lock.class?.subject?.course?.name === selectedCourseStrand ||
                 lock.class?.subject?.strand?.name === selectedCourseStrand)
           )
           .map((lock) => lock.class?.subject?.level?.name)
-          .filter(Boolean)
+          .filter((name): name is string => Boolean(name))
       )
     )
-  }, [selectedCourseStrand, selectedProgram, selectedSchoolYear, gradeLocks])
+  }, [selectedCourseStrand, selectedProgram, selectedSchoolYearId, gradeLocks])
 
-  // Filtered result
-  const filteredLocks = useMemo(() => {
-    let result = gradeLocks
-
-    if (selectedSchoolYear) {
-      result = result.filter(
-        (lock) => lock.class?.school_year_id === selectedSchoolYear
-      )
-    }
-    if (selectedProgram) {
-      result = result.filter(
-        (lock) => lock.class?.subject?.program?.name === selectedProgram
-      )
-    }
-    if (selectedCourseStrand) {
-      result = result.filter(
-        (lock) =>
-          lock.class?.subject?.course?.name === selectedCourseStrand ||
-          lock.class?.subject?.strand?.name === selectedCourseStrand
-      )
-    }
-    if (selectedLevel) {
-      result = result.filter(
-        (lock) => lock.class?.subject?.level?.name === selectedLevel
-      )
-    }
-
-    return result
-  }, [
-    selectedSchoolYear,
-    selectedProgram,
-    selectedCourseStrand,
-    selectedLevel,
-    gradeLocks,
-  ])
-
-  // ✅ use ref instead of direct dependency
-  useEffect(() => {
-    onFilterRef.current(filteredLocks)
-  }, [filteredLocks])
-
-  const handleReset = () => {
-    setSelectedSchoolYear("")
-    setSelectedProgram("")
-    setSelectedCourseStrand("")
-    setSelectedLevel("")
-    onSchoolYearSelect(null)
-    onFilterRef.current(gradeLocks)
-  }
+  const hasFilters =
+    !!selectedSchoolYearId ||
+    !!selectedProgram ||
+    !!selectedCourseStrand ||
+    !!selectedLevel
 
   if (schoolYearsLoading || gradeLockLoading) {
     return <Skeleton className="h-10 w-full" />
@@ -150,18 +109,11 @@ export function GradeLockHierarchyFilter({
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         {/* School Year */}
         <Select
-          value={selectedSchoolYear}
-          onValueChange={(value) => {
-            setSelectedSchoolYear(value)
-            setSelectedProgram("")
-            setSelectedCourseStrand("")
-            setSelectedLevel("")
-            onSchoolYearSelect(value || null)
-          }}
+          value={selectedSchoolYearId}
+          onValueChange={(value) => onSchoolYearSelect(value || null)}
         >
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Select School Year" />
@@ -178,12 +130,8 @@ export function GradeLockHierarchyFilter({
         {/* Program */}
         <Select
           value={selectedProgram}
-          onValueChange={(value) => {
-            setSelectedProgram(value)
-            setSelectedCourseStrand("")
-            setSelectedLevel("")
-          }}
-          disabled={!selectedSchoolYear || programs.length === 0}
+          onValueChange={onProgramChange}
+          disabled={!selectedSchoolYearId || programs.length === 0}
         >
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Select Program" />
@@ -200,10 +148,7 @@ export function GradeLockHierarchyFilter({
         {/* Course / Strand */}
         <Select
           value={selectedCourseStrand}
-          onValueChange={(value) => {
-            setSelectedCourseStrand(value)
-            setSelectedLevel("")
-          }}
+          onValueChange={onCourseStrandChange}
           disabled={!selectedProgram || coursesStrands.length === 0}
         >
           <SelectTrigger className="w-56">
@@ -221,7 +166,7 @@ export function GradeLockHierarchyFilter({
         {/* Level */}
         <Select
           value={selectedLevel}
-          onValueChange={setSelectedLevel}
+          onValueChange={onLevelChange}
           disabled={!selectedCourseStrand || levels.length === 0}
         >
           <SelectTrigger className="w-48">
@@ -236,21 +181,15 @@ export function GradeLockHierarchyFilter({
           </SelectContent>
         </Select>
 
-        {/* Reset */}
-        {(selectedSchoolYear ||
-          selectedProgram ||
-          selectedCourseStrand ||
-          selectedLevel) && (
-          <Button variant="outline" size="sm" onClick={handleReset}>
+        {hasFilters && (
+          <Button variant="outline" size="sm" onClick={onReset}>
             Reset
           </Button>
         )}
       </div>
 
-      {/* Summary */}
       <div className="text-sm text-muted-foreground">
-        Showing {filteredLocks.length} class
-        {filteredLocks.length !== 1 ? "es" : ""}
+        Showing {filteredCount} class{filteredCount !== 1 ? "es" : ""}
       </div>
     </div>
   )
