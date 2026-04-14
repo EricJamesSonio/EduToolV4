@@ -2,24 +2,46 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { ChevronRight, Users, UserPlus, GraduationCap, Layers } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ChevronRight, Users, UserPlus, GraduationCap, Layers, LayoutGrid,
+} from "lucide-react";
 import type { AxiosError } from "axios";
 import {
   useSchoolYearEnrollments,
   useBulkEnrollStudents,
   useEnrollInProgram,
   useUnenrollStudent,
+  useUpdateProgramEnrollment,
 } from "@/hooks/admin/useStudentEnrollment";
+import { sectionApi } from "@/api/admin/section.api";
 import { EnrollStudentDialog } from "@/components/admin/enrollment/EnrollStudentDialog";
-import { Button }  from "@/components/ui/button";
-import { Badge }   from "@/components/ui/badge";
+import { ConfirmDialog }       from "@/components/shared/ConfirmDialog";
+import { Button }   from "@/components/ui/button";
+import { Badge }    from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn }      from "@/lib/utils";
-import type { Program, CourseSnapshot, StrandSnapshot } from "@/types/admin/program.types";
-import type { Level } from "@/types/admin/level.types";
-import type { StudentSchoolYearEnrollment } from "@/types/admin/student-enrollment.types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import type { Program } from "@/types/admin/program.types";
+import type { Level }   from "@/types/admin/level.types";
+import type { Section } from "@/types/admin/section.types";
+import type {
+  StudentSchoolYearEnrollment,
+  ProgramEnrollmentSnapshot,
+} from "@/types/admin/student-enrollment.types";
 import type { Student } from "@/types/admin/student.types";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface ProgramEnrollmentViewProps {
   program:      Program;
@@ -107,83 +129,270 @@ function getStudentsInStrandLevel(
   );
 }
 
+function getProgramEnrollment(
+  enrollment: StudentSchoolYearEnrollment,
+  programId: string,
+): ProgramEnrollmentSnapshot | undefined {
+  return enrollment.programEnrollments?.find((pe) => pe.program_id === programId);
+}
+
+// ── AssignSectionDialog ───────────────────────────────────────────────────────
+
+interface AssignSectionDialogProps {
+  open:                   boolean;
+  onClose:                () => void;
+  enrollment:             StudentSchoolYearEnrollment;
+  programEnrollment:      ProgramEnrollmentSnapshot;
+  schoolYearId:           string;
+  isEnded:                boolean;
+}
+
+function AssignSectionDialog({
+  open,
+  onClose,
+  enrollment,
+  programEnrollment,
+  schoolYearId,
+  isEnded,
+}: AssignSectionDialogProps) {
+  const [selectedSectionId, setSelectedSectionId] = useState<string>(
+    programEnrollment.section?.id ?? "",
+  );
+
+  const levelId  = programEnrollment.level?.id;
+  const courseId = programEnrollment.course?.id ?? null;
+  const strandId = programEnrollment.strand?.id ?? null;
+
+  const { data: allSections = [], isLoading: sectionsLoading } = useQuery({
+    queryKey: ["admin", "sections", schoolYearId, levelId],
+    queryFn:  () => sectionApi.getAll(schoolYearId, levelId),
+    enabled:  open && !!levelId,
+  });
+
+  // Filter sections to match the student's course/strand context
+  const sections = allSections.filter((s: Section) => {
+    if (courseId) return s.course_id === courseId;
+    if (strandId) return s.strand_id === strandId;
+    return s.course_id === null && s.strand_id === null;
+  });
+
+  const updateMutation = useUpdateProgramEnrollment(schoolYearId);
+
+  const handleSave = () => {
+    if (!selectedSectionId) return;
+    updateMutation.mutate(
+      {
+        programEnrollmentId: programEnrollment.id,
+        data: { section_id: selectedSectionId },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Section assigned.");
+          onClose();
+        },
+        onError: (err: unknown) => {
+          const e = err as AxiosError<{ message: string }>;
+          toast.error(e?.response?.data?.message ?? "Failed to assign section.");
+        },
+      },
+    );
+  };
+
+  const handleRemove = () => {
+    updateMutation.mutate(
+      {
+        programEnrollmentId: programEnrollment.id,
+        data: { section_id: null },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Section removed.");
+          onClose();
+        },
+        onError: () => toast.error("Failed to remove section."),
+      },
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-xs">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <LayoutGrid className="h-4 w-4" />
+            Assign Section
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-1.5 mt-1">
+          <p className="text-xs text-muted-foreground">
+            {programEnrollment.level?.name ?? "—"}
+            {programEnrollment.course && ` · ${programEnrollment.course.code ?? programEnrollment.course.name}`}
+            {programEnrollment.strand && ` · ${programEnrollment.strand.name}`}
+          </p>
+
+          {sectionsLoading ? (
+            <Skeleton className="h-9 w-full rounded-md" />
+          ) : sections.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">
+              No sections available for this scope.
+            </p>
+          ) : (
+            <Select
+              value={selectedSectionId}
+              onValueChange={(v) => setSelectedSectionId(v)}
+            >
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue placeholder="Select a section" />
+              </SelectTrigger>
+              <SelectContent>
+                {sections.map((sec) => (
+                  <SelectItem key={sec.id} value={sec.id}>
+                    <span>{sec.name}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      cap. {sec.capacity}
+                      {sec.studentCount !== undefined && ` · ${sec.studentCount} enrolled`}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-2 pt-1">
+          {/* Remove section shortcut */}
+          {programEnrollment.section && !isEnded && (
+            <button
+              onClick={handleRemove}
+              disabled={updateMutation.isPending}
+              className="text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+            >
+              Remove section
+            </button>
+          )}
+          <div className="flex gap-2 ml-auto">
+            <Button variant="outline" size="sm" onClick={onClose} disabled={updateMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!selectedSectionId || sections.length === 0 || updateMutation.isPending || isEnded}
+            >
+              {updateMutation.isPending ? "Saving..." : "Assign"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── StudentRow ────────────────────────────────────────────────────────────────
 
 interface StudentRowProps {
-  enrollment:   StudentSchoolYearEnrollment;
-  programId:    string;
-  isEnded:      boolean;
-  onUnenroll:   (enrollment: StudentSchoolYearEnrollment) => void;
+  enrollment:    StudentSchoolYearEnrollment;
+  programId:     string;
+  schoolYearId:  string;
+  isEnded:       boolean;
+  onUnenroll:    (enrollment: StudentSchoolYearEnrollment) => void;
   isUnenrolling: boolean;
 }
 
 function StudentRow({
   enrollment,
   programId,
+  schoolYearId,
   isEnded,
   onUnenroll,
   isUnenrolling,
 }: StudentRowProps) {
-  const pe = enrollment.programEnrollments?.find(
-    (p) => p.program_id === programId,
-  );
+  const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
+  const pe = getProgramEnrollment(enrollment, programId);
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-2.5 group hover:bg-muted/20 transition-colors">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-          {/* placeholder — student name not in enrollment snapshot */}
-          <GraduationCap className="h-3.5 w-3.5" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-medium truncate">{enrollment.student_id}</p>
-          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-            {pe?.level && (
-              <span className="text-xs text-muted-foreground">{pe.level.name}</span>
-            )}
-            {pe?.course && (
-              <Badge variant="outline" className="text-xs font-normal py-0 px-1.5">
-                {pe.course.code ?? pe.course.name}
-              </Badge>
-            )}
-            {pe?.strand && (
-              <Badge variant="outline" className="text-xs font-normal py-0 px-1.5">
-                {pe.strand.name}
-              </Badge>
-            )}
-            {pe?.section ? (
-              <Badge variant="secondary" className="text-xs font-normal py-0 px-1.5">
-                {pe.section.name}
-              </Badge>
-            ) : (
-              <span className="text-xs text-muted-foreground italic">No section</span>
-            )}
+    <>
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 group hover:bg-muted/20 transition-colors">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
+            <GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">{enrollment.student_id}</p>
+            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+              {pe?.level && (
+                <span className="text-xs text-muted-foreground">{pe.level.name}</span>
+              )}
+              {pe?.course && (
+                <Badge variant="outline" className="text-xs font-normal py-0 px-1.5">
+                  {pe.course.code ?? pe.course.name}
+                </Badge>
+              )}
+              {pe?.strand && (
+                <Badge variant="outline" className="text-xs font-normal py-0 px-1.5">
+                  {pe.strand.name}
+                </Badge>
+              )}
+              {pe?.section ? (
+                <Badge variant="secondary" className="text-xs font-normal py-0 px-1.5">
+                  {pe.section.name}
+                </Badge>
+              ) : (
+                <span className="text-xs text-amber-600 dark:text-amber-400 italic">
+                  No section
+                </span>
+              )}
+            </div>
           </div>
         </div>
+
+        {!isEnded && (
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            {/* Only show assign section if student has a level */}
+            {pe?.level && (
+              <button
+                onClick={() => setSectionDialogOpen(true)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary px-2 py-1 rounded hover:bg-primary/10 transition-colors"
+              >
+                <LayoutGrid className="h-3 w-3" />
+                {pe.section ? "Change Section" : "Assign Section"}
+              </button>
+            )}
+            <button
+              onClick={() => onUnenroll(enrollment)}
+              disabled={isUnenrolling}
+              className="text-xs text-muted-foreground hover:text-destructive px-2 py-1 rounded hover:bg-destructive/10 transition-colors disabled:opacity-50"
+            >
+              Remove
+            </button>
+          </div>
+        )}
       </div>
 
-      {!isEnded && (
-        <button
-          onClick={() => onUnenroll(enrollment)}
-          disabled={isUnenrolling}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-muted-foreground hover:text-destructive px-2 py-1 rounded hover:bg-destructive/10"
-        >
-          Remove
-        </button>
+      {/* Section assignment dialog */}
+      {sectionDialogOpen && pe && (
+        <AssignSectionDialog
+          open
+          onClose={() => setSectionDialogOpen(false)}
+          enrollment={enrollment}
+          programEnrollment={pe}
+          schoolYearId={schoolYearId}
+          isEnded={isEnded}
+        />
       )}
-    </div>
+    </>
   );
 }
 
 // ── StudentListPanel ──────────────────────────────────────────────────────────
 
 interface StudentListPanelProps {
-  title:        string;
-  students:     StudentSchoolYearEnrollment[];
-  programId:    string;
-  schoolYearId: string;
-  isEnded:      boolean;
-  /** Pre-fill for enrollInProgram call */
+  title:          string;
+  students:       StudentSchoolYearEnrollment[];
+  programId:      string;
+  schoolYearId:   string;
+  isEnded:        boolean;
   enrollContext: {
     program_id:  string;
     level_id?:   string;
@@ -202,29 +411,23 @@ function StudentListPanel({
   enrollContext,
   allEnrollments,
 }: StudentListPanelProps) {
-  const [enrollOpen,    setEnrollOpen]    = useState(false);
+  const [enrollOpen,     setEnrollOpen]     = useState(false);
   const [unenrollTarget, setUnenrollTarget] = useState<StudentSchoolYearEnrollment | null>(null);
 
-  const bulkEnroll     = useBulkEnrollStudents(schoolYearId);
+  const bulkEnroll      = useBulkEnrollStudents(schoolYearId);
   const enrollInProgram = useEnrollInProgram(schoolYearId);
   const unenrollMutation = useUnenrollStudent(schoolYearId);
 
   const handleEnroll = (selected: Student[]) => {
     if (selected.length === 0) return;
-
-    // Step 1: bulk-enroll to school year (idempotent — server skips already enrolled)
     bulkEnroll.mutate(
       { students: selected.map((s) => ({ student_id: s.id })) },
       {
         onSuccess: async () => {
-          // Step 2: assign program scope for each student
           let successCount = 0;
           for (const s of selected) {
             try {
-              await enrollInProgram.mutateAsync({
-                studentId: s.id,
-                data: enrollContext,
-              });
+              await enrollInProgram.mutateAsync({ studentId: s.id, data: enrollContext });
               successCount++;
             } catch {
               toast.error(`Failed to assign program for student ${s.id}`);
@@ -247,11 +450,8 @@ function StudentListPanel({
 
   const handleUnenroll = (enrollment: StudentSchoolYearEnrollment) => {
     unenrollMutation.mutate(enrollment.id, {
-      onSuccess: () => {
-        toast.success("Student removed.");
-        setUnenrollTarget(null);
-      },
-      onError: () => toast.error("Failed to remove student."),
+      onSuccess: () => { toast.success("Student removed."); setUnenrollTarget(null); },
+      onError:   () => toast.error("Failed to remove student."),
     });
   };
 
@@ -299,6 +499,7 @@ function StudentListPanel({
               key={e.id}
               enrollment={e}
               programId={programId}
+              schoolYearId={schoolYearId}
               isEnded={isEnded}
               onUnenroll={(enr) => setUnenrollTarget(enr)}
               isUnenrolling={unenrollMutation.isPending}
@@ -307,7 +508,6 @@ function StudentListPanel({
         </div>
       )}
 
-      {/* Enroll dialog */}
       {enrollOpen && (
         <EnrollStudentDialog
           open
@@ -318,7 +518,6 @@ function StudentListPanel({
         />
       )}
 
-      {/* Unenroll confirm */}
       {unenrollTarget && (
         <ConfirmDialog
           open
@@ -335,7 +534,7 @@ function StudentListPanel({
   );
 }
 
-// ── CountRow — clickable row showing a scope + count ─────────────────────────
+// ── CountRow ──────────────────────────────────────────────────────────────────
 
 interface CountRowProps {
   label:       string;
@@ -345,327 +544,19 @@ interface CountRowProps {
   isExpanded?: boolean;
 }
 
-function CountRow({ label, count, icon, onClick, isExpanded }: CountRowProps) {
+function CountRow({ label, count, icon, onClick }: CountRowProps) {
   return (
     <button
       onClick={onClick}
-      className={cn(
-        "w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left group",
-        isExpanded && "bg-muted/20",
-      )}
+      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left group"
     >
       {icon && <span className="shrink-0 text-muted-foreground">{icon}</span>}
       <span className="flex-1 text-sm font-medium truncate">{label}</span>
       <Badge variant="secondary" className="text-xs font-normal shrink-0">
-        {count} student{count !== 1 ? "s" : ""}
+        {count} {count === 1 ? "student" : "students"}
       </Badge>
-      <ChevronRight
-        className={cn(
-          "h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0",
-          isExpanded && "rotate-90",
-        )}
-      />
+      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
     </button>
-  );
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
-
-export function ProgramEnrollmentView({
-  program,
-  schoolYearId,
-  levels,
-  isEnded,
-}: ProgramEnrollmentViewProps) {
-  const { data: allEnrollments = [], isLoading } = useSchoolYearEnrollments(schoolYearId);
-
-  const isCollege    = program.type === "college";
-  const isSHS        = program.type === "shs";
-  const hasSubGroups = isCollege || isSHS;
-
-  // Drill-down state
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-  const [selectedStrandId, setSelectedStrandId] = useState<string | null>(null);
-  const [selectedLevelId,  setSelectedLevelId]  = useState<string | null>(null);
-
-  const programLevels = levels.filter((l) => l.program_id === program.id);
-  const programStudents = getStudentsInProgram(allEnrollments, program.id);
-
-  if (isLoading) {
-    return (
-      <div className="space-y-2">
-        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}
-      </div>
-    );
-  }
-
-  // ── College: Course → Level → Students ────────────────────────────────────
-  if (isCollege) {
-    const courses = program.courses ?? [];
-
-    if (selectedCourseId && selectedLevelId) {
-      const course = courses.find((c) => c.id === selectedCourseId);
-      const level  = programLevels.find((l) => l.id === selectedLevelId);
-      const students = getStudentsInCourseLevel(allEnrollments, program.id, selectedCourseId, selectedLevelId);
-      return (
-        <div className="space-y-3">
-          <Breadcrumb
-            crumbs={[
-              { label: "All Courses", onClick: () => { setSelectedCourseId(null); setSelectedLevelId(null); } },
-              { label: course?.name ?? "Course", onClick: () => setSelectedLevelId(null) },
-              { label: level?.name ?? "Level" },
-            ]}
-          />
-          <StudentListPanel
-            title={`${course?.name ?? ""} — ${level?.name ?? ""}`}
-            students={students}
-            programId={program.id}
-            schoolYearId={schoolYearId}
-            isEnded={isEnded}
-            enrollContext={{ program_id: program.id, course_id: selectedCourseId, level_id: selectedLevelId }}
-            allEnrollments={allEnrollments}
-          />
-        </div>
-      );
-    }
-
-    if (selectedCourseId) {
-      const course = courses.find((c) => c.id === selectedCourseId);
-      const courseStudents = getStudentsInCourse(allEnrollments, program.id, selectedCourseId);
-      return (
-        <div className="space-y-3">
-          <Breadcrumb
-            crumbs={[
-              { label: "All Courses", onClick: () => setSelectedCourseId(null) },
-              { label: course?.name ?? "Course" },
-            ]}
-          />
-          <div className="rounded-lg border bg-card overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">Levels</span>
-                <Badge variant="secondary" className="text-xs font-normal">
-                  {courseStudents.length} total students
-                </Badge>
-              </div>
-            </div>
-            <div className="divide-y">
-              {programLevels.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground">No levels found.</p>
-              ) : (
-                programLevels.map((level) => {
-                  const count = getStudentsInCourseLevel(allEnrollments, program.id, selectedCourseId, level.id).length;
-                  return (
-                    <CountRow
-                      key={level.id}
-                      label={level.name}
-                      count={count}
-                      onClick={() => setSelectedLevelId(level.id)}
-                    />
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Course list
-    return (
-      <div className="rounded-lg border bg-card overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-semibold">Courses</span>
-            <Badge variant="secondary" className="text-xs font-normal">
-              {programStudents.length} total students
-            </Badge>
-          </div>
-        </div>
-        <div className="divide-y">
-          {courses.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-muted-foreground">No courses found.</p>
-          ) : (
-            courses.map((course) => {
-              const count = getStudentsInCourse(allEnrollments, program.id, course.id).length;
-              return (
-                <CountRow
-                  key={course.id}
-                  label={course.code ? `${course.code} – ${course.name}` : course.name}
-                  count={count}
-                  onClick={() => setSelectedCourseId(course.id)}
-                />
-              );
-            })
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ── SHS: Strand → Level → Students ────────────────────────────────────────
-  if (isSHS) {
-    const strands = program.strands ?? [];
-
-    if (selectedStrandId && selectedLevelId) {
-      const strand = strands.find((s) => s.id === selectedStrandId);
-      const level  = programLevels.find((l) => l.id === selectedLevelId);
-      const students = getStudentsInStrandLevel(allEnrollments, program.id, selectedStrandId, selectedLevelId);
-      return (
-        <div className="space-y-3">
-          <Breadcrumb
-            crumbs={[
-              { label: "All Strands", onClick: () => { setSelectedStrandId(null); setSelectedLevelId(null); } },
-              { label: strand?.name ?? "Strand", onClick: () => setSelectedLevelId(null) },
-              { label: level?.name ?? "Level" },
-            ]}
-          />
-          <StudentListPanel
-            title={`${strand?.name ?? ""} — ${level?.name ?? ""}`}
-            students={students}
-            programId={program.id}
-            schoolYearId={schoolYearId}
-            isEnded={isEnded}
-            enrollContext={{ program_id: program.id, strand_id: selectedStrandId, level_id: selectedLevelId }}
-            allEnrollments={allEnrollments}
-          />
-        </div>
-      );
-    }
-
-    if (selectedStrandId) {
-      const strand = strands.find((s) => s.id === selectedStrandId);
-      const strandStudents = getStudentsInStrand(allEnrollments, program.id, selectedStrandId);
-      return (
-        <div className="space-y-3">
-          <Breadcrumb
-            crumbs={[
-              { label: "All Strands", onClick: () => setSelectedStrandId(null) },
-              { label: strand?.name ?? "Strand" },
-            ]}
-          />
-          <div className="rounded-lg border bg-card overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">Levels</span>
-                <Badge variant="secondary" className="text-xs font-normal">
-                  {strandStudents.length} total students
-                </Badge>
-              </div>
-            </div>
-            <div className="divide-y">
-              {programLevels.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground">No levels found.</p>
-              ) : (
-                programLevels.map((level) => {
-                  const count = getStudentsInStrandLevel(allEnrollments, program.id, selectedStrandId, level.id).length;
-                  return (
-                    <CountRow
-                      key={level.id}
-                      label={level.name}
-                      count={count}
-                      onClick={() => setSelectedLevelId(level.id)}
-                    />
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Strand list
-    return (
-      <div className="rounded-lg border bg-card overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-semibold">Strands</span>
-            <Badge variant="secondary" className="text-xs font-normal">
-              {programStudents.length} total students
-            </Badge>
-          </div>
-        </div>
-        <div className="divide-y">
-          {strands.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-muted-foreground">No strands found.</p>
-          ) : (
-            strands.map((strand) => {
-              const count = getStudentsInStrand(allEnrollments, program.id, strand.id).length;
-              return (
-                <CountRow
-                  key={strand.id}
-                  label={strand.name}
-                  count={count}
-                  onClick={() => setSelectedStrandId(strand.id)}
-                />
-              );
-            })
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ── Non-college/SHS: Level → Students ─────────────────────────────────────
-  if (selectedLevelId) {
-    const level    = programLevels.find((l) => l.id === selectedLevelId);
-    const students = getStudentsInLevel(allEnrollments, program.id, selectedLevelId);
-    return (
-      <div className="space-y-3">
-        <Breadcrumb
-          crumbs={[
-            { label: "All Levels", onClick: () => setSelectedLevelId(null) },
-            { label: level?.name ?? "Level" },
-          ]}
-        />
-        <StudentListPanel
-          title={level?.name ?? "Level"}
-          students={students}
-          programId={program.id}
-          schoolYearId={schoolYearId}
-          isEnded={isEnded}
-          enrollContext={{ program_id: program.id, level_id: selectedLevelId }}
-          allEnrollments={allEnrollments}
-        />
-      </div>
-    );
-  }
-
-  // Level list
-  return (
-    <div className="rounded-lg border bg-card overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-semibold">Levels</span>
-          <Badge variant="secondary" className="text-xs font-normal">
-            {programStudents.length} total students
-          </Badge>
-        </div>
-      </div>
-      <div className="divide-y">
-        {programLevels.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-muted-foreground">No levels found.</p>
-        ) : (
-          programLevels.map((level) => {
-            const count = getStudentsInLevel(allEnrollments, program.id, level.id).length;
-            return (
-              <CountRow
-                key={level.id}
-                label={level.name}
-                count={count}
-                onClick={() => setSelectedLevelId(level.id)}
-              />
-            );
-          })
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -682,10 +573,7 @@ function Breadcrumb({ crumbs }: BreadcrumbProps) {
         <span key={i} className="flex items-center gap-1.5">
           {i > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
           {crumb.onClick ? (
-            <button
-              onClick={crumb.onClick}
-              className="hover:text-foreground transition-colors"
-            >
+            <button onClick={crumb.onClick} className="hover:text-foreground transition-colors">
               {crumb.label}
             </button>
           ) : (
@@ -693,6 +581,256 @@ function Breadcrumb({ crumbs }: BreadcrumbProps) {
           )}
         </span>
       ))}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export function ProgramEnrollmentView({
+  program,
+  schoolYearId,
+  levels,
+  isEnded,
+}: ProgramEnrollmentViewProps) {
+  const { data: allEnrollments = [], isLoading } = useSchoolYearEnrollments(schoolYearId);
+
+  const isCollege    = program.type === "college";
+  const isSHS        = program.type === "shs";
+
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [selectedStrandId, setSelectedStrandId] = useState<string | null>(null);
+  const [selectedLevelId,  setSelectedLevelId]  = useState<string | null>(null);
+
+  const programLevels   = levels.filter((l) => l.program_id === program.id);
+  const programStudents = getStudentsInProgram(allEnrollments, program.id);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}
+      </div>
+    );
+  }
+
+  // ── College: Course → Level → Students ────────────────────────────────────
+  if (isCollege) {
+    const courses = program.courses ?? [];
+
+    if (selectedCourseId && selectedLevelId) {
+      const course   = courses.find((c) => c.id === selectedCourseId);
+      const level    = programLevels.find((l) => l.id === selectedLevelId);
+      const students = getStudentsInCourseLevel(allEnrollments, program.id, selectedCourseId, selectedLevelId);
+      return (
+        <div className="space-y-3">
+          <Breadcrumb crumbs={[
+            { label: "All Courses", onClick: () => { setSelectedCourseId(null); setSelectedLevelId(null); } },
+            { label: course?.name ?? "Course", onClick: () => setSelectedLevelId(null) },
+            { label: level?.name ?? "Level" },
+          ]} />
+          <StudentListPanel
+            title={`${course?.name ?? ""} — ${level?.name ?? ""}`}
+            students={students}
+            programId={program.id}
+            schoolYearId={schoolYearId}
+            isEnded={isEnded}
+            enrollContext={{ program_id: program.id, course_id: selectedCourseId, level_id: selectedLevelId }}
+            allEnrollments={allEnrollments}
+          />
+        </div>
+      );
+    }
+
+    if (selectedCourseId) {
+      const course         = courses.find((c) => c.id === selectedCourseId);
+      const courseStudents = getStudentsInCourse(allEnrollments, program.id, selectedCourseId);
+      return (
+        <div className="space-y-3">
+          <Breadcrumb crumbs={[
+            { label: "All Courses", onClick: () => setSelectedCourseId(null) },
+            { label: course?.name ?? "Course" },
+          ]} />
+          <div className="rounded-lg border bg-card overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+              <Layers className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">Levels</span>
+              <Badge variant="secondary" className="text-xs font-normal">
+                {courseStudents.length} total
+              </Badge>
+            </div>
+            <div className="divide-y">
+              {programLevels.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No levels found.</p>
+              ) : programLevels.map((level) => (
+                <CountRow
+                  key={level.id}
+                  label={level.name}
+                  count={getStudentsInCourseLevel(allEnrollments, program.id, selectedCourseId, level.id).length}
+                  onClick={() => setSelectedLevelId(level.id)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-semibold">Courses</span>
+          <Badge variant="secondary" className="text-xs font-normal">
+            {programStudents.length} total students
+          </Badge>
+        </div>
+        <div className="divide-y">
+          {courses.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-muted-foreground">No courses found.</p>
+          ) : courses.map((course) => (
+            <CountRow
+              key={course.id}
+              label={course.code ? `${course.code} – ${course.name}` : course.name}
+              count={getStudentsInCourse(allEnrollments, program.id, course.id).length}
+              onClick={() => setSelectedCourseId(course.id)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── SHS: Strand → Level → Students ────────────────────────────────────────
+  if (isSHS) {
+    const strands = program.strands ?? [];
+
+    if (selectedStrandId && selectedLevelId) {
+      const strand   = strands.find((s) => s.id === selectedStrandId);
+      const level    = programLevels.find((l) => l.id === selectedLevelId);
+      const students = getStudentsInStrandLevel(allEnrollments, program.id, selectedStrandId, selectedLevelId);
+      return (
+        <div className="space-y-3">
+          <Breadcrumb crumbs={[
+            { label: "All Strands", onClick: () => { setSelectedStrandId(null); setSelectedLevelId(null); } },
+            { label: strand?.name ?? "Strand", onClick: () => setSelectedLevelId(null) },
+            { label: level?.name ?? "Level" },
+          ]} />
+          <StudentListPanel
+            title={`${strand?.name ?? ""} — ${level?.name ?? ""}`}
+            students={students}
+            programId={program.id}
+            schoolYearId={schoolYearId}
+            isEnded={isEnded}
+            enrollContext={{ program_id: program.id, strand_id: selectedStrandId, level_id: selectedLevelId }}
+            allEnrollments={allEnrollments}
+          />
+        </div>
+      );
+    }
+
+    if (selectedStrandId) {
+      const strand         = strands.find((s) => s.id === selectedStrandId);
+      const strandStudents = getStudentsInStrand(allEnrollments, program.id, selectedStrandId);
+      return (
+        <div className="space-y-3">
+          <Breadcrumb crumbs={[
+            { label: "All Strands", onClick: () => setSelectedStrandId(null) },
+            { label: strand?.name ?? "Strand" },
+          ]} />
+          <div className="rounded-lg border bg-card overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+              <Layers className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">Levels</span>
+              <Badge variant="secondary" className="text-xs font-normal">
+                {strandStudents.length} total
+              </Badge>
+            </div>
+            <div className="divide-y">
+              {programLevels.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No levels found.</p>
+              ) : programLevels.map((level) => (
+                <CountRow
+                  key={level.id}
+                  label={level.name}
+                  count={getStudentsInStrandLevel(allEnrollments, program.id, selectedStrandId, level.id).length}
+                  onClick={() => setSelectedLevelId(level.id)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-semibold">Strands</span>
+          <Badge variant="secondary" className="text-xs font-normal">
+            {programStudents.length} total students
+          </Badge>
+        </div>
+        <div className="divide-y">
+          {strands.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-muted-foreground">No strands found.</p>
+          ) : strands.map((strand) => (
+            <CountRow
+              key={strand.id}
+              label={strand.name}
+              count={getStudentsInStrand(allEnrollments, program.id, strand.id).length}
+              onClick={() => setSelectedStrandId(strand.id)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Others: Level → Students ───────────────────────────────────────────────
+  if (selectedLevelId) {
+    const level    = programLevels.find((l) => l.id === selectedLevelId);
+    const students = getStudentsInLevel(allEnrollments, program.id, selectedLevelId);
+    return (
+      <div className="space-y-3">
+        <Breadcrumb crumbs={[
+          { label: "All Levels", onClick: () => setSelectedLevelId(null) },
+          { label: level?.name ?? "Level" },
+        ]} />
+        <StudentListPanel
+          title={level?.name ?? "Level"}
+          students={students}
+          programId={program.id}
+          schoolYearId={schoolYearId}
+          isEnded={isEnded}
+          enrollContext={{ program_id: program.id, level_id: selectedLevelId }}
+          allEnrollments={allEnrollments}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+        <Users className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-semibold">Levels</span>
+        <Badge variant="secondary" className="text-xs font-normal">
+          {programStudents.length} total students
+        </Badge>
+      </div>
+      <div className="divide-y">
+        {programLevels.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-muted-foreground">No levels found.</p>
+        ) : programLevels.map((level) => (
+          <CountRow
+            key={level.id}
+            label={level.name}
+            count={getStudentsInLevel(allEnrollments, program.id, level.id).length}
+            onClick={() => setSelectedLevelId(level.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
