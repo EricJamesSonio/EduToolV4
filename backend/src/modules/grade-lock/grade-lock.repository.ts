@@ -1,11 +1,11 @@
 // ===== File: backend/src/modules/grade-lock/grade-lock.repository.ts =====
 
 import { Injectable } from '@nestjs/common'
-import { PrismaService } from '@/core/database/database.provider'
+import { DatabaseService } from '@/core/database/database.provider'
 
 @Injectable()
 export class GradeLockRepository {
-  constructor(private readonly db: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   /**
    * Get grade lock by class ID

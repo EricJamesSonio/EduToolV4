@@ -1,7 +1,7 @@
 // ===== File: backend/src/modules/grade-lock/grade-lock.validator.ts =====
 
 import { Injectable, ForbiddenException } from '@nestjs/common'
-import { PrismaService } from '@/core/database/database.provider'
+import { DatabaseService } from '@/core/database/database.provider'
 
 export interface GradeEditCheckResult {
   allowed: boolean
@@ -27,7 +27,7 @@ export interface GradeEditCheckInput {
  */
 @Injectable()
 export class GradeLockValidator {
-  constructor(private readonly db: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   /**
    * Check if a user can edit grades for a class

@@ -1,31 +1,32 @@
-"use client";
+// ===== File: frontend/src/app/admin/grade-lock/page.tsx =====
 
-import { useState } from "react";
-import { format } from "date-fns";
-import { Lock, Settings } from "lucide-react";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { DataTable } from "@/components/shared/DataTable";
-import { Button } from "@/components/ui/button";
-import { GradeLockSettingModal } from "@/components/admin/grade-lock/GradeLockSettingModal";
-import { GradeLockOverrideDialog } from "@/components/admin/grade-lock/GradeLockOverrideDialog";
-import { GradeLockStats } from "@/components/admin/grade-lock/GradeLockStats";
-import { useGradeLockColumns } from "@/hooks/admin/useGradeLockColumns";
-import { useGradeLocks, useGradeLockSetting } from "@/hooks/admin/useGradeLocks";
-import type { GradeLock } from "@/types/admin/grade-lock.types";
+"use client"
 
-// NOTE: Replace with actual active school year from context/store
-const ACTIVE_SCHOOL_YEAR_ID    = "active-school-year-id";
-const ACTIVE_SCHOOL_YEAR_LABEL = "S.Y. 2024–2025";
+import { useState } from "react"
+import { format } from "date-fns"
+import { Lock, Settings } from "lucide-react"
+import { PageHeader } from "@/components/shared/PageHeader"
+import { DataTable } from "@/components/shared/DataTable"
+import { Button } from "@/components/ui/button"
+import { GradeLockSettingModal } from "@/components/admin/grade-lock/GradeLockSettingModal"
+import { GradeLockOverrideDialog } from "@/components/admin/grade-lock/GradeLockOverrideDialog"
+import { GradeLockStats } from "@/components/admin/grade-lock/GradeLockStats"
+import { useGradeLockColumns } from "@/hooks/admin/useGradeLockColumns"
+import { useGradeLocks, useGradeLockSetting } from "@/hooks/admin/useGradeLocks"
+import type { GradeLock } from "@/types/admin/grade-lock.types"
+
+const ACTIVE_SCHOOL_YEAR_ID = "active-school-year-id"
+const ACTIVE_SCHOOL_YEAR_LABEL = "S.Y. 2024–2025"
 
 export default function GradeLockPage(): React.ReactElement {
-  const [settingModalOpen, setSettingModalOpen] = useState(false);
-  const [overrideTarget, setOverrideTarget]     = useState<GradeLock | null>(null);
+  const [settingModalOpen, setSettingModalOpen] = useState(false)
+  const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null)
 
-  const { data: gradeLocks, isLoading } = useGradeLocks();
-  const { data: setting }               = useGradeLockSetting(ACTIVE_SCHOOL_YEAR_ID);
-  const columns                         = useGradeLockColumns(setOverrideTarget);
+  const { data: gradeLocks, isLoading } = useGradeLocks()
+  const { data: setting } = useGradeLockSetting(ACTIVE_SCHOOL_YEAR_ID)
+  const columns = useGradeLockColumns(setOverrideTarget)
 
-  const locks = Array.isArray(gradeLocks) ? gradeLocks : [];
+  const locks = Array.isArray(gradeLocks) ? gradeLocks : []
 
   return (
     <div className="space-y-6 p-6">
@@ -45,12 +46,13 @@ export default function GradeLockPage(): React.ReactElement {
           <span className="text-muted-foreground">Active School Year</span>
           <span className="font-medium">{ACTIVE_SCHOOL_YEAR_LABEL}</span>
         </div>
-        {setting?.deadline && (
+
+        {setting?.lock_deadline && (
           <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
             <Lock className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-muted-foreground">Lock deadline:</span>
             <span className="font-medium">
-              {format(new Date(setting.deadline), "MMM d, yyyy h:mm a")}
+              {format(new Date(setting.lock_deadline), "MMM d, yyyy h:mm a")}
             </span>
           </div>
         )}
@@ -70,7 +72,7 @@ export default function GradeLockPage(): React.ReactElement {
         open={settingModalOpen}
         onClose={() => setSettingModalOpen(false)}
         schoolYearId={ACTIVE_SCHOOL_YEAR_ID}
-        existingDeadline={setting?.deadline}
+        existingDeadline={setting?.lock_deadline}
       />
 
       <GradeLockOverrideDialog
@@ -79,5 +81,5 @@ export default function GradeLockPage(): React.ReactElement {
         gradeLock={overrideTarget}
       />
     </div>
-  );
+  )
 }

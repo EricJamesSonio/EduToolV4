@@ -6,7 +6,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common'
-import { PrismaService } from '@/core/database/database.provider'
+import { DatabaseService } from '@/core/database/database.provider'
 import { AuditLogService } from '../audit-log/audit-log.service'
 import { CreateGradeLockSettingDto } from './dto/grade-lock.dto'
 import { GradeLockValidator } from './grade-lock.validator'
@@ -14,7 +14,7 @@ import { GradeLockValidator } from './grade-lock.validator'
 @Injectable()
 export class GradeLockService {
   constructor(
-    private readonly db: PrismaService,
+    private readonly db: DatabaseService,
     private readonly auditLog: AuditLogService,
     private readonly validator: GradeLockValidator,
   ) {}

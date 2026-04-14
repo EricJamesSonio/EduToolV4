@@ -1,85 +1,184 @@
-// ===== File: frontend/src/app/admin/grade-lock/page.tsx =====
+// ===== File: frontend/src/hooks/admin/useGradeLocks.ts =====
 
-"use client"
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  UseQueryResult,
+  UseMutationResult,
+} from "@tanstack/react-query"
+import { gradeLockApi } from "@/api/admin/grade-lock.api"
+import type { GradeLockSetting, GradeLock, GradeLockResponse } from "@/types/admin/grade-lock.types"
+import { toast } from "sonner"
 
-import { useState } from "react"
-import { format } from "date-fns"
-import { Lock, Settings } from "lucide-react"
-import { PageHeader } from "@/components/shared/PageHeader"
-import { DataTable } from "@/components/shared/DataTable"
-import { Button } from "@/components/ui/button"
-import { GradeLockSettingModal } from "@/components/admin/grade-lock/GradeLockSettingModal"
-import { GradeLockOverrideDialog } from "@/components/admin/grade-lock/GradeLockOverrideDialog"
-import { GradeLockStats } from "@/components/admin/grade-lock/GradeLockStats"
-import { useGradeLockColumns } from "@/hooks/admin/useGradeLockColumns"
-import { useGradeLocks, useGradeLockSetting } from "@/hooks/admin/useGradeLocks"
-import type { GradeLock } from "@/types/admin/grade-lock.types"
+/**
+ * GET lock deadline for a school year
+ */
+export const useGradeLockSetting = (
+  schoolYearId: string
+): UseQueryResult<GradeLockSetting | null, unknown> => {
+  return useQuery<GradeLockSetting | null>({
+    queryKey: ["gradeLock", "setting", schoolYearId],
+    queryFn: () => gradeLockApi.getSetting(schoolYearId),
+    enabled: !!schoolYearId,
+  })
+}
 
-const ACTIVE_SCHOOL_YEAR_ID = "active-school-year-id"
-const ACTIVE_SCHOOL_YEAR_LABEL = "S.Y. 2024–2025"
+/**
+ * CREATE/SET lock deadline
+ */
+export const useCreateGradeLockSetting = (): UseMutationResult<
+  GradeLockSetting,
+  unknown,
+  { schoolYearId: string; lockDeadline: string }
+> => {
+  const queryClient = useQueryClient()
 
-export default function GradeLockPage(): React.ReactElement {
-  const [settingModalOpen, setSettingModalOpen] = useState(false)
-  const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null)
+  return useMutation<
+    GradeLockSetting,
+    unknown,
+    { schoolYearId: string; lockDeadline: string }
+  >({
+    mutationFn: (data) => gradeLockApi.createSetting(data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["gradeLock", "setting", variables.schoolYearId],
+      })
+      toast.success("Lock deadline set successfully")
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to set lock deadline")
+    },
+  })
+}
 
-  const { data: gradeLocks, isLoading } = useGradeLocks()
-  const { data: setting } = useGradeLockSetting(ACTIVE_SCHOOL_YEAR_ID)
-  const columns = useGradeLockColumns(setOverrideTarget)
+/**
+ * UPDATE lock deadline
+ */
+export const useUpdateGradeLockSetting = (): UseMutationResult<
+  GradeLockSetting,
+  unknown,
+  { schoolYearId: string; lockDeadline: string }
+> => {
+  const queryClient = useQueryClient()
 
-  const locks = Array.isArray(gradeLocks) ? gradeLocks : []
+  return useMutation<
+    GradeLockSetting,
+    unknown,
+    { schoolYearId: string; lockDeadline: string }
+  >({
+    mutationFn: ({ schoolYearId, lockDeadline }) =>
+      gradeLockApi.updateSetting(schoolYearId, lockDeadline),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["gradeLock", "setting", variables.schoolYearId],
+      })
+      toast.success("Lock deadline updated successfully")
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to update lock deadline")
+    },
+  })
+}
 
-  return (
-    <div className="space-y-6 p-6">
-      <PageHeader
-        title="Grade Lock"
-        description="Manage grade submission deadlines and lock status per class."
-        actions={
-          <Button onClick={() => setSettingModalOpen(true)} className="gap-2">
-            <Settings className="h-4 w-4" />
-            {setting ? "Update Lock Window" : "Open Lock Window"}
-          </Button>
-        }
-      />
+/**
+ * GET all class locks (admin dashboard)
+ */
+export const useGradeLocks = (): UseQueryResult<GradeLock[], unknown> => {
+  return useQuery<GradeLock[]>({
+    queryKey: ["gradeLock", "classes"],
+    queryFn: gradeLockApi.getLocks,
+  })
+}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
-          <span className="text-muted-foreground">Active School Year</span>
-          <span className="font-medium">{ACTIVE_SCHOOL_YEAR_LABEL}</span>
-        </div>
+/**
+ * EDUCATOR: Lock their class (before deadline)
+ */
+export const useLockClass = (): UseMutationResult<
+  GradeLockResponse,
+  unknown,
+  { classId: string }
+> => {
+  const queryClient = useQueryClient()
 
-        {setting?.lock_deadline && (
-          <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
-            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">Lock deadline:</span>
-            <span className="font-medium">
-              {format(new Date(setting.lock_deadline), "MMM d, yyyy h:mm a")}
-            </span>
-          </div>
-        )}
-      </div>
+  return useMutation<GradeLockResponse, unknown, { classId: string }>({
+    mutationFn: ({ classId }) => gradeLockApi.lockClass(classId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["gradeLock"] })
+      toast.success("Class locked successfully")
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to lock class")
+    },
+  })
+}
 
-      <GradeLockStats gradeLocks={locks} />
+/**
+ * EDUCATOR/ADMIN: Unlock a class
+ * - Educators: only before deadline
+ * - Admins: anytime (override)
+ */
+export const useUnlockClass = (): UseMutationResult<
+  GradeLockResponse,
+  unknown,
+  { classId: string }
+> => {
+  const queryClient = useQueryClient()
 
-      <DataTable
-        columns={columns}
-        data={locks}
-        isLoading={isLoading}
-        emptyTitle="No classes found"
-        emptyDescription="No grade lock records exist yet. Open a lock window to get started."
-      />
+  return useMutation<GradeLockResponse, unknown, { classId: string }>({
+    mutationFn: ({ classId }) => gradeLockApi.unlockClass(classId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["gradeLock"] })
+      toast.success("Class unlocked successfully")
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to unlock class")
+    },
+  })
+}
 
-      <GradeLockSettingModal
-        open={settingModalOpen}
-        onClose={() => setSettingModalOpen(false)}
-        schoolYearId={ACTIVE_SCHOOL_YEAR_ID}
-        existingDeadline={setting?.lock_deadline}
-      />
+/**
+ * ADMIN: Unlock with override (after deadline)
+ * Alias for unlockClass - backend handles role-based logic
+ */
+export const useUnlockOverride = (): UseMutationResult<
+  GradeLockResponse,
+  unknown,
+  { classId: string }
+> => {
+  const queryClient = useQueryClient()
 
-      <GradeLockOverrideDialog
-        open={!!overrideTarget}
-        onClose={() => setOverrideTarget(null)}
-        gradeLock={overrideTarget}
-      />
-    </div>
-  )
+  return useMutation<GradeLockResponse, unknown, { classId: string }>({
+    mutationFn: ({ classId }) => gradeLockApi.unlockOverride(classId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["gradeLock"] })
+      toast.success("Class unlocked (admin override)")
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to unlock class")
+    },
+  })
+}
+
+/**
+ * AUTO-LOCK: Manually trigger auto-lock for expired classes
+ * (Optional - mainly for testing or manual triggering)
+ */
+export const useAutoLockExpiredClasses = (): UseMutationResult<
+  { success: boolean; lockedCount: number },
+  unknown,
+  void
+> => {
+  const queryClient = useQueryClient()
+
+  return useMutation<{ success: boolean; lockedCount: number }, unknown, void>({
+    mutationFn: () => gradeLockApi.autoLock(),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["gradeLock"] })
+      toast.success(`Auto-locked ${data.lockedCount} classes`)
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to auto-lock classes")
+    },
+  })
 }
