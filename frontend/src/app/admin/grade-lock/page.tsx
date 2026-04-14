@@ -14,16 +14,18 @@ import { GradeLockOverrideDialog } from "@/components/admin/grade-lock/GradeLock
 import { GradeLockStats } from "@/components/admin/grade-lock/GradeLockStats"
 
 import { useGradeLockColumns } from "@/hooks/admin/useGradeLockColumns"
-import { useGradeLocks, useGradeLockSettings } from "@/hooks/admin/useGradeLocks"
+import { useGradeLocks, useGradeLockSettings, useAssignSetting } from "@/hooks/admin/useGradeLocks"
+
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears"
+
 
 import type { GradeLock } from "@/types/admin/grade-lock.types"
 
 export default function GradeLockPage(): React.ReactElement {
   const [settingModalOpen, setSettingModalOpen] = useState(false)
-  const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null)
+  const { mutate: assignSetting, isPending: isApplying } = useAssignSetting()
 
-  // 👇 APPLY CONFIRM STATE
+  const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null)
   const [applyTarget, setApplyTarget] = useState<GradeLock | null>(null)
 
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null)
@@ -51,16 +53,22 @@ export default function GradeLockPage(): React.ReactElement {
     return templates.find((t) => t.is_default) ?? templates[0] ?? null
   }, [templates])
 
-  // 🔥 APPLY HANDLER
+  // =============================
+  // APPLY HANDLER (safe hook)
+  // =============================
   const handleApplyTemplate = (lock: GradeLock) => {
     setApplyTarget(lock)
   }
 
-  const columns = useGradeLockColumns(
-    (lock) => setOverrideTarget(lock),
-    handleApplyTemplate
-  )
+  const handleOverride = (lock: GradeLock) => {
+    setOverrideTarget(lock)
+  }
 
+  const columns = useGradeLockColumns(handleOverride, handleApplyTemplate)
+
+  // =============================
+  // FILTERING
+  // =============================
   const filteredLocks = useMemo(() => {
     let result = locks
 
@@ -111,9 +119,10 @@ export default function GradeLockPage(): React.ReactElement {
   return (
     <div className="space-y-8 p-6">
 
+      {/* ================= HEADER ================= */}
       <PageHeader
         title="Grade Lock System"
-        description="Manage reusable lock templates and apply them to school years and classes."
+        description="Manage reusable lock templates and apply them to classes."
         actions={
           <Button onClick={() => setSettingModalOpen(true)} className="gap-2">
             <Settings className="h-4 w-4" />
@@ -122,45 +131,53 @@ export default function GradeLockPage(): React.ReactElement {
         }
       />
 
-      {/* APPLY CONFIRM MODAL */}
-      {applyTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-lg bg-background p-6 space-y-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Layers className="h-4 w-4 text-primary" />
-              Apply Grade Lock Template?
-            </h2>
+      {/* ================= GLOBAL TEMPLATES ================= */}
+      <div className="rounded-lg border p-4 space-y-2 bg-muted/30">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Layers className="h-4 w-4" />
+          Global Grade Lock Templates
+        </div>
 
-            <p className="text-sm text-muted-foreground">
-              Apply <span className="font-medium">{activeTemplate?.name}</span> to:
-              <br />
-              <span className="font-medium text-foreground">
-                {applyTarget.className}
+        {activeTemplate ? (
+          <div className="text-sm text-muted-foreground">
+            Active Template:{" "}
+            <span className="font-medium text-foreground">
+              {activeTemplate.name}
+            </span>
+
+            {activeTemplate.lock_deadline && (
+              <span className="ml-2">
+                (Deadline:{" "}
+                {format(
+                  new Date(activeTemplate.lock_deadline),
+                  "MMM d, yyyy h:mm a"
+                )}
+                )
               </span>
-            </p>
-
-            <p className="text-xs text-muted-foreground">
-              This will override current lock settings for this class.
-            </p>
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setApplyTarget(null)}>
-                Cancel
-              </Button>
-
-              <Button
-                onClick={() => {
-                  console.log("APPLY CONFIRMED:", applyTarget)
-                  setApplyTarget(null)
-                }}
-              >
-                Yes, Apply
-              </Button>
-            </div>
+            )}
           </div>
+        ) : (
+          <div className="text-sm text-muted-foreground">
+            No templates configured yet.
+          </div>
+        )}
+      </div>
+
+      {/* ================= GLOBAL RULE ================= */}
+      {activeTemplate?.lock_deadline && (
+        <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
+          <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-muted-foreground">Global Rule:</span>
+          <span className="font-medium">
+            {format(
+              new Date(activeTemplate.lock_deadline),
+              "MMM d, yyyy h:mm a"
+            )}
+          </span>
         </div>
       )}
 
+      {/* ================= FILTERS ================= */}
       <GradeLockHierarchyFilter
         schoolYears={schoolYears ?? []}
         schoolYearsLoading={schoolYearsLoading}
@@ -179,8 +196,10 @@ export default function GradeLockPage(): React.ReactElement {
         onReset={() => handleSchoolYearSelect(null)}
       />
 
+      {/* ================= STATS ================= */}
       <GradeLockStats gradeLocks={filteredLocks} />
 
+      {/* ================= TABLE ================= */}
       <DataTable
         columns={columns}
         data={filteredLocks}
@@ -189,6 +208,54 @@ export default function GradeLockPage(): React.ReactElement {
         emptyDescription="No grade lock records exist. Try adjusting your filters."
       />
 
+      {/* ================= APPLY CONFIRM MODAL ================= */}
+      {applyTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-lg bg-background p-6 space-y-4">
+            
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Layers className="h-4 w-4 text-primary" />
+              Are you sure?
+            </h2>
+
+            <p className="text-sm text-muted-foreground">
+              You are about to apply the current template to:
+              <br />
+              <span className="font-medium text-foreground">
+                {applyTarget.className}
+              </span>
+            </p>
+
+            <p className="text-xs text-muted-foreground">
+              This may override existing lock configuration.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setApplyTarget(null)}
+              >
+                Cancel
+              </Button>
+
+<Button
+  disabled={isApplying || !activeTemplate}
+  onClick={() => {
+    if (!applyTarget || !activeTemplate) return
+    assignSetting(
+      { classId: applyTarget.class_id, settingId: activeTemplate.id },
+      { onSuccess: () => setApplyTarget(null) }
+    )
+  }}
+>
+  {isApplying ? "Applying..." : "Yes, Apply"}
+</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODALS ================= */}
       <GradeLockSettingModal
         open={settingModalOpen}
         onClose={() => setSettingModalOpen(false)}
