@@ -248,42 +248,30 @@ export class GradeLockService {
         school_year_id: true,
         subject: {
           include: {
-            program: {
-              select: { id: true, name: true },
-            },
-            course: {
-              select: { id: true, name: true },
-            },
-            strand: {
-              select: { id: true, name: true },
-            },
-            level: {
-              select: { id: true, name: true },
-            },
+            program: { select: { id: true, name: true } },
+            course: { select: { id: true, name: true } },
+            strand: { select: { id: true, name: true } },
+            level: { select: { id: true, name: true } },
           },
         },
         gradeLock: true,
       },
-      orderBy: {
-        created_at: 'desc',
-      },
+      orderBy: { created_at: 'desc' },
     })
 
-    // Fetch educator names separately (batch to avoid N+1)
     const educatorIds = [...new Set(classes.map((c) => c.educator_id))]
     const educators = await this.db.profile.findMany({
       where: {
-        user_id: { in: educatorIds },
+        account_id: { in: educatorIds },
       },
       select: {
-        user_id: true,
-        first_name: true,
-        last_name: true,
+        account_id: true,
+        full_name: true,
       },
     })
 
     const educatorMap = new Map(
-      educators.map((e) => [e.user_id, `${e.first_name} ${e.last_name}`])
+      educators.map((e) => [e.account_id, e.full_name || 'Unknown Educator'])
     )
 
     return classes.map((cls) =>
@@ -294,62 +282,50 @@ export class GradeLockService {
   /**
    * Get class locks filtered by school year
    */
-  async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
-    const classes = await this.db.class.findMany({
-      where: {
-        org_id: orgId,
-        school_year_id: schoolYearId,
-        deleted_at: null,
-      },
-      select: {
-        id: true,
-        subject_id: true,
-        educator_id: true,
-        school_year_id: true,
-        subject: {
-          include: {
-            program: {
-              select: { id: true, name: true },
-            },
-            course: {
-              select: { id: true, name: true },
-            },
-            strand: {
-              select: { id: true, name: true },
-            },
-            level: {
-              select: { id: true, name: true },
-            },
-          },
+async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
+  const classes = await this.db.class.findMany({
+    where: {
+      org_id: orgId,
+      school_year_id: schoolYearId,
+      deleted_at: null,
+    },
+    select: {
+      id: true,
+      subject_id: true,
+      educator_id: true,
+      school_year_id: true,
+      subject: {
+        include: {
+          program: { select: { id: true, name: true } },
+          course: { select: { id: true, name: true } },
+          strand: { select: { id: true, name: true } },
+          level: { select: { id: true, name: true } },
         },
-        gradeLock: true,
       },
-      orderBy: {
-        created_at: 'desc',
-      },
-    })
+      gradeLock: true,
+    },
+    orderBy: { created_at: 'desc' },
+  })
 
-    // Fetch educator names separately (batch to avoid N+1)
-    const educatorIds = [...new Set(classes.map((c) => c.educator_id))]
-    const educators = await this.db.profile.findMany({
-      where: {
-        user_id: { in: educatorIds },
-      },
-      select: {
-        user_id: true,
-        first_name: true,
-        last_name: true,
-      },
-    })
+  const educatorIds = [...new Set(classes.map((c) => c.educator_id))]
+  const educators = await this.db.profile.findMany({
+    where: {
+      account_id: { in: educatorIds },
+    },
+    select: {
+      account_id: true,
+      full_name: true,
+    },
+  })
 
-    const educatorMap = new Map(
-      educators.map((e) => [e.user_id, `${e.first_name} ${e.last_name}`])
-    )
+  const educatorMap = new Map(
+    educators.map((e) => [e.account_id, e.full_name || 'Unknown Educator'])
+  )
 
-    return classes.map((cls) =>
-      this.mapClassToGradeLock(cls, orgId, educatorMap)
-    )
-  }
+  return classes.map((cls) =>
+    this.mapClassToGradeLock(cls, orgId, educatorMap)
+  )
+}
 
   /**
    * Auto-lock classes after deadline
