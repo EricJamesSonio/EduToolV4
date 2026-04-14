@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { format } from "date-fns"
-import { Lock, Settings } from "lucide-react"
+import { Lock, Settings, Layers } from "lucide-react"
 
 import { PageHeader } from "@/components/shared/PageHeader"
 import { DataTable } from "@/components/shared/DataTable"
@@ -13,48 +13,57 @@ import { GradeLockSettingModal } from "@/components/admin/grade-lock/GradeLockSe
 import { GradeLockOverrideDialog } from "@/components/admin/grade-lock/GradeLockOverrideDialog"
 import { GradeLockStats } from "@/components/admin/grade-lock/GradeLockStats"
 
-import { useGradeLockColumns } from "@/hooks/admin/useGradeLockColumns"
+import {
+  useGradeLockColumns,
+} from "@/hooks/admin/useGradeLockColumns"
+
 import {
   useGradeLocks,
   useGradeLockSettings,
 } from "@/hooks/admin/useGradeLocks"
 
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears"
-
 import type { GradeLock } from "@/types/admin/grade-lock.types"
 
 export default function GradeLockPage(): React.ReactElement {
   const [settingModalOpen, setSettingModalOpen] = useState(false)
   const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null)
 
+  // ─── SCHOOL YEAR SCOPING ─────────────────────────────
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null)
-
-  // ─── Filters ─────────────────────────────────────────────
   const [selectedProgram, setSelectedProgram] = useState<string>("")
   const [selectedCourseStrand, setSelectedCourseStrand] = useState<string>("")
   const [selectedLevel, setSelectedLevel] = useState<string>("")
 
-  // ─── Data ────────────────────────────────────────────────
+  // ─── DATA ─────────────────────────────
   const { data: schoolYears, isLoading: schoolYearsLoading } = useSchoolYears()
 
   const { data: gradeLocks, isLoading } = useGradeLocks(
     selectedSchoolYearId ?? undefined
   )
 
+  // GLOBAL templates (NEW IMPORTANT CHANGE)
   const { data: settings } = useGradeLockSettings()
 
   const columns = useGradeLockColumns(setOverrideTarget)
 
-  // ─── Derived State ───────────────────────────────────────
+  // ─── SAFE NORMALIZATION ─────────────────────────────
   const locks = useMemo(
     () => (Array.isArray(gradeLocks) ? gradeLocks : []),
     [gradeLocks]
   )
 
-  const activeSetting = useMemo(() => {
-    return settings?.find((s) => s.is_default) ?? settings?.[0]
-  }, [settings])
+  const templates = useMemo(
+    () => (Array.isArray(settings) ? settings : []),
+    [settings]
+  )
 
+  // ─── GLOBAL TEMPLATE (NOT SCHOOL YEAR SCOPED) ─────────
+  const activeTemplate = useMemo(() => {
+    return templates.find((t) => t.is_default) ?? templates[0] ?? null
+  }, [templates])
+
+  // ─── FILTERED CLASS LOCKS ─────────────────────────────
   const filteredLocks = useMemo(() => {
     let result = locks
 
@@ -93,7 +102,6 @@ export default function GradeLockPage(): React.ReactElement {
     selectedLevel,
   ])
 
-  // ─── Handlers ────────────────────────────────────────────
   const handleSchoolYearSelect = (id: string | null) => {
     setSelectedSchoolYearId(id)
     setSelectedProgram("")
@@ -101,32 +109,77 @@ export default function GradeLockPage(): React.ReactElement {
     setSelectedLevel("")
   }
 
-  // ─── UI ──────────────────────────────────────────────────
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-8 p-6">
+
+      {/* ─────────────────────────────────────────────
+          HEADER
+      ───────────────────────────────────────────── */}
       <PageHeader
-        title="Grade Lock"
-        description="Manage grade submission deadlines and lock status per class."
+        title="Grade Lock System"
+        description="Manage reusable lock templates and apply them to school years and classes."
         actions={
           <Button onClick={() => setSettingModalOpen(true)} className="gap-2">
             <Settings className="h-4 w-4" />
-            {activeSetting ? "Update Lock Window" : "Open Lock Window"}
+            Manage Templates
           </Button>
         }
       />
 
-      {/* Lock Deadline Display */}
-      {activeSetting?.lock_deadline && (
+      {/* ─────────────────────────────────────────────
+          GLOBAL TEMPLATES SECTION (NEW)
+      ───────────────────────────────────────────── */}
+      <div className="rounded-lg border p-4 space-y-2 bg-muted/30">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Layers className="h-4 w-4" />
+          Global Grade Lock Templates
+        </div>
+
+        {activeTemplate ? (
+          <div className="text-sm text-muted-foreground">
+            Active Template:{" "}
+            <span className="font-medium text-foreground">
+              {activeTemplate.name}
+            </span>
+
+            {activeTemplate.lock_deadline && (
+              <span className="ml-2">
+                (Deadline:{" "}
+                {format(
+                  new Date(activeTemplate.lock_deadline),
+                  "MMM d, yyyy h:mm a"
+                )}
+                )
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground">
+            No templates configured yet.
+          </div>
+        )}
+      </div>
+
+      {/* ─────────────────────────────────────────────
+          SCHOOL YEAR APPLICATION SECTION
+      ───────────────────────────────────────────── */}
+
+      {activeTemplate?.lock_deadline && (
         <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
           <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-muted-foreground">Lock deadline:</span>
+          <span className="text-muted-foreground">Global Rule:</span>
           <span className="font-medium">
-            {format(new Date(activeSetting.lock_deadline), "MMM d, yyyy h:mm a")}
+            {format(
+              new Date(activeTemplate.lock_deadline),
+              "MMM d, yyyy h:mm a"
+            )}
           </span>
         </div>
       )}
 
-      {/* Filters */}
+      {/* ─────────────────────────────────────────────
+          FILTERS (APPLY TEMPLATE → CLASS SCOPE)
+      ───────────────────────────────────────────── */}
       <GradeLockHierarchyFilter
         schoolYears={schoolYears ?? []}
         schoolYearsLoading={schoolYearsLoading}
@@ -147,10 +200,14 @@ export default function GradeLockPage(): React.ReactElement {
         onReset={() => handleSchoolYearSelect(null)}
       />
 
-      {/* Stats */}
+      {/* ─────────────────────────────────────────────
+          STATS
+      ───────────────────────────────────────────── */}
       <GradeLockStats gradeLocks={filteredLocks} />
 
-      {/* Table */}
+      {/* ─────────────────────────────────────────────
+          TABLE
+      ───────────────────────────────────────────── */}
       <DataTable
         columns={columns}
         data={filteredLocks}
@@ -159,14 +216,15 @@ export default function GradeLockPage(): React.ReactElement {
         emptyDescription="No grade lock records exist. Try adjusting your filters."
       />
 
-      {/* Setting Modal (UPDATED) */}
+      {/* ─────────────────────────────────────────────
+          MODALS
+      ───────────────────────────────────────────── */}
       <GradeLockSettingModal
         open={settingModalOpen}
         onClose={() => setSettingModalOpen(false)}
-        existingSetting={activeSetting}
+        existingSetting={activeTemplate}
       />
 
-      {/* Override Dialog */}
       <GradeLockOverrideDialog
         open={!!overrideTarget}
         onClose={() => setOverrideTarget(null)}
