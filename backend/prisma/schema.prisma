@@ -697,10 +697,10 @@ model GradeLockSetting {
   id          String @id @default(uuid())
   org_id      String
 
-  name        String
+  name         String @default("Default Setting")
   description String?
 
-  lockType    String  // "hard" | "soft" | "flexible"
+  lockType    String?  // "hard" | "soft" | "flexible"
 
   lock_deadline DateTime?
   deadlineDays  Int?
