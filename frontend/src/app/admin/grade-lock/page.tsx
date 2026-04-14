@@ -23,7 +23,7 @@ export default function GradeLockPage(): React.ReactElement {
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null)
 
   const { data: schoolYears, isLoading: schoolYearsLoading } = useSchoolYears()
-  const { data: gradeLocks, isLoading } = useGradeLocks()
+  const { data: gradeLocks, isLoading } = useGradeLocks(selectedSchoolYearId ?? undefined)
   const { data: setting } = useGradeLockSetting(selectedSchoolYearId ?? "")
   const columns = useGradeLockColumns(setOverrideTarget)
 

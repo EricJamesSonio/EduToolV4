@@ -272,6 +272,31 @@ export class GradeLockService {
   }
 
   /**
+   * INTERNAL: Get class locks filtered by school year
+   */
+  async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
+    return this.db.gradeLock.findMany({
+      where: {
+        org_id: orgId,
+        class: {
+          school_year_id: schoolYearId,
+        },
+      },
+      include: {
+        class: {
+          select: {
+            id: true,
+            subject_id: true,
+            educator_id: true,
+            school_year_id: true,
+          },
+        },
+      },
+      orderBy: { locked_at: 'desc' },
+    })
+  }
+
+  /**
    * INTERNAL: Auto-lock classes when deadline passes (can be called by scheduler if needed, but NOT required)
    * We don't use cron - instead we check deadline dynamically in canEditGrades()
    */
@@ -330,7 +355,7 @@ export class GradeLockService {
       }
     }
 
-    return { success: true, lockedCount: expiredSettings.length }
+    return { success: true, lockedCount: classes.length }
   }
 
   /**

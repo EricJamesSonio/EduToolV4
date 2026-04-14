@@ -93,14 +93,20 @@ export class GradeLockController {
   }
 
   /**
-   * ADMIN: Get all class locks for organization
-   * GET /grade-lock/classes
+   * ADMIN: Get all class locks for organization (optionally filtered by school year)
+   * GET /grade-lock/classes?schoolYearId={id}
    */
   @Get('classes')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
-  async getClassLocks(@CurrentUser() user: any) {
+  async getClassLocks(
+    @CurrentUser() user: any,
+    @Query('schoolYearId') schoolYearId?: string,
+  ) {
     const orgId = user.org_id
+    if (schoolYearId) {
+      return this.service.getClassLocksBySchoolYear(orgId, schoolYearId)
+    }
     return this.service.getClassLocks(orgId)
   }
 

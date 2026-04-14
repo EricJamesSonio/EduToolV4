@@ -82,12 +82,15 @@ export const useUpdateGradeLockSetting = (): UseMutationResult<
 }
 
 /**
- * GET all class locks (admin dashboard)
+ * GET all class locks (filtered by school year)
  */
-export const useGradeLocks = (): UseQueryResult<GradeLock[], unknown> => {
+export const useGradeLocks = (
+  schoolYearId?: string
+): UseQueryResult<GradeLock[], unknown> => {
   return useQuery<GradeLock[]>({
-    queryKey: ["gradeLock", "classes"],
-    queryFn: gradeLockApi.getLocks,
+    queryKey: ["gradeLock", "classes", schoolYearId],
+    queryFn: () => gradeLockApi.getLocks(schoolYearId),
+    enabled: !!schoolYearId,
   })
 }
 
