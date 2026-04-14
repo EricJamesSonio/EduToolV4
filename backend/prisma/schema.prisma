@@ -178,6 +178,8 @@ model Level {
   sections           Section[]
   sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
+  subjects Subject[]
+
 }
 
 model Section {
@@ -558,7 +560,6 @@ model Lesson {
   detail      String?
   week_number Int
   sub_index   Int
-  subjects           Subject[]
   created_at  DateTime @default(now())
 }
 
