@@ -216,6 +216,7 @@ model SchoolYear {
   gradingScales      GradingScale[]
   studentEnrollments StudentSchoolYear[]
   semesters          Semester[]
+  classes            Class[]
 }
 
 model SemesterTemplate {
@@ -404,6 +405,7 @@ model Class {
   grades         Grade[]
   gradingSchemes GradingScheme[]
   gradeLockEvents GradeLockEvent[]
+  schoolYear     SchoolYear @relation(fields: [school_year_id], references: [id])
 }
 
 model ClassSchedule {

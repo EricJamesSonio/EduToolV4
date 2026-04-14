@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { DatabaseService } from '@/core/database/database.provider'
+import { Prisma } from '@prisma/client'
 
 @Injectable()
 export class GradeLockRepository {
@@ -226,7 +227,7 @@ export class GradeLockRepository {
     actor_id: string
     type: string
     reason?: string
-    metadata?: Record<string, unknown>
+    metadata?: Prisma.InputJsonValue
   }) {
     return this.db.gradeLockEvent.create({ data })
   }
