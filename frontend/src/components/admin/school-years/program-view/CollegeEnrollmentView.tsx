@@ -1,10 +1,12 @@
-// frontend\src\components\admin\enrollment\program-view\CollegeEnrollmentView.tsx
-import { useState } from "react";
+// frontend\src\components\admin\school-years\program-view\CollegeEnrollmentView.tsx
+"use client";
+
 import { Users, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb }       from "./Breadcrumb";
 import { CountRow }         from "./CountRow";
 import { StudentListPanel } from "./StudentListPanel";
+import { useEnrollmentDrilldown } from "@/components/admin/school-years/hooks/useEnrollmentDrilldown";
 import {
   getStudentsInProgram,
   getStudentsInCourse,
@@ -20,7 +22,7 @@ interface CollegeEnrollmentViewProps {
   allEnrollments: StudentSchoolYearEnrollment[];
   schoolYearId:   string;
   isEnded:        boolean;
-  studentMap: Map<string, string>;
+  studentMap:     Map<string, string>;
 }
 
 export function CollegeEnrollmentView({
@@ -29,14 +31,15 @@ export function CollegeEnrollmentView({
   allEnrollments,
   schoolYearId,
   isEnded,
-  studentMap
-  
+  studentMap,
 }: CollegeEnrollmentViewProps) {
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-  const [selectedLevelId,  setSelectedLevelId]  = useState<string | null>(null);
+  const { state, selectCourse, selectLevel, backToPrograms, backToCourse } =
+    useEnrollmentDrilldown();
 
-  const courses         = program.courses ?? [];
-  const programStudents = getStudentsInProgram(allEnrollments, program.id);
+  const selectedCourseId = state.courseId;
+  const selectedLevelId  = state.levelId;
+  const courses          = program.courses ?? [];
+  const programStudents  = getStudentsInProgram(allEnrollments, program.id);
 
   if (selectedCourseId && selectedLevelId) {
     const course   = courses.find((c) => c.id === selectedCourseId);
@@ -45,8 +48,8 @@ export function CollegeEnrollmentView({
     return (
       <div className="space-y-3">
         <Breadcrumb crumbs={[
-          { label: "All Courses", onClick: () => { setSelectedCourseId(null); setSelectedLevelId(null); } },
-          { label: course?.name ?? "Course", onClick: () => setSelectedLevelId(null) },
+          { label: "All Courses", onClick: backToPrograms },
+          { label: course?.name ?? "Course", onClick: backToCourse },
           { label: level?.name ?? "Level" },
         ]} />
         <StudentListPanel
@@ -57,7 +60,7 @@ export function CollegeEnrollmentView({
           isEnded={isEnded}
           enrollContext={{ program_id: program.id, course_id: selectedCourseId, level_id: selectedLevelId }}
           allEnrollments={allEnrollments}
-          studentMap={studentMap} 
+          studentMap={studentMap}
         />
       </div>
     );
@@ -69,7 +72,7 @@ export function CollegeEnrollmentView({
     return (
       <div className="space-y-3">
         <Breadcrumb crumbs={[
-          { label: "All Courses", onClick: () => setSelectedCourseId(null) },
+          { label: "All Courses", onClick: backToPrograms },
           { label: course?.name ?? "Course" },
         ]} />
         <div className="rounded-lg border bg-card overflow-hidden">
@@ -88,7 +91,7 @@ export function CollegeEnrollmentView({
                 key={level.id}
                 label={level.name}
                 count={getStudentsInCourseLevel(allEnrollments, program.id, selectedCourseId, level.id).length}
-                onClick={() => setSelectedLevelId(level.id)}
+                onClick={() => selectLevel(level.id)}
               />
             ))}
           </div>
@@ -114,7 +117,7 @@ export function CollegeEnrollmentView({
             key={course.id}
             label={course.code ? `${course.code} – ${course.name}` : course.name}
             count={getStudentsInCourse(allEnrollments, program.id, course.id).length}
-            onClick={() => setSelectedCourseId(course.id)}
+            onClick={() => selectCourse(course.id)}
           />
         ))}
       </div>
