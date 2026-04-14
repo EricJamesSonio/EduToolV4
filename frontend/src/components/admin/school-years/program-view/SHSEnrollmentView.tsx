@@ -1,10 +1,12 @@
-// frontend\src\components\admin\enrollment\program-view\SHSEnrollmentView.tsx
-import { useState } from "react";
+// frontend\src\components\admin\school-years\program-view\SHSEnrollmentView.tsx
+"use client";
+
 import { Users, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb }       from "./Breadcrumb";
 import { CountRow }         from "./CountRow";
 import { StudentListPanel } from "./StudentListPanel";
+import { useEnrollmentDrilldown } from "@/components/admin/school-years/hooks/useEnrollmentDrilldown";
 import {
   getStudentsInProgram,
   getStudentsInStrand,
@@ -20,6 +22,7 @@ interface SHSEnrollmentViewProps {
   allEnrollments: StudentSchoolYearEnrollment[];
   schoolYearId:   string;
   isEnded:        boolean;
+  studentMap:     Map<string, string>;
 }
 
 export function SHSEnrollmentView({
@@ -28,12 +31,15 @@ export function SHSEnrollmentView({
   allEnrollments,
   schoolYearId,
   isEnded,
+  studentMap,
 }: SHSEnrollmentViewProps) {
-  const [selectedStrandId, setSelectedStrandId] = useState<string | null>(null);
-  const [selectedLevelId,  setSelectedLevelId]  = useState<string | null>(null);
+  const { state, selectStrand, selectLevel, backToPrograms, backToStrand } =
+    useEnrollmentDrilldown();
 
-  const strands         = program.strands ?? [];
-  const programStudents = getStudentsInProgram(allEnrollments, program.id);
+  const selectedStrandId = state.strandId;
+  const selectedLevelId  = state.levelId;
+  const strands          = program.strands ?? [];
+  const programStudents  = getStudentsInProgram(allEnrollments, program.id);
 
   if (selectedStrandId && selectedLevelId) {
     const strand   = strands.find((s) => s.id === selectedStrandId);
@@ -42,8 +48,8 @@ export function SHSEnrollmentView({
     return (
       <div className="space-y-3">
         <Breadcrumb crumbs={[
-          { label: "All Strands", onClick: () => { setSelectedStrandId(null); setSelectedLevelId(null); } },
-          { label: strand?.name ?? "Strand", onClick: () => setSelectedLevelId(null) },
+          { label: "All Strands", onClick: backToPrograms },
+          { label: strand?.name ?? "Strand", onClick: backToStrand },
           { label: level?.name ?? "Level" },
         ]} />
         <StudentListPanel
@@ -54,6 +60,7 @@ export function SHSEnrollmentView({
           isEnded={isEnded}
           enrollContext={{ program_id: program.id, strand_id: selectedStrandId, level_id: selectedLevelId }}
           allEnrollments={allEnrollments}
+          studentMap={studentMap}
         />
       </div>
     );
@@ -65,7 +72,7 @@ export function SHSEnrollmentView({
     return (
       <div className="space-y-3">
         <Breadcrumb crumbs={[
-          { label: "All Strands", onClick: () => setSelectedStrandId(null) },
+          { label: "All Strands", onClick: backToPrograms },
           { label: strand?.name ?? "Strand" },
         ]} />
         <div className="rounded-lg border bg-card overflow-hidden">
@@ -84,7 +91,7 @@ export function SHSEnrollmentView({
                 key={level.id}
                 label={level.name}
                 count={getStudentsInStrandLevel(allEnrollments, program.id, selectedStrandId, level.id).length}
-                onClick={() => setSelectedLevelId(level.id)}
+                onClick={() => selectLevel(level.id)}
               />
             ))}
           </div>
@@ -110,7 +117,7 @@ export function SHSEnrollmentView({
             key={strand.id}
             label={strand.name}
             count={getStudentsInStrand(allEnrollments, program.id, strand.id).length}
-            onClick={() => setSelectedStrandId(strand.id)}
+            onClick={() => selectStrand(strand.id)}
           />
         ))}
       </div>

@@ -1,10 +1,12 @@
-// frontend\src\components\admin\enrollment\program-view\GenericEnrollmentView.tsx
-import { useState } from "react";
+// frontend\src\components\admin\school-years\program-view\GenericEnrollmentView.tsx
+"use client";
+
 import { Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb }       from "./Breadcrumb";
 import { CountRow }         from "./CountRow";
 import { StudentListPanel } from "./StudentListPanel";
+import { useEnrollmentDrilldown } from "@/components/admin/school-years/hooks/useEnrollmentDrilldown";
 import { getStudentsInProgram, getStudentsInLevel } from "./enrollment.helpers";
 import type { Level }   from "@/types/admin/level.types";
 import type { Program } from "@/types/admin/program.types";
@@ -27,8 +29,9 @@ export function GenericEnrollmentView({
   isEnded,
   studentMap,
 }: GenericEnrollmentViewProps) {
-  const [selectedLevelId, setSelectedLevelId] = useState<string | null>(null);
+  const { state, selectLevel, backToPrograms } = useEnrollmentDrilldown();
 
+  const selectedLevelId = state.levelId;
   const programStudents = getStudentsInProgram(allEnrollments, program.id);
 
   if (selectedLevelId) {
@@ -37,7 +40,7 @@ export function GenericEnrollmentView({
     return (
       <div className="space-y-3">
         <Breadcrumb crumbs={[
-          { label: "All Levels", onClick: () => setSelectedLevelId(null) },
+          { label: "All Levels", onClick: backToPrograms },
           { label: level?.name ?? "Level" },
         ]} />
         <StudentListPanel
@@ -48,7 +51,7 @@ export function GenericEnrollmentView({
           isEnded={isEnded}
           enrollContext={{ program_id: program.id, level_id: selectedLevelId }}
           allEnrollments={allEnrollments}
-          studentMap={studentMap} 
+          studentMap={studentMap}
         />
       </div>
     );
@@ -71,7 +74,7 @@ export function GenericEnrollmentView({
             key={level.id}
             label={level.name}
             count={getStudentsInLevel(allEnrollments, program.id, level.id).length}
-            onClick={() => setSelectedLevelId(level.id)}
+            onClick={() => selectLevel(level.id)}
           />
         ))}
       </div>
