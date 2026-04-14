@@ -43,13 +43,19 @@ function calculateLockStatus(lock: GradeLock): GradeLockStatus {
 }
 
 export function useGradeLockColumns(
-  onOverride: (lock: GradeLock) => void
+  onOverride: (lock: GradeLock) => void,
+  onApplyTemplate: (lock: GradeLock) => void
 ): ColumnDef<GradeLock>[] {
   return useMemo(
     () => [
       {
         accessorKey: "className",
         header: "Class",
+        cell: ({ row }) => (
+          <span className="font-medium">
+            {row.original.className || "Unknown Class"}
+          </span>
+        ),
       },
       {
         accessorKey: "educatorName",
@@ -72,8 +78,13 @@ export function useGradeLockColumns(
         header: "Deadline",
         cell: ({ row }) => {
           const deadline = row.original.deadline
-          if (!deadline) return "—"
-          return format(new Date(deadline), "MMM d, yyyy h:mm a")
+          if (!deadline) return <span className="text-muted-foreground">—</span>
+
+          return (
+            <span className="tabular-nums text-sm">
+              {format(new Date(deadline), "MMM d, yyyy h:mm a")}
+            </span>
+          )
         },
       },
       {
@@ -82,8 +93,7 @@ export function useGradeLockColumns(
         cell: ({ row }) => {
           const lock = row.original
           const status = calculateLockStatus(lock)
-          const isLocked =
-            status === "locked" || status === "auto_locked"
+          const isLocked = status === "locked" || status === "auto_locked"
 
           return (
             <div className="flex gap-2">
@@ -94,7 +104,8 @@ export function useGradeLockColumns(
                 className="gap-1.5"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onApplyTemplate(lock)
+                  console.log("APPLY CLICKED:", lock)
+                  onApplyTemplate?.(lock)
                 }}
               >
                 <Wand2 className="h-3.5 w-3.5" />

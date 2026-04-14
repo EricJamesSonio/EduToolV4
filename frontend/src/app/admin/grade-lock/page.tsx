@@ -23,24 +23,19 @@ export default function GradeLockPage(): React.ReactElement {
   const [settingModalOpen, setSettingModalOpen] = useState(false)
   const [overrideTarget, setOverrideTarget] = useState<GradeLock | null>(null)
 
-  // 👇 NEW: confirmation step state
-  const [confirmOverride, setConfirmOverride] = useState<GradeLock | null>(null)
+  // 👇 APPLY CONFIRM STATE
+  const [applyTarget, setApplyTarget] = useState<GradeLock | null>(null)
 
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null)
-  const [selectedProgram, setSelectedProgram] = useState<string>("")
-  const [selectedCourseStrand, setSelectedCourseStrand] = useState<string>("")
-  const [selectedLevel, setSelectedLevel] = useState<string>("")
+  const [selectedProgram, setSelectedProgram] = useState("")
+  const [selectedCourseStrand, setSelectedCourseStrand] = useState("")
+  const [selectedLevel, setSelectedLevel] = useState("")
 
   const { data: schoolYears, isLoading: schoolYearsLoading } = useSchoolYears()
   const { data: gradeLocks, isLoading } = useGradeLocks(
     selectedSchoolYearId ?? undefined
   )
   const { data: settings } = useGradeLockSettings()
-
-const columns = useGradeLockColumns(
-  (lock) => setOverrideTarget(lock),
-  () => {} // 👈 FIX: onApplyTemplate placeholder
-)
 
   const locks = useMemo(
     () => (Array.isArray(gradeLocks) ? gradeLocks : []),
@@ -55,6 +50,16 @@ const columns = useGradeLockColumns(
   const activeTemplate = useMemo(() => {
     return templates.find((t) => t.is_default) ?? templates[0] ?? null
   }, [templates])
+
+  // 🔥 APPLY HANDLER
+  const handleApplyTemplate = (lock: GradeLock) => {
+    setApplyTarget(lock)
+  }
+
+  const columns = useGradeLockColumns(
+    (lock) => setOverrideTarget(lock),
+    handleApplyTemplate
+  )
 
   const filteredLocks = useMemo(() => {
     let result = locks
@@ -105,7 +110,7 @@ const columns = useGradeLockColumns(
 
   return (
     <div className="space-y-8 p-6">
-      {/* HEADER */}
+
       <PageHeader
         title="Grade Lock System"
         description="Manage reusable lock templates and apply them to school years and classes."
@@ -117,53 +122,45 @@ const columns = useGradeLockColumns(
         }
       />
 
-      {/* GLOBAL TEMPLATES */}
-      <div className="rounded-lg border p-4 space-y-2 bg-muted/30">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Layers className="h-4 w-4" />
-          Global Grade Lock Templates
-        </div>
+      {/* APPLY CONFIRM MODAL */}
+      {applyTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-lg bg-background p-6 space-y-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Layers className="h-4 w-4 text-primary" />
+              Apply Grade Lock Template?
+            </h2>
 
-        {activeTemplate ? (
-          <div className="text-sm text-muted-foreground">
-            Active Template:{" "}
-            <span className="font-medium text-foreground">
-              {activeTemplate.name}
-            </span>
-
-            {activeTemplate.lock_deadline && (
-              <span className="ml-2">
-                (Deadline:{" "}
-                {format(
-                  new Date(activeTemplate.lock_deadline),
-                  "MMM d, yyyy h:mm a"
-                )}
-                )
+            <p className="text-sm text-muted-foreground">
+              Apply <span className="font-medium">{activeTemplate?.name}</span> to:
+              <br />
+              <span className="font-medium text-foreground">
+                {applyTarget.className}
               </span>
-            )}
-          </div>
-        ) : (
-          <div className="text-sm text-muted-foreground">
-            No templates configured yet.
-          </div>
-        )}
-      </div>
+            </p>
 
-      {/* GLOBAL RULE */}
-      {activeTemplate?.lock_deadline && (
-        <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
-          <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-muted-foreground">Global Rule:</span>
-          <span className="font-medium">
-            {format(
-              new Date(activeTemplate.lock_deadline),
-              "MMM d, yyyy h:mm a"
-            )}
-          </span>
+            <p className="text-xs text-muted-foreground">
+              This will override current lock settings for this class.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setApplyTarget(null)}>
+                Cancel
+              </Button>
+
+              <Button
+                onClick={() => {
+                  console.log("APPLY CONFIRMED:", applyTarget)
+                  setApplyTarget(null)
+                }}
+              >
+                Yes, Apply
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* FILTERS */}
       <GradeLockHierarchyFilter
         schoolYears={schoolYears ?? []}
         schoolYearsLoading={schoolYearsLoading}
@@ -182,10 +179,8 @@ const columns = useGradeLockColumns(
         onReset={() => handleSchoolYearSelect(null)}
       />
 
-      {/* STATS */}
       <GradeLockStats gradeLocks={filteredLocks} />
 
-      {/* TABLE */}
       <DataTable
         columns={columns}
         data={filteredLocks}
@@ -194,53 +189,11 @@ const columns = useGradeLockColumns(
         emptyDescription="No grade lock records exist. Try adjusting your filters."
       />
 
-      {/* MODALS */}
       <GradeLockSettingModal
         open={settingModalOpen}
         onClose={() => setSettingModalOpen(false)}
         existingSetting={activeTemplate}
       />
-
-      {/* 👇 NEW: confirmation dialog BEFORE override */}
-      {confirmOverride && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-lg bg-background p-6 shadow-lg space-y-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Lock className="h-4 w-4 text-destructive" />
-              Are you sure?
-            </h2>
-
-            <p className="text-sm text-muted-foreground">
-              You are about to override the grade lock for:
-              <br />
-              <span className="font-medium text-foreground">
-                {confirmOverride.className}
-              </span>
-              <br /><br />
-              This action will be logged in the audit trail.
-            </p>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setConfirmOverride(null)}
-              >
-                Cancel
-              </Button>
-
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  setOverrideTarget(confirmOverride)
-                  setConfirmOverride(null)
-                }}
-              >
-                Yes, Override
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <GradeLockOverrideDialog
         open={!!overrideTarget}
