@@ -9,7 +9,7 @@ import { buildScaleAssignments }                     from './data/grading-scale.
 import { SCHEME_PRESETS }                            from './data/grading-schemes.data'
 import { SEMESTER_TEMPLATES }                        from './data/semester-templates.data'
 import { allMajorSubjects, allMinorSubjects, allSubjects, deriveProgramKey } from './data/subjects'
-
+import { computeTermDates } from './utils/date-calculator.util'
 const SEED_NAMESPACE = '1b671a64-40d5-491e-99b0-da01ff1f3341'
 
 function seedId(...parts: string[]): string {
@@ -138,7 +138,7 @@ export class OrgSeederService {
     await this.seedLevelsAndSections(orgId, schoolYearId, shouldSeedProgram, shouldSeedLevel, programMap, levelMap, levelConfigs, sectionConfigs, result)
     await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, programMap, gradingScales, result)
     await this.seedGradingSchemes(orgId, shouldSeedProgram, result)
-    await this.seedSemesterTemplates(orgId, shouldSeedProgram, programMap, result)
+    await this.seedSemesterTemplates(orgId, shouldSeedProgram, programMap, result, schoolYearId)
 await this.seedMajorSubjects(
   orgId, shouldSeedProgram, shouldSeedSubject,
   levelMap, courseMap, strandMap,
@@ -407,12 +407,21 @@ private async seedGradingScales(
     }
   }
 
-  private async seedSemesterTemplates(
+private async seedSemesterTemplates(
     orgId:       string,
     shouldSeed:  (k: string) => boolean,
     programMap:  Record<string, string>,
     result:      SeedResult,
+    schoolYearId: string,
   ) {
+    // Fetch school year dates once — used for smart date calculation
+    const schoolYear = await this.db.schoolYear.findFirst({
+      where: { id: schoolYearId },
+    })
+    const syStart = schoolYear?.start_date ?? null
+    const syEnd   = schoolYear?.end_date   ?? null
+    const hasDates = syStart !== null && syEnd !== null
+
     for (const tpl of SEMESTER_TEMPLATES) {
       if (!shouldSeed(tpl.programType)) {
         result.semesterTemplates.skipped++
@@ -425,13 +434,13 @@ private async seedGradingScales(
         continue
       }
 
-      // 1. SemesterTemplate
       const templateId = seedId('sem-template', tpl.programType, orgId)
-      const existing   = await this.db.semesterTemplate.findFirst({ where: { id: templateId } })
+      const existing   = await this.db.semesterTemplate.findFirst({
+        where: { id: templateId },
+      })
+
       if (existing) {
         result.semesterTemplates.already_exists++
-
-        // still need to assign to program if not yet assigned
         await this.db.programSemesterAssignment.upsert({
           where:  { program_id: programId },
           update: {},
@@ -454,8 +463,8 @@ private async seedGradingScales(
         },
       })
 
-      // 2. SemesterTemplateItem + SemesterTemplateTerm
-      const termIds: string[] = []   // collect for ProgramSemesterTermDate placeholders
+      // Build semester items + terms, collect termIds in flat order
+      const termIds: string[] = []
 
       for (const sem of tpl.semesters) {
         const semItemId = seedId('sem-item', tpl.programType, sem.name, orgId)
@@ -484,7 +493,6 @@ private async seedGradingScales(
         }
       }
 
-      // 3. ProgramSemesterAssignment
       const assignment = await this.db.programSemesterAssignment.create({
         data: {
           id:          seedId('sem-assignment', programId, orgId),
@@ -494,17 +502,27 @@ private async seedGradingScales(
         },
       })
 
-      // 4. ProgramSemesterTermDate — seeded with null dates as placeholders
-      //    Admin fills actual dates when activating the school year
+      // Compute real dates if school year has a range, otherwise use placeholder
+      const termDateData = hasDates
+        ? computeTermDates(syStart!, syEnd!, tpl, termIds).map((td) => ({
+            id:            seedId('sem-term-date', assignment.id, td.termId),
+            org_id:        orgId,
+            assignment_id: assignment.id,
+            term_id:       td.termId,
+            start_date:    td.startDate,
+            end_date:      td.endDate,
+          }))
+        : termIds.map((termId) => ({
+            id:            seedId('sem-term-date', assignment.id, termId),
+            org_id:        orgId,
+            assignment_id: assignment.id,
+            term_id:       termId,
+            start_date:    new Date('1970-01-01'),
+            end_date:      new Date('1970-01-01'),
+          }))
+
       await this.db.programSemesterTermDate.createMany({
-        data: termIds.map((termId) => ({
-          id:            seedId('sem-term-date', assignment.id, termId),
-          org_id:        orgId,
-          assignment_id: assignment.id,
-          term_id:       termId,
-          start_date:    new Date('1970-01-01'),  // placeholder — admin sets real dates
-          end_date:      new Date('1970-01-01'),
-        })),
+        data:           termDateData,
         skipDuplicates: true,
       })
 
