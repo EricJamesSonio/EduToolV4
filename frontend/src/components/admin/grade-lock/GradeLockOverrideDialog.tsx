@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
-
 import {
   Dialog,
   DialogContent,
@@ -12,11 +11,9 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog"
-
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-
 import { useOverrideLock } from "@/hooks/admin/useGradeLocks"
 import type { GradeLock } from "@/types/admin/grade-lock.types"
 
@@ -32,14 +29,13 @@ export function GradeLockOverrideDialog({
   gradeLock,
 }: GradeLockOverrideDialogProps): React.ReactElement {
   const [reason, setReason] = useState("")
-
-  const overrideMutation = useOverrideLock()
+  const overrideLock = useOverrideLock()
 
   const handleConfirm = async (): Promise<void> => {
     if (!gradeLock || !reason.trim()) return
 
     try {
-      await overrideMutation.mutateAsync({
+      await overrideLock.mutateAsync({
         classId: gradeLock.class_id,
         reason,
       })
@@ -74,21 +70,19 @@ export function GradeLockOverrideDialog({
             <span className="font-medium text-foreground">
               {gradeLock?.className}
             </span>
-            ? This action will be permanently logged in the Audit Log.
+            ? This action is permanently logged in the audit trail.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            Unlocking is irreversible without initiating another grade lock.
-            The educator will be able to modify grades again.
+            This will allow educators to modify grades again until re-locked.
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="override-reason">
               Reason <span className="text-destructive">*</span>
             </Label>
-
             <Textarea
               id="override-reason"
               placeholder="Provide a reason for this override (required for audit log)…"
@@ -103,7 +97,7 @@ export function GradeLockOverrideDialog({
           <Button
             variant="outline"
             onClick={handleClose}
-            disabled={overrideMutation.isPending}
+            disabled={overrideLock.isPending}
           >
             Cancel
           </Button>
@@ -111,9 +105,9 @@ export function GradeLockOverrideDialog({
           <Button
             variant="destructive"
             onClick={handleConfirm}
-            disabled={!reason.trim() || overrideMutation.isPending}
+            disabled={!reason.trim() || overrideLock.isPending}
           >
-            {overrideMutation.isPending ? "Processing…" : "Confirm Override"}
+            {overrideLock.isPending ? "Processing…" : "Confirm Override"}
           </Button>
         </DialogFooter>
       </DialogContent>
