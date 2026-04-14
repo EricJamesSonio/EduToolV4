@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState, useMemo , useEffect} from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -37,7 +37,14 @@ export function GradeLockHierarchyFilter({
   const [selectedCourseStrand, setSelectedCourseStrand] = useState<string>("")
   const [selectedLevel, setSelectedLevel] = useState<string>("")
 
-  // Extract programs from selected school year
+  // ✅ ref to stabilize onFilter
+  const onFilterRef = useRef(onFilter)
+
+  useEffect(() => {
+    onFilterRef.current = onFilter
+  }, [onFilter])
+
+  // Extract programs
   const programs = useMemo(() => {
     if (!selectedSchoolYear) return []
     return Array.from(
@@ -50,7 +57,7 @@ export function GradeLockHierarchyFilter({
     )
   }, [selectedSchoolYear, gradeLocks])
 
-  // Extract courses/strands for selected program
+  // Extract courses/strands
   const coursesStrands = useMemo(() => {
     if (!selectedProgram) return []
     const items = gradeLocks
@@ -62,16 +69,13 @@ export function GradeLockHierarchyFilter({
       .map((lock) => {
         const course = lock.class?.subject?.course?.name
         const strand = lock.class?.subject?.strand?.name
-        return {
-          name: course || strand,
-          type: course ? "course" : "strand",
-        }
+        return course || strand
       })
 
-    return Array.from(new Set(items.map((i) => i.name)))
+    return Array.from(new Set(items.filter(Boolean)))
   }, [selectedProgram, selectedSchoolYear, gradeLocks])
 
-  // Extract levels for selected course/strand
+  // Extract levels
   const levels = useMemo(() => {
     if (!selectedCourseStrand) return []
     return Array.from(
@@ -90,38 +94,46 @@ export function GradeLockHierarchyFilter({
     )
   }, [selectedCourseStrand, selectedProgram, selectedSchoolYear, gradeLocks])
 
-const filteredLocks = useMemo(() => {
-  let result = gradeLocks
+  // Filtered result
+  const filteredLocks = useMemo(() => {
+    let result = gradeLocks
 
-  if (selectedSchoolYear) {
-    result = result.filter(
-      (lock) => lock.class?.school_year_id === selectedSchoolYear
-    )
-  }
-  if (selectedProgram) {
-    result = result.filter(
-      (lock) => lock.class?.subject?.program?.name === selectedProgram
-    )
-  }
-  if (selectedCourseStrand) {
-    result = result.filter(
-      (lock) =>
-        lock.class?.subject?.course?.name === selectedCourseStrand ||
-        lock.class?.subject?.strand?.name === selectedCourseStrand
-    )
-  }
-  if (selectedLevel) {
-    result = result.filter(
-      (lock) => lock.class?.subject?.level?.name === selectedLevel
-    )
-  }
+    if (selectedSchoolYear) {
+      result = result.filter(
+        (lock) => lock.class?.school_year_id === selectedSchoolYear
+      )
+    }
+    if (selectedProgram) {
+      result = result.filter(
+        (lock) => lock.class?.subject?.program?.name === selectedProgram
+      )
+    }
+    if (selectedCourseStrand) {
+      result = result.filter(
+        (lock) =>
+          lock.class?.subject?.course?.name === selectedCourseStrand ||
+          lock.class?.subject?.strand?.name === selectedCourseStrand
+      )
+    }
+    if (selectedLevel) {
+      result = result.filter(
+        (lock) => lock.class?.subject?.level?.name === selectedLevel
+      )
+    }
 
-  return result
-}, [selectedSchoolYear, selectedProgram, selectedCourseStrand, selectedLevel, gradeLocks])
+    return result
+  }, [
+    selectedSchoolYear,
+    selectedProgram,
+    selectedCourseStrand,
+    selectedLevel,
+    gradeLocks,
+  ])
 
-useEffect(() => {
-  onFilter(filteredLocks)
-}, [filteredLocks, onFilter])
+  // ✅ use ref instead of direct dependency
+  useEffect(() => {
+    onFilterRef.current(filteredLocks)
+  }, [filteredLocks])
 
   const handleReset = () => {
     setSelectedSchoolYear("")
@@ -129,7 +141,7 @@ useEffect(() => {
     setSelectedCourseStrand("")
     setSelectedLevel("")
     onSchoolYearSelect(null)
-    onFilter(gradeLocks)
+    onFilterRef.current(gradeLocks)
   }
 
   if (schoolYearsLoading || gradeLockLoading) {
@@ -138,7 +150,7 @@ useEffect(() => {
 
   return (
     <div className="space-y-4">
-      {/* Filter Controls */}
+      {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         {/* School Year */}
         <Select
@@ -224,7 +236,7 @@ useEffect(() => {
           </SelectContent>
         </Select>
 
-        {/* Reset Button */}
+        {/* Reset */}
         {(selectedSchoolYear ||
           selectedProgram ||
           selectedCourseStrand ||

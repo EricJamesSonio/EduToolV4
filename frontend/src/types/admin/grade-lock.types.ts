@@ -4,25 +4,32 @@ export interface GradeLockSetting {
   id: string
   org_id: string
   school_year_id: string
-  lock_deadline: string // ← CHANGED from deadline
-  created_at: string // ← CHANGED from createdAt
-  updated_at: string // ← CHANGED from updatedAt
+  lock_deadline: string
+  created_at: string
+  updated_at: string
 }
 
 export interface GradeLock {
   id: string
   org_id: string
-  class_id: string // ← CHANGED from classId
-  is_locked: boolean // ← CHANGED from lockStatus enum
-  locked_by: string | null // ← NEW: who locked it
-  locked_at: string | null // ← CHANGED from lockedAt
-  created_at: string // ← NEW
+  class_id: string
+  is_locked: boolean
+  locked_by: string | null
+  locked_at: string | null
+  created_at: string
   class?: {
-    // ← CHANGED: optional relation
     id: string
     subject_id: string
     educator_id: string
     school_year_id: string
+    subject?: {
+      id: string
+      name: string
+      program?: { id: string; name: string } | null
+      course?: { id: string; name: string } | null
+      strand?: { id: string; name: string } | null
+      level?: { id: string; name: string } | null
+    } | null
   }
 }
 

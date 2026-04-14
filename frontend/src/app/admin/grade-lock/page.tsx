@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { format } from "date-fns"
 import { Lock, Settings } from "lucide-react"
 import { PageHeader } from "@/components/shared/PageHeader"
@@ -29,6 +29,11 @@ export default function GradeLockPage(): React.ReactElement {
   const columns = useGradeLockColumns(setOverrideTarget)
 
   const locks = Array.isArray(gradeLocks) ? gradeLocks : []
+
+  // ✅ memoized handler
+  const handleFilter = useCallback((filtered: GradeLock[]) => {
+    setFilteredLocks(filtered)
+  }, [])
 
   return (
     <div className="space-y-6 p-6">
@@ -59,7 +64,7 @@ export default function GradeLockPage(): React.ReactElement {
         schoolYearsLoading={schoolYearsLoading}
         gradeLocks={locks}
         gradeLockLoading={isLoading}
-        onFilter={setFilteredLocks}
+        onFilter={handleFilter} // ✅ replaced
         onSchoolYearSelect={setSelectedSchoolYearId}
       />
 
