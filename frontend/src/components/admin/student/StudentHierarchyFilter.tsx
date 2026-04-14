@@ -6,7 +6,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { schoolYearApi } from "@/api/admin/school-year.api";
@@ -46,9 +45,6 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
     queryFn:  schoolYearApi.getAll,
     staleTime: 5 * 60 * 1000,
   });
-
-  // No auto-select: default is "All School Years" (undefined) so that
-  // unenrolled students (not tied to any school year) are visible by default.
 
   const { data: programs = [], isLoading: loadingPrograms } = useQuery({
     queryKey: ["programs", value.schoolYearId],
@@ -101,22 +97,25 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
     },
   });
 
+  // ── Derived labels for trigger display ───────────────────────────────────
+  const selectedSY      = schoolYears.find((s) => s.id === value.schoolYearId);
+  const selectedCourse  = courses.find((c) => c.id === value.courseId);
+  const selectedStrand  = strands.find((s) => s.id === value.strandId);
+  const selectedLevel   = levels.find((l) => l.id === value.levelId);
+  const selectedSection = sections.find((s) => s.id === value.sectionId);
+
   function selectSchoolYear(id: string): void {
     onChange({ schoolYearId: id === ALL ? undefined : id });
   }
-
   function selectProgram(id: string): void {
     onChange({ schoolYearId: value.schoolYearId, programId: id === ALL ? undefined : id });
   }
-
   function selectCourse(id: string): void {
     onChange({ schoolYearId: value.schoolYearId, programId: value.programId, courseId: id === ALL ? undefined : id });
   }
-
   function selectStrand(id: string): void {
     onChange({ schoolYearId: value.schoolYearId, programId: value.programId, strandId: id === ALL ? undefined : id });
   }
-
   function selectLevel(id: string): void {
     onChange({
       schoolYearId: value.schoolYearId,
@@ -126,7 +125,6 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
       levelId:      id === ALL ? undefined : id,
     });
   }
-
   function selectSection(id: string): void {
     onChange({ ...value, sectionId: id === ALL ? undefined : id });
   }
@@ -136,10 +134,14 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
   return (
     <div className="flex flex-wrap items-center gap-2">
 
-      {/* School Year — "All" is the default, shows unenrolled students too */}
+      {/* School Year */}
       <Select value={value.schoolYearId ?? ALL} onValueChange={selectSchoolYear}>
         <SelectTrigger className="w-48 h-9 text-sm">
-          <SelectValue placeholder="All School Years" />
+          <span className="truncate text-sm">
+            {selectedSY
+              ? `${selectedSY.name}${selectedSY.status === "active" ? " (Active)" : ""}`
+              : "All School Years"}
+          </span>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>All School Years</SelectItem>
@@ -151,12 +153,14 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
         </SelectContent>
       </Select>
 
-      {/* Program — only shown once a school year is picked */}
+      {/* Program */}
       {value.schoolYearId && (
         loadingPrograms ? <Skeleton className="h-9 w-44" /> : (
           <Select value={value.programId ?? ALL} onValueChange={selectProgram}>
             <SelectTrigger className="w-44 h-9 text-sm">
-              <SelectValue placeholder="All Programs" />
+              <span className="truncate text-sm">
+                {selectedProgram ? selectedProgram.name : "All Programs"}
+              </span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>All Programs</SelectItem>
@@ -173,7 +177,9 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
         loadingCourses ? <Skeleton className="h-9 w-44" /> : (
           <Select value={value.courseId ?? ALL} onValueChange={selectCourse}>
             <SelectTrigger className="w-44 h-9 text-sm">
-              <SelectValue placeholder="All Courses" />
+              <span className="truncate text-sm">
+                {selectedCourse ? selectedCourse.name : "All Courses"}
+              </span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>All Courses</SelectItem>
@@ -190,7 +196,9 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
         loadingStrands ? <Skeleton className="h-9 w-40" /> : (
           <Select value={value.strandId ?? ALL} onValueChange={selectStrand}>
             <SelectTrigger className="w-40 h-9 text-sm">
-              <SelectValue placeholder="All Strands" />
+              <span className="truncate text-sm">
+                {selectedStrand ? selectedStrand.name : "All Strands"}
+              </span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>All Strands</SelectItem>
@@ -207,7 +215,9 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
         loadingLevels ? <Skeleton className="h-9 w-36" /> : (
           <Select value={value.levelId ?? ALL} onValueChange={selectLevel}>
             <SelectTrigger className="w-36 h-9 text-sm">
-              <SelectValue placeholder="All Levels" />
+              <span className="truncate text-sm">
+                {selectedLevel ? selectedLevel.name : "All Levels"}
+              </span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>All Levels</SelectItem>
@@ -224,7 +234,9 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
         loadingSections ? <Skeleton className="h-9 w-36" /> : (
           <Select value={value.sectionId ?? ALL} onValueChange={selectSection}>
             <SelectTrigger className="w-36 h-9 text-sm">
-              <SelectValue placeholder="All Sections" />
+              <span className="truncate text-sm">
+                {selectedSection ? selectedSection.name : "All Sections"}
+              </span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>All Sections</SelectItem>
