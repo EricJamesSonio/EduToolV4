@@ -1,8 +1,9 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
+import { useState } from "react"
+import { AlertTriangle } from "lucide-react"
+import { toast } from "sonner"
+
 import {
   Dialog,
   DialogContent,
@@ -10,17 +11,19 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useUnlockOverride } from "@/hooks/admin/useGradeLocks";
-import type { GradeLock } from "@/types/admin/grade-lock.types";
+} from "@/components/ui/dialog"
+
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+
+import { useOverrideLock } from "@/hooks/admin/useGradeLocks"
+import type { GradeLock } from "@/types/admin/grade-lock.types"
 
 interface GradeLockOverrideDialogProps {
-  open: boolean;
-  onClose: () => void;
-  gradeLock: GradeLock | null;
+  open: boolean
+  onClose: () => void
+  gradeLock: GradeLock | null
 }
 
 export function GradeLockOverrideDialog({
@@ -28,25 +31,34 @@ export function GradeLockOverrideDialog({
   onClose,
   gradeLock,
 }: GradeLockOverrideDialogProps): React.ReactElement {
-  const [reason, setReason] = useState("");
-  const unlockMutation = useUnlockOverride();
+  const [reason, setReason] = useState("")
+
+  const overrideMutation = useOverrideLock()
 
   const handleConfirm = async (): Promise<void> => {
-    if (!gradeLock || !reason.trim()) return;
+    if (!gradeLock || !reason.trim()) return
+
     try {
-      await unlockMutation.mutateAsync({ classId: gradeLock.classId, reason });
-      toast.success(`Grades unlocked for ${gradeLock.className}. Action logged.`);
-      setReason("");
-      onClose();
+      await overrideMutation.mutateAsync({
+        classId: gradeLock.class_id,
+        reason,
+      })
+
+      toast.success(
+        `Grades unlocked for ${gradeLock.className}. Action logged.`
+      )
+
+      setReason("")
+      onClose()
     } catch {
-      toast.error("Failed to override grade lock.");
+      toast.error("Failed to override grade lock.")
     }
-  };
+  }
 
   const handleClose = (): void => {
-    setReason("");
-    onClose();
-  };
+    setReason("")
+    onClose()
+  }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
@@ -56,6 +68,7 @@ export function GradeLockOverrideDialog({
             <AlertTriangle className="h-4 w-4" />
             Override Grade Lock
           </DialogTitle>
+
           <DialogDescription>
             Unlock grades for{" "}
             <span className="font-medium text-foreground">
@@ -70,10 +83,12 @@ export function GradeLockOverrideDialog({
             Unlocking is irreversible without initiating another grade lock.
             The educator will be able to modify grades again.
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="override-reason">
               Reason <span className="text-destructive">*</span>
             </Label>
+
             <Textarea
               id="override-reason"
               placeholder="Provide a reason for this override (required for audit log)…"
@@ -88,19 +103,20 @@ export function GradeLockOverrideDialog({
           <Button
             variant="outline"
             onClick={handleClose}
-            disabled={unlockMutation.isPending}
+            disabled={overrideMutation.isPending}
           >
             Cancel
           </Button>
+
           <Button
             variant="destructive"
             onClick={handleConfirm}
-            disabled={!reason.trim() || unlockMutation.isPending}
+            disabled={!reason.trim() || overrideMutation.isPending}
           >
-            {unlockMutation.isPending ? "Processing…" : "Confirm Override"}
+            {overrideMutation.isPending ? "Processing…" : "Confirm Override"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }
