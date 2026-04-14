@@ -403,6 +403,7 @@ model Class {
   meetings       Meeting[]
   grades         Grade[]
   gradingSchemes GradingScheme[]
+  gradeLockEvents GradeLockEvent[]
 }
 
 model ClassSchedule {
@@ -657,57 +658,60 @@ model Grade {
 }
 
 model GradeLock {
-  id             String    @id @default(uuid())
-  org_id         String
-  
-  class_id       String    @unique
-  
-  // Reference to template
-  setting_id     String
-  setting        GradeLockSetting @relation(fields: [setting_id], references: [id])
-  
-  // Lock state
-  is_locked      Boolean   @default(false)
-  locked_by      String?
-  locked_at      DateTime?
-  
-  // Override tracking
-  override_reason  String?
-  override_by      String?
-  override_at      DateTime?
-  
-  created_at     DateTime  @default(now())
-  
-  class          Class     @relation(fields: [class_id], references: [id])
+  id         String @id @default(uuid())
+  org_id     String
+
+  class_id   String @unique
+  class      Class  @relation(fields: [class_id], references: [id])
+
+  setting_id String
+  setting    GradeLockSetting @relation(fields: [setting_id], references: [id])
+
+  is_locked  Boolean  @default(false)
+  locked_at  DateTime?
+  locked_by  String?
+
+  created_at DateTime @default(now())
+}
+
+model GradeLockEvent {
+  id         String @id @default(uuid())
+  org_id     String
+
+  class_id   String
+  class      Class  @relation(fields: [class_id], references: [id])
+
+  type       String  // "lock" | "unlock" | "override" | "request"
+  reason     String?
+
+  actor_id   String
+
+  metadata   Json?
+
+  created_at DateTime @default(now())
 }
 
 model GradeLockSetting {
-  id               String   @id @default(uuid())
-  org_id           String
-  
-  // Template identification
-  name             String   // "Elementary Lock Policy"
-  description      String?
-  lockType         String   // "hard" | "soft" | "flexible"
-  
-  // Deadline logic (Option C)
-  lock_deadline    DateTime?     // absolute deadline (if set)
-  deadlineDays     Int?          // days before end of school year
-  
-  // Permissions
-  allowOverride    Boolean  @default(false)
-  
-  // School year tagging (for UI filtering, not enforcement)
-  school_year_ids  String?  @db.Text // JSON array of IDs for filtering only
-  
-  // Metadata
-  is_default       Boolean  @default(false)
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
-  
-  // Relations
-  gradeLocks       GradeLock[]
-  
+  id          String @id @default(uuid())
+  org_id      String
+
+  name        String
+  description String?
+
+  lockType    String  // "hard" | "soft" | "flexible"
+
+  lock_deadline DateTime?
+  deadlineDays  Int?
+
+  allowOverride Boolean @default(false)
+
+  is_default   Boolean @default(false)
+
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  gradeLocks   GradeLock[]
+
   @@unique([org_id, name])
 }
 
