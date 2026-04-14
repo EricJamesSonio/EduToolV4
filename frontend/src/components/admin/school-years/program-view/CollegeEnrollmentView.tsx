@@ -20,6 +20,7 @@ interface CollegeEnrollmentViewProps {
   allEnrollments: StudentSchoolYearEnrollment[];
   schoolYearId:   string;
   isEnded:        boolean;
+  studentMap: Map<string, string>;
 }
 
 export function CollegeEnrollmentView({
@@ -28,6 +29,8 @@ export function CollegeEnrollmentView({
   allEnrollments,
   schoolYearId,
   isEnded,
+  studentMap
+  
 }: CollegeEnrollmentViewProps) {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedLevelId,  setSelectedLevelId]  = useState<string | null>(null);
@@ -54,6 +57,7 @@ export function CollegeEnrollmentView({
           isEnded={isEnded}
           enrollContext={{ program_id: program.id, course_id: selectedCourseId, level_id: selectedLevelId }}
           allEnrollments={allEnrollments}
+          studentMap={studentMap} 
         />
       </div>
     );

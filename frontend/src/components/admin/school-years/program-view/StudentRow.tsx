@@ -1,6 +1,7 @@
 // frontend\src\components\admin\enrollment\program-view\StudentRow.tsx
 import { useState } from "react";
-import { GraduationCap, LayoutGrid } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { GraduationCap, LayoutGrid, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AssignSectionDialog } from "./AssignSectionDialog";
 import { getProgramEnrollment } from "./enrollment.helpers";
@@ -13,6 +14,8 @@ interface StudentRowProps {
   isEnded:       boolean;
   onUnenroll:    (enrollment: StudentSchoolYearEnrollment) => void;
   isUnenrolling: boolean;
+  // ↓ pass the student's fullName from the parent so we display it
+  studentName:   string;
 }
 
 export function StudentRow({
@@ -22,9 +25,17 @@ export function StudentRow({
   isEnded,
   onUnenroll,
   isUnenrolling,
+  studentName,
 }: StudentRowProps) {
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
+  const router = useRouter();
   const pe = getProgramEnrollment(enrollment, programId);
+
+  const handleView = () => {
+    // Encode current path as ?back= so the detail page can return here
+    const back = encodeURIComponent(window.location.pathname + window.location.search);
+    router.push(`/admin/students/${enrollment.student_id}?back=${back}`);
+  };
 
   return (
     <>
@@ -34,7 +45,8 @@ export function StudentRow({
             <GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium truncate">{enrollment.student_id}</p>
+            {/* ↓ show fullName instead of student_id */}
+            <p className="text-sm font-medium truncate">{studentName}</p>
             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
               {pe?.level && (
                 <span className="text-xs text-muted-foreground">{pe.level.name}</span>
@@ -62,26 +74,37 @@ export function StudentRow({
           </div>
         </div>
 
-        {!isEnded && (
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-            {pe?.level && (
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          {/* View — always available */}
+          <button
+            onClick={handleView}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary px-2 py-1 rounded hover:bg-primary/10 transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" />
+            View
+          </button>
+
+          {!isEnded && (
+            <>
+              {pe?.level && (
+                <button
+                  onClick={() => setSectionDialogOpen(true)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary px-2 py-1 rounded hover:bg-primary/10 transition-colors"
+                >
+                  <LayoutGrid className="h-3 w-3" />
+                  {pe.section ? "Change Section" : "Assign Section"}
+                </button>
+              )}
               <button
-                onClick={() => setSectionDialogOpen(true)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary px-2 py-1 rounded hover:bg-primary/10 transition-colors"
+                onClick={() => onUnenroll(enrollment)}
+                disabled={isUnenrolling}
+                className="text-xs text-muted-foreground hover:text-destructive px-2 py-1 rounded hover:bg-destructive/10 transition-colors disabled:opacity-50"
               >
-                <LayoutGrid className="h-3 w-3" />
-                {pe.section ? "Change Section" : "Assign Section"}
+                Remove
               </button>
-            )}
-            <button
-              onClick={() => onUnenroll(enrollment)}
-              disabled={isUnenrolling}
-              className="text-xs text-muted-foreground hover:text-destructive px-2 py-1 rounded hover:bg-destructive/10 transition-colors disabled:opacity-50"
-            >
-              Remove
-            </button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {sectionDialogOpen && pe && (

@@ -35,6 +35,7 @@ interface StudentListPanelProps {
   isEnded:        boolean;
   enrollContext:  EnrollContext;
   allEnrollments: StudentSchoolYearEnrollment[];
+  studentMap:     Map<string, string>; // student_id → fullName
 }
 
 export function StudentListPanel({
@@ -45,6 +46,7 @@ export function StudentListPanel({
   isEnded,
   enrollContext,
   allEnrollments,
+  studentMap,
 }: StudentListPanelProps) {
   const [enrollOpen,     setEnrollOpen]     = useState(false);
   const [unenrollTarget, setUnenrollTarget] = useState<StudentSchoolYearEnrollment | null>(null);
@@ -178,17 +180,18 @@ export function StudentListPanel({
         </div>
       ) : (
         <div className="divide-y">
-          {filteredStudents.map((e) => (
+        {filteredStudents.map((e) => (
             <StudentRow
-              key={e.id}
-              enrollment={e}
-              programId={programId}
-              schoolYearId={schoolYearId}
-              isEnded={isEnded}
-              onUnenroll={(enr) => setUnenrollTarget(enr)}
-              isUnenrolling={unenrollMutation.isPending}
+            key={e.id}
+            enrollment={e}
+            programId={programId}
+            schoolYearId={schoolYearId}
+            isEnded={isEnded}
+            onUnenroll={(enr) => setUnenrollTarget(enr)}
+            isUnenrolling={unenrollMutation.isPending}
+            studentName={studentMap.get(e.student_id) ?? e.student_id} // fallback to id if not found
             />
-          ))}
+        ))}
         </div>
       )}
 
