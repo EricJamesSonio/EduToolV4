@@ -355,7 +355,7 @@ export class GradeLockService {
       }
     }
 
-    return { success: true, lockedCount: classes.length }
+    return { success: true, lockedCount: expiredSettings.length }
   }
 
   /**
