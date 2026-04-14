@@ -46,102 +46,82 @@ export class StudentService {
   formatAccount(account: Record<string, any>) {
     const meta = this.extractMeta(account);
     return {
-      id: account.id as string,
-      orgId: account.org_id as string,
-      email: account.email as string,
-      status: account.status as string,
-      fullName: (account.profile?.full_name ?? null) as string | null,
-      studentId: (meta['studentId'] ?? null) as string | null,
-      levelId: (meta['levelId'] ?? null) as string | null,
-      sectionId: (meta['sectionId'] ?? null) as string | null,
-      createdAt: account.created_at as Date,
+      id:            account.id as string,
+      orgId:         account.org_id as string,
+      email:         account.email as string,
+      status:        account.status as string,
+      fullName:      (account.profile?.full_name ?? null) as string | null,
+      studentId:     (meta['studentId'] ?? null) as string | null,
+      levelId:       (meta['levelId'] ?? null) as string | null,
+      sectionId:     (meta['sectionId'] ?? null) as string | null,
+      createdAt:     account.created_at as Date,
       personalEmail: (account.profile?.personal_email ?? null) as string | null,
     };
   }
 
   async create(orgId: string, dto: CreateStudentDto) {
-    const emailTaken = await this.studentRepository.findByEmail(
-      dto.email,
-      orgId,
-    );
+    const emailTaken = await this.studentRepository.findByEmail(dto.email, orgId);
     if (emailTaken) {
       throw new ConflictException(
         'An account with this email already exists in the organization.',
       );
     }
 
-    const idTaken = await this.studentRepository.findByStudentId(
-      dto.studentId,
-      orgId,
-    );
+    const idTaken = await this.studentRepository.findByStudentId(dto.studentId, orgId);
     if (idTaken) {
       throw new ConflictException(
         'A student with this Student ID already exists in the organization.',
       );
     }
 
-    // Students are created as PENDING — level/section assignment is handled via enrollment
-    const plainPassword = generateSystemPassword();
+    const plainPassword  = generateSystemPassword();
     const hashedPassword = await hashPassword(plainPassword);
 
     const account = await this.studentRepository.create({
       orgId,
-      email: dto.email,
+      email:          dto.email,
       hashedPassword,
-      status: StudentStatus.PENDING,
-      fullName: dto.fullName,
-      studentId: dto.studentId,
-      levelId: dto.levelId,      // optional, may be undefined
-      sectionId: dto.sectionId,  // optional, may be undefined
+      status:         StudentStatus.PENDING,
+      fullName:       dto.fullName,
+      studentId:      dto.studentId,
+      levelId:        dto.levelId,
+      sectionId:      dto.sectionId,
     });
 
-    return {
-      ...this.formatAccount(account),
-      plainPassword,
-    };
+    return { ...this.formatAccount(account), plainPassword };
   }
 
   async findAll(orgId: string, query: QueryStudentDto) {
+    // Pass ALL hierarchy filters straight to the repository.
+    // The repository resolves them via StudentSchoolYear → StudentProgramEnrollment.
+    // Do NOT post-filter on profile metadata — enrolled students store their
+    // level/section in StudentProgramEnrollment, not in profile.metadata.
     const accounts = await this.studentRepository.findAll(orgId, {
-      search: query.search,
-      status: query.status,
-      levelId: query.levelId,
-      sectionId: query.sectionId,
+      search:       query.search,
+      status:       query.status,
+      schoolYearId: query.schoolYearId,
+      programId:    query.programId,
+      courseId:     query.courseId,
+      strandId:     query.strandId,
+      levelId:      query.levelId,
+      sectionId:    query.sectionId,
     });
 
-    let results = accounts.map((a) =>
-      this.formatAccount(a as Record<string, any>),
-    );
-
-    if (query.levelId) {
-      results = results.filter((s) => s.levelId === query.levelId);
-    }
-    if (query.sectionId) {
-      results = results.filter((s) => s.sectionId === query.sectionId);
-    }
-
-    return results;
+    return accounts.map((a) => this.formatAccount(a as Record<string, any>));
   }
 
   async findById(id: string, orgId: string) {
     const account = await this.studentRepository.findById(id, orgId);
-    if (!account) {
-      throw new NotFoundException('Student not found.');
-    }
+    if (!account) throw new NotFoundException('Student not found.');
     return this.formatAccount(account as Record<string, any>);
   }
 
   async update(id: string, orgId: string, dto: UpdateStudentDto) {
     const account = await this.studentRepository.findById(id, orgId);
-    if (!account) {
-      throw new NotFoundException('Student not found.');
-    }
+    if (!account) throw new NotFoundException('Student not found.');
 
     if (dto.email && dto.email !== account.email) {
-      const emailTaken = await this.studentRepository.findByEmail(
-        dto.email,
-        orgId,
-      );
+      const emailTaken = await this.studentRepository.findByEmail(dto.email, orgId);
       if (emailTaken) {
         throw new ConflictException(
           'An account with this email already exists in the organization.',
@@ -151,9 +131,7 @@ export class StudentService {
 
     if (dto.sectionId) {
       const section = await this.sectionService.findById(dto.sectionId, orgId);
-      const currentCount = await this.sectionService.countStudentsInSection(
-        dto.sectionId,
-      );
+      const currentCount = await this.sectionService.countStudentsInSection(dto.sectionId);
       if (currentCount >= section.capacity) {
         throw new BadRequestException(
           `Section has reached its capacity of ${section.capacity} students.`,
@@ -162,9 +140,9 @@ export class StudentService {
     }
 
     const updated = await this.studentRepository.updateProfile(id, {
-      fullName: dto.fullName,
-      email: dto.email,
-      levelId: dto.levelId,
+      fullName:  dto.fullName,
+      email:     dto.email,
+      levelId:   dto.levelId,
       sectionId: dto.sectionId,
     });
 
@@ -173,12 +151,10 @@ export class StudentService {
 
   async updateStatus(id: string, orgId: string, dto: UpdateStudentStatusDto) {
     const account = await this.studentRepository.findById(id, orgId);
-    if (!account) {
-      throw new NotFoundException('Student not found.');
-    }
+    if (!account) throw new NotFoundException('Student not found.');
 
     const currentStatus = account.status as StudentStatus;
-    const newStatus = dto.status;
+    const newStatus     = dto.status;
 
     if (
       IRREVERSIBLE_STATUSES.includes(currentStatus) &&
@@ -202,7 +178,7 @@ export class StudentService {
       throw new BadRequestException('CSV file is empty or malformed.');
     }
 
-    const emails = rows.map((r) => r['Email']).filter(Boolean);
+    const emails     = rows.map((r) => r['Email']).filter(Boolean);
     const studentIds = rows.map((r) => r['Student ID']).filter(Boolean);
 
     const [existingEmails, existingStudentIds] = await Promise.all([
@@ -211,7 +187,7 @@ export class StudentService {
     ]);
 
     const takenEmailSet = new Set(existingEmails);
-    const takenIdSet = new Set(existingStudentIds);
+    const takenIdSet    = new Set(existingStudentIds);
 
     const validationReport: Array<{
       row: number;
@@ -221,15 +197,13 @@ export class StudentService {
     const validRows: Array<{ row: number; data: Record<string, string> }> = [];
 
     for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
+      const row    = rows[i];
       const errors: string[] = [];
       const rowNum = i + 2;
 
       if (!row['Full Name']) errors.push('Full Name is required.');
       if (!row['Student ID']) errors.push('Student ID is required.');
       if (!row['Email']) errors.push('Email is required.');
-      // Level ID is now optional — removed required check
-
       if (row['Email'] && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row['Email'])) {
         errors.push('Email format is invalid.');
       }
@@ -249,34 +223,30 @@ export class StudentService {
 
     if (validationReport.length > 0) {
       return {
-        status: 'validation_failed',
-        totalRows: rows.length,
-        validCount: validRows.length,
+        status:       'validation_failed',
+        totalRows:    rows.length,
+        validCount:   validRows.length,
         invalidCount: validationReport.length,
-        errors: validationReport,
-        message:
-          'Fix the errors and re-upload, or proceed with valid rows only.',
+        errors:       validationReport,
+        message:      'Fix the errors and re-upload, or proceed with valid rows only.',
       };
     }
 
-    const created: Array<
-      ReturnType<typeof this.formatAccount> & { plainPassword: string }
-    > = [];
+    const created: Array<ReturnType<typeof this.formatAccount> & { plainPassword: string }> = [];
 
     for (const { data } of validRows) {
-      const plainPassword = generateSystemPassword();
+      const plainPassword  = generateSystemPassword();
       const hashedPassword = await hashPassword(plainPassword);
 
-      // All bulk-imported students start as PENDING; enrollment assigns level/section
       const account = await this.studentRepository.create({
         orgId,
-        email: data['Email'],
+        email:          data['Email'],
         hashedPassword,
-        status: StudentStatus.PENDING,
-        fullName: data['Full Name'],
-        studentId: data['Student ID'],
-        levelId: data['Level ID'] || undefined,
-        sectionId: data['Section ID'] || undefined,
+        status:         StudentStatus.PENDING,
+        fullName:       data['Full Name'],
+        studentId:      data['Student ID'],
+        levelId:        data['Level ID'] || undefined,
+        sectionId:      data['Section ID'] || undefined,
       });
 
       created.push({ ...this.formatAccount(account), plainPassword });
@@ -287,14 +257,12 @@ export class StudentService {
 
   async resetPassword(id: string, orgId: string) {
     const account = await this.studentRepository.findById(id, orgId);
-    if (!account) {
-      throw new NotFoundException('Student not found.');
-    }
+    if (!account) throw new NotFoundException('Student not found.');
 
-    const plainPassword = generateSystemPassword();
+    const plainPassword  = generateSystemPassword();
     const hashedPassword = await hashPassword(plainPassword);
-    await this.studentRepository.updatePassword(id, hashedPassword);
 
+    await this.studentRepository.updatePassword(id, hashedPassword);
     return { id, plainPassword };
   }
 
@@ -303,13 +271,13 @@ export class StudentService {
     const rows = accounts.map((a) => {
       const meta = this.extractMeta(a as Record<string, any>);
       return {
-        fullName: a.profile?.full_name ?? '',
-        studentId: (meta['studentId'] ?? '') as string,
-        email: a.email,
+        fullName:      a.profile?.full_name ?? '',
+        studentId:     (meta['studentId'] ?? '') as string,
+        email:         a.email,
         plainPassword: '••••••••••',
-        levelId: (meta['levelId'] ?? '') as string,
-        sectionId: (meta['sectionId'] ?? '') as string,
-        status: a.status,
+        levelId:       (meta['levelId'] ?? '') as string,
+        sectionId:     (meta['sectionId'] ?? '') as string,
+        status:        a.status,
       };
     });
     return buildCredentialsCsv(rows);
@@ -338,9 +306,7 @@ export class StudentService {
     if (!account) throw new NotFoundException('Student not found.');
 
     if (account.status !== 'active') {
-      throw new BadRequestException(
-        'Only active students can be enrolled in a class.',
-      );
+      throw new BadRequestException('Only active students can be enrolled in a class.');
     }
 
     const cls = await this.classRepository.findById(classId, orgId);
@@ -358,11 +324,7 @@ export class StudentService {
       );
     }
 
-    const existing = await this.enrollmentRepo.findByStudent(
-      classId,
-      studentId,
-      orgId,
-    );
+    const existing = await this.enrollmentRepo.findByStudent(classId, studentId, orgId);
     if (existing && existing.status !== 'removed') {
       throw new ConflictException('Student is already enrolled in this class.');
     }
@@ -371,27 +333,18 @@ export class StudentService {
       const activeCount = await this.enrollmentRepo.countActive(classId);
       if (activeCount >= cls.capacity) {
         return {
-          overflow: true,
-          message: `Class is at full capacity (${cls.capacity} students).`,
+          overflow:  true,
+          message:   `Class is at full capacity (${cls.capacity} students).`,
           classId,
           studentId,
         };
       }
     }
 
-    return this.enrollmentRepo.create({
-      orgId,
-      classId,
-      studentId,
-      status: 'active',
-    });
+    return this.enrollmentRepo.create({ orgId, classId, studentId, status: 'active' });
   }
 
-  async deleteEnrollment(
-    studentId: string,
-    enrollmentId: string,
-    orgId: string,
-  ) {
+  async deleteEnrollment(studentId: string, enrollmentId: string, orgId: string) {
     const account = await this.studentRepository.findById(studentId, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
@@ -399,7 +352,6 @@ export class StudentService {
     if (!enrollment || enrollment.student_id !== studentId) {
       throw new NotFoundException('Enrollment not found.');
     }
-
     if (enrollment.status === 'removed') {
       throw new ConflictException('Enrollment is already removed.');
     }
@@ -417,14 +369,14 @@ export class StudentService {
           orgId,
         );
         return {
-          id: cls.id,
-          subjectId: cls.subject_id,
-          subjectName: subject?.name ?? null,
-          sectionId: cls.section_id,
+          id:           cls.id,
+          subjectId:    cls.subject_id,
+          subjectName:  subject?.name ?? null,
+          sectionId:    cls.section_id,
           schoolYearId: cls.school_year_id,
-          semesterId: cls.semester_id,
-          capacity: cls.capacity,
-          schedules: cls.schedules,
+          semesterId:   cls.semester_id,
+          capacity:     cls.capacity,
+          schedules:    cls.schedules,
         };
       }),
     );
@@ -438,7 +390,6 @@ export class StudentService {
     if (!enrollment || enrollment.class_id !== classId) {
       throw new NotFoundException('Enrollment not found.');
     }
-
     if (enrollment.status === 'removed') {
       throw new BadRequestException('Enrollment is already removed.');
     }
