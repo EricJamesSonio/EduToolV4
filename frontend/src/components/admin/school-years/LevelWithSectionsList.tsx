@@ -115,16 +115,24 @@ export function LevelWithSectionsList({
           courses.length === 0
             ? <p className="px-4 py-4 text-sm text-muted-foreground">No courses found. Add courses first from the Programs page.</p>
             : courses.map((course) => (
-                <CourseGroupBlock key={course.id} course={course} levels={levels} {...sharedProps} />
-              ))
+  <CourseGroupBlock
+    key={course.id}
+    course={course}
+    {...sharedProps}
+  />
+))
         )}
 
         {isSHS && (
           strands.length === 0
             ? <p className="px-4 py-4 text-sm text-muted-foreground">No strands found. Add strands first from the Programs page.</p>
-            : strands.map((strand) => (
-                <StrandGroupBlock key={strand.id} strand={strand} levels={levels} {...sharedProps} />
-              ))
+            :strands.map((strand) => (
+  <StrandGroupBlock
+    key={strand.id}
+    strand={strand}
+    {...sharedProps}
+  />
+))
         )}
       </div>
 
