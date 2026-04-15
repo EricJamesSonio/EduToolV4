@@ -1,4 +1,4 @@
-// components/assign-row/confirm-dialog.tsx
+// frontend/src/components/admin/semester-settings/assign-row/confirm-dialog.tsx
 "use client"
 
 import {
@@ -16,6 +16,7 @@ interface ConfirmDialogProps {
   open: boolean
   title?: string
   description?: string
+  confirmLabel?: string
   onConfirm: () => void
   onCancel: () => void
 }
@@ -23,7 +24,8 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   open,
   title = "Are you sure?",
-  description = "This will replace the current template assignment. Saved term dates may be lost.",
+  description,
+  confirmLabel = "Continue",
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -32,11 +34,13 @@ export function ConfirmDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+          {description && (
+            <AlertDialogDescription>{description}</AlertDialogDescription>
+          )}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Continue</AlertDialogAction>
+          <AlertDialogAction onClick={onConfirm}>{confirmLabel}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

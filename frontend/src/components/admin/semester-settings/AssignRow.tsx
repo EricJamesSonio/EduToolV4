@@ -1,4 +1,4 @@
-// components/assign-row/assign-row.tsx
+// frontend/src/components/admin/semester-settings/AssignRow.tsx
 "use client"
 
 import {
@@ -17,7 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-import type { SemesterTemplate } from "@/types/admin/semester-template.types"
 import type { AssignRowProps } from "./assign-row/types"
 import { toDateInput } from "./assign-row/helpers"
 import { useAssignRow } from "./assign-row/use-assign-row"
@@ -32,10 +31,13 @@ export function AssignRow({
 }: AssignRowProps): React.JSX.Element {
   const {
     current,
+    assignedTemplate,
     allTerms,
     termDates,
     expanded,
     setExpanded,
+    panelMode,
+    setPanelMode,
     savingDates,
     isPending,
     validation,
@@ -44,7 +46,11 @@ export function AssignRow({
     handleCancelConfirm,
     requestTemplateChange,
     handleDateChange,
+    handleRequestSave,
     handleSaveDates,
+    handleCancelEdit,
+    confirmSaveOpen,
+    setConfirmSaveOpen,
   } = useAssignRow(program, templates)
 
   const syMin = schoolYearStart ? toDateInput(schoolYearStart) : ""
@@ -99,26 +105,43 @@ export function AssignRow({
         )}
       </div>
 
-      {/* Term dates panel */}
+      {/* Panel */}
       {expanded && current && allTerms.length > 0 && (
         <TermDatesPanel
+          templateName={assignedTemplate?.name ?? current.template.name}
           allTerms={allTerms}
           termDates={termDates}
           isValid={validation.isValid}
           savingDates={savingDates}
+          panelMode={panelMode}
           syMin={syMin}
           syMax={syMax}
           onDateChange={handleDateChange}
-          onSave={handleSaveDates}
-          onCancel={() => setExpanded(false)}
+          onRequestSave={handleRequestSave}
+          onCancelEdit={handleCancelEdit}
+          onEnterEdit={() => setPanelMode("edit")}
+          onClose={() => setExpanded(false)}
         />
       )}
 
-      {/* Confirm dialog */}
+      {/* Template change confirm */}
       <ConfirmDialog
         open={confirmOpen}
+        title="Change template?"
+        description="This will replace the current template assignment. Existing term dates will be removed."
+        confirmLabel="Yes, change it"
         onConfirm={handleConfirm}
         onCancel={handleCancelConfirm}
+      />
+
+      {/* Save dates confirm */}
+      <ConfirmDialog
+        open={confirmSaveOpen}
+        title="Save term dates?"
+        description="This will overwrite any previously saved term dates for this program."
+        confirmLabel="Save"
+        onConfirm={handleSaveDates}
+        onCancel={() => setConfirmSaveOpen(false)}
       />
     </div>
   )

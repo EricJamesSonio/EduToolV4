@@ -1,13 +1,15 @@
-// components/assign-row/use-assign-row.ts
+// frontend/src/components/admin/semester-settings/assign-row/use-assign-row.ts
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
 import { toast } from "sonner"
 import { useAssignTemplate, useRemoveTemplateAssignment } from "@/hooks/admin/useSemesterTemplate"
 import { semesterTemplateApi } from "@/api/admin/semester-template.api"
-import type { SemesterTemplate, TemplateAssignment } from "@/types/admin/semester-template.types"
+import type { SemesterTemplate } from "@/types/admin/semester-template.types"
 import type { ProgramWithAssignment, TermDatesMap, TermWithSemester } from "./types"
 import { errMsg, toDateInput, addOneDay } from "./helpers"
+
+export type PanelMode = "view" | "edit"
 
 export function useAssignRow(
   program: ProgramWithAssignment,
@@ -20,12 +22,14 @@ export function useAssignRow(
   const current = program.semesterAssignment
 
   const [expanded, setExpanded] = useState(false)
+  const [panelMode, setPanelMode] = useState<PanelMode>("view")
   const [savingDates, setSavingDates] = useState(false)
   const [termDates, setTermDates] = useState<TermDatesMap>({})
 
-  // Confirm dialog state
+  // Confirm dialogs
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null)
+  const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
 
   const assignedTemplate = useMemo(() => {
     if (!current) return null
@@ -36,7 +40,8 @@ export function useAssignRow(
     if (!assignedTemplate) return []
     return assignedTemplate.semesters.flatMap((sem) =>
       sem.terms.map((term) => ({
-        ...term,
+        id: term.id ?? "",
+        name: term.name,
         semesterName: sem.name,
       })),
     )
@@ -44,7 +49,10 @@ export function useAssignRow(
 
   // Init term dates from existing assignment
   useEffect(() => {
-    if (!current?.termDates) return
+    if (!current?.termDates) {
+      setTermDates({})
+      return
+    }
     const init: TermDatesMap = {}
     for (const td of current.termDates) {
       if (!td.term_id) continue
@@ -56,7 +64,13 @@ export function useAssignRow(
     setTermDates(init)
   }, [current])
 
-  // Called when user picks a new template — ask for confirmation if already assigned
+  // Reset panel mode when collapsed
+  useEffect(() => {
+    if (!expanded) setPanelMode("view")
+  }, [expanded])
+
+  /* ---------- Template change ---------- */
+
   const requestTemplateChange = (templateId: string) => {
     if (current && templateId !== current.template_id) {
       setPendingTemplateId(templateId)
@@ -86,6 +100,7 @@ export function useAssignRow(
         onSuccess: () => {
           toast.success("Template assigned.")
           setExpanded(true)
+          setPanelMode("view")
         },
         onError: (e) => toast.error(errMsg(e)),
       },
@@ -104,6 +119,8 @@ export function useAssignRow(
     setConfirmOpen(false)
     setPendingTemplateId(null)
   }
+
+  /* ---------- Date editing ---------- */
 
   const handleDateChange = (
     termId: string,
@@ -141,7 +158,7 @@ export function useAssignRow(
   const validation = useMemo(() => {
     const missing: string[] = []
     for (const term of allTerms) {
-      const d = termDates[term.id ?? ""]
+      const d = termDates[term.id]
       if (!d?.startDate || !d?.endDate) {
         missing.push(`${term.semesterName} · ${term.name}`)
       }
@@ -149,10 +166,10 @@ export function useAssignRow(
     return { isValid: missing.length === 0, missing }
   }, [termDates, allTerms])
 
-  const validateRules = () => {
-    const payload = Object.entries(termDates)
-      .filter(([, v]) => v.startDate && v.endDate)
-      .map(([termId, v]) => ({ termId, startDate: v.startDate, endDate: v.endDate }))
+  const validateRules = (): { ok: boolean; msg: string | null } => {
+    const payload = allTerms
+      .map((t) => ({ termId: t.id, ...termDates[t.id] }))
+      .filter((p) => p.startDate && p.endDate)
 
     for (const p of payload) {
       if (p.startDate >= p.endDate)
@@ -165,7 +182,8 @@ export function useAssignRow(
     return { ok: true, msg: null }
   }
 
-  const handleSaveDates = async () => {
+  // Step 1: user clicks Save → open confirm dialog
+  const handleRequestSave = () => {
     if (!validation.isValid) {
       toast.error("Please fill all term dates first.")
       return
@@ -175,12 +193,27 @@ export function useAssignRow(
       toast.error(rule.msg ?? "Invalid dates.")
       return
     }
+    setConfirmSaveOpen(true)
+  }
+
+  // Step 2: user confirms → actually save
+  const handleSaveDates = async () => {
+    setConfirmSaveOpen(false)
+
+    // Build correct payload — termId + startDate + endDate per term
+    const termDatesPayload = allTerms
+      .filter((t) => termDates[t.id]?.startDate && termDates[t.id]?.endDate)
+      .map((t) => ({
+        termId: t.id,
+        startDate: termDates[t.id].startDate,
+        endDate: termDates[t.id].endDate,
+      }))
 
     try {
       setSavingDates(true)
-      await semesterTemplateApi.saveTermDates(program.id, validation.missing)
+      await semesterTemplateApi.saveTermDates(program.id, termDatesPayload)
       toast.success("Term dates saved!")
-      setExpanded(false)
+      setPanelMode("view")
     } catch (e) {
       toast.error(errMsg(e))
     } finally {
@@ -188,20 +221,46 @@ export function useAssignRow(
     }
   }
 
+  const handleCancelEdit = () => {
+    // Reset dates back to what came from server
+    if (current?.termDates) {
+      const reset: TermDatesMap = {}
+      for (const td of current.termDates) {
+        if (!td.term_id) continue
+        reset[td.term_id] = {
+          startDate: toDateInput(td.start_date),
+          endDate: toDateInput(td.end_date),
+        }
+      }
+      setTermDates(reset)
+    }
+    setPanelMode("view")
+  }
+
   return {
     current,
+    assignedTemplate,
     allTerms,
     termDates,
     expanded,
     setExpanded,
+    panelMode,
+    setPanelMode,
     savingDates,
     isPending,
     validation,
+    // template change confirm
     confirmOpen,
     handleConfirm,
     handleCancelConfirm,
     requestTemplateChange,
+    // date editing
     handleDateChange,
+    handleRequestSave,
     handleSaveDates,
+    handleCancelEdit,
+    // save confirm
+    confirmSaveOpen,
+    setConfirmSaveOpen,
   }
 }
