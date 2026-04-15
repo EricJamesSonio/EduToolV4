@@ -147,38 +147,57 @@ export class SchoolYearService {
     });
   }
 
-  async activate(id: string, orgId: string) {
-    const schoolYear = await this.schoolYearRepository.findById(id, orgId);
-    if (!schoolYear) throw new NotFoundException('School year not found.');
-
-    if (schoolYear.status === 'active')
-      throw new ConflictException('This school year is already active.');
-    if (schoolYear.status === 'ended')
-      throw new BadRequestException(
-        'An ended school year cannot be reactivated.',
-      );
-
-    const activeCount = await this.schoolYearRepository.countActive(orgId);
-    if (activeCount > 0)
-      throw new ConflictException(
-        'Another school year is currently active. End it before activating a new one.',
-      );
-
-    const previousActive = await this.schoolYearRepository.findActive(orgId);
-    const result = await this.schoolYearRepository.updateStatus(id, 'active');
-
-    await this.subjectService.unlockAllForOrg(orgId);
-
-    if (previousActive) {
-      await this.gradingScaleService.unlockAllForSchoolYear(
-        previousActive.id,
-        orgId,
-      );
-    }
-
-    return result;
+async activate(id: string, orgId: string) {
+  const schoolYear = await this.schoolYearRepository.findById(id, orgId);
+  if (!schoolYear) {
+    throw new NotFoundException('School year not found.');
   }
 
+  if (schoolYear.status === 'active') {
+    throw new ConflictException('This school year is already active.');
+  }
+
+  if (schoolYear.status === 'ended') {
+    throw new BadRequestException(
+      'An ended school year cannot be reactivated.',
+    );
+  }
+
+  // ✅ Null safety (fix TS error properly)
+  if (!schoolYear.start_date) {
+    throw new BadRequestException(
+      'School year has no start date and cannot be activated.',
+    );
+  }
+
+  // 🔥 Prevent early activation, allow late activation
+  const today = new Date();
+  const start = new Date(schoolYear.start_date);
+
+  today.setHours(0, 0, 0, 0);
+  start.setHours(0, 0, 0, 0);
+
+  if (start > today) {
+    throw new BadRequestException(
+      'Cannot activate a school year before its start date.',
+    );
+  }
+
+  // ✅ Ensure only one active school year (safer than count)
+  const existingActive = await this.schoolYearRepository.findActive(orgId);
+  if (existingActive) {
+    throw new ConflictException(
+      'Another school year is currently active. End it before activating a new one.',
+    );
+  }
+
+  const result = await this.schoolYearRepository.updateStatus(id, 'active');
+
+  // 🔓 Reset locks for new active cycle
+  await this.subjectService.unlockAllForOrg(orgId);
+
+  return result;
+}
   async end(id: string, orgId: string) {
     const schoolYear = await this.schoolYearRepository.findById(id, orgId);
     if (!schoolYear) throw new NotFoundException('School year not found.');
