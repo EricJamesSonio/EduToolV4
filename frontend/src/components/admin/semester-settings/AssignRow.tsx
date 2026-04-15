@@ -72,16 +72,18 @@ export function AssignRow({ program, templates, schoolYearStart, schoolYearEnd }
   // term date state: termId → { startDate, endDate }
   const [termDates, setTermDates] = useState<Record<string, { startDate: string; endDate: string }>>({})
 
-  // Initialise from existing saved dates when assignment loads
   useEffect(() => {
     if (!current?.termDates) return
+
     const init: Record<string, { startDate: string; endDate: string }> = {}
+
     for (const td of current.termDates) {
       init[td.term_id] = {
-        startDate: toDateInput(td.start_date),
-        endDate: toDateInput(td.end_date),
+        startDate: toDateInput(td.start_date) ?? "",
+        endDate: toDateInput(td.end_date) ?? "",
       }
     }
+
     setTermDates(init)
   }, [current?.termDates])
 
@@ -296,7 +298,8 @@ export function AssignRow({ program, templates, schoolYearStart, schoolYearEnd }
 
           <div className="space-y-2">
             {allTerms.map((term, idx) => {
-              const dates = termDates[term.id!] ?? { startDate: "", endDate: "" }
+              const dates = termDates[term.id!] || { startDate: "", endDate: "" }
+              
               const prevEndDate = idx > 0 ? termDates[allTerms[idx - 1].id!]?.endDate : undefined
               const minStart = prevEndDate ? addOneDay(prevEndDate) : syMin
               const hasStartDate = !!dates.startDate
@@ -314,7 +317,8 @@ export function AssignRow({ program, templates, schoolYearStart, schoolYearEnd }
                       <Input
                         type="date"
                         className={`h-7 text-xs ${!hasStartDate ? "border-amber-300 bg-amber-50/30" : ""}`}
-                        value={dates.startDate}
+                        value={dates.startDate ?? ""}
+
                         min={minStart || syMin}
                         max={syMax}
                         onChange={(e) => handleDateChange(term.id!, "startDate", e.target.value)}
@@ -323,7 +327,7 @@ export function AssignRow({ program, templates, schoolYearStart, schoolYearEnd }
                       <Input
                         type="date"
                         className={`h-7 text-xs ${!hasEndDate ? "border-amber-300 bg-amber-50/30" : ""}`}
-                        value={dates.endDate}
+                        value={dates.endDate ?? ""}
                         min={dates.startDate || syMin}
                         max={syMax}
                         onChange={(e) => handleDateChange(term.id!, "endDate", e.target.value)}
