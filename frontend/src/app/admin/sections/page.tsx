@@ -119,6 +119,7 @@ export default function SectionsPage(): React.JSX.Element {
           </div>
 
           <SectionLevelFilter
+          schoolYearId={schoolYearId!}
             programs={programs}
             filterProgramId={filterProgramId}
             onProgramChange={(id) => {

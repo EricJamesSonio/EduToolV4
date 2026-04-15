@@ -9,8 +9,12 @@ import {
 } from "@/components/ui/select";
 import type { Program }       from "@/types/admin/program.types";
 import type { EnrichedLevel } from "@/components/admin/section/utils/section.utils";
+import { useQuery } from "@tanstack/react-query";
+import { levelApi } from "@/api/admin/level.api";
+import type { Level } from "@/types/admin/level.types";
 
 interface SectionLevelFilterProps {
+  schoolYearId:    string;          // ← add this
   programs:        Program[];
   filterProgramId: string;
   onProgramChange: (id: string) => void;
@@ -25,6 +29,7 @@ interface SectionLevelFilterProps {
 }
 
 export function SectionLevelFilter({
+  schoolYearId,       // ← add this
   programs,
   filterProgramId,
   onProgramChange,
@@ -53,9 +58,30 @@ export function SectionLevelFilter({
 
   const levelSelectEnabled = filterProgramId !== "all" && subGroupSatisfied;
 
-  // Scope levels to selected program only
-  const scopedGroup  = grouped.find((g) => g.programName === selectedProgram?.name);
-  const scopedLevels = scopedGroup?.levels ?? [];
+const fetchByCourse =
+  isCollege && filterCourseId !== "all";
+const fetchByStrand =
+  isSHS && filterStrandId !== "all";
+
+const { data: filteredLevels = [] } = useQuery<Level[]>({
+  queryKey: ["admin", "levels", schoolYearId, "course", filterCourseId],
+  queryFn:  () => levelApi.getByCourse(schoolYearId, filterCourseId),
+  enabled:  fetchByCourse,
+});
+
+const { data: filteredByStrand = [] } = useQuery<Level[]>({
+  queryKey: ["admin", "levels", schoolYearId, "strand", filterStrandId],
+  queryFn:  () => levelApi.getByStrand(schoolYearId, filterStrandId),
+  enabled:  fetchByStrand,
+});
+
+const scopedGroup     = grouped.find((g) => g.programName === selectedProgram?.name);
+const allScopedLevels = scopedGroup?.levels ?? [];
+
+const scopedLevels =
+  fetchByCourse ? filteredLevels :
+  fetchByStrand ? filteredByStrand :
+  allScopedLevels;
 
   const selectedLevelInfo  = levelMap[filterLevelId];
   const selectedCourseName = courses.find((c) => c.id === filterCourseId);
