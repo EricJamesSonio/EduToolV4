@@ -44,17 +44,11 @@ export function AssignSectionDialog({
   const courseId = programEnrollment.course?.id ?? null;
   const strandId = programEnrollment.strand?.id ?? null;
 
-  const { data: allSections = [], isLoading: sectionsLoading } = useQuery({
-    queryKey: ["admin", "sections", schoolYearId, levelId],
-    queryFn:  () => sectionApi.getAll(schoolYearId, levelId),
-    enabled:  open && !!levelId,
-  });
-
-  const sections = allSections.filter((s: Section) => {
-    if (courseId) return s.course_id === courseId;
-    if (strandId) return s.strand_id === strandId;
-    return s.course_id === null && s.strand_id === null;
-  });
+const { data: sections = [], isLoading: sectionsLoading } = useQuery({
+  queryKey: ["admin", "sections", schoolYearId, levelId, courseId, strandId],
+  queryFn:  () => sectionApi.getAll(schoolYearId, levelId, courseId ?? undefined, strandId ?? undefined),
+  enabled:  open && !!levelId,
+});
 
   const updateMutation = useUpdateProgramEnrollment(schoolYearId);
 

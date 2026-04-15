@@ -21,12 +21,22 @@ interface ApiResponse<T> {
 }
 
 export const sectionApi = {
-  getAll: async (schoolYearId: string, levelId?: string): Promise<Section[]> => {
-    const res = await client.get<ApiResponse<Section[]>>("/sections", {
-      params: { schoolYearId, ...(levelId ? { levelId } : {}) },
-    });
-    return res.data.data ?? [];
-  },
+  getAll: async (
+  schoolYearId: string,
+  levelId?:     string,
+  courseId?:    string,
+  strandId?:    string,
+): Promise<Section[]> => {
+  const res = await client.get<ApiResponse<Section[]>>("/sections", {
+    params: {
+      schoolYearId,
+      ...(levelId  ? { levelId }  : {}),
+      ...(courseId ? { courseId } : {}),
+      ...(strandId ? { strandId } : {}),
+    },
+  });
+  return res.data.data ?? [];
+},
 
   create: async (data: CreateSectionRequest): Promise<Section> => {
     const res = await client.post<ApiResponse<Section>>("/sections", data);
