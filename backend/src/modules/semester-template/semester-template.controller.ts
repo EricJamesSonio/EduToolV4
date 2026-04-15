@@ -1,18 +1,29 @@
 // filepath: backend/src/modules/semester-template/semester-template.controller.ts
 
 import {
-  Controller, Post, Get, Patch, Delete,
-  Body, Param, Query, UseGuards, HttpCode, HttpStatus,
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common'
+
 import { SemesterTemplateService } from './semester-template.service'
 import {
   CreateSemesterTemplateDto,
   UpdateSemesterTemplateDto,
   AssignTemplateDto,
 } from './dto/semester-template.dto'
-import { AuthGuard }   from '@/commons/guards/auth.guard'
-import { RolesGuard }  from '@/commons/guards/role.guard'
-import { Roles }       from '@/commons/decorators/roles.decorator'
+
+import { AuthGuard } from '@/commons/guards/auth.guard'
+import { RolesGuard } from '@/commons/guards/role.guard'
+import { Roles } from '@/commons/decorators/roles.decorator'
 import { CurrentUser } from '@/commons/decorators/current-user.decorator'
 
 @Controller('semester-templates')
@@ -20,7 +31,9 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator'
 export class SemesterTemplateController {
   constructor(private readonly service: SemesterTemplateService) {}
 
-  // ── Templates CRUD ──
+  // ─────────────────────────────────────────────
+  // CREATE TEMPLATE
+  // ─────────────────────────────────────────────
   @Post()
   @Roles('admin')
   async create(
@@ -30,15 +43,15 @@ export class SemesterTemplateController {
     return this.service.create(orgId, dto)
   }
 
+  // ─────────────────────────────────────────────
+  // STATIC ROUTES (NO PARAMS)
+  // ─────────────────────────────────────────────
   @Get('for-org')
   @Roles('admin')
-  async findAllForOrg(
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async findAllForOrg(@CurrentUser('org_id') orgId: string) {
     return this.service.findAllForOrg(orgId)
   }
 
-  // ── Assignments ── (static routes BEFORE parameterized)
   @Get('assignments/by-school-year')
   @Roles('admin')
   async findAssignments(
@@ -54,7 +67,6 @@ export class SemesterTemplateController {
     @CurrentUser('org_id') orgId: string,
     @Body() dto: AssignTemplateDto,
   ) {
-    // Optional: add type-check guard here if needed
     return this.service.assignToProgram(orgId, dto)
   }
 
@@ -68,7 +80,45 @@ export class SemesterTemplateController {
     await this.service.removeAssignment(programId, orgId)
   }
 
-  // ── Parameterized routes (LAST) ──
+  // ─────────────────────────────────────────────
+  // IMPORTANT: NESTED ASSIGNMENT ROUTE
+  // MUST BE BEFORE :id ROUTES
+  // ─────────────────────────────────────────────
+  @Post('assignments/:programId/term-dates')
+  @Roles('admin')
+  async saveTermDates(
+    @Param('programId') programId: string,
+    @CurrentUser('org_id') orgId: string,
+    @Body()
+    body: {
+      termDates: Array<{
+        termId: string
+        startDate: string
+        endDate: string
+      }>
+    },
+  ) {
+    return this.service.saveTermDates(orgId, programId, body.termDates)
+  }
+
+  // ─────────────────────────────────────────────
+  // COLLECTION ROUTE (MUST BE BEFORE :id)
+  // ─────────────────────────────────────────────
+  @Get()
+  @Roles('admin')
+  async findAll(
+    @CurrentUser('org_id') orgId: string,
+    @Query('schoolYearId') schoolYearId?: string,
+  ) {
+    if (schoolYearId) {
+      return this.service.findAllBySchoolYear(orgId, schoolYearId)
+    }
+    return this.service.findAllForOrg(orgId)
+  }
+
+  // ─────────────────────────────────────────────
+  // PARAM ROUTES (ALWAYS LAST)
+  // ─────────────────────────────────────────────
   @Get(':id')
   @Roles('admin')
   async findOne(
@@ -96,28 +146,5 @@ export class SemesterTemplateController {
     @CurrentUser('org_id') orgId: string,
   ) {
     await this.service.remove(id, orgId)
-  }
-
-  // Optional: default findAll (with schoolYearId query)
-  @Get()
-  @Roles('admin')
-  async findAll(
-    @CurrentUser('org_id') orgId: string,
-    @Query('schoolYearId') schoolYearId?: string,
-  ) {
-    if (schoolYearId) {
-      return this.service.findAllBySchoolYear(orgId, schoolYearId)
-    }
-    return this.service.findAllForOrg(orgId)
-  }
-
-  @Post('assignments/:programId/term-dates')
-  @Roles('admin')
-  async saveTermDates(
-    @Param('programId') programId: string,
-    @CurrentUser('org_id') orgId: string,
-    @Body() body: { termDates: Array<{ termId: string; startDate: string; endDate: string }> },
-  ) {
-    return this.service.saveTermDates(orgId, programId, body.termDates)
   }
 }
