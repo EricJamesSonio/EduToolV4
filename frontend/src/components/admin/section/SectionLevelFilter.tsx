@@ -7,29 +7,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Program }       from "@/types/admin/program.types";
+import type { Program } from "@/types/admin/program.types";
 import type { EnrichedLevel } from "@/components/admin/section/utils/section.utils";
 import { useQuery } from "@tanstack/react-query";
 import { levelApi } from "@/api/admin/level.api";
 import type { Level } from "@/types/admin/level.types";
 
 interface SectionLevelFilterProps {
-  schoolYearId:    string;          // ← add this
-  programs:        Program[];
+  schoolYearId: string; // ← add this
+  programs: Program[];
   filterProgramId: string;
   onProgramChange: (id: string) => void;
-  filterCourseId:  string;
-  onCourseChange:  (id: string) => void;
-  filterStrandId:  string;
-  onStrandChange:  (id: string) => void;
-  filterLevelId:   string;
-  onLevelChange:   (id: string) => void;
-  grouped:         { programName: string; levels: EnrichedLevel[] }[];
-  levelMap:        Record<string, { name: string; programName: string; programId: string }>;
+  filterCourseId: string;
+  onCourseChange: (id: string) => void;
+  filterStrandId: string;
+  onStrandChange: (id: string) => void;
+  filterLevelId: string;
+  onLevelChange: (id: string) => void;
+  grouped: { programName: string; levels: EnrichedLevel[] }[];
+  levelMap: Record<
+    string,
+    { name: string; programName: string; programId: string }
+  >;
 }
 
 export function SectionLevelFilter({
-  schoolYearId,       // ← add this
+  schoolYearId, // ← add this
   programs,
   filterProgramId,
   onProgramChange,
@@ -44,8 +47,8 @@ export function SectionLevelFilter({
 }: SectionLevelFilterProps): React.JSX.Element {
   const selectedProgram = programs.find((p) => p.id === filterProgramId);
 
-  const isCollege    = selectedProgram?.type === "college";
-  const isSHS        = selectedProgram?.type === "shs";
+  const isCollege = selectedProgram?.type === "college";
+  const isSHS = selectedProgram?.type === "shs";
   const hasSubGroups = isCollege || isSHS;
 
   const courses = selectedProgram?.courses ?? [];
@@ -58,38 +61,38 @@ export function SectionLevelFilter({
 
   const levelSelectEnabled = filterProgramId !== "all" && subGroupSatisfied;
 
-const fetchByCourse =
-  isCollege && filterCourseId !== "all";
-const fetchByStrand =
-  isSHS && filterStrandId !== "all";
+  const fetchByCourse = isCollege && filterCourseId !== "all";
+  const fetchByStrand = isSHS && filterStrandId !== "all";
 
-const { data: filteredLevels = [] } = useQuery<Level[]>({
-  queryKey: ["admin", "levels", schoolYearId, "course", filterCourseId],
-  queryFn:  () => levelApi.getByCourse(schoolYearId, filterCourseId),
-  enabled:  fetchByCourse,
-});
+  const { data: filteredLevels = [] } = useQuery<Level[]>({
+    queryKey: ["admin", "levels", schoolYearId, "course", filterCourseId],
+    queryFn: () => levelApi.getByCourse(schoolYearId, filterCourseId),
+    enabled: fetchByCourse,
+  });
 
-const { data: filteredByStrand = [] } = useQuery<Level[]>({
-  queryKey: ["admin", "levels", schoolYearId, "strand", filterStrandId],
-  queryFn:  () => levelApi.getByStrand(schoolYearId, filterStrandId),
-  enabled:  fetchByStrand,
-});
+  const { data: filteredByStrand = [] } = useQuery<Level[]>({
+    queryKey: ["admin", "levels", schoolYearId, "strand", filterStrandId],
+    queryFn: () => levelApi.getByStrand(schoolYearId, filterStrandId),
+    enabled: fetchByStrand,
+  });
 
-const scopedGroup     = grouped.find((g) => g.programName === selectedProgram?.name);
-const allScopedLevels = scopedGroup?.levels ?? [];
+  const scopedGroup = grouped.find(
+    (g) => g.programName === selectedProgram?.name,
+  );
+  const allScopedLevels = scopedGroup?.levels ?? [];
 
-const scopedLevels =
-  fetchByCourse ? filteredLevels :
-  fetchByStrand ? filteredByStrand :
-  allScopedLevels;
+  const scopedLevels = fetchByCourse
+    ? filteredLevels
+    : fetchByStrand
+      ? filteredByStrand
+      : allScopedLevels;
 
-  const selectedLevelInfo  = levelMap[filterLevelId];
+  const selectedLevelInfo = levelMap[filterLevelId];
   const selectedCourseName = courses.find((c) => c.id === filterCourseId);
   const selectedStrandName = strands.find((s) => s.id === filterStrandId);
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-
       {/* ── Program ── */}
       <Select
         value={filterProgramId}
@@ -124,9 +127,9 @@ const scopedLevels =
               {filterCourseId === "all"
                 ? "All Courses"
                 : selectedCourseName
-                  ? (selectedCourseName.code
+                  ? selectedCourseName.code
                     ? `${selectedCourseName.code} – ${selectedCourseName.name}`
-                    : selectedCourseName.name)
+                    : selectedCourseName.name
                   : "All Courses"}
             </SelectValue>
           </SelectTrigger>
@@ -178,20 +181,20 @@ const scopedLevels =
               filterProgramId === "all"
                 ? "Select program first"
                 : hasSubGroups && !subGroupSatisfied
-                ? isCollege
-                  ? "Select course first"
-                  : "Select strand first"
-                : "All Levels"
+                  ? isCollege
+                    ? "Select course first"
+                    : "Select strand first"
+                  : "All Levels"
             }
           >
             {filterLevelId === "all"
               ? filterProgramId === "all"
                 ? "Select program first"
                 : hasSubGroups && !subGroupSatisfied
-                ? isCollege
-                  ? "Select course first"
-                  : "Select strand first"
-                : "All Levels"
+                  ? isCollege
+                    ? "Select course first"
+                    : "Select strand first"
+                  : "All Levels"
               : (selectedLevelInfo?.name ?? "All Levels")}
           </SelectValue>
         </SelectTrigger>
@@ -204,7 +207,6 @@ const scopedLevels =
           ))}
         </SelectContent>
       </Select>
-
     </div>
   );
 }
