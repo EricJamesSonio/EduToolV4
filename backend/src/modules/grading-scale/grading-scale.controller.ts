@@ -6,7 +6,8 @@ import {
   Body,
   Param,
   Query,
-  UseGuards, Delete
+  UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { GradingScaleService } from './grading-scale.service';
 import {
@@ -18,7 +19,6 @@ import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
-
 
 @Controller('grading-scales')
 @UseGuards(AuthGuard, RolesGuard)
@@ -35,6 +35,12 @@ export class GradingScaleController {
     @Body() dto: CreateGradingScaleDto,
   ) {
     return this.gradingScaleService.create(orgId, dto);
+  }
+
+  @Delete(':id')
+  @Roles('admin')
+  async delete(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
+    return this.gradingScaleService.delete(id, orgId);
   }
 
   /**

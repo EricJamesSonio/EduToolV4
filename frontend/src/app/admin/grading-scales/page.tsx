@@ -27,7 +27,7 @@ export default function GradingScalesPage(): React.JSX.Element {
   const { data: scales = [], isLoading } = useGradingScales();
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => gradingScaleApi.update(id, {}), // placeholder — delete not in api yet
+    mutationFn: (id: string) => gradingScaleApi.delete(id),
     onSuccess: () => {
       toast.success("Grading scale deleted.");
       queryClient.invalidateQueries({ queryKey: ["gradingScales"] });
