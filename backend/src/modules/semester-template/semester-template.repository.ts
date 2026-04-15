@@ -88,52 +88,35 @@ export class SemesterTemplateRepository {
     });
   }
 
-  async replaceSemesters(
-    templateId: string,
-    orgId: string,
-    semesters: Array<{
-      name: string;
-      orderIndex: number;
-      terms: Array<{ name: string; orderIndex: number }>;
-    }>,
-  ) {
+  async replaceSemesters(templateId: string, orgId: string, semesters: any[]) {
     return this.db.$transaction(async (tx) => {
-      // 1. Delete only parent items (terms auto-delete via cascade)
+      // delete everything (cascade handles terms)
       await tx.semesterTemplateItem.deleteMany({
         where: { template_id: templateId },
       });
 
-      // 2. Recreate semesters + terms
-      return await tx.semesterTemplateItem.createMany({
-        data: semesters.map((sem) => ({
-          org_id: orgId,
-          template_id: templateId,
-          name: sem.name,
-          order_index: sem.orderIndex,
-        })),
-      }).then(async () => {
-        // Re-fetch created items to attach terms properly
-        const createdItems = await tx.semesterTemplateItem.findMany({
-          where: { template_id: templateId },
-          orderBy: { order_index: 'asc' },
+      // recreate properly
+      for (const sem of semesters) {
+        await tx.semesterTemplateItem.create({
+          data: {
+            org_id: orgId,
+            template_id: templateId,
+            name: sem.name,
+            order_index: sem.orderIndex,
+            terms: {
+              create: sem.terms.map((t) => ({
+                org_id: orgId,
+                name: t.name,
+                order_index: t.orderIndex,
+              })),
+            },
+          },
         });
+      }
 
-        // 3. Create terms
-        await tx.semesterTemplateTerm.createMany({
-          data: createdItems.flatMap((item, i) =>
-            semesters[i].terms.map((t) => ({
-              org_id: orgId,
-              semester_id: item.id,
-              name: t.name,
-              order_index: t.orderIndex,
-            })),
-          ),
-        });
-
-        return tx.semesterTemplate.findUnique({
-          where: { id: templateId },
-          include: TEMPLATE_INCLUDE,
-        });
+      return tx.semesterTemplate.findUnique({
+        where: { id: templateId },
+        include: TEMPLATE_INCLUDE,
       });
     });
   }
@@ -151,54 +134,54 @@ export class SemesterTemplateRepository {
     ]);
   }
 
-async assignToProgram(data: {
-  orgId: string
-  programId: string
-  templateId: string
-  termDates?: Array<{ termId: string; startDate: string; endDate: string }>
-}) {
-  const assignment = await this.db.programSemesterAssignment.upsert({
-    where: { program_id: data.programId },
-    update: { template_id: data.templateId },
-    create: {
-      org_id: data.orgId,
-      program_id: data.programId,
-      template_id: data.templateId,
-    },
-  })
+  async assignToProgram(data: {
+    orgId: string;
+    programId: string;
+    templateId: string;
+    termDates?: Array<{ termId: string; startDate: string; endDate: string }>;
+  }) {
+    const assignment = await this.db.programSemesterAssignment.upsert({
+      where: { program_id: data.programId },
+      update: { template_id: data.templateId },
+      create: {
+        org_id: data.orgId,
+        program_id: data.programId,
+        template_id: data.templateId,
+      },
+    });
 
-  if (data.termDates && data.termDates.length > 0) {
-    await this.upsertTermDates(assignment.id, data.orgId, data.termDates)
+    if (data.termDates && data.termDates.length > 0) {
+      await this.upsertTermDates(assignment.id, data.orgId, data.termDates);
+    }
+
+    return assignment;
   }
 
-  return assignment
-}
-
   async removeAssignment(programId: string, orgId: string) {
-      return this.db.$transaction(async (tx) => {
-        // Step 1: Find the assignment with its term dates
-        const assignment = await tx.programSemesterAssignment.findFirst({
-          where: { program_id: programId, org_id: orgId },
-          include: { termDates: true },
-        });
-
-        if (!assignment) {
-          return { count: 0 };
-        }
-
-        // Step 2: Delete term dates first (children have RESTRICT FK)
-        if (assignment.termDates && assignment.termDates.length > 0) {
-          await tx.programSemesterTermDate.deleteMany({
-            where: { assignment_id: assignment.id },
-          });
-        }
-
-        // Step 3: Now delete the assignment
-        return await tx.programSemesterAssignment.deleteMany({
-          where: { program_id: programId, org_id: orgId },
-        });
+    return this.db.$transaction(async (tx) => {
+      // Step 1: Find the assignment with its term dates
+      const assignment = await tx.programSemesterAssignment.findFirst({
+        where: { program_id: programId, org_id: orgId },
+        include: { termDates: true },
       });
-    }
+
+      if (!assignment) {
+        return { count: 0 };
+      }
+
+      // Step 2: Delete term dates first (children have RESTRICT FK)
+      if (assignment.termDates && assignment.termDates.length > 0) {
+        await tx.programSemesterTermDate.deleteMany({
+          where: { assignment_id: assignment.id },
+        });
+      }
+
+      // Step 3: Now delete the assignment
+      return await tx.programSemesterAssignment.deleteMany({
+        where: { program_id: programId, org_id: orgId },
+      });
+    });
+  }
 
   /** Get all assignments, no school-year filter */
   async findAllAssignments(orgId: string) {
@@ -233,39 +216,48 @@ async assignToProgram(data: {
     });
   }
 
-async findAssignmentsBySchoolYear(orgId: string, schoolYearId: string) {
-  return this.db.programSemesterAssignment.findMany({
-    where: {
-      org_id: orgId,
-      program: { school_year_id: schoolYearId },
-    },
-    include: {
-      template: { include: TEMPLATE_INCLUDE },
-      program: { select: { id: true, name: true, type: true, school_year_id: true } },
-      termDates: true,
-    },
-  })
-}async upsertTermDates(
-  assignmentId: string,
-  orgId: string,
-  termDates: Array<{ termId: string; startDate: string; endDate: string }>,
-) {
-  await this.db.$transaction(
-    termDates.map((td) =>
-      this.db.programSemesterTermDate.upsert({
-        where: { assignment_id_term_id: { assignment_id: assignmentId, term_id: td.termId } },
-        update: { start_date: new Date(td.startDate), end_date: new Date(td.endDate) },
-        create: {
-          org_id: orgId,
-          assignment_id: assignmentId,
-          term_id: td.termId,
-          start_date: new Date(td.startDate),
-          end_date: new Date(td.endDate),
+  async findAssignmentsBySchoolYear(orgId: string, schoolYearId: string) {
+    return this.db.programSemesterAssignment.findMany({
+      where: {
+        org_id: orgId,
+        program: { school_year_id: schoolYearId },
+      },
+      include: {
+        template: { include: TEMPLATE_INCLUDE },
+        program: {
+          select: { id: true, name: true, type: true, school_year_id: true },
         },
-      }),
-    ),
-  )
-}
-
-
+        termDates: true,
+      },
+    });
+  }
+  async upsertTermDates(
+    assignmentId: string,
+    orgId: string,
+    termDates: Array<{ termId: string; startDate: string; endDate: string }>,
+  ) {
+    await this.db.$transaction(
+      termDates.map((td) =>
+        this.db.programSemesterTermDate.upsert({
+          where: {
+            assignment_id_term_id: {
+              assignment_id: assignmentId,
+              term_id: td.termId,
+            },
+          },
+          update: {
+            start_date: new Date(td.startDate),
+            end_date: new Date(td.endDate),
+          },
+          create: {
+            org_id: orgId,
+            assignment_id: assignmentId,
+            term_id: td.termId,
+            start_date: new Date(td.startDate),
+            end_date: new Date(td.endDate),
+          },
+        }),
+      ),
+    );
+  }
 }
