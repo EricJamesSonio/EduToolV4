@@ -303,7 +303,7 @@ export function SeederCard() {
           ]),
         )
       : undefined;
-
+        console.log('sectionConfigs payload:', JSON.stringify(sectionConfigsPayload, null, 2))
     seedMutation.mutate({
       schoolYearId: selectedSchoolYearId,
       programs: Array.from(selectedPrograms),

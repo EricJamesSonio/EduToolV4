@@ -134,6 +134,9 @@ export class OrgSeederService {
     await this.seedPrograms(orgId, schoolYearId, shouldSeedProgram, programMap, result)
     await this.seedCourses(orgId, schoolYearId, shouldSeedProgram, shouldSeedCourse, programMap, courseMap, result)
     await this.seedStrands(orgId, schoolYearId, shouldSeedProgram, shouldSeedStrand, programMap, strandMap, result)
+    console.log('courseMap keys:', Object.keys(courseMap))
+console.log('strandMap keys:', Object.keys(strandMap))
+console.log('sectionConfigs keys:', Object.keys(sectionConfigs))
     await this.seedLevelsAndSections(
       orgId,
       schoolYearId,
