@@ -87,4 +87,10 @@ export class GradingScaleRepository {
       data: { is_locked: false, locked_at: null },
     });
   }
+
+  async delete(id: string) {
+    return this.db.gradingScale.delete({
+      where: { id },
+    });
+  }
 }

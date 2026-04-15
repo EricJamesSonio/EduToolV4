@@ -6,7 +6,7 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
+  UseGuards, Delete
 } from '@nestjs/common';
 import { GradingScaleService } from './grading-scale.service';
 import {
@@ -18,6 +18,7 @@ import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+
 
 @Controller('grading-scales')
 @UseGuards(AuthGuard, RolesGuard)
