@@ -247,8 +247,13 @@ model SemesterTemplateTerm {
   name        String
   order_index Int
 
-  semester  SemesterTemplateItem        @relation(fields: [semester_id], references: [id])
-  termDates ProgramSemesterTermDate[]   // ← ADD THIS
+  semester SemesterTemplateItem @relation(
+    fields: [semester_id],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  termDates ProgramSemesterTermDate[]
 }
 
 model ProgramSemesterAssignment {

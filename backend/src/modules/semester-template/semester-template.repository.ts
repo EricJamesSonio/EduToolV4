@@ -97,29 +97,45 @@ export class SemesterTemplateRepository {
       terms: Array<{ name: string; orderIndex: number }>;
     }>,
   ) {
-    await this.db.semesterTemplateItem.deleteMany({
-      where: { template_id: templateId },
-    });
+    return this.db.$transaction(async (tx) => {
+      // 1. Delete only parent items (terms auto-delete via cascade)
+      await tx.semesterTemplateItem.deleteMany({
+        where: { template_id: templateId },
+      });
 
-    return this.db.$transaction(
-      semesters.map((sem) =>
-        this.db.semesterTemplateItem.create({
-          data: {
-            org_id: orgId,
-            template_id: templateId,
-            name: sem.name,
-            order_index: sem.orderIndex,
-            terms: {
-              create: sem.terms.map((t) => ({
-                org_id: orgId,
-                name: t.name,
-                order_index: t.orderIndex,
-              })),
-            },
-          },
-        }),
-      ),
-    );
+      // 2. Recreate semesters + terms
+      return await tx.semesterTemplateItem.createMany({
+        data: semesters.map((sem) => ({
+          org_id: orgId,
+          template_id: templateId,
+          name: sem.name,
+          order_index: sem.orderIndex,
+        })),
+      }).then(async () => {
+        // Re-fetch created items to attach terms properly
+        const createdItems = await tx.semesterTemplateItem.findMany({
+          where: { template_id: templateId },
+          orderBy: { order_index: 'asc' },
+        });
+
+        // 3. Create terms
+        await tx.semesterTemplateTerm.createMany({
+          data: createdItems.flatMap((item, i) =>
+            semesters[i].terms.map((t) => ({
+              org_id: orgId,
+              semester_id: item.id,
+              name: t.name,
+              order_index: t.orderIndex,
+            })),
+          ),
+        });
+
+        return tx.semesterTemplate.findUnique({
+          where: { id: templateId },
+          include: TEMPLATE_INCLUDE,
+        });
+      });
+    });
   }
 
   async delete(id: string) {
