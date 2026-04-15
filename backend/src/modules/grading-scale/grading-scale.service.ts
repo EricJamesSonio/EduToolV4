@@ -93,21 +93,34 @@ export class GradingScaleService {
     }
   }
 
-  async delete(id: string, orgId: string): Promise<void> {
-    const scale = await this.gradingScaleRepository.findById(id, orgId);
+async delete(id: string, orgId: string): Promise<void> {
+  const scale = await this.gradingScaleRepository.findById(id, orgId);
 
-    if (!scale) {
-      throw new NotFoundException('Grading scale not found.');
-    }
-
-    if (scale.is_locked) {
-      throw new BadRequestException(
-        'This grading scale is locked and cannot be deleted.',
-      );
-    }
-
-    await this.gradingScaleRepository.delete(id);
+  if (!scale) {
+    throw new NotFoundException('Grading scale not found.');
   }
+
+  if (scale.is_locked) {
+    throw new BadRequestException(
+      'This grading scale is locked and cannot be deleted.',
+    );
+  }
+
+  // ✅ REAL usage check (based on your schema)
+  const isUsed = await this.gradingScaleRepository.isUsedInGrades(
+    orgId,
+    scale.program_id,
+    scale.school_year_id,
+  );
+
+  if (isUsed) {
+    throw new BadRequestException(
+      'Cannot delete grading scale because grades already exist for this program and school year.',
+    );
+  }
+
+  await this.gradingScaleRepository.delete(id);
+}
 
   async create(
     orgId: string,

@@ -93,4 +93,24 @@ export class GradingScaleRepository {
       where: { id },
     });
   }
+
+async isUsedInGrades(
+  orgId: string,
+  programId: string,
+  schoolYearId: string,
+): Promise<boolean> {
+  const count = await this.db.grade.count({
+    where: {
+      org_id: orgId,
+      class: {
+        school_year_id: schoolYearId,
+        subject: {
+          program_id: programId,
+        },
+      },
+    },
+  });
+
+  return count > 0;
+}
 }
