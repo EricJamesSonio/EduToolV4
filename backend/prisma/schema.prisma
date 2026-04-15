@@ -532,7 +532,8 @@ model ProgramSemesterTermDate {
   end_date      DateTime
 
   assignment ProgramSemesterAssignment @relation(fields: [assignment_id], references: [id])
-  term       SemesterTemplateTerm      @relation(fields: [term_id], references: [id])
+
+  term SemesterTemplateTerm @relation(fields: [term_id], references: [id], onDelete: Cascade)
 
   @@unique([assignment_id, term_id])
 }
