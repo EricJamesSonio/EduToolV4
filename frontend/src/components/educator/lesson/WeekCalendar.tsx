@@ -1,9 +1,8 @@
-// filepath: frontend/src/components/educator/lessons/WeekCalendar.tsx
-
 "use client";
 
 import { useState } from "react";
 import { Lesson } from "@/types/educator/lesson.types";
+import { WeekSlot } from "@/types/educator/lesson.types";
 import { LessonCard } from "./LessonCard";
 import { ChevronDown, ChevronRight, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -11,13 +10,13 @@ import { cn } from "@/lib/utils";
 interface WeekCalendarProps {
   lessons: Lesson[];
   classId: string;
-  totalWeeks: number;
+  weeks: WeekSlot[];
 }
 
 export function WeekCalendar({
   lessons,
   classId,
-  totalWeeks,
+  weeks,
 }: WeekCalendarProps): React.JSX.Element {
   const [openWeeks, setOpenWeeks] = useState<Set<number>>(new Set([1]));
 
@@ -34,17 +33,16 @@ export function WeekCalendar({
   }
 
   const lessonsByWeek = new Map<number, Lesson[]>();
+
   for (const lesson of lessons) {
     const existing = lessonsByWeek.get(lesson.weekNumber) ?? [];
     lessonsByWeek.set(lesson.weekNumber, [...existing, lesson]);
   }
 
-  // Show all weeks 1..totalWeeks so educators can see empty weeks too
-  const weeks = Array.from({ length: totalWeeks }, (_, i) => i + 1);
-
   return (
     <div className="space-y-2">
-      {weeks.map((week) => {
+      {weeks.map((weekSlot) => {
+        const week = weekSlot.value;
         const weekLessons = lessonsByWeek.get(week) ?? [];
         const isOpen = openWeeks.has(week);
 
@@ -58,18 +56,27 @@ export function WeekCalendar({
                 isOpen && "bg-muted/30"
               )}
             >
-              <span className="flex items-center gap-2">
-                {isOpen ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                )}
-                Week {week}
-              </span>
+              <div className="flex flex-col items-start">
+                <span className="flex items-center gap-2">
+                  {isOpen ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  Week {week}
+                </span>
+
+                <span className="text-xs text-muted-foreground ml-6">
+                  {weekSlot.termName} • {weekSlot.semesterName}
+                </span>
+              </div>
+
               <span className="text-xs text-muted-foreground">
                 {weekLessons.length === 0
                   ? "No lessons"
-                  : `${weekLessons.length} lesson${weekLessons.length > 1 ? "s" : ""}`}
+                  : `${weekLessons.length} lesson${
+                      weekLessons.length > 1 ? "s" : ""
+                    }`}
               </span>
             </button>
 

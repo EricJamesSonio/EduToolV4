@@ -1,11 +1,8 @@
-// ===== File: frontend/src/types/educator/lesson.types.ts =====
-
-// NOTE:
-// WeekSlot is now defined and exported from:
-// "@/hooks/educator/useClassWeeks"
-// Import it from there when needed instead of redefining here.
-
-export type ConceptBuildStatus = "none" | "building" | "ready" | "outdated";
+export type ConceptBuildStatus =
+  | "none"
+  | "building"
+  | "ready"
+  | "outdated";
 
 export interface ConceptSection {
   id: string;
@@ -28,12 +25,27 @@ export interface Lesson {
   title: string;
   description: string | null;
   detail: string;
-
   weekNumber: number;
-  subIndex: number; // ✅ added (for ordering within the week)
-
+  subIndex: number;
   conceptBuild: LessonConcept | null;
-
   createdAt: string;
   updatedAt: string;
 }
+
+/**
+ * Derived from backend week-structure
+ */
+export type WeekSlot = {
+  label: string;
+  value: number;
+  termName: string;
+  semesterName: string;
+  semesterIndex: number;
+};
+
+/**
+ * Optional enriched type for UI usage
+ */
+export type LessonWithWeekMeta = Lesson & {
+  weekMeta?: WeekSlot;
+};
