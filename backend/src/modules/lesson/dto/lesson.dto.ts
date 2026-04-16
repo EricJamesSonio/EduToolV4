@@ -13,7 +13,7 @@ export class CreateLessonDto {
   @IsString()
   @MinLength(1)
   @MaxLength(255)
-  title: string;
+  title!: string;
 
   @IsOptional()
   @IsString()
@@ -21,15 +21,15 @@ export class CreateLessonDto {
 
   @IsInt()
   @Min(1)
-  weekNumber: number;
+  weekNumber!: number;
 
   @IsInt()
   @Min(1)
-  subIndex: number;
+  subIndex!: number;
 
   @IsString()
-  @MinLength(10, { message: 'Lesson detail must be at least 10 words' })
-  detail: string;
+  @MinLength(10)
+  detail!: string;
 }
 
 export class UpdateLessonDto {
@@ -68,5 +68,5 @@ export class QueryLessonDto {
 
 export class TriggerConceptExtractionDto {
   @IsUUID()
-  lessonId: string;
+  lessonId!: string;
 }

@@ -13,7 +13,7 @@ import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository
 import { SemesterTemplateRepository } from '../semester-template/semester-template.repository';
 import { AiService } from '@/core/ai/ai.service';
 
-const MIN_DETAIL_WORDS = 5;
+const MIN_DETAIL_WORDS = 10;
 
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
@@ -141,12 +141,13 @@ export class LessonService {
       }
     }
 
-    const updated = await this.lessonRepo.update(id, {
-      title: dto.title,
-      description: dto.description,
-      weekNumber: dto.weekNumber,
-      subIndex: dto.subIndex,
-    });
+  const updated = await this.lessonRepo.update(id, {
+    title: dto.title,
+    description: dto.description,
+    detail: dto.detail,
+    weekNumber: dto.weekNumber,
+    subIndex: dto.subIndex,
+  });
 
     await this.auditLog.logActivityEvent({
       orgId,
