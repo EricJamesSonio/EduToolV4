@@ -1,109 +1,171 @@
 "use client";
 
-import { useState } from "react";
-import { Lesson } from "@/types/educator/lesson.types";
-import { LessonCard } from "./LessonCard";
-import { ChevronDown, ChevronRight, CalendarDays } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useMemo } from "react";
+import Link from "next/link";
+import { format } from "date-fns";
 
-interface WeekCalendarProps {
+type Lesson = {
+  id: string;
+  title: string;
+  week_number: number;
+  sub_index: number;
+};
+
+type WeekSlot = {
+  label: string;
+
+  value: number;
+  globalWeek: number;
+
+  termWeek: number;
+  semesterWeek: number;
+
+  termName: string;
+  semesterName: string;
+  semesterIndex: number;
+
+  date: string;
+};
+
+interface Props {
   lessons: Lesson[];
   classId: string;
   totalWeeks: number;
+  weeks: WeekSlot[]; // 🔥 IMPORTANT: pass this in
 }
 
 export function WeekCalendar({
-  lessons = [],
+  lessons,
   classId,
-  totalWeeks,
-}: WeekCalendarProps): React.JSX.Element {
-  const [openWeeks, setOpenWeeks] = useState<Set<number>>(
-    new Set([1])
-  );
+  weeks,
+}: Props) {
+  // 🔥 group lessons by global week
+  const lessonMap = useMemo(() => {
+    const map = new Map<number, Lesson[]>();
 
-  const safeLessons = Array.isArray(lessons) ? lessons : [];
-
-  function toggleWeek(week: number): void {
-    setOpenWeeks((prev) => {
-      const next = new Set(prev);
-      if (next.has(week)) {
-        next.delete(week);
-      } else {
-        next.add(week);
+    for (const lesson of lessons) {
+      if (!map.has(lesson.week_number)) {
+        map.set(lesson.week_number, []);
       }
-      return next;
-    });
-  }
+      map.get(lesson.week_number)!.push(lesson);
+    }
 
-  const lessonsByWeek = new Map<number, Lesson[]>();
+    return map;
+  }, [lessons]);
 
-  for (const lesson of safeLessons) {
-    if (!lesson?.weekNumber) continue;
+  // 🔥 group weeks by semester -> term
+  const grouped = useMemo(() => {
+    const semMap = new Map<
+      string,
+      {
+        semesterName: string;
+        terms: Map<
+          string,
+          {
+            termName: string;
+            weeks: WeekSlot[];
+          }
+        >;
+      }
+    >();
 
-    const existing = lessonsByWeek.get(lesson.weekNumber) ?? [];
-    lessonsByWeek.set(lesson.weekNumber, [...existing, lesson]);
-  }
+    for (const week of weeks) {
+      if (!semMap.has(week.semesterName)) {
+        semMap.set(week.semesterName, {
+          semesterName: week.semesterName,
+          terms: new Map(),
+        });
+      }
 
-  const weeks = Array.from(
-    { length: totalWeeks ?? 1 },
-    (_, i) => i + 1
-  );
+      const sem = semMap.get(week.semesterName)!;
+
+      if (!sem.terms.has(week.termName)) {
+        sem.terms.set(week.termName, {
+          termName: week.termName,
+          weeks: [],
+        });
+      }
+
+      sem.terms.get(week.termName)!.weeks.push(week);
+    }
+
+    return Array.from(semMap.values());
+  }, [weeks]);
 
   return (
-    <div className="space-y-2">
-      {weeks.map((week) => {
-        const weekLessons = lessonsByWeek.get(week) ?? [];
-        const isOpen = openWeeks.has(week);
+    <div className="space-y-8">
+{grouped.map((semester, semIndex) => (
+  <div
+    key={`${semester.semesterName}-${semIndex}`}
+    className="space-y-4"
+  >
+    <h2 className="text-lg font-semibold">
+      {semester.semesterName}
+    </h2>
 
-        return (
-          <div key={week} className="border rounded-lg overflow-hidden">
-            <button
-              onClick={() => toggleWeek(week)}
-              className={cn(
-                "w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors",
-                "hover:bg-muted/50",
-                isOpen && "bg-muted/30"
-              )}
-            >
-              <span className="flex items-center gap-2">
-                {isOpen ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                )}
-                Week {week}
-              </span>
+    {Array.from(semester.terms.values()).map((term) => (
+      <div
+        key={`${semester.semesterName}-${term.termName}`}
+        className="space-y-3"
+      >
+        <h3 className="text-sm font-medium text-muted-foreground">
+          {term.termName}
+        </h3>
 
-              <span className="text-xs text-muted-foreground">
-                {weekLessons.length === 0
-                  ? "No lessons"
-                  : `${weekLessons.length} lesson${
-                      weekLessons.length > 1 ? "s" : ""
-                    }`}
-              </span>
-            </button>
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {term.weeks.map((week) => {
+            const lessonsForWeek =
+              lessonMap.get(week.globalWeek) ?? [];
 
-            {isOpen && (
-              <div className="px-4 pb-3 pt-1 space-y-2 border-t bg-background">
-                {weekLessons.length === 0 ? (
-                  <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground justify-center">
-                    <CalendarDays className="h-4 w-4" />
-                    No lessons for this week yet.
-                  </div>
-                ) : (
-                  weekLessons.map((lesson) => (
-                    <LessonCard
-                      key={lesson.id}
-                      lesson={lesson}
-                      classId={classId}
-                    />
-                  ))
-                )}
+            return (
+              <div
+                key={`${week.semesterIndex}-${week.globalWeek}`}
+                className="rounded-xl border p-4 space-y-2"
+              >
+                      {/* Week Label */}
+                      <div className="text-sm font-medium">
+                        Week {week.termWeek}
+                      </div>
+
+                      {/* Date */}
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(week.date), "MMM dd, yyyy")}
+                      </div>
+
+                      {/* Lessons */}
+                      <div className="space-y-1">
+                        {lessonsForWeek.length > 0 ? (
+                          lessonsForWeek.map((lesson) => (
+                            <Link
+                              key={lesson.id}
+                              href={`/educator/classes/${classId}/lessons/${lesson.id}`}
+                              className="block text-sm hover:underline"
+                            >
+                              {lesson.title}
+                            </Link>
+                          ))
+                        ) : (
+                          <div className="text-xs text-muted-foreground">
+                            No lesson
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Create Lesson */}
+                      <Link
+                        href={`/educator/classes/${classId}/lessons/new?week=${week.globalWeek}`}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        + Add lesson
+                      </Link>
+                    </div>
+                  );
+                })}
               </div>
-            )}
-          </div>
-        );
-      })}
+            </div>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }

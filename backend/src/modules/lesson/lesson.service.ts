@@ -12,6 +12,7 @@ import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
 import { SemesterTemplateRepository } from '../semester-template/semester-template.repository';
 import { AiService } from '@/core/ai/ai.service';
+import { AttendanceRepository } from '../attendance/attendance.repository';
 
 const MIN_DETAIL_WORDS = 10;
 
@@ -29,6 +30,7 @@ export class LessonService {
     private readonly notificationService: NotificationService,
     private readonly aiService: AiService,
     private readonly semesterTemplateRepo: SemesterTemplateRepository,
+    private readonly attendanceRepo: AttendanceRepository, 
   ) {}
 
   async create(
@@ -246,7 +248,11 @@ export class LessonService {
     return lesson;
   }
 
-async getWeekStructure(classId: string, orgId: string, educatorId: string) {
+async getWeekStructure(
+  classId: string,
+  orgId: string,
+  educatorId: string,
+) {
   const cls = await this.classRepo.findById(classId, orgId);
   if (!cls) throw new NotFoundException('Class not found.');
 
@@ -254,10 +260,14 @@ async getWeekStructure(classId: string, orgId: string, educatorId: string) {
     throw new ForbiddenException('You do not own this class.');
   }
 
-  const classWeekday =
-    cls.schedules && cls.schedules.length > 0
-      ? cls.schedules[0].weekday
-      : 1;
+  // ❗ strict: class MUST have schedule
+  if (!cls.schedules || cls.schedules.length === 0) {
+    throw new BadRequestException(
+      'Class has no schedule configured.',
+    );
+  }
+
+  const classWeekday = cls.schedules[0].weekday;
 
   const subject = await this.classRepo['db'].subject.findFirst({
     where: { id: cls.subject_id },
@@ -282,6 +292,7 @@ async getWeekStructure(classId: string, orgId: string, educatorId: string) {
     );
   }
 
+  // 🔥 map term date ranges
   const termDatesMap = new Map<string, { start: Date; end: Date }>();
 
   for (const td of (assignment as any).termDates ?? []) {
@@ -309,15 +320,22 @@ async getWeekStructure(classId: string, orgId: string, educatorId: string) {
 
   const result: WeekSlot[] = [];
 
-  const semesters = assignment.template.semesters ?? [];
+  // 🔥 ensure semester order
+  const semesters = (assignment.template.semesters ?? []).sort(
+    (a: any, b: any) => a.order_index - b.order_index,
+  );
 
   let globalWeek = 1;
 
   for (let si = 0; si < semesters.length; si++) {
     const sem = semesters[si];
-    const terms = sem.terms ?? [];
 
-    let semesterWeek = 1; // 🔥 reset per semester
+    // 🔥 ensure term order
+    const terms = (sem.terms ?? []).sort(
+      (a: any, b: any) => a.order_index - b.order_index,
+    );
+
+    let semesterWeek = 1;
 
     for (const term of terms) {
       const dates = termDatesMap.get(term.id);
@@ -334,11 +352,12 @@ async getWeekStructure(classId: string, orgId: string, educatorId: string) {
         classWeekday,
       );
 
-      let termWeek = 1; // 🔥 reset per term
+      let termWeek = 1;
 
       for (const date of occurrences) {
         result.push({
-          label: `${term.name} Week ${termWeek}`, // 🔥 human readable
+          // 🔥 keep simple + predictable
+          label: String(globalWeek),
 
           value: globalWeek,
           globalWeek,
@@ -431,10 +450,7 @@ private getWeekdayOccurrences(
   }
 
 async syncLessonsFromAttendance(classId: string, orgId: string) {
-  const sessions = await this.db.attendanceSession.findMany({
-    where: { class_id: classId },
-    orderBy: [{ week_number: 'asc' }, { sub_index: 'asc' }],
-  });
+const sessions = await this.attendanceRepo.findSessionsByClass(classId);
 
   if (!sessions.length) return;
 

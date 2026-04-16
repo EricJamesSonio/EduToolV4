@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { LessonController, StudentLessonController } from './lesson.controller';
 import { LessonService } from './lesson.service';
 import { LessonRepository } from './lesson.repository';
@@ -9,7 +9,12 @@ import { EnrollmentRepository } from '../enrollment/enrollment.repository';
 import { SemesterTemplateModule } from '../semester-template/semester-template.module';
 
 @Module({
-  imports: [ClassModule, AuditLogModule, NotificationModule, SemesterTemplateModule],
+  imports: [
+    ClassModule,
+    AuditLogModule,
+    NotificationModule,
+    SemesterTemplateModule,
+  ],
   controllers: [LessonController, StudentLessonController],
   providers: [LessonService, LessonRepository, EnrollmentRepository],
   exports: [LessonService, LessonRepository],
