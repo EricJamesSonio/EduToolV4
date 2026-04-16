@@ -4,8 +4,7 @@
 
 import { LessonConcept } from "@/types/educator/lesson.types";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Layers, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface ConceptBuildViewerProps {
@@ -25,16 +24,21 @@ export function ConceptBuildViewer({
 }: ConceptBuildViewerProps): React.JSX.Element {
   const router = useRouter();
 
-  if (!concept || concept.status === "none") {
+  /**
+   * ❌ No concept at all
+   */
+  if (!concept) {
     return (
       <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        No concept build yet. Save lesson content (10+ words) to trigger
-        extraction automatically.
+        No concept build yet. Save lesson content (10+ words) to trigger extraction automatically.
       </div>
     );
   }
 
-  if (concept.status === "building" || isExtracting) {
+  /**
+   * 🔄 Extraction loading state (frontend-driven now)
+   */
+  if (isExtracting) {
     return (
       <div className="rounded-lg border p-6 flex items-center justify-center gap-3 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
@@ -43,41 +47,38 @@ export function ConceptBuildViewer({
     );
   }
 
-  const isOutdated = concept.status === "outdated";
+  /**
+   * ✅ NEW: read from raw JSON content
+   */
+  const sections = (concept.content as any)?.sections ?? [];
 
   return (
     <div className="rounded-lg border p-5 space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Layers className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">
-            {concept.totalItems} concept items across {concept.sections.length}{" "}
-            sections
-          </span>
-          {isOutdated && (
-            <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
-              Outdated
-            </Badge>
-          )}
-        </div>
-        {concept.builtAt && (
-          <span className="text-xs text-muted-foreground">
-            Built {new Date(concept.builtAt).toLocaleDateString()}
-          </span>
-        )}
+        <span className="text-sm font-medium">
+          {sections.length} sections extracted
+        </span>
+
+        <span className="text-xs text-muted-foreground">
+          Built{" "}
+          {new Date(
+            // support both snake_case and camelCase just in case
+            (concept as any).created_at ?? (concept as any).createdAt
+          ).toLocaleDateString()}
+        </span>
       </div>
 
-      {/* Section breakdown */}
+      {/* Sections */}
       <div className="flex flex-wrap gap-2">
-        {concept.sections.map((section) => (
+        {sections.map((section: any, i: number) => (
           <div
-            key={section.id}
+            key={i}
             className="flex items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-sm"
           >
             <span className="font-medium">{section.name}</span>
-            <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground">
-              {section.keywordCount} items
+              ({section.items?.length ?? 0})
             </span>
           </div>
         ))}
@@ -96,6 +97,7 @@ export function ConceptBuildViewer({
           Use in Assessment
           <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
         </Button>
+
         {onReExtract && (
           <Button size="sm" variant="outline" onClick={onReExtract}>
             Re-extract
