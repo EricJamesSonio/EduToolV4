@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { useAttendanceSessions } from "@/hooks/educator/useAttendance";
-import { useLessonWeekStructure } from "@/hooks/educator/useLessons"; // ✅ NEW
+import { useClassWeeks } from "@/hooks/educator/useClassWeeks"; // ✅ SAME SOURCE AS LESSONS
 import { Button } from "@/components/ui/button";
 
 import type { WeekSessions } from "@/api/educator/attendance.api";
@@ -35,27 +35,26 @@ export default function AttendancePage() {
 
   const [currentWeek, setCurrentWeek] = useState<number>(1);
 
-  // 📌 source 1: attendance sessions
-  const { data: rawData, isLoading } = useAttendanceSessions(classId);
+  // ✅ SAME SOURCE OF TRUTH AS LESSONS
+  const { data: weeks = [], isLoading: weeksLoading } =
+    useClassWeeks(classId);
 
-  // 📌 source 2: canonical lesson calendar
-  const { data: weekStructure } = useLessonWeekStructure(classId);
+  const { data: rawData, isLoading: attendanceLoading } =
+    useAttendanceSessions(classId);
+
+  const isLoading = weeksLoading || attendanceLoading;
 
   const weekGroups: WeekSessions[] = Array.isArray(rawData) ? rawData : [];
 
-  // ✅ flatten attendance by week
-  const attendanceMap = useMemo(() => {
-    const map = new Map<number, WeekSessions>();
-    for (const w of weekGroups) {
-      map.set(w.week_number, w);
-    }
-    return map;
-  }, [weekGroups]);
+  // ✅ map attendance by week
+  const attendanceMap = new Map<number, WeekSessions>();
+  for (const w of weekGroups) {
+    attendanceMap.set(w.week_number, w);
+  }
 
-  // ✅ canonical weeks (LESSONS are source of truth)
-  const weeks = Array.isArray(weekStructure) ? weekStructure : [];
-
-  const maxWeek = weeks.length;
+  // ✅ canonical weeks (FROM LESSON SYSTEM)
+  const totalWeeks =
+    weeks.length > 0 ? Math.max(...weeks.map((w) => w.value)) : 1;
 
   useEffect(() => {
     if (weeks.length > 0) {
@@ -70,12 +69,12 @@ export default function AttendancePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold">Attendance</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
+        <p className="text-sm text-muted-foreground">
           Synced with lesson calendar
         </p>
       </div>
 
-      {/* Week Navigator (NOW LESSON-BASED) */}
+      {/* Week Navigator (NOW 100% MATCHES LESSON SYSTEM) */}
       <div className="flex items-center justify-between rounded-lg border px-5 py-3">
         <Button
           variant="ghost"
@@ -94,7 +93,7 @@ export default function AttendancePage() {
           <p className="text-lg font-bold mt-0.5">
             Week {currentWeek}
             <span className="text-sm text-muted-foreground font-normal ml-2">
-              of {maxWeek}
+              of {totalWeeks}
             </span>
           </p>
 
@@ -106,14 +105,16 @@ export default function AttendancePage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setCurrentWeek((w) => Math.min(maxWeek, w + 1))}
-          disabled={currentWeek >= maxWeek}
+          onClick={() =>
+            setCurrentWeek((w) => Math.min(totalWeeks, w + 1))
+          }
+          disabled={currentWeek >= totalWeeks}
         >
           Next <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Sessions */}
+      {/* Content */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -123,15 +124,13 @@ export default function AttendancePage() {
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
           <CalendarDays className="h-8 w-8 opacity-40" />
           <p className="text-sm">
-            No sessions found for Week {currentWeek}
+            No attendance sessions for Week {currentWeek}
           </p>
         </div>
       ) : (
         <div className="space-y-2">
-          {currentGroup.sessions.map((session, idx) => {
+          {currentGroup.sessions.map((session) => {
             const { weekday, date } = formatSessionDate(session.date);
-
-            const label = `Session ${session.week_number}.${session.sub_index}`;
 
             return (
               <button
@@ -156,7 +155,10 @@ export default function AttendancePage() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-semibold">{label}</p>
+                    <p className="text-sm font-semibold">
+                      Session {session.week_number}.{session.sub_index}
+                    </p>
+
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <Clock className="h-3 w-3 text-muted-foreground" />
                       <span className="text-xs text-muted-foreground">
