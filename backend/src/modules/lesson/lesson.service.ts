@@ -407,4 +407,48 @@ private getWeekdayOccurrences(
       metadata: { lessonId },
     });
   }
+
+async syncLessonsFromAttendance(classId: string, orgId: string) {
+  const sessions = await this.db.attendanceSession.findMany({
+    where: { class_id: classId },
+    orderBy: [{ week_number: 'asc' }, { sub_index: 'asc' }],
+  });
+
+  if (!sessions.length) return;
+
+  const cls = await this.classRepo.findById(classId, orgId);
+  if (!cls) throw new NotFoundException('Class not found.');
+
+  const existingLessons = await this.lessonRepo.findAll(classId, orgId);
+  const existingMap = new Set(
+    existingLessons.map(
+      (l) => `${l.week_number}-${l.sub_index}`,
+    ),
+  );
+
+  const lessonsToCreate: any[] = [];
+
+  for (const session of sessions) {
+    const key = `${session.week_number}-${session.sub_index}`;
+
+    // 🔥 skip if already exists
+    if (existingMap.has(key)) continue;
+
+    lessonsToCreate.push({
+      orgId,
+      classId,
+      title: `Lesson Week ${session.week_number}`,
+      description: `Auto-generated from attendance session`,
+      detail: `Auto-generated lesson aligned with attendance schedule.`,
+      weekNumber: session.week_number,
+      subIndex: session.sub_index,
+    });
+  }
+
+  if (lessonsToCreate.length > 0) {
+    for (const lesson of lessonsToCreate) {
+      await this.lessonRepo.create(lesson);
+    }
+  }
+}
 }
