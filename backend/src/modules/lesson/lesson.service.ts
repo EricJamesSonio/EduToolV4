@@ -172,7 +172,7 @@ export class LessonService {
     await this.auditLog.logActivityEvent({
       orgId,
       actorId: educatorId,
-      action: 'lesson_updated',
+      action: 'lesson_deleted',
       entityType: 'class',
       entityId: lesson.class_id,
       metadata: { lessonId: id, action: 'deleted' },

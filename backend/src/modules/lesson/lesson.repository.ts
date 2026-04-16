@@ -72,6 +72,7 @@ export class LessonRepository {
     data: {
       title?: string;
       description?: string;
+      detail?: string;
       weekNumber?: number;
       subIndex?: number;
     },
