@@ -8,6 +8,6 @@ import { SemesterTemplateRepository } from './semester-template.repository'
   imports: [ProgramModule],  // ← Import ProgramModule to access ProgramRepository
   controllers: [SemesterTemplateController],
   providers: [SemesterTemplateService, SemesterTemplateRepository],
-  exports: [SemesterTemplateService],
+  exports: [SemesterTemplateService, SemesterTemplateRepository],
 })
 export class SemesterTemplateModule {}

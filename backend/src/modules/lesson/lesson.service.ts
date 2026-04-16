@@ -10,6 +10,7 @@ import { NotificationService } from '../notification/notification.service';
 import { CreateLessonDto, UpdateLessonDto, QueryLessonDto } from './dto/lesson.dto';
 import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
+import { SemesterTemplateRepository } from '../semester-template/semester-template.repository';
 import { AiService } from '@/core/ai/ai.service';
 
 const MIN_DETAIL_WORDS = 5;
@@ -27,6 +28,7 @@ export class LessonService {
     private readonly auditLog: AuditLogService,
     private readonly notificationService: NotificationService,
     private readonly aiService: AiService,
+    private readonly semesterTemplateRepo: SemesterTemplateRepository,
   ) {}
 
   async create(
@@ -242,6 +244,83 @@ export class LessonService {
     }
     return lesson;
   }
+
+async getWeekStructure(classId: string, orgId: string, educatorId: string) {
+  const cls = await this.classRepo.findById(classId, orgId);
+  if (!cls) throw new NotFoundException('Class not found.');
+  if (cls.educator_id !== educatorId) {
+    throw new ForbiddenException('You do not own this class.');
+  }
+
+  const subject = await this.classRepo['db'].subject.findFirst({
+    where: { id: cls.subject_id },
+    select: { program_id: true },
+  });
+  if (!subject?.program_id) {
+    throw new BadRequestException('Class subject is not linked to a program.');
+  }
+
+  const assignment = await this.semesterTemplateRepo.findAssignmentByProgram(
+    subject.program_id,
+    orgId,
+  );
+  if (!assignment) {
+    throw new BadRequestException(
+      'No semester template assigned to this program. Contact your admin.',
+    );
+  }
+
+  const termDatesMap = new Map<string, { start: Date; end: Date }>();
+  for (const td of (assignment as any).termDates ?? []) {
+    termDatesMap.set(td.term_id, {
+      start: new Date(td.start_date),
+      end: new Date(td.end_date),
+    });
+  }
+
+  type WeekSlot = {
+    label: string;
+    value: number;
+    termName: string;
+    semesterName: string;
+    semesterIndex: number;
+  };
+
+  const result: WeekSlot[] = [];
+
+  const semesters = assignment.template.semesters ?? [];
+
+  for (let si = 0; si < semesters.length; si++) {
+    const sem = semesters[si];
+    const terms = sem.terms ?? [];
+    let weekWithinSemester = 1;
+
+    for (const term of terms) {
+      const dates = termDatesMap.get(term.id);
+      if (!dates) {
+        throw new BadRequestException(
+          `Term "${term.name}" in semester "${sem.name}" has no date range configured. Contact your admin.`,
+        );
+      }
+
+      const diffMs = dates.end.getTime() - dates.start.getTime();
+      const termWeeks = Math.max(Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 7)), 1);
+
+      for (let w = 0; w < termWeeks; w++) {
+        result.push({
+          label: String(weekWithinSemester),
+          value: weekWithinSemester,
+          termName: term.name,
+          semesterName: sem.name,
+          semesterIndex: si + 1,
+        });
+        weekWithinSemester++;
+      }
+    }
+  }
+
+  return result;
+}
 
   private async assertStudentEnrolled(
     classId: string,

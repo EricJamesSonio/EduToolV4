@@ -194,12 +194,15 @@ export class SemesterTemplateRepository {
     });
   }
 
-  async findAssignmentByProgram(programId: string, orgId: string) {
-    return this.db.programSemesterAssignment.findFirst({
-      where: { program_id: programId, org_id: orgId },
-      include: { template: { include: TEMPLATE_INCLUDE } },
-    });
-  }
+async findAssignmentByProgram(programId: string, orgId: string) {
+  return this.db.programSemesterAssignment.findFirst({
+    where: { program_id: programId, org_id: orgId },
+    include: {
+      template: { include: TEMPLATE_INCLUDE },
+      termDates: true,
+    },
+  });
+}
   async findAllBySchoolYear(orgId: string, schoolYearId: string) {
     // Get all templates that are assigned to at least one program in this school year
     return this.db.semesterTemplate.findMany({
