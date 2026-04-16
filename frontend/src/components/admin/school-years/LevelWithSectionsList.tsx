@@ -40,13 +40,12 @@ export function LevelWithSectionsList({
     queryFn: () => programApi.getOne(programId),
   });
 
-  // ✅ ALWAYS fetch ALL levels
   const { data: allLevels = [], isLoading } = useQuery({
     queryKey: ["admin", "levels", schoolYearId],
     queryFn: () => levelApi.getBySchoolYear(schoolYearId),
   });
 
-  const levels = allLevels.filter((l) => l.program_id === programId);
+  const levels = allLevels.filter((l) => l.program_id === programId || !l.program_id);
 
   const isCollege = program?.type === "college";
   const isSHS = program?.type === "shs";
@@ -60,13 +59,10 @@ export function LevelWithSectionsList({
   const updateMutation = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) =>
       levelApi.updateOne(id, name),
-    onMutate: ({ id }) => setUpdatingId(id),
     onSuccess: () => {
       toast.success("Level renamed.");
       invalidate();
     },
-    onError: () => toast.error("Failed to rename level."),
-    onSettled: () => setUpdatingId(null),
   });
 
   const createMutation = useMutation({
@@ -76,7 +72,15 @@ export function LevelWithSectionsList({
       toast.success("Level added.");
       invalidate();
     },
-    onError: () => toast.error("Failed to add level."),
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: (count: number) =>
+      levelApi.bulkGenerate({ programId, schoolYearId, count }),
+    onSuccess: () => {
+      toast.success("Levels generated.");
+      invalidate();
+    },
   });
 
   const deleteMutation = useMutation({
@@ -86,7 +90,6 @@ export function LevelWithSectionsList({
       invalidate();
       setDeleteTarget(null);
     },
-    onError: () => toast.error("Failed to delete level."),
   });
 
   if (isLoading || !program) {
@@ -109,8 +112,11 @@ export function LevelWithSectionsList({
     onDelete: (level: Level) => setDeleteTarget(level),
     onAdd: () =>
       createMutation.mutate(`Level ${levels.length + 1}`),
+    onGenerate: (count: number) =>
+      generateMutation.mutate(count),
     isUpdating: updateMutation.isPending,
     isAdding: createMutation.isPending,
+    isGenerating: generateMutation.isPending,
     updatingId,
   };
 
@@ -120,17 +126,13 @@ export function LevelWithSectionsList({
         <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
           <Layers className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-semibold">Levels & Sections</span>
-          <Badge variant="secondary" className="text-xs font-normal">
-            {levels.length}
-          </Badge>
+          <Badge variant="secondary">{levels.length}</Badge>
         </div>
 
-        {/* ELEMENTARY / DEFAULT */}
         {!isCollege && !isSHS && (
           <LevelList levels={levels} {...sharedProps} />
         )}
 
-        {/* COLLEGE */}
         {isCollege &&
           (courses.length === 0 ? (
             <p className="px-4 py-4 text-sm text-muted-foreground">
@@ -141,13 +143,11 @@ export function LevelWithSectionsList({
               <CourseGroupBlock
                 key={course.id}
                 course={course}
-                levels={levels}   // ✅ IMPORTANT FIX
                 {...sharedProps}
               />
             ))
           ))}
 
-        {/* SHS */}
         {isSHS &&
           (strands.length === 0 ? (
             <p className="px-4 py-4 text-sm text-muted-foreground">
@@ -158,7 +158,6 @@ export function LevelWithSectionsList({
               <StrandGroupBlock
                 key={strand.id}
                 strand={strand}
-                levels={levels}   // ✅ IMPORTANT FIX
                 {...sharedProps}
               />
             ))
@@ -174,9 +173,7 @@ export function LevelWithSectionsList({
           destructive
           isLoading={deleteMutation.isPending}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
-          onOpenChange={(o) => {
-            if (!o) setDeleteTarget(null);
-          }}
+          onOpenChange={(o) => !o && setDeleteTarget(null)}
         />
       )}
     </>

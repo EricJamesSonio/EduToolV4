@@ -7,7 +7,6 @@ import { ChevronRight, ChevronDown, GraduationCap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import type { CourseSnapshot, StrandSnapshot } from "@/types/admin/program.types";
 import type { Level } from "@/types/admin/level.types";
 import type { LevelListSharedProps } from "./types";
 
@@ -27,67 +26,75 @@ export function GroupBlock({
   groupType,
   schoolYearId,
   programId,
-  ...listProps
+  isEnded,
+  programType,
+  onViewSubjects,
+  onRename,
+  onDelete,
+  onAdd,
+  onGenerate,
+  isUpdating,
+  isAdding,
+  isGenerating,
+  updatingId,
 }: GroupBlockProps): React.JSX.Element {
   const [collapsed, setCollapsed] = useState(false);
 
-  // ✅ single source of truth
   const { data: allLevels = [], isLoading } = useQuery<Level[]>({
-    queryKey: ["admin", "levels", schoolYearId, programId],
+    queryKey: ["admin", "levels", schoolYearId],
     queryFn: () => levelApi.getBySchoolYear(schoolYearId),
   });
 
-  // ✅ ONLY filter by program (safe)
-  const programLevels = allLevels.filter(
-    (l) => l.program_id === programId
-  );
-
-  // ⚠️ IMPORTANT:
-  // No real relation exists between level ↔ course/strand
-  // so we DO NOT filter them out anymore.
-
-  const levels = programLevels;
+  const levels = allLevels.filter((l) => l.program_id === programId || !l.program_id);
 
   return (
     <div className="border-t">
       <button
         onClick={() => setCollapsed((v) => !v)}
-        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30"
       >
-        <div className="flex h-5 w-5 items-center justify-center rounded bg-muted shrink-0">
-          <GraduationCap className="h-3 w-3 text-muted-foreground" />
-        </div>
+        <GraduationCap className="h-3 w-3 text-muted-foreground" />
 
-        <span className="text-sm font-medium flex-1 min-w-0 truncate">
+        <span className="text-sm font-medium flex-1 truncate">
           {label}
         </span>
 
-        <Badge variant="outline" className="text-xs font-normal shrink-0">
-          {levels.length} {levels.length === 1 ? "level" : "levels"}
+        <Badge variant="outline" className="text-xs">
+          {levels.length}
         </Badge>
 
         {collapsed ? (
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <ChevronRight className="h-3.5 w-3.5" />
         ) : (
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <ChevronDown className="h-3.5 w-3.5" />
         )}
       </button>
 
       {!collapsed && (
         <div className="bg-muted/5">
           {isLoading ? (
-            <div className="px-4 py-2 space-y-1.5">
+            <div className="p-3 space-y-2">
               {[1, 2].map((i) => (
-                <Skeleton key={i} className="h-8 w-full rounded" />
+                <Skeleton key={i} className="h-8 w-full" />
               ))}
             </div>
           ) : (
             <LevelList
               levels={levels}
               schoolYearId={schoolYearId}
+              isEnded={isEnded}
+              programType={programType}
+              onViewSubjects={onViewSubjects}
+              onRename={onRename}
+              onDelete={onDelete}
+              onAdd={onAdd}
+              onGenerate={onGenerate}
+              isUpdating={isUpdating}
+              isAdding={isAdding}
+              isGenerating={isGenerating}
+              updatingId={updatingId}
               courseId={groupType === "course" ? groupId : undefined}
               strandId={groupType === "strand" ? groupId : undefined}
-              {...listProps}
             />
           )}
         </div>
@@ -95,7 +102,6 @@ export function GroupBlock({
     </div>
   );
 }
-
 /* =========================
    SAFE WRAPPERS
    ========================= */
