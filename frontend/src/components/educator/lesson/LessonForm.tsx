@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Lesson } from "@/types/educator/lesson.types";
 import { CreateLessonRequest } from "@/api/educator/lesson.api";
-import type { WeekSlot } from "@/hooks/educator/useClassWeeks";
+import type { WeekSlot } from "@/types/educator/lesson.types";
+import { useLessons } from "@/hooks/educator/useLessons";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,7 @@ interface LessonFormProps {
   isLoading: boolean;
 }
 
-const MIN_DETAIL_WORDS = 5;
+const MIN_DETAIL_WORDS = 10;
 
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
@@ -42,6 +43,9 @@ export function LessonForm({
   isLoading,
 }: LessonFormProps): React.JSX.Element {
   const router = useRouter();
+
+  // 🔥 fetch existing lessons (needed for subIndex auto)
+  const { data: existingLessons = [] } = useLessons(classId);
 
   const [title, setTitle] = useState(lesson?.title ?? "");
   const [description, setDescription] = useState(
@@ -64,6 +68,21 @@ export function LessonForm({
     availableWeeks.find((w) => w.value === selectedSlotValue) ??
     defaultSlot;
 
+  // 🔥 AUTO SUB-INDEX GENERATION (fixes duplicate bug)
+  const computedSubIndex = useMemo(() => {
+    if (lesson) return lesson.subIndex; // editing → keep existing
+
+    const lessonsInWeek = existingLessons.filter(
+      (l) => l.weekNumber === selectedSlotValue
+    );
+
+    if (lessonsInWeek.length === 0) return 1;
+
+    return (
+      Math.max(...lessonsInWeek.map((l) => l.subIndex)) + 1
+    );
+  }, [existingLessons, selectedSlotValue, lesson]);
+
   async function handleSubmit(): Promise<void> {
     if (!formValid || !selectedSlot) return;
 
@@ -71,7 +90,7 @@ export function LessonForm({
       title: title.trim(),
       description: description.trim() || undefined,
       weekNumber: selectedSlot.value,
-      subIndex: lesson?.subIndex ?? 1, // safe default (we improve later)
+      subIndex: computedSubIndex, // ✅ FIXED
       detail: detail.trim(),
     });
   }
@@ -171,7 +190,7 @@ export function LessonForm({
           id="detail"
           value={detail}
           onChange={(e) => setDetail(e.target.value)}
-          placeholder="Write detailed lesson content (minimum 5 words)..."
+          placeholder="Write detailed lesson content (minimum 10 words)..."
           rows={8}
         />
 

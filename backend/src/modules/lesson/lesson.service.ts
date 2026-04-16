@@ -249,14 +249,22 @@ export class LessonService {
 async getWeekStructure(classId: string, orgId: string, educatorId: string) {
   const cls = await this.classRepo.findById(classId, orgId);
   if (!cls) throw new NotFoundException('Class not found.');
+
   if (cls.educator_id !== educatorId) {
     throw new ForbiddenException('You do not own this class.');
   }
+
+// Get weekday from class schedules
+const classWeekday =
+  cls.schedules && cls.schedules.length > 0
+    ? cls.schedules[0].weekday
+    : 1; // default Monday if no schedule
 
   const subject = await this.classRepo['db'].subject.findFirst({
     where: { id: cls.subject_id },
     select: { program_id: true },
   });
+
   if (!subject?.program_id) {
     throw new BadRequestException('Class subject is not linked to a program.');
   }
@@ -265,13 +273,16 @@ async getWeekStructure(classId: string, orgId: string, educatorId: string) {
     subject.program_id,
     orgId,
   );
+
   if (!assignment) {
     throw new BadRequestException(
       'No semester template assigned to this program. Contact your admin.',
     );
   }
 
+  // Map term dates
   const termDatesMap = new Map<string, { start: Date; end: Date }>();
+
   for (const td of (assignment as any).termDates ?? []) {
     termDatesMap.set(td.term_id, {
       start: new Date(td.start_date),
@@ -285,42 +296,70 @@ async getWeekStructure(classId: string, orgId: string, educatorId: string) {
     termName: string;
     semesterName: string;
     semesterIndex: number;
+    date: string; // 🔥 ACTUAL CLASS DATE
   };
 
   const result: WeekSlot[] = [];
-
   const semesters = assignment.template.semesters ?? [];
+
+  let globalWeek = 1;
 
   for (let si = 0; si < semesters.length; si++) {
     const sem = semesters[si];
     const terms = sem.terms ?? [];
-    let weekWithinSemester = 1;
 
     for (const term of terms) {
       const dates = termDatesMap.get(term.id);
+
       if (!dates) {
         throw new BadRequestException(
-          `Term "${term.name}" in semester "${sem.name}" has no date range configured. Contact your admin.`,
+          `Term "${term.name}" in semester "${sem.name}" has no date range configured.`,
         );
       }
 
-      const diffMs = dates.end.getTime() - dates.start.getTime();
-      const termWeeks = Math.max(Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 7)), 1);
+      const occurrences = this.getWeekdayOccurrences(
+        dates.start,
+        dates.end,
+        classWeekday,
+      );
 
-      for (let w = 0; w < termWeeks; w++) {
+      for (const date of occurrences) {
         result.push({
-          label: String(weekWithinSemester),
-          value: weekWithinSemester,
+          label: String(globalWeek),
+          value: globalWeek,
           termName: term.name,
           semesterName: sem.name,
           semesterIndex: si + 1,
+          date: date.toISOString(), // 🔥 important for frontend
         });
-        weekWithinSemester++;
+
+        globalWeek++;
       }
     }
   }
 
   return result;
+}
+
+private getWeekdayOccurrences(
+  start: Date,
+  end: Date,
+  weekday: number, // 0=Sunday, 1=Monday, etc.
+): Date[] {
+  const dates: Date[] = [];
+
+  const current = new Date(start);
+
+  // Move to first matching weekday
+  const diff = (weekday - current.getDay() + 7) % 7;
+  current.setDate(current.getDate() + diff);
+
+  while (current <= end) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 7);
+  }
+
+  return dates;
 }
 
   private async assertStudentEnrolled(
