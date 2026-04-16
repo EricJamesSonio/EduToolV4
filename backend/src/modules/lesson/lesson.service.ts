@@ -416,38 +416,37 @@ async syncLessonsFromAttendance(classId: string, orgId: string) {
 
   if (!sessions.length) return;
 
-  const cls = await this.classRepo.findById(classId, orgId);
-  if (!cls) throw new NotFoundException('Class not found.');
-
+  // Get all existing lessons
   const existingLessons = await this.lessonRepo.findAll(classId, orgId);
-  const existingMap = new Set(
-    existingLessons.map(
-      (l) => `${l.week_number}-${l.sub_index}`,
-    ),
-  );
 
-  const lessonsToCreate: any[] = [];
+  const lessonMap = new Map(
+    existingLessons.map((l) => [
+      `${l.week_number}-${l.sub_index}`,
+      l,
+    ]),
+  );
 
   for (const session of sessions) {
     const key = `${session.week_number}-${session.sub_index}`;
 
-    // 🔥 skip if already exists
-    if (existingMap.has(key)) continue;
+    const existing = lessonMap.get(key);
 
-    lessonsToCreate.push({
-      orgId,
-      classId,
-      title: `Lesson Week ${session.week_number}`,
-      description: `Auto-generated from attendance session`,
-      detail: `Auto-generated lesson aligned with attendance schedule.`,
-      weekNumber: session.week_number,
-      subIndex: session.sub_index,
-    });
-  }
-
-  if (lessonsToCreate.length > 0) {
-    for (const lesson of lessonsToCreate) {
-      await this.lessonRepo.create(lesson);
+    if (!existing) {
+      await this.lessonRepo.create({
+        orgId,
+        classId,
+        title: `Lesson Week ${session.week_number}`,
+        description: `Auto-generated from attendance session`,
+        detail: `Auto-generated lesson aligned with attendance schedule.`,
+        weekNumber: session.week_number,
+        subIndex: session.sub_index,
+      });
+    } else {
+      // OPTIONAL: keep lesson aligned (safe overwrite mode)
+      await this.lessonRepo.update(existing.id, {
+        weekNumber: session.week_number,
+        subIndex: session.sub_index,
+      });
     }
   }
 }

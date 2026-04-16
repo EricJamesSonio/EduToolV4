@@ -14,7 +14,6 @@ import {
   RotateCcw,
   Loader2,
 } from "lucide-react";
-
 import { toast } from "sonner";
 
 import {
@@ -23,37 +22,45 @@ import {
 } from "@/hooks/educator/useAttendance";
 
 import { Button } from "@/components/ui/button";
-import type {
-  AttendanceStatus,
-  AttendanceRecord,
-} from "@/types/educator/attendance.types";
+import type { AttendanceStatus } from "@/types/educator/attendance.types";
 
 interface RowState {
-  recordId: string;
+  recordId: string | null;
   studentId: string;
+  studentName: string;
+  studentCode: string;
   status: AttendanceStatus;
+  autoSet: boolean;
   dirty: boolean;
 }
 
 const STATUS_CONFIG: Record<
   AttendanceStatus,
-  { label: string; icon: React.ReactNode }
+  {
+    label: string;
+    icon: React.ReactNode;
+    variant: "default" | "secondary" | "destructive" | "outline";
+  }
 > = {
   present: {
     label: "Present",
     icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+    variant: "default",
   },
   absent: {
     label: "Absent",
     icon: <XCircle className="h-3.5 w-3.5" />,
+    variant: "destructive",
   },
   late: {
     label: "Late",
     icon: <Clock className="h-3.5 w-3.5" />,
+    variant: "secondary",
   },
   excused: {
     label: "Excused",
     icon: <FileText className="h-3.5 w-3.5" />,
+    variant: "outline",
   },
 };
 
@@ -68,19 +75,25 @@ function StatusChip({
   status,
   selected,
   onClick,
+  disabled,
 }: {
   status: AttendanceStatus;
   selected: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   const cfg = STATUS_CONFIG[status];
 
   return (
     <button
       onClick={onClick}
-      className={`px-2 py-1 text-xs border rounded ${
-        selected ? "bg-primary text-white" : "text-muted-foreground"
-      }`}
+      disabled={disabled}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors
+        ${
+          selected
+            ? "bg-primary text-primary-foreground border-primary"
+            : "bg-background text-muted-foreground border-border hover:text-foreground"
+        }`}
     >
       {cfg.icon}
       {cfg.label}
@@ -112,8 +125,11 @@ export default function AttendanceSessionPage() {
     setRows(
       session.records.map((r) => ({
         recordId: r.id,
-        studentId: r.student_id,
+        studentId: r.studentId,
+        studentName: r.studentName,
+        studentCode: r.studentCode,
         status: r.status,
+        autoSet: r.autoSet,
         dirty: false,
       }))
     );
@@ -124,7 +140,7 @@ export default function AttendanceSessionPage() {
       setRows((prev) =>
         prev.map((r) =>
           r.studentId === studentId
-            ? { ...r, status, dirty: true }
+            ? { ...r, status, dirty: true, autoSet: false }
             : r
         )
       );
@@ -138,6 +154,7 @@ export default function AttendanceSessionPage() {
         ...r,
         status: "present",
         dirty: true,
+        autoSet: false,
       }))
     );
   }, []);
@@ -148,8 +165,11 @@ export default function AttendanceSessionPage() {
     setRows(
       session.records.map((r) => ({
         recordId: r.id,
-        studentId: r.student_id,
+        studentId: r.studentId,
+        studentName: r.studentName,
+        studentCode: r.studentCode,
         status: r.status,
+        autoSet: r.autoSet,
         dirty: false,
       }))
     );
@@ -157,6 +177,7 @@ export default function AttendanceSessionPage() {
 
   const handleSave = async () => {
     setSaving(true);
+
     try {
       await bulkSet.mutateAsync(
         rows.map((r) => ({
@@ -169,9 +190,9 @@ export default function AttendanceSessionPage() {
         prev.map((r) => ({ ...r, dirty: false }))
       );
 
-      toast.success("Attendance saved");
+      toast.success("Attendance saved successfully.");
     } catch {
-      toast.error("Failed to save attendance");
+      toast.error("Failed to save attendance.");
     } finally {
       setSaving(false);
     }
@@ -179,26 +200,41 @@ export default function AttendanceSessionPage() {
 
   const dirtyCount = rows.filter((r) => r.dirty).length;
 
+  const stats = rows.reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] ?? 0) + 1;
+    return acc;
+  }, {} as Record<AttendanceStatus, number>);
+
   if (isLoading) {
     return (
-      <div className="flex justify-center py-16">
-        <Loader2 className="animate-spin" />
+      <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading session...
       </div>
     );
   }
 
   if (!session) {
     return (
-      <p className="text-center py-10">Session not found</p>
+      <p className="text-sm text-muted-foreground py-12 text-center">
+        Session not found.
+      </p>
     );
   }
 
-  const label = `Session ${session.week_number}.${session.sub_index}`;
+  const dateLabel = new Date(session.date).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  const sessionLabel = `Session ${session.week_number}.${session.sub_index}`;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <button
             onClick={() =>
@@ -206,47 +242,80 @@ export default function AttendanceSessionPage() {
                 `/educator/classes/${classId}/attendance`
               )
             }
-            className="text-xs text-muted-foreground"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-2"
           >
-            ← Back
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Back
           </button>
 
-          <h1 className="text-xl font-semibold">
-            {label}
-          </h1>
+          <h1 className="text-xl font-semibold">{dateLabel}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {sessionLabel}
+          </p>
         </div>
 
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? "Saving..." : `Save (${dirtyCount})`}
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Save className="h-3.5 w-3.5" />
+          )}
+          {saving ? "Saving..." : dirtyCount ? `Save (${dirtyCount})` : "Save"}
         </Button>
       </div>
 
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-3">
+        {ALL_STATUSES.map((s) => (
+          <div key={s} className="rounded-lg border px-4 py-3">
+            <p className="text-lg font-bold">{stats[s] ?? 0}</p>
+            <p className="text-xs text-muted-foreground">
+              {STATUS_CONFIG[s].label}
+            </p>
+          </div>
+        ))}
+      </div>
+
       {/* Table */}
-      <div className="border rounded">
+      <div className="rounded-lg border overflow-hidden">
         {rows.map((row, idx) => (
           <div
             key={row.studentId}
-            className="flex justify-between p-3 border-b"
+            className="flex justify-between px-4 py-3 border-b"
           >
-            <span>{idx + 1}</span>
+            <div>
+              <p className="font-medium">{row.studentName}</p>
+              <p className="text-xs text-muted-foreground">
+                {row.studentCode}
+              </p>
+            </div>
 
-            <span>{row.studentId}</span>
-
-            <div className="flex gap-1">
+            <div className="flex gap-2">
               {ALL_STATUSES.map((s) => (
                 <StatusChip
                   key={s}
                   status={s}
                   selected={row.status === s}
-                  onClick={() =>
-                    setStatus(row.studentId, s)
-                  }
+                  onClick={() => setStatus(row.studentId, s)}
                 />
               ))}
             </div>
           </div>
         ))}
       </div>
+
+      {/* Floating save */}
+      {dirtyCount > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2">
+          <Button onClick={handleSave}>
+            Save {dirtyCount} changes
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
