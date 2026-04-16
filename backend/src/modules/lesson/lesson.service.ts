@@ -254,11 +254,10 @@ async getWeekStructure(classId: string, orgId: string, educatorId: string) {
     throw new ForbiddenException('You do not own this class.');
   }
 
-// Get weekday from class schedules
-const classWeekday =
-  cls.schedules && cls.schedules.length > 0
-    ? cls.schedules[0].weekday
-    : 1; // default Monday if no schedule
+  const classWeekday =
+    cls.schedules && cls.schedules.length > 0
+      ? cls.schedules[0].weekday
+      : 1;
 
   const subject = await this.classRepo['db'].subject.findFirst({
     where: { id: cls.subject_id },
@@ -266,21 +265,23 @@ const classWeekday =
   });
 
   if (!subject?.program_id) {
-    throw new BadRequestException('Class subject is not linked to a program.');
-  }
-
-  const assignment = await this.semesterTemplateRepo.findAssignmentByProgram(
-    subject.program_id,
-    orgId,
-  );
-
-  if (!assignment) {
     throw new BadRequestException(
-      'No semester template assigned to this program. Contact your admin.',
+      'Class subject is not linked to a program.',
     );
   }
 
-  // Map term dates
+  const assignment =
+    await this.semesterTemplateRepo.findAssignmentByProgram(
+      subject.program_id,
+      orgId,
+    );
+
+  if (!assignment) {
+    throw new BadRequestException(
+      'No semester template assigned to this program.',
+    );
+  }
+
   const termDatesMap = new Map<string, { start: Date; end: Date }>();
 
   for (const td of (assignment as any).termDates ?? []) {
@@ -292,14 +293,22 @@ const classWeekday =
 
   type WeekSlot = {
     label: string;
+
     value: number;
+    globalWeek: number;
+
+    termWeek: number;
+    semesterWeek: number;
+
     termName: string;
     semesterName: string;
     semesterIndex: number;
-    date: string; // 🔥 ACTUAL CLASS DATE
+
+    date: string;
   };
 
   const result: WeekSlot[] = [];
+
   const semesters = assignment.template.semesters ?? [];
 
   let globalWeek = 1;
@@ -307,6 +316,8 @@ const classWeekday =
   for (let si = 0; si < semesters.length; si++) {
     const sem = semesters[si];
     const terms = sem.terms ?? [];
+
+    let semesterWeek = 1; // 🔥 reset per semester
 
     for (const term of terms) {
       const dates = termDatesMap.get(term.id);
@@ -323,17 +334,28 @@ const classWeekday =
         classWeekday,
       );
 
+      let termWeek = 1; // 🔥 reset per term
+
       for (const date of occurrences) {
         result.push({
-          label: String(globalWeek),
+          label: `${term.name} Week ${termWeek}`, // 🔥 human readable
+
           value: globalWeek,
+          globalWeek,
+
+          termWeek,
+          semesterWeek,
+
           termName: term.name,
           semesterName: sem.name,
           semesterIndex: si + 1,
-          date: date.toISOString(), // 🔥 important for frontend
+
+          date: date.toISOString(),
         });
 
         globalWeek++;
+        termWeek++;
+        semesterWeek++;
       }
     }
   }
