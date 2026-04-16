@@ -127,6 +127,7 @@ export function LevelWithSectionsList({
             <CourseGroupBlock
               key={course.id}
               course={course}
+              levels={levels} 
               {...sharedProps}
             />
           ))}
@@ -136,6 +137,7 @@ export function LevelWithSectionsList({
             <StrandGroupBlock
               key={strand.id}
               strand={strand}
+              levels={levels} 
               {...sharedProps}
             />
           ))}
