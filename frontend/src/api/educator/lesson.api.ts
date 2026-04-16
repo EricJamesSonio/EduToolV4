@@ -6,7 +6,7 @@ export interface CreateLessonRequest {
   description?: string;
   weekNumber: number;
   subIndex: number;
-  detail: string;
+  detail: string | null;
 }
 
 export interface UpdateLessonRequest {
@@ -32,9 +32,8 @@ function mapLesson(raw: Record<string, unknown>): Lesson {
     detail: raw.detail as string,
     weekNumber: (raw.week_number ?? raw.weekNumber) as number,
     subIndex: (raw.sub_index ?? raw.subIndex) as number,
-    conceptBuild: (raw.conceptBuild ?? null) as Lesson["conceptBuild"],
+    concept: (raw.concept ?? null),
     createdAt: (raw.created_at ?? raw.createdAt) as string,
-    updatedAt: (raw.updated_at ?? raw.updatedAt ?? raw.createdAt) as string,
   };
 }
 
@@ -78,9 +77,21 @@ export const lessonApi = {
     await apiClient.delete(`/educator/classes/${classId}/lessons/${lessonId}`);
   },
 
-  triggerExtraction: async (classId: string, lessonId: string): Promise<void> => {
+  triggerExtraction: async (
+    classId: string,
+    lessonId: string,
+    detail: string
+  ): Promise<void> => {
     await apiClient.post(
-      `/educator/classes/${classId}/lessons/${lessonId}/re-extract`
+      `/educator/classes/${classId}/lessons/${lessonId}/re-extract`,
+      { detail }
     );
   },
-};
+
+  getWeekStructure: async (classId: string) => {
+    const { data } = await apiClient.get(
+      `/educator/classes/${classId}/lessons/week-structure`
+    );
+    return unwrap(data);
+  },
+  };

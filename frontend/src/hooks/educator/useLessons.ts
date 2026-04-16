@@ -30,7 +30,7 @@ export const useCreateLesson = (classId: string) => {
   return useMutation({
     mutationFn: (data: CreateLessonRequest) => lessonApi.create(classId, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [LESSONS_KEY, classId] });
+      qc.invalidateQueries({ queryKey: [LESSONS_KEY, classId], exact: false });
     },
   });
 };
@@ -46,7 +46,7 @@ export const useUpdateLesson = (classId: string) => {
       data: UpdateLessonRequest;
     }) => lessonApi.update(classId, lessonId, data),
     onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: [LESSONS_KEY, classId] });
+      qc.invalidateQueries({ queryKey: [LESSONS_KEY, classId], exact: false });
       qc.invalidateQueries({
         queryKey: [LESSONS_KEY, classId, variables.lessonId],
       });
@@ -59,7 +59,7 @@ export const useDeleteLesson = (classId: string) => {
   return useMutation({
     mutationFn: (lessonId: string) => lessonApi.delete(classId, lessonId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [LESSONS_KEY, classId] });
+      qc.invalidateQueries({ queryKey: [LESSONS_KEY, classId], exact: false });
     },
   });
 };
@@ -67,8 +67,8 @@ export const useDeleteLesson = (classId: string) => {
 export const useTriggerExtraction = (classId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (lessonId: string) =>
-      lessonApi.triggerExtraction(classId, lessonId),
+mutationFn: ({ lessonId, detail }: { lessonId: string; detail: string }) =>
+  lessonApi.triggerExtraction(classId, lessonId, detail),
     onSuccess: (_, lessonId) => {
       qc.invalidateQueries({ queryKey: [LESSONS_KEY, classId, lessonId] });
     },
