@@ -1,5 +1,3 @@
-// filepath: frontend/src/app/educator/classes/[classId]/lessons/page.tsx
-
 "use client";
 
 import { useParams } from "next/navigation";
@@ -14,16 +12,30 @@ export default function LessonsPage(): React.JSX.Element {
   const params = useParams();
   const classId = params.classId as string;
 
-  const { data: lessons, isLoading: lessonsLoading } = useLessons(classId);
-  const { data: weeks, isLoading: weeksLoading } = useClassWeeks(classId);
+  const { data: lessonsData = [], isLoading: lessonsLoading } =
+    useLessons(classId);
+
+  const { data: weeksData = [], isLoading: weeksLoading } =
+    useClassWeeks(classId);
 
   const isLoading = lessonsLoading || weeksLoading;
+
+  // 🔥 derive safe values
+  const lessons = lessonsData ?? [];
+  const weeks = weeksData ?? [];
+
+  // 🔥 IMPORTANT: derive max week number, not array length
+  const totalWeeks =
+    weeks.length > 0
+      ? Math.max(...weeks.map((w) => w.value))
+      : 1;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Lessons</h1>
+
         <Link href={`/educator/classes/${classId}/lessons/new`}>
           <Button size="sm" className="gap-1.5">
             <Plus className="h-4 w-4" />
@@ -40,9 +52,9 @@ export default function LessonsPage(): React.JSX.Element {
         </div>
       ) : (
         <WeekCalendar
-          lessons={lessons ?? []}
+          lessons={lessons}
           classId={classId}
-          totalWeeks={weeks?.length ?? 1}
+          totalWeeks={totalWeeks}
         />
       )}
     </div>

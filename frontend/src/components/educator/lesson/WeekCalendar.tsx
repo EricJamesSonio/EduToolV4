@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Lesson } from "@/types/educator/lesson.types";
-import { WeekSlot } from "@/types/educator/lesson.types";
 import { LessonCard } from "./LessonCard";
 import { ChevronDown, ChevronRight, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,15 +9,19 @@ import { cn } from "@/lib/utils";
 interface WeekCalendarProps {
   lessons: Lesson[];
   classId: string;
-  weeks: WeekSlot[];
+  totalWeeks: number;
 }
 
 export function WeekCalendar({
-  lessons,
+  lessons = [],
   classId,
-  weeks,
+  totalWeeks,
 }: WeekCalendarProps): React.JSX.Element {
-  const [openWeeks, setOpenWeeks] = useState<Set<number>>(new Set([1]));
+  const [openWeeks, setOpenWeeks] = useState<Set<number>>(
+    new Set([1])
+  );
+
+  const safeLessons = Array.isArray(lessons) ? lessons : [];
 
   function toggleWeek(week: number): void {
     setOpenWeeks((prev) => {
@@ -34,15 +37,21 @@ export function WeekCalendar({
 
   const lessonsByWeek = new Map<number, Lesson[]>();
 
-  for (const lesson of lessons) {
+  for (const lesson of safeLessons) {
+    if (!lesson?.weekNumber) continue;
+
     const existing = lessonsByWeek.get(lesson.weekNumber) ?? [];
     lessonsByWeek.set(lesson.weekNumber, [...existing, lesson]);
   }
 
+  const weeks = Array.from(
+    { length: totalWeeks ?? 1 },
+    (_, i) => i + 1
+  );
+
   return (
     <div className="space-y-2">
-      {weeks.map((weekSlot) => {
-        const week = weekSlot.value;
+      {weeks.map((week) => {
         const weekLessons = lessonsByWeek.get(week) ?? [];
         const isOpen = openWeeks.has(week);
 
@@ -56,20 +65,14 @@ export function WeekCalendar({
                 isOpen && "bg-muted/30"
               )}
             >
-              <div className="flex flex-col items-start">
-                <span className="flex items-center gap-2">
-                  {isOpen ? (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  Week {week}
-                </span>
-
-                <span className="text-xs text-muted-foreground ml-6">
-                  {weekSlot.termName} • {weekSlot.semesterName}
-                </span>
-              </div>
+              <span className="flex items-center gap-2">
+                {isOpen ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+                Week {week}
+              </span>
 
               <span className="text-xs text-muted-foreground">
                 {weekLessons.length === 0
