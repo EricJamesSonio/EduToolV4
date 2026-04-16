@@ -41,35 +41,31 @@ export const levelApi = {
    * Get levels for a specific course within a school year
    * Returns only levels that have sections in this course
    */
-  getByCourse: async (
-    schoolYearId: string,
-    courseId: string
-  ): Promise<Level[]> => {
-    const res = await client.get<{ success: boolean; data: Level[] }>(
-      "/levels",
-      {
-        params: { schoolYearId, courseId },
-      }
-    );
-    return res.data.data;
-  },
+getByCourse: async (
+  schoolYearId: string,
+  courseId: string
+): Promise<Level[]> => {
+  const res = await client.get<{ success: boolean; data: Level[] }>(
+    "/levels",
+    { params: { schoolYearId, courseId } }
+  );
+  return res.data.data;
+},
 
   /**
    * Get levels for a specific strand within a school year
    * Returns only levels that have sections in this strand
    */
-  getByStrand: async (
-    schoolYearId: string,
-    strandId: string
-  ): Promise<Level[]> => {
-    const res = await client.get<{ success: boolean; data: Level[] }>(
-      "/levels",
-      {
-        params: { schoolYearId, strandId },
-      }
-    );
-    return res.data.data;
-  },
+getByStrand: async (
+  schoolYearId: string,
+  strandId: string
+): Promise<Level[]> => {
+  const res = await client.get<{ success: boolean; data: Level[] }>(
+    "/levels",
+    { params: { schoolYearId, strandId } }
+  );
+  return res.data.data;
+},
 
   getAll: async (): Promise<Level[]> => {
     const res = await client.get<{ success: boolean; data: Level[] }>(

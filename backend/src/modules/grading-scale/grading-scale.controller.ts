@@ -7,6 +7,7 @@ import {
   Param,
   Query,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { GradingScaleService } from './grading-scale.service';
 import {
@@ -34,6 +35,12 @@ export class GradingScaleController {
     @Body() dto: CreateGradingScaleDto,
   ) {
     return this.gradingScaleService.create(orgId, dto);
+  }
+
+  @Delete(':id')
+  @Roles('admin')
+  async delete(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
+    return this.gradingScaleService.delete(id, orgId);
   }
 
   /**

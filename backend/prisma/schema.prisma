@@ -240,6 +240,7 @@ model SemesterTemplateItem {
   terms    SemesterTemplateTerm[]
 }
 
+
 model SemesterTemplateTerm {
   id          String @id @default(uuid())
   org_id      String
@@ -247,8 +248,8 @@ model SemesterTemplateTerm {
   name        String
   order_index Int
 
-  semester  SemesterTemplateItem        @relation(fields: [semester_id], references: [id])
-  termDates ProgramSemesterTermDate[]   // ← ADD THIS
+  semester  SemesterTemplateItem @relation(fields: [semester_id], references: [id], onDelete: Cascade)
+  termDates ProgramSemesterTermDate[]
 }
 
 model ProgramSemesterAssignment {
@@ -531,7 +532,8 @@ model ProgramSemesterTermDate {
   end_date      DateTime
 
   assignment ProgramSemesterAssignment @relation(fields: [assignment_id], references: [id])
-  term       SemesterTemplateTerm      @relation(fields: [term_id], references: [id])
+
+  term SemesterTemplateTerm @relation(fields: [term_id], references: [id], onDelete: Cascade)
 
   @@unique([assignment_id, term_id])
 }

@@ -32,14 +32,15 @@ export default function GradingScaleDetailPage(): React.JSX.Element {
   const [ranges, setRanges] = useState<GradeRange[]>([]);
   const [rangeErrors, setRangeErrors] = useState<ReturnType<typeof validateRanges>>([]);
   const [submitted, setSubmitted] = useState(false);
+const [initialised, setInitialised] = useState(false)
 
-  // Seed local state once scale loads
   useEffect(() => {
-    if (scale) {
-      setName(scale.name);
-      setRanges(scale.ranges);
+    if (scale && !initialised) {
+      setName(scale.name)
+      setRanges(scale.ranges)
+      setInitialised(true)
     }
-  }, [scale]);
+  }, [scale, initialised])
 
   const mutation = useMutation({
     mutationFn: ({ name, ranges }: { name: string; ranges: GradeRange[] }) =>

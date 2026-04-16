@@ -11,11 +11,16 @@ import {
   QueryGradingScaleDto,
   GradeRangeDto,
 } from './dto/grading-scale.dto';
-import { GradingScaleEntity, GradeRangeEntity } from './entity/grading-scale.entity';
+import {
+  GradingScaleEntity,
+  GradeRangeEntity,
+} from './entity/grading-scale.entity';
 
 @Injectable()
 export class GradingScaleService {
-  constructor(private readonly gradingScaleRepository: GradingScaleRepository) {}
+  constructor(
+    private readonly gradingScaleRepository: GradingScaleRepository,
+  ) {}
 
   private mapToEntity(scale: Record<string, unknown>): GradingScaleEntity {
     return {
@@ -88,7 +93,39 @@ export class GradingScaleService {
     }
   }
 
-  async create(orgId: string, dto: CreateGradingScaleDto): Promise<GradingScaleEntity> {
+async delete(id: string, orgId: string): Promise<void> {
+  const scale = await this.gradingScaleRepository.findById(id, orgId);
+
+  if (!scale) {
+    throw new NotFoundException('Grading scale not found.');
+  }
+
+  if (scale.is_locked) {
+    throw new BadRequestException(
+      'This grading scale is locked and cannot be deleted.',
+    );
+  }
+
+  // ✅ REAL usage check (based on your schema)
+  const isUsed = await this.gradingScaleRepository.isUsedInGrades(
+    orgId,
+    scale.program_id,
+    scale.school_year_id,
+  );
+
+  if (isUsed) {
+    throw new BadRequestException(
+      'Cannot delete grading scale because grades already exist for this program and school year.',
+    );
+  }
+
+  await this.gradingScaleRepository.delete(id);
+}
+
+  async create(
+    orgId: string,
+    dto: CreateGradingScaleDto,
+  ): Promise<GradingScaleEntity> {
     // CHANGED: Check by programId instead of levelId
     const existing = await this.gradingScaleRepository.findByProgramAndYear(
       orgId,
@@ -190,7 +227,11 @@ export class GradingScaleService {
     programId: string, // CHANGED from levelId → programId
     schoolYearId: string,
     percent: number,
-  ): Promise<{ gradeValue: string; remark: string; isPassing: boolean } | null> {
+  ): Promise<{
+    gradeValue: string;
+    remark: string;
+    isPassing: boolean;
+  } | null> {
     // CHANGED: Find by programId instead of levelId
     const scale = await this.gradingScaleRepository.findByProgramAndYear(
       orgId,
@@ -214,7 +255,13 @@ export class GradingScaleService {
       : null;
   }
 
-  async unlockAllForSchoolYear(schoolYearId: string, orgId: string): Promise<void> {
-    await this.gradingScaleRepository.unlockAllForSchoolYear(schoolYearId, orgId);
+  async unlockAllForSchoolYear(
+    schoolYearId: string,
+    orgId: string,
+  ): Promise<void> {
+    await this.gradingScaleRepository.unlockAllForSchoolYear(
+      schoolYearId,
+      orgId,
+    );
   }
 }

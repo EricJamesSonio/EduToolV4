@@ -1,33 +1,39 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
-import { isAxiosError } from "axios"
-import { organizationApi } from "@/api/admin/organization.api"
-import { schoolYearApi } from "@/api/admin/school-year.api"
-import { programApi } from "@/api/admin/program.api"
-import { courseApi } from "@/api/admin/course.api"
-import { strandApi } from "@/api/admin/strand.api"
-import { levelApi } from "@/api/admin/level.api"
-import { subjectApi } from "@/api/admin/subject.api"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { cn } from "@/lib/utils"
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
-import { CalendarDays, ChevronDown, ChevronRight, Database, Loader2 } from "lucide-react"
+import { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { isAxiosError } from "axios";
+import { organizationApi } from "@/api/admin/organization.api";
+import { schoolYearApi } from "@/api/admin/school-year.api";
+import { programApi } from "@/api/admin/program.api";
+import { courseApi } from "@/api/admin/course.api";
+import { strandApi } from "@/api/admin/strand.api";
+import { levelApi } from "@/api/admin/level.api";
+import { subjectApi } from "@/api/admin/subject.api";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import {
+  CalendarDays,
+  ChevronDown,
+  ChevronRight,
+  Database,
+  Loader2,
+} from "lucide-react";
 
-import { SchoolYearStep } from "./SchoolYearStep"
-import { ProgramStep } from "./ProgramStep"
-import { LevelStep } from "./LevelStep"
-import { SectionStep } from "./SectionStep"
-import { StrandStep } from "./StrandStep"
-import { CourseStep } from "./CourseStep"
-import { SubjectStep } from "./SubjectStep"
-import { GradingScaleStep } from "./GradingScaleStep"
-import { GradingSchemeStep } from "./GradingSchemeStep"
-import { SemesterTemplateStep } from "./SemesterTemplateStep"
-import { useSeedState } from "./hooks/useSeedState"
+import { SchoolYearStep } from "./SchoolYearStep";
+import { ProgramStep } from "./ProgramStep";
+import { LevelStep } from "./LevelStep";
+import { SectionStep } from "./SectionStep";
+import { StrandStep } from "./StrandStep";
+import { CourseStep } from "./CourseStep";
+import { SubjectStep } from "./SubjectStep";
+import { GradingScaleStep } from "./GradingScaleStep";
+import { GradingSchemeStep } from "./GradingSchemeStep";
+import { SemesterTemplateStep } from "./SemesterTemplateStep";
+import { useSeedState } from "./hooks/useSeedState";
 import {
   COLLEGE_COURSES,
   LEVEL_DEFS,
@@ -35,38 +41,41 @@ import {
   SHS_STRANDS,
   SECTION_DEFAULTS,
   parseSubjectKey,
-} from "./constants/seed-data"
+} from "./constants/seed-data";
 
 interface PendingSchoolYear {
-  name:        string
-  start_date?: string
-  end_date?:   string
+  name: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 function isShortDurationError(err: unknown): boolean {
   return (
     isAxiosError(err) && err.response?.data?.error === "SHORT_DURATION_WARNING"
-  )
+  );
 }
 
 export function SeederCard() {
-  const queryClient = useQueryClient()
-  const [collapsed, setCollapsed] = useState(false)
-  const [pendingSchoolYear, setPendingSchoolYear] = useState<PendingSchoolYear | null>(null)
+  const queryClient = useQueryClient();
+  const [collapsed, setCollapsed] = useState(false);
+  const [pendingSchoolYear, setPendingSchoolYear] =
+    useState<PendingSchoolYear | null>(null);
 
   const { data: schoolYears = [], isLoading: syLoading } = useQuery({
     queryKey: ["admin", "school-years"],
-    queryFn:  schoolYearApi.getAll,
-  })
+    queryFn: schoolYearApi.getAll,
+  });
 
-  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null)
+  const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     if (schoolYears.length > 0 && !selectedSchoolYearId) {
-      const active = schoolYears.find((sy) => sy.status === "active")
-      if (active) setSelectedSchoolYearId(active.id)
+      const active = schoolYears.find((sy) => sy.status === "active");
+      if (active) setSelectedSchoolYearId(active.id);
     }
-  }, [schoolYears, selectedSchoolYearId])
+  }, [schoolYears, selectedSchoolYearId]);
 
   const createSchoolYearMutation = useMutation({
     mutationFn: ({
@@ -75,79 +84,89 @@ export function SeederCard() {
       end_date,
       confirm_short_duration,
     }: {
-      name:                   string
-      start_date?:            string
-      end_date?:              string
-      confirm_short_duration?: boolean
-    }) => schoolYearApi.create({ name, start_date, end_date, confirm_short_duration }),
+      name: string;
+      start_date?: string;
+      end_date?: string;
+      confirm_short_duration?: boolean;
+    }) =>
+      schoolYearApi.create({
+        name,
+        start_date,
+        end_date,
+        confirm_short_duration,
+      }),
     onSuccess: (result) => {
-      const created = (result as any).data ?? result
-      toast.success(`School year "${created.name}" created.`)
-      queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] })
-      setSelectedSchoolYearId(created.id)
-      setPendingSchoolYear(null)
+      const created = (result as any).data ?? result;
+      toast.success(`School year "${created.name}" created.`);
+      queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
+      setSelectedSchoolYearId(created.id);
+      setPendingSchoolYear(null);
     },
     onError: (err: unknown, variables) => {
       if (isShortDurationError(err)) {
         setPendingSchoolYear({
-          name:       variables.name,
+          name: variables.name,
           start_date: variables.start_date,
-          end_date:   variables.end_date,
-        })
-        return
+          end_date: variables.end_date,
+        });
+        return;
       }
-      toast.error("Failed to create school year.")
+      toast.error("Failed to create school year.");
     },
-  })
+  });
 
   function handleConfirmShortDuration() {
-    if (!pendingSchoolYear) return
+    if (!pendingSchoolYear) return;
     createSchoolYearMutation.mutate({
       ...pendingSchoolYear,
       confirm_short_duration: true,
-    })
+    });
   }
 
-  function handleCreateSchoolYear(name: string, start_date?: string, end_date?: string) {
-    createSchoolYearMutation.mutate({ name, start_date, end_date })
+  function handleCreateSchoolYear(
+    name: string,
+    start_date?: string,
+    end_date?: string,
+  ) {
+    createSchoolYearMutation.mutate({ name, start_date, end_date });
   }
 
   const { data: existingPrograms = [] } = useQuery({
     queryKey: ["admin", "programs", selectedSchoolYearId],
-    queryFn:  () => programApi.getAll(selectedSchoolYearId!),
-    enabled:  !!selectedSchoolYearId,
-  })
+    queryFn: () => programApi.getAll(selectedSchoolYearId!),
+    enabled: !!selectedSchoolYearId,
+  });
 
   const { data: existingCourses = [] } = useQuery({
     queryKey: ["admin", "courses", selectedSchoolYearId],
-    queryFn:  () => courseApi.getAll({ schoolYearId: selectedSchoolYearId! }),
-    enabled:  !!selectedSchoolYearId,
-  })
+    queryFn: () => courseApi.getAll({ schoolYearId: selectedSchoolYearId! }),
+    enabled: !!selectedSchoolYearId,
+  });
 
   const { data: existingStrands = [] } = useQuery({
     queryKey: ["admin", "strands", selectedSchoolYearId],
-    queryFn:  async () => {
+    queryFn: async () => {
       try {
-        const result = await strandApi.getAll()
-        return Array.isArray(result) ? result : []
+        const result = await strandApi.getAll();
+        return Array.isArray(result) ? result : [];
       } catch {
-        return []
+        return [];
       }
     },
     enabled: !!selectedSchoolYearId,
-  })
+  });
 
   const { data: existingLevels = [] } = useQuery({
     queryKey: ["admin", "levels", selectedSchoolYearId],
-    queryFn:  () => levelApi.getBySchoolYear(selectedSchoolYearId!),
-    enabled:  !!selectedSchoolYearId,
-  })
+    queryFn: () => levelApi.getBySchoolYear(selectedSchoolYearId!),
+    enabled: !!selectedSchoolYearId,
+  });
 
   const { data: existingSubjects = [] } = useQuery({
     queryKey: ["admin", "subjects", selectedSchoolYearId],
-    queryFn:  () => subjectApi.getAll({ schoolYearId: selectedSchoolYearId }),
-    enabled:  !!selectedSchoolYearId,
-  })
+    queryFn: () => subjectApi.getAll({ schoolYearId: selectedSchoolYearId }),
+    enabled: !!selectedSchoolYearId,
+  });
 
   const {
     selectedPrograms,
@@ -180,57 +199,101 @@ export function SeederCard() {
     deselectAll,
     sectionConfigs,
     setSectionsForLevel,
-  } = useSeedState()
+  } = useSeedState();
 
   const seedMutation = useMutation({
     mutationFn: organizationApi.seedOrg,
     onSuccess: () => {
-      toast.success("Seed completed! Your programs, levels, and subjects are ready.")
-      setCollapsed(true)
-      queryClient.invalidateQueries({ queryKey: ["admin", "programs"] })
-      queryClient.invalidateQueries({ queryKey: ["admin", "courses"] })
-      queryClient.invalidateQueries({ queryKey: ["admin", "strands"] })
-      queryClient.invalidateQueries({ queryKey: ["admin", "levels"] })
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] })
+      toast.success(
+        "Seed completed! Your programs, levels, and subjects are ready.",
+      );
+      setCollapsed(true);
+      queryClient.invalidateQueries({ queryKey: ["admin", "programs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "courses"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "strands"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "levels"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
     },
     onError: () => toast.error("Seed failed. Please try again."),
-  })
+  });
+
+  /**
+   * Build section configurations with proper scoping:
+   * - College: course|level
+   * - SHS: strand|level
+   * - Others: level
+   */
+  function buildSectionConfigsPayload(): Record<
+    string,
+    { name: string; capacity: number }[]
+  > {
+    const payload: Record<string, { name: string; capacity: number }[]> = {};
+
+    for (const prog of selectedPrograms) {
+      if (!LEVEL_DEFS[prog]) continue;
+
+      const levelNames = levelConfigs[prog]?.names ?? LEVEL_DEFS[prog];
+
+      // 🟢 COLLEGE → course scoped
+      if (prog === "college") {
+        for (const course of selectedCourses) {
+          for (const levelName of levelNames) {
+            const key = `${course}|${levelName}`;
+            payload[key] = sectionConfigs[levelName] ?? SECTION_DEFAULTS;
+          }
+        }
+      }
+
+      // 🟢 SHS → strand scoped
+      else if (prog === "shs") {
+        for (const strand of selectedStrands) {
+          for (const levelName of levelNames) {
+            const key = `${strand}|${levelName}`;
+            payload[key] = sectionConfigs[levelName] ?? SECTION_DEFAULTS;
+          }
+        }
+      }
+
+      // 🟢 OTHERS → normal
+      else {
+        for (const levelName of levelNames) {
+          payload[levelName] = sectionConfigs[levelName] ?? SECTION_DEFAULTS;
+        }
+      }
+    }
+
+    return payload;
+  }
 
   function handleSeed() {
     if (!selectedSchoolYearId) {
-      toast.error("Select or create a school year first.")
-      return
+      toast.error("Select or create a school year first.");
+      return;
     }
     if (selectedPrograms.size === 0) {
-      toast.error("Select at least one program.")
-      return
+      toast.error("Select at least one program.");
+      return;
     }
 
-    const excludedLevelSubjects: Record<string, string[]> = {}
+    const excludedLevelSubjects: Record<string, string[]> = {};
     allSelectableSubjects
       .filter((key) => !selectedSubjects.has(key))
       .forEach((key) => {
-        const { groupName, subjectName } = parseSubjectKey(key)
-        if (!groupName) return
-        if (!excludedLevelSubjects[groupName]) excludedLevelSubjects[groupName] = []
-        excludedLevelSubjects[groupName].push(subjectName)
-      })
+        const { groupName, subjectName } = parseSubjectKey(key);
+        if (!groupName) return;
+        if (!excludedLevelSubjects[groupName])
+          excludedLevelSubjects[groupName] = [];
+        excludedLevelSubjects[groupName].push(subjectName);
+      });
 
     const levelConfigsPayload = Object.fromEntries(
       Array.from(selectedPrograms)
         .filter((p) => LEVEL_DEFS[p])
         .map((p) => [p, levelConfigs[p]?.names ?? LEVEL_DEFS[p]]),
-    )
+    );
 
-    const sectionConfigsPayload = Object.fromEntries(
-      Array.from(selectedPrograms)
-        .filter((p) => LEVEL_DEFS[p])
-        .flatMap((p) => levelConfigs[p]?.names ?? LEVEL_DEFS[p] ?? [])
-        .map((levelName) => [
-          levelName,
-          sectionConfigs[levelName] ?? SECTION_DEFAULTS,
-        ]),
-    )
+    // 🔥 FIX: Build section configs with proper scoping
+    const sectionConfigsPayload = buildSectionConfigsPayload();
 
     const gradingScales = seedGradingScale
       ? Object.fromEntries(
@@ -239,88 +302,121 @@ export function SeederCard() {
             { presetKey: preset.key, name: preset.name, ranges: preset.ranges },
           ]),
         )
-      : undefined
-
+      : undefined;
+        console.log('sectionConfigs payload:', JSON.stringify(sectionConfigsPayload, null, 2))
     seedMutation.mutate({
       schoolYearId: selectedSchoolYearId,
-      programs:     Array.from(selectedPrograms),
-      courses:      selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
-      strands:      selectedPrograms.has("shs") ? Array.from(selectedStrands) : undefined,
-      levelConfigs: Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
+      programs: Array.from(selectedPrograms),
+      courses: selectedPrograms.has("college")
+        ? Array.from(selectedCourses)
+        : undefined,
+      strands: selectedPrograms.has("shs")
+        ? Array.from(selectedStrands)
+        : undefined,
+      levelConfigs:
+        Object.keys(levelConfigsPayload).length > 0
+          ? levelConfigsPayload
+          : undefined,
       sectionConfigs: sectionConfigsPayload,
-      excludedLevelSubjects: Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
+      excludedLevelSubjects:
+        Object.keys(excludedLevelSubjects).length > 0
+          ? excludedLevelSubjects
+          : undefined,
       gradingScales,
-    })
+    });
   }
 
-  const existingProgramTypes = new Set(existingPrograms.map((p) => p.type))
-  const existingCourseCodes = new Set(existingCourses.map((c) => c.code?.trim()).filter(Boolean))
-  const existingStrandNames = new Set(existingStrands.map((s) => s.name))
-  const existingLevelNames = new Set(existingLevels.map((l) => l.name))
-  const existingSubjectTitles = new Set(existingSubjects.map((s) => s.title))
+  const existingProgramTypes = new Set(existingPrograms.map((p) => p.type));
+  const existingCourseCodes = new Set(
+    existingCourses.map((c) => c.code?.trim()).filter(Boolean),
+  );
+  const existingStrandNames = new Set(existingStrands.map((s) => s.name));
+  const existingLevelNames = new Set(existingLevels.map((l) => l.name));
+  const existingSubjectTitles = new Set(existingSubjects.map((s) => s.title));
 
   const helpers = {
-    toggleProgram:      (key: string) => toggleSet(selectedPrograms, key, setSelectedPrograms),
-    selectAllPrograms:  () => selectAll(PROGRAMS.map((p) => p.key), setSelectedPrograms),
+    toggleProgram: (key: string) =>
+      toggleSet(selectedPrograms, key, setSelectedPrograms),
+    selectAllPrograms: () =>
+      selectAll(
+        PROGRAMS.map((p) => p.key),
+        setSelectedPrograms,
+      ),
     deselectAllPrograms: () => deselectAll(setSelectedPrograms),
-    toggleStrand:       (s: string) => toggleSet(selectedStrands, s, setSelectedStrands),
-    selectAllStrands:   () => selectAll(SHS_STRANDS, setSelectedStrands),
+    toggleStrand: (s: string) =>
+      toggleSet(selectedStrands, s, setSelectedStrands),
+    selectAllStrands: () => selectAll(SHS_STRANDS, setSelectedStrands),
     deselectAllStrands: () => deselectAll(setSelectedStrands),
-    toggleCourse:       (c: string) => toggleSet(selectedCourses, c, setSelectedCourses),
-    selectAllCourses:   () => selectAll(COLLEGE_COURSES.map((c) => c.code ?? ""), setSelectedCourses),
+    toggleCourse: (c: string) =>
+      toggleSet(selectedCourses, c, setSelectedCourses),
+    selectAllCourses: () =>
+      selectAll(
+        COLLEGE_COURSES.map((c) => c.code ?? ""),
+        setSelectedCourses,
+      ),
     deselectAllCourses: () => deselectAll(setSelectedCourses),
-    toggleSubject:      (key: string) => toggleSet(selectedSubjects, key, setSelectedSubjects),
-    selectAllForGroup:  (keys: string[]) => {
-      const n = new Set(selectedSubjects)
-      keys.forEach((k) => n.add(k))
-      setSelectedSubjects(n)
+    toggleSubject: (key: string) =>
+      toggleSet(selectedSubjects, key, setSelectedSubjects),
+    selectAllForGroup: (keys: string[]) => {
+      const n = new Set(selectedSubjects);
+      keys.forEach((k) => n.add(k));
+      setSelectedSubjects(n);
     },
     deselectAllForGroup: (keys: string[]) => {
-      const n = new Set(selectedSubjects)
-      keys.forEach((k) => n.delete(k))
-      setSelectedSubjects(n)
+      const n = new Set(selectedSubjects);
+      keys.forEach((k) => n.delete(k));
+      setSelectedSubjects(n);
     },
-  }
+  };
 
   const totalLevelCount = Array.from(selectedPrograms)
     .filter((p) => LEVEL_DEFS[p])
-    .reduce((sum, p) => sum + (levelConfigs[p]?.count ?? LEVEL_DEFS[p].length), 0)
+    .reduce(
+      (sum, p) => sum + (levelConfigs[p]?.count ?? LEVEL_DEFS[p].length),
+      0,
+    );
 
-  const totalSectionCount = Array.from(selectedPrograms)
-    .filter((p) => LEVEL_DEFS[p])
-    .flatMap((p) => levelConfigs[p]?.names ?? LEVEL_DEFS[p] ?? [])
-    .reduce((sum, lvl) => sum + (sectionConfigs[lvl]?.length ?? 2), 0)
+  // 🔥 FIX: Calculate total section count from properly scoped payload
+  const sectionConfigsPayload = buildSectionConfigsPayload();
+  const totalSectionCount = Object.values(sectionConfigsPayload).reduce(
+    (sum, sections) => sum + sections.length,
+    0,
+  );
 
   const selectedGradingSchemes = Array.from(selectedPrograms).filter(
-    (p) => gradingSchemesByProgram[p] !== false
-  ).length
+    (p) => gradingSchemesByProgram[p] !== false,
+  ).length;
   const selectedSemesterTemplates = Array.from(selectedPrograms).filter(
-    (p) => semesterTemplatesByProgram[p] !== false
-  ).length
+    (p) => semesterTemplatesByProgram[p] !== false,
+  ).length;
 
   const summaryText = !selectedSchoolYearId
     ? "Select a school year to begin."
     : selectedPrograms.size === 0
-    ? "Select at least one program."
-    : [
-        `${selectedPrograms.size} program(s)`,
-        totalLevelCount > 0 && `${totalLevelCount} level(s)`,
-        totalSectionCount > 0 && `${totalSectionCount} section(s)`,
-        selectedPrograms.has("college") && `${Array.from(selectedCourses).length} course(s)`,
-        selectedPrograms.has("shs") && `${Array.from(selectedStrands).length} strand(s)`,
-        `${allSelectableSubjects.filter((k) => selectedSubjects.has(k)).length} subject(s)`,
-        seedGradingScale && `${Object.keys(resolvedGradingScales).length} grading scale(s)`,
-        seedGradingSchemes && `${selectedGradingSchemes} grading scheme(s)`,
-        seedSemesterTemplates && `${selectedSemesterTemplates} semester template(s)`,
-      ]
-        .filter(Boolean)
-        .join(" · ")
+      ? "Select at least one program."
+      : [
+          `${selectedPrograms.size} program(s)`,
+          totalLevelCount > 0 && `${totalLevelCount} level(s)`,
+          totalSectionCount > 0 && `${totalSectionCount} section(s)`,
+          selectedPrograms.has("college") &&
+            `${Array.from(selectedCourses).length} course(s)`,
+          selectedPrograms.has("shs") &&
+            `${Array.from(selectedStrands).length} strand(s)`,
+          `${allSelectableSubjects.filter((k) => selectedSubjects.has(k)).length} subject(s)`,
+          seedGradingScale &&
+            `${Object.keys(resolvedGradingScales).length} grading scale(s)`,
+          seedGradingSchemes && `${selectedGradingSchemes} grading scheme(s)`,
+          seedSemesterTemplates &&
+            `${selectedSemesterTemplates} semester template(s)`,
+        ]
+          .filter(Boolean)
+          .join(" · ");
 
   const derivedSelectedLevels = new Set(
     Array.from(selectedPrograms)
       .filter((p) => LEVEL_DEFS[p])
       .flatMap((p) => levelConfigs[p]?.names ?? LEVEL_DEFS[p]),
-  )
+  );
 
   return (
     <>
@@ -346,8 +442,9 @@ export function SeederCard() {
         {!collapsed && (
           <div className="px-6 pb-6 space-y-5">
             <p className="text-sm text-muted-foreground -mt-1">
-              Seed your organization with programs, levels, subjects, grading scales, schemes, and semester templates.
-              Already-seeded items appear grayed out.
+              Seed your organization with programs, levels, subjects, grading
+              scales, schemes, and semester templates. Already-seeded items
+              appear grayed out.
             </p>
 
             <div className="space-y-2">
@@ -368,7 +465,9 @@ export function SeederCard() {
             <div
               className={cn(
                 "space-y-5 transition-opacity",
-                !selectedSchoolYearId ? "opacity-40 pointer-events-none select-none" : "",
+                !selectedSchoolYearId
+                  ? "opacity-40 pointer-events-none select-none"
+                  : "",
               )}
             >
               <ProgramStep
@@ -496,9 +595,9 @@ export function SeederCard() {
         isLoading={createSchoolYearMutation.isPending}
         onConfirm={handleConfirmShortDuration}
         onOpenChange={(o) => {
-          if (!o) setPendingSchoolYear(null)
+          if (!o) setPendingSchoolYear(null);
         }}
       />
     </>
-  )
+  );
 }

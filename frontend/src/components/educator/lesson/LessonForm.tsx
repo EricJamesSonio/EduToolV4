@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lesson } from "@/types/educator/lesson.types";
 import { CreateLessonRequest } from "@/api/educator/lesson.api";
 import type { WeekSlot } from "@/hooks/educator/useClassWeeks";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import { Loader2 } from "lucide-react";
 
 interface LessonFormProps {
@@ -42,35 +44,34 @@ export function LessonForm({
   const router = useRouter();
 
   const [title, setTitle] = useState(lesson?.title ?? "");
-  const [description, setDescription] = useState(lesson?.description ?? "");
-
-  // selectedSlot holds the full WeekSlot so we get both weekNumber and subIndex
-  const defaultSlot = availableWeeks[0] ?? { label: "1", value: 1 };
-  const [selectedSlotValue, setSelectedSlotValue] = useState<number>(
-    lesson?.weekNumber ?? defaultSlot.value
+  const [description, setDescription] = useState(
+    lesson?.description ?? ""
   );
-
   const [detail, setDetail] = useState(lesson?.detail ?? "");
+
+  const defaultSlot = availableWeeks[0];
+
+  const [selectedSlotValue, setSelectedSlotValue] = useState<number>(
+    lesson?.weekNumber ?? defaultSlot?.value ?? 1
+  );
 
   const wordCount = countWords(detail);
   const detailValid = wordCount >= MIN_DETAIL_WORDS;
+
   const formValid = title.trim().length > 0 && detailValid;
 
   const selectedSlot =
-    availableWeeks.find((w) => w.value === selectedSlotValue) ?? defaultSlot;
+    availableWeeks.find((w) => w.value === selectedSlotValue) ??
+    defaultSlot;
 
   async function handleSubmit(): Promise<void> {
-    if (!formValid) return;
-
-    // Derive weekNumber from the slot label (e.g. "1.2" → week 1, subIndex = slot.value)
-    const rawWeek = selectedSlot.label.split(".")[0];
-    const weekNumber = parseInt(rawWeek, 10);
+    if (!formValid || !selectedSlot) return;
 
     await onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
-      weekNumber,
-      subIndex: selectedSlot.value, // ← auto-derived, no manual input needed
+      weekNumber: selectedSlot.value,
+      subIndex: lesson?.subIndex ?? 1, // safe default (we improve later)
       detail: detail.trim(),
     });
   }
@@ -92,7 +93,9 @@ export function LessonForm({
 
       {/* Description */}
       <div className="space-y-1.5">
-        <Label htmlFor="description">Description (optional)</Label>
+        <Label htmlFor="description">
+          Description (optional)
+        </Label>
         <Input
           id="description"
           value={description}
@@ -104,19 +107,42 @@ export function LessonForm({
       {/* Week Assignment */}
       <div className="space-y-1.5">
         <Label>
-          Week Assignment <span className="text-destructive">*</span>
+          Week Assignment{" "}
+          <span className="text-destructive">*</span>
         </Label>
+
         <Select
           value={String(selectedSlotValue)}
-          onValueChange={(v) => setSelectedSlotValue(Number(v))}
+          onValueChange={(v) =>
+            setSelectedSlotValue(Number(v))
+          }
         >
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Select week" />
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Select week">
+              {selectedSlot && (
+                <div className="flex flex-col items-start">
+                  <span>Week {selectedSlot.value}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedSlot.termName} •{" "}
+                    {selectedSlot.semesterName}
+                  </span>
+                </div>
+              )}
+            </SelectValue>
           </SelectTrigger>
+
           <SelectContent>
             {availableWeeks.map((w) => (
-              <SelectItem key={w.value} value={String(w.value)}>
-                Week {w.label}
+              <SelectItem
+                key={w.value}
+                value={String(w.value)}
+              >
+                <div className="flex flex-col">
+                  <span>Week {w.value}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {w.termName} • {w.semesterName}
+                  </span>
+                </div>
               </SelectItem>
             ))}
           </SelectContent>
@@ -127,7 +153,8 @@ export function LessonForm({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <Label htmlFor="detail">
-            Lesson Detail <span className="text-destructive">*</span>
+            Lesson Detail{" "}
+            <span className="text-destructive">*</span>
           </Label>
           <span
             className={
@@ -139,26 +166,35 @@ export function LessonForm({
             {wordCount} / {MIN_DETAIL_WORDS} words min
           </span>
         </div>
+
         <Textarea
           id="detail"
           value={detail}
           onChange={(e) => setDetail(e.target.value)}
-          placeholder="Write detailed lesson content (minimum 10 words)..."
+          placeholder="Write detailed lesson content (minimum 5 words)..."
           rows={8}
         />
+
         {detail.length > 0 && !detailValid && (
           <p className="text-xs text-destructive">
-            At least {MIN_DETAIL_WORDS} words required for concept extraction.
+            At least {MIN_DETAIL_WORDS} words required for
+            concept extraction.
           </p>
         )}
       </div>
 
       {/* Actions */}
       <div className="flex gap-2 pt-1">
-        <Button onClick={handleSubmit} disabled={!formValid || isLoading}>
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <Button
+          onClick={handleSubmit}
+          disabled={!formValid || isLoading}
+        >
+          {isLoading && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          )}
           {lesson ? "Save Changes" : "Save Lesson"}
         </Button>
+
         <Button
           variant="outline"
           onClick={() => router.back()}

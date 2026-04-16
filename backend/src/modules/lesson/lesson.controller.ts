@@ -96,6 +96,16 @@ export class LessonController {
     return this.lessonService.getConcept(id, orgId, educatorId);
   }
 
+@Get('week-structure')
+@Roles('educator')
+getWeekStructure(
+  @Param('classId') classId: string,
+  @CurrentUser('org_id') orgId: string,
+  @CurrentUser('id') educatorId: string,
+) {
+  return this.lessonService.getWeekStructure(classId, orgId, educatorId);
+}
+
   // POST /classes/:classId/lessons/:id/re-extract
   @Post(':id/re-extract')
   @Roles('educator')

@@ -14,7 +14,7 @@ interface UseEnrichedLevelsReturn {
 }
 
 export function useEnrichedLevels(schoolYearId?: string | null): UseEnrichedLevelsReturn {
-  const enabled = schoolYearId !== null;
+  const enabled = !!schoolYearId;
 
   const { data: rawLevels = [], isLoading: levelsLoading } = useQuery({
     queryKey: ["admin", "levels", schoolYearId ?? "all"],
@@ -26,7 +26,10 @@ export function useEnrichedLevels(schoolYearId?: string | null): UseEnrichedLeve
 
   const { data: programs = [], isLoading: programsLoading } = useQuery({
     queryKey: ["admin", "programs", schoolYearId ?? "all"],
-    queryFn: () => programApi.getAll(schoolYearId!),
+    queryFn: () => {
+  if (!schoolYearId) return Promise.resolve([]);
+  return programApi.getAll(schoolYearId);
+},
     enabled,
   });
 

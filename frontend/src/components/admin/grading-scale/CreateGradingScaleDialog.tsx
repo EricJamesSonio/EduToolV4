@@ -40,7 +40,7 @@ const DEFAULT_RANGES: GradeRange[] = [
     isPassing: false,
   },
   {
-    minPercent: 74,
+    minPercent: 75,
     maxPercent: 100,
     gradeValue: "1.00",
     remark: "Excellent",

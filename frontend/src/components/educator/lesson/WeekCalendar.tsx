@@ -1,5 +1,3 @@
-// filepath: frontend/src/components/educator/lessons/WeekCalendar.tsx
-
 "use client";
 
 import { useState } from "react";
@@ -15,11 +13,15 @@ interface WeekCalendarProps {
 }
 
 export function WeekCalendar({
-  lessons,
+  lessons = [],
   classId,
   totalWeeks,
 }: WeekCalendarProps): React.JSX.Element {
-  const [openWeeks, setOpenWeeks] = useState<Set<number>>(new Set([1]));
+  const [openWeeks, setOpenWeeks] = useState<Set<number>>(
+    new Set([1])
+  );
+
+  const safeLessons = Array.isArray(lessons) ? lessons : [];
 
   function toggleWeek(week: number): void {
     setOpenWeeks((prev) => {
@@ -34,13 +36,18 @@ export function WeekCalendar({
   }
 
   const lessonsByWeek = new Map<number, Lesson[]>();
-  for (const lesson of lessons) {
+
+  for (const lesson of safeLessons) {
+    if (!lesson?.weekNumber) continue;
+
     const existing = lessonsByWeek.get(lesson.weekNumber) ?? [];
     lessonsByWeek.set(lesson.weekNumber, [...existing, lesson]);
   }
 
-  // Show all weeks 1..totalWeeks so educators can see empty weeks too
-  const weeks = Array.from({ length: totalWeeks }, (_, i) => i + 1);
+  const weeks = Array.from(
+    { length: totalWeeks ?? 1 },
+    (_, i) => i + 1
+  );
 
   return (
     <div className="space-y-2">
@@ -66,10 +73,13 @@ export function WeekCalendar({
                 )}
                 Week {week}
               </span>
+
               <span className="text-xs text-muted-foreground">
                 {weekLessons.length === 0
                   ? "No lessons"
-                  : `${weekLessons.length} lesson${weekLessons.length > 1 ? "s" : ""}`}
+                  : `${weekLessons.length} lesson${
+                      weekLessons.length > 1 ? "s" : ""
+                    }`}
               </span>
             </button>
 

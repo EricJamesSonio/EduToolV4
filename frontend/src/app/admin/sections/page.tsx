@@ -1,31 +1,37 @@
-// frontend/src/app/admin/sections/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+
 import { Plus, Search } from "lucide-react";
+
 import { useSections } from "@/hooks/admin/useSectionsHelper";
 import { useEnrichedLevels } from "@/hooks/admin/useEnrichedLevels";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
+
 import { SectionDialog } from "@/components/admin/section/SectionDialog";
 import { SectionTable } from "@/components/admin/section/SectionTable";
 import { SectionLevelFilter } from "@/components/admin/section/SectionLevelFilter";
 import { SectionEmptyState } from "@/components/admin/section/SectionEmptyState";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
+
 import { programApi } from "@/api/admin/program.api";
+
 import type { Section } from "@/types/admin/section.types";
 
 export default function SectionsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
-  const [createOpen, setCreateOpen]     = useState(false);
-  const [editTarget, setEditTarget]     = useState<Section | null>(null);
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Section | null>(null);
   const [schoolYearId, setSchoolYearId] = useState<string | null>(null);
-  const [search, setSearch]             = useState("");
+  const [search, setSearch] = useState("");
 
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
 
@@ -34,17 +40,17 @@ export default function SectionsPage(): React.JSX.Element {
       const active = schoolYears.find((sy) => sy.status === "active");
       setSchoolYearId(active?.id ?? schoolYears[0].id);
     }
-  }, [schoolYears]);
+  }, [schoolYears, schoolYearId]);
 
   const {
     sections,
     isLoading: sectionsLoading,
     filterProgramId,
     setFilterProgramId,
-    filterCourseId,       // ← add
-    setFilterCourseId,    // ← add
-    filterStrandId,       // ← add
-    setFilterStrandId,    // ← add
+    filterCourseId,
+    setFilterCourseId,
+    filterStrandId,
+    setFilterStrandId,
     filterLevelId,
     setFilterLevelId,
     deleteTarget,
@@ -52,26 +58,43 @@ export default function SectionsPage(): React.JSX.Element {
     deleteMutation,
   } = useSections(schoolYearId);
 
-  const { levels, grouped, levelMap, isLoading: levelsLoading } =
-    useEnrichedLevels(schoolYearId);
+  const {
+    levels,
+    grouped,
+    levelMap,
+    isLoading: levelsLoading,
+  } = useEnrichedLevels(schoolYearId);
 
   const { data: programs = [] } = useQuery({
-    queryKey: ["admin", "programs", schoolYearId],
-    queryFn:  () => programApi.getAll(schoolYearId!),
-    enabled:  !!schoolYearId,
+    queryKey: ["admin", "programs", schoolYearId ?? "all"], // ✅ consistent
+    queryFn: () => programApi.getAll(schoolYearId!),
+    enabled: !!schoolYearId,
   });
 
   const isLoading = sectionsLoading || levelsLoading;
 
   const filteredSections = sections.filter((s) => {
-    const matchesSearch  = s.name.toLowerCase().includes(search.toLowerCase());
-    const matchesProgram = filterProgramId === "all"
-      || levelMap[s.level_id]?.programId === filterProgramId;
+    const matchesSearch = s.name
+      .toLowerCase()
+      .includes(search.toLowerCase());
+
+    const matchesProgram =
+      filterProgramId === "all" ||
+      levelMap[s.level_id]?.programId === filterProgramId;
+
     return matchesSearch && matchesProgram;
   });
 
+  // 🔥 FIXED: full invalidation set
   function handleSaved(): void {
-    queryClient.invalidateQueries({ queryKey: ["admin", "sections", schoolYearId] });
+    const key = schoolYearId ?? "all";
+
+    queryClient.invalidateQueries({ queryKey: ["admin", "sections", key] });
+    queryClient.invalidateQueries({ queryKey: ["admin", "levels", key] });
+    queryClient.invalidateQueries({ queryKey: ["admin", "programs", key] });
+
+    // optional but safe
+    queryClient.invalidateQueries({ queryKey: ["admin", "enrichedLevels", key] });
   }
 
   return (
@@ -90,7 +113,6 @@ export default function SectionsPage(): React.JSX.Element {
         }
       />
 
-      {/* School Year Selector */}
       <SchoolYearSelector
         schoolYears={schoolYears}
         isLoading={syLoading}
@@ -105,7 +127,6 @@ export default function SectionsPage(): React.JSX.Element {
         }}
       />
 
-      {/* Search + Level filter */}
       {schoolYearId && !isLoading && (
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -119,6 +140,7 @@ export default function SectionsPage(): React.JSX.Element {
           </div>
 
           <SectionLevelFilter
+            schoolYearId={schoolYearId}
             programs={programs}
             filterProgramId={filterProgramId}
             onProgramChange={(id) => {
@@ -137,7 +159,6 @@ export default function SectionsPage(): React.JSX.Element {
         </div>
       )}
 
-      {/* Content */}
       {!schoolYearId && !syLoading ? (
         <SectionEmptyState
           noSchoolYear
@@ -156,29 +177,45 @@ export default function SectionsPage(): React.JSX.Element {
           onCreateClick={() => setCreateOpen(true)}
         />
       ) : (
-      <SectionTable
-        sections={filteredSections}
-        levelMap={levelMap}
-        programs={programs}
-        onEdit={setEditTarget}
-        onDelete={setDeleteTarget}
-      />
+        <SectionTable
+          sections={filteredSections}
+          levelMap={levelMap}
+          programs={programs}
+          onEdit={setEditTarget}
+          onDelete={setDeleteTarget}
+        />
       )}
 
-    {createOpen && schoolYearId && (
-      <SectionDialog
-        levels={levels}
-        programs={programs}
-        schoolYearId={schoolYearId}
-        defaultProgramId={filterProgramId !== "all" ? filterProgramId : undefined}
-        defaultCourseId={filterCourseId   !== "all" ? filterCourseId  : undefined}
-        defaultStrandId={filterStrandId   !== "all" ? filterStrandId  : undefined}
-        defaultLevelId={filterLevelId     !== "all" ? filterLevelId   : undefined}
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onSaved={handleSaved}
-      />
-    )}
+      {createOpen && schoolYearId && (
+        <SectionDialog
+          levels={levels}
+          programs={programs}
+          schoolYearId={schoolYearId}
+          defaultProgramId={
+            filterProgramId !== "all" ? filterProgramId : undefined
+          }
+          defaultCourseId={
+            filterCourseId !== "all" ? filterCourseId : undefined
+          }
+          defaultStrandId={
+            filterStrandId !== "all" ? filterStrandId : undefined
+          }
+          defaultLevelId={
+            filterLevelId !== "all" ? filterLevelId : undefined
+          }
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onSaved={() => {
+            handleSaved();
+
+            // 🔥 FULL RESET
+            setFilterLevelId("all");
+            setFilterCourseId("all");
+            setFilterStrandId("all");
+            setSearch("");
+          }}
+        />
+      )}
 
       {editTarget && (
         <SectionDialog
@@ -201,7 +238,9 @@ export default function SectionsPage(): React.JSX.Element {
           destructive
           isLoading={deleteMutation.isPending}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
-          onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+          onOpenChange={(o) => {
+            if (!o) setDeleteTarget(null);
+          }}
         />
       )}
     </div>

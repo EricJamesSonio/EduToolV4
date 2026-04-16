@@ -1,6 +1,8 @@
-// frontend/src/types/educator/lesson.types.ts
-
-export type ConceptBuildStatus = "none" | "building" | "ready" | "outdated";
+export type ConceptBuildStatus =
+  | "none"
+  | "building"
+  | "ready"
+  | "outdated";
 
 export interface ConceptSection {
   id: string;
@@ -24,8 +26,26 @@ export interface Lesson {
   description: string | null;
   detail: string;
   weekNumber: number;
-  subIndex: number;        // ← add this
+  subIndex: number;
   conceptBuild: LessonConcept | null;
   createdAt: string;
   updatedAt: string;
 }
+
+/**
+ * Derived from backend week-structure
+ */
+export type WeekSlot = {
+  label: string;
+  value: number;
+  termName: string;
+  semesterName: string;
+  semesterIndex: number;
+};
+
+/**
+ * Optional enriched type for UI usage
+ */
+export type LessonWithWeekMeta = Lesson & {
+  weekMeta?: WeekSlot;
+};

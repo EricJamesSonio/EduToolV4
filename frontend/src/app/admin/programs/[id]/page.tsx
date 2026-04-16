@@ -116,12 +116,12 @@ export default function ProgramDetailPage({
     />
   )}
   {showStrands && (
-    <StrandsSection
-      programId={id}
-      schoolYearId={schoolYearId}
-      strands={program.strands ?? []}
-      isEnded={false}
-    />
+  <StrandsSection
+    program={program}
+    schoolYearId={schoolYearId}
+    strands={program.strands ?? []}
+    isEnded={false}
+  />
   )}
 
       {!showCourses && !showStrands && (
