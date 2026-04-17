@@ -1,18 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 
 import { Lock, Plus, Save, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { GradingSchemeComponentRow } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
@@ -26,10 +18,7 @@ import {
 
 import { cn } from "@/lib/utils";
 
-import type {
-  GradingSchemeComponentDto,
-} from "@/types/admin/grading-scheme.types";
-
+import type { GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
 import type { AxiosError } from "axios";
 
 interface ClassGradingSchemeEditorProps {
@@ -47,61 +36,86 @@ const DEFAULT_ROW = (): GradingSchemeComponentDto => ({
 export function ClassGradingSchemeEditor({
   classId,
 }: ClassGradingSchemeEditorProps) {
+  // ================= DATA =================
   const { data: scheme, isLoading } = useClassGradingScheme(classId);
 
   const createMutation = useCreateGradingScheme();
   const updateMutation = useUpdateGradingScheme();
 
+  // ================= STATE =================
   const [rows, setRows] = useState<GradingSchemeComponentDto[]>([]);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
   const [showLibrary, setShowLibrary] = useState(false);
 
-  useEffect(() => {
-    if (scheme) {
-      setRows(
-        (scheme.components ?? []).map((c) => ({
-          name: c.name,
-          type: c.type,
-          weight: c.weight,
-          isOptional: c.isOptional,
-          maxScore: c.maxScore ?? null,
-        }))
-      );
-    }
+  // ================= SAFE COMPONENTS =================
+  const components = useMemo(() => {
+    return scheme?.components ?? [];
   }, [scheme]);
 
-  // backend-aligned validation rule
-  const totalWeight = rows
-    .filter((r) => !r.isOptional)
-    .reduce((sum, r) => sum + (Number(r.weight) || 0), 0);
+  // ================= SYNC FROM BACKEND (CRASH SAFE) =================
+  useEffect(() => {
+    if (!scheme) return;
 
+    setRows(
+      (scheme.components ?? []).map((c) => ({
+        name: c.name,
+        type: c.type,
+        weight: c.weight,
+        isOptional: c.isOptional,
+        maxScore: c.maxScore ?? undefined,
+      }))
+    );
+  }, [scheme]);
+
+  // ================= TOTAL WEIGHT =================
+  const totalWeight = useMemo(() => {
+    return components
+      .filter((r) => !r.isOptional)
+      .reduce((sum, r) => sum + (Number(r.weight) || 0), 0);
+  }, [components]);
+
+  // NOTE: UI should reflect current editable rows, not stale backend
+  const currentTotalWeight = useMemo(() => {
+    return rows
+      .filter((r) => !r.isOptional)
+      .reduce((sum, r) => sum + (Number(r.weight) || 0), 0);
+  }, [rows]);
+
+  // ================= FLAGS =================
   const isLocked = scheme?.isLocked ?? false;
 
   const isBusy =
     createMutation.isPending || updateMutation.isPending;
 
   const canSave =
-    !isLocked && totalWeight === 100 && rows.length > 0 && !isBusy;
+    !isLocked &&
+    currentTotalWeight === 100 &&
+    rows.length > 0 &&
+    !isBusy;
 
+  // ================= HANDLERS =================
   const handleChange = (
     index: number,
     field: keyof GradingSchemeComponentDto,
     value: string | number | boolean
   ) => {
     setRows((prev) =>
-      prev.map((r, i) => (i === index ? { ...r, [field]: value } : r))
+      prev.map((r, i) =>
+        i === index ? { ...r, [field]: value } : r
+      )
     );
   };
 
-  const handleAdd = () =>
-    setRows((prev) => [
-      ...prev,
-      DEFAULT_ROW(),
-    ]);
+  const handleAdd = () => {
+    setRows((prev) => [...prev, DEFAULT_ROW()]);
+  };
 
   const handleDeleteConfirm = () => {
     if (deleteIndex === null) return;
-    setRows((prev) => prev.filter((_, i) => i !== deleteIndex));
+
+    setRows((prev) =>
+      prev.filter((_, i) => i !== deleteIndex)
+    );
     setDeleteIndex(null);
   };
 
@@ -111,7 +125,7 @@ export function ClassGradingSchemeEditor({
     setRows(
       components.map((c) => ({
         ...c,
-        maxScore: c.maxScore ?? null,
+        maxScore: c.maxScore ?? undefined,
       }))
     );
 
@@ -120,13 +134,14 @@ export function ClassGradingSchemeEditor({
 
   const handleError = (err: unknown) => {
     const axiosErr = err as AxiosError<{ message: string }>;
+
     toast.error(
       axiosErr?.response?.data?.message ||
         "Something went wrong."
     );
   };
 
-  // ================= SAVE =================
+  // ================= SAVE (FIXED PAYLOAD) =================
   const handleSave = () => {
     if (!rows.length) return;
 
@@ -160,6 +175,7 @@ export function ClassGradingSchemeEditor({
     }
   };
 
+  // ================= LOADING =================
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -173,9 +189,9 @@ export function ClassGradingSchemeEditor({
     );
   }
 
+  // ================= UI =================
   return (
     <div className="space-y-6">
-
       {/* LOCK */}
       {isLocked && (
         <div className="flex items-center gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
@@ -217,7 +233,11 @@ export function ClassGradingSchemeEditor({
 
       {/* ADD */}
       {!isLocked && (
-        <Button onClick={handleAdd} size="sm" variant="outline">
+        <Button
+          onClick={handleAdd}
+          size="sm"
+          variant="outline"
+        >
           <Plus className="h-4 w-4" />
           Add Category
         </Button>
@@ -227,12 +247,12 @@ export function ClassGradingSchemeEditor({
       <div className="flex justify-between border-t pt-4">
         <span
           className={cn(
-            totalWeight === 100
+            currentTotalWeight === 100
               ? "text-green-600"
               : "text-destructive"
           )}
         >
-          {totalWeight}% / 100%
+          {currentTotalWeight}% / 100%
         </span>
 
         <Button disabled={!canSave} onClick={handleSave}>

@@ -23,9 +23,9 @@ export function GradingSchemeTemplateCard({
   onDelete,
   onApplyToClass,
 }: GradingSchemeTemplateCardProps) {
-  const components = Array.isArray(scheme.components)
-    ? scheme.components
-    : [];
+const components = Array.isArray(scheme?.components)
+  ? scheme.components
+  : [];
 
   const totalWeight = components
     .filter((c) => !c.isOptional)
