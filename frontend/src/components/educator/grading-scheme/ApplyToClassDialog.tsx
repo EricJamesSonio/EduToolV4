@@ -121,10 +121,11 @@ export function ApplyToClassDialog({
           }))
         : [];
 
-      await educatorGradingSchemeApi.saveForClass(selectedClassId, {
-        name: scheme.name,
-        components,
-      });
+await educatorGradingSchemeApi.applyTemplateToClass({
+  classId: selectedClassId,
+  templateId: scheme.templateId ?? scheme.id, // depends if it's template or scheme
+  name: scheme.name,
+});
 
       queryClient.invalidateQueries({
         queryKey: ["grading-scheme", "class", selectedClassId],

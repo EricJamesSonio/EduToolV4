@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+
 import { Lock, Plus, Save, RotateCcw, Library, BookMarked } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,9 +19,8 @@ import { GradingSchemeComponentRow } from "@/components/admin/grading-scheme/Gra
 import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
 import {
   useClassGradingScheme,
-  useDefaultGradingScheme,
-  useSaveClassGradingScheme,
   useCreateGradingScheme,
+  useUpdateGradingScheme,
 } from "@/hooks/educator/useGradingSchemes";
 import { cn } from "@/lib/utils";
 import type { GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
@@ -38,8 +38,10 @@ const DEFAULT_ROW = (): GradingSchemeComponentDto => ({
 });
 
 export function ClassGradingSchemeEditor({ classId }: ClassGradingSchemeEditorProps) {
-  const { data: scheme, isLoading }       = useClassGradingScheme(classId);
-  const { data: defaultScheme }           = useDefaultGradingScheme();
+const { data: scheme, isLoading } = useClassGradingScheme(classId);
+
+const createMutation = useCreateGradingScheme();
+const updateMutation = useUpdateGradingScheme();
   const saveMutation                      = useSaveClassGradingScheme(classId);
   const createTemplateMutation            = useCreateGradingScheme();
 
@@ -132,19 +134,38 @@ export function ClassGradingSchemeEditor({ classId }: ClassGradingSchemeEditorPr
     );
   };
 
-  // Save class-scoped scheme
-  const handleSave = () => {
-    saveMutation.mutate(
-      { components: rows },
+const handleSave = () => {
+  if (!rows.length) return;
+
+  const payload = {
+    name: scheme?.name ?? "Class Grading Scheme",
+    classId,
+    components: rows,
+  };
+
+  if (scheme) {
+    // UPDATE
+    updateMutation.mutate(
       {
-        onSuccess: () => toast.success("Grading scheme saved."),
-        onError: (err: unknown) => {
-          const axiosErr = err as AxiosError<{ message: string }>;
-          toast.error(axiosErr?.response?.data?.message ?? "Failed to save grading scheme.");
+        id: scheme.id,
+        data: {
+          name: payload.name,
+          components: payload.components,
         },
+      },
+      {
+        onSuccess: () => toast.success("Grading scheme updated."),
+        onError: handleError,
       }
     );
-  };
+  } else {
+    // CREATE
+    createMutation.mutate(payload, {
+      onSuccess: () => toast.success("Grading scheme created."),
+      onError: handleError,
+    });
+  }
+};
 
   if (isLoading) {
     return (
