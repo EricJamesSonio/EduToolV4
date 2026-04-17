@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import {
   ClassController,
   StudentClassController,
@@ -11,7 +11,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
 import { AttendanceModule } from '../attendance/attendance.module';
 
 @Module({
-  imports: [EnrollmentModule, AuditLogModule, AttendanceModule],
+  imports: [EnrollmentModule, AuditLogModule, forwardRef(() => AttendanceModule)],
   controllers: [
     ClassController,
     StudentClassController,
