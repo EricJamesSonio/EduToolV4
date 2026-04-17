@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { useGradingSchemeLibrary } from "@/hooks/educator/useGradingSchemes";
+//import { useGradingSchemeLibrary } from "@/hooks/educator/useGradingSchemes";
 import type { GradingScheme, GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
 
 interface ImportFromLibraryDialogProps {

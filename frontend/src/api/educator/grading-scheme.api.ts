@@ -8,9 +8,6 @@ import type {
 } from '@/types/admin/grading-scheme.types'
 
 export const educatorGradingSchemeApi = {
-  /**
-   * Get grading scheme for a specific class
-   */
   getForClass: async (classId: string): Promise<GradingScheme | null> => {
     try {
       const res = await client.get<GradingScheme>(
