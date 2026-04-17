@@ -13,10 +13,8 @@ export interface ConceptSection {
 export interface LessonConcept {
   id: string;
   lessonId: string;
-  status: ConceptBuildStatus;
-  sections: ConceptSection[];
-  totalItems: number;
-  builtAt: string | null;
+  content: any;
+  createdAt: string;
 }
 
 export interface Lesson {
@@ -24,12 +22,13 @@ export interface Lesson {
   classId: string;
   title: string;
   description: string | null;
-  detail: string;
+  detail: string | null;
   weekNumber: number;
   subIndex: number;
-  conceptBuild: LessonConcept | null;
+
+  concept?: any | null; // backend returns raw LessonConcept JSON
+
   createdAt: string;
-  updatedAt: string;
 }
 
 /**
@@ -38,11 +37,14 @@ export interface Lesson {
 export type WeekSlot = {
   label: string;
   value: number;
+  globalWeek: number;
+  termWeek: number;
+  semesterWeek: number;
   termName: string;
   semesterName: string;
   semesterIndex: number;
+  date: string;
 };
-
 /**
  * Optional enriched type for UI usage
  */

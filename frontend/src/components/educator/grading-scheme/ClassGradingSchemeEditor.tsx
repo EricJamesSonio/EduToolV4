@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Lock, Plus, Save, RotateCcw, Library, BookMarked } from "lucide-react";
+
+import { Lock, Plus, Save, Library, BookMarked } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,12 +17,13 @@ import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { GradingSchemeComponentRow } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
 import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
+
 import {
   useClassGradingScheme,
-  useDefaultGradingScheme,
-  useSaveClassGradingScheme,
   useCreateGradingScheme,
+  useUpdateGradingScheme,
 } from "@/hooks/educator/useGradingSchemes";
+
 import { cn } from "@/lib/utils";
 import type { GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
 import type { AxiosError } from "axios";
@@ -31,50 +33,61 @@ interface ClassGradingSchemeEditorProps {
 }
 
 const DEFAULT_ROW = (): GradingSchemeComponentDto => ({
-  name:       "",
-  type:       "quiz",
-  weight:     0,
+  name: "",
+  type: "written_work", // ✅ better default
+  weight: 0,
   isOptional: false,
 });
 
-export function ClassGradingSchemeEditor({ classId }: ClassGradingSchemeEditorProps) {
-  const { data: scheme, isLoading }       = useClassGradingScheme(classId);
-  const { data: defaultScheme }           = useDefaultGradingScheme();
-  const saveMutation                      = useSaveClassGradingScheme(classId);
-  const createTemplateMutation            = useCreateGradingScheme();
+export function ClassGradingSchemeEditor({
+  classId,
+}: ClassGradingSchemeEditorProps) {
+  const { data: scheme, isLoading } = useClassGradingScheme(classId);
 
-  const [rows, setRows]                         = useState<GradingSchemeComponentDto[]>([]);
-  const [deleteIndex, setDeleteIndex]           = useState<number | null>(null);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showLibrary, setShowLibrary]           = useState(false);
+  const createMutation = useCreateGradingScheme();
+  const updateMutation = useUpdateGradingScheme();
+
+  const [rows, setRows] = useState<GradingSchemeComponentDto[]>([]);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
+  const [showLibrary, setShowLibrary] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
-  const [templateName, setTemplateName]         = useState("");
+  const [templateName, setTemplateName] = useState("");
 
   useEffect(() => {
     if (scheme) {
       setRows(
         (scheme.components ?? []).map((c) => ({
-          name:       c.name,
-          type:       c.type,
-          weight:     c.weight,
+          name: c.name,
+          type: c.type,
+          weight: c.weight,
           isOptional: c.isOptional,
-          maxScore:   c.maxScore ?? undefined,
+          maxScore: c.maxScore ?? undefined,
         }))
       );
     }
   }, [scheme]);
 
-  const totalWeight = rows.reduce((sum, r) => sum + (Number(r.weight) || 0), 0);
-  const isLocked    = scheme?.isLocked ?? false;
-  const isBusy      = saveMutation.isPending || createTemplateMutation.isPending;
-  const canSave     = !isLocked && totalWeight === 100 && rows.length > 0 && !isBusy;
+  // ✅ FIXED: only required components count
+  const totalWeight = rows
+    .filter((r) => !r.isOptional)
+    .reduce((sum, r) => sum + (Number(r.weight) || 0), 0);
+
+  const isLocked = scheme?.isLocked ?? false;
+
+  const isBusy =
+    createMutation.isPending || updateMutation.isPending;
+
+  const canSave =
+    !isLocked && totalWeight === 100 && rows.length > 0 && !isBusy;
 
   const handleChange = (
     index: number,
     field: keyof GradingSchemeComponentDto,
     value: string | number | boolean
   ) => {
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+    setRows((prev) =>
+      prev.map((r, i) => (i === index ? { ...r, [field]: value } : r))
+    );
   };
 
   const handleAdd = () => setRows((prev) => [...prev, DEFAULT_ROW()]);
@@ -85,63 +98,71 @@ export function ClassGradingSchemeEditor({ classId }: ClassGradingSchemeEditorPr
     setDeleteIndex(null);
   };
 
-  // Use Admin Default — reset rows to org default components
-  const handleResetToDefault = () => {
-    if (!defaultScheme) return;
-    const components = Array.isArray(defaultScheme.components) ? defaultScheme.components : [];
-    if (components.length === 0) {
-      toast.error("Admin default has no components configured yet.");
-      setShowResetConfirm(false);
-      return;
-    }
-    setRows(
-      components.map((c) => ({
-        name:       c.name,
-        type:       c.type,
-        weight:     c.weight,
-        isOptional: c.isOptional,
-        maxScore:   c.maxScore ?? undefined,
-      }))
-    );
-    setShowResetConfirm(false);
-    toast.info("Reset to admin default. Save to apply.");
-  };
-
-  // Import from Library — receives components from the picker
-  const handleImport = (components: GradingSchemeComponentDto[], schemeName: string) => {
+  const handleImport = (
+    components: GradingSchemeComponentDto[],
+    schemeName: string
+  ) => {
     setRows(components);
     toast.info(`Imported "${schemeName}". Save to apply.`);
   };
 
-  // Save as New Template
-  const handleSaveTemplate = () => {
-    if (!templateName.trim()) return;
-    createTemplateMutation.mutate(
-      { name: templateName.trim(), components: rows },
-      {
-        onSuccess: () => {
-          toast.success(`"${templateName.trim()}" saved to your library.`);
-          setShowSaveTemplate(false);
-          setTemplateName("");
-        },
-        onError: (err: unknown) => {
-          const axiosErr = err as AxiosError<{ message: string }>;
-          toast.error(axiosErr?.response?.data?.message ?? "Failed to save template.");
-        },
-      }
+  const handleError = (err: unknown) => {
+    const axiosErr = err as AxiosError<{ message: string }>;
+    toast.error(
+      axiosErr?.response?.data?.message ||
+        "Something went wrong."
     );
   };
 
-  // Save class-scoped scheme
+  // ✅ FIXED: create vs update
   const handleSave = () => {
-    saveMutation.mutate(
-      { components: rows },
-      {
-        onSuccess: () => toast.success("Grading scheme saved."),
-        onError: (err: unknown) => {
-          const axiosErr = err as AxiosError<{ message: string }>;
-          toast.error(axiosErr?.response?.data?.message ?? "Failed to save grading scheme.");
+    if (!rows.length) return;
+
+    const payload = {
+      name: scheme?.name ?? "Class Grading Scheme",
+      classId,
+      components: rows,
+    };
+
+    if (scheme) {
+      updateMutation.mutate(
+        {
+          id: scheme.id,
+          data: {
+            name: payload.name,
+            components: payload.components,
+          },
         },
+        {
+          onSuccess: () => toast.success("Grading scheme updated."),
+          onError: handleError,
+        }
+      );
+    } else {
+      createMutation.mutate(payload, {
+        onSuccess: () => toast.success("Grading scheme created."),
+        onError: handleError,
+      });
+    }
+  };
+
+  // ⚠️ TEMP: still uses gradingScheme API (replace later with template API)
+  const handleSaveTemplate = () => {
+    if (!templateName.trim()) return;
+
+    createMutation.mutate(
+      {
+        name: templateName.trim(),
+        classId, // ⚠️ not ideal, but temporary
+        components: rows,
+      },
+      {
+        onSuccess: () => {
+          toast.success(`"${templateName}" saved (temporary).`);
+          setShowSaveTemplate(false);
+          setTemplateName("");
+        },
+        onError: handleError,
       }
     );
   };
@@ -150,7 +171,10 @@ export function ClassGradingSchemeEditor({ classId }: ClassGradingSchemeEditorPr
     return (
       <div className="space-y-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-10 w-full animate-pulse rounded-md bg-muted" />
+          <div
+            key={i}
+            className="h-10 w-full animate-pulse rounded-md bg-muted"
+          />
         ))}
       </div>
     );
@@ -158,40 +182,29 @@ export function ClassGradingSchemeEditor({ classId }: ClassGradingSchemeEditorPr
 
   return (
     <div className="space-y-6">
-      {/* Lock banner */}
+      {/* LOCK */}
       {isLocked && (
         <div className="flex items-center gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
-          <Lock className="h-4 w-4 shrink-0" />
+          <Lock className="h-4 w-4" />
           <span>
-            <strong>Locked</strong> — this grading scheme is locked because students are
-            enrolled in this class. Remove all enrolled students to make changes.
+            <strong>Locked</strong> — cannot edit this scheme.
           </span>
         </div>
       )}
 
-      {/* Action buttons */}
+      {/* ACTIONS */}
       {!isLocked && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowResetConfirm(true)}
-            disabled={isBusy || !defaultScheme}
-            className="gap-1.5"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Use Admin Default
-          </Button>
+        <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
             variant="outline"
             onClick={() => setShowLibrary(true)}
             disabled={isBusy}
-            className="gap-1.5"
           >
             <Library className="h-4 w-4" />
             Import from Library
           </Button>
+
           <Button
             size="sm"
             variant="outline"
@@ -199,32 +212,15 @@ export function ClassGradingSchemeEditor({ classId }: ClassGradingSchemeEditorPr
               setTemplateName("");
               setShowSaveTemplate(true);
             }}
-            disabled={isBusy || totalWeight !== 100 || rows.length === 0}
-            className="gap-1.5"
+            disabled={isBusy || totalWeight !== 100}
           >
             <BookMarked className="h-4 w-4" />
-            Save as New Template
+            Save as Template
           </Button>
         </div>
       )}
 
-      {/* Column headers */}
-      {rows.length > 0 && (
-        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-0.5">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Category Name
-          </span>
-          <span className="w-[140px] text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Type
-          </span>
-          <span className="w-[96px] text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Weight
-          </span>
-          <span className="w-8" />
-        </div>
-      )}
-
-      {/* Rows */}
+      {/* ROWS */}
       <div className="space-y-3">
         {rows.map((row, i) => (
           <GradingSchemeComponentRow
@@ -233,122 +229,67 @@ export function ClassGradingSchemeEditor({ classId }: ClassGradingSchemeEditorPr
             row={row}
             disabled={isLocked || isBusy}
             onChange={handleChange}
-            onDelete={(idx) => setDeleteIndex(idx)}
+            onDelete={setDeleteIndex}
           />
         ))}
-        {rows.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed py-10 text-center">
-            <p className="text-sm font-medium text-muted-foreground">
-              No grading scheme configured yet
-            </p>
-            <p className="text-xs text-muted-foreground max-w-xs">
-              Use <strong>Use Admin Default</strong>, <strong>Import from Library</strong>,
-              or click <strong>Add Category</strong> to get started.
-            </p>
-          </div>
-        )}
       </div>
 
-      {/* Add row */}
+      {/* ADD */}
       {!isLocked && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleAdd}
-          disabled={isBusy}
-          className="gap-1.5"
-        >
+        <Button onClick={handleAdd} size="sm" variant="outline">
           <Plus className="h-4 w-4" />
           Add Category
         </Button>
       )}
 
-      {/* Total weight + save */}
-      <div className="flex items-center justify-between border-t pt-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Total:</span>
-          <span
-            className={cn(
-              "text-sm font-semibold tabular-nums",
-              totalWeight === 100 ? "text-green-600" : "text-destructive"
-            )}
-          >
-            {totalWeight}% / 100%
-          </span>
-          {rows.length > 0 && totalWeight !== 100 && (
-            <span className="text-xs text-muted-foreground">(must equal 100% to save)</span>
+      {/* FOOTER */}
+      <div className="flex justify-between border-t pt-4">
+        <span
+          className={cn(
+            totalWeight === 100 ? "text-green-600" : "text-destructive"
           )}
-        </div>
-        <Button size="sm" disabled={!canSave} onClick={handleSave} className="gap-1.5">
+        >
+          {totalWeight}% / 100%
+        </span>
+
+        <Button disabled={!canSave} onClick={handleSave}>
           <Save className="h-4 w-4" />
-          {saveMutation.isPending ? "Saving..." : "Save Grading Scheme"}
+          Save
         </Button>
       </div>
 
-      {/* Delete confirm */}
+      {/* DELETE */}
       <ConfirmDialog
         open={deleteIndex !== null}
-        onOpenChange={(o) => { if (!o) setDeleteIndex(null); }}
-        title="Remove this component?"
-        message={
-          deleteIndex !== null && rows[deleteIndex]
-            ? `Remove "${rows[deleteIndex].name || "this component"}" from the scheme?`
-            : "Remove this component?"
-        }
-        confirmLabel="Remove"
-        destructive
+        onOpenChange={() => setDeleteIndex(null)}
+        title="Remove component?"
         onConfirm={handleDeleteConfirm}
       />
 
-      {/* Reset to admin default confirm */}
-      <ConfirmDialog
-        open={showResetConfirm}
-        onOpenChange={setShowResetConfirm}
-        title="Reset to admin default?"
-        message="This will replace the current components with the organisation's default grading scheme. You'll need to save for it to take effect."
-        confirmLabel="Reset"
-        destructive
-        onConfirm={handleResetToDefault}
-      />
-
-      {/* Import from Library */}
+      {/* IMPORT */}
       <ImportFromLibraryDialog
         open={showLibrary}
         onOpenChange={setShowLibrary}
         onImport={handleImport}
       />
 
-      {/* Save as New Template dialog */}
+      {/* SAVE TEMPLATE */}
       <Dialog open={showSaveTemplate} onOpenChange={setShowSaveTemplate}>
-        <DialogContent className="max-w-sm">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BookMarked className="h-4 w-4" />
-              Save as New Template
-            </DialogTitle>
+            <DialogTitle>Save Template</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="template-name">Template name</Label>
-            <Input
-              id="template-name"
-              placeholder="e.g. Standard Semester Scheme"
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSaveTemplate();
-              }}
-            />
-          </div>
+
+          <Input
+            value={templateName}
+            onChange={(e) => setTemplateName(e.target.value)}
+          />
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSaveTemplate(false)}>
+            <Button onClick={() => setShowSaveTemplate(false)}>
               Cancel
             </Button>
-            <Button
-              disabled={!templateName.trim() || createTemplateMutation.isPending}
-              onClick={handleSaveTemplate}
-            >
-              {createTemplateMutation.isPending ? "Saving..." : "Save"}
-            </Button>
+            <Button onClick={handleSaveTemplate}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

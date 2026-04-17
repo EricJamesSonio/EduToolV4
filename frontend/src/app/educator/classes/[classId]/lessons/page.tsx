@@ -51,11 +51,12 @@ export default function LessonsPage(): React.JSX.Element {
           Loading lessons...
         </div>
       ) : (
-        <WeekCalendar
-          lessons={lessons}
-          classId={classId}
-          totalWeeks={totalWeeks}
-        />
+<WeekCalendar
+  lessons={lessons}
+  classId={classId}
+  totalWeeks={totalWeeks}
+  weeks={weeks}
+/>
       )}
     </div>
   );

@@ -566,6 +566,7 @@ model Lesson {
   week_number Int
   sub_index   Int
   created_at  DateTime @default(now())
+  @@unique([class_id, week_number, sub_index])
 }
 
 model LessonConcept {

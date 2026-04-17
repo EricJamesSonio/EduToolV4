@@ -1,4 +1,16 @@
-export type ComponentType = 'quiz' | 'activity' | 'exam' | 'custom' | 'manual'
+export type ComponentType =
+  | 'written_work'
+  | 'performance_task'
+  | 'quarterly_assessment'
+  | 'exam'
+  | 'quiz'
+  | 'project'
+  | 'recitation'
+  | 'attendance'
+  | 'activity'
+  | 'custom'
+  | 'manual'
+  | 'other'
 
 export interface GradingSchemeComponent {
   id: string

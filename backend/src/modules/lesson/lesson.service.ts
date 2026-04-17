@@ -12,8 +12,9 @@ import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
 import { SemesterTemplateRepository } from '../semester-template/semester-template.repository';
 import { AiService } from '@/core/ai/ai.service';
+import { AttendanceRepository } from '../attendance/attendance.repository';
 
-const MIN_DETAIL_WORDS = 5;
+const MIN_DETAIL_WORDS = 10;
 
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
@@ -29,6 +30,7 @@ export class LessonService {
     private readonly notificationService: NotificationService,
     private readonly aiService: AiService,
     private readonly semesterTemplateRepo: SemesterTemplateRepository,
+    private readonly attendanceRepo: AttendanceRepository, 
   ) {}
 
   async create(
@@ -141,12 +143,13 @@ export class LessonService {
       }
     }
 
-    const updated = await this.lessonRepo.update(id, {
-      title: dto.title,
-      description: dto.description,
-      weekNumber: dto.weekNumber,
-      subIndex: dto.subIndex,
-    });
+  const updated = await this.lessonRepo.update(id, {
+    title: dto.title,
+    description: dto.description,
+    detail: dto.detail,
+    weekNumber: dto.weekNumber,
+    subIndex: dto.subIndex,
+  });
 
     await this.auditLog.logActivityEvent({
       orgId,
@@ -171,7 +174,7 @@ export class LessonService {
     await this.auditLog.logActivityEvent({
       orgId,
       actorId: educatorId,
-      action: 'lesson_updated',
+      action: 'lesson_deleted',
       entityType: 'class',
       entityId: lesson.class_id,
       metadata: { lessonId: id, action: 'deleted' },
@@ -245,32 +248,53 @@ export class LessonService {
     return lesson;
   }
 
-async getWeekStructure(classId: string, orgId: string, educatorId: string) {
+async getWeekStructure(
+  classId: string,
+  orgId: string,
+  educatorId: string,
+) {
   const cls = await this.classRepo.findById(classId, orgId);
   if (!cls) throw new NotFoundException('Class not found.');
+
   if (cls.educator_id !== educatorId) {
     throw new ForbiddenException('You do not own this class.');
   }
+
+  // ❗ strict: class MUST have schedule
+  if (!cls.schedules || cls.schedules.length === 0) {
+    throw new BadRequestException(
+      'Class has no schedule configured.',
+    );
+  }
+
+  const classWeekday = cls.schedules[0].weekday;
 
   const subject = await this.classRepo['db'].subject.findFirst({
     where: { id: cls.subject_id },
     select: { program_id: true },
   });
-  if (!subject?.program_id) {
-    throw new BadRequestException('Class subject is not linked to a program.');
-  }
 
-  const assignment = await this.semesterTemplateRepo.findAssignmentByProgram(
-    subject.program_id,
-    orgId,
-  );
-  if (!assignment) {
+  if (!subject?.program_id) {
     throw new BadRequestException(
-      'No semester template assigned to this program. Contact your admin.',
+      'Class subject is not linked to a program.',
     );
   }
 
+  const assignment =
+    await this.semesterTemplateRepo.findAssignmentByProgram(
+      subject.program_id,
+      orgId,
+    );
+
+  if (!assignment) {
+    throw new BadRequestException(
+      'No semester template assigned to this program.',
+    );
+  }
+
+  // 🔥 map term date ranges
   const termDatesMap = new Map<string, { start: Date; end: Date }>();
+
   for (const td of (assignment as any).termDates ?? []) {
     termDatesMap.set(td.term_id, {
       start: new Date(td.start_date),
@@ -280,46 +304,103 @@ async getWeekStructure(classId: string, orgId: string, educatorId: string) {
 
   type WeekSlot = {
     label: string;
+
     value: number;
+    globalWeek: number;
+
+    termWeek: number;
+    semesterWeek: number;
+
     termName: string;
     semesterName: string;
     semesterIndex: number;
+
+    date: string;
   };
 
   const result: WeekSlot[] = [];
 
-  const semesters = assignment.template.semesters ?? [];
+  // 🔥 ensure semester order
+  const semesters = (assignment.template.semesters ?? []).sort(
+    (a: any, b: any) => a.order_index - b.order_index,
+  );
+
+  let globalWeek = 1;
 
   for (let si = 0; si < semesters.length; si++) {
     const sem = semesters[si];
-    const terms = sem.terms ?? [];
-    let weekWithinSemester = 1;
+
+    // 🔥 ensure term order
+    const terms = (sem.terms ?? []).sort(
+      (a: any, b: any) => a.order_index - b.order_index,
+    );
+
+    let semesterWeek = 1;
 
     for (const term of terms) {
       const dates = termDatesMap.get(term.id);
+
       if (!dates) {
         throw new BadRequestException(
-          `Term "${term.name}" in semester "${sem.name}" has no date range configured. Contact your admin.`,
+          `Term "${term.name}" in semester "${sem.name}" has no date range configured.`,
         );
       }
 
-      const diffMs = dates.end.getTime() - dates.start.getTime();
-      const termWeeks = Math.max(Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 7)), 1);
+      const occurrences = this.getWeekdayOccurrences(
+        dates.start,
+        dates.end,
+        classWeekday,
+      );
 
-      for (let w = 0; w < termWeeks; w++) {
+      let termWeek = 1;
+
+      for (const date of occurrences) {
         result.push({
-          label: String(weekWithinSemester),
-          value: weekWithinSemester,
+          // 🔥 keep simple + predictable
+          label: String(globalWeek),
+
+          value: globalWeek,
+          globalWeek,
+
+          termWeek,
+          semesterWeek,
+
           termName: term.name,
           semesterName: sem.name,
           semesterIndex: si + 1,
+
+          date: date.toISOString(),
         });
-        weekWithinSemester++;
+
+        globalWeek++;
+        termWeek++;
+        semesterWeek++;
       }
     }
   }
 
   return result;
+}
+
+private getWeekdayOccurrences(
+  start: Date,
+  end: Date,
+  weekday: number, // 0=Sunday, 1=Monday, etc.
+): Date[] {
+  const dates: Date[] = [];
+
+  const current = new Date(start);
+
+  // Move to first matching weekday
+  const diff = (weekday - current.getDay() + 7) % 7;
+  current.setDate(current.getDate() + diff);
+
+  while (current <= end) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 7);
+  }
+
+  return dates;
 }
 
   private async assertStudentEnrolled(
@@ -367,4 +448,44 @@ async getWeekStructure(classId: string, orgId: string, educatorId: string) {
       metadata: { lessonId },
     });
   }
+
+async syncLessonsFromAttendance(classId: string, orgId: string) {
+const sessions = await this.attendanceRepo.findSessionsByClass(classId);
+
+  if (!sessions.length) return;
+
+  // Get all existing lessons
+  const existingLessons = await this.lessonRepo.findAll(classId, orgId);
+
+  const lessonMap = new Map(
+    existingLessons.map((l) => [
+      `${l.week_number}-${l.sub_index}`,
+      l,
+    ]),
+  );
+
+  for (const session of sessions) {
+    const key = `${session.week_number}-${session.sub_index}`;
+
+    const existing = lessonMap.get(key);
+
+    if (!existing) {
+      await this.lessonRepo.create({
+        orgId,
+        classId,
+        title: `Lesson Week ${session.week_number}`,
+        description: `Auto-generated from attendance session`,
+        detail: `Auto-generated lesson aligned with attendance schedule.`,
+        weekNumber: session.week_number,
+        subIndex: session.sub_index,
+      });
+    } else {
+      // OPTIONAL: keep lesson aligned (safe overwrite mode)
+      await this.lessonRepo.update(existing.id, {
+        weekNumber: session.week_number,
+        subIndex: session.sub_index,
+      });
+    }
+  }
+}
 }

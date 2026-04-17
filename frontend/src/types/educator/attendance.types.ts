@@ -1,25 +1,27 @@
 export type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
-export interface AttendanceRecord {
-  id: string;
-  sessionId: string;
-  studentId: string;
-  studentName: string;
-  studentCode: string;
-  status: AttendanceStatus;
-  /** true if auto-set because student submitted an assessment that day */
-  autoSet: boolean;
-  updatedAt: string;
-}
-
 export interface AttendanceSession {
   id: string;
-  classId: string;
-  weekNumber: number;
-  sessionNumber: number;  // e.g. 1 = first session of the week
-  label: string;          // e.g. "Session 3.1"
+  class_id: string;
+  week_number: number;
+  sub_index: number;
   date: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  session_id: string;
+  student_id: string;
+  student_name: string;   // add
+  student_code: string;   // add
+  status: AttendanceStatus;
+}
+
+export interface SessionWithRecords extends AttendanceSession {
   records: AttendanceRecord[];
-  createdAt: string;
-  updatedAt: string;
+}
+
+export interface WeekSessions {
+  week_number: number;
+  sessions: AttendanceSession[];
 }

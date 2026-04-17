@@ -1,8 +1,6 @@
+// ===== File: frontend/src/api/educator/attendance.api.ts =====
+
 import client from "@/api/client";
-import type {
-  AttendanceSession,
-  AttendanceRecord,
-} from "@/types/educator/attendance.types";
 
 export interface AttendanceRecordInput {
   studentId: string;
@@ -14,46 +12,94 @@ export interface WeekSessions {
   sessions: AttendanceSession[];
 }
 
+/**
+ * ⚠️ IMPORTANT:
+ * Backend "getSessions" returns:
+ * [
+ *   { week_number, sessions: AttendanceSession[] }
+ * ]
+ */
+export interface AttendanceSession {
+  id: string;
+  class_id: string;
+  week_number: number;
+  sub_index: number;
+  date: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  session_id: string;
+  student_id: string;
+  student_name: string;   // add
+  student_code: string;   // add
+  status: "present" | "absent" | "late" | "excused";
+}
+
 export interface SessionWithRecords extends AttendanceSession {
   records: AttendanceRecord[];
 }
 
 export const attendanceApi = {
-getSessions: async (classId: string, weekNumber?: number): Promise<WeekSessions[]> => {
-  const res = await client.get<{ success: boolean; data: WeekSessions[] }>(
-    `/classes/${classId}/attendance/sessions`,
-    { params: weekNumber ? { weekNumber } : undefined }
-  );
-  return res.data.data;  // unwrap envelope
-},
+  // ======================================================
+  // GET WEEK GROUPED SESSIONS
+  // ======================================================
+  getSessions: async (
+    classId: string,
+    weekNumber?: number
+  ): Promise<WeekSessions[]> => {
+    const res = await client.get(`/classes/${classId}/attendance/sessions`, {
+      params: weekNumber ? { weekNumber } : undefined,
+    });
 
-getSession: async (classId: string, sessionId: string): Promise<SessionWithRecords> => {
-  const res = await client.get<{ success: boolean; data: SessionWithRecords }>(
-    `/classes/${classId}/attendance/sessions/${sessionId}`
-  );
-  return res.data.data;  // unwrap envelope
-},
+    // backend may return raw OR wrapped depending on interceptor
+    return res.data.data ?? res.data;
+  },
+
+  // ======================================================
+  // GET SINGLE SESSION (WITH RECORDS)
+  // ======================================================
+  getSession: async (
+    classId: string,
+    sessionId: string
+  ): Promise<SessionWithRecords> => {
+    const res = await client.get(
+      `/classes/${classId}/attendance/sessions/${sessionId}`
+    );
+
+    return res.data.data ?? res.data;
+  },
+
+  // ======================================================
+  // BULK SET ATTENDANCE
+  // ======================================================
   bulkSet: async (
     classId: string,
     sessionId: string,
     records: AttendanceRecordInput[]
   ): Promise<{ message: string; count: number }> => {
-    const res = await client.post<{ message: string; count: number }>(
+    const res = await client.post(
       `/classes/${classId}/attendance/sessions/${sessionId}/records`,
       { records }
     );
+
     return res.data;
   },
+
+  // ======================================================
+  // UPDATE SINGLE RECORD
+  // ======================================================
   updateRecord: async (
     classId: string,
     sessionId: string,
     recordId: string,
     status: "present" | "absent" | "late" | "excused"
   ): Promise<AttendanceRecord> => {
-    const res = await client.patch<AttendanceRecord>(
+    const res = await client.patch(
       `/classes/${classId}/attendance/sessions/${sessionId}/records/${recordId}`,
       { status }
     );
+
     return res.data;
   },
 };
