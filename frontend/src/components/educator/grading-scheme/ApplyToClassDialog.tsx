@@ -63,20 +63,17 @@ export function ApplyToClassDialog({
     queryFn: () => schoolYearApi.getAll(),
   });
 
-  // ✅ ACTIVE SCHOOL YEAR
   const activeSchoolYearId = useMemo(() => {
     const arr = toArray<{ id: string; status: string }>(schoolYearsRaw);
     return arr.find((sy) => sy.status === "active")?.id ?? null;
   }, [schoolYearsRaw]);
 
-  // ✅ SECTIONS SCOPED BY SCHOOL YEAR
   const { data: sectionsRaw } = useQuery({
     queryKey: ["admin", "sections", activeSchoolYearId],
     queryFn: () => sectionApi.getAll(activeSchoolYearId!),
     enabled: !!activeSchoolYearId,
   });
 
-  // ===== MAPS =====
   const subjectMap = useMemo(() => {
     const m = new Map<string, string>();
     toArray<{ id: string; title: string }>(subjectsRaw).forEach((s) =>
@@ -93,7 +90,6 @@ export function ApplyToClassDialog({
     return m;
   }, [sectionsRaw]);
 
-  // ===== ENRICH =====
   const classes = useMemo<EnrichedClass[]>(() => {
     return toArray<EducatorClass>(classesRaw).map((cls) => ({
       ...cls,
@@ -104,31 +100,29 @@ export function ApplyToClassDialog({
     }));
   }, [classesRaw, subjectMap, sectionMap]);
 
-  // ===== APPLY =====
+  // ================= APPLY =================
   const handleApply = async () => {
     if (!scheme || !selectedClassId) return;
 
     setIsApplying(true);
 
     try {
-      const components = Array.isArray(scheme.components)
-        ? scheme.components.map((c) => ({
-            name: c.name,
-            type: c.type,
-            weight: c.weight,
-            maxScore: c.maxScore ?? undefined,
-            isOptional: c.isOptional,
-          }))
-        : [];
+      await educatorGradingSchemeApi.applyTemplateToClass({
+        classId: selectedClassId,
 
-await educatorGradingSchemeApi.applyTemplateToClass({
-  classId: selectedClassId,
-  templateId: scheme.templateId ?? scheme.id, // depends if it's template or scheme
-  name: scheme.name,
-});
+        // IMPORTANT FIX:
+        templateId: scheme.templateId ?? scheme.id,
+
+        name: scheme.name,
+      });
 
       queryClient.invalidateQueries({
         queryKey: ["grading-scheme", "class", selectedClassId],
+      });
+
+      // global safety invalidation (important for educator UI consistency)
+      queryClient.invalidateQueries({
+        queryKey: ["grading-scheme"],
       });
 
       toast.success(`"${scheme.name}" applied to class.`);

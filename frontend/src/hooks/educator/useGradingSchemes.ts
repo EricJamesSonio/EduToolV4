@@ -1,4 +1,4 @@
-
+// ===== File: frontend/src/hooks/educator/useGradingSchemes.ts =====
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { educatorGradingSchemeApi } from '@/api/educator/grading-scheme.api'
@@ -8,13 +8,11 @@ import type {
 } from '@/types/admin/grading-scheme.types'
 
 const KEYS = {
+  all: ['grading-scheme'] as const,
   forClass: (classId: string) =>
     ['grading-scheme', 'class', classId] as const,
 }
 
-/**
- * Get grading scheme for a class
- */
 export const useClassGradingScheme = (classId: string) => {
   return useQuery({
     queryKey: KEYS.forClass(classId),
@@ -23,9 +21,6 @@ export const useClassGradingScheme = (classId: string) => {
   })
 }
 
-/**
- * Create grading scheme (per class)
- */
 export const useCreateGradingScheme = () => {
   const queryClient = useQueryClient()
 
@@ -34,17 +29,19 @@ export const useCreateGradingScheme = () => {
       educatorGradingSchemeApi.create(data),
 
     onSuccess: (data) => {
-      // ✅ refresh that specific class
+      // class-level refresh
       queryClient.invalidateQueries({
         queryKey: KEYS.forClass(data.classId),
+      })
+
+      // safety: global refresh (prevents stale lists elsewhere)
+      queryClient.invalidateQueries({
+        queryKey: KEYS.all,
       })
     },
   })
 }
 
-/**
- * Update grading scheme
- */
 export const useUpdateGradingScheme = () => {
   const queryClient = useQueryClient()
 
@@ -57,18 +54,19 @@ export const useUpdateGradingScheme = () => {
       data: UpdateGradingSchemeDto
     }) => educatorGradingSchemeApi.update(id, data),
 
-    onSuccess: (data) => {
-      // ✅ refresh updated class
+    onSuccess: (updated) => {
+      // class-level refresh
       queryClient.invalidateQueries({
-        queryKey: KEYS.forClass(data.classId),
+        queryKey: KEYS.forClass(updated.classId),
+      })
+
+      queryClient.invalidateQueries({
+        queryKey: KEYS.all,
       })
     },
   })
 }
 
-/**
- * Apply template to a single class
- */
 export const useApplyTemplateToClass = () => {
   const queryClient = useQueryClient()
 
@@ -83,18 +81,28 @@ export const useApplyTemplateToClass = () => {
       queryClient.invalidateQueries({
         queryKey: KEYS.forClass(data.classId),
       })
+
+      queryClient.invalidateQueries({
+        queryKey: KEYS.all,
+      })
     },
   })
 }
 
-/**
- * Apply template to program (admin bulk)
- */
 export const useApplyTemplateToProgram = () => {
+  const queryClient = useQueryClient()
+
   return useMutation({
     mutationFn: (data: {
       programId: string
       templateId: string
     }) => educatorGradingSchemeApi.applyTemplateToProgram(data),
+
+    onSuccess: () => {
+      // IMPORTANT: affects MANY classes
+      queryClient.invalidateQueries({
+        queryKey: KEYS.all,
+      })
+    },
   })
 }

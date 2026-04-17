@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
-import { Lock, Plus, Save, Library, BookMarked } from "lucide-react";
+import { Lock, Plus, Save, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { GradingSchemeComponentRow } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
 import { ImportFromLibraryDialog } from "./ImportFromLibraryDialog";
@@ -25,7 +25,11 @@ import {
 } from "@/hooks/educator/useGradingSchemes";
 
 import { cn } from "@/lib/utils";
-import type { GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
+
+import type {
+  GradingSchemeComponentDto,
+} from "@/types/admin/grading-scheme.types";
+
 import type { AxiosError } from "axios";
 
 interface ClassGradingSchemeEditorProps {
@@ -34,9 +38,10 @@ interface ClassGradingSchemeEditorProps {
 
 const DEFAULT_ROW = (): GradingSchemeComponentDto => ({
   name: "",
-  type: "written_work", // ✅ better default
+  type: "written_work",
   weight: 0,
   isOptional: false,
+  maxScore: null,
 });
 
 export function ClassGradingSchemeEditor({
@@ -50,8 +55,6 @@ export function ClassGradingSchemeEditor({
   const [rows, setRows] = useState<GradingSchemeComponentDto[]>([]);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
   const [showLibrary, setShowLibrary] = useState(false);
-  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
-  const [templateName, setTemplateName] = useState("");
 
   useEffect(() => {
     if (scheme) {
@@ -61,13 +64,13 @@ export function ClassGradingSchemeEditor({
           type: c.type,
           weight: c.weight,
           isOptional: c.isOptional,
-          maxScore: c.maxScore ?? undefined,
+          maxScore: c.maxScore ?? null,
         }))
       );
     }
   }, [scheme]);
 
-  // ✅ FIXED: only required components count
+  // backend-aligned validation rule
   const totalWeight = rows
     .filter((r) => !r.isOptional)
     .reduce((sum, r) => sum + (Number(r.weight) || 0), 0);
@@ -90,7 +93,11 @@ export function ClassGradingSchemeEditor({
     );
   };
 
-  const handleAdd = () => setRows((prev) => [...prev, DEFAULT_ROW()]);
+  const handleAdd = () =>
+    setRows((prev) => [
+      ...prev,
+      DEFAULT_ROW(),
+    ]);
 
   const handleDeleteConfirm = () => {
     if (deleteIndex === null) return;
@@ -99,11 +106,16 @@ export function ClassGradingSchemeEditor({
   };
 
   const handleImport = (
-    components: GradingSchemeComponentDto[],
-    schemeName: string
+    components: GradingSchemeComponentDto[]
   ) => {
-    setRows(components);
-    toast.info(`Imported "${schemeName}". Save to apply.`);
+    setRows(
+      components.map((c) => ({
+        ...c,
+        maxScore: c.maxScore ?? null,
+      }))
+    );
+
+    toast.info("Imported scheme. Save to apply.");
   };
 
   const handleError = (err: unknown) => {
@@ -114,7 +126,7 @@ export function ClassGradingSchemeEditor({
     );
   };
 
-  // ✅ FIXED: create vs update
+  // ================= SAVE =================
   const handleSave = () => {
     if (!rows.length) return;
 
@@ -134,37 +146,18 @@ export function ClassGradingSchemeEditor({
           },
         },
         {
-          onSuccess: () => toast.success("Grading scheme updated."),
+          onSuccess: () =>
+            toast.success("Grading scheme updated."),
           onError: handleError,
         }
       );
     } else {
       createMutation.mutate(payload, {
-        onSuccess: () => toast.success("Grading scheme created."),
+        onSuccess: () =>
+          toast.success("Grading scheme created."),
         onError: handleError,
       });
     }
-  };
-
-  // ⚠️ TEMP: still uses gradingScheme API (replace later with template API)
-  const handleSaveTemplate = () => {
-    if (!templateName.trim()) return;
-
-    createMutation.mutate(
-      {
-        name: templateName.trim(),
-        classId, // ⚠️ not ideal, but temporary
-        components: rows,
-      },
-      {
-        onSuccess: () => {
-          toast.success(`"${templateName}" saved (temporary).`);
-          setShowSaveTemplate(false);
-          setTemplateName("");
-        },
-        onError: handleError,
-      }
-    );
   };
 
   if (isLoading) {
@@ -182,6 +175,7 @@ export function ClassGradingSchemeEditor({
 
   return (
     <div className="space-y-6">
+
       {/* LOCK */}
       {isLocked && (
         <div className="flex items-center gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
@@ -194,7 +188,7 @@ export function ClassGradingSchemeEditor({
 
       {/* ACTIONS */}
       {!isLocked && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           <Button
             size="sm"
             variant="outline"
@@ -203,19 +197,6 @@ export function ClassGradingSchemeEditor({
           >
             <Library className="h-4 w-4" />
             Import from Library
-          </Button>
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setTemplateName("");
-              setShowSaveTemplate(true);
-            }}
-            disabled={isBusy || totalWeight !== 100}
-          >
-            <BookMarked className="h-4 w-4" />
-            Save as Template
           </Button>
         </div>
       )}
@@ -246,7 +227,9 @@ export function ClassGradingSchemeEditor({
       <div className="flex justify-between border-t pt-4">
         <span
           className={cn(
-            totalWeight === 100 ? "text-green-600" : "text-destructive"
+            totalWeight === 100
+              ? "text-green-600"
+              : "text-destructive"
           )}
         >
           {totalWeight}% / 100%
@@ -272,27 +255,6 @@ export function ClassGradingSchemeEditor({
         onOpenChange={setShowLibrary}
         onImport={handleImport}
       />
-
-      {/* SAVE TEMPLATE */}
-      <Dialog open={showSaveTemplate} onOpenChange={setShowSaveTemplate}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Save Template</DialogTitle>
-          </DialogHeader>
-
-          <Input
-            value={templateName}
-            onChange={(e) => setTemplateName(e.target.value)}
-          />
-
-          <DialogFooter>
-            <Button onClick={() => setShowSaveTemplate(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveTemplate}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
