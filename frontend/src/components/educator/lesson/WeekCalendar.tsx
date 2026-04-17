@@ -123,9 +123,9 @@ export function WeekCalendar({
                 className="rounded-xl border p-4 space-y-2"
               >
                       {/* Week Label */}
-                      <div className="text-sm font-medium">
-                        Week {week.termWeek}
-                      </div>
+<div className="text-sm font-medium">
+  Week {week.semesterWeek}
+</div>
 
                       {/* Date */}
                       <div className="text-xs text-muted-foreground">

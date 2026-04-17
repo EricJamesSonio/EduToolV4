@@ -37,11 +37,14 @@ export interface Lesson {
 export type WeekSlot = {
   label: string;
   value: number;
+  globalWeek: number;
+  termWeek: number;
+  semesterWeek: number;
   termName: string;
   semesterName: string;
   semesterIndex: number;
+  date: string;
 };
-
 /**
  * Optional enriched type for UI usage
  */
