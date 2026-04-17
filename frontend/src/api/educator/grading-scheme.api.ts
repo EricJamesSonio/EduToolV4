@@ -11,33 +11,35 @@ interface ApiResponse<T> {
 }
 
 export const educatorGradingSchemeApi = {
-  getDefault: async (): Promise<GradingScheme> => {
-    const res = await client.get<ApiResponse<GradingScheme>>('/grading-schemes/default')
-    return res.data.data
-  },
-
-  getAll: async (): Promise<GradingScheme[]> => {
-    const res = await client.get<ApiResponse<GradingScheme[]>>('/grading-schemes')
-    return res.data.data
+  getForClass: async (classId: string): Promise<GradingScheme | null> => {
+    const res = await client.get(`/grading-schemes/class/${classId}`)
+    return res.data
   },
 
   create: async (data: CreateGradingSchemeDto): Promise<GradingScheme> => {
-    const res = await client.post<ApiResponse<GradingScheme>>('/grading-schemes', data)
-    return res.data.data
+    const res = await client.post(`/grading-schemes`, data)
+    return res.data
   },
 
   update: async (id: string, data: UpdateGradingSchemeDto): Promise<GradingScheme> => {
-    const res = await client.patch<ApiResponse<GradingScheme>>(`/grading-schemes/${id}`, data)
-    return res.data.data
+    const res = await client.patch(`/grading-schemes/${id}`, data)
+    return res.data
   },
 
-  getForClass: async (classId: string): Promise<GradingScheme> => {
-    const res = await client.get<ApiResponse<GradingScheme>>(`/grading-schemes/class/${classId}`)
-    return res.data.data
+  applyTemplateToClass: async (data: {
+    classId: string
+    templateId: string
+    name?: string
+  }) => {
+    const res = await client.post(`/grading-schemes/apply-to-class`, data)
+    return res.data
   },
 
-  saveForClass: async (classId: string, data: UpdateGradingSchemeDto): Promise<GradingScheme> => {
-    const res = await client.patch<ApiResponse<GradingScheme>>(`/grading-schemes/class/${classId}`, data)
-    return res.data.data
+  applyTemplateToProgram: async (data: {
+    programId: string
+    templateId: string
+  }) => {
+    const res = await client.post(`/grading-schemes/apply-to-program`, data)
+    return res.data
   },
 }
