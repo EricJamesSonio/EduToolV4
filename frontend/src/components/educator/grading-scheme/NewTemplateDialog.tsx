@@ -33,14 +33,14 @@ import type {
 
 import type { AxiosError } from "axios";
 
-interface GradingSchemeDialogProps {
+interface NewTemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 
-  /** editing existing class scheme */
+  /** edit existing scheme for a class */
   editScheme?: GradingScheme | null;
 
-  /** required: class target */
+  /** REQUIRED: backend needs classId */
   classId: string;
 }
 
@@ -51,12 +51,12 @@ const DEFAULT_ROW = (): GradingSchemeComponentDto => ({
   isOptional: false,
 });
 
-export function GradingSchemeDialog({
+export function NewTemplateDialog({
   open,
   onOpenChange,
   editScheme,
   classId,
-}: GradingSchemeDialogProps) {
+}: NewTemplateDialogProps) {
   const isEditing = !!editScheme;
 
   const createMutation = useCreateGradingScheme();
@@ -65,16 +65,14 @@ export function GradingSchemeDialog({
   const isBusy =
     createMutation.isPending || updateMutation.isPending;
 
-  const [name, setName] =
-    useState("");
+  const [name, setName] = useState("");
+  const [rows, setRows] = useState<GradingSchemeComponentDto[]>([
+    DEFAULT_ROW(),
+  ]);
 
-  const [rows, setRows] =
-    useState<GradingSchemeComponentDto[]>([DEFAULT_ROW()]);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
-  const [deleteIndex, setDeleteIndex] =
-    useState<number | null>(null);
-
-  // RESET / HYDRATE
+  // hydrate form
   useEffect(() => {
     if (open && editScheme) {
       setName(editScheme.name);
@@ -196,27 +194,23 @@ export function GradingSchemeDialog({
     <>
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-2xl">
-
           <DialogHeader>
             <DialogTitle>
               {isEditing
                 ? "Edit Grading Scheme"
-                : "New Grading Scheme"}
+                : "Create Grading Scheme"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5">
-
             {/* NAME */}
             <div className="space-y-1.5">
               <Label>Scheme name</Label>
               <Input
                 value={name}
-                onChange={(e) =>
-                  setName(e.target.value)
-                }
+                onChange={(e) => setName(e.target.value)}
                 disabled={isBusy}
-                placeholder="e.g. 1st Semester Scheme"
+                placeholder="e.g. Standard Semester Scheme"
               />
             </div>
 
@@ -256,6 +250,7 @@ export function GradingSchemeDialog({
               variant="outline"
               onClick={handleAdd}
               disabled={isBusy}
+              className="gap-1.5"
             >
               <Plus className="h-4 w-4" />
               Add Category
@@ -269,7 +264,7 @@ export function GradingSchemeDialog({
 
               <span
                 className={cn(
-                  "text-sm font-semibold",
+                  "text-sm font-semibold tabular-nums",
                   totalWeight === 100
                     ? "text-green-600"
                     : "text-destructive"
@@ -278,7 +273,6 @@ export function GradingSchemeDialog({
                 {totalWeight}% / 100%
               </span>
             </div>
-
           </div>
 
           <DialogFooter>
@@ -290,10 +284,7 @@ export function GradingSchemeDialog({
               Cancel
             </Button>
 
-            <Button
-              disabled={!canSave}
-              onClick={handleSave}
-            >
+            <Button disabled={!canSave} onClick={handleSave}>
               <Save className="h-4 w-4" />
               {isBusy
                 ? "Saving..."
@@ -302,17 +293,23 @@ export function GradingSchemeDialog({
                 : "Save"}
             </Button>
           </DialogFooter>
-
         </DialogContent>
       </Dialog>
 
-      {/* DELETE CONFIRM */}
+      {/* DELETE COMPONENT */}
       <ConfirmDialog
         open={deleteIndex !== null}
         onOpenChange={(o) => {
           if (!o) setDeleteIndex(null);
         }}
         title="Remove component?"
+        message={
+          deleteIndex !== null && rows[deleteIndex]
+            ? `Remove "${rows[deleteIndex].name}"?`
+            : "Remove component?"
+        }
+        confirmLabel="Remove"
+        destructive
         onConfirm={handleDeleteConfirm}
       />
     </>
