@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Plus, Save } from "lucide-react";
+
 import {
   Dialog,
   DialogContent,
@@ -10,30 +11,43 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { GradingSchemeComponentRow } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
+
 import {
   useCreateGradingScheme,
   useUpdateGradingScheme,
 } from "@/hooks/educator/useGradingSchemes";
+
 import { cn } from "@/lib/utils";
-import type { GradingScheme, GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
+
+import type {
+  GradingScheme,
+  GradingSchemeComponentDto,
+} from "@/types/admin/grading-scheme.types";
+
 import type { AxiosError } from "axios";
 
 interface NewTemplateDialogProps {
-  open:         boolean;
+  open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Pass a scheme to edit an existing template; omit for create */
-  editScheme?:  GradingScheme | null;
+
+  /** edit existing scheme for a class */
+  editScheme?: GradingScheme | null;
+
+  /** REQUIRED: backend needs classId */
+  classId: string;
 }
 
 const DEFAULT_ROW = (): GradingSchemeComponentDto => ({
-  name:       "",
-  type:       "quiz",
-  weight:     0,
+  name: "",
+  type: "quiz",
+  weight: 0,
   isOptional: false,
 });
 
@@ -41,55 +55,82 @@ export function NewTemplateDialog({
   open,
   onOpenChange,
   editScheme,
+  classId,
 }: NewTemplateDialogProps) {
   const isEditing = !!editScheme;
 
   const createMutation = useCreateGradingScheme();
   const updateMutation = useUpdateGradingScheme();
-  const isBusy         = createMutation.isPending || updateMutation.isPending;
 
-  const [name, setName]               = useState("");
-  const [rows, setRows]               = useState<GradingSchemeComponentDto[]>([DEFAULT_ROW()]);
+  const isBusy =
+    createMutation.isPending || updateMutation.isPending;
+
+  const [name, setName] = useState("");
+  const [rows, setRows] = useState<GradingSchemeComponentDto[]>([
+    DEFAULT_ROW(),
+  ]);
+
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
-  // Populate form when editing
+  // hydrate form
   useEffect(() => {
     if (open && editScheme) {
       setName(editScheme.name);
-      const components = Array.isArray(editScheme.components) ? editScheme.components : [];
+
+      const components = Array.isArray(editScheme.components)
+        ? editScheme.components
+        : [];
+
       setRows(
         components.length > 0
           ? components.map((c) => ({
-              name:       c.name,
-              type:       c.type,
-              weight:     c.weight,
+              name: c.name,
+              type: c.type,
+              weight: c.weight,
               isOptional: c.isOptional,
-              maxScore:   c.maxScore ?? undefined,
+              maxScore: c.maxScore ?? undefined,
             }))
           : [DEFAULT_ROW()]
       );
-    } else if (open && !editScheme) {
+    }
+
+    if (open && !editScheme) {
       setName("");
       setRows([DEFAULT_ROW()]);
     }
   }, [open, editScheme]);
 
-  const totalWeight = rows.reduce((sum, r) => sum + (Number(r.weight) || 0), 0);
-  const canSave     = !isBusy && name.trim().length >= 2 && totalWeight === 100 && rows.length > 0;
+  const totalWeight = rows.reduce(
+    (sum, r) => sum + (Number(r.weight) || 0),
+    0
+  );
+
+  const canSave =
+    !isBusy &&
+    name.trim().length >= 2 &&
+    totalWeight === 100 &&
+    rows.length > 0;
 
   const handleChange = (
     index: number,
     field: keyof GradingSchemeComponentDto,
     value: string | number | boolean
   ) => {
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+    setRows((prev) =>
+      prev.map((r, i) =>
+        i === index ? { ...r, [field]: value } : r
+      )
+    );
   };
 
-  const handleAdd = () => setRows((prev) => [...prev, DEFAULT_ROW()]);
+  const handleAdd = () =>
+    setRows((prev) => [...prev, DEFAULT_ROW()]);
 
   const handleDeleteConfirm = () => {
     if (deleteIndex === null) return;
-    setRows((prev) => prev.filter((_, i) => i !== deleteIndex));
+    setRows((prev) =>
+      prev.filter((_, i) => i !== deleteIndex)
+    );
     setDeleteIndex(null);
   };
 
@@ -101,34 +142,51 @@ export function NewTemplateDialog({
   const handleSave = () => {
     if (!canSave) return;
 
+    const payload = {
+      name: name.trim(),
+      classId,
+      components: rows,
+    };
+
     if (isEditing && editScheme) {
       updateMutation.mutate(
-        { id: editScheme.id, data: { name: name.trim(), components: rows } },
+        {
+          id: editScheme.id,
+          data: {
+            name: payload.name,
+            components: payload.components,
+          },
+        },
         {
           onSuccess: () => {
-            toast.success("Template updated.");
+            toast.success("Grading scheme updated.");
             onOpenChange(false);
           },
           onError: (err: unknown) => {
-            const axiosErr = err as AxiosError<{ message: string }>;
-            toast.error(axiosErr?.response?.data?.message ?? "Failed to update template.");
+            const axiosErr =
+              err as AxiosError<{ message: string }>;
+            toast.error(
+              axiosErr?.response?.data?.message ??
+                "Failed to update grading scheme."
+            );
           },
         }
       );
     } else {
-      createMutation.mutate(
-        { name: name.trim(), components: rows },
-        {
-          onSuccess: () => {
-            toast.success("Template saved to library.");
-            onOpenChange(false);
-          },
-          onError: (err: unknown) => {
-            const axiosErr = err as AxiosError<{ message: string }>;
-            toast.error(axiosErr?.response?.data?.message ?? "Failed to save template.");
-          },
-        }
-      );
+      createMutation.mutate(payload, {
+        onSuccess: () => {
+          toast.success("Grading scheme created.");
+          onOpenChange(false);
+        },
+        onError: (err: unknown) => {
+          const axiosErr =
+            err as AxiosError<{ message: string }>;
+          toast.error(
+            axiosErr?.response?.data?.message ??
+              "Failed to create grading scheme."
+          );
+        },
+      });
     }
   };
 
@@ -138,40 +196,41 @@ export function NewTemplateDialog({
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {isEditing ? "Edit Template" : "New Grading Scheme Template"}
+              {isEditing
+                ? "Edit Grading Scheme"
+                : "Create Grading Scheme"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5">
-            {/* Name */}
+            {/* NAME */}
             <div className="space-y-1.5">
-              <Label htmlFor="template-name">Template name</Label>
+              <Label>Scheme name</Label>
               <Input
-                id="template-name"
-                placeholder="e.g. Standard Semester Scheme"
                 value={name}
-                disabled={isBusy}
                 onChange={(e) => setName(e.target.value)}
+                disabled={isBusy}
+                placeholder="e.g. Standard Semester Scheme"
               />
             </div>
 
-            {/* Column headers */}
+            {/* HEADER */}
             {rows.length > 0 && (
               <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-0.5">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Category Name
+                <span className="text-xs uppercase text-muted-foreground">
+                  Category
                 </span>
-                <span className="w-[140px] text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <span className="text-xs uppercase text-muted-foreground w-[140px]">
                   Type
                 </span>
-                <span className="w-[96px] text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <span className="text-xs uppercase text-muted-foreground w-[96px]">
                   Weight
                 </span>
-                <span className="w-8" />
+                <span />
               </div>
             )}
 
-            {/* Rows */}
+            {/* ROWS */}
             <div className="space-y-3">
               {rows.map((row, i) => (
                 <GradingSchemeComponentRow
@@ -180,12 +239,12 @@ export function NewTemplateDialog({
                   row={row}
                   disabled={isBusy}
                   onChange={handleChange}
-                  onDelete={(idx) => setDeleteIndex(idx)}
+                  onDelete={setDeleteIndex}
                 />
               ))}
             </div>
 
-            {/* Add row */}
+            {/* ADD */}
             <Button
               size="sm"
               variant="outline"
@@ -197,46 +256,57 @@ export function NewTemplateDialog({
               Add Category
             </Button>
 
-            {/* Weight total */}
+            {/* TOTAL */}
             <div className="flex items-center gap-2 border-t pt-3">
-              <span className="text-sm text-muted-foreground">Total:</span>
+              <span className="text-sm text-muted-foreground">
+                Total:
+              </span>
+
               <span
                 className={cn(
                   "text-sm font-semibold tabular-nums",
-                  totalWeight === 100 ? "text-green-600" : "text-destructive"
+                  totalWeight === 100
+                    ? "text-green-600"
+                    : "text-destructive"
                 )}
               >
                 {totalWeight}% / 100%
               </span>
-              {rows.length > 0 && totalWeight !== 100 && (
-                <span className="text-xs text-muted-foreground">
-                  (must equal 100% to save)
-                </span>
-              )}
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleClose} disabled={isBusy}>
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              disabled={isBusy}
+            >
               Cancel
             </Button>
-            <Button disabled={!canSave} onClick={handleSave} className="gap-1.5">
+
+            <Button disabled={!canSave} onClick={handleSave}>
               <Save className="h-4 w-4" />
-              {isBusy ? "Saving..." : isEditing ? "Save Changes" : "Save Template"}
+              {isBusy
+                ? "Saving..."
+                : isEditing
+                ? "Save Changes"
+                : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete component confirm */}
+      {/* DELETE COMPONENT */}
       <ConfirmDialog
         open={deleteIndex !== null}
-        onOpenChange={(o) => { if (!o) setDeleteIndex(null); }}
-        title="Remove this component?"
+        onOpenChange={(o) => {
+          if (!o) setDeleteIndex(null);
+        }}
+        title="Remove component?"
         message={
           deleteIndex !== null && rows[deleteIndex]
-            ? `Remove "${rows[deleteIndex].name || "this component"}" from the scheme?`
-            : "Remove this component?"
+            ? `Remove "${rows[deleteIndex].name}"?`
+            : "Remove component?"
         }
         confirmLabel="Remove"
         destructive

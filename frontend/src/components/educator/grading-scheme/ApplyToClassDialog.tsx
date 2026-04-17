@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -54,29 +55,28 @@ export function ApplyToClassDialog({
     useEducatorClasses();
 
   const { data: subjectsRaw } = useQuery({
-    queryKey: ["admin", "subjects"],
+    queryKey: ["subjects"],
     queryFn: () => subjectApi.getAll(),
   });
 
   const { data: schoolYearsRaw } = useQuery({
-    queryKey: ["admin", "school-years"],
+    queryKey: ["school-years"],
     queryFn: () => schoolYearApi.getAll(),
   });
 
-  // ✅ ACTIVE SCHOOL YEAR
+  // ================= ACTIVE SCHOOL YEAR =================
   const activeSchoolYearId = useMemo(() => {
     const arr = toArray<{ id: string; status: string }>(schoolYearsRaw);
     return arr.find((sy) => sy.status === "active")?.id ?? null;
   }, [schoolYearsRaw]);
 
-  // ✅ SECTIONS SCOPED BY SCHOOL YEAR
   const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections", activeSchoolYearId],
+    queryKey: ["sections", activeSchoolYearId],
     queryFn: () => sectionApi.getAll(activeSchoolYearId!),
     enabled: !!activeSchoolYearId,
   });
 
-  // ===== MAPS =====
+  // ================= MAPS =================
   const subjectMap = useMemo(() => {
     const m = new Map<string, string>();
     toArray<{ id: string; title: string }>(subjectsRaw).forEach((s) =>
@@ -93,7 +93,7 @@ export function ApplyToClassDialog({
     return m;
   }, [sectionsRaw]);
 
-  // ===== ENRICH =====
+  // ================= ENRICH CLASSES =================
   const classes = useMemo<EnrichedClass[]>(() => {
     return toArray<EducatorClass>(classesRaw).map((cls) => ({
       ...cls,
@@ -104,38 +104,38 @@ export function ApplyToClassDialog({
     }));
   }, [classesRaw, subjectMap, sectionMap]);
 
-  // ===== APPLY =====
+  // ================= APPLY =================
   const handleApply = async () => {
     if (!scheme || !selectedClassId) return;
 
     setIsApplying(true);
 
     try {
-      const components = Array.isArray(scheme.components)
-        ? scheme.components.map((c) => ({
-            name: c.name,
-            type: c.type,
-            weight: c.weight,
-            maxScore: c.maxScore ?? undefined,
-            isOptional: c.isOptional,
-          }))
-        : [];
+      await educatorGradingSchemeApi.applyTemplateToClass({
+        classId: selectedClassId,
 
-await educatorGradingSchemeApi.applyTemplateToClass({
-  classId: selectedClassId,
-  templateId: scheme.templateId ?? scheme.id, // depends if it's template or scheme
-  name: scheme.name,
-});
+        // backend supports templateId (required for template apply)
+        templateId: scheme.templateId ?? scheme.id,
 
+        name: scheme.name,
+      });
+
+      // ================= CACHE INVALIDATION =================
       queryClient.invalidateQueries({
         queryKey: ["grading-scheme", "class", selectedClassId],
       });
 
+      queryClient.invalidateQueries({
+        queryKey: ["grading-scheme"],
+      });
+
       toast.success(`"${scheme.name}" applied to class.`);
+
       onOpenChange(false);
       setSelectedClassId(null);
     } catch (err: unknown) {
       const axiosErr = err as AxiosError<{ message: string }>;
+
       toast.error(
         axiosErr?.response?.data?.message ??
           "Failed to apply grading scheme."
@@ -151,6 +151,11 @@ await educatorGradingSchemeApi.applyTemplateToClass({
     onOpenChange(o);
   };
 
+  // ================= SAFETY GUARD =================
+  if (!scheme) {
+    return null;
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
@@ -162,15 +167,12 @@ await educatorGradingSchemeApi.applyTemplateToClass({
         </DialogHeader>
 
         <div className="space-y-3">
-          {scheme && (
-            <p className="text-sm text-muted-foreground">
-              Select a class to apply{" "}
-              <span className="font-medium text-foreground">
-                {`"${scheme.name}"`}
-              </span>{" "}
-              to. This will overwrite the class&apos;s current grading scheme.
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground">
+            Select a class to apply{" "}
+            <span className="font-medium text-foreground">
+              "{scheme.name}"
+            </span>
+          </p>
 
           {classesLoading ? (
             <div className="space-y-2">
@@ -219,7 +221,7 @@ await educatorGradingSchemeApi.applyTemplateToClass({
                       </div>
 
                       {selectedClassId === cls.id && (
-                        <Check className="h-4 w-4 text-primary shrink-0" />
+                        <Check className="h-4 w-4 text-primary" />
                       )}
                     </div>
                   </button>
