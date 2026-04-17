@@ -52,9 +52,7 @@ export default function AttendancePage() {
     attendanceMap.set(w.week_number, w);
   }
 
-  // ✅ canonical weeks (FROM LESSON SYSTEM)
-  const totalWeeks =
-    weeks.length > 0 ? Math.max(...weeks.map((w) => w.value)) : 1;
+const totalWeeks = weeks.length > 0 ? Math.max(...weeks.map((w) => w.globalWeek)) : 1;
 
   useEffect(() => {
     if (weeks.length > 0) {
@@ -90,12 +88,12 @@ export default function AttendancePage() {
             {currentWeekMeta?.semesterName ?? "Semester"}
           </p>
 
-          <p className="text-lg font-bold mt-0.5">
-            Week {currentWeek}
-            <span className="text-sm text-muted-foreground font-normal ml-2">
-              of {totalWeeks}
-            </span>
-          </p>
+<p className="text-lg font-bold mt-0.5">
+  Week {currentWeekMeta?.semesterWeek ?? currentWeek}
+  <span className="text-sm text-muted-foreground font-normal ml-2">
+    of {weeks.filter((w) => w.semesterIndex === (currentWeekMeta?.semesterIndex ?? 1)).length}
+  </span>
+</p>
 
           <p className="text-xs text-muted-foreground">
             {currentWeekMeta?.termName}

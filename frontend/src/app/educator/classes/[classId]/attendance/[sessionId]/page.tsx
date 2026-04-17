@@ -123,15 +123,15 @@ export default function AttendanceSessionPage() {
     if (!session) return;
 
     setRows(
-      session.records.map((r) => ({
-        recordId: r.id,
-        studentId: r.studentId,
-        studentName: r.studentName,
-        studentCode: r.studentCode,
-        status: r.status,
-        autoSet: r.autoSet,
-        dirty: false,
-      }))
+session.records.map((r) => ({
+  recordId: r.id,
+  studentId: r.student_id,
+  studentName: r.student_name,
+  studentCode: r.student_code,
+  status: r.status,
+  autoSet: false,          // UI-only default
+  dirty: false,
+}))
     );
   }, [session]);
 

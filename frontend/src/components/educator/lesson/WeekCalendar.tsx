@@ -7,8 +7,8 @@ import { format } from "date-fns";
 type Lesson = {
   id: string;
   title: string;
-  week_number: number;
-  sub_index: number;
+  weekNumber: number;   // ✅ fixed
+  subIndex: number;     // ✅ fixed
 };
 
 type WeekSlot = {
@@ -31,7 +31,7 @@ interface Props {
   lessons: Lesson[];
   classId: string;
   totalWeeks: number;
-  weeks: WeekSlot[]; // 🔥 IMPORTANT: pass this in
+  weeks: WeekSlot[];
 }
 
 export function WeekCalendar({
@@ -39,21 +39,21 @@ export function WeekCalendar({
   classId,
   weeks,
 }: Props) {
-  // 🔥 group lessons by global week
+  // ✅ group lessons by global week (FIXED)
   const lessonMap = useMemo(() => {
     const map = new Map<number, Lesson[]>();
 
     for (const lesson of lessons) {
-      if (!map.has(lesson.week_number)) {
-        map.set(lesson.week_number, []);
+      if (!map.has(lesson.weekNumber)) {
+        map.set(lesson.weekNumber, []);
       }
-      map.get(lesson.week_number)!.push(lesson);
+      map.get(lesson.weekNumber)!.push(lesson);
     }
 
     return map;
   }, [lessons]);
 
-  // 🔥 group weeks by semester -> term
+  // group weeks by semester -> term
   const grouped = useMemo(() => {
     const semMap = new Map<
       string,
@@ -94,38 +94,38 @@ export function WeekCalendar({
 
   return (
     <div className="space-y-8">
-{grouped.map((semester, semIndex) => (
-  <div
-    key={`${semester.semesterName}-${semIndex}`}
-    className="space-y-4"
-  >
-    <h2 className="text-lg font-semibold">
-      {semester.semesterName}
-    </h2>
+      {grouped.map((semester, semIndex) => (
+        <div
+          key={`${semester.semesterName}-${semIndex}`}
+          className="space-y-4"
+        >
+          <h2 className="text-lg font-semibold">
+            {semester.semesterName}
+          </h2>
 
-    {Array.from(semester.terms.values()).map((term) => (
-      <div
-        key={`${semester.semesterName}-${term.termName}`}
-        className="space-y-3"
-      >
-        <h3 className="text-sm font-medium text-muted-foreground">
-          {term.termName}
-        </h3>
+          {Array.from(semester.terms.values()).map((term) => (
+            <div
+              key={`${semester.semesterName}-${term.termName}`}
+              className="space-y-3"
+            >
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {term.termName}
+              </h3>
 
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {term.weeks.map((week) => {
-            const lessonsForWeek =
-              lessonMap.get(week.globalWeek) ?? [];
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {term.weeks.map((week) => {
+                  const lessonsForWeek =
+                    lessonMap.get(week.globalWeek) ?? [];
 
-            return (
-              <div
-                key={`${week.semesterIndex}-${week.globalWeek}`}
-                className="rounded-xl border p-4 space-y-2"
-              >
+                  return (
+                    <div
+                      key={`${week.semesterIndex}-${week.globalWeek}`}
+                      className="rounded-xl border p-4 space-y-2"
+                    >
                       {/* Week Label */}
-<div className="text-sm font-medium">
-  Week {week.semesterWeek}
-</div>
+                      <div className="text-sm font-medium">
+                        Week {week.semesterWeek}
+                      </div>
 
                       {/* Date */}
                       <div className="text-xs text-muted-foreground">

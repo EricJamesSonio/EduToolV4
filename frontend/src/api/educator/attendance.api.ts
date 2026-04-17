@@ -31,6 +31,8 @@ export interface AttendanceRecord {
   id: string;
   session_id: string;
   student_id: string;
+  student_name: string;   // add
+  student_code: string;   // add
   status: "present" | "absent" | "late" | "excused";
 }
 
