@@ -16,18 +16,18 @@ import {
 } from "@/api/educator/assessment.api";
 import type { Assessment, Question } from "@/types/educator/assessment.types";
 import type { Submission } from "@/types/educator/submission.types";
-
-const ASSESSMENTS_KEY = "assessments";
-const SUBMISSIONS_KEY = "submissions";
+import { assessmentKeys, submissionKeys } from "@/hooks/queryKeys";
+import { toast } from "sonner";
 
 export const useAssessments = (
   classId: string,
   filters?: { termId?: string; type?: string },
 ): UseQueryResult<Assessment[], Error> => {
   return useQuery({
-    queryKey: [ASSESSMENTS_KEY, classId, filters],
+    queryKey: assessmentKeys.list({ classId, ...filters }),
     queryFn: () => assessmentApi.getAll(classId, filters),
     enabled: !!classId,
+    staleTime: 1000 * 30, // 30 seconds for assessment lists
   });
 };
 
@@ -35,14 +35,15 @@ export const useAssessment = (
   classId: string,
   assessmentId: string,
   options?: {
-  refetchInterval?: number | false | ((query: Query<Assessment, Error>) => number | false);
-},
+    refetchInterval?: number | false | ((query: Query<Assessment, Error>) => number | false);
+  },
 ): UseQueryResult<Assessment, Error> => {
   return useQuery({
-    queryKey: [ASSESSMENTS_KEY, classId, assessmentId],
+    queryKey: assessmentKeys.detail(assessmentId),
     queryFn: () => assessmentApi.getOne(classId, assessmentId),
     enabled: !!classId && !!assessmentId,
     refetchInterval: options?.refetchInterval,
+    staleTime: 1000 * 60 * 2, // 2 minutes for individual assessment
   });
 };
 
@@ -52,8 +53,13 @@ export const useCreateAssessment = (
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateAssessmentRequest) => assessmentApi.create(classId, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [ASSESSMENTS_KEY, classId] });
+    onSuccess: (newAssessment) => {
+      qc.setQueryData(assessmentKeys.detail(newAssessment.id), newAssessment);
+      qc.invalidateQueries({ queryKey: assessmentKeys.lists() });
+      toast.success("Assessment created successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to create assessment");
     },
   });
 };
@@ -64,9 +70,29 @@ export const useUpdateAssessment = (
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ assessmentId, data }) => assessmentApi.update(classId, assessmentId, data),
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: [ASSESSMENTS_KEY, classId] });
-      qc.invalidateQueries({ queryKey: [ASSESSMENTS_KEY, classId, vars.assessmentId] });
+    onMutate: async ({ assessmentId, data }) => {
+      await qc.cancelQueries({ queryKey: assessmentKeys.detail(assessmentId) });
+
+      const previousAssessment = qc.getQueryData(assessmentKeys.detail(assessmentId));
+
+      qc.setQueryData(assessmentKeys.detail(assessmentId), (old: Assessment) =>
+        old ? { ...old, ...data } : null
+      );
+
+      return { previousAssessment };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousAssessment) {
+        qc.setQueryData(assessmentKeys.detail(variables.assessmentId), context.previousAssessment);
+      }
+      toast.error("Failed to update assessment");
+    },
+    onSettled: (data, error, variables) => {
+      qc.invalidateQueries({ queryKey: assessmentKeys.detail(variables.assessmentId) });
+      qc.invalidateQueries({ queryKey: assessmentKeys.lists() });
+    },
+    onSuccess: () => {
+      toast.success("Assessment updated successfully");
     },
   });
 };
@@ -77,8 +103,27 @@ export const useDeleteAssessment = (
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (assessmentId: string) => assessmentApi.delete(classId, assessmentId),
+    onMutate: async (assessmentId) => {
+      await qc.cancelQueries({ queryKey: assessmentKeys.detail(assessmentId) });
+
+      const previousAssessment = qc.getQueryData(assessmentKeys.detail(assessmentId));
+
+      // Remove from cache optimistically
+      qc.removeQueries({ queryKey: assessmentKeys.detail(assessmentId) });
+
+      return { previousAssessment };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousAssessment) {
+        qc.setQueryData(assessmentKeys.detail(variables), context.previousAssessment);
+      }
+      toast.error("Failed to delete assessment");
+    },
+    onSettled: (data, error, variables) => {
+      qc.invalidateQueries({ queryKey: assessmentKeys.lists() });
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [ASSESSMENTS_KEY, classId] });
+      toast.success("Assessment deleted successfully");
     },
   });
 };
@@ -91,8 +136,33 @@ export const useUpdateQuestion = (
   return useMutation({
     mutationFn: ({ questionId, data }) =>
       assessmentApi.updateQuestion(classId, assessmentId, questionId, data),
+    onMutate: async ({ questionId, data }) => {
+      await qc.cancelQueries({ queryKey: assessmentKeys.detail(assessmentId) });
+
+      const previousAssessment = qc.getQueryData(assessmentKeys.detail(assessmentId));
+
+      qc.setQueryData(assessmentKeys.detail(assessmentId), (old: Assessment) =>
+        old ? {
+          ...old,
+          questions: old.questions?.map(q =>
+            q.id === questionId ? { ...q, ...data } : q
+          )
+        } : null
+      );
+
+      return { previousAssessment };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousAssessment) {
+        qc.setQueryData(assessmentKeys.detail(assessmentId), context.previousAssessment);
+      }
+      toast.error("Failed to update question");
+    },
+    onSettled: (data, error, variables) => {
+      qc.invalidateQueries({ queryKey: assessmentKeys.detail(assessmentId) });
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [ASSESSMENTS_KEY, classId, assessmentId] });
+      toast.success("Question updated successfully");
     },
   });
 };
@@ -102,9 +172,10 @@ export const useAssessmentSubmissions = (
   assessmentId: string,
 ): UseQueryResult<Submission[], Error> => {
   return useQuery({
-    queryKey: [SUBMISSIONS_KEY, classId, assessmentId],
+    queryKey: submissionKeys.byAssessment(assessmentId),
     queryFn: () => assessmentApi.getSubmissions(classId, assessmentId),
     enabled: !!classId && !!assessmentId,
+    staleTime: 1000 * 15, // 15 seconds for submissions (highly dynamic)
   });
 };
 
@@ -116,8 +187,30 @@ export const useUpdateSubmissionStatus = (
   return useMutation({
     mutationFn: ({ submissionId, ...body }) =>
       assessmentApi.updateSubmissionStatus(classId, assessmentId, submissionId, body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [SUBMISSIONS_KEY, classId, assessmentId] });
+    onMutate: async ({ submissionId, ...body }) => {
+      await qc.cancelQueries({ queryKey: submissionKeys.byAssessment(assessmentId) });
+
+      const previousSubmissions = qc.getQueryData(submissionKeys.byAssessment(assessmentId));
+
+      qc.setQueryData(submissionKeys.byAssessment(assessmentId), (old: Submission[] = []) =>
+        old.map(submission =>
+          submission.id === submissionId ? { ...submission, ...body } : submission
+        )
+      );
+
+      return { previousSubmissions };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousSubmissions) {
+        qc.setQueryData(submissionKeys.byAssessment(assessmentId), context.previousSubmissions);
+      }
+      toast.error("Failed to update submission status");
+    },
+    onSettled: (data, error, variables) => {
+      qc.invalidateQueries({ queryKey: submissionKeys.byAssessment(assessmentId) });
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`Submission status updated to ${variables.status}`);
     },
   });
 };
@@ -130,8 +223,30 @@ export const useGradeEssay = (
   return useMutation({
     mutationFn: ({ submissionId, ...body }) =>
       assessmentApi.gradeEssay(classId, assessmentId, submissionId, body),
+    onMutate: async ({ submissionId, ...body }) => {
+      await qc.cancelQueries({ queryKey: submissionKeys.byAssessment(assessmentId) });
+
+      const previousSubmissions = qc.getQueryData(submissionKeys.byAssessment(assessmentId));
+
+      qc.setQueryData(submissionKeys.byAssessment(assessmentId), (old: Submission[] = []) =>
+        old.map(submission =>
+          submission.id === submissionId ? { ...submission, ...body, graded: true } : submission
+        )
+      );
+
+      return { previousSubmissions };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousSubmissions) {
+        qc.setQueryData(submissionKeys.byAssessment(assessmentId), context.previousSubmissions);
+      }
+      toast.error("Failed to grade essay");
+    },
+    onSettled: (data, error, variables) => {
+      qc.invalidateQueries({ queryKey: submissionKeys.byAssessment(assessmentId) });
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [SUBMISSIONS_KEY, classId, assessmentId] });
+      toast.success("Essay graded successfully");
     },
   });
 };
@@ -142,8 +257,29 @@ export const usePublishAssessment = (
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (assessmentId: string) => assessmentApi.publish(classId, assessmentId),
+    onMutate: async (assessmentId) => {
+      await qc.cancelQueries({ queryKey: assessmentKeys.detail(assessmentId) });
+
+      const previousAssessment = qc.getQueryData(assessmentKeys.detail(assessmentId));
+
+      qc.setQueryData(assessmentKeys.detail(assessmentId), (old: Assessment) =>
+        old ? { ...old, published: true } : null
+      );
+
+      return { previousAssessment };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousAssessment) {
+        qc.setQueryData(assessmentKeys.detail(variables), context.previousAssessment);
+      }
+      toast.error("Failed to publish assessment");
+    },
+    onSettled: (data, error, variables) => {
+      qc.invalidateQueries({ queryKey: assessmentKeys.detail(variables) });
+      qc.invalidateQueries({ queryKey: assessmentKeys.lists() });
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [ASSESSMENTS_KEY, classId] });
+      toast.success("Assessment published successfully");
     },
   });
 };
@@ -154,8 +290,29 @@ export const useUnpublishAssessment = (
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (assessmentId: string) => assessmentApi.unpublish(classId, assessmentId),
+    onMutate: async (assessmentId) => {
+      await qc.cancelQueries({ queryKey: assessmentKeys.detail(assessmentId) });
+
+      const previousAssessment = qc.getQueryData(assessmentKeys.detail(assessmentId));
+
+      qc.setQueryData(assessmentKeys.detail(assessmentId), (old: Assessment) =>
+        old ? { ...old, published: false } : null
+      );
+
+      return { previousAssessment };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousAssessment) {
+        qc.setQueryData(assessmentKeys.detail(variables), context.previousAssessment);
+      }
+      toast.error("Failed to unpublish assessment");
+    },
+    onSettled: (data, error, variables) => {
+      qc.invalidateQueries({ queryKey: assessmentKeys.detail(variables) });
+      qc.invalidateQueries({ queryKey: assessmentKeys.lists() });
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [ASSESSMENTS_KEY, classId] });
+      toast.success("Assessment unpublished successfully");
     },
   });
 };
