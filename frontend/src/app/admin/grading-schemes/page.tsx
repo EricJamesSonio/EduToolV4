@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 import { GradingSchemeTemplateList } from "@/components/admin/grading-scheme-template/GradingSchemeTemplateList";
 import { TemplateAssignmentPanel } from "@/components/admin/grading-scheme-template/TemplateAssignmentPanel";
@@ -96,20 +97,15 @@ export default function GradingSchemesPage(): React.JSX.Element {
 
   return (
     <div className="space-y-8 pb-10">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">
-            Grading Scheme Templates
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Create reusable grading scheme templates and apply them to programs
-            or individual classes.
-          </p>
-        </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-1.5" /> New Template
-        </Button>
-      </div>
+      <PageHeader
+        title="Grading Scheme Templates"
+        description="Create reusable grading scheme templates and apply them to programs or individual classes."
+        actions={
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-1.5" /> New Template
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -149,11 +145,11 @@ export default function GradingSchemesPage(): React.JSX.Element {
                 value={selectedYearId}
                 onValueChange={(v) => setSelectedYearId(v ?? "")}
               >
-<SelectTrigger className="h-8 text-xs">
-  <span className="truncate text-xs">
-    {schoolYears.find((sy) => sy.id === selectedYearId)?.name ?? "Select school year…"}
-  </span>
-</SelectTrigger>
+                <SelectTrigger className="h-8 text-xs">
+                  <span className="truncate text-xs">
+                    {schoolYears.find((sy) => sy.id === selectedYearId)?.name ?? "Select school year…"}
+                  </span>
+                </SelectTrigger>
                 <SelectContent>
                   {schoolYears.map((sy) => (
                     <SelectItem key={sy.id} value={sy.id} className="text-xs">

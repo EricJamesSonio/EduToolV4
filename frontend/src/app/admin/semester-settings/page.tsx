@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/shared/PageHeader";
 import {
   Dialog,
   DialogContent,
@@ -90,9 +91,9 @@ export default function SemesterSettingsPage(): React.JSX.Element {
     }
   }, [schoolYears, selectedYearId]);
 
-const selectedSchoolYear = (schoolYears as SchoolYear[]).find(
-  (sy) => sy.id === selectedYearId
-) ?? null;
+  const selectedSchoolYear = (schoolYears as SchoolYear[]).find(
+    (sy) => sy.id === selectedYearId
+  ) ?? null;
 
   const { data: templates = [], isLoading: tLoading } = useSemesterTemplates();
   const { data: programs = [], isLoading: pLoading } =
@@ -165,25 +166,21 @@ const selectedSchoolYear = (schoolYears as SchoolYear[]).find(
 
   return (
     <div className="space-y-10 pb-10">
-      {/* ════════════════════════════════════════════════════════════ */}
-      {/* ══ SECTION 1: Global Template Library ══                   */}
-      {/* ════════════════════════════════════════════════════════════ */}
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">
-              Semester Settings
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Define reusable semester templates per program type, then assign
-              them to programs.
-            </p>
-          </div>
+      <PageHeader
+        title="Semester Settings"
+        description="Define reusable semester templates per program type, then assign them to programs."
+        actions={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-1.5" />
             New Template
           </Button>
-        </div>
+        }
+      />
+
+      {/* ════════════════════════════════════════════════════════════ */}
+      {/* ══ SECTION 1: Global Template Library ══                   */}
+      {/* ════════════════════════════════════════════════════════════ */}
+      <div className="space-y-4">
 
         {/* Templates by type */}
         {tLoading ? (
@@ -216,9 +213,9 @@ const selectedSchoolYear = (schoolYears as SchoolYear[]).find(
           <div className="space-y-6">
             {templateTypes.map((type) => {
               const typeTemplates = templatesByType.get(type) ?? [];
-const typeColor =
-  PROGRAM_TYPE_COLORS[type as ProgramType] ??
-  "bg-gray-100 text-gray-600 border-gray-200";
+              const typeColor =
+                PROGRAM_TYPE_COLORS[type as ProgramType] ??
+                "bg-gray-100 text-gray-600 border-gray-200";
               return (
                 <section key={type} className="space-y-3">
                   <div className="flex items-center gap-2">
@@ -226,7 +223,7 @@ const typeColor =
                       variant="outline"
                       className={cn("text-xs border px-2 py-0.5", typeColor)}
                     >
-                   {PROGRAM_TYPE_LABELS[type as ProgramType] ?? type}
+                      {PROGRAM_TYPE_LABELS[type as ProgramType] ?? type}
                     </Badge>
                     <div className="flex-1 h-px bg-border" />
                     <Button
@@ -333,9 +330,9 @@ const typeColor =
             {programTypes.map((type) => {
               const typePrograms = programsByType.get(type) ?? [];
               const compatibleTemplates = templatesByType.get(type) ?? [];
-const typeColor =
-  PROGRAM_TYPE_COLORS[type as ProgramType] ??
-  "bg-gray-100 text-gray-600 border-gray-200";
+              const typeColor =
+                PROGRAM_TYPE_COLORS[type as ProgramType] ??
+                "bg-gray-100 text-gray-600 border-gray-200";
               return (
                 <section key={type} className="space-y-3">
                   <div className="flex items-center gap-2">
@@ -343,7 +340,7 @@ const typeColor =
                       variant="outline"
                       className={cn("text-xs border px-2 py-0.5", typeColor)}
                     >
-                     {PROGRAM_TYPE_LABELS[type as ProgramType] ?? type}
+                      {PROGRAM_TYPE_LABELS[type as ProgramType] ?? type}
                     </Badge>
                     <div className="flex-1 h-px bg-border" />
                   </div>
