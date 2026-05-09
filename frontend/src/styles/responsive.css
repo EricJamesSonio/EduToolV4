@@ -1,0 +1,186 @@
+/* ─────────────────────────────────────────
+   RESPONSIVE STYLES
+   Overall responsiveness for all devices
+───────────────────────────────────────── */
+
+/* ── Mobile-first responsive adjustments ── */
+
+/* Tablet (768px and up) */
+@media (min-width: 768px) {
+
+  /* Adjust font sizes for larger screens */
+  h1 {
+    font-size: clamp(2rem, 4vw, 2.5rem);
+  }
+
+  h2 {
+    font-size: clamp(1.75rem, 3vw, 2.125rem);
+  }
+
+  h3 {
+    font-size: clamp(1.5rem, 2.5vw, 1.75rem);
+  }
+
+  /* Increase padding for larger screens */
+  .page-container {
+    padding-inline: clamp(2rem, 5vw, 4rem);
+  }
+
+  /* Adjust table cell padding for larger screens */
+  th,
+  td {
+    padding: 1rem 1.5rem;
+  }
+}
+
+/* Desktop (1024px and up) */
+@media (min-width: 1024px) {
+
+  /* Full-size headings on desktop */
+  h1 {
+    font-size: 2.25rem;
+  }
+
+  h2 {
+    font-size: 1.875rem;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+  }
+
+  /* Maximum padding on large screens */
+  .page-container {
+    padding-inline: 4rem;
+  }
+
+  /* Larger table cells on desktop */
+  th,
+  td {
+    padding: 1.125rem 1.75rem;
+  }
+
+  /* Enhanced card spacing on desktop */
+  .card-base {
+    padding: 1.5rem;
+  }
+}
+
+/* Large Desktop (1280px and up) */
+@media (min-width: 1280px) {
+
+  /* Maximum container width */
+  .page-container {
+    max-width: 1400px;
+  }
+
+  /* Larger spacing for very large screens */
+  th,
+  td {
+    padding: 1.25rem 2rem;
+  }
+}
+
+/* ── Mobile-specific adjustments ── */
+
+/* Small mobile (up to 640px) */
+@media (max-width: 640px) {
+
+  /* Reduce font sizes for small screens */
+  html {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+  }
+
+  /* Compact table cells on mobile */
+  th,
+  td {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  /* Reduce padding on mobile */
+  .page-container {
+    padding-inline: 1rem;
+  }
+
+  /* Stack flex containers on mobile */
+  .flex-row-mobile {
+    flex-direction: column;
+  }
+
+  /* Hide less important elements on very small screens */
+  .hide-mobile {
+    display: none;
+  }
+
+  /* Adjust input sizes for mobile */
+  input,
+  textarea,
+  select {
+    font-size: 0.875rem;
+  }
+
+  /* Smaller sidebar on mobile if applicable */
+  .sidebar-width {
+    width: 16rem;
+  }
+}
+
+/* ── Touch device optimizations ── */
+@media (hover: none) and (pointer: coarse) {
+
+  /* Larger touch targets for touch devices */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .button-enhanced:hover {
+    transform: none;
+  }
+
+  .card-enhanced:hover {
+    transform: none;
+  }
+}
+
+/* ── Print styles ── */
+@media print {
+
+  /* Ensure text is black on white for printing */
+  body {
+    background-color: white;
+    color: black;
+  }
+
+  /* Hide non-essential elements */
+  .sidebar-width,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Ensure tables print correctly */
+  table {
+    page-break-inside: avoid;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+}
