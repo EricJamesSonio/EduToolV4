@@ -25,31 +25,31 @@ export function TemplateCard({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-lg border bg-card transition-colors hover:bg-muted/30">
+    <div className="border-2 border-primary bg-card transition-colors hover:shadow-md hover:border-accent">
       <div
-        className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none"
+        className="flex items-center gap-4 px-6 py-4 cursor-pointer select-none"
         onClick={() => setExpanded((e) => !e)}
       >
         <ChevronRight
           className={cn(
-            "h-4 w-4 text-muted-foreground transition-transform shrink-0",
+            "h-5 w-5 text-primary transition-transform shrink-0",
             expanded && "rotate-90"
           )}
         />
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="text-sm font-medium truncate">{template.name}</span>
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <span className="text-base font-semibold truncate">{template.name}</span>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="text-xs text-muted-foreground">
+        <div className="flex items-center gap-4 shrink-0">
+          <span className="text-sm font-medium text-muted-foreground">
             {template.semesters.length} sem
             {template.semesters.length !== 1 ? "s" : ""}
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-accent hover:text-accent-foreground"
+              className="inline-flex items-center justify-center h-9 w-9 rounded-lg hover:bg-accent hover:text-accent-foreground"
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="h-5 w-5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
@@ -58,7 +58,7 @@ export function TemplateCard({
                   onEdit();
                 }}
               >
-                <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
+                <Pencil className="h-4 w-4 mr-2" /> Edit
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -68,39 +68,39 @@ export function TemplateCard({
                   onDelete();
                 }}
               >
-                <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                <Trash2 className="h-4 w-4 mr-2" /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
       {expanded && (
-        <div className="border-t px-4 py-3 bg-muted/20">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="border-t-2 border-border px-6 py-4 bg-secondary">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...template.semesters]
               .sort((a, b) => a.order_index - b.order_index)
               .map((sem) => (
                 <div
                   key={sem.id ?? sem.order_index}
-                  className="rounded-md border bg-background p-3"
+                  className="border-2 border-border bg-card p-4"
                 >
-                  <p className="text-xs font-semibold text-foreground mb-2">
+                  <p className="text-sm font-bold text-foreground mb-3">
                     {sem.name}
                   </p>
                   {sem.terms.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground italic">
+                    <p className="text-xs text-muted-foreground italic">
                       No terms
                     </p>
                   ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       {[...sem.terms]
                         .sort((a, b) => a.order_index - b.order_index)
                         .map((term) => (
                           <div
                             key={term.id ?? term.order_index}
-                            className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+                            className="flex items-center gap-2 text-xs text-muted-foreground"
                           >
-                            <div className="h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
+                            <div className="h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
                             {term.name}
                           </div>
                         ))}

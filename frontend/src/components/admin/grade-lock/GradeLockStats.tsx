@@ -23,18 +23,18 @@ export function GradeLockStats({
   }
 
   const stats = [
-    { label: "Total Classes", value: counts.total, colorClass: "" },
-    { label: "Unlocked", value: counts.unlocked, colorClass: "text-muted-foreground" },
-    { label: "Locked", value: counts.locked, colorClass: "text-destructive" },
-    { label: "Auto-Locked", value: counts.autoLocked, colorClass: "text-amber-600 dark:text-amber-400" },
+    { label: "Total Classes", value: counts.total, colorClass: "", borderClass: "border-primary" },
+    { label: "Unlocked", value: counts.unlocked, colorClass: "text-muted-foreground", borderClass: "border-border" },
+    { label: "Locked", value: counts.locked, colorClass: "text-destructive", borderClass: "border-destructive" },
+    { label: "Auto-Locked", value: counts.autoLocked, colorClass: "text-amber-600 dark:text-amber-400", borderClass: "border-amber-500" },
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {stats.map(({ label, value, colorClass }) => (
-        <div key={label} className="rounded-md bg-muted/40 p-4">
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className={`mt-1 text-2xl font-medium ${colorClass}`}>
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      {stats.map(({ label, value, colorClass, borderClass }) => (
+        <div key={label} className={`border-2 ${borderClass} bg-card p-5 flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow`}>
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+          <p className={`mt-2 text-3xl font-bold ${colorClass}`}>
             {value}
           </p>
         </div>

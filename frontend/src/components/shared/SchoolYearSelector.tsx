@@ -35,7 +35,7 @@ export function SchoolYearSelector({
     }
   }, [schoolYears, selectedId, onSelect]);
 
-  if (isLoading) return <Skeleton className="h-9 w-48" />;
+  if (isLoading) return <Skeleton className="h-11 w-64" />;
 
   if (schoolYears.length === 0) {
     return (
@@ -47,25 +47,25 @@ export function SchoolYearSelector({
 
   return (
     <div className="flex items-center gap-2">
-      <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+      <CalendarDays className="h-5 w-5 text-muted-foreground shrink-0" />
       <Select
         value={selectedId ?? ""}
         onValueChange={(value) => {
           if (value) onSelect(value);
         }}
       >
-        <SelectTrigger className="w-52 h-9 text-sm">
-          <span className="truncate">
+        <SelectTrigger className="w-64 h-11 text-base border-2 border-primary bg-secondary">
+          <span className="truncate font-medium">
             {selected?.name ?? "Select school year"}
           </span>
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="w-[16rem] min-w-[16rem]">
           {schoolYears.map((sy) => (
-            <SelectItem key={sy.id} value={sy.id}>
-              <div className="flex items-center gap-2">
-                <span>{sy.name}</span>
+            <SelectItem key={sy.id} value={sy.id} className="text-base py-3">
+              <div className="flex items-center gap-2 w-full">
+                <span className="font-medium">{sy.name}</span>
                 {sy.status === "active" && (
-                  <Badge variant="default" className="text-xs py-0 px-1.5">
+                  <Badge variant="default" className="text-xs py-0.5 px-2 font-semibold ml-auto">
                     Active
                   </Badge>
                 )}
