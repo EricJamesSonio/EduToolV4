@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLessons } from "@/hooks/educator/useLessons";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import { WeekCalendar } from "@/components/educator/lesson/WeekCalendar";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Plus, Loader2 } from "lucide-react";
 
@@ -32,17 +33,17 @@ export default function LessonsPage(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Lessons</h1>
-
-        <Link href={`/educator/classes/${classId}/lessons/new`}>
-          <Button size="sm" className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            New Lesson
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="Lessons"
+        actions={
+          <Link href={`/educator/classes/${classId}/lessons/new`}>
+            <Button size="sm" className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              New Lesson
+            </Button>
+          </Link>
+        }
+      />
 
       {/* Content */}
       {isLoading ? (
@@ -51,12 +52,12 @@ export default function LessonsPage(): React.JSX.Element {
           Loading lessons...
         </div>
       ) : (
-<WeekCalendar
-  lessons={lessons}
-  classId={classId}
-  totalWeeks={totalWeeks}
-  weeks={weeks}
-/>
+        <WeekCalendar
+          lessons={lessons}
+          classId={classId}
+          totalWeeks={totalWeeks}
+          weeks={weeks}
+        />
       )}
     </div>
   );

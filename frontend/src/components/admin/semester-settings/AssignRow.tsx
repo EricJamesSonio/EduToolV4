@@ -71,11 +71,13 @@ export function AssignRow({
         <div className="w-52">
           <Select
             value={current?.template_id ?? "none"}
-            onValueChange={requestTemplateChange}
+            onValueChange={(value) => value && requestTemplateChange(value)}
             disabled={isPending}
           >
             <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Assign template…" />
+              <SelectValue placeholder="Assign template…">
+                {assignedTemplate?.name || current ? "Assigned template" : "Assign template…"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">— None —</SelectItem>

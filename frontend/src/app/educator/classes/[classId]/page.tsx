@@ -26,6 +26,7 @@ import { schoolYearApi } from "@/api/admin/school-year.api";
 import { toArray } from "@/utils/classes.utils";
 import { formatSchedules } from "@/types/educator/class.types";
 import type { EnrollmentResponse } from "@/api/admin/class.api";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
@@ -153,8 +154,8 @@ export default function EducatorClassOverviewPage({
 
     const sectionName = cls.sectionId
       ? toArray<{ id: string; name: string }>(sectionsRaw).find(
-          (s) => s.id === cls.sectionId
-        )?.name ?? cls.sectionName
+        (s) => s.id === cls.sectionId
+      )?.name ?? cls.sectionName
       : null;
 
     const semesterName =
@@ -235,31 +236,21 @@ export default function EducatorClassOverviewPage({
 
   return (
     <div className="space-y-6 max-w-4xl">
-      {/* Header */}
-      <div>
-        <button
-          onClick={() => router.push("/educator/classes")}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          My Classes
-        </button>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {enriched.subjectName ?? enriched.subjectId}
-            </h1>
-            {enriched.sectionName && (
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {enriched.sectionName}
-              </p>
-            )}
-          </div>
-          <Badge variant="secondary" className="shrink-0 mt-1">
+      <PageHeader
+        title={enriched.subjectName ?? enriched.subjectId}
+        description={enriched.sectionName}
+        breadcrumbs={[
+          {
+            label: "My Classes",
+            href: "/educator/classes"
+          }
+        ]}
+        actions={
+          <Badge variant="secondary" className="shrink-0">
             {enriched.semesterName ?? "—"}
           </Badge>
-        </div>
-      </div>
+        }
+      />
 
       {/* Info card */}
       <div className="rounded-lg border bg-card px-5 py-1">

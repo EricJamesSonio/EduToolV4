@@ -13,6 +13,7 @@ import {
 
 import { useAttendanceSessions } from "@/hooks/educator/useAttendance";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks"; // ✅ SAME SOURCE AS LESSONS
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 
 import type { WeekSessions } from "@/api/educator/attendance.api";
@@ -52,7 +53,7 @@ export default function AttendancePage() {
     attendanceMap.set(w.week_number, w);
   }
 
-const totalWeeks = weeks.length > 0 ? Math.max(...weeks.map((w) => w.globalWeek)) : 1;
+  const totalWeeks = weeks.length > 0 ? Math.max(...weeks.map((w) => w.globalWeek)) : 1;
 
   useEffect(() => {
     if (weeks.length > 0) {
@@ -65,12 +66,10 @@ const totalWeeks = weeks.length > 0 ? Math.max(...weeks.map((w) => w.globalWeek)
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">Attendance</h1>
-        <p className="text-sm text-muted-foreground">
-          Synced with lesson calendar
-        </p>
-      </div>
+      <PageHeader
+        title="Attendance"
+        description="Synced with lesson calendar"
+      />
 
       {/* Week Navigator (NOW 100% MATCHES LESSON SYSTEM) */}
       <div className="flex items-center justify-between rounded-lg border px-5 py-3">
@@ -88,12 +87,12 @@ const totalWeeks = weeks.length > 0 ? Math.max(...weeks.map((w) => w.globalWeek)
             {currentWeekMeta?.semesterName ?? "Semester"}
           </p>
 
-<p className="text-lg font-bold mt-0.5">
-  Week {currentWeekMeta?.semesterWeek ?? currentWeek}
-  <span className="text-sm text-muted-foreground font-normal ml-2">
-    of {weeks.filter((w) => w.semesterIndex === (currentWeekMeta?.semesterIndex ?? 1)).length}
-  </span>
-</p>
+          <p className="text-lg font-bold mt-0.5">
+            Week {currentWeekMeta?.semesterWeek ?? currentWeek}
+            <span className="text-sm text-muted-foreground font-normal ml-2">
+              of {weeks.filter((w) => w.semesterIndex === (currentWeekMeta?.semesterIndex ?? 1)).length}
+            </span>
+          </p>
 
           <p className="text-xs text-muted-foreground">
             {currentWeekMeta?.termName}

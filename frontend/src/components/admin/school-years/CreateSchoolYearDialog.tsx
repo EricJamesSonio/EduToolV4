@@ -2,16 +2,16 @@
 
 "use client";
 
-import { useState }                          from "react";
-import { useMutation, useQueryClient }       from "@tanstack/react-query";
-import { useForm }                           from "react-hook-form";
-import { toast }                             from "sonner";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { Button }        from "@/components/ui/button";
-import { Input }         from "@/components/ui/input";
-import { Label }         from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -20,12 +20,12 @@ import {
 } from "@/components/ui/dialog";
 
 import type { CreateForm, ShortDurationWarning } from "./types/types";
-import { isShortDurationError }                  from "./utils/helpers";
+import { isShortDurationError } from "./utils/helpers";
 
 // ---------------------------------------------------------------------------
 
 interface Props {
-  open:    boolean;
+  open: boolean;
   onClose: () => void;
 }
 
@@ -47,9 +47,9 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
   const mutation = useMutation({
     mutationFn: (payload: CreateForm & { confirm_short_duration?: boolean }) =>
       schoolYearApi.create({
-        name:                   payload.name,
-        start_date:             payload.start_date  || undefined,
-        end_date:               payload.end_date    || undefined,
+        name: payload.name,
+        start_date: payload.start_date || undefined,
+        end_date: payload.end_date || undefined,
         confirm_short_duration: payload.confirm_short_duration,
       }),
 
@@ -101,8 +101,8 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
                 id="sy-name"
                 placeholder="e.g. School Year 2026-2027"
                 {...register("name", {
-                  required:  "Title is required",
-                  minLength: { value: 2,   message: "At least 2 characters" },
+                  required: "Title is required",
+                  minLength: { value: 2, message: "At least 2 characters" },
                   maxLength: { value: 100, message: "Max 100 characters" },
                 })}
               />
@@ -157,8 +157,8 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
 
       <ConfirmDialog
         open={!!shortDurationWarning}
-        title="School year looks short"
-        message="This school year doesn't span a full year. This might be a mistake — are you sure you want to proceed?"
+        title="School year duration warning"
+        message="The set school year date span range was below 10 months. Are you sure you want to proceed?"
         confirmLabel="Yes, create it"
         destructive={false}
         isLoading={mutation.isPending}

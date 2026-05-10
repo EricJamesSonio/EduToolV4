@@ -17,7 +17,7 @@ const config: Config = {
       colors: {
         // Brand palette — EduTool primary blue
         brand: {
-          50:  "#eff6ff",
+          50: "#eff6ff",
           100: "#dbeafe",
           200: "#bfdbfe",
           300: "#93c5fd",
@@ -31,54 +31,54 @@ const config: Config = {
         },
         // Sidebar specific
         sidebar: {
-          bg:           "hsl(var(--sidebar-bg))",
-          border:       "hsl(var(--sidebar-border))",
-          text:         "hsl(var(--sidebar-text))",
+          bg: "hsl(var(--sidebar-bg))",
+          border: "hsl(var(--sidebar-border))",
+          text: "hsl(var(--sidebar-text))",
           "text-muted": "hsl(var(--sidebar-text-muted))",
-          active:       "hsl(var(--sidebar-active))",
-          "active-text":"hsl(var(--sidebar-active-text))",
-          hover:        "hsl(var(--sidebar-hover))",
+          active: "hsl(var(--sidebar-active))",
+          "active-text": "hsl(var(--sidebar-active-text))",
+          hover: "hsl(var(--sidebar-hover))",
         },
         // Surface colors for cards / panels
         surface: {
           DEFAULT: "hsl(var(--surface))",
-          raised:  "hsl(var(--surface-raised))",
+          raised: "hsl(var(--surface-raised))",
           overlay: "hsl(var(--surface-overlay))",
         },
         // shadcn/ui required tokens (do not remove)
         background: "hsl(var(--background))",
-        foreground:  "hsl(var(--foreground))",
+        foreground: "hsl(var(--foreground))",
         card: {
-          DEFAULT:    "hsl(var(--card))",
+          DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
         popover: {
-          DEFAULT:    "hsl(var(--popover))",
+          DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
         },
         primary: {
-          DEFAULT:    "hsl(var(--primary))",
+          DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
-          DEFAULT:    "hsl(var(--secondary))",
+          DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
         },
         muted: {
-          DEFAULT:    "hsl(var(--muted))",
+          DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT:    "hsl(var(--accent))",
+          DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
         destructive: {
-          DEFAULT:    "hsl(var(--destructive))",
+          DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
-        border:  "hsl(var(--border))",
-        input:   "hsl(var(--input))",
-        ring:    "hsl(var(--ring))",
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
         chart: {
           "1": "hsl(var(--chart-1))",
           "2": "hsl(var(--chart-2))",
@@ -94,33 +94,33 @@ const config: Config = {
       },
       // Sidebar dimensions
       spacing: {
-        "sidebar":          "240px",
+        "sidebar": "240px",
         "sidebar-collapsed": "64px",
-        "topbar":           "56px",
+        "topbar": "56px",
       },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
-          to:   { height: "var(--radix-accordion-content-height)" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
           from: { height: "var(--radix-accordion-content-height)" },
-          to:   { height: "0" },
+          to: { height: "0" },
         },
         "fade-in": {
           from: { opacity: "0", transform: "translateY(4px)" },
-          to:   { opacity: "1", transform: "translateY(0)" },
+          to: { opacity: "1", transform: "translateY(0)" },
         },
         "slide-in-right": {
           from: { transform: "translateX(100%)" },
-          to:   { transform: "translateX(0)" },
+          to: { transform: "translateX(0)" },
         },
       },
       animation: {
-        "accordion-down":  "accordion-down 0.2s ease-out",
-        "accordion-up":    "accordion-up 0.2s ease-out",
-        "fade-in":         "fade-in 0.2s ease-out",
-        "slide-in-right":  "slide-in-right 0.25s ease-out",
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in": "fade-in 0.2s ease-out",
+        "slide-in-right": "slide-in-right 0.25s ease-out",
       },
     },
   },

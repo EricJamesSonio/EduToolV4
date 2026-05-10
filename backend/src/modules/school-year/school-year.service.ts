@@ -16,7 +16,7 @@ import {
   SchoolYearCreateResult,
 } from './dto/school-year.dto';
 
-const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+const TEN_MONTHS_MS = 10 * 30 * 24 * 60 * 60 * 1000;
 
 interface CreateResult {
   data: Awaited<ReturnType<SchoolYearRepository['findById']>>;
@@ -30,7 +30,7 @@ export class SchoolYearService {
     private readonly levelService: LevelService,
     private readonly subjectService: SubjectService,
     private readonly gradingScaleService: GradingScaleService,
-  ) {}
+  ) { }
 
   // ---------------------------------------------------------------------------
   // Date validation helpers
@@ -50,7 +50,7 @@ export class SchoolYearService {
   }
 
   /**
-   * Returns true when both dates are provided and the span is less than 1 year.
+   * Returns true when both dates are provided and the span is less than 10 months.
    * The caller decides whether to abort or proceed based on confirm_short_duration.
    */
   private isShortDuration(start_date?: string, end_date?: string): boolean {
@@ -58,7 +58,7 @@ export class SchoolYearService {
 
     const start = new Date(start_date);
     const end = new Date(end_date);
-    return end.getTime() - start.getTime() < ONE_YEAR_MS;
+    return end.getTime() - start.getTime() < TEN_MONTHS_MS;
   }
 
   // ---------------------------------------------------------------------------
@@ -79,7 +79,7 @@ export class SchoolYearService {
         statusCode: 400,
         error: 'SHORT_DURATION_WARNING',
         message:
-          'This school year does not span a full year. Are you sure you want to proceed?',
+          'This school year spans less than 10 months. Are you sure you want to proceed?',
       });
     }
 
@@ -94,7 +94,7 @@ export class SchoolYearService {
 
     return {
       data: schoolYear,
-      warning: short ? 'School year is shorter than one year.' : undefined,
+      warning: short ? 'School year is shorter than 10 months.' : undefined,
     };
   }
 
@@ -136,7 +136,7 @@ export class SchoolYearService {
         statusCode: 400,
         error: 'SHORT_DURATION_WARNING',
         message:
-          'This school year does not span a full year. Are you sure you want to proceed?',
+          'This school year spans less than 10 months. Are you sure you want to proceed?',
       });
     }
 
@@ -147,57 +147,57 @@ export class SchoolYearService {
     });
   }
 
-async activate(id: string, orgId: string) {
-  const schoolYear = await this.schoolYearRepository.findById(id, orgId);
-  if (!schoolYear) {
-    throw new NotFoundException('School year not found.');
+  async activate(id: string, orgId: string) {
+    const schoolYear = await this.schoolYearRepository.findById(id, orgId);
+    if (!schoolYear) {
+      throw new NotFoundException('School year not found.');
+    }
+
+    if (schoolYear.status === 'active') {
+      throw new ConflictException('This school year is already active.');
+    }
+
+    if (schoolYear.status === 'ended') {
+      throw new BadRequestException(
+        'An ended school year cannot be reactivated.',
+      );
+    }
+
+    // ✅ Null safety (fix TS error properly)
+    if (!schoolYear.start_date) {
+      throw new BadRequestException(
+        'School year has no start date and cannot be activated.',
+      );
+    }
+
+    // 🔥 Prevent early activation, allow late activation
+    const today = new Date();
+    const start = new Date(schoolYear.start_date);
+
+    today.setHours(0, 0, 0, 0);
+    start.setHours(0, 0, 0, 0);
+
+    if (start > today) {
+      throw new BadRequestException(
+        'Cannot activate a school year before its start date.',
+      );
+    }
+
+    // ✅ Ensure only one active school year (safer than count)
+    const existingActive = await this.schoolYearRepository.findActive(orgId);
+    if (existingActive) {
+      throw new ConflictException(
+        'Another school year is currently active. End it before activating a new one.',
+      );
+    }
+
+    const result = await this.schoolYearRepository.updateStatus(id, 'active');
+
+    // 🔓 Reset locks for new active cycle
+    await this.subjectService.unlockAllForOrg(orgId);
+
+    return result;
   }
-
-  if (schoolYear.status === 'active') {
-    throw new ConflictException('This school year is already active.');
-  }
-
-  if (schoolYear.status === 'ended') {
-    throw new BadRequestException(
-      'An ended school year cannot be reactivated.',
-    );
-  }
-
-  // ✅ Null safety (fix TS error properly)
-  if (!schoolYear.start_date) {
-    throw new BadRequestException(
-      'School year has no start date and cannot be activated.',
-    );
-  }
-
-  // 🔥 Prevent early activation, allow late activation
-  const today = new Date();
-  const start = new Date(schoolYear.start_date);
-
-  today.setHours(0, 0, 0, 0);
-  start.setHours(0, 0, 0, 0);
-
-  if (start > today) {
-    throw new BadRequestException(
-      'Cannot activate a school year before its start date.',
-    );
-  }
-
-  // ✅ Ensure only one active school year (safer than count)
-  const existingActive = await this.schoolYearRepository.findActive(orgId);
-  if (existingActive) {
-    throw new ConflictException(
-      'Another school year is currently active. End it before activating a new one.',
-    );
-  }
-
-  const result = await this.schoolYearRepository.updateStatus(id, 'active');
-
-  // 🔓 Reset locks for new active cycle
-  await this.subjectService.unlockAllForOrg(orgId);
-
-  return result;
-}
   async end(id: string, orgId: string) {
     const schoolYear = await this.schoolYearRepository.findById(id, orgId);
     if (!schoolYear) throw new NotFoundException('School year not found.');

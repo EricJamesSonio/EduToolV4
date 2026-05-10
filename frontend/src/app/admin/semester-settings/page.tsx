@@ -13,13 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Plus, Layers, AlertCircle } from "lucide-react";
 import type { AxiosError } from "axios";
@@ -39,6 +32,7 @@ import clientApi from "@/api/client";
 import { TemplateFormDialog } from "@/components/admin/semester-settings/TemplateFormDialog";
 import { TemplateCard } from "@/components/admin/semester-settings/TemplateCard";
 import { AssignRow } from "@/components/admin/semester-settings/AssignRow";
+import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import {
   PROGRAM_TYPE_LABELS,
   PROGRAM_TYPE_COLORS,
@@ -83,13 +77,6 @@ const errMsg = (e: unknown) =>
 export default function SemesterSettingsPage(): React.JSX.Element {
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
   const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!selectedYearId && schoolYears.length > 0) {
-      const active = schoolYears.find((sy: SchoolYear) => sy.status === "active");
-      setSelectedYearId(active?.id ?? schoolYears[0].id);
-    }
-  }, [schoolYears, selectedYearId]);
 
   const selectedSchoolYear = (schoolYears as SchoolYear[]).find(
     (sy) => sy.id === selectedYearId
@@ -274,28 +261,12 @@ export default function SemesterSettingsPage(): React.JSX.Element {
           </div>
 
           {/* School Year Selector */}
-          <Select
-            value={selectedYearId ?? ""}
-            onValueChange={(v) => {
-              if (v) setSelectedYearId(v);
-            }}
-          >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select school year…" />
-            </SelectTrigger>
-            <SelectContent>
-              {schoolYears.map((sy: SchoolYear) => (
-                <SelectItem key={sy.id} value={sy.id}>
-                  {sy.name}
-                  {sy.status === "active" && (
-                    <span className="ml-1.5 text-emerald-600 text-[10px]">
-                      • Active
-                    </span>
-                  )}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SchoolYearSelector
+            schoolYears={schoolYears as SchoolYear[]}
+            isLoading={syLoading}
+            selectedId={selectedYearId}
+            onSelect={setSelectedYearId}
+          />
         </div>
 
         {/* School year date range hint */}
