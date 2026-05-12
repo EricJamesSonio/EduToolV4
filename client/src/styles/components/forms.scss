@@ -357,7 +357,7 @@
         box-shadow: 0 4px 12px rgba(88, 204, 2, 0.25);
 
         &:hover {
-          background-color: var(--color-primary-400);
+          background-color: var(--color-primary-300);
           box-shadow: 0 6px 16px rgba(88, 204, 2, 0.3);
           transform: translateY(-1px);
         }
@@ -374,7 +374,7 @@
           border: 2px solid var(--color-primary-500);
 
           &:hover {
-            background-color: var(--color-primary-50);
+            background-color: var(--color-secondary-50);
             border-color: var(--color-primary-600);
             color: var(--color-primary-600);
           }
@@ -502,6 +502,45 @@
 // Login form specific styles
 .login-form {
   width: 100%;
+}
+
+.auth-page-content {
+  max-width: 640px;
+  padding-top: $spacing-8;
+  padding-bottom: $spacing-8;
+}
+
+.auth-subtitle {
+  margin-top: $spacing-3;
+  margin-bottom: $spacing-6;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-5;
+}
+
+.auth-switch {
+  margin-top: $spacing-5;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.auth-switch-link {
+  border: none;
+  background: none;
+  color: var(--color-primary-500);
+  font-weight: $font-semibold;
+  cursor: pointer;
+  padding: 0;
+}
+
+.auth-switch-link:hover {
+  color: var(--color-primary-600);
+  text-decoration: underline;
 }
 
 .form-footer {

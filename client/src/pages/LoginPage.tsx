@@ -1,37 +1,46 @@
-// LoginPage Component
-// User authentication page with form validation
-
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useLogin } from '../services/auth.service';
+import { useLogin, useSignUp } from '../services/auth.service';
 import { useErrorToast } from '../components/ErrorDisplay/ErrorDisplay';
 import Button from '../components/Button';
+
+type AuthMode = 'signin' | 'signup';
+
+interface AuthFormState {
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const { showError, showSuccess } = useErrorToast();
   const loginMutation = useLogin();
+  const signUpMutation = useSignUp();
 
-  const [formData, setFormData] = useState({
+  const [mode, setMode] = useState<AuthMode>('signin');
+  const [formData, setFormData] = useState<AuthFormState>({
     email: '',
     password: '',
+    confirmPassword: '',
   });
-
-  const [errors, setErrors] = useState({
+  const [errors, setErrors] = useState<Record<keyof AuthFormState, string>>({
     email: '',
     password: '',
+    confirmPassword: '',
   });
 
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const isSignUp = mode === 'signup';
+  const isSubmitting = loginMutation.isPending || signUpMutation.isPending;
+
+  const validateEmail = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const validateForm = (): boolean => {
-    const newErrors = {
+    const newErrors: Record<keyof AuthFormState, string> = {
       email: '',
       password: '',
+      confirmPassword: '',
     };
 
     let isValid = true;
@@ -52,18 +61,48 @@ const LoginPage = () => {
       isValid = false;
     }
 
+    if (isSignUp) {
+      if (!formData.confirmPassword) {
+        newErrors.confirmPassword = 'Please confirm your password';
+        isValid = false;
+      } else if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match';
+        isValid = false;
+      }
+    }
+
     setErrors(newErrors);
     return isValid;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
 
-    if (!validateForm()) {
+    const payload = {
+      email: formData.email.trim(),
+      password: formData.password,
+    };
+
+    if (isSignUp) {
+      signUpMutation.mutate(payload, {
+        onSuccess: () => {
+          showSuccess('Account created successfully!');
+          navigate('/dashboard');
+        },
+        onError: (error) => {
+          if (axios.isAxiosError(error) && error.response?.status === 404) {
+            showError('Sign up is not available yet. Please contact your administrator.');
+            return;
+          }
+
+          showError(error instanceof Error ? error.message : 'Sign up failed');
+        },
+      });
       return;
     }
 
-    loginMutation.mutate(formData, {
+    loginMutation.mutate(payload, {
       onSuccess: () => {
         showSuccess('Login successful!');
         navigate('/dashboard');
@@ -71,42 +110,39 @@ const LoginPage = () => {
       onError: (error) => {
         if (axios.isAxiosError(error) && error.response?.status === 401) {
           showError('Invalid email or password');
-        } else {
-          showError(error instanceof Error ? error.message : 'Login failed');
+          return;
         }
+        showError(error instanceof Error ? error.message : 'Login failed');
       },
     });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: '' }));
+  };
 
-    // Clear error when user starts typing
-    setErrors((prev) => ({
-      ...prev,
-      [name]: '',
-    }));
+  const switchMode = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    setErrors({ email: '', password: '', confirmPassword: '' });
   };
 
   return (
-    <div className="page">
-      <div className="page-content">
+    <div className="page auth-page">
+      <div className="page-content auth-page-content">
         <h1 className="hero-title">
-          Sign In
+          {isSignUp ? 'Create Account' : 'Sign In'}
         </h1>
+        <p className="auth-subtitle">
+          {isSignUp
+            ? 'Use your email and password to get started.'
+            : 'Welcome back! Enter your credentials to continue.'}
+        </p>
 
-        <form onSubmit={handleSubmit} className="login-form">
+        <form onSubmit={handleSubmit} className="login-form auth-form">
           <div className="form-group">
-            <label
-              htmlFor="email"
-              className="form-label"
-            >
-              Email
-            </label>
+            <label htmlFor="email" className="form-label">Email</label>
             <input
               type="email"
               id="email"
@@ -116,20 +152,11 @@ const LoginPage = () => {
               className="form-input"
               placeholder="Enter your email"
             />
-            {errors.email && (
-              <div className="inline-error">
-                {errors.email}
-              </div>
-            )}
+            {errors.email && <div className="inline-error">{errors.email}</div>}
           </div>
 
           <div className="form-group">
-            <label
-              htmlFor="password"
-              className="form-label"
-            >
-              Password
-            </label>
+            <label htmlFor="password" className="form-label">Password</label>
             <input
               type="password"
               id="password"
@@ -139,26 +166,43 @@ const LoginPage = () => {
               className="form-input"
               placeholder="Enter your password"
             />
-            {errors.password && (
-              <div className="inline-error">
-                {errors.password}
-              </div>
-            )}
+            {errors.password && <div className="inline-error">{errors.password}</div>}
           </div>
 
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            fullWidth
-            loading={loginMutation.isPending}
-          >
-            {loginMutation.isPending ? 'Signing in...' : 'Sign In'}
+          {isSignUp && (
+            <div className="form-group">
+              <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
+              <input
+                type="password"
+                id="confirmPassword"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="Re-enter your password"
+              />
+              {errors.confirmPassword && <div className="inline-error">{errors.confirmPassword}</div>}
+            </div>
+          )}
+
+          <Button type="submit" variant="primary" size="lg" fullWidth loading={isSubmitting}>
+            {isSignUp ? (isSubmitting ? 'Creating account...' : 'Create Account') : (isSubmitting ? 'Signing in...' : 'Sign In')}
           </Button>
         </form>
 
+        <p className="auth-switch">
+          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+          <button
+            type="button"
+            className="auth-switch-link"
+            onClick={() => switchMode(isSignUp ? 'signin' : 'signup')}
+          >
+            {isSignUp ? 'Sign in' : 'Sign up'}
+          </button>
+        </p>
+
         <div className="form-footer">
-          <Button variant="secondary" onClick={() => window.location.href = '/'}>
+          <Button variant="secondary" onClick={() => navigate('/')}>
             Back to Home
           </Button>
         </div>

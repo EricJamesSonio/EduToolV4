@@ -43,7 +43,7 @@
   box-shadow: 0 2px 4px rgba(88, 204, 2, 0.2);
 
   &:hover:not(:disabled) {
-    background-color: var(--color-primary-400);
+    background-color: var(--color-primary-300);
     box-shadow: 0 4px 8px rgba(88, 204, 2, 0.3);
     transform: translateY(-1px);
   }
@@ -62,7 +62,7 @@
   border: 2px solid var(--color-primary-500);
 
   &:hover:not(:disabled) {
-    background-color: var(--color-primary-50);
+    background-color: var(--color-secondary-50);
     border-color: var(--color-primary-400);
     color: var(--color-primary-400);
   }
