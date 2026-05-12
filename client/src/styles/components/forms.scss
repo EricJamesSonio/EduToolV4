@@ -357,7 +357,7 @@
         box-shadow: 0 4px 12px rgba(88, 204, 2, 0.25);
 
         &:hover {
-          background-color: var(--color-primary-600);
+          background-color: var(--color-primary-400);
           box-shadow: 0 6px 16px rgba(88, 204, 2, 0.3);
           transform: translateY(-1px);
         }
@@ -370,19 +370,19 @@
 
         &.btn-secondary {
           background-color: transparent;
-          color: var(--color-info-500);
-          border: 2px solid var(--color-border-primary);
+          color: var(--color-primary-500);
+          border: 2px solid var(--color-primary-500);
 
           &:hover {
-            background-color: var(--color-secondary-50);
-            border-color: var(--color-info-500);
-            color: var(--color-info-600);
+            background-color: var(--color-primary-50);
+            border-color: var(--color-primary-600);
+            color: var(--color-primary-600);
           }
 
           &:active {
-            background-color: var(--color-secondary-100);
-            border-color: var(--color-info-600);
-            color: var(--color-info-700);
+            background-color: var(--color-primary-100);
+            border-color: var(--color-primary-700);
+            color: var(--color-primary-700);
           }
 
           &.btn-small {
@@ -497,4 +497,18 @@
   100% {
     transform: translate(-50%, -50%) rotate(360deg);
   }
+}
+
+// Login form specific styles
+.login-form {
+  width: 100%;
+}
+
+.form-footer {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.btn-full-width {
+  width: 100%;
 }

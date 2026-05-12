@@ -4,7 +4,7 @@
 const DashboardPage = () => (
   <div className="page">
     <div className="page-content">
-      <h1 className="page-title">
+      <h1 className="hero-title">
         Dashboard
       </h1>
       <p className="page-description">

@@ -5,7 +5,8 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useLogin } from '../services/auth.service';
-import { useErrorToast } from '../components/ErrorDisplay/UnifiedError';
+import { useErrorToast } from '../components/ErrorDisplay/ErrorDisplay';
+import Button from '../components/Button';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -94,19 +95,15 @@ const LoginPage = () => {
   return (
     <div className="page">
       <div className="page-content">
-        <h1 className="page-title">
+        <h1 className="hero-title">
           Sign In
         </h1>
 
-        <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-          <div style={{ marginBottom: '1rem' }}>
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="form-group">
             <label
               htmlFor="email"
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-              }}
+              className="form-label"
             >
               Email
             </label>
@@ -116,13 +113,7 @@ const LoginPage = () => {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid var(--color-border-primary)',
-                borderRadius: '12px',
-                fontSize: '1rem',
-              }}
+              className="form-input"
               placeholder="Enter your email"
             />
             {errors.email && (
@@ -132,14 +123,10 @@ const LoginPage = () => {
             )}
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div className="form-group">
             <label
               htmlFor="password"
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-              }}
+              className="form-label"
             >
               Password
             </label>
@@ -149,13 +136,7 @@ const LoginPage = () => {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '2px solid var(--color-border-primary)',
-                borderRadius: '12px',
-                fontSize: '1rem',
-              }}
+              className="form-input"
               placeholder="Enter your password"
             />
             {errors.password && (
@@ -165,20 +146,21 @@ const LoginPage = () => {
             )}
           </div>
 
-          <button
+          <Button
             type="submit"
-            className="btn btn-primary"
-            style={{ width: '100%' }}
-            disabled={loginMutation.isPending}
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={loginMutation.isPending}
           >
             {loginMutation.isPending ? 'Signing in...' : 'Sign In'}
-          </button>
+          </Button>
         </form>
 
-        <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-          <a href="/" className="btn btn-secondary" style={{ display: 'inline-block' }}>
+        <div className="form-footer">
+          <Button variant="secondary" onClick={() => window.location.href = '/'}>
             Back to Home
-          </a>
+          </Button>
         </div>
       </div>
     </div>

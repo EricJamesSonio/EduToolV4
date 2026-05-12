@@ -26,19 +26,41 @@ body {
 }
 
 // Typography base
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-weight: $font-semibold;
   line-height: $leading-tight;
   margin: 0 0 $spacing-4 0;
   color: $gray-900;
 }
 
-h1 { font-size: $font-4xl; }
-h2 { font-size: $font-3xl; }
-h3 { font-size: $font-2xl; }
-h4 { font-size: $font-xl; }
-h5 { font-size: $font-lg; }
-h6 { font-size: $font-base; }
+h1 {
+  font-size: $font-4xl;
+}
+
+h2 {
+  font-size: $font-3xl;
+}
+
+h3 {
+  font-size: $font-2xl;
+}
+
+h4 {
+  font-size: $font-xl;
+}
+
+h5 {
+  font-size: $font-lg;
+}
+
+h6 {
+  font-size: $font-base;
+}
 
 p {
   margin: 0 0 $spacing-4 0;
@@ -51,7 +73,7 @@ a {
   transition: $transition-fast;
 
   &:hover {
-    color: darken($primary-color, 10%);
+    color: var(--color-primary-400);
     text-decoration: underline;
   }
 
@@ -62,7 +84,8 @@ a {
 }
 
 // Lists
-ul, ol {
+ul,
+ol {
   margin: 0 0 $spacing-4 0;
   padding-left: $spacing-6;
 }
@@ -103,7 +126,8 @@ table {
   margin-bottom: $spacing-6;
 }
 
-th, td {
+th,
+td {
   padding: $spacing-3 $spacing-4;
   text-align: left;
   border-bottom: 1px solid $gray-200;
@@ -116,7 +140,9 @@ th {
 }
 
 // Forms
-input, textarea, select {
+input,
+textarea,
+select {
   @include input-base;
 }
 

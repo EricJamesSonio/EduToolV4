@@ -127,7 +127,7 @@ $font-family-mono: 'JetBrains Mono', 'Fira Code', Consolas, 'Liberation Mono', '
     transition: $transition-fast;
 
     &:hover {
-      color: darken($primary-color, 10%);
+      color: var(--color-primary-400);
       text-decoration: underline;
     }
 

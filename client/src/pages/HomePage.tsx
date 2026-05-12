@@ -1,6 +1,8 @@
 // HomePage Component
 // Main landing page with hero section
 
+import Button from '../components/Button';
+
 const HomePage = () => {
   return (
     <div className="hero">
@@ -17,13 +19,13 @@ const HomePage = () => {
 
         {/* CTA Buttons */}
         <div className="hero-actions">
-          <button className="btn btn-primary btn-lg">
+          <Button variant="primary" size="lg">
             GET STARTED
-          </button>
+          </Button>
 
-          <button className="btn btn-secondary btn-lg">
+          <Button variant="secondary" size="lg">
             I ALREADY HAVE AN ACCOUNT
-          </button>
+          </Button>
         </div>
       </div>
     </div>

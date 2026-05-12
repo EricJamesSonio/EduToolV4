@@ -358,3 +358,8 @@ export const hexToRgb = (hex: string): { r: number; g: number; b: number } | nul
 export const rgbToHex = (r: number, g: number, b: number): string => {
   return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 };
+
+// className utility for combining CSS classes
+export const cn = (...classes: (string | undefined | null | false)[]): string => {
+  return classes.filter(Boolean).join(' ');
+};

@@ -1,16 +1,20 @@
 // AboutPage Component
 // About us page
 
+import Button from '../components/Button';
+
 const AboutPage = () => (
   <div className="page">
     <div className="page-content">
-      <h1 className="page-title">
+      <h1 className="hero-title">
         About Us
       </h1>
       <p className="page-description">
         About page coming soon!
       </p>
-      <a href="/" className="btn btn-primary">Back to Home</a>
+      <Button variant="primary" size="lg" onClick={() => window.location.href = '/'}>
+        Back to Home
+      </Button>
     </div>
   </div>
 );
