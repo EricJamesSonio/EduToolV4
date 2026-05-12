@@ -144,84 +144,86 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="page auth-page">
-      <div className="page-content auth-page-content">
-        <h1 className="hero-title">
-          {isSignUp ? 'Create Account' : 'Sign In'}
-        </h1>
-        <p className="auth-subtitle">
-          {isSignUp
-            ? 'Use your email and password to get started.'
-            : 'Welcome back! Enter your credentials to continue.'}
-        </p>
+    <div className="home-page">
+      <section className="hero">
+        <div className="hero-content">
+          <h1 className="hero-title">
+            {isSignUp ? 'Create Account' : 'Sign In'}
+          </h1>
+          <p className="hero-subtitle">
+            {isSignUp
+              ? 'Use your email and password to get started.'
+              : 'Welcome back! Enter your credentials to continue.'}
+          </p>
 
-        <form onSubmit={handleSubmit} className="login-form auth-form">
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="form-input"
-              placeholder="Enter your email"
-            />
-            {errors.email && <div className="inline-error">{errors.email}</div>}
+          <div className="hero-actions">
+            <form onSubmit={handleSubmit} className="login-form auth-form">
+              <div className="form-group">
+                <label htmlFor="email" className="form-label">Email</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="form-input"
+                  placeholder="Enter your email"
+                />
+                {errors.email && <div className="inline-error">{errors.email}</div>}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="password" className="form-label">Password</label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="form-input"
+                  placeholder="Enter your password"
+                />
+                {errors.password && <div className="inline-error">{errors.password}</div>}
+              </div>
+
+              {isSignUp && (
+                <div className="form-group">
+                  <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="form-input"
+                    placeholder="Re-enter your password"
+                  />
+                  {errors.confirmPassword && <div className="inline-error">{errors.confirmPassword}</div>}
+                </div>
+              )}
+
+              <Button type="submit" variant="primary" size="lg" fullWidth loading={isSubmitting}>
+                {isSignUp ? (isSubmitting ? 'Creating account...' : 'Create Account') : (isSubmitting ? 'Signing in...' : 'Sign In')}
+              </Button>
+            </form>
+
+            <p className="auth-switch">
+              {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+              <button
+                type="button"
+                className="auth-switch-link"
+                onClick={() => switchMode(isSignUp ? 'signin' : 'signup')}
+              >
+                {isSignUp ? 'Sign in' : 'Sign up'}
+              </button>
+            </p>
+
+            <Button variant="secondary" onClick={() => navigate('/')}>
+              Back to Home
+            </Button>
           </div>
-
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="form-input"
-              placeholder="Enter your password"
-            />
-            {errors.password && <div className="inline-error">{errors.password}</div>}
-          </div>
-
-          {isSignUp && (
-            <div className="form-group">
-              <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="form-input"
-                placeholder="Re-enter your password"
-              />
-              {errors.confirmPassword && <div className="inline-error">{errors.confirmPassword}</div>}
-            </div>
-          )}
-
-          <Button type="submit" variant="primary" size="lg" fullWidth loading={isSubmitting}>
-            {isSignUp ? (isSubmitting ? 'Creating account...' : 'Create Account') : (isSubmitting ? 'Signing in...' : 'Sign In')}
-          </Button>
-        </form>
-
-        <p className="auth-switch">
-          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button
-            type="button"
-            className="auth-switch-link"
-            onClick={() => switchMode(isSignUp ? 'signin' : 'signup')}
-          >
-            {isSignUp ? 'Sign in' : 'Sign up'}
-          </button>
-        </p>
-
-        <div className="form-footer">
-          <Button variant="secondary" onClick={() => navigate('/')}>
-            Back to Home
-          </Button>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

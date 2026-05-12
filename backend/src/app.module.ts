@@ -13,10 +13,11 @@ import { PlatformDomainModule } from './domains/platform/platform-domain.module'
 import { SchedulerModule } from './core/scheduler/scheduler.module';
 
 import { HealthModule } from './modules/health/health.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
-    ScheduleModule.forRoot(), 
+    ScheduleModule.forRoot(),
     // ServeStaticModule removed — frontend is served by Next.js
 
     CoreModule,
@@ -29,6 +30,7 @@ import { HealthModule } from './modules/health/health.module';
     PlatformDomainModule,
 
     HealthModule,
+    DashboardModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

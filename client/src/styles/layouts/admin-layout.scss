@@ -3,11 +3,11 @@
 
 .admin-layout {
   min-height: 100vh;
-  background-color: var(--color-background);
+  background-color: var(--color-white);
 
   .admin-main {
-    margin-top: 64px; // Height of navbar
     padding: 2rem;
+    margin-top: 64px;
     min-height: calc(100vh - 64px);
   }
 }

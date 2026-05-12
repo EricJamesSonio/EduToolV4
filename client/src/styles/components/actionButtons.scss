@@ -1,0 +1,122 @@
+// ActionButtons Component
+// Reusable Edit and Delete action buttons
+
+.action-buttons {
+  display: flex;
+  gap: $spacing-2;
+  align-items: center;
+
+  &.action-buttons-compact {
+    gap: $spacing-1;
+  }
+
+  &.action-buttons-sm {
+    gap: $spacing-1;
+  }
+
+  &.action-buttons-lg {
+    gap: $spacing-3;
+  }
+}
+
+.action-button {
+  padding: $spacing-2 $spacing-3;
+  border: 1px solid var(--color-border-primary);
+  border-radius: $radius-md;
+  font-size: $font-sm;
+  font-weight: $font-medium;
+  cursor: pointer;
+  transition: $transition-fast;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  background-color: var(--color-white);
+  color: var(--color-text-secondary);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: $shadow-sm;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  // Edit button styling
+  &.action-button-edit {
+    border-color: var(--color-border-primary);
+    color: var(--color-text-secondary);
+
+    &:hover:not(:disabled) {
+      background-color: var(--color-secondary-50);
+      color: var(--color-text-primary);
+      border-color: var(--color-border-secondary);
+    }
+  }
+
+  // Delete button styling
+  &.action-button-delete {
+    border-color: var(--color-error-200);
+    color: var(--color-error-600);
+
+    &:hover:not(:disabled) {
+      background-color: var(--color-error-50);
+      color: var(--color-error-700);
+      border-color: var(--color-error-300);
+    }
+  }
+}
+
+// Size variants
+.action-buttons-sm {
+  .action-button {
+    padding: $spacing-1 $spacing-2;
+    font-size: $font-xs;
+    min-width: 50px;
+  }
+}
+
+.action-buttons-lg {
+  .action-button {
+    padding: $spacing-3 $spacing-4;
+    font-size: $font-base;
+    min-width: 80px;
+  }
+}
+
+// Compact variant
+.action-buttons-compact {
+  .action-button {
+    padding: $spacing-1 $spacing-2;
+    font-size: $font-xs;
+    min-width: 45px;
+    border-width: 1px;
+  }
+}
+
+// Responsive adjustments
+@include respond-to-max(sm) {
+  .action-buttons {
+    flex-direction: column;
+    gap: $spacing-1;
+    width: 100%;
+
+    &.action-buttons-compact {
+      flex-direction: row;
+      gap: $spacing-1;
+    }
+  }
+
+  .action-button {
+    width: 100%;
+    justify-content: center;
+  }
+}

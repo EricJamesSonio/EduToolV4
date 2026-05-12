@@ -5,8 +5,15 @@ export interface SchoolYear {
   id: string;
   name: string;
   status: 'active' | 'inactive' | 'archived';
-  startDate?: string;
-  endDate?: string;
+  start_date?: string;
+  end_date?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface CreateSchoolYearDto {
+  name: string;
+  start_date?: string;
+  end_date?: string;
+  confirm_short_duration?: boolean;
 }

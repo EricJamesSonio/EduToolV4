@@ -9,12 +9,16 @@ import { AuthGuard } from '@/commons/guards/auth.guard'
 import { RolesGuard } from '@/commons/guards/role.guard'
 import { Roles } from '@/commons/decorators/roles.decorator'
 import { CurrentUser } from '@/commons/decorators/current-user.decorator'
-import { IsOptional, IsUUID } from 'class-validator'
+import { IsBooleanString, IsOptional, IsUUID } from 'class-validator'
 
 class ProgramQueryDto {
   @IsOptional()
   @IsUUID()
   schoolYearId?: string
+
+  @IsOptional()
+  @IsBooleanString()
+  includeAssignments?: string
 }
 
 @Controller('programs')
@@ -46,7 +50,11 @@ export class ProgramController {
 
     if (!query.schoolYearId) return []
 
-    return this.programService.findAll(orgId, query.schoolYearId)
+    return this.programService.findAll(
+      orgId,
+      query.schoolYearId,
+      query.includeAssignments === 'true',
+    )
   }
 
   @Get(':id')
