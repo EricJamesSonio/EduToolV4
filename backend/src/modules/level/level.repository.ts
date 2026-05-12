@@ -4,7 +4,7 @@ import { buildLevelDefs } from '@/modules/org-seeder/data/levels.data'
 
 @Injectable()
 export class LevelRepository {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
   async findBySchoolYear(orgId: string, schoolYearId: string) {
     return this.db.level.findMany({
@@ -13,6 +13,17 @@ export class LevelRepository {
         school_year_id: schoolYearId,
       },
       orderBy: [{ program_id: 'asc' }, { name: 'asc' }],
+    })
+  }
+
+  async findByProgramAndSchoolYear(orgId: string, programId: string, schoolYearId: string) {
+    return this.db.level.findMany({
+      where: {
+        org_id: orgId,
+        program_id: programId,
+        school_year_id: schoolYearId,
+      },
+      orderBy: { name: 'asc' },
     })
   }
 
@@ -30,10 +41,10 @@ export class LevelRepository {
     for (const lvl of levelDefs) {
       const level = await this.db.level.create({
         data: {
-          org_id:         orgId,
+          org_id: orgId,
           school_year_id: schoolYearId,
-          program_id:     programMap[lvl.programKey],
-          name:           lvl.name,
+          program_id: programMap[lvl.programKey],
+          name: lvl.name,
         },
       })
       created.push(level)
@@ -61,10 +72,10 @@ export class LevelRepository {
   }) {
     return this.db.level.create({
       data: {
-        org_id:         orgId,
+        org_id: orgId,
         school_year_id: data.schoolYearId,
-        program_id:     data.programId,
-        name:           data.name,
+        program_id: data.programId,
+        name: data.name,
       },
     })
   }
@@ -107,16 +118,16 @@ export class LevelRepository {
   }>) {
     await this.db.level.createMany({
       data: levels.map((l) => ({
-        org_id:         l.orgId,
+        org_id: l.orgId,
         school_year_id: l.schoolYearId,
-        program_id:     l.programId,
-        name:           l.name,
+        program_id: l.programId,
+        name: l.name,
       })),
     })
     return this.db.level.findMany({
       where: {
-        org_id:         levels[0].orgId,
-        program_id:     levels[0].programId,
+        org_id: levels[0].orgId,
+        program_id: levels[0].programId,
         school_year_id: levels[0].schoolYearId,
       },
       orderBy: { name: 'asc' },
@@ -131,9 +142,9 @@ export class LevelRepository {
     // Get all sections that belong to this course in this school year
     const sections = await this.db.section.findMany({
       where: {
-        org_id:         orgId,
+        org_id: orgId,
         school_year_id: schoolYearId,
-        course_id:      courseId,
+        course_id: courseId,
       },
       select: { level_id: true },
       distinct: ['level_id'],
@@ -160,9 +171,9 @@ export class LevelRepository {
     // Get all sections that belong to this strand in this school year
     const sections = await this.db.section.findMany({
       where: {
-        org_id:         orgId,
+        org_id: orgId,
         school_year_id: schoolYearId,
-        strand_id:      strandId,
+        strand_id: strandId,
       },
       select: { level_id: true },
       distinct: ['level_id'],

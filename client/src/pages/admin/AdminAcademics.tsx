@@ -10,9 +10,8 @@ import {
   useProgramsWithStats,
 } from "../../hooks/usePrograms";
 import { useSchoolYears } from "../../hooks/useSchoolYears";
-import type { SchoolYear } from "../../types/school-year.types";
-import type { CreateSchoolYearDto } from "../../types/school-year.types";
-import type { CreateProgramDto, ProgramWithStats } from "../../types/program.types";
+import type { SchoolYear, CreateSchoolYearDto } from '../../types/school-year.types';
+import type { ProgramWithStats, CreateProgramDto } from '../../types/program.types';
 import AdminLayout from "../../components/AdminLayout";
 import CreateSchoolYearModal from "../../components/CreateSchoolYearModal";
 import CreateProgramModal from "../../components/CreateProgramModal";
@@ -195,8 +194,8 @@ function AdminAcademics() {
               {viewMode === "levels-view" && selectedProgram && (
                 <AcademicLevelPage
                   program={selectedProgram}
+                  schoolYearId={currentSchoolYear?.id || ""}
                   onBackToPrograms={handleBackToPrograms}
-                  onCreateLevel={handleCreateProgram}
                 />
               )}
             </>
@@ -219,6 +218,7 @@ function AdminAcademics() {
         isLoading={createProgramMutation.isPending}
         schoolYearId={currentSchoolYear?.id || ""}
       />
+
     </AdminLayout>
   );
 }

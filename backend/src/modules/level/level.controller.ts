@@ -24,7 +24,16 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 @Controller('levels')
 @UseGuards(AuthGuard, RolesGuard)
 export class LevelController {
-  constructor(private readonly levelService: LevelService) {}
+  constructor(private readonly levelService: LevelService) { }
+
+  @Post('add-next')
+  @Roles('admin')
+  async addNextLevel(
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: { programId: string; schoolYearId: string },
+  ) {
+    return this.levelService.addNextLevel(orgId, dto.programId, dto.schoolYearId);
+  }
 
   @Post('bulk-generate')
   @Roles('admin')

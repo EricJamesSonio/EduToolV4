@@ -13,14 +13,14 @@ export class LevelService {
   constructor(
     private readonly levelRepository: LevelRepository,
     private readonly db: DatabaseService,
-  ) {}
+  ) { }
 
   /**
    * Get default levels (not scoped to school year)
    */
   async getDefaults(orgId: string) {
     return this.db.level.findMany({
-      where:   { org_id: orgId },
+      where: { org_id: orgId },
       include: { program: true },
       orderBy: { name: 'asc' },
     });
@@ -35,7 +35,7 @@ export class LevelService {
       toUpdate.map((l) =>
         this.db.level.update({
           where: { id: l.id },
-          data:  { name: l.name },
+          data: { name: l.name },
         }),
       ),
     );
@@ -105,6 +105,49 @@ export class LevelService {
   }
 
   /**
+   * Add next incremental level for a program
+   */
+  async addNextLevel(orgId: string, programId: string, schoolYearId: string) {
+    // Verify program exists and belongs to organization
+    const program = await this.db.program.findFirst({
+      where: { id: programId, org_id: orgId },
+    });
+    if (!program) throw new NotFoundException('Program not found.');
+
+    // Get existing levels for this program to determine next number
+    const existingLevels = await this.levelRepository.findByProgramAndSchoolYear(
+      orgId,
+      programId,
+      schoolYearId,
+    );
+
+    // Extract level numbers from existing level names
+    const levelNumbers = existingLevels
+      .map(level => {
+        // Try to extract number from patterns like "ProgramName Level X", "Grade X", "Xst Year", etc.
+        const match = level.name.match(/(?:Level|Grade|(\d+)(?:st|nd|rd|th)? Year)?\s*(\d+)$/);
+        if (match) {
+          return parseInt(match[match.length - 1], 10);
+        }
+        // If no pattern matches, try to extract any number from the name
+        const numberMatch = level.name.match(/\d+/);
+        return numberMatch ? parseInt(numberMatch[0], 10) : 0;
+      })
+      .filter(num => !isNaN(num));
+
+    const nextLevelNumber = levelNumbers.length > 0 ? Math.max(...levelNumbers) + 1 : 1;
+
+    // Generate level name
+    const levelName = `${program.name} Level ${nextLevelNumber}`;
+
+    return this.levelRepository.create(orgId, {
+      programId,
+      schoolYearId,
+      name: levelName,
+    });
+  }
+
+  /**
    * Delete a level
    */
   async deleteOne(id: string, orgId: string) {
@@ -131,7 +174,7 @@ export class LevelService {
     return this.levelRepository.bulkCreate(
       names.map((name) => ({
         orgId,
-        programId:    dto.programId,
+        programId: dto.programId,
         schoolYearId: dto.schoolYearId,
         name,
       })),
