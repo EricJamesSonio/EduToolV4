@@ -2,6 +2,7 @@
 // User authentication page with form validation
 
 import { useState } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useLogin } from '../services/auth.service';
 import { useErrorToast } from '../components/ErrorDisplay/UnifiedError';
@@ -67,11 +68,10 @@ const LoginPage = () => {
         navigate('/dashboard');
       },
       onError: (error) => {
-        // Show specific login error message
-        if (error.response?.status === 401) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
           showError('Invalid email or password');
         } else {
-          showError(error.message || 'Login failed');
+          showError(error instanceof Error ? error.message : 'Login failed');
         }
       },
     });
