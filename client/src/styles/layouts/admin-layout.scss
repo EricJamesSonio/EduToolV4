@@ -1,0 +1,23 @@
+// Admin Layout Styles
+// Layout styling for admin portal pages
+
+.admin-layout {
+  min-height: 100vh;
+  background-color: var(--color-background);
+
+  .admin-main {
+    margin-top: 64px; // Height of navbar
+    padding: 2rem;
+    min-height: calc(100vh - 64px);
+  }
+}
+
+// Mobile responsive admin layout
+@include respond-to-max(md) {
+  .admin-layout {
+    .admin-main {
+      padding: 1rem;
+      margin-top: 64px;
+    }
+  }
+}

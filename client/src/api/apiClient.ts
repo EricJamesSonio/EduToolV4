@@ -8,6 +8,20 @@ import { createAppError } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 import { toast } from 'sonner';
 
+interface ApiEnvelope<T = unknown> {
+  success: boolean;
+  data: T;
+}
+
+const isApiEnvelope = (data: unknown): data is ApiEnvelope => {
+  return (
+    !!data &&
+    typeof data === 'object' &&
+    'success' in data &&
+    'data' in data
+  );
+};
+
 const apiClient = axios.create({
   baseURL: apiUrl,
   timeout: 30000,
@@ -46,6 +60,10 @@ apiClient.interceptors.response.use(
       url: response.config.url,
     });
 
+    if (isApiEnvelope(response.data)) {
+      response.data = response.data.data;
+    }
+
     return response;
   },
   async (error: AxiosError) => {
@@ -57,37 +75,61 @@ apiClient.interceptors.response.use(
       status: error.response?.status,
     });
 
+    // Prevent infinite refresh loops
+    const isRefreshing = originalRequest.url === '/auth/refresh';
+
     if (
       error.response?.status === 401 &&
       !originalRequest?._retry &&
+      !isRefreshing &&
       originalRequest.url !== '/auth/login' &&
-      originalRequest.url !== '/auth/refresh' &&
       originalRequest.url !== '/auth/register'
     ) {
       originalRequest._retry = true;
 
       try {
-        const refreshResponse = await axios.post(
-          `${apiUrl}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
+        // For refresh, create a clean axios instance without Authorization header
+        // but with credentials to include HTTP-only cookies
+        const refreshClient = axios.create({
+          baseURL: apiUrl,
+          timeout: 30000,
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-        if (refreshResponse.data.accessToken) {
-          localStorage.setItem('accessToken', refreshResponse.data.accessToken);
+        const refreshResponse = await refreshClient.post('/auth/refresh', {});
+
+        const refreshData = isApiEnvelope(refreshResponse.data)
+          ? refreshResponse.data.data
+          : refreshResponse.data;
+
+        if (refreshData.accessToken) {
+          localStorage.setItem('accessToken', refreshData.accessToken);
 
           if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.accessToken}`;
+            originalRequest.headers.Authorization = `Bearer ${refreshData.accessToken}`;
           }
 
           return apiClient(originalRequest);
+        } else {
+          // Refresh succeeded but no token returned - clear session
+          throw new Error('No access token returned from refresh');
         }
       } catch (refreshError) {
         logger.error('Token refresh failed', refreshError);
+
+        // Clear any existing tokens and redirect to login
         localStorage.removeItem('accessToken');
         toast.error('Session expired. Please log in again.');
-        window.location.href = '/login';
-        return Promise.reject(error);
+
+        // Use setTimeout to avoid redirect loop during current request
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
+
+        return Promise.reject(refreshError);
       }
     }
 

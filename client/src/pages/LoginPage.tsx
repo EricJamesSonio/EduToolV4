@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useLogin, useSignUp } from '../services/auth.service';
 import { useErrorToast } from '../components/ErrorDisplay/ErrorDisplay';
 import Button from '../components/Button';
+import { getProfileApi } from '../api/auth.api';
+import { getRoleHomePath } from '../types/auth';
 
 type AuthMode = 'signin' | 'signup';
 
@@ -86,9 +88,13 @@ const LoginPage = () => {
 
     if (isSignUp) {
       signUpMutation.mutate(payload, {
-        onSuccess: () => {
+        onSuccess: async () => {
           showSuccess('Account created successfully!');
-          navigate('/dashboard');
+          try {
+            await navigateByRole();
+          } catch {
+            navigate('/');
+          }
         },
         onError: (error) => {
           if (axios.isAxiosError(error) && error.response?.status === 404) {
@@ -103,9 +109,13 @@ const LoginPage = () => {
     }
 
     loginMutation.mutate(payload, {
-      onSuccess: () => {
+      onSuccess: async () => {
         showSuccess('Login successful!');
-        navigate('/dashboard');
+        try {
+          await navigateByRole();
+        } catch {
+          navigate('/');
+        }
       },
       onError: (error) => {
         if (axios.isAxiosError(error) && error.response?.status === 401) {
@@ -126,6 +136,11 @@ const LoginPage = () => {
   const switchMode = (nextMode: AuthMode) => {
     setMode(nextMode);
     setErrors({ email: '', password: '', confirmPassword: '' });
+  };
+
+  const navigateByRole = async () => {
+    const profile = await getProfileApi();
+    navigate(getRoleHomePath(profile.role));
   };
 
   return (

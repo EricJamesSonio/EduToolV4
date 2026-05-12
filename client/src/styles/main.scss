@@ -26,6 +26,7 @@
 @import 'layouts/header';
 @import 'layouts/navbar';
 @import 'layouts/footer';
+@import 'layouts/admin-layout';
 
 // 6. Components
 @import 'components/buttons';
@@ -39,6 +40,7 @@
 @import 'components/hero';
 @import 'components/page';
 @import 'components/ErrorDisplay';
+@import 'components/admin-navbar';
 
 // 7. Utilities
 @import 'utils/helpers';

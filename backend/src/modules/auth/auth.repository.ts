@@ -4,7 +4,7 @@ import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
 export class AuthRepository {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
   /**
    * Find an account by email (optionally scoped to an org).

@@ -12,8 +12,8 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { loginApi, logoutApi, getProfileApi } from '../api/auth.api';
-import { useProfile } from '../services/auth.service';
-import type { UserProfile } from '../api/auth.api';
+import type { UserProfile } from '../types/auth';
+import { getRoleHomePath } from '../types/auth';
 
 interface AuthContextValue {
   user: UserProfile | null;
@@ -35,10 +35,7 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Use React Query for profile management
-  const { data: profileData, refetch: refetchProfile } = useProfile();
-
-  // Initialize auth state on mount
+  // Initialize auth state on mount and detect token changes
   useEffect(() => {
     const initializeAuth = async (): Promise<void> => {
       try {
@@ -65,12 +62,34 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     initializeAuth();
   }, []);
 
-  // Update user when profile data changes from React Query
+  // Listen for storage changes (triggered by login)
   useEffect(() => {
-    if (profileData) {
-      setUser(profileData);
-    }
-  }, [profileData]);
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'accessToken' && e.newValue) {
+        // Token was set (login occurred)
+        const fetchProfileAndRedirect = async () => {
+          try {
+            const profile = await getProfileApi();
+            setUser(profile);
+
+            // Navigate based on role
+            const roleHomePath = getRoleHomePath(profile.role);
+            navigate(roleHomePath);
+          } catch (error) {
+            console.error('Failed to fetch profile after login:', error);
+          }
+        };
+
+        fetchProfileAndRedirect();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [navigate]);
 
   const login = useCallback(
     async (email: string, password: string): Promise<void> => {
@@ -124,11 +143,12 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
 
   const refreshUser = useCallback(async (): Promise<void> => {
     try {
-      await refetchProfile();
+      const profile = await getProfileApi();
+      setUser(profile);
     } catch (error) {
       console.error('Failed to refresh user profile:', error);
     }
-  }, [refetchProfile]);
+  }, []);
 
   const value: AuthContextValue = {
     user,
@@ -150,18 +170,3 @@ export function useAuthContext(): AuthContextValue {
   return ctx;
 }
 
-// Helper function to get role-based home paths
-function getRoleHomePath(role: string): string {
-  switch (role) {
-    case 'admin':
-      return '/admin/dashboard';
-    case 'educator':
-      return '/educator/dashboard';
-    case 'student':
-      return '/student/dashboard';
-    case 'parent':
-      return '/parent/dashboard';
-    default:
-      return '/dashboard';
-  }
-}

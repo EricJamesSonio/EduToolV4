@@ -4,10 +4,12 @@
 import { Routes, Route } from 'react-router-dom';
 import { getRegisteredRoutes } from './registry';
 import { registerPublicDomain } from './domains/public';
+import { registerAdminDomain } from './domains/admin';
 import NotFoundPage from '../pages/NotFoundPage';
 
 // Register all domains
 registerPublicDomain();
+registerAdminDomain();
 
 // Approutes Component
 const Approutes = () => {

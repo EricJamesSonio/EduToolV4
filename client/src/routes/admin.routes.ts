@@ -1,7 +1,6 @@
 // Admin Routes
 // Domain-specific routes for admin portal following RBAC architecture
 
-import React from 'react';
 import { registerPage } from './registry';
 
 // Import admin page components

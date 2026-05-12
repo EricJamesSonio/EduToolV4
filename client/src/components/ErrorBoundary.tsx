@@ -61,66 +61,33 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       // Default fallback UI
       return (
         <div className="error-boundary">
-          <div>
+          <div id="center">
             <h1 className="error-boundary-title">
               Something went wrong
             </h1>
             <p className="error-boundary-message">
               An unexpected error occurred. We've been notified and we're working to fix the issue.
             </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <div className="error-boundary-actions">
               <button
                 onClick={this.handleReset}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: '500',
-                }}
+                className="error-boundary-button error-boundary-button--primary"
               >
                 Try Again
               </button>
               <button
                 onClick={() => window.location.href = '/'}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#e5e7eb',
-                  color: '#1f2937',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: '500',
-                }}
+                className="error-boundary-button error-boundary-button--secondary"
               >
                 Go to Home
               </button>
             </div>
             {import.meta.env.DEV && this.state.error && (
-              <details
-                style={{
-                  marginTop: '24px',
-                  textAlign: 'left',
-                  backgroundColor: '#f3f4f6',
-                  padding: '16px',
-                  borderRadius: '4px',
-                }}
-              >
-                <summary style={{ cursor: 'pointer', color: '#4b5563', marginBottom: '8px' }}>
+              <details className="error-boundary-details">
+                <summary>
                   Error Details (Development Only)
                 </summary>
-                <pre
-                  style={{
-                    margin: 0,
-                    fontSize: '0.75rem',
-                    color: '#dc2626',
-                    overflow: 'auto',
-                  }}
-                >
+                <pre>
                   {this.state.error.toString()}
                 </pre>
               </details>
