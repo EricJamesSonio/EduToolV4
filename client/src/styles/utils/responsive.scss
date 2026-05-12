@@ -3,7 +3,7 @@
 
 // Breakpoint definitions
 $breakpoints: (
-  xs: 0px,
+  xs: 320px,
   // Extra small devices (phones)
   sm: 640px,
   // Small devices (landscape phones)
@@ -13,7 +13,9 @@ $breakpoints: (
   // Large devices (desktops)
   xl: 1280px,
   // Extra large devices (large desktops)
-  2xl: 1536px // 2X large devices (wide screens)
+  2xl: 1536px,
+  // 2X large devices (wide screens)
+  fluid-max: 1140px // Fluid typography max width
 );
 
 // Container max widths
@@ -40,8 +42,7 @@ $grid-gutter-width-lg: 2rem; // 32px
   }
 
   @else {
-    @warn "Unfortunately, no value could be retrieved from `#{$breakpoint}`. "
-    +"Please make sure it is defined in `$breakpoints` map.";
+    @warn "Breakpoint `#{$breakpoint}` not found in `$breakpoints` map.";
   }
 }
 
@@ -55,8 +56,7 @@ $grid-gutter-width-lg: 2rem; // 32px
   }
 
   @else {
-    @warn "Unfortunately, no value could be retrieved from `#{$breakpoint}`. "
-    +"Please make sure it is defined in `$breakpoints` map.";
+    @warn "Breakpoint `#{$breakpoint}` not found in `$breakpoints` map.";
   }
 }
 
@@ -71,8 +71,7 @@ $grid-gutter-width-lg: 2rem; // 32px
   }
 
   @else {
-    @warn "Unfortunately, no value could be retrieved from `#{$min-breakpoint}` or `#{$max-breakpoint}`. "
-    +"Please make sure it is defined in `$breakpoints` map.";
+    @warn "Breakpoint `#{$min-breakpoint}` or `#{$max-breakpoint}` not found in `$breakpoints` map.";
   }
 }
 
@@ -115,60 +114,67 @@ $grid-gutter-width-lg: 2rem; // 32px
 @mixin make-row($gutter: $grid-gutter-width) {
   display: flex;
   flex-wrap: wrap;
-  margin-right: -$gutter / 2;
-  margin-left: -$gutter / 2;
+  margin-right: calc(-1 * $gutter / 2);
+  margin-left: calc(-1 * $gutter / 2);
 
   @include respond-to(sm) {
-    margin-right: -$grid-gutter-width-sm / 2;
-    margin-left: -$grid-gutter-width-sm / 2;
+    margin-right: calc(-1 * $grid-gutter-width-sm / 2);
+    margin-left: calc(-1 * $grid-gutter-width-sm / 2);
   }
 
   @include respond-to(lg) {
-    margin-right: -$grid-gutter-width-lg / 2;
-    margin-left: -$grid-gutter-width-lg / 2;
+    margin-right: calc(-1 * $grid-gutter-width-lg / 2);
+    margin-left: calc(-1 * $grid-gutter-width-lg / 2);
   }
 }
 
 @mixin make-col($size: null, $columns: $grid-columns, $gutter: $grid-gutter-width) {
   flex: 1 0 0%;
-  padding-right: $gutter / 2;
-  padding-left: $gutter / 2;
+  padding-right: calc($gutter / 2);
+  padding-left: calc($gutter / 2);
 
   @include respond-to(sm) {
-    padding-right: $grid-gutter-width-sm / 2;
-    padding-left: $grid-gutter-width-sm / 2;
+    padding-right: calc($grid-gutter-width-sm / 2);
+    padding-left: calc($grid-gutter-width-sm / 2);
   }
 
   @include respond-to(lg) {
-    padding-right: $grid-gutter-width-lg / 2;
-    padding-left: $grid-gutter-width-lg / 2;
+    padding-right: calc($grid-gutter-width-lg / 2);
+    padding-left: calc($grid-gutter-width-lg / 2);
   }
 
-  @if $size {
-    max-width: percentage($size / $columns);
-    flex: 0 0 percentage($size / $columns);
+  @if $size !=null {
+    @if $size =='auto' {
+      flex: 0 0 auto;
+      width: auto;
+    }
+
+    @else {
+      flex: 0 0 calc($size * 100% / $columns);
+      max-width: calc($size * 100% / $columns);
+    }
   }
 }
 
 @mixin make-col-auto($gutter: $grid-gutter-width) {
   flex: 0 0 auto;
   width: auto;
-  padding-right: $gutter / 2;
-  padding-left: $gutter / 2;
+  padding-right: calc($gutter / 2);
+  padding-left: calc($gutter / 2);
 
   @include respond-to(sm) {
-    padding-right: $grid-gutter-width-sm / 2;
-    padding-left: $grid-gutter-width-sm / 2;
+    padding-right: calc($grid-gutter-width-sm / 2);
+    padding-left: calc($grid-gutter-width-sm / 2);
   }
 
   @include respond-to(lg) {
-    padding-right: $grid-gutter-width-lg / 2;
-    padding-left: $grid-gutter-width-lg / 2;
+    padding-right: calc($grid-gutter-width-lg / 2);
+    padding-left: calc($grid-gutter-width-lg / 2);
   }
 }
 
 @mixin make-col-offset($size, $columns: $grid-columns) {
-  margin-left: percentage($size / $columns);
+  margin-left: percentage(calc($size / $columns));
 }
 
 // Responsive spacing utilities

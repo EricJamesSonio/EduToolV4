@@ -1,19 +1,19 @@
 // Color theme
 // Define color palette and semantic color mappings
 
-// Base color palette
+// Base color palette - Duolingo inspired
 :root {
-  // Primary colors
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-800: #1e40af;
-  --color-primary-900: #1e3a8a;
+  // Primary colors - Duolingo Green
+  --color-primary-50: #f0f9e8;
+  --color-primary-100: #dcf2c7;
+  --color-primary-200: #c3e69a;
+  --color-primary-300: #a4d862;
+  --color-primary-400: #7ec620;
+  --color-primary-500: #58cc02;
+  --color-primary-600: #4fb000;
+  --color-primary-700: #419500;
+  --color-primary-800: #357c00;
+  --color-primary-900: #2b6400;
 
   // Secondary colors
   --color-secondary-50: #f8fafc;
@@ -63,17 +63,17 @@
   --color-error-800: #991b1b;
   --color-error-900: #7f1d1d;
 
-  // Info colors
-  --color-info-50: #f0f9ff;
-  --color-info-100: #e0f2fe;
-  --color-info-200: #bae6fd;
-  --color-info-300: #7dd3fc;
-  --color-info-400: #38bdf8;
-  --color-info-500: #06b6d4;
-  --color-info-600: #0891b2;
-  --color-info-700: #0e7490;
-  --color-info-800: #155e75;
-  --color-info-900: #164e63;
+  // Info colors - Duolingo Blue
+  --color-info-50: #f0fcff;
+  --color-info-100: #e0f7ff;
+  --color-info-200: #baefff;
+  --color-info-300: #7de3ff;
+  --color-info-400: #38d4ff;
+  --color-info-500: #1cb0f6;
+  --color-info-600: #0e9be0;
+  --color-info-700: #0086c9;
+  --color-info-800: #0071b2;
+  --color-info-900: #005d9b;
 
   // Neutral colors
   --color-white: #ffffff;
@@ -90,12 +90,12 @@
   --color-bg-inverse: var(--color-secondary-900);
 
   // Text colors
-  --color-text-primary: var(--color-secondary-900);
-  --color-text-secondary: var(--color-secondary-700);
-  --color-text-tertiary: var(--color-secondary-500);
+  --color-text-primary: #000000 !important;
+  --color-text-secondary: #000000 !important;
+  --color-text-tertiary: #000000 !important;
   --color-text-inverse: var(--color-white);
   --color-text-on-primary: var(--color-white);
-  --color-text-on-secondary: var(--color-secondary-900);
+  --color-text-on-secondary: #000000;
 
   // Border colors
   --color-border-primary: var(--color-secondary-200);

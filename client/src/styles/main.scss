@@ -24,15 +24,16 @@
 @import 'layouts/grid';
 @import 'layouts/container';
 @import 'layouts/header';
-@import 'layouts/sidebar';
+@import 'layouts/navbar';
 @import 'layouts/footer';
 
 // 6. Components
 @import 'components/buttons';
-@import 'components/forms';
 @import 'components/cards';
 @import 'components/modals';
 @import 'components/tables';
+@import 'components/hero';
+@import 'components/page';
 
 // 7. Utilities
 @import 'utils/helpers';

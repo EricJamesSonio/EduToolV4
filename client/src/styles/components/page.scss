@@ -1,0 +1,30 @@
+// Page Component
+// General page layout styling
+
+.page {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  margin-top: 64px;
+}
+
+.page-content {
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: var(--color-text-primary);
+}
+
+.page-description {
+  color: var(--color-text-primary);
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+}

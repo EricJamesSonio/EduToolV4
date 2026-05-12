@@ -10,9 +10,11 @@
   @return mix(white, $color, $percent);
 }
 
-@function rgba($color, $alpha) {
-  @return rgba(red($color), green($color), blue($color), $alpha);
-}
+// Note: Modern SASS has built-in rgba() function that takes 2 arguments
+// If you need custom rgba functionality, you can use the built-in one directly
+// @function rgba($color, $alpha) {
+//   @return rgba($color, $alpha);
+// }
 
 // Spacing functions
 @function spacing($multiplier) {
@@ -21,13 +23,34 @@
 
 // Z-index function
 @function z-index($layer) {
-  @if $layer == dropdown { @return $z-dropdown; }
-  @if $layer == sticky { @return $z-sticky; }
-  @if $layer == fixed { @return $z-fixed; }
-  @if $layer == modal-backdrop { @return $z-modal-backdrop; }
-  @if $layer == modal { @return $z-modal; }
-  @if $layer == popover { @return $z-popover; }
-  @if $layer == tooltip { @return $z-tooltip; }
+  @if $layer ==dropdown {
+    @return $z-dropdown;
+  }
+
+  @if $layer ==sticky {
+    @return $z-sticky;
+  }
+
+  @if $layer ==fixed {
+    @return $z-fixed;
+  }
+
+  @if $layer ==modal-backdrop {
+    @return $z-modal-backdrop;
+  }
+
+  @if $layer ==modal {
+    @return $z-modal;
+  }
+
+  @if $layer ==popover {
+    @return $z-popover;
+  }
+
+  @if $layer ==tooltip {
+    @return $z-tooltip;
+  }
+
   @return 1;
 }
 

@@ -1,0 +1,437 @@
+// Button Components
+// Duolingo-inspired button styles
+
+// Base button styles
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-3 $spacing-6;
+  border: none;
+  border-radius: $radius-lg;
+  font-family: $font-family-sans;
+  font-size: $font-base;
+  font-weight: $font-bold;
+  text-decoration: none;
+  cursor: pointer;
+  transition: $transition-fast;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  white-space: nowrap;
+  
+  &:focus {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+}
+
+// Primary button - Duolingo green
+.btn-primary {
+  background-color: var(--color-primary-500);
+  color: var(--color-white);
+  box-shadow: 0 2px 4px rgba(88, 204, 2, 0.2);
+  
+  &:hover:not(:disabled) {
+    background-color: var(--color-primary-600);
+    box-shadow: 0 4px 8px rgba(88, 204, 2, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  &:active:not(:disabled) {
+    background-color: var(--color-primary-700);
+    box-shadow: 0 1px 2px rgba(88, 204, 2, 0.2);
+    transform: translateY(0);
+  }
+}
+
+// Secondary button - Duolingo blue outline
+.btn-secondary {
+  background-color: transparent;
+  color: var(--color-info-500);
+  border: 2px solid var(--color-border-primary);
+  
+  &:hover:not(:disabled) {
+    background-color: var(--color-info-50);
+    border-color: var(--color-info-200);
+    color: var(--color-info-600);
+  }
+  
+  &:active:not(:disabled) {
+    background-color: var(--color-info-100);
+    border-color: var(--color-info-300);
+    color: var(--color-info-700);
+  }
+}
+
+// Ghost button
+.btn-ghost {
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  
+  &:hover:not(:disabled) {
+    background-color: var(--color-secondary-50);
+    color: var(--color-text-primary);
+  }
+  
+  &:active:not(:disabled) {
+    background-color: var(--color-secondary-100);
+    color: var(--color-text-primary);
+  }
+}
+
+// Success button
+.btn-success {
+  background-color: var(--color-success-500);
+  color: var(--color-white);
+  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.2);
+  
+  &:hover:not(:disabled) {
+    background-color: var(--color-success-600);
+    box-shadow: 0 4px 8px rgba(34, 197, 94, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  &:active:not(:disabled) {
+    background-color: var(--color-success-700);
+    box-shadow: 0 1px 2px rgba(34, 197, 94, 0.2);
+    transform: translateY(0);
+  }
+}
+
+// Warning button
+.btn-warning {
+  background-color: var(--color-warning-500);
+  color: var(--color-white);
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+  
+  &:hover:not(:disabled) {
+    background-color: var(--color-warning-600);
+    box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  &:active:not(:disabled) {
+    background-color: var(--color-warning-700);
+    box-shadow: 0 1px 2px rgba(245, 158, 11, 0.2);
+    transform: translateY(0);
+  }
+}
+
+// Error button
+.btn-error {
+  background-color: var(--color-error-500);
+  color: var(--color-white);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+  
+  &:hover:not(:disabled) {
+    background-color: var(--color-error-600);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+    transform: translateY(-1px);
+  }
+  
+  &:active:not(:disabled) {
+    background-color: var(--color-error-700);
+    box-shadow: 0 1px 2px rgba(239, 68, 68, 0.2);
+    transform: translateY(0);
+  }
+}
+
+// Button sizes
+.btn-sm {
+  padding: $spacing-2 $spacing-4;
+  font-size: $font-sm;
+  border-radius: $radius-md;
+}
+
+.btn-lg {
+  padding: $spacing-4 $spacing-8;
+  font-size: $font-lg;
+  border-radius: $radius-xl;
+}
+
+.btn-xl {
+  padding: $spacing-5 $spacing-10;
+  font-size: $font-xl;
+  border-radius: $radius-2xl;
+}
+
+// Full width button
+.btn-full {
+  width: 100%;
+  justify-content: center;
+}
+
+// Button with icon
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  
+  .icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+  
+  .icon-left {
+    order: -1;
+  }
+  
+  .icon-right {
+    order: 1;
+  }
+}
+
+// Loading state
+.btn-loading {
+  color: transparent;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    top: 50%;
+    left: 50%;
+    margin-left: -10px;
+    margin-top: -10px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  &.btn-primary::after {
+    border-top-color: var(--color-white);
+  }
+  
+  &.btn-secondary::after {
+    border-top-color: var(--color-info-500);
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// Button groups
+.btn-group {
+  display: inline-flex;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  
+  .btn {
+    border-radius: 0;
+    
+    &:not(:first-child) {
+      border-left: 1px solid var(--color-border-primary);
+    }
+    
+    &:first-child {
+      border-radius: $radius-lg 0 0 $radius-lg;
+    }
+    
+    &:last-child {
+      border-radius: 0 $radius-lg $radius-lg 0;
+    }
+  }
+}
+
+// Vertical button group
+.btn-group-vertical {
+  display: flex;
+  flex-direction: column;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  
+  .btn {
+    border-radius: 0;
+    
+    &:not(:first-child) {
+      border-top: 1px solid var(--color-border-primary);
+    }
+    
+    &:first-child {
+      border-radius: $radius-lg $radius-lg 0 0;
+    }
+    
+    &:last-child {
+      border-radius: 0 0 $radius-lg $radius-lg;
+    }
+  }
+}
+
+// Social login buttons (like Duolingo might use)
+.btn-social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-3;
+  padding: $spacing-3 $spacing-4;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border-primary);
+  border-radius: $radius-lg;
+  color: var(--color-text-primary);
+  font-weight: $font-medium;
+  text-decoration: none;
+  transition: $transition-fast;
+  
+  &:hover {
+    background-color: var(--color-secondary-50);
+    border-color: var(--color-secondary-300);
+    transform: translateY(-1px);
+    box-shadow: $shadow-md;
+  }
+  
+  &:active {
+    transform: translateY(0);
+    box-shadow: $shadow-sm;
+  }
+  
+  .social-icon {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.btn-google {
+  &:hover {
+    border-color: #ea4335;
+    background-color: #fef7f0;
+  }
+}
+
+.btn-facebook {
+  &:hover {
+    border-color: #1877f2;
+    background-color: #f7f9ff;
+  }
+}
+
+.btn-apple {
+  &:hover {
+    border-color: #000000;
+    background-color: #f8f8f8;
+  }
+}
+
+// Responsive buttons
+@include respond-to-max(sm) {
+  .btn {
+    padding: $spacing-3 $spacing-5;
+    font-size: $font-sm;
+  }
+  
+  .btn-lg {
+    padding: $spacing-4 $spacing-6;
+    font-size: $font-base;
+  }
+  
+  .btn-xl {
+    padding: $spacing-4 $spacing-8;
+    font-size: $font-lg;
+  }
+}
+
+// Button animations and effects
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transition: left 0.5s;
+  }
+  
+  &:hover::before {
+    left: 100%;
+  }
+}
+
+.btn-pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(88, 204, 2, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(88, 204, 2, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(88, 204, 2, 0);
+  }
+}
+
+// Floating action button
+.btn-fab {
+  position: fixed;
+  bottom: $spacing-6;
+  right: $spacing-6;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: $shadow-lg;
+  z-index: z-index(fixed);
+  
+  &:hover:not(:disabled) {
+    transform: scale(1.1);
+    box-shadow: $shadow-xl;
+  }
+  
+  &:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+  
+  .icon {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+// Button with badge
+.btn-badge {
+  position: relative;
+  
+  .badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: var(--color-error-500);
+    color: var(--color-white);
+    font-size: $font-xs;
+    font-weight: $font-bold;
+    padding: $spacing-1 $spacing-2;
+    border-radius: $radius-full;
+    min-width: 20px;
+    text-align: center;
+  }
+}
