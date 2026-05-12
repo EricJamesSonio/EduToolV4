@@ -1,12 +1,14 @@
 // HomePage Component
 // Main landing page with hero section, features, testimonials, and stats
 
+import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import FeatureCard from '../components/FeatureCard/FeatureCard';
 import TestimonialCard from '../components/TestimonialCard/TestimonialCard';
 import StatCard from '../components/StatCard/StatCard';
 
 const HomePage = () => {
+  const navigate = useNavigate();
   const features = [
     {
       title: 'Multi-Tenant Architecture',
@@ -98,7 +100,7 @@ const HomePage = () => {
 
           {/* CTA Buttons */}
           <div className="hero-actions">
-            <Button variant="primary" size="lg">
+            <Button variant="primary" size="lg" onClick={() => navigate('/login')}>
               GET STARTED
             </Button>
 
@@ -130,23 +132,25 @@ const HomePage = () => {
       <section className="testimonials-section">
         <div className="container">
           <div className="testimonials-container">
-            <div className="testimonials-header">
-              <h2 className="testimonials-title">Testimonials</h2>
-            </div>
-            <div className="testimonials-cards">
-              {testimonials.map((testimonial, index) => (
-                <div key={index} className={`testimonial-row ${index % 2 === 0 ? 'left' : 'right'}`}>
-                  <div className="testimonial-text">
-                    "{testimonial.quote}"
+            <div className="testimonials-content-wrapper">
+              <div className="testimonials-header">
+                <h2 className="testimonials-title">Testimonials</h2>
+              </div>
+              <div className="testimonials-cards">
+                {testimonials.map((testimonial, index) => (
+                  <div key={index} className={`testimonial-row ${index % 2 === 0 ? 'left' : 'right'}`}>
+                    <div className="testimonial-text">
+                      "{testimonial.quote}"
+                    </div>
+                    <TestimonialCard
+                      author={testimonial.author}
+                      role={testimonial.role}
+                      school={testimonial.school}
+                      avatar={testimonial.avatar}
+                    />
                   </div>
-                  <TestimonialCard
-                    author={testimonial.author}
-                    role={testimonial.role}
-                    school={testimonial.school}
-                    avatar={testimonial.avatar}
-                  />
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </div>

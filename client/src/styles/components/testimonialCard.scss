@@ -113,23 +113,40 @@
 }
 
 .testimonials-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: $spacing-8;
-  align-items: start;
 
   @include respond-to-max(md) {
-    grid-template-columns: 1fr;
     gap: $spacing-6;
   }
 }
 
+.testimonials-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+}
+
 .testimonials-content {
-  padding-right: $spacing-4;
+  width: 100%;
+  text-align: center;
+}
+
+.testimonials-cards {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-6;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
 
   @include respond-to-max(md) {
-    padding-right: 0;
-    text-align: center;
+    max-width: 600px;
+    gap: $spacing-4;
   }
 }
 
