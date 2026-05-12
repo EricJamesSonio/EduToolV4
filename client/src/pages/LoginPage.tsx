@@ -4,10 +4,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLogin } from '../services/auth.service';
-import { toast } from 'sonner';
+import { useErrorToast } from '../components/ErrorDisplay/UnifiedError';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { showError, showSuccess } = useErrorToast();
   const loginMutation = useLogin();
 
   const [formData, setFormData] = useState({
@@ -60,13 +61,20 @@ const LoginPage = () => {
       return;
     }
 
-    try {
-      await loginMutation.mutateAsync(formData);
-      toast.success('Login successful!');
-      navigate('/dashboard');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Login failed');
-    }
+    loginMutation.mutate(formData, {
+      onSuccess: () => {
+        showSuccess('Login successful!');
+        navigate('/dashboard');
+      },
+      onError: (error) => {
+        // Show specific login error message
+        if (error.response?.status === 401) {
+          showError('Invalid email or password');
+        } else {
+          showError(error.message || 'Login failed');
+        }
+      },
+    });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,7 +126,7 @@ const LoginPage = () => {
               placeholder="Enter your email"
             />
             {errors.email && (
-              <div style={{ color: 'var(--color-error-500)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+              <div className="inline-error">
                 {errors.email}
               </div>
             )}
@@ -151,7 +159,7 @@ const LoginPage = () => {
               placeholder="Enter your password"
             />
             {errors.password && (
-              <div style={{ color: 'var(--color-error-500)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+              <div className="inline-error">
                 {errors.password}
               </div>
             )}

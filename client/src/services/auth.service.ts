@@ -1,10 +1,8 @@
 // Authentication Service
-// API calls for authentication using React Query
+// API calls for authentication using React Query and axios
 
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { apiUrl } from '../config/env';
-
-const API_BASE_URL = apiUrl;
+import apiClient from './apiClient';
 
 interface LoginCredentials {
   email: string;
@@ -29,71 +27,27 @@ interface UserProfile {
 
 // Login API call
 const loginApi = async (credentials: LoginCredentials): Promise<AuthResponse> => {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include', // Important: include cookies
-    body: JSON.stringify(credentials),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Login failed');
-  }
-
-  return response.json();
+  const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
+  return response.data;
 };
 
 // Refresh token API call
 const refreshTokenApi = async (): Promise<AuthResponse> => {
-  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include', // Important: include cookies
-  });
-
-  if (!response.ok) {
-    throw new Error('Token refresh failed');
-  }
-
-  return response.json();
+  const response = await apiClient.post<AuthResponse>('/auth/refresh');
+  return response.data;
 };
 
 // Logout API call
 const logoutApi = async (): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/auth/logout`, {
-    method: 'POST',
-    credentials: 'include', // Important: include cookies
-  });
-
-  if (!response.ok) {
-    throw new Error('Logout failed');
-  }
+  await apiClient.post('/auth/logout');
 };
 
 // Get user profile API call
 const getProfileApi = async (): Promise<UserProfile> => {
-  const accessToken = localStorage.getItem('accessToken');
-
-  const response = await fetch(`${API_BASE_URL}/auth/me`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`,
-    },
-    credentials: 'include', // Important: include cookies
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch profile');
-  }
-
-  return response.json();
+  const response = await apiClient.get<UserProfile>('/auth/me');
+  return response.data;
 };
+
 
 // React Query hooks
 export const useLogin = () => {
