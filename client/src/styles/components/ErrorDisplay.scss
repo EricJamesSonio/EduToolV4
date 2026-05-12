@@ -348,6 +348,8 @@
   padding: 16px 20px !important;
   margin: 8px !important;
   max-width: 400px !important;
+  display: flex !important;
+  align-items: center !important;
 
   &::before {
     content: '';
@@ -367,7 +369,7 @@
   font-weight: 500 !important;
   font-size: 0.95rem !important;
   line-height: 1.4 !important;
-  margin: 0 !important;
+  margin: 0 0 0 12px !important;
   padding: 0 !important;
 }
 
@@ -376,7 +378,7 @@
   font-weight: 700 !important;
   font-size: 1rem !important;
   line-height: 1.3 !important;
-  margin: 0 0 4px 0 !important;
+  margin: 0 0 4px 12px !important;
   padding: 0 !important;
 }
 
@@ -396,6 +398,8 @@
   padding: 16px 20px !important;
   margin: 8px !important;
   max-width: 400px !important;
+  display: flex !important;
+  align-items: center !important;
 
   &::before {
     content: '' !important;
@@ -415,7 +419,7 @@
   font-weight: 500 !important;
   font-size: 0.95rem !important;
   line-height: 1.4 !important;
-  margin: 0 !important;
+  margin: 0 0 0 12px !important;
   padding: 0 !important;
 }
 
@@ -424,7 +428,7 @@
   font-weight: 700 !important;
   font-size: 1rem !important;
   line-height: 1.3 !important;
-  margin: 0 0 4px 0 !important;
+  margin: 0 0 4px 12px !important;
   padding: 0 !important;
 }
 
@@ -444,6 +448,8 @@
   padding: 16px 20px !important;
   margin: 8px !important;
   max-width: 400px !important;
+  display: flex !important;
+  align-items: center !important;
 
   &::before {
     content: '' !important;
@@ -463,7 +469,7 @@
   font-weight: 500 !important;
   font-size: 0.95rem !important;
   line-height: 1.4 !important;
-  margin: 0 !important;
+  margin: 0 0 0 12px !important;
   padding: 0 !important;
 }
 
@@ -472,7 +478,7 @@
   font-weight: 700 !important;
   font-size: 1rem !important;
   line-height: 1.3 !important;
-  margin: 0 0 4px 0 !important;
+  margin: 0 0 4px 12px !important;
   padding: 0 !important;
 }
 
@@ -492,6 +498,8 @@
   padding: 16px 20px !important;
   margin: 8px !important;
   max-width: 400px !important;
+  display: flex !important;
+  align-items: center !important;
 
   &::before {
     content: '' !important;
@@ -511,7 +519,7 @@
   font-weight: 500 !important;
   font-size: 0.95rem !important;
   line-height: 1.4 !important;
-  margin: 0 !important;
+  margin: 0 0 0 12px !important;
   padding: 0 !important;
 }
 
@@ -520,7 +528,7 @@
   font-weight: 700 !important;
   font-size: 1rem !important;
   line-height: 1.3 !important;
-  margin: 0 0 4px 0 !important;
+  margin: 0 0 4px 12px !important;
   padding: 0 !important;
 }
 

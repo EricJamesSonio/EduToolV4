@@ -43,6 +43,7 @@
         &.active {
           background-color: var(--color-white);
           color: var(--color-primary-600);
+          border: 2px solid var(--color-white);
         }
 
         .nav-icon {

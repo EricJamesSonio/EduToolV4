@@ -2,10 +2,16 @@
 // Navigation bar with language selector
 
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
+  const location = useLocation();
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
 
   return (
     <nav className="navbar">
@@ -20,16 +26,16 @@ const Navbar = () => {
       {/* Desktop Navigation */}
       <ul className="navbar-nav desktop-nav">
         <li className="nav-item">
-          <a href="/" className="nav-link">Home</a>
+          <a href="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>Home</a>
         </li>
         <li className="nav-item">
-          <a href="/about" className="nav-link">About Us</a>
+          <a href="/about" className={`nav-link ${isActive('/about') ? 'active' : ''}`}>About Us</a>
         </li>
         <li className="nav-item">
-          <a href="/theme" className="nav-link">Theme</a>
+          <a href="/theme" className={`nav-link ${isActive('/theme') ? 'active' : ''}`}>Theme</a>
         </li>
         <li className="nav-item">
-          <a href="/login" className="nav-link">Sign In</a>
+          <a href="/login" className={`nav-link ${isActive('/login') ? 'active' : ''}`}>Sign In</a>
         </li>
       </ul>
 
@@ -77,16 +83,16 @@ const Navbar = () => {
       {/* Mobile Navigation */}
       <ul className={`navbar-nav mobile-nav ${isMenuOpen ? 'open' : ''}`}>
         <li className="nav-item">
-          <a href="/" className="nav-link" onClick={() => setIsMenuOpen(false)}>Home</a>
+          <a href="/" className={`nav-link ${isActive('/') ? 'active' : ''}`} onClick={() => setIsMenuOpen(false)}>Home</a>
         </li>
         <li className="nav-item">
-          <a href="/about" className="nav-link" onClick={() => setIsMenuOpen(false)}>About Us</a>
+          <a href="/about" className={`nav-link ${isActive('/about') ? 'active' : ''}`} onClick={() => setIsMenuOpen(false)}>About Us</a>
         </li>
         <li className="nav-item">
-          <a href="/theme" className="nav-link" onClick={() => setIsMenuOpen(false)}>Theme</a>
+          <a href="/theme" className={`nav-link ${isActive('/theme') ? 'active' : ''}`} onClick={() => setIsMenuOpen(false)}>Theme</a>
         </li>
         <li className="nav-item">
-          <a href="/login" className="nav-link" onClick={() => setIsMenuOpen(false)}>Sign In</a>
+          <a href="/login" className={`nav-link ${isActive('/login') ? 'active' : ''}`} onClick={() => setIsMenuOpen(false)}>Sign In</a>
         </li>
       </ul>
     </nav>

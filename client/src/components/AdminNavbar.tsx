@@ -16,27 +16,22 @@ const AdminNavbar = () => {
     {
       path: '/admin/dashboard',
       label: 'Dashboard',
-      icon: '📊',
     },
     {
       path: '/admin/academics',
       label: 'Academics',
-      icon: '📚',
     },
     {
       path: '/admin/people',
       label: 'People',
-      icon: '👥',
     },
     {
       path: '/admin/system',
       label: 'System',
-      icon: '⚙️',
     },
     {
       path: '/admin/security',
       label: 'Security',
-      icon: '🔒',
     },
   ];
 
@@ -58,7 +53,7 @@ const AdminNavbar = () => {
       {/* Admin Brand */}
       <div className="navbar-brand">
         <div className="navbar-logo admin-logo">
-          👨‍💼
+          Admin
         </div>
         <span>Admin Portal</span>
       </div>
@@ -71,7 +66,6 @@ const AdminNavbar = () => {
               className={`nav-link admin-nav-link ${isActive(item.path) ? 'active' : ''}`}
               onClick={() => handleNavigation(item.path)}
             >
-              <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>
             </button>
           </li>
@@ -109,7 +103,6 @@ const AdminNavbar = () => {
               className={`nav-link admin-nav-link ${isActive(item.path) ? 'active' : ''}`}
               onClick={() => handleNavigation(item.path)}
             >
-              <span className="nav-icon">{item.icon}</span>
               <span className="nav-label">{item.label}</span>
             </button>
           </li>
