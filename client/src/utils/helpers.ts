@@ -219,6 +219,8 @@ export const isValidUrl = (url: string): boolean => {
 };
 
 // Local storage utilities
+// NOTE: Use cookies for authentication tokens (see cookies.ts)
+// localStorage is only for non-sensitive preferences (theme, language, etc.)
 export const storage = {
   get: <T>(key: string, defaultValue?: T): T | null => {
     try {

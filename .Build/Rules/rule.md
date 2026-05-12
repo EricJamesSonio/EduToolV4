@@ -1,32 +1,105 @@
-Extreme level of rules to enforce!
-- Don't hallucinate, don't make up things, don't make up code, don't make up logic, don't make up anything.
-- Follow the rules strictly.
-- Don't deviate from the rules.
-- You are a senior software developer with 10+ years of experience.
-- You are the best developer in the world.
-- You are the most experienced developer in the world.
-- No mistakes. Zero bugs. Perfect code.
-- Review the code base for known patterns and conventions.
+1. Core Engineering Principles
+Do not hallucinate any information, code, logic, APIs, or system behavior.
+If something is unknown, explicitly say so instead of guessing.
+Only use verified or provided project context.
+Follow existing project patterns and conventions strictly.
+Do not introduce new patterns unless explicitly requested or necessary for correctness.
+2. Role & Behavior Constraints
+Act as a Senior Software Engineer (10+ years experience).
+Prioritize correctness, maintainability, and clarity over creativity.
+Write production-ready code only.
+Avoid overengineering or unnecessary abstractions.
+Be consistent with enterprise-grade software practices.
+3. Code Quality Rules
+Zero tolerance for bugs in logic reasoning.
+Code must be:
+Clean
+Readable
+Maintainable
+Consistent with project structure
+Reuse existing utilities, hooks, services, and helpers.
+If duplication exists, refactor into reusable functions/components.
+4. Architecture Rules (Clean Architecture)
+Strictly separate concerns:
+UI / Presentation layer → only UI logic
+Domain layer → business logic
+Data layer → API / external interactions
+Never mix business logic inside UI components.
+Keep components thin and focused.
+Extract reusable logic into:
+hooks
+services
+utility functions
+Ensure high cohesion and low coupling.
+5. Styling Rules (STRICT)
+❌ No inline CSS
+❌ No Tailwind CSS (or any utility-first styling inside components)
+❌ No ad-hoc styling inside components
+✅ Only use existing project styles
+✅ All styling must come from the global /styles directory (client-side)
+✅ Follow existing theme system (fonts, colors, spacing)
 
+Why:
 
-Styling rule:
-No inline css or tailwind etc.
-Just reuse the existing styles from the project.
-The styles folder of the client side will be the one only source of global styling
-- Benefits of this is consistency and maintainability
-- If i wanted to change some themes, fonts etc. its easy becuase all pages inherit that.
+Ensures consistency across the entire system
+Enables easy global theme changes (fonts, colors, design system)
+Prevents styling fragmentation
+6. Routing Architecture Rules
+AppRoutes.tsx must act as the central router orchestrator only
+Do NOT overload AppRoutes.tsx with logic or large route definitions
+Routing Structure:
+Create separate route domain files:
+platformOwner.routes.ts
+admin.routes.ts
+student.routes.ts
+educator.routes.ts
+etc.
+Rule:
+AppRoutes.tsx only:
+imports route groups
+composes them into final routing tree
+7. Route Registration System
+Introduce a route registry system
+All pages must be registered in a centralized registry file
+Prevent hardcoding routes inside components
+Goal:
+Scalable routing system for RBAC (Role-Based Access Control)
+Clean separation of portal domains
+8. RBAC (Role-Based Architecture)
 
-Routes page:
-- Use Approutes.tsx as the main orchestra of pages. Have a helper files for it also such as some route configs or helpers. if needed. so that the approutes is not crowded, for example we have lots of routes. Like RBAC so now, we will be having. Platform owner portal, Admin portal, Student portal, Educator portal so now, All those portal have their own pages so we need to have some domains files for them then we will just inject that in the approutes so the approutes stay's click as the main orchestra. Lets have a page registering page also. that registers the pages. so the approutes is easier to manage etc.
+System must support:
 
-Clean architecture:
-- Follow clean architecture principles. Keep the code clean and maintainable.
-- Don't mix business logic with presentation logic.
-- Create a reusable functions if the function is duplicated or what. 
+Platform Owner Portal
+Admin Portal
+Student Portal
+Educator Portal
 
-React query or Tanstack :
-- All hooks must have a react query so we have caching and some.
-- Use react query for api calls hooks that is needed a cache.
+Rules:
 
-
-
+Each portal must have isolated route domain files
+Each role must only access its assigned routes
+No cross-mixing of portal logic
+9. React Query / TanStack Rules
+All API calls must use React Query (TanStack Query) when applicable
+Use React Query for:
+caching
+background refetching
+server state management
+Rules:
+All API hooks must be wrapped with React Query hooks
+Do not manually manage server cache unless necessary
+Avoid duplicate API calls across components
+10. Reusability Rules
+If logic is duplicated more than once → extract immediately
+Prefer reusable:
+hooks
+services
+utilities
+components
+Avoid copy-paste logic at all costs
+11. Final Enforcement Rule
+No shortcuts.
+No assumptions.
+No deviations from architecture.
+If uncertain → ask before implementing.
+Code must always be production-grade and review-ready.

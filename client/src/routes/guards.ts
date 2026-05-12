@@ -1,7 +1,8 @@
 // Route Guards and Permission System
-// Starter implementation for protecting routes
+// Cookie-based authentication guards
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export interface GuardContext {
   isAuthenticated?: boolean;
@@ -14,15 +15,24 @@ export interface GuardProps {
   context?: GuardContext;
 }
 
-// Auth Guard - Checks if user is authenticated
-export const AuthGuard = ({ children, context }: GuardProps): React.ReactNode => {
-  // TODO: Implement actual authentication check
-  // For now, always allow access (starter implementation)
-  const isAuthenticated = context?.isAuthenticated ?? true;
+// Check if user is authenticated via access token
+const isAuthenticated = (): boolean => {
+  const accessToken = localStorage.getItem('accessToken');
+  return !!accessToken;
+};
 
-  if (!isAuthenticated) {
-    // TODO: Redirect to login page
-    return React.createElement('div', null, 'Please log in to access this page');
+// Auth Guard - Checks if user is authenticated
+export const AuthGuard = ({ children }: GuardProps): React.ReactNode => {
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  if (!isAuthenticated()) {
+    return React.createElement('div', null, 'Redirecting to login...');
   }
 
   return React.createElement(React.Fragment, null, children);

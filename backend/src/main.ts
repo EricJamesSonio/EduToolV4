@@ -13,15 +13,15 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(new IoAdapter(app));                   // 👈 add
 
-// main.ts
-app.useGlobalPipes(new ValidationPipe({ 
-  transform: true,
-  whitelist: true,
-  forbidNonWhitelisted: true,
-  transformOptions: {
-    enableImplicitConversion: true,
-  },
-}));
+  // main.ts
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transformOptions: {
+      enableImplicitConversion: true,
+    },
+  }));
 
   app.useGlobalFilters(
     new HttpExceptionFilter(),
@@ -32,7 +32,10 @@ app.useGlobalPipes(new ValidationPipe({
     new ResponseInterceptor(),
   );
 
-  app.enableCors();
+  app.enableCors({
+    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    credentials: true,
+  });
 
   const PORT = Number(process.env.PORT) || 3000;
   await app.listen(PORT);
