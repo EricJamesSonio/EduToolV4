@@ -116,12 +116,12 @@ function AdminAcademics() {
   const handleViewProgram = (program: ProgramWithStats) => {
     setSelectedProgram(program);
 
-    if (program.courses.length > 0) {
+    if (program.type === 'college') {
       setViewMode("courses-view");
       return;
     }
 
-    if (program.strands.length > 0) {
+    if (program.type === 'senior-high' || program.type === 'senior_high') {
       setViewMode("strands-view");
       return;
     }
@@ -178,16 +178,16 @@ function AdminAcademics() {
               {viewMode === "courses-view" && selectedProgram && (
                 <AcademicCoursePage
                   program={selectedProgram}
+                  schoolYearId={currentSchoolYear?.id || ""}
                   onBackToPrograms={handleBackToPrograms}
-                  onCreateCourse={handleCreateProgram}
                 />
               )}
 
               {viewMode === "strands-view" && selectedProgram && (
                 <AcademicStrandPage
                   program={selectedProgram}
+                  schoolYearId={currentSchoolYear?.id || ""}
                   onBackToPrograms={handleBackToPrograms}
-                  onCreateStrand={handleCreateProgram}
                 />
               )}
 

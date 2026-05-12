@@ -5,6 +5,7 @@ import React from 'react';
 import type { ProgramWithStats } from '../../types/program.types';
 import ActionButtons from '../ActionButtons';
 import BaseCard from '../BaseCard';
+import { getProgramTypeLabel } from '../../constants/programTypes';
 
 interface ProgramCardProps {
   program: ProgramWithStats;
@@ -29,22 +30,6 @@ const ProgramCard: React.FC<ProgramCardProps> = ({ program, onEdit, onDelete, on
     };
   };
 
-  const getProgramTypeLabel = (type: string) => {
-    const typeLabels: Record<string, string> = {
-      'elementary': 'Elementary',
-      'junior-high': 'Junior High',
-      'senior-high': 'Senior High',
-      'college': 'College',
-      'vocational': 'Vocational',
-      'special': 'Special Education',
-      'stem': 'STEM',
-      'arts': 'Arts',
-      'sports': 'Sports',
-      'other': 'Other',
-    };
-    return typeLabels[type] || type;
-  };
-
   return (
     <BaseCard className="program-card">
       <div className="card-header">
@@ -54,7 +39,7 @@ const ProgramCard: React.FC<ProgramCardProps> = ({ program, onEdit, onDelete, on
       </div>
       <div className="card-body">
         <div className="program-type-badge">
-          <span className={`status-badge ${program.type === 'active' ? 'status-active' : 'status-default'}`}>
+          <span className="status-badge status-default">
             {getProgramTypeLabel(program.type)}
           </span>
         </div>

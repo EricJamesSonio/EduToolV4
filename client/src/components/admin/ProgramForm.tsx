@@ -2,7 +2,8 @@
 // Form for creating and editing programs
 
 import React, { useState, useEffect } from 'react';
-import type { ProgramWithAssignments, CreateProgramDto, UpdateProgramDto } from '../../types/program.types';
+import type { ProgramWithAssignments, CreateProgramDto, UpdateProgramDto, ProgramType } from '../../types/program.types';
+import { PROGRAM_TYPES } from '../../constants/programTypes';
 
 export interface ProgramFormProps {
   program?: ProgramWithAssignments | null;
@@ -85,25 +86,14 @@ const ProgramForm: React.FC<ProgramFormProps> = ({
 
     const submitData = {
       name: formData.name.trim(),
-      type: formData.type.trim(),
+      type: formData.type.trim() as ProgramType,
       ...(program ? {} : { schoolYearId }),
     };
 
     onSubmit(submitData);
   };
 
-  const programTypes = [
-    { value: 'elementary', label: 'Elementary' },
-    { value: 'junior-high', label: 'Junior High' },
-    { value: 'senior-high', label: 'Senior High' },
-    { value: 'college', label: 'College' },
-    { value: 'vocational', label: 'Vocational' },
-    { value: 'special', label: 'Special Education' },
-    { value: 'stem', label: 'STEM' },
-    { value: 'arts', label: 'Arts' },
-    { value: 'sports', label: 'Sports' },
-    { value: 'other', label: 'Other' },
-  ];
+  const programTypes = PROGRAM_TYPES;
 
   return (
     <div className={`program-form ${className}`}>

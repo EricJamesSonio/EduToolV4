@@ -2,21 +2,32 @@
 // API client for course-related operations
 
 import { apiClient } from './apiClient';
+import type { Course, CreateCourseDto, UpdateCourseDto } from '../types/course.types';
 
 export const courseApi = {
-  getCoursesByProgram: (programId: string) => {
-    return apiClient.get(`/programs/${programId}/courses`);
+  getAll: async (params: { schoolYearId: string; programId?: string }): Promise<Course[]> => {
+    const response = await apiClient.get('/courses', { params });
+    return response.data;
   },
-  
-  createCourse: (data: any) => {
-    return apiClient.post('/courses', data);
+
+  getCoursesByProgram: async (schoolYearId: string, programId: string): Promise<Course[]> => {
+    const response = await apiClient.get('/courses', {
+      params: { schoolYearId, programId },
+    });
+    return response.data;
   },
-  
-  updateCourse: (id: string, data: any) => {
-    return apiClient.patch(`/courses/${id}`, data);
+
+  createCourse: async (data: CreateCourseDto): Promise<Course> => {
+    const response = await apiClient.post('/courses', data);
+    return response.data;
   },
-  
-  deleteCourse: (id: string) => {
-    return apiClient.delete(`/courses/${id}`);
-  }
+
+  updateCourse: async (id: string, data: UpdateCourseDto): Promise<Course> => {
+    const response = await apiClient.patch(`/courses/${id}`, data);
+    return response.data;
+  },
+
+  deleteCourse: async (id: string): Promise<void> => {
+    await apiClient.delete(`/courses/${id}`);
+  },
 };

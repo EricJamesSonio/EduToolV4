@@ -1,10 +1,26 @@
 // Program Types
 // Type definitions for program related components and APIs
 
+export type ProgramType =
+  | 'elementary'
+  | 'junior-high'
+  | 'senior-high'
+  | 'senior_high'
+  | 'college'
+  | 'vocational'
+  | 'special'
+  | 'stem'
+  | 'arts'
+  | 'sports'
+  | 'other'
+  | 'daycare'
+  | 'preschool'
+  | 'kindergarten';
+
 export interface Program {
   id: string;
   name: string;
-  type: string;
+  type: ProgramType;
   schoolYearId: string;
   createdAt?: string;
   updatedAt?: string;
@@ -12,13 +28,13 @@ export interface Program {
 
 export interface CreateProgramDto {
   name: string;
-  type: string;
+  type: ProgramType;
   schoolYearId: string;
 }
 
 export interface UpdateProgramDto {
   name?: string;
-  type?: string;
+  type?: ProgramType;
 }
 
 export interface ProgramWithAssignments extends Program {

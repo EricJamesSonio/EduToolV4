@@ -354,6 +354,15 @@
       text-align: center;
     }
   }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: $spacing-2;
+    margin-top: $spacing-2;
+  }
 }
 
 .academic-detail-grid {
@@ -421,6 +430,43 @@
     font-weight: $font-semibold;
     text-align: right;
   }
+}
+
+.nested-levels {
+  margin-top: $spacing-4;
+  padding-top: $spacing-4;
+  border-top: 1px solid var(--color-border-primary);
+}
+
+.nested-levels-title {
+  font-size: $font-sm;
+  font-weight: $font-semibold;
+  color: var(--color-text-primary);
+  margin-bottom: $spacing-3;
+}
+
+.nested-level-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+}
+
+.nested-level-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $radius-full;
+  background-color: var(--color-secondary-50);
+  border: 1px solid var(--color-border-primary);
+  color: var(--color-text-secondary);
+  font-size: $font-xs;
+  font-weight: $font-medium;
+}
+
+.nested-empty {
+  color: var(--color-text-tertiary);
+  font-size: $font-sm;
+  margin: 0;
 }
 
 // Empty state

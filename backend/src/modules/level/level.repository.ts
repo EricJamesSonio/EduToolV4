@@ -16,7 +16,11 @@ export class LevelRepository {
     })
   }
 
-  async findByProgramAndSchoolYear(orgId: string, programId: string, schoolYearId: string) {
+  async findByProgramAndSchoolYear(
+    orgId: string,
+    programId: string,
+    schoolYearId: string,
+  ) {
     return this.db.level.findMany({
       where: {
         org_id: orgId,
