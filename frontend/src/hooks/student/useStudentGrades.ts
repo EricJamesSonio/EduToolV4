@@ -3,6 +3,7 @@ import { useQuery, UseQueryResult } from "@tanstack/react-query";
 import { studentGradeApi } from "@/api/student/grade.api";
 import type { StudentTermGrade } from "@/api/student/grade.api";
 import { gradeKeys } from "@/hooks/queryKeys";
+import { QUERY_CONFIGS } from "@/lib/query-client";
 
 export const useStudentGrades = (
   classId: string
@@ -11,6 +12,7 @@ export const useStudentGrades = (
     queryKey: gradeKeys.byClass(classId),
     queryFn: () => studentGradeApi.getOwn(classId),
     enabled: !!classId,
+    ...QUERY_CONFIGS.list,
     staleTime: 1000 * 60, // 1 minute for grades (frequently updated)
   });
 };

@@ -1,0 +1,439 @@
+// Color theme
+// Define color palette and semantic color mappings
+
+// Base color palette
+:root {
+  // Primary colors
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+
+  // Secondary colors
+  --color-secondary-50: #f8fafc;
+  --color-secondary-100: #f1f5f9;
+  --color-secondary-200: #e2e8f0;
+  --color-secondary-300: #cbd5e1;
+  --color-secondary-400: #94a3b8;
+  --color-secondary-500: #64748b;
+  --color-secondary-600: #475569;
+  --color-secondary-700: #334155;
+  --color-secondary-800: #1e293b;
+  --color-secondary-900: #0f172a;
+
+  // Success colors
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-300: #86efac;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+  --color-success-900: #14532d;
+
+  // Warning colors
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+
+  // Error colors
+  --color-error-50: #fef2f2;
+  --color-error-100: #fee2e2;
+  --color-error-200: #fecaca;
+  --color-error-300: #fca5a5;
+  --color-error-400: #f87171;
+  --color-error-500: #ef4444;
+  --color-error-600: #dc2626;
+  --color-error-700: #b91c1c;
+  --color-error-800: #991b1b;
+  --color-error-900: #7f1d1d;
+
+  // Info colors
+  --color-info-50: #f0f9ff;
+  --color-info-100: #e0f2fe;
+  --color-info-200: #bae6fd;
+  --color-info-300: #7dd3fc;
+  --color-info-400: #38bdf8;
+  --color-info-500: #06b6d4;
+  --color-info-600: #0891b2;
+  --color-info-700: #0e7490;
+  --color-info-800: #155e75;
+  --color-info-900: #164e63;
+
+  // Neutral colors
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-transparent: transparent;
+}
+
+// Semantic color mappings
+:root {
+  // Background colors
+  --color-bg-primary: var(--color-white);
+  --color-bg-secondary: var(--color-secondary-50);
+  --color-bg-tertiary: var(--color-secondary-100);
+  --color-bg-inverse: var(--color-secondary-900);
+
+  // Text colors
+  --color-text-primary: var(--color-secondary-900);
+  --color-text-secondary: var(--color-secondary-700);
+  --color-text-tertiary: var(--color-secondary-500);
+  --color-text-inverse: var(--color-white);
+  --color-text-on-primary: var(--color-white);
+  --color-text-on-secondary: var(--color-secondary-900);
+
+  // Border colors
+  --color-border-primary: var(--color-secondary-200);
+  --color-border-secondary: var(--color-secondary-300);
+  --color-border-focus: var(--color-primary-500);
+  --color-border-error: var(--color-error-500);
+
+  // Interactive colors
+  --color-interactive-primary: var(--color-primary-500);
+  --color-interactive-primary-hover: var(--color-primary-600);
+  --color-interactive-primary-active: var(--color-primary-700);
+  --color-interactive-primary-disabled: var(--color-secondary-300);
+
+  --color-interactive-secondary: var(--color-secondary-500);
+  --color-interactive-secondary-hover: var(--color-secondary-600);
+  --color-interactive-secondary-active: var(--color-secondary-700);
+  --color-interactive-secondary-disabled: var(--color-secondary-300);
+
+  // Status colors
+  --color-status-success: var(--color-success-500);
+  --color-status-success-bg: var(--color-success-50);
+  --color-status-success-border: var(--color-success-200);
+
+  --color-status-warning: var(--color-warning-500);
+  --color-status-warning-bg: var(--color-warning-50);
+  --color-status-warning-border: var(--color-warning-200);
+
+  --color-status-error: var(--color-error-500);
+  --color-status-error-bg: var(--color-error-50);
+  --color-status-error-border: var(--color-error-200);
+
+  --color-status-info: var(--color-info-500);
+  --color-status-info-bg: var(--color-info-50);
+  --color-status-info-border: var(--color-info-200);
+}
+
+// Dark theme support
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg-primary: var(--color-secondary-900);
+    --color-bg-secondary: var(--color-secondary-800);
+    --color-bg-tertiary: var(--color-secondary-700);
+    --color-bg-inverse: var(--color-white);
+
+    --color-text-primary: var(--color-white);
+    --color-text-secondary: var(--color-secondary-300);
+    --color-text-tertiary: var(--color-secondary-500);
+    --color-text-inverse: var(--color-secondary-900);
+
+    --color-border-primary: var(--color-secondary-700);
+    --color-border-secondary: var(--color-secondary-600);
+  }
+}
+
+// Theme classes for manual theme switching
+.theme-light {
+  // Light theme variables (default) - uses CSS variables defined above
+}
+
+.theme-dark {
+  // Dark theme variables
+  --color-bg-primary: var(--color-secondary-900);
+  --color-bg-secondary: var(--color-secondary-800);
+  --color-bg-tertiary: var(--color-secondary-700);
+  --color-bg-inverse: var(--color-white);
+
+  --color-text-primary: var(--color-white);
+  --color-text-secondary: var(--color-secondary-300);
+  --color-text-tertiary: var(--color-secondary-500);
+  --color-text-inverse: var(--color-secondary-900);
+
+  --color-border-primary: var(--color-secondary-700);
+  --color-border-secondary: var(--color-secondary-600);
+}
+
+// Color utility classes using CSS variables
+.color-primary {
+  color: var(--color-primary-500);
+}
+
+.color-primary-50 {
+  color: var(--color-primary-50);
+}
+
+.color-primary-100 {
+  color: var(--color-primary-100);
+}
+
+.color-primary-200 {
+  color: var(--color-primary-200);
+}
+
+.color-primary-300 {
+  color: var(--color-primary-300);
+}
+
+.color-primary-400 {
+  color: var(--color-primary-400);
+}
+
+.color-primary-500 {
+  color: var(--color-primary-500);
+}
+
+.color-primary-600 {
+  color: var(--color-primary-600);
+}
+
+.color-primary-700 {
+  color: var(--color-primary-700);
+}
+
+.color-primary-800 {
+  color: var(--color-primary-800);
+}
+
+.color-primary-900 {
+  color: var(--color-primary-900);
+}
+
+.color-secondary {
+  color: var(--color-secondary-500);
+}
+
+.color-success {
+  color: var(--color-success-500);
+}
+
+.color-warning {
+  color: var(--color-warning-500);
+}
+
+.color-error {
+  color: var(--color-error-500);
+}
+
+.color-info {
+  color: var(--color-info-500);
+}
+
+.bg-primary {
+  background-color: var(--color-primary-500);
+}
+
+.bg-secondary {
+  background-color: var(--color-secondary-500);
+}
+
+.bg-success {
+  background-color: var(--color-success-500);
+}
+
+.bg-warning {
+  background-color: var(--color-warning-500);
+}
+
+.bg-error {
+  background-color: var(--color-error-500);
+}
+
+.bg-info {
+  background-color: var(--color-info-500);
+}
+
+.bg-primary-50 {
+  background-color: var(--color-primary-50);
+}
+
+.bg-primary-100 {
+  background-color: var(--color-primary-100);
+}
+
+.bg-primary-200 {
+  background-color: var(--color-primary-200);
+}
+
+.bg-primary-300 {
+  background-color: var(--color-primary-300);
+}
+
+.bg-primary-400 {
+  background-color: var(--color-primary-400);
+}
+
+.bg-primary-500 {
+  background-color: var(--color-primary-500);
+}
+
+.bg-primary-600 {
+  background-color: var(--color-primary-600);
+}
+
+.bg-primary-700 {
+  background-color: var(--color-primary-700);
+}
+
+.bg-primary-800 {
+  background-color: var(--color-primary-800);
+}
+
+.bg-primary-900 {
+  background-color: var(--color-primary-900);
+}
+
+.bg-secondary-50 {
+  background-color: var(--color-secondary-50);
+}
+
+.bg-secondary-100 {
+  background-color: var(--color-secondary-100);
+}
+
+.bg-secondary-200 {
+  background-color: var(--color-secondary-200);
+}
+
+.bg-secondary-300 {
+  background-color: var(--color-secondary-300);
+}
+
+.bg-secondary-400 {
+  background-color: var(--color-secondary-400);
+}
+
+.bg-secondary-500 {
+  background-color: var(--color-secondary-500);
+}
+
+.bg-secondary-600 {
+  background-color: var(--color-secondary-600);
+}
+
+.bg-secondary-700 {
+  background-color: var(--color-secondary-700);
+}
+
+.bg-secondary-800 {
+  background-color: var(--color-secondary-800);
+}
+
+.bg-secondary-900 {
+  background-color: var(--color-secondary-900);
+}
+
+// Semantic color classes
+.bg-bg-primary {
+  background-color: var(--color-bg-primary);
+}
+
+.bg-bg-secondary {
+  background-color: var(--color-bg-secondary);
+}
+
+.bg-bg-tertiary {
+  background-color: var(--color-bg-tertiary);
+}
+
+.bg-bg-inverse {
+  background-color: var(--color-bg-inverse);
+}
+
+.text-text-primary {
+  color: var(--color-text-primary);
+}
+
+.text-text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-text-tertiary {
+  color: var(--color-text-tertiary);
+}
+
+.text-text-inverse {
+  color: var(--color-text-inverse);
+}
+
+.border-border-primary {
+  border-color: var(--color-border-primary);
+}
+
+.border-border-secondary {
+  border-color: var(--color-border-secondary);
+}
+
+.border-border-focus {
+  border-color: var(--color-border-focus);
+}
+
+.border-border-error {
+  border-color: var(--color-border-error);
+}
+
+// Status color classes
+.bg-status-success {
+  background-color: var(--color-status-success-bg);
+}
+
+.bg-status-warning {
+  background-color: var(--color-status-warning-bg);
+}
+
+.bg-status-error {
+  background-color: var(--color-status-error-bg);
+}
+
+.bg-status-info {
+  background-color: var(--color-status-info-bg);
+}
+
+.text-status-success {
+  color: var(--color-status-success);
+}
+
+.text-status-warning {
+  color: var(--color-status-warning);
+}
+
+.text-status-error {
+  color: var(--color-status-error);
+}
+
+.text-status-info {
+  color: var(--color-status-info);
+}
+
+.border-status-success {
+  border-color: var(--color-status-success-border);
+}
+
+.border-status-warning {
+  border-color: var(--color-status-warning-border);
+}
+
+.border-status-error {
+  border-color: var(--color-status-error-border);
+}
+
+.border-status-info {
+  border-color: var(--color-status-info-border);
+}

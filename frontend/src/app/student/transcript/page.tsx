@@ -37,9 +37,9 @@ function gradeStatusBadge(isReleased: boolean, finalGrade: string | null) {
 
 function schoolYearStatusBadge(status: string) {
   const map: Record<string, string> = {
-    active:    "bg-green-50 text-green-700 border-green-200",
+    active: "bg-green-50 text-green-700 border-green-200",
     completed: "bg-muted text-muted-foreground border-border/60",
-    upcoming:  "bg-blue-50 text-blue-700 border-blue-200",
+    upcoming: "bg-blue-50 text-blue-700 border-blue-200",
   };
   const cls = map[status] ?? "bg-muted text-muted-foreground border-border/60";
   return (
@@ -191,18 +191,20 @@ export default function StudentTranscriptPage(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <PageHeader title="Transcript" />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handlePrint}
-          className="gap-1.5 print:hidden"
-        >
-          <Printer className="h-3.5 w-3.5" />
-          Print
-        </Button>
-      </div>
+      <PageHeader
+        title="Transcript"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePrint}
+            className="gap-1.5 print:hidden"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            Print
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <TranscriptSkeleton />

@@ -1,0 +1,37 @@
+// SCSS Functions
+// Reusable functions for calculations and transformations
+
+// Color functions
+@function darken($color, $percent) {
+  @return mix(black, $color, $percent);
+}
+
+@function lighten($color, $percent) {
+  @return mix(white, $color, $percent);
+}
+
+@function rgba($color, $alpha) {
+  @return rgba(red($color), green($color), blue($color), $alpha);
+}
+
+// Spacing functions
+@function spacing($multiplier) {
+  @return $spacing-4 * $multiplier;
+}
+
+// Z-index function
+@function z-index($layer) {
+  @if $layer == dropdown { @return $z-dropdown; }
+  @if $layer == sticky { @return $z-sticky; }
+  @if $layer == fixed { @return $z-fixed; }
+  @if $layer == modal-backdrop { @return $z-modal-backdrop; }
+  @if $layer == modal { @return $z-modal; }
+  @if $layer == popover { @return $z-popover; }
+  @if $layer == tooltip { @return $z-tooltip; }
+  @return 1;
+}
+
+// Font size function with responsive scaling
+@function responsive-font-size($base-size, $scale-factor: 1.2) {
+  @return $base-size * $scale-factor;
+}

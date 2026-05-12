@@ -1,0 +1,170 @@
+// Base styles
+// Global styles applied to HTML elements
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  line-height: $leading-normal;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: $font-family-sans;
+  font-size: $font-base;
+  font-weight: $font-normal;
+  line-height: $leading-normal;
+  color: $gray-900;
+  background-color: $gray-50;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+// Typography base
+h1, h2, h3, h4, h5, h6 {
+  font-weight: $font-semibold;
+  line-height: $leading-tight;
+  margin: 0 0 $spacing-4 0;
+  color: $gray-900;
+}
+
+h1 { font-size: $font-4xl; }
+h2 { font-size: $font-3xl; }
+h3 { font-size: $font-2xl; }
+h4 { font-size: $font-xl; }
+h5 { font-size: $font-lg; }
+h6 { font-size: $font-base; }
+
+p {
+  margin: 0 0 $spacing-4 0;
+  line-height: $leading-relaxed;
+}
+
+a {
+  color: $primary-color;
+  text-decoration: none;
+  transition: $transition-fast;
+
+  &:hover {
+    color: darken($primary-color, 10%);
+    text-decoration: underline;
+  }
+
+  &:focus {
+    outline: 2px solid $primary-color;
+    outline-offset: 2px;
+  }
+}
+
+// Lists
+ul, ol {
+  margin: 0 0 $spacing-4 0;
+  padding-left: $spacing-6;
+}
+
+li {
+  margin-bottom: $spacing-2;
+}
+
+// Code blocks
+code {
+  font-family: $font-family-mono;
+  font-size: $font-sm;
+  background-color: $gray-100;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $radius-sm;
+  color: $gray-800;
+}
+
+pre {
+  font-family: $font-family-mono;
+  font-size: $font-sm;
+  background-color: $gray-100;
+  padding: $spacing-4;
+  border-radius: $radius-md;
+  overflow-x: auto;
+  line-height: $leading-relaxed;
+
+  code {
+    background: none;
+    padding: 0;
+  }
+}
+
+// Tables
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: $spacing-6;
+}
+
+th, td {
+  padding: $spacing-3 $spacing-4;
+  text-align: left;
+  border-bottom: 1px solid $gray-200;
+}
+
+th {
+  font-weight: $font-semibold;
+  color: $gray-700;
+  background-color: $gray-50;
+}
+
+// Forms
+input, textarea, select {
+  @include input-base;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right $spacing-3 center;
+  padding-right: $spacing-8;
+}
+
+// Images
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: $radius-md;
+}
+
+// Buttons
+button {
+  @include button-base;
+}
+
+// Focus styles
+:focus-visible {
+  outline: 2px solid $primary-color;
+  outline-offset: 2px;
+}
+
+// Selection
+::selection {
+  background-color: rgba($primary-color, 0.2);
+}
+
+// Scrollbar
+html {
+  @include scrollbar();
+}
+
+// Disabled state
+[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}

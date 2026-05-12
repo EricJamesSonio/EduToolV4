@@ -222,9 +222,9 @@ export default function EducatorClassOverviewPage({
     },
     {
       icon: ClipboardList,
-      label: "Rubric",
+      label: "Grading Scheme",
       description: "Grading scheme for this class",
-      href: `${base}/rubric`,
+      href: `${base}/grading-scheme`,
     },
     {
       icon: Video,
@@ -238,7 +238,7 @@ export default function EducatorClassOverviewPage({
     <div className="space-y-6 max-w-4xl">
       <PageHeader
         title={enriched.subjectName ?? enriched.subjectId}
-        description={enriched.sectionName}
+        description={enriched.sectionName || undefined}
         breadcrumbs={[
           {
             label: "My Classes",

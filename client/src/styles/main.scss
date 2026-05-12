@@ -1,0 +1,39 @@
+// Main SCSS entry point
+// Import all styles in the correct order
+
+// 1. Utils and mixins
+@import 'utils/variables';
+@import 'utils/mixins';
+@import 'utils/functions';
+@import 'utils/responsive';
+
+// 2. Base styles
+@import 'utils/reset';
+@import 'utils/base';
+
+// 3. Fonts
+@import 'fonts/typography';
+
+// 4. Themes
+@import 'themes/colors';
+@import 'themes/spacing';
+@import 'themes/shadows';
+@import 'themes/responsive-typography';
+
+// 5. Layouts
+@import 'layouts/grid';
+@import 'layouts/container';
+@import 'layouts/header';
+@import 'layouts/sidebar';
+@import 'layouts/footer';
+
+// 6. Components
+@import 'components/buttons';
+@import 'components/forms';
+@import 'components/cards';
+@import 'components/modals';
+@import 'components/tables';
+
+// 7. Utilities
+@import 'utils/helpers';
+@import 'utils/responsive-utilities';

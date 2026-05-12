@@ -1,6 +1,7 @@
 // ===== File: frontend\src\components\admin\subject\SubjectDialog.tsx =====
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -21,29 +22,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import type { AxiosError } from "axios";
 
 interface SubjectFormValues {
-  name:        string;
-  programId:   string;
-  levelId:     string;
-  courseId:    string;
-  strandId:    string;
+  name: string;
+  programId: string;
+  levelId: string;
+  courseId: string;
+  strandId: string;
   subjectType: SubjectType;
 }
 
 interface SubjectDialogProps {
-  subject?:            Subject;
-  levels:              Level[];
-  schoolYearId?:       string;
+  subject?: Subject;
+  levels: Level[];
+  schoolYearId?: string;
   defaultSubjectType?: SubjectType;
-  defaultProgramId?:   string;
-  defaultCourseId?:    string;
-  defaultStrandId?:    string;
-  defaultLevelId?:     string;
-  open:                boolean;
-  onClose:             () => void;
-  onSaved:             () => void;
+  defaultProgramId?: string;
+  defaultCourseId?: string;
+  defaultStrandId?: string;
+  defaultLevelId?: string;
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
 }
 
 export function SubjectDialog({
@@ -61,6 +63,7 @@ export function SubjectDialog({
 }: SubjectDialogProps): React.JSX.Element {
   const isEdit = !!subject;
   const queryClient = useQueryClient();
+  const [duplicateWarning, setDuplicateWarning] = useState<Subject | null>(null);
 
   const {
     register,
@@ -68,30 +71,39 @@ export function SubjectDialog({
     reset,
     setValue,
     watch,
+    getValues,
     formState: { errors },
   } = useForm<SubjectFormValues>({
     defaultValues: {
-      name:        subject?.title        ?? "",
-      programId:   subject?.realProgramId ?? defaultProgramId ?? "",
-      levelId:     subject?.levelId      ?? defaultLevelId    ?? "",
-      courseId:    subject?.courseId     ?? defaultCourseId   ?? "",
-      strandId:    subject?.strandId     ?? defaultStrandId   ?? "",
+      name: subject?.title ?? "",
+      programId: subject?.realProgramId ?? defaultProgramId ?? "",
+      levelId: subject?.levelId ?? defaultLevelId ?? "",
+      courseId: subject?.courseId ?? defaultCourseId ?? "",
+      strandId: subject?.strandId ?? defaultStrandId ?? "",
       subjectType: (subject?.subjectType ?? defaultSubjectType) as SubjectType,
     },
   });
 
-  const selectedProgramId  = watch("programId");
-  const selectedLevelId    = watch("levelId");
-  const selectedCourseId   = watch("courseId");
-  const selectedStrandId   = watch("strandId");
-  const subjectType        = watch("subjectType");
-  const isMinor            = subjectType === "minor";
+  const selectedProgramId = watch("programId");
+  const selectedLevelId = watch("levelId");
+  const selectedCourseId = watch("courseId");
+  const selectedStrandId = watch("strandId");
+  const subjectName = watch("name");
+  const subjectType = watch("subjectType");
+  const isMinor = subjectType === "minor";
+
+  // Fetch all subjects for duplicate checking
+  const { data: allSubjects = [] } = useQuery({
+    queryKey: ["admin", "subjects", "all", schoolYearId],
+    queryFn: () => subjectApi.getAll({ schoolYearId: schoolYearId! }),
+    enabled: !!schoolYearId && !isEdit,
+  });
 
   // Fetch programs first
   const { data: programs = [] } = useQuery({
     queryKey: ["admin", "programs", schoolYearId],
-    queryFn:  () => programApi.getAll(schoolYearId!),
-    enabled:  !!schoolYearId && !isEdit,
+    queryFn: () => programApi.getAll(schoolYearId!),
+    enabled: !!schoolYearId && !isEdit,
   });
 
   // Then detect program type
@@ -105,12 +117,12 @@ export function SubjectDialog({
   const mutation = useMutation({
     mutationFn: (values: SubjectFormValues) => {
       const payload: CreateSubjectRequest | UpdateSubjectRequest = {
-        name:        values.name,
+        name: values.name,
         subjectType: values.subjectType,
-        programId:   values.programId || undefined,
-        levelId:     isMinor ? values.levelId || undefined : values.levelId,
-        courseId:    values.courseId || undefined,
-        strandId:    values.strandId || undefined,
+        programId: values.programId || undefined,
+        levelId: isMinor ? values.levelId || undefined : values.levelId,
+        courseId: values.courseId || undefined,
+        strandId: values.strandId || undefined,
       };
       return isEdit
         ? subjectApi.update(subject!.id, payload as UpdateSubjectRequest)
@@ -130,19 +142,62 @@ export function SubjectDialog({
 
   const handleClose = () => {
     reset({
-      name:        "",
-      programId:   defaultProgramId ?? "",
-      levelId:     defaultLevelId   ?? "",
-      courseId:    defaultCourseId  ?? "",
-      strandId:    defaultStrandId  ?? "",
+      name: "",
+      programId: defaultProgramId ?? "",
+      levelId: defaultLevelId ?? "",
+      courseId: defaultCourseId ?? "",
+      strandId: defaultStrandId ?? "",
       subjectType: defaultSubjectType,
     });
+    setDuplicateWarning(null);
     onClose();
+  };
+
+  const handleFormSubmit = (values: SubjectFormValues) => {
+    const duplicate = checkDuplicateSubject(values);
+    if (duplicate) {
+      setDuplicateWarning(duplicate);
+    } else {
+      mutation.mutate(values);
+    }
+  };
+
+  const handleConfirmCreate = () => {
+    if (duplicateWarning) {
+      const formValues = getValues();
+      mutation.mutate(formValues);
+      setDuplicateWarning(null);
+    }
   };
 
   const isMajorCollege = !isMinor && programType === "college";
   const isMajorSHS = !isMinor && programType === "shs";
   const isMinorSubject = isMinor;
+
+  // Function to check for duplicate subjects
+  const checkDuplicateSubject = (values: SubjectFormValues): Subject | null => {
+    if (isEdit || !schoolYearId) return null;
+
+    return allSubjects.find(existingSubject => {
+      const nameMatch = existingSubject.title.toLowerCase() === values.name.toLowerCase().trim();
+      const typeMatch = existingSubject.subjectType === values.subjectType;
+      const programMatch = existingSubject.programId === values.programId;
+
+      // For minor subjects, check level match (if level is specified)
+      const levelMatch = isMinor
+        ? (values.levelId ? existingSubject.levelId === values.levelId : true)
+        : existingSubject.levelId === values.levelId;
+
+      // For major subjects, check course/strand match
+      const courseStrandMatch = !isMinor && programType === "college"
+        ? existingSubject.courseId === values.courseId
+        : !isMinor && programType === "shs"
+          ? existingSubject.strandId === values.strandId
+          : true;
+
+      return nameMatch && typeMatch && programMatch && levelMatch && courseStrandMatch;
+    }) || null;
+  };
 
   const isSubmitDisabled =
     mutation.isPending ||
@@ -164,19 +219,19 @@ export function SubjectDialog({
           <DialogTitle>{isEdit ? "Edit Subject" : "New Subject"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-1">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 mt-1">
           {/* Subject Type — create only */}
           {!isEdit && (
             <div className="space-y-1.5">
               <Label>Subject Type</Label>
               <Tabs
                 value={subjectType}
-  onValueChange={(v) => {
-    setValue("subjectType", v as SubjectType);
-    setValue("levelId",  defaultLevelId  ?? "");
-    setValue("courseId", defaultCourseId ?? "");
-    setValue("strandId", defaultStrandId ?? "");
-  }}
+                onValueChange={(v) => {
+                  setValue("subjectType", v as SubjectType);
+                  setValue("levelId", defaultLevelId ?? "");
+                  setValue("courseId", defaultCourseId ?? "");
+                  setValue("strandId", defaultStrandId ?? "");
+                }}
               >
                 <TabsList className="w-full h-9">
                   <TabsTrigger value="major" className="flex-1 text-sm">
@@ -250,7 +305,7 @@ export function SubjectDialog({
                 >
                   {!isEdit
                     ? filteredLevels.find((l) => l.id === selectedLevelId)?.name ??
-                      (!selectedProgramId ? "Select a program first" : "Select a level")
+                    (!selectedProgramId ? "Select a program first" : "Select a level")
                     : levels.find((l) => l.id === selectedLevelId)?.name ?? "Select a level"}
                 </SelectValue>
               </SelectTrigger>
@@ -337,7 +392,7 @@ export function SubjectDialog({
             <Input
               placeholder="e.g. Mathematics, English, Science"
               {...register("name", {
-                required:  "Name is required",
+                required: "Name is required",
                 minLength: { value: 2, message: "At least 2 characters" },
                 maxLength: { value: 100, message: "Max 100 characters" },
               })}
@@ -366,6 +421,22 @@ export function SubjectDialog({
           </div>
         </form>
       </DialogContent>
+
+      {/* Duplicate Subject Confirmation Dialog */}
+      {duplicateWarning && (
+        <ConfirmDialog
+          open
+          title="Duplicate Subject Detected"
+          message={`A subject named "${duplicateWarning.title}" already exists for this ${duplicateWarning.subjectType === 'minor' ? 'minor subject' : 'major subject'} in the same program${duplicateWarning.levelName ? ` and level (${duplicateWarning.levelName})` : ''}${duplicateWarning.subjectType === 'major' && programType === 'college' && duplicateWarning.courseId ? ` and course` : duplicateWarning.subjectType === 'major' && programType === 'shs' && duplicateWarning.strandId ? ` and strand` : ''}. Do you want to create another session of this subject?`}
+          confirmLabel="Create Anyway"
+          destructive={false}
+          isLoading={mutation.isPending}
+          onConfirm={handleConfirmCreate}
+          onOpenChange={(open) => {
+            if (!open) setDuplicateWarning(null);
+          }}
+        />
+      )}
     </Dialog>
   );
 }

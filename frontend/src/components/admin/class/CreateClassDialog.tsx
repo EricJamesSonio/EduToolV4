@@ -1,69 +1,71 @@
 // frontend\src\components\admin\class\CreateClassDialog.tsx
 "use client";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-import { classApi }    from "@/api/admin/class.api";
+import { classApi } from "@/api/admin/class.api";
 import type { CreateClassRequest, ScheduleSlot } from "@/api/admin/class.api";
-import { subjectApi }  from "@/api/admin/subject.api";
+import { subjectApi } from "@/api/admin/subject.api";
 import { educatorApi } from "@/api/admin/educator.api";
-import { programApi }  from "@/api/admin/program.api";
-import { courseApi }   from "@/api/admin/course.api";
-import { strandApi }   from "@/api/admin/strand.api";
-import { levelApi }    from "@/api/admin/level.api";
-import { sectionApi }  from "@/api/admin/section.api";
-import type { Level }   from "@/types/admin/level.types";
+import { programApi } from "@/api/admin/program.api";
+import { courseApi } from "@/api/admin/course.api";
+import { strandApi } from "@/api/admin/strand.api";
+import { levelApi } from "@/api/admin/level.api";
+import { sectionApi } from "@/api/admin/section.api";
+import type { Level } from "@/types/admin/level.types";
 import type { Subject } from "@/types/admin/subject.types";
-import { Button }   from "@/components/ui/button";
-import { Input }    from "@/components/ui/input";
-import { Label }    from "@/components/ui/label";
-import { Badge }    from "@/components/ui/badge";
+import type { Class } from "@/types/admin/class.types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ScheduleSlotFields } from "./ScheduleSlotFields";
 import { toArray } from "@/utils/classes.utils";
 import {
   loadClassDraft,
   clearClassDraft,
-  useClassDraftAutosave,
+  useClassDraft,
 } from "@/components/admin/class/hooks//useClassDraft";
 
 export interface ScheduleSlotForm {
-  weekday:   string;
+  weekday: string;
   startTime: string;
-  endTime:   string;
+  endTime: string;
 }
 
 export interface CreateClassForm {
-  programId:  string;
-  trackId:    string;
-  levelId:    string;
-  sectionId:  string;
-  subjectId:  string;
+  programId: string;
+  trackId: string;
+  levelId: string;
+  sectionId: string;
+  subjectId: string;
   educatorId: string;
-  capacity:   string;
-  schedules:  ScheduleSlotForm[];
+  capacity: string;
+  schedules: ScheduleSlotForm[];
 }
 
 const EMPTY_DEFAULTS: CreateClassForm = {
-  programId:  "",
-  trackId:    "",
-  levelId:    "",
-  sectionId:  "",
-  subjectId:  "",
+  programId: "",
+  trackId: "",
+  levelId: "",
+  sectionId: "",
+  subjectId: "",
   educatorId: "",
-  capacity:   "30",
-  schedules:  [{ weekday: "1", startTime: "08:00", endTime: "09:00" }],
+  capacity: "30",
+  schedules: [{ weekday: "1", startTime: "08:00", endTime: "09:00" }],
 };
 
 interface CreateClassDialogProps {
-  open:             boolean;
-  onClose:          () => void;
+  open: boolean;
+  onClose: () => void;
   defaultSubjectId?: string;
-  schoolYearId:     string | null;
-  schoolYearName:   string | null;
+  schoolYearId: string | null;
+  schoolYearName: string | null;
 }
 
 export function CreateClassDialog({
@@ -74,17 +76,19 @@ export function CreateClassDialog({
   schoolYearName,
 }: CreateClassDialogProps): React.JSX.Element {
   const queryClient = useQueryClient();
+  const [duplicateWarning, setDuplicateWarning] = useState<Class | null>(null);
+
+  const { draft: classDraft, saveDraft } = useClassDraft();
 
   // Load draft once on mount — fall back to empty defaults
-  const draft = loadClassDraft();
-  const hasDraft = !!draft && Object.keys(draft).length > 0;
+  const hasDraft = !!classDraft && Object.keys(classDraft).length > 0;
 
   const methods = useForm<CreateClassForm>({
     defaultValues: {
       ...EMPTY_DEFAULTS,
-      ...draft,
+      ...classDraft,
       // URL param always wins over draft for subjectId
-      subjectId: defaultSubjectId ?? draft?.subjectId ?? "",
+      subjectId: defaultSubjectId ?? classDraft?.subjectId ?? "",
     },
   });
 
@@ -92,44 +96,48 @@ export function CreateClassDialog({
   const formValues = watch();
 
   // Autosave whenever any field changes
-  useClassDraftAutosave(formValues);
+  useEffect(() => {
+    if (formValues && Object.keys(formValues).length > 0) {
+      saveDraft(formValues);
+    }
+  }, [formValues, saveDraft]);
 
-  const selectedProgramId  = formValues.programId;
-  const selectedTrackId    = formValues.trackId;
-  const selectedLevelId    = formValues.levelId;
-  const selectedSectionId  = formValues.sectionId;
-  const selectedSubjectId  = formValues.subjectId;
+  const selectedProgramId = formValues.programId;
+  const selectedTrackId = formValues.trackId;
+  const selectedLevelId = formValues.levelId;
+  const selectedSectionId = formValues.sectionId;
+  const selectedSubjectId = formValues.subjectId;
   const selectedEducatorId = formValues.educatorId;
 
   const { data: programsRaw } = useQuery({
     queryKey: ["admin", "programs", schoolYearId],
-    queryFn:  () => programApi.getAll(schoolYearId!),
-    enabled:  !!schoolYearId,
+    queryFn: () => programApi.getAll(schoolYearId!),
+    enabled: !!schoolYearId,
   });
   const programs = toArray<{ id: string; name: string }>(programsRaw);
 
   const { data: coursesRaw } = useQuery({
     queryKey: ["admin", "courses", schoolYearId, selectedProgramId],
-    queryFn:  () => courseApi.getAll({ schoolYearId: schoolYearId!, programId: selectedProgramId! }),
-    enabled:  !!schoolYearId && !!selectedProgramId,
+    queryFn: () => courseApi.getAll({ schoolYearId: schoolYearId!, programId: selectedProgramId! }),
+    enabled: !!schoolYearId && !!selectedProgramId,
   });
 
   const { data: strandsRaw } = useQuery({
     queryKey: ["admin", "strands", selectedProgramId],
-    queryFn:  () => strandApi.getAll({ program_id: selectedProgramId! }),
-    enabled:  !!selectedProgramId,
+    queryFn: () => strandApi.getAll({ program_id: selectedProgramId! }),
+    enabled: !!selectedProgramId,
   });
 
-  const courses       = toArray<{ id: string; name: string }>(coursesRaw);
-  const strands       = toArray<{ id: string; name: string }>(strandsRaw);
-  const tracks        = courses.length > 0 ? courses : strands;
-  const hasTrack      = tracks.length > 0;
+  const courses = toArray<{ id: string; name: string }>(coursesRaw);
+  const strands = toArray<{ id: string; name: string }>(strandsRaw);
+  const tracks = courses.length > 0 ? courses : strands;
+  const hasTrack = tracks.length > 0;
   const isCourseTrack = courses.length > 0;
 
   const { data: levelsRaw } = useQuery({
     queryKey: ["admin", "levels", "school-year", schoolYearId],
-    queryFn:  () => levelApi.getBySchoolYear(schoolYearId!),
-    enabled:  !!schoolYearId,
+    queryFn: () => levelApi.getBySchoolYear(schoolYearId!),
+    enabled: !!schoolYearId,
   });
   const levels = useMemo<Level[]>(() => {
     const all = toArray<Level>(levelsRaw);
@@ -139,8 +147,8 @@ export function CreateClassDialog({
 
   const { data: sectionsRaw } = useQuery({
     queryKey: ["admin", "sections", schoolYearId, selectedLevelId],
-    queryFn:  () => sectionApi.getAll(schoolYearId!, selectedLevelId!),
-    enabled:  !!schoolYearId && !!selectedLevelId,
+    queryFn: () => sectionApi.getAll(schoolYearId!, selectedLevelId!),
+    enabled: !!schoolYearId && !!selectedLevelId,
   });
   const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 
@@ -152,7 +160,7 @@ export function CreateClassDialog({
     ],
     queryFn: () => subjectApi.getAll({
       levelId: selectedLevelId!,
-      ...(selectedTrackId && isCourseTrack  ? { courseId: selectedTrackId } : {}),
+      ...(selectedTrackId && isCourseTrack ? { courseId: selectedTrackId } : {}),
       ...(selectedTrackId && !isCourseTrack ? { strandId: selectedTrackId } : {}),
     }),
     enabled: !!selectedLevelId,
@@ -161,20 +169,28 @@ export function CreateClassDialog({
 
   const { data: educatorsRaw } = useQuery({
     queryKey: ["admin", "educators", "all"],
-    queryFn:  () => educatorApi.getAll(),
+    queryFn: () => educatorApi.getAll(),
   });
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
+  // Fetch existing classes for duplicate checking
+  const { data: existingClassesRaw } = useQuery({
+    queryKey: ["admin", "classes", "all", schoolYearId],
+    queryFn: () => classApi.getAll({ schoolYearId: schoolYearId! }),
+    enabled: !!schoolYearId,
+  });
+  const existingClasses = toArray<Class>(existingClassesRaw);
+
   // Cascade resets — only clear downstream fields, not ones loaded from draft
   useEffect(() => {
-    setValue("trackId",   "");
-    setValue("levelId",   "");
+    setValue("trackId", "");
+    setValue("levelId", "");
     setValue("sectionId", "");
     setValue("subjectId", "");
   }, [selectedProgramId, setValue]);
 
   useEffect(() => {
-    setValue("levelId",   "");
+    setValue("levelId", "");
     setValue("sectionId", "");
     setValue("subjectId", "");
   }, [selectedTrackId, setValue]);
@@ -191,15 +207,15 @@ export function CreateClassDialog({
   const mutation = useMutation({
     mutationFn: (values: CreateClassForm) => {
       const payload: CreateClassRequest = {
-        subjectId:    values.subjectId,
-        educatorId:   values.educatorId,
-        sectionId:    values.sectionId || undefined,
+        subjectId: values.subjectId,
+        educatorId: values.educatorId,
+        sectionId: values.sectionId || undefined,
         schoolYearId: schoolYearId!,
-        capacity:     Number(values.capacity),
-        schedules:    values.schedules.map((s) => ({
-          weekday:   Number(s.weekday),
+        capacity: Number(values.capacity),
+        schedules: values.schedules.map((s) => ({
+          weekday: Number(s.weekday),
           startTime: s.startTime,
-          endTime:   s.endTime,
+          endTime: s.endTime,
         })) as ScheduleSlot[],
       };
       return classApi.create(payload);
@@ -218,6 +234,7 @@ export function CreateClassDialog({
 
   function handleClose(): void {
     // Just close — draft is preserved so user can resume
+    setDuplicateWarning(null);
     onClose();
   }
 
@@ -227,13 +244,44 @@ export function CreateClassDialog({
     onClose();
   }
 
+  // Function to check for duplicate classes
+  const checkDuplicateClass = (values: CreateClassForm): Class | null => {
+    if (!schoolYearId) return null;
+
+    return existingClasses.find(existingClass => {
+      const subjectMatch = existingClass.subjectId === values.subjectId;
+      const sectionMatch = existingClass.sectionId === values.sectionId;
+      const educatorMatch = existingClass.educatorId === values.educatorId;
+      const schoolYearMatch = existingClass.schoolYearId === schoolYearId;
+
+      return subjectMatch && sectionMatch && educatorMatch && schoolYearMatch;
+    }) || null;
+  };
+
+  const handleFormSubmit = (values: CreateClassForm) => {
+    const duplicate = checkDuplicateClass(values);
+    if (duplicate) {
+      setDuplicateWarning(duplicate);
+    } else {
+      mutation.mutate(values);
+    }
+  };
+
+  const handleConfirmCreate = () => {
+    if (duplicateWarning) {
+      const formValues = methods.getValues();
+      mutation.mutate(formValues);
+      setDuplicateWarning(null);
+    }
+  };
+
   const isSubmitDisabled =
-    mutation.isPending     ||
-    !selectedProgramId     ||
+    mutation.isPending ||
+    !selectedProgramId ||
     (hasTrack && !selectedTrackId) ||
-    !selectedLevelId       ||
-    !selectedSectionId     ||
-    !selectedSubjectId     ||
+    !selectedLevelId ||
+    !selectedSectionId ||
+    !selectedSubjectId ||
     !selectedEducatorId;
 
   return (
@@ -250,7 +298,7 @@ export function CreateClassDialog({
           </DialogTitle>
         </DialogHeader>
         <FormProvider {...methods}>
-          <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-1">
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 mt-1">
             {/* School Year — read-only */}
             <div className="space-y-1.5">
               <Label>School Year</Label>
@@ -422,6 +470,22 @@ export function CreateClassDialog({
           </form>
         </FormProvider>
       </DialogContent>
+
+      {/* Duplicate Class Confirmation Dialog */}
+      {duplicateWarning && (
+        <ConfirmDialog
+          open
+          title="Duplicate Class Detected"
+          message={`This subject already exists for this section. Are you sure you want to create another class with this subject?`}
+          confirmLabel="Create Anyway"
+          destructive={false}
+          isLoading={mutation.isPending}
+          onConfirm={handleConfirmCreate}
+          onOpenChange={(open) => {
+            if (!open) setDuplicateWarning(null);
+          }}
+        />
+      )}
     </Dialog>
   );
 }

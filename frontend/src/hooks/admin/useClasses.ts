@@ -9,14 +9,15 @@ import type {
 } from "@/api/admin/class.api";
 import type { Class } from "@/types/admin/class.types";
 import { classKeys, enrollmentKeys } from "@/hooks/queryKeys";
-import { toast } from "sonner";
+import { createStandardMutationOptions, showSuccessToast, showErrorToast, showWarningToast } from "@/lib/error-handling";
+import { QUERY_CONFIGS } from "@/lib/query-client";
 
 // Fetch all classes
 export const useClasses = (query?: GetClassesQuery): UseQueryResult<Class[], Error> => {
   return useQuery({
     queryKey: classKeys.list(query),
     queryFn: () => classApi.getAll(query),
-    staleTime: 1000 * 60, // 1 minute for class lists
+    ...QUERY_CONFIGS.list,
   });
 };
 
@@ -26,7 +27,7 @@ export const useClass = (id: string): UseQueryResult<Class, Error> => {
     queryKey: classKeys.detail(id),
     queryFn: () => classApi.getOne(id),
     enabled: !!id,
-    staleTime: 1000 * 60 * 5, // 5 minutes for individual class data
+    ...QUERY_CONFIGS.detail,
   });
 };
 
@@ -34,16 +35,19 @@ export const useClass = (id: string): UseQueryResult<Class, Error> => {
 export const useCreateClass = (): UseMutationResult<Class, Error, CreateClassRequest> => {
   const queryClient = useQueryClient();
 
+  const standardOptions = createStandardMutationOptions({
+    entity: "Class",
+    operation: "create",
+  });
+
   return useMutation({
     mutationFn: classApi.create,
     onSuccess: (newClass) => {
       queryClient.setQueryData(classKeys.detail(newClass.id), newClass);
       queryClient.invalidateQueries({ queryKey: classKeys.lists() });
-      toast.success("Class created successfully");
+      standardOptions.onSuccess?.(newClass);
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to create class");
-    },
+    onError: standardOptions.onError,
   });
 };
 
@@ -54,6 +58,11 @@ export const useUpdateClass = (): UseMutationResult<
   { id: string; data: UpdateClassRequest }
 > => {
   const queryClient = useQueryClient();
+
+  const standardOptions = createStandardMutationOptions({
+    entity: "Class",
+    operation: "update",
+  });
 
   return useMutation({
     mutationFn: ({ id, data }) => classApi.update(id, data),
@@ -72,14 +81,15 @@ export const useUpdateClass = (): UseMutationResult<
       if (context?.previousClass) {
         queryClient.setQueryData(classKeys.detail(variables.id), context.previousClass);
       }
-      toast.error("Failed to update class");
+      standardOptions.onError?.(err);
     },
     onSettled: (data, error, variables) => {
       queryClient.invalidateQueries({ queryKey: classKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: classKeys.lists() });
+      standardOptions.onSettled?.(data, error, variables as any);
     },
     onSuccess: () => {
-      toast.success("Class updated successfully");
+      standardOptions.onSuccess?.(undefined);
     },
   });
 };
@@ -87,6 +97,11 @@ export const useUpdateClass = (): UseMutationResult<
 // Archive a class
 export const useArchiveClass = (): UseMutationResult<void, Error, string> => {
   const queryClient = useQueryClient();
+
+  const standardOptions = createStandardMutationOptions({
+    entity: "Class",
+    operation: "archive",
+  });
 
   return useMutation({
     mutationFn: classApi.archive,
@@ -105,14 +120,15 @@ export const useArchiveClass = (): UseMutationResult<void, Error, string> => {
       if (context?.previousClass) {
         queryClient.setQueryData(classKeys.detail(variables), context.previousClass);
       }
-      toast.error("Failed to archive class");
+      standardOptions.onError?.(err);
     },
     onSettled: (data, error, variables) => {
       queryClient.invalidateQueries({ queryKey: classKeys.detail(variables) });
       queryClient.invalidateQueries({ queryKey: classKeys.lists() });
+      standardOptions.onSettled?.(data, error, variables as any);
     },
     onSuccess: () => {
-      toast.success("Class archived successfully");
+      standardOptions.onSuccess?.(undefined);
     },
   });
 };
@@ -123,6 +139,7 @@ export const useClassEnrollments = (classId: string): UseQueryResult<EnrollmentR
     queryKey: enrollmentKeys.byClass(classId),
     queryFn: () => classApi.getEnrollments(classId),
     enabled: !!classId,
+    ...QUERY_CONFIGS.detail,
     staleTime: 1000 * 30, // 30 seconds for enrollment data
   });
 };
@@ -134,6 +151,11 @@ export const useEnrollStudent = (): UseMutationResult<
   { classId: string; studentId: string }
 > => {
   const queryClient = useQueryClient();
+
+  const standardOptions = createStandardMutationOptions({
+    entity: "Enrollment",
+    operation: "enroll",
+  });
 
   return useMutation({
     mutationFn: ({ classId, studentId }) => classApi.enroll(classId, studentId),
@@ -159,16 +181,17 @@ export const useEnrollStudent = (): UseMutationResult<
       if (context?.previousEnrollments) {
         queryClient.setQueryData(enrollmentKeys.byClass(variables.classId), context.previousEnrollments);
       }
-      toast.error("Failed to enroll student");
+      standardOptions.onError?.(err);
     },
     onSettled: (data, error, variables) => {
       queryClient.invalidateQueries({ queryKey: enrollmentKeys.byClass(variables.classId) });
+      standardOptions.onSettled?.(data, error, variables as any);
     },
     onSuccess: (result) => {
       if ('overflow' in result) {
-        toast.warning(result.message);
+        showWarningToast(result.message);
       } else {
-        toast.success("Student enrolled successfully");
+        standardOptions.onSuccess?.(result);
       }
     },
   });
@@ -181,6 +204,11 @@ export const useUpdateEnrollment = (): UseMutationResult<
   { classId: string; enrollmentId: string; status: "active" | "pending" | "removed" }
 > => {
   const queryClient = useQueryClient();
+
+  const standardOptions = createStandardMutationOptions({
+    entity: "Enrollment",
+    operation: "update",
+  });
 
   return useMutation({
     mutationFn: ({ classId, enrollmentId, status }) =>
@@ -202,13 +230,14 @@ export const useUpdateEnrollment = (): UseMutationResult<
       if (context?.previousEnrollments) {
         queryClient.setQueryData(enrollmentKeys.byClass(variables.classId), context.previousEnrollments);
       }
-      toast.error("Failed to update enrollment status");
+      standardOptions.onError?.(err);
     },
     onSettled: (data, error, variables) => {
       queryClient.invalidateQueries({ queryKey: enrollmentKeys.byClass(variables.classId) });
+      standardOptions.onSettled?.(data, error, variables as any);
     },
     onSuccess: (_, variables) => {
-      toast.success(`Enrollment status updated to ${variables.status}`);
+      showSuccessToast("update", "Enrollment status");
     },
   });
 };
@@ -220,6 +249,11 @@ export const useRemoveEnrollment = (): UseMutationResult<
   { classId: string; enrollmentId: string }
 > => {
   const queryClient = useQueryClient();
+
+  const standardOptions = createStandardMutationOptions({
+    entity: "Enrollment",
+    operation: "unenroll",
+  });
 
   return useMutation({
     mutationFn: ({ classId, enrollmentId }) => classApi.removeEnrollment(classId, enrollmentId),
@@ -238,13 +272,14 @@ export const useRemoveEnrollment = (): UseMutationResult<
       if (context?.previousEnrollments) {
         queryClient.setQueryData(enrollmentKeys.byClass(variables.classId), context.previousEnrollments);
       }
-      toast.error("Failed to remove enrollment");
+      standardOptions.onError?.(err);
     },
     onSettled: (data, error, variables) => {
       queryClient.invalidateQueries({ queryKey: enrollmentKeys.byClass(variables.classId) });
+      standardOptions.onSettled?.(data, error, variables as any);
     },
     onSuccess: () => {
-      toast.success("Enrollment removed successfully");
+      standardOptions.onSuccess?.(undefined);
     },
   });
 };

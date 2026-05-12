@@ -1,5 +1,6 @@
 import { useQuery, UseQueryResult } from "@tanstack/react-query";
 import { studentAssessmentApi } from "@/api/student/assessment.api";
+import { QUERY_CONFIGS } from "@/lib/query-client";
 
 import type {
   StudentAssessmentItem,
@@ -15,6 +16,7 @@ export const useStudentAssessments = (
     queryKey: ["student", "assessments", classId],
     queryFn: () => studentAssessmentApi.getAll(classId),
     enabled: !!classId,
+    ...QUERY_CONFIGS.list,
   });
 };
 
@@ -28,6 +30,7 @@ export const useStudentAssessment = (
     queryFn: () =>
       studentAssessmentApi.getOne(classId, assessmentId),
     enabled: !!classId && !!assessmentId,
+    ...QUERY_CONFIGS.detail,
   });
 };
 
@@ -41,5 +44,6 @@ export const useAssessmentResult = (
     queryFn: () =>
       studentAssessmentApi.getResult(classId, assessmentId),
     enabled: !!classId && !!assessmentId,
+    ...QUERY_CONFIGS.detail,
   });
 };
