@@ -157,8 +157,52 @@
   }
 }
 
+.navbar {
+  .mobile-nav {
+    display: none !important;
+  }
+}
+
 .mobile-toggle {
   @include respond-to(md) {
     display: none !important;
+  }
+}
+
+@include respond-to-max(md) {
+  .navbar {
+    .navbar-language {
+      display: none;
+    }
+
+    .mobile-nav {
+      position: absolute;
+      top: 64px;
+      left: 0;
+      right: 0;
+      z-index: 999;
+      display: none !important;
+      flex-direction: column;
+      gap: 0;
+      background-color: var(--color-white);
+      border-top: 1px solid var(--color-border-primary);
+      border-bottom: 1px solid var(--color-border-primary);
+      padding: 0.5rem 1rem 1rem;
+
+      &.open {
+        display: flex !important;
+      }
+
+      .nav-item {
+        width: 100%;
+
+        .nav-link {
+          display: block;
+          width: 100%;
+          text-align: left;
+          padding: 0.75rem 0.25rem;
+        }
+      }
+    }
   }
 }

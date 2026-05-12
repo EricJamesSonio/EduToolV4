@@ -66,11 +66,29 @@ const Navbar = () => {
       <button
         className="navbar-toggle mobile-toggle"
         onClick={() => setIsMenuOpen(!isMenuOpen)}
+        aria-label="Toggle navigation menu"
+        aria-expanded={isMenuOpen}
       >
         <span className="hamburger-line"></span>
         <span className="hamburger-line"></span>
         <span className="hamburger-line"></span>
       </button>
+
+      {/* Mobile Navigation */}
+      <ul className={`navbar-nav mobile-nav ${isMenuOpen ? 'open' : ''}`}>
+        <li className="nav-item">
+          <a href="/" className="nav-link" onClick={() => setIsMenuOpen(false)}>Home</a>
+        </li>
+        <li className="nav-item">
+          <a href="/about" className="nav-link" onClick={() => setIsMenuOpen(false)}>About Us</a>
+        </li>
+        <li className="nav-item">
+          <a href="/theme" className="nav-link" onClick={() => setIsMenuOpen(false)}>Theme</a>
+        </li>
+        <li className="nav-item">
+          <a href="/login" className="nav-link" onClick={() => setIsMenuOpen(false)}>Sign In</a>
+        </li>
+      </ul>
     </nav>
   );
 };
