@@ -2,7 +2,7 @@
 // API endpoints for program management
 
 import apiClient from './apiClient';
-import type { Program, CreateProgramDto, UpdateProgramDto, ProgramWithAssignments } from '../types/program.types';
+import type { Program, CreateProgramDto, UpdateProgramDto, ProgramWithAssignments, ProgramWithStats } from '../types/program.types';
 
 export const programApi = {
   // Get programs by school year
@@ -37,5 +37,16 @@ export const programApi = {
   // Delete program
   deleteProgram: async (id: string): Promise<void> => {
     await apiClient.delete(`/programs/${id}`);
+  },
+
+  // Get programs with stats data
+  getProgramsWithStats: async (schoolYearId: string, includeAssignments = false): Promise<ProgramWithStats[]> => {
+    const response = await apiClient.get('/programs/with-stats', {
+      params: {
+        schoolYearId,
+        includeAssignments
+      }
+    });
+    return response.data.data || response.data;
   },
 };

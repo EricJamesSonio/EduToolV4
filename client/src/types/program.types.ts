@@ -38,3 +38,28 @@ export interface ProgramWithAssignments extends Program {
     description?: string;
   }>;
 }
+
+export interface ProgramWithStats extends Program {
+  levels: Array<{
+    id: string;
+    name: string;
+  }>;
+  courses: Array<{
+    id: string;
+    name: string;
+    code?: string;
+  }>;
+  strands: Array<{
+    id: string;
+    name: string;
+  }>;
+}
+
+export interface ProgramStats {
+  levelsCount: number;
+  coursesCount: number;
+  strandsCount: number;
+  hasLevels: boolean;
+  hasCourses: boolean;
+  hasStrands: boolean;
+}

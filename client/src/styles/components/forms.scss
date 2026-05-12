@@ -130,6 +130,17 @@
   background-repeat: no-repeat;
   background-position: right $spacing-3 center;
   padding-right: $spacing-8;
+  color: #000000;
+
+  &:hover {
+    border-color: var(--color-border-primary);
+  }
+
+  // Style the dropdown options
+  option {
+    color: #000000;
+    background-color: var(--color-white);
+  }
 }
 
 // Checkbox and radio

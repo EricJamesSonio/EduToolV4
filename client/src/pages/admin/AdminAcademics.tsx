@@ -3,29 +3,36 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import {
+  useCreateProgram,
+  useDeleteProgram,
+  useProgramsWithStats,
+} from "../../hooks/usePrograms";
 import { useSchoolYears } from "../../hooks/useSchoolYears";
-import { useProgramsBySchoolYear, useCreateProgram, useDeleteProgram } from "../../hooks/usePrograms";
-
 import type { SchoolYear } from "../../types/school-year.types";
-import type { Program } from "../../types/program.types";
 import type { CreateSchoolYearDto } from "../../types/school-year.types";
-import type { CreateProgramDto } from "../../types/program.types";
+import type { CreateProgramDto, ProgramWithStats } from "../../types/program.types";
 import AdminLayout from "../../components/AdminLayout";
-import ActionButtons from "../../components/ActionButtons";
-import Modal from "../../components/Modal";
-import SchoolYearForm from "../../components/SchoolYearForm";
-import ProgramForm from "../../components/admin/ProgramForm";
+import CreateSchoolYearModal from "../../components/CreateSchoolYearModal";
+import CreateProgramModal from "../../components/CreateProgramModal";
+import ProgramCard from "../../components/admin/ProgramCard";
+import SchoolYearCard from "../../components/SchoolYearCard";
 import Button from "../../components/Button/Button";
 import { useCreateSchoolYear } from "../../hooks/useSchoolYearMutations";
 
-type ViewMode = "school-year-selection" | "program-list";
+type ViewMode =
+  | "school-year-selection"
+  | "program-list"
+  | "courses-view"
+  | "strands-view"
+  | "levels-view";
 
 function AdminAcademics() {
   const [viewMode, setViewMode] = useState<ViewMode>("school-year-selection");
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<SchoolYear | null>(null);
-  const [userInitiatedBack, setUserInitiatedBack] = useState<boolean>(false);
+  const [selectedProgram, setSelectedProgram] = useState<ProgramWithStats | null>(null);
+  const [userInitiatedBack, setUserInitiatedBack] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreateProgramModalOpen, setIsCreateProgramModalOpen] = useState(false);
 
@@ -52,10 +59,11 @@ function AdminAcademics() {
   const {
     data: programs = [],
     isLoading: programsLoading,
-  } = useProgramsBySchoolYear(currentSchoolYear?.id || "");
+  } = useProgramsWithStats(currentSchoolYear?.id || "");
 
   const handleSchoolYearSelect = (schoolYear: SchoolYear) => {
     setSelectedSchoolYear(schoolYear);
+    setSelectedProgram(null);
     setViewMode("program-list");
     setUserInitiatedBack(false);
   };
@@ -94,36 +102,49 @@ function AdminAcademics() {
     }
   };
 
-  const handleEditProgram = (program: Program) => {
+  const handleEditProgram = (program: ProgramWithStats) => {
     alert(`Edit program: ${program.name}`);
   };
 
-  const handleDeleteProgram = async (program: Program) => {
+  const handleDeleteProgram = async (program: ProgramWithStats) => {
     if (confirm(`Are you sure you want to delete "${program.name}"?`)) {
       await deleteProgramMutation.mutateAsync(program.id);
     }
   };
 
+  const handleViewProgram = (program: ProgramWithStats) => {
+    setSelectedProgram(program);
+
+    if (program.courses.length > 0) {
+      setViewMode("courses-view");
+      return;
+    }
+
+    if (program.strands.length > 0) {
+      setViewMode("strands-view");
+      return;
+    }
+
+    setViewMode("levels-view");
+  };
+
   const handleBackToSelection = () => {
     setSelectedSchoolYear(null);
+    setSelectedProgram(null);
     setViewMode("school-year-selection");
     setUserInitiatedBack(true);
   };
 
-  const isLoading = schoolYearsLoading || (programsLoading && viewMode === "program-list");
+  const handleBackToPrograms = () => {
+    setSelectedProgram(null);
+    setViewMode("program-list");
+  };
+
+  const isLoading =
+    schoolYearsLoading || (programsLoading && viewMode === "program-list");
 
   return (
     <AdminLayout>
-      <style jsx>{`
-        .admin-academics ::selection {
-          background-color: #3b82f6;
-          color: white;
-        }
-        .admin-academics ::-moz-selection {
-          background-color: #3b82f6;
-          color: white;
-        }
-      `}</style>
       <div className="admin-academics">
         <div className="admin-academics-content">
           {isLoading ? (
@@ -133,7 +154,6 @@ function AdminAcademics() {
             </div>
           ) : (
             <>
-              {/* School Year Selection */}
               {viewMode === "school-year-selection" && (
                 <div className="school-year-selection">
                   <div className="dashboard-section-header">
@@ -155,63 +175,21 @@ function AdminAcademics() {
 
                   <div className="school-year-grid">
                     {schoolYears.map((schoolYear) => (
-                      <div
+                      <SchoolYearCard
                         key={schoolYear.id}
-                        className="card card-clickable school-year-card"
-                        onClick={() => handleSchoolYearSelect(schoolYear)}
-                      >
-                        <div className="card-header">
-                          <div className="school-year-header">
-                            <h3 className="card-title">{schoolYear.name}</h3>
-                            <span
-                              className={`status-badge ${schoolYear.status === "active"
-                                ? "status-active"
-                                : schoolYear.status === "inactive"
-                                  ? "status-inactive"
-                                  : "status-default"
-                                }`}
-                            >
-                              {schoolYear.status}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="card-body">
-                          <div className="school-year-details">
-                            {schoolYear.start_date && (
-                              <div className="school-year-date">
-                                <span className="date-label">Starts:</span>
-                                <span className="date-value">
-                                  {new Date(schoolYear.start_date).toLocaleDateString()}
-                                </span>
-                              </div>
-                            )}
-                            {schoolYear.end_date && (
-                              <div className="school-year-date">
-                                <span className="date-label">Ends:</span>
-                                <span className="date-value">
-                                  {new Date(schoolYear.end_date).toLocaleDateString()}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="card-footer">
-                          <div className="footer-text">Click to manage programs</div>
-                        </div>
-                      </div>
+                        schoolYear={schoolYear}
+                        onSelect={handleSchoolYearSelect}
+                      />
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Program List */}
               {viewMode === "program-list" && (
                 <div className="program-list">
                   <div className="program-list-header">
                     <button onClick={handleBackToSelection} className="back-button">
-                      ← Back to School Years
+                      Back to School Years
                     </button>
 
                     <div className="header-title">
@@ -242,22 +220,120 @@ function AdminAcademics() {
                   ) : (
                     <div className="program-cards">
                       {programs.map((program) => (
-                        <div key={program.id} className="card program-card">
-                          <div className="card-header">
-                            <h3 className="card-title">{program.name}</h3>
-                          </div>
-                          <div className="card-footer">
-                            <div className="footer-actions">
-                              <ActionButtons
-                                onEdit={() => handleEditProgram(program)}
-                                onDelete={() => handleDeleteProgram(program)}
-                                size="sm"
-                                variant="compact"
-                              />
-                            </div>
-                          </div>
+                        <ProgramCard
+                          key={program.id}
+                          program={program}
+                          onEdit={handleEditProgram}
+                          onDelete={handleDeleteProgram}
+                          onView={handleViewProgram}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {viewMode === "courses-view" && selectedProgram && (
+                <div className="view-container">
+                  <div className="view-header">
+                    <button onClick={handleBackToPrograms} className="back-button">
+                      Back to Programs
+                    </button>
+                    <div className="header-title">
+                      <h2 className="dashboard-section-title">Courses</h2>
+                      <p className="dashboard-section-subtitle">{selectedProgram.name}</p>
+                    </div>
+                    <button onClick={handleCreateProgram} className="btn btn-primary create-program-btn">
+                      Create Course
+                    </button>
+                  </div>
+
+                  {selectedProgram.courses.length > 0 ? (
+                    <div className="courses-list">
+                      {selectedProgram.courses.map((course) => (
+                        <div key={course.id} className="item-card">
+                          <h3>{course.name}</h3>
+                          <p>{course.code || "No code"}</p>
                         </div>
                       ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <h3>No Courses Found</h3>
+                      <p>Get started by creating your first course.</p>
+                      <button onClick={handleCreateProgram} className="btn btn-primary">
+                        Create Course
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {viewMode === "strands-view" && selectedProgram && (
+                <div className="view-container">
+                  <div className="view-header">
+                    <button onClick={handleBackToPrograms} className="back-button">
+                      Back to Programs
+                    </button>
+                    <div className="header-title">
+                      <h2 className="dashboard-section-title">Strands</h2>
+                      <p className="dashboard-section-subtitle">{selectedProgram.name}</p>
+                    </div>
+                    <button onClick={handleCreateProgram} className="btn btn-primary create-program-btn">
+                      Create Strand
+                    </button>
+                  </div>
+
+                  {selectedProgram.strands.length > 0 ? (
+                    <div className="strands-list">
+                      {selectedProgram.strands.map((strand) => (
+                        <div key={strand.id} className="item-card">
+                          <h3>{strand.name}</h3>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <h3>No Strands Found</h3>
+                      <p>Get started by creating your first strand.</p>
+                      <button onClick={handleCreateProgram} className="btn btn-primary">
+                        Create Strand
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {viewMode === "levels-view" && selectedProgram && (
+                <div className="view-container">
+                  <div className="view-header">
+                    <button onClick={handleBackToPrograms} className="back-button">
+                      Back to Programs
+                    </button>
+                    <div className="header-title">
+                      <h2 className="dashboard-section-title">Levels</h2>
+                      <p className="dashboard-section-subtitle">{selectedProgram.name}</p>
+                    </div>
+                    <button onClick={handleCreateProgram} className="btn btn-primary create-program-btn">
+                      Create Level
+                    </button>
+                  </div>
+
+                  {selectedProgram.levels.length > 0 ? (
+                    <div className="levels-list">
+                      {selectedProgram.levels.map((level) => (
+                        <div key={level.id} className="item-card">
+                          <h3>{level.name}</h3>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <h3>No Levels Found</h3>
+                      <p>Get started by creating your first level.</p>
+                      <button onClick={handleCreateProgram} className="btn btn-primary">
+                        Create Level
+                      </button>
                     </div>
                   )}
                 </div>
@@ -267,35 +343,21 @@ function AdminAcademics() {
         </div>
       </div>
 
-      {/* Create School Year Modal */}
-      <Modal
+      <CreateSchoolYearModal
         isOpen={isCreateModalOpen}
         onClose={handleCloseCreateModal}
-        title="Create School Year"
-        size="md"
-      >
-        <SchoolYearForm
-          onSubmit={handleCreateSchoolYearSubmit}
-          onCancel={handleCloseCreateModal}
-          isLoading={createSchoolYearMutation.isPending}
-          error={createSchoolYearMutation.error?.message || null}
-        />
-      </Modal>
+        onSubmit={handleCreateSchoolYearSubmit}
+        isLoading={createSchoolYearMutation.isPending}
+        error={createSchoolYearMutation.error?.message || null}
+      />
 
-      {/* Create Program Modal */}
-      <Modal
+      <CreateProgramModal
         isOpen={isCreateProgramModalOpen}
         onClose={handleCloseCreateProgramModal}
-        title="Create Program"
-        size="md"
-      >
-        <ProgramForm
-          schoolYearId={currentSchoolYear?.id || ""}
-          onSubmit={handleCreateProgramSubmit}
-          onCancel={handleCloseCreateProgramModal}
-          isLoading={createProgramMutation.isPending}
-        />
-      </Modal>
+        onSubmit={handleCreateProgramSubmit}
+        isLoading={createProgramMutation.isPending}
+        schoolYearId={currentSchoolYear?.id || ""}
+      />
     </AdminLayout>
   );
 }

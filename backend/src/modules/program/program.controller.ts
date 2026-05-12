@@ -25,7 +25,7 @@ class ProgramQueryDto {
 @UseGuards(AuthGuard, RolesGuard)
 @Roles('admin')
 export class ProgramController {
-  constructor(private readonly programService: ProgramService) {}
+  constructor(private readonly programService: ProgramService) { }
 
   @Post()
   async create(
@@ -51,6 +51,24 @@ export class ProgramController {
     if (!query.schoolYearId) return []
 
     return this.programService.findAll(
+      orgId,
+      query.schoolYearId,
+      query.includeAssignments === 'true',
+    )
+  }
+
+  @Get('with-stats')
+  async findAllWithStats(
+    @CurrentUser('org_id') orgId: string,
+    @Query() query: ProgramQueryDto,
+  ) {
+    if (!orgId) {
+      throw new BadRequestException('orgId is missing from user context')
+    }
+
+    if (!query.schoolYearId) return []
+
+    return this.programService.findAllWithStats(
       orgId,
       query.schoolYearId,
       query.includeAssignments === 'true',

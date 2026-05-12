@@ -73,6 +73,19 @@ export const useUpdateProgram = () => {
   });
 };
 
+// Hook for programs with stats
+export const useProgramsWithStats = (schoolYearId: string, includeAssignments = false) => {
+  return useQuery({
+    queryKey: [...programKeys.all, 'stats', schoolYearId, includeAssignments] as const,
+    queryFn: () => programApi.getProgramsWithStats(schoolYearId, includeAssignments),
+    enabled: !!schoolYearId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+};
+
 // Hook for deleting programs
 export const useDeleteProgram = () => {
   const queryClient = useQueryClient();

@@ -49,7 +49,7 @@ const ProgramForm: React.FC<ProgramFormProps> = ({
       ...prev,
       [name]: value,
     }));
-    
+
     // Clear error for this field when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
@@ -78,7 +78,7 @@ const ProgramForm: React.FC<ProgramFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -113,7 +113,7 @@ const ProgramForm: React.FC<ProgramFormProps> = ({
             {program ? 'Edit Program' : 'Create New Program'}
           </h3>
           <p className="text-gray-600 mt-1">
-            {program 
+            {program
               ? 'Update the program information below.'
               : 'Fill in the details to create a new academic program.'
             }
@@ -132,11 +132,7 @@ const ProgramForm: React.FC<ProgramFormProps> = ({
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.name 
-                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                  : 'border-gray-300'
-              }`}
+              className={`form-input ${errors.name ? 'error' : ''}`}
               placeholder="e.g., Bachelor of Science in Computer Science"
               disabled={isLoading}
             />
@@ -155,11 +151,7 @@ const ProgramForm: React.FC<ProgramFormProps> = ({
               name="type"
               value={formData.type}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.type 
-                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                  : 'border-gray-300'
-              }`}
+              className={`form-select ${errors.type ? 'error' : ''}`}
               disabled={isLoading}
             >
               <option value="">Select program type</option>

@@ -4,7 +4,7 @@ import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto'
 
 @Injectable()
 export class ProgramService {
-  constructor(private readonly programRepository: ProgramRepository) {}
+  constructor(private readonly programRepository: ProgramRepository) { }
 
   async create(orgId: string, dto: CreateProgramDto) {
     const nameTaken = await this.programRepository.findByNameAndYear(
@@ -34,6 +34,19 @@ export class ProgramService {
     includeAssignment = false,
   ) {
     return this.programRepository.findAll(
+      orgId,
+      schoolYearId,
+      includeAssignment,
+    )
+  }
+
+  // ✅ NEW: fetch programs with stats data
+  async findAllWithStats(
+    orgId: string,
+    schoolYearId: string,
+    includeAssignment = false,
+  ) {
+    return this.programRepository.findAllWithStats(
       orgId,
       schoolYearId,
       includeAssignment,

@@ -75,7 +75,6 @@ apiClient.interceptors.response.use(
       status: error.response?.status,
     });
 
-    // Prevent infinite refresh loops
     const isRefreshing = originalRequest.url === '/auth/refresh';
 
     if (
@@ -88,8 +87,6 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // For refresh, create a clean axios instance without Authorization header
-        // but with credentials to include HTTP-only cookies
         const refreshClient = axios.create({
           baseURL: apiUrl,
           timeout: 30000,
@@ -114,17 +111,14 @@ apiClient.interceptors.response.use(
 
           return apiClient(originalRequest);
         } else {
-          // Refresh succeeded but no token returned - clear session
           throw new Error('No access token returned from refresh');
         }
       } catch (refreshError) {
         logger.error('Token refresh failed', refreshError);
 
-        // Clear any existing tokens and redirect to login
         localStorage.removeItem('accessToken');
         toast.error('Session expired. Please log in again.');
 
-        // Use setTimeout to avoid redirect loop during current request
         setTimeout(() => {
           window.location.href = '/login';
         }, 100);
@@ -159,8 +153,6 @@ apiClient.interceptors.response.use(
   }
 );
 
-export default apiClient;
-
 export const handleApiError = (error: unknown) => {
   const appError = createAppError(error);
   logger.error('API Error handled', error, {
@@ -169,3 +161,6 @@ export const handleApiError = (error: unknown) => {
   });
   return appError;
 };
+
+export { apiClient };
+export default apiClient;

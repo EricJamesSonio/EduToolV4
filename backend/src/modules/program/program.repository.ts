@@ -12,6 +12,51 @@ const PROGRAM_LIST_INCLUDE = {
   },
 }
 
+const PROGRAM_STATS_INCLUDE_COLLEGE = {
+  courses: {
+    orderBy: { name: 'asc' as const },
+    include: {
+      subjects: {
+        select: {
+          id: true, name: true,
+          year_level: true, term_label: true, is_locked: true,
+        },
+        orderBy: [
+          { year_level: 'asc' as const },
+          { term_label: 'asc' as const },
+          { name: 'asc' as const },
+        ],
+      },
+    },
+  },
+}
+
+const PROGRAM_STATS_INCLUDE_SENIOR_HIGH = {
+  strands: {
+    orderBy: { name: 'asc' as const },
+    include: {
+      subjects: {
+        select: {
+          id: true, name: true,
+          year_level: true, term_label: true, is_locked: true,
+        },
+        orderBy: [
+          { year_level: 'asc' as const },
+          { term_label: 'asc' as const },
+          { name: 'asc' as const },
+        ],
+      },
+    },
+  },
+}
+
+const PROGRAM_STATS_INCLUDE_DEFAULT = {
+  levels: {
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' as const },
+  },
+}
+
 const PROGRAM_DETAIL_INCLUDE = {
   courses: {
     orderBy: { name: 'asc' as const },
@@ -49,15 +94,15 @@ const PROGRAM_DETAIL_INCLUDE = {
 
 @Injectable()
 export class ProgramRepository {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService) { }
 
   async create(data: { orgId: string; schoolYearId: string; name: string; type: string }) {
     return this.db.program.create({
       data: {
-        org_id:         data.orgId,
+        org_id: data.orgId,
         school_year_id: data.schoolYearId,
-        name:           data.name,
-        type:           data.type,
+        name: data.name,
+        type: data.type,
       },
       include: PROGRAM_LIST_INCLUDE,
     })
@@ -89,6 +134,75 @@ export class ProgramRepository {
       },
       orderBy: { name: 'asc' },
     })
+  }
+
+  async findAllWithStats(
+    orgId: string,
+    schoolYearId: string,
+    includeAssignment = false,
+  ) {
+    const programs = await this.db.program.findMany({
+      where: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+      },
+      select: {
+        id: true,
+        org_id: true,
+        school_year_id: true,
+        name: true,
+        type: true,
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    // Fetch related data based on program type
+    const programIds = programs.map(p => p.id)
+
+    const [levels, courses, strands] = await Promise.all([
+      this.db.level.findMany({
+        where: { program_id: { in: programIds } },
+        select: { id: true, name: true, program_id: true },
+        orderBy: { name: 'asc' },
+      }),
+      this.db.course.findMany({
+        where: { program_id: { in: programIds } },
+        select: { id: true, name: true, code: true, program_id: true },
+        orderBy: { name: 'asc' },
+      }),
+      this.db.strand.findMany({
+        where: { program_id: { in: programIds } },
+        select: { id: true, name: true, program_id: true },
+        orderBy: { name: 'asc' },
+      }),
+    ])
+
+    // Group related data by program_id
+    const levelsByProgram = levels.reduce((acc, level) => {
+      if (!acc[level.program_id]) acc[level.program_id] = []
+      acc[level.program_id].push(level)
+      return acc
+    }, {} as Record<string, any[]>)
+
+    const coursesByProgram = courses.reduce((acc, course) => {
+      if (!acc[course.program_id]) acc[course.program_id] = []
+      acc[course.program_id].push(course)
+      return acc
+    }, {} as Record<string, any[]>)
+
+    const strandsByProgram = strands.reduce((acc, strand) => {
+      if (!acc[strand.program_id]) acc[strand.program_id] = []
+      acc[strand.program_id].push(strand)
+      return acc
+    }, {} as Record<string, any[]>)
+
+    // Combine programs with their stats
+    return programs.map(program => ({
+      ...program,
+      levels: levelsByProgram[program.id] || [],
+      courses: coursesByProgram[program.id] || [],
+      strands: strandsByProgram[program.id] || [],
+    }))
   }
 
   async findById(id: string, orgId: string) {
