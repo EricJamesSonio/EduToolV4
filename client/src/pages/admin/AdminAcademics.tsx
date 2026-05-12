@@ -16,9 +16,11 @@ import type { CreateProgramDto, ProgramWithStats } from "../../types/program.typ
 import AdminLayout from "../../components/AdminLayout";
 import CreateSchoolYearModal from "../../components/CreateSchoolYearModal";
 import CreateProgramModal from "../../components/CreateProgramModal";
-import ProgramCard from "../../components/admin/ProgramCard";
-import SchoolYearCard from "../../components/SchoolYearCard";
-import Button from "../../components/Button/Button";
+import AcademicCoursePage from "../../components/admin/AcademicCoursePage";
+import AcademicLevelPage from "../../components/admin/AcademicLevelPage";
+import AcademicProgramPage from "../../components/admin/AcademicProgramPage";
+import AcademicSchoolYearPage from "../../components/admin/AcademicSchoolYearPage";
+import AcademicStrandPage from "../../components/admin/AcademicStrandPage";
 import { useCreateSchoolYear } from "../../hooks/useSchoolYearMutations";
 
 type ViewMode =
@@ -155,188 +157,47 @@ function AdminAcademics() {
           ) : (
             <>
               {viewMode === "school-year-selection" && (
-                <div className="school-year-selection">
-                  <div className="dashboard-section-header">
-                    <div className="header-title">
-                      <h2 className="dashboard-section-title">Select School Year</h2>
-                      <p className="dashboard-section-subtitle">
-                        Choose a school year to manage its academic programs.
-                      </p>
-                    </div>
-
-                    <Button
-                      variant="primary"
-                      onClick={handleCreateSchoolYear}
-                      className="create-school-year-btn"
-                    >
-                      Create School Year
-                    </Button>
-                  </div>
-
-                  <div className="school-year-grid">
-                    {schoolYears.map((schoolYear) => (
-                      <SchoolYearCard
-                        key={schoolYear.id}
-                        schoolYear={schoolYear}
-                        onSelect={handleSchoolYearSelect}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <AcademicSchoolYearPage
+                  schoolYears={schoolYears}
+                  onCreateSchoolYear={handleCreateSchoolYear}
+                  onSelectSchoolYear={handleSchoolYearSelect}
+                />
               )}
 
               {viewMode === "program-list" && (
-                <div className="program-list">
-                  <div className="program-list-header">
-                    <button onClick={handleBackToSelection} className="back-button">
-                      Back to School Years
-                    </button>
-
-                    <div className="header-title">
-                      <h2 className="dashboard-section-title">Programs</h2>
-                      <p className="dashboard-section-subtitle">{currentSchoolYear?.name}</p>
-                    </div>
-
-                    <button
-                      onClick={handleCreateProgram}
-                      className="btn btn-primary create-program-btn"
-                    >
-                      Create Program
-                    </button>
-                  </div>
-
-                  {programs.length === 0 ? (
-                    <div className="empty-state">
-                      <div className="empty-state-content">
-                        <h3 className="empty-state-title">No Programs Found</h3>
-                        <p className="empty-state-text">
-                          Get started by creating your first academic program.
-                        </p>
-                        <button onClick={handleCreateProgram} className="btn btn-primary">
-                          Create Program
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="program-cards">
-                      {programs.map((program) => (
-                        <ProgramCard
-                          key={program.id}
-                          program={program}
-                          onEdit={handleEditProgram}
-                          onDelete={handleDeleteProgram}
-                          onView={handleViewProgram}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <AcademicProgramPage
+                  schoolYear={currentSchoolYear}
+                  programs={programs}
+                  onBackToSchoolYears={handleBackToSelection}
+                  onCreateProgram={handleCreateProgram}
+                  onEditProgram={handleEditProgram}
+                  onDeleteProgram={handleDeleteProgram}
+                  onViewProgram={handleViewProgram}
+                />
               )}
 
               {viewMode === "courses-view" && selectedProgram && (
-                <div className="view-container">
-                  <div className="view-header">
-                    <button onClick={handleBackToPrograms} className="back-button">
-                      Back to Programs
-                    </button>
-                    <div className="header-title">
-                      <h2 className="dashboard-section-title">Courses</h2>
-                      <p className="dashboard-section-subtitle">{selectedProgram.name}</p>
-                    </div>
-                    <button onClick={handleCreateProgram} className="btn btn-primary create-program-btn">
-                      Create Course
-                    </button>
-                  </div>
-
-                  {selectedProgram.courses.length > 0 ? (
-                    <div className="courses-list">
-                      {selectedProgram.courses.map((course) => (
-                        <div key={course.id} className="item-card">
-                          <h3>{course.name}</h3>
-                          <p>{course.code || "No code"}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="empty-state">
-                      <h3>No Courses Found</h3>
-                      <p>Get started by creating your first course.</p>
-                      <button onClick={handleCreateProgram} className="btn btn-primary">
-                        Create Course
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <AcademicCoursePage
+                  program={selectedProgram}
+                  onBackToPrograms={handleBackToPrograms}
+                  onCreateCourse={handleCreateProgram}
+                />
               )}
 
               {viewMode === "strands-view" && selectedProgram && (
-                <div className="view-container">
-                  <div className="view-header">
-                    <button onClick={handleBackToPrograms} className="back-button">
-                      Back to Programs
-                    </button>
-                    <div className="header-title">
-                      <h2 className="dashboard-section-title">Strands</h2>
-                      <p className="dashboard-section-subtitle">{selectedProgram.name}</p>
-                    </div>
-                    <button onClick={handleCreateProgram} className="btn btn-primary create-program-btn">
-                      Create Strand
-                    </button>
-                  </div>
-
-                  {selectedProgram.strands.length > 0 ? (
-                    <div className="strands-list">
-                      {selectedProgram.strands.map((strand) => (
-                        <div key={strand.id} className="item-card">
-                          <h3>{strand.name}</h3>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="empty-state">
-                      <h3>No Strands Found</h3>
-                      <p>Get started by creating your first strand.</p>
-                      <button onClick={handleCreateProgram} className="btn btn-primary">
-                        Create Strand
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <AcademicStrandPage
+                  program={selectedProgram}
+                  onBackToPrograms={handleBackToPrograms}
+                  onCreateStrand={handleCreateProgram}
+                />
               )}
 
               {viewMode === "levels-view" && selectedProgram && (
-                <div className="view-container">
-                  <div className="view-header">
-                    <button onClick={handleBackToPrograms} className="back-button">
-                      Back to Programs
-                    </button>
-                    <div className="header-title">
-                      <h2 className="dashboard-section-title">Levels</h2>
-                      <p className="dashboard-section-subtitle">{selectedProgram.name}</p>
-                    </div>
-                    <button onClick={handleCreateProgram} className="btn btn-primary create-program-btn">
-                      Create Level
-                    </button>
-                  </div>
-
-                  {selectedProgram.levels.length > 0 ? (
-                    <div className="levels-list">
-                      {selectedProgram.levels.map((level) => (
-                        <div key={level.id} className="item-card">
-                          <h3>{level.name}</h3>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="empty-state">
-                      <h3>No Levels Found</h3>
-                      <p>Get started by creating your first level.</p>
-                      <button onClick={handleCreateProgram} className="btn btn-primary">
-                        Create Level
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <AcademicLevelPage
+                  program={selectedProgram}
+                  onBackToPrograms={handleBackToPrograms}
+                  onCreateLevel={handleCreateProgram}
+                />
               )}
             </>
           )}
