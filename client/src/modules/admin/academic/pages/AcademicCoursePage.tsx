@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import type { ProgramWithStats } from '../types/program.types';
-import { useCreateCourse, useCoursesByProgram, useDeleteCourse, useUpdateCourse } from '../../hooks/useCourses';
-import { useAddNextLevel, useLevelsBySchoolYear, useRemoveLevel } from '../../hooks/useLevels';
-import BaseCard from '../../../../components/BaseCard';
-import CreateCourseModal from '../../../../components/CreateCourseModal';
-import ConfirmationModal from '../../../../components/ConfirmationModal';
+import { useCreateCourse, useCoursesByProgram, useDeleteCourse, useUpdateCourse } from '../hooks/useCourses';
+import { useAddNextLevel, useLevelsBySchoolYear, useRemoveLevel } from '../hooks/useLevels';
+import BaseCard from '@/components/BaseCard';
+import CreateCourseModal from '../components/modals/CreateCourseModal';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import type { Course, CreateCourseDto } from '../types/course.types';
 import type { Level } from '../types/level.types';
 

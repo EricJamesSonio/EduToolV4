@@ -2,8 +2,8 @@
 // Individual school year card with consistent styling
 
 import React from 'react';
-import type { SchoolYear } from '../modules/admin/academic/types/school-year.types';
-import BaseCard from './BaseCard';
+import type { SchoolYear } from '../../types/school-year.types';
+import BaseCard from '@/components/BaseCard';
 
 interface SchoolYearCardProps {
   schoolYear: SchoolYear;

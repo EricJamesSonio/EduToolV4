@@ -1,7 +1,7 @@
 // Program API
 // API endpoints for program management
 
-import apiClient from './apiClient';
+import apiClient from '@/api/apiClient';
 import type { Program, CreateProgramDto, UpdateProgramDto, ProgramWithAssignments, ProgramWithStats } from '../types/program.types';
 
 export const programApi = {

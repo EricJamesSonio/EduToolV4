@@ -1,7 +1,7 @@
 // Grading Scheme Template API
 // API client for grading scheme template operations
 
-import { apiClient } from './apiClient';
+import { apiClient } from '@/api/apiClient';
 import type {
   GradingSchemeTemplate,
   CreateGradingSchemeTemplateDto,

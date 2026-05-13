@@ -1,7 +1,7 @@
 // School Year API
 // API endpoints for school year management
 
-import apiClient from './apiClient';
+import apiClient from '@/api/apiClient';
 import type { SchoolYear } from '../types/school-year.types';
 
 export const schoolYearApi = {

@@ -2,9 +2,9 @@
 // Reusable modal for editing existing programs
 
 import React from 'react';
-import Modal from './Modal';
-import ProgramForm from './admin/ProgramForm';
-import type { Program, UpdateProgramDto } from '../modules/admin/academic/types/program.types';
+import Modal from '@/components/Modal';
+import ProgramForm from '../forms/ProgramForm';
+import type { Program, UpdateProgramDto } from '../../types/program.types';
 
 interface EditProgramModalProps {
   isOpen: boolean;

@@ -1,12 +1,12 @@
 // ===== client/src/api/grading-scale.api.ts =====
 
-import { apiClient } from './apiClient';
+import { apiClient } from '@/api/apiClient';
 import type {
   GradingScale,
   CreateGradingScaleDto,
   UpdateGradingScaleDto,
   QueryGradingScaleDto,
-} from '../types/grading-scale.types';
+} from '../../system/types/grading-scale.types';
 
 export const gradingScaleApi = {
   getAll: async (params?: QueryGradingScaleDto): Promise<GradingScale[]> => {

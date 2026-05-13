@@ -2,7 +2,7 @@
 // Displays and manages programs for a selected school year
 
 import React, { useState } from 'react';
-import type { ProgramWithAssignments } from '../../modules/admin/academic/types/program.types';
+import type { ProgramWithAssignments } from '../../types/program.types';
 
 export interface ProgramListProps {
   programs: ProgramWithAssignments[];

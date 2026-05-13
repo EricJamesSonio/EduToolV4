@@ -1,4 +1,4 @@
-import type { GradingScalePayload } from '../types/organization.types';
+import type { GradingScalePayload } from '../modules/admin/system/types/organization.types';
 
 export const seedPrograms = [
   { key: 'daycare', name: 'Daycare / Pre-School' },

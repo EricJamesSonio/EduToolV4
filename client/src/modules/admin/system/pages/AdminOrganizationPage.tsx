@@ -1,8 +1,8 @@
-import OrganizationForm from './OrganizationForm';
+import OrganizationForm from '../components/OrganizationForm';
 import type {
   Organization,
   UpdateOrganizationDto,
-} from '../../types/organization.types';
+} from '../types/organization.types';
 
 interface AdminOrganizationPageProps {
   organization: Organization | null;

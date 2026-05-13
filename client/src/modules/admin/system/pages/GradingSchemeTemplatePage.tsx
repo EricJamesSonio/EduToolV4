@@ -7,18 +7,18 @@ import {
   useCreateGradingSchemeTemplate,
   useUpdateGradingSchemeTemplate,
   useDeleteGradingSchemeTemplate,
-} from '../../hooks/useGradingSchemeTemplates';
-import { PROGRAM_TYPES, getProgramTypeLabel } from '../../constants/programTypes';
+} from '../hooks/useGradingSchemeTemplates';
+import { PROGRAM_TYPES, getProgramTypeLabel } from '@/constants/programTypes';
 import {
   COMPONENT_TYPES,
   COMPONENT_TYPE_LABELS,
-} from '../../types/grading-scheme.types';
+} from '../types/grading-scheme.types';
 import type {
   GradingSchemeTemplate,
   ComponentFormRow,
   TemplateFormState,
   ComponentType,
-} from '../../types/grading-scheme.types';
+} from '../types/grading-scheme.types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

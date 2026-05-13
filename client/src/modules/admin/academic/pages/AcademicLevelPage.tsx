@@ -3,9 +3,9 @@ import {
   useLevelsBySchoolYear,
   useAddNextLevel,
   useRemoveLevel,
-} from "../../hooks/useLevels";
-import AcademicDetailCard from "../../../../components/admin/AcademicDetailCard";
-import ConfirmationModal from "../../../../components/ConfirmationModal";
+} from "../hooks/useLevels";
+import AcademicDetailCard from "../components/cards/AcademicDetailCard";
+import ConfirmationModal from "@/components/ConfirmationModal";
 import type { Level } from "../types/level.types";
 import { useMemo, useState } from "react";
 

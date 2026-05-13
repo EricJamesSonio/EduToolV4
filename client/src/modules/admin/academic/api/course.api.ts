@@ -1,7 +1,7 @@
 // Course API
 // API client for course-related operations
 
-import { apiClient } from './apiClient';
+import { apiClient } from '@/api/apiClient';
 import type { Course, CreateCourseDto, UpdateCourseDto } from '../types/course.types';
 
 export const courseApi = {

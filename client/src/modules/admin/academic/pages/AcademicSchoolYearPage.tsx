@@ -1,6 +1,6 @@
-import type { SchoolYear } from '../../modules/admin/academic/types/school-year.types';
-import SchoolYearCard from '../SchoolYearCard';
-import Button from '../Button/Button';
+import type { SchoolYear } from '../types/school-year.types';
+import SchoolYearCard from '../components/cards/SchoolYearCard';
+import Button from '@/components/Button/Button';
 
 interface AcademicSchoolYearPageProps {
   schoolYears: SchoolYear[];

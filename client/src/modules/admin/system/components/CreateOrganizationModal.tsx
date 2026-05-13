@@ -1,6 +1,6 @@
-import Modal from '../Modal';
+import Modal from '@/components/Modal';
 import OrganizationForm from './OrganizationForm';
-import type { CreateOrganizationDto } from '../../types/organization.types';
+import type { CreateOrganizationDto } from '../types/organization.types';
 
 interface CreateOrganizationModalProps {
   isOpen: boolean;

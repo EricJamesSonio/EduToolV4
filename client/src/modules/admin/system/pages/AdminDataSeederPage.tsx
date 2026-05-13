@@ -11,18 +11,18 @@ import {
   seedSemesterTemplates,
   seedSubjectCatalog,
   seedStrands,
-} from "../../constants/orgSeedPresets";
-import { useCreateSchoolYear } from "../../hooks/useSchoolYearMutations";
-import { useSchoolYears } from "../../modules/admin/academic/hooks/useSchoolYears";
-import { useSystemSeedExistingData } from "../../hooks/useSystemSeedExistingData";
+} from "@/constants/orgSeedPresets";
+import { useCreateSchoolYear } from "../../academic/hooks/useSchoolYearMutations";
+import { useSchoolYears } from "../../academic/hooks/useSchoolYears";
+import { useSystemSeedExistingData } from "../hooks/useSystemSeedExistingData";
 import type {
   CreateSchoolYearDto,
   SchoolYear,
-} from "../../modules/admin/academic/types/school-year.types";
+} from "../../academic/types/school-year.types";
 import type {
   SeedOrganizationDto,
   SeedOrganizationResponse,
-} from "../../types/organization.types";
+} from "../types/organization.types";
 
 interface AdminDataSeederPageProps {
   isSeeding: boolean;

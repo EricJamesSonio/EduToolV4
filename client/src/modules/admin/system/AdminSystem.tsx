@@ -2,26 +2,26 @@
 // System settings page. Routes between sub-pages via local view state.
 
 import { useEffect, useState } from 'react';
-import AdminLayout from '../../components/AdminLayout';
-import AdminDataSeederPage from '../../components/admin/AdminDataSeederPage';
-import AdminOrganizationPage from '../../components/admin/AdminOrganizationPage';
-import CreateOrganizationModal from '../../components/admin/CreateOrganizationModal';
-import GradingSchemeTemplatePage from '../../components/admin/GradingSchemeTemplatePage';
-import SystemCategoryPage from '../../components/admin/SystemCategoryPage';
-import GradingScalePage from '../../components/admin/GradingScalePage';
-import { refreshTokenApi } from '../../api/auth.api';
-import { useAuthContext } from '../../context/AuthContext';
+import AdminLayout from '../../../components/AdminLayout';
+import AdminDataSeederPage from './pages/AdminDataSeederPage';
+import AdminOrganizationPage from './pages/AdminOrganizationPage';
+import CreateOrganizationModal from './components/CreateOrganizationModal';
+import GradingSchemeTemplatePage from './pages/GradingSchemeTemplatePage';
+import SystemCategoryPage from './pages/SystemCategoryPage';
+import GradingScalePage from './pages/GradingScalePage';
+import { refreshTokenApi } from '@/api/auth.api';
+import { useAuthContext } from '@/context/AuthContext';
 import {
   useCreateOrganization,
   useOrganization,
   useSeedOrganization,
   useUpdateOrganization,
-} from '../../hooks/useOrganization';
+} from './hooks/useOrganization';
 import type {
   CreateOrganizationDto,
   SeedOrganizationResponse,
   UpdateOrganizationDto,
-} from '../../types/organization.types';
+} from './types/organization.types';
 
 type SystemView =
   | 'categories'

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { levelApi } from '../api/level.api';
 import type { CreateLevelDto, UpdateLevelDto } from '../types/level.types';
-import { handleApiError } from '../api/apiClient';
+import { handleApiError } from '@/api/apiClient';
 
 // Query keys
 export const levelKeys = {

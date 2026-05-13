@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { apiClient } from '@/api/apiClient';
 import type { CreateStrandDto, Strand, UpdateStrandDto } from '../types/strand.types';
 
 export const strandApi = {

@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { apiClient } from '@/api/apiClient';
 import type { Level, CreateLevelDto, UpdateLevelDto, LevelDefault } from '../types/level.types';
 
 export const levelApi = {

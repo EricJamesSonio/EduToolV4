@@ -7,16 +7,16 @@ import {
   useCreateGradingScale,
   useUpdateGradingScale,
   useDeleteGradingScale,
-} from '../../hooks/useGradingScales';
-import { useSchoolYears } from '../../modules/admin/academic/hooks/useSchoolYears';
-import { useProgramsBySchoolYear } from '../../hooks/usePrograms';
-import SchoolYearSelector from '../shared/SchoolYearSelector';
+} from '../hooks/useGradingScales';
+import { useSchoolYears } from '../../academic/hooks/useSchoolYears';
+import { useProgramsBySchoolYear } from '../../academic/hooks/usePrograms';
+import SchoolYearSelector from '@/components/shared/SchoolYearSelector';
 import type {
   GradingScale,
   GradeRange,
   CreateGradingScaleDto,
   UpdateGradingScaleDto,
-} from '../../types/grading-scale.types';
+} from '../types/grading-scale.types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

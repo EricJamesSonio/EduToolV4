@@ -1,7 +1,7 @@
-import apiClient from './apiClient';
-import { levelApi } from './level.api';
-import { programApi } from './program.api';
-import type { ProgramWithAssignments } from '../modules/admin/academic/types/program.types';
+import apiClient from '@/api/apiClient';
+import { levelApi } from '../../academic/api/level.api';
+import { programApi } from '../../academic/api/program.api';
+import type { ProgramWithAssignments } from '../../academic/types/program.types';
 
 interface NamedRecord {
   id: string;

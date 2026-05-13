@@ -1,8 +1,8 @@
 import type { ProgramWithStats } from '../types/program.types';
-import { useAddNextLevel, useLevelsBySchoolYear, useRemoveLevel } from '../../hooks/useLevels';
-import { useCreateStrand, useDeleteStrand, useStrandsByProgram } from '../../hooks/useStrands';
-import BaseCard from '../../../../components/BaseCard';
-import ConfirmationModal from '../../../../components/ConfirmationModal';
+import { useAddNextLevel, useLevelsBySchoolYear, useRemoveLevel } from '../hooks/useLevels';
+import { useCreateStrand, useDeleteStrand, useStrandsByProgram } from '../hooks/useStrands';
+import BaseCard from '@/components/BaseCard';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import type { Level } from '../types/level.types';
 import type { Strand } from '../types/strand.types';
 import { useState } from 'react';

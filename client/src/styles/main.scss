@@ -1,26 +1,41 @@
 // Main SCSS entry point
 // Import all styles in the correct order
 
-// 1. Utils and mixins
+// =====================================================
+// 1. Utils / Core
+// =====================================================
+
 @import 'utils/variables';
-@import 'utils/mixins';
 @import 'utils/functions';
+@import 'utils/mixins';
 @import 'utils/responsive';
 
-// 2. Base styles
+// =====================================================
+// 2. Reset / Base
+// =====================================================
+
 @import 'utils/reset';
 @import 'utils/base';
 
-// 3. Fonts
+// =====================================================
+// 3. Typography
+// =====================================================
+
 @import 'fonts/typography';
 
-// 4. Themes
+// =====================================================
+// 4. Theme Tokens
+// =====================================================
+
 @import 'themes/colors';
 @import 'themes/spacing';
 @import 'themes/shadows';
 @import 'themes/responsive-typography';
 
+// =====================================================
 // 5. Layouts
+// =====================================================
+
 @import 'layouts/grid';
 @import 'layouts/container';
 @import 'layouts/header';
@@ -28,29 +43,55 @@
 @import 'layouts/footer';
 @import 'layouts/admin-layout';
 
-// 6. Components
-@import 'components/buttons';
-@import 'components/cards';
-@import 'components/featureCard';
-@import 'components/testimonialCard';
-@import 'components/statCard';
-@import 'components/dashboard';
-@import 'components/admin-academics';
-@import 'components/admin-people';
-@import 'components/admin-system';
-@import 'components/actionButtons';
-@import 'components/modal';
-@import 'components/schoolYearForm';
-@import 'components/forms';
-@import 'components/modals';
+// =====================================================
+// 6. Shared Components
+// =====================================================
+
+// Buttons
+@import 'components/buttons/buttons';
+@import 'components/buttons/actionButtons';
+
+// Cards
+@import 'components/cards/cards';
+@import 'components/cards/featureCard';
+@import 'components/cards/statCard';
+@import 'components/cards/testimonialCard';
+
+// Error
+@import 'components/error/ErrorDisplay';
+
+// Forms
+@import 'components/forms/forms';
+@import 'components/forms/schoolYearForm';
+
+// Modals
+@import 'components/modals/modal';
+@import 'components/modals/modals';
+
+// Navigation
+@import 'components/navbar/admin-navbar';
+
+// Generic Components
 @import 'components/tables';
 @import 'components/hero';
-@import 'components/page';
-@import 'components/ErrorDisplay';
-@import 'components/admin-navbar';
-@import 'components/grading-scheme';
-@import 'components/grading-scale';
 
-// 7. Utilities
+// =====================================================
+// 7. Pages
+// =====================================================
+
+@import 'pages/page';
+
+// Admin Pages
+@import 'pages/admin/academic/admin-academics';
+@import 'pages/admin/dashboard/dashboard';
+@import 'pages/admin/people/admin-people';
+@import 'pages/admin/system/admin-system';
+@import 'pages/admin/system/grading-scale/grading-scale';
+@import 'pages/admin/system/grading-scheme/grading-scheme';
+
+// =====================================================
+// 8. Utility Classes
+// =====================================================
+
 @import 'utils/helpers';
 @import 'utils/responsive-utilities';
