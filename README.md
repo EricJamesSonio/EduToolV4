@@ -1,109 +1,263 @@
 # EduTool
 
-EduTool is a **multi-tenant SaaS school management system** built to handle flexible academic structures across different types of institutions.
+EduTool is a modern **multi-tenant SaaS school management and learning platform** designed for schools, colleges, and academic institutions that need a flexible and scalable system for managing education workflows.
 
-## Overview
-
-EduTool is designed around a **platform → organization → user** model:
-
-- **Platform Owner**
-  - Manages the overall system
-  - Creates accounts for school **Admins**
-
-- **Admin**
-  - Manages a specific school (organization portal)
-  - Creates and manages:
-    - Educators
-    - Students
-  - Controls the academic structure and setup
-
-- **Educators**
-  - Handle classes, subjects, and grading
-
-- **Students**
-  - Enrolled into programs, levels, and classes
-
-Each organization runs in its own **scoped portal**, meaning all data, users, and configurations are isolated per school.
+It combines features commonly found in platforms like Google Classroom with advanced academic management, grading automation, and organization-level customization.
 
 ---
 
-## Academic Management
+# Overview
 
-EduTool allows admins to fully customize their academic structure:
+EduTool is built around a **platform → organization → user** architecture.
 
-### Programs
-Supports different types of programs such as:
-- College
-- Elementary
-- Senior High School (SHS)
-- Tech-Voc
-- Or any custom program
+Each school operates in its own isolated and secure portal, ensuring that data, configurations, users, and academic structures remain fully separated per organization.
 
-### Levels
-Programs can define their own levels:
-- Grade 1, Grade 2, etc.
-- 1st Year, 2nd Year, etc.
+## User Roles
 
-### Structure
+### Platform Owner
+
+Responsible for managing the entire SaaS platform.
+
+Capabilities:
+
+* Manage organizations (schools)
+* Create and manage Admin accounts
+* Monitor platform-wide operations
+* Configure system-level settings
+
+---
+
+### Admin
+
+Manages a specific school or institution.
+
+Capabilities:
+
+* Manage educators and students
+* Configure academic structures
+* Create programs, levels, sections, and subjects
+* Manage grading systems
+* Control school-year configurations
+* Oversee attendance and assessments
+
+---
+
+### Educators
+
+Handles classroom and academic activities.
+
+Capabilities:
+
+* Manage classes and subjects
+* Conduct live classes/meetings
+* Record attendance
+* Create and manage assessments
+* Grade students
+* Track student performance
+
+---
+
+### Students
+
+Participate in classes and academic activities.
+
+Capabilities:
+
+* Join classes and live meetings
+* View assessments and submissions
+* Track grades and academic progress
+* Access learning materials and schedules
+
+---
+
+# Classroom & Learning Features
+
+EduTool includes learning management features inspired by platforms like Google Classroom, making it suitable not only for administration but also for day-to-day teaching and learning.
+
+## Live Meetings
+
+Educators can conduct real-time online classes and discussions.
+
+Features include:
+
+* Virtual classroom sessions
+* Scheduled live meetings
+* Student participation tracking
+* Integrated classroom workflow
+
+---
+
+## Attendance Management
+
+Built-in attendance tools help educators monitor student participation efficiently.
+
+Features:
+
+* Attendance tracking per class
+* Session-based attendance
+* Attendance history and monitoring
+* Student participation records
+
+---
+
+## Assessments & Activities
+
+Educators can create:
+
+* Quizzes
+* Exams
+* Assignments
+* Activities
+* Performance tasks
+
+The system supports flexible assessment structures that adapt to different academic setups.
+
+---
+
+# AI-Powered Assessment Generator
+
+One of EduTool’s unique features is its **automatic assessment generator**.
+
+Educators can quickly generate assessments instead of manually creating every question from scratch.
+
+This helps:
+
+* Reduce educator workload
+* Speed up assessment creation
+* Maintain consistency
+* Improve productivity in classroom management
+
+The generator is designed to assist teachers in creating structured assessments efficiently while still allowing manual customization and control.
+
+---
+
+# Academic Management
+
+EduTool allows institutions to fully customize their academic structure.
+
+## Programs
+
+Supports different educational structures such as:
+
+* College
+* Elementary
+* Junior High School
+* Senior High School (SHS)
+* Technical-Vocational programs
+* Custom academic programs
+
+---
+
+## Levels
+
+Programs can define their own levels, including:
+
+* Grade 1, Grade 2, etc.
+* 1st Year, 2nd Year, etc.
+
+---
+
+## Academic Structure
+
 Admins can manage:
-- Sections
-- Classes
-- Subjects
+
+* Sections
+* Subjects
+* Classes
+* Academic terms
+* School years
+* Semester settings
 
 ---
 
-## Grading System
+# Grading System
 
-EduTool includes a flexible and reusable grading system:
+EduTool provides a flexible and reusable grading architecture.
 
-- **Grading Schemes**
-  - Configurable templates
-  - Reusable across programs and levels
+## Grading Schemes
 
-- **Grading Scales**
-  - Define how scores convert to grades
-  - Reusable globally
+Reusable grading templates that can be configured per:
 
-- **Grade Locks**
-  - Can be applied per school year or context
-  - Used to finalize and control grade editing
+* Program
+* Level
+* Subject
+* Institution
 
 ---
 
-## Reusable Templates
+## Grading Scales
 
-To reduce repetitive setup, EduTool provides reusable components:
+Define how raw scores are converted into grades.
 
-- Grading schemes (global templates)
-- Grading scales
-- Calendar templates
+Examples:
 
----
-
-## Organization Data Seeder
-
-EduTool includes an **organization seeder** feature that allows admins to quickly set up a school by selecting predefined options.
-
-This can automatically generate:
-- Programs
-- Levels
-- Basic academic structure
-
-This makes setup **fast, consistent, and easy**.
+* Percentage-based grading
+* GPA systems
+* Custom grading scales
 
 ---
 
-## Key Highlights
+## Grade Locks
 
-- Multi-tenant SaaS architecture
-- Scoped organization-based portals
-- Flexible academic structure (programs, levels, classes)
-- Reusable grading and calendar systems
-- Configurable grade locking
-- Fast setup using data seeder
+Grade locking helps finalize academic records.
+
+Features:
+
+* Lock grades per term or school year
+* Prevent unauthorized grade modifications
+* Ensure grading integrity
 
 ---
 
-## Summary
+# Reusable Templates
 
-EduTool is built to be a **flexible and scalable foundation** for schools, allowing administrators to freely model their academic system while keeping everything structured and manageable.
+To reduce repetitive administrative work, EduTool supports reusable templates.
+
+Available reusable components:
+
+* Grading schemes
+* Grading scales
+* Calendar templates
+* Academic configurations
+
+---
+
+# Organization Data Seeder
+
+EduTool includes an organization seeder that allows admins to quickly initialize a school setup using predefined templates and configurations.
+
+The seeder can automatically generate:
+
+* Programs
+* Levels
+* Academic structures
+* Initial configurations
+
+Benefits:
+
+* Faster onboarding
+* Consistent setup
+* Reduced manual configuration
+
+---
+
+# Key Highlights
+
+* Multi-tenant SaaS architecture
+* Organization-scoped portals
+* Flexible academic management
+* Classroom and learning management features
+* Live meetings and attendance system
+* Configurable grading infrastructure
+* AI-powered assessment generation
+* Reusable templates and academic structures
+* Fast onboarding with organization seeder
+* Scalable and customizable design
+
+---
+
+# Vision
+
+EduTool aims to become a complete digital academic ecosystem that simplifies both school administration and classroom learning.
+
+By combining academic management, virtual classroom capabilities, and intelligent automation tools, EduTool helps institutions modernize their educational workflows while remaining flexible enough to adapt to different school structures and teaching approaches.
