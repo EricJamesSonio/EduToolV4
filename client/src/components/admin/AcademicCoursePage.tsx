@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import type { ProgramWithStats } from '../../types/program.types';
-import { useCreateCourse, useCoursesByProgram, useDeleteCourse } from '../../hooks/useCourses';
+import { useCreateCourse, useCoursesByProgram, useDeleteCourse, useUpdateCourse } from '../../hooks/useCourses';
 import { useAddNextLevel, useLevelsBySchoolYear, useRemoveLevel } from '../../hooks/useLevels';
 import BaseCard from '../BaseCard';
 import CreateCourseModal from '../CreateCourseModal';
-import type { CreateCourseDto } from '../../types/course.types';
+import ConfirmationModal from '../ConfirmationModal';
+import type { Course, CreateCourseDto } from '../../types/course.types';
+import type { Level } from '../../types/level.types';
 
 interface AcademicCoursePageProps {
   program: ProgramWithStats;
@@ -18,9 +20,13 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
   onBackToPrograms,
 }) => {
   const [isCreateCourseModalOpen, setIsCreateCourseModalOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
+  const [levelToDelete, setLevelToDelete] = useState<Level | null>(null);
   const { data: courses = [], isLoading: isCoursesLoading } = useCoursesByProgram(schoolYearId, program.id);
   const { data: schoolYearLevels = [], isLoading: isLevelsLoading } = useLevelsBySchoolYear(schoolYearId);
   const createCourseMutation = useCreateCourse();
+  const updateCourseMutation = useUpdateCourse();
   const deleteCourseMutation = useDeleteCourse();
   const addNextLevelMutation = useAddNextLevel();
   const removeLevelMutation = useRemoveLevel();
@@ -29,16 +35,35 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
   const isLoading = isCoursesLoading || isLevelsLoading;
 
   const handleCreateCourse = async (data: CreateCourseDto) => {
+    if (editingCourse) {
+      await updateCourseMutation.mutateAsync({
+        id: editingCourse.id,
+        data: {
+          name: data.name,
+          code: data.code,
+        },
+      });
+      setEditingCourse(null);
+      setIsCreateCourseModalOpen(false);
+      return;
+    }
+
     await createCourseMutation.mutateAsync(data);
     setIsCreateCourseModalOpen(false);
   };
 
-  const handleRemoveCourse = async () => {
-    const course = courses[courses.length - 1];
-    if (!course) return;
-    if (confirm(`This will remove "${course.name}". Are you sure?`)) {
-      await deleteCourseMutation.mutateAsync(course.id);
-    }
+  const handleDeleteCourse = async (course: Course) => {
+    setCourseToDelete(course);
+  };
+
+  const handleEditCourse = (course: Course) => {
+    setEditingCourse(course);
+    setIsCreateCourseModalOpen(true);
+  };
+
+  const handleCloseCourseModal = () => {
+    setEditingCourse(null);
+    setIsCreateCourseModalOpen(false);
   };
 
   const handleAddLevel = async () => {
@@ -48,9 +73,19 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
   const handleRemoveLevel = async () => {
     const level = levels[levels.length - 1];
     if (!level) return;
-    if (confirm(`This will remove "${level.name}". Are you sure?`)) {
-      await removeLevelMutation.mutateAsync(level.id);
-    }
+    setLevelToDelete(level);
+  };
+
+  const confirmDeleteCourse = async () => {
+    if (!courseToDelete) return;
+    await deleteCourseMutation.mutateAsync(courseToDelete.id);
+    setCourseToDelete(null);
+  };
+
+  const confirmDeleteLevel = async () => {
+    if (!levelToDelete) return;
+    await removeLevelMutation.mutateAsync(levelToDelete.id);
+    setLevelToDelete(null);
   };
 
   return (
@@ -67,21 +102,11 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
           <button
             onClick={() => setIsCreateCourseModalOpen(true)}
             className="btn btn-primary"
-            disabled={createCourseMutation.isPending}
+            disabled={createCourseMutation.isPending || updateCourseMutation.isPending}
             title="Add course"
           >
-            + Course
+            Create Course
           </button>
-          {courses.length > 0 && (
-            <button
-              onClick={handleRemoveCourse}
-              className="btn btn-secondary"
-              disabled={deleteCourseMutation.isPending}
-              title="Remove last course"
-            >
-              {deleteCourseMutation.isPending ? '...' : '- Course'}
-            </button>
-          )}
           <button
             onClick={handleAddLevel}
             className="btn btn-primary"
@@ -113,7 +138,7 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
           <h3>No Courses Found</h3>
           <p>Get started by creating your first course.</p>
           <button onClick={() => setIsCreateCourseModalOpen(true)} className="btn btn-primary">
-            + Course
+            Create Course
           </button>
         </div>
       ) : (
@@ -153,6 +178,25 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
                   )}
                 </div>
               </div>
+              <div className="card-footer">
+                <div className="footer-actions">
+                  <button
+                    type="button"
+                    onClick={() => handleEditCourse(course)}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteCourse(course)}
+                    className="btn btn-danger btn-sm"
+                    disabled={deleteCourseMutation.isPending}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
             </BaseCard>
           ))}
         </div>
@@ -160,12 +204,32 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
 
       <CreateCourseModal
         isOpen={isCreateCourseModalOpen}
-        onClose={() => setIsCreateCourseModalOpen(false)}
+        onClose={handleCloseCourseModal}
         onSubmit={handleCreateCourse}
-        isLoading={createCourseMutation.isPending}
+        isLoading={createCourseMutation.isPending || updateCourseMutation.isPending}
         programId={program.id}
         schoolYearId={schoolYearId}
-        programName={program.name}
+        course={editingCourse}
+      />
+
+      <ConfirmationModal
+        isOpen={!!courseToDelete}
+        title="Delete Course"
+        message={`This will remove "${courseToDelete?.name ?? 'this course'}".`}
+        confirmLabel="Delete Course"
+        isLoading={deleteCourseMutation.isPending}
+        onConfirm={confirmDeleteCourse}
+        onClose={() => setCourseToDelete(null)}
+      />
+
+      <ConfirmationModal
+        isOpen={!!levelToDelete}
+        title="Remove Level"
+        message={`This will remove "${levelToDelete?.name ?? 'this level'}".`}
+        confirmLabel="Remove Level"
+        isLoading={removeLevelMutation.isPending}
+        onConfirm={confirmDeleteLevel}
+        onClose={() => setLevelToDelete(null)}
       />
     </div>
   );

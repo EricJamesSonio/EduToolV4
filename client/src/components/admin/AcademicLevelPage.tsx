@@ -1,6 +1,9 @@
 import type { ProgramWithStats } from '../../types/program.types';
 import { useLevelsBySchoolYear, useAddNextLevel, useRemoveLevel } from '../../hooks/useLevels';
 import AcademicDetailCard from './AcademicDetailCard';
+import ConfirmationModal from '../ConfirmationModal';
+import type { Level } from '../../types/level.types';
+import { useState } from 'react';
 
 interface AcademicLevelPageProps {
   program: ProgramWithStats;
@@ -13,6 +16,7 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
   schoolYearId,
   onBackToPrograms,
 }) => {
+  const [levelToDelete, setLevelToDelete] = useState<Level | null>(null);
   const {
     data: schoolYearLevels = [],
     isLoading,
@@ -51,12 +55,18 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
       return match && parseInt(match[1], 10) === highestLevelNumber;
     });
 
-    if (highestLevel && confirm(`This will remove "${highestLevel.name}". Are you sure?`)) {
-      try {
-        await removeLevelMutation.mutateAsync(highestLevel.id);
-      } catch (error) {
-        console.error('Failed to remove level:', error);
-      }
+    if (highestLevel) {
+      setLevelToDelete(highestLevel);
+    }
+  };
+
+  const confirmRemoveLevel = async () => {
+    if (!levelToDelete) return;
+    try {
+      await removeLevelMutation.mutateAsync(levelToDelete.id);
+      setLevelToDelete(null);
+    } catch (error) {
+      console.error('Failed to remove level:', error);
     }
   };
 
@@ -120,6 +130,16 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
           ))}
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={!!levelToDelete}
+        title="Remove Level"
+        message={`This will remove "${levelToDelete?.name ?? 'this level'}".`}
+        confirmLabel="Remove Level"
+        isLoading={removeLevelMutation.isPending}
+        onConfirm={confirmRemoveLevel}
+        onClose={() => setLevelToDelete(null)}
+      />
     </div>
   );
 };

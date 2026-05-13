@@ -15,6 +15,7 @@ import type { ProgramWithStats, CreateProgramDto } from '../../types/program.typ
 import AdminLayout from "../../components/AdminLayout";
 import CreateSchoolYearModal from "../../components/CreateSchoolYearModal";
 import CreateProgramModal from "../../components/CreateProgramModal";
+import ConfirmationModal from "../../components/ConfirmationModal";
 import AcademicCoursePage from "../../components/admin/AcademicCoursePage";
 import AcademicLevelPage from "../../components/admin/AcademicLevelPage";
 import AcademicProgramPage from "../../components/admin/AcademicProgramPage";
@@ -36,6 +37,7 @@ function AdminAcademics() {
   const [userInitiatedBack, setUserInitiatedBack] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreateProgramModalOpen, setIsCreateProgramModalOpen] = useState(false);
+  const [programToDelete, setProgramToDelete] = useState<ProgramWithStats | null>(null);
 
   const createSchoolYearMutation = useCreateSchoolYear();
   const createProgramMutation = useCreateProgram();
@@ -108,9 +110,13 @@ function AdminAcademics() {
   };
 
   const handleDeleteProgram = async (program: ProgramWithStats) => {
-    if (confirm(`Are you sure you want to delete "${program.name}"?`)) {
-      await deleteProgramMutation.mutateAsync(program.id);
-    }
+    setProgramToDelete(program);
+  };
+
+  const confirmDeleteProgram = async () => {
+    if (!programToDelete) return;
+    await deleteProgramMutation.mutateAsync(programToDelete.id);
+    setProgramToDelete(null);
   };
 
   const handleViewProgram = (program: ProgramWithStats) => {
@@ -217,6 +223,16 @@ function AdminAcademics() {
         onSubmit={handleCreateProgramSubmit}
         isLoading={createProgramMutation.isPending}
         schoolYearId={currentSchoolYear?.id || ""}
+      />
+
+      <ConfirmationModal
+        isOpen={!!programToDelete}
+        title="Delete Program"
+        message={`This will remove "${programToDelete?.name ?? 'this program'}".`}
+        confirmLabel="Delete Program"
+        isLoading={deleteProgramMutation.isPending}
+        onConfirm={confirmDeleteProgram}
+        onClose={() => setProgramToDelete(null)}
       />
 
     </AdminLayout>

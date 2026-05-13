@@ -2,6 +2,10 @@ import type { ProgramWithStats } from '../../types/program.types';
 import { useAddNextLevel, useLevelsBySchoolYear, useRemoveLevel } from '../../hooks/useLevels';
 import { useCreateStrand, useDeleteStrand, useStrandsByProgram } from '../../hooks/useStrands';
 import BaseCard from '../BaseCard';
+import ConfirmationModal from '../ConfirmationModal';
+import type { Level } from '../../types/level.types';
+import type { Strand } from '../../types/strand.types';
+import { useState } from 'react';
 
 interface AcademicStrandPageProps {
   program: ProgramWithStats;
@@ -14,6 +18,8 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
   schoolYearId,
   onBackToPrograms,
 }) => {
+  const [strandToDelete, setStrandToDelete] = useState<Strand | null>(null);
+  const [levelToDelete, setLevelToDelete] = useState<Level | null>(null);
   const { data: strands = [], isLoading: isStrandsLoading } = useStrandsByProgram(schoolYearId, program.id);
   const { data: schoolYearLevels = [], isLoading: isLevelsLoading } = useLevelsBySchoolYear(schoolYearId);
   const createStrandMutation = useCreateStrand();
@@ -36,9 +42,7 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
   const handleRemoveStrand = async () => {
     const strand = strands[strands.length - 1];
     if (!strand) return;
-    if (confirm(`This will remove "${strand.name}". Are you sure?`)) {
-      await deleteStrandMutation.mutateAsync(strand.id);
-    }
+    setStrandToDelete(strand);
   };
 
   const handleAddLevel = async () => {
@@ -48,9 +52,19 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
   const handleRemoveLevel = async () => {
     const level = levels[levels.length - 1];
     if (!level) return;
-    if (confirm(`This will remove "${level.name}". Are you sure?`)) {
-      await removeLevelMutation.mutateAsync(level.id);
-    }
+    setLevelToDelete(level);
+  };
+
+  const confirmRemoveStrand = async () => {
+    if (!strandToDelete) return;
+    await deleteStrandMutation.mutateAsync(strandToDelete.id);
+    setStrandToDelete(null);
+  };
+
+  const confirmRemoveLevel = async () => {
+    if (!levelToDelete) return;
+    await removeLevelMutation.mutateAsync(levelToDelete.id);
+    setLevelToDelete(null);
   };
 
   return (
@@ -157,6 +171,26 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
           ))}
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={!!strandToDelete}
+        title="Remove Strand"
+        message={`This will remove "${strandToDelete?.name ?? 'this strand'}".`}
+        confirmLabel="Remove Strand"
+        isLoading={deleteStrandMutation.isPending}
+        onConfirm={confirmRemoveStrand}
+        onClose={() => setStrandToDelete(null)}
+      />
+
+      <ConfirmationModal
+        isOpen={!!levelToDelete}
+        title="Remove Level"
+        message={`This will remove "${levelToDelete?.name ?? 'this level'}".`}
+        confirmLabel="Remove Level"
+        isLoading={removeLevelMutation.isPending}
+        onConfirm={confirmRemoveLevel}
+        onClose={() => setLevelToDelete(null)}
+      />
     </div>
   );
 };
