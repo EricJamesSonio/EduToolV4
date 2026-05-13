@@ -6,15 +6,17 @@
 import { useEffect, useState } from "react";
 import {
   useCreateProgram,
+  useUpdateProgram,
   useDeleteProgram,
   useProgramsWithStats,
 } from "../../hooks/usePrograms";
 import { useSchoolYears } from "../../hooks/useSchoolYears";
 import type { SchoolYear, CreateSchoolYearDto } from '../../types/school-year.types';
-import type { ProgramWithStats, CreateProgramDto } from '../../types/program.types';
+import type { ProgramWithStats, CreateProgramDto, UpdateProgramDto } from '../../types/program.types';
 import AdminLayout from "../../components/AdminLayout";
 import CreateSchoolYearModal from "../../components/CreateSchoolYearModal";
 import CreateProgramModal from "../../components/CreateProgramModal";
+import EditProgramModal from "../../components/EditProgramModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import AcademicCoursePage from "../../components/admin/AcademicCoursePage";
 import AcademicLevelPage from "../../components/admin/AcademicLevelPage";
@@ -37,10 +39,13 @@ function AdminAcademics() {
   const [userInitiatedBack, setUserInitiatedBack] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreateProgramModalOpen, setIsCreateProgramModalOpen] = useState(false);
+  const [isEditProgramModalOpen, setIsEditProgramModalOpen] = useState(false);
+  const [programToEdit, setProgramToEdit] = useState<ProgramWithStats | null>(null);
   const [programToDelete, setProgramToDelete] = useState<ProgramWithStats | null>(null);
 
   const createSchoolYearMutation = useCreateSchoolYear();
   const createProgramMutation = useCreateProgram();
+  const updateProgramMutation = useUpdateProgram();
   const deleteProgramMutation = useDeleteProgram();
 
   const {
@@ -106,7 +111,27 @@ function AdminAcademics() {
   };
 
   const handleEditProgram = (program: ProgramWithStats) => {
-    alert(`Edit program: ${program.name}`);
+    setProgramToEdit(program);
+    setIsEditProgramModalOpen(true);
+  };
+
+  const handleCloseEditProgramModal = () => {
+    setIsEditProgramModalOpen(false);
+    setProgramToEdit(null);
+  };
+
+  const handleEditProgramSubmit = async (data: UpdateProgramDto) => {
+    if (!programToEdit) return;
+    try {
+      await updateProgramMutation.mutateAsync({
+        id: programToEdit.id,
+        data,
+      });
+      setIsEditProgramModalOpen(false);
+      setProgramToEdit(null);
+    } catch (error) {
+      console.error("Failed to update program:", error);
+    }
   };
 
   const handleDeleteProgram = async (program: ProgramWithStats) => {
@@ -223,6 +248,14 @@ function AdminAcademics() {
         onSubmit={handleCreateProgramSubmit}
         isLoading={createProgramMutation.isPending}
         schoolYearId={currentSchoolYear?.id || ""}
+      />
+
+      <EditProgramModal
+        isOpen={isEditProgramModalOpen}
+        onClose={handleCloseEditProgramModal}
+        onSubmit={handleEditProgramSubmit}
+        isLoading={updateProgramMutation.isPending}
+        program={programToEdit}
       />
 
       <ConfirmationModal

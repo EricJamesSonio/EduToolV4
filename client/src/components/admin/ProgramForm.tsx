@@ -2,11 +2,11 @@
 // Form for creating and editing programs
 
 import React, { useState, useEffect } from 'react';
-import type { ProgramWithAssignments, CreateProgramDto, UpdateProgramDto, ProgramType } from '../../types/program.types';
+import type { Program, CreateProgramDto, UpdateProgramDto, ProgramType } from '../../types/program.types';
 import { PROGRAM_TYPES } from '../../constants/programTypes';
 
 export interface ProgramFormProps {
-  program?: ProgramWithAssignments | null;
+  program?: Program | null;
   schoolYearId: string;
   onSubmit: (data: CreateProgramDto | UpdateProgramDto) => void;
   onCancel: () => void;
