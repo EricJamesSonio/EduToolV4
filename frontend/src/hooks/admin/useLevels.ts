@@ -28,7 +28,7 @@ export const useUpdateDefaultLevels = (): UseMutationResult<
   return useMutation<LevelDefault[], Error, UpdateDefaultLevelsRequest>({
     mutationFn: levelApi.updateDefaults,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["levels"] });
+      queryClient.invalidateQueries({ queryKey: ["levels", "defaults"] });
     },
   });
 };
@@ -46,13 +46,38 @@ export const useLevelsByYear = (schoolYearId: string): UseQueryResult<Level[], E
 export const useUpdateLevel = (): UseMutationResult<
   Level,
   Error,
-  { id: string; name: string }
+  { id: string; name: string; schoolYearId?: string }
 > => {
   const queryClient = useQueryClient();
-  return useMutation<Level, Error, { id: string; name: string }>({
+  return useMutation<Level, Error, { id: string; name: string; schoolYearId?: string }>({
     mutationFn: ({ id, name }) => levelApi.updateOne(id, name),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["levels"] });
+    onSuccess: (_, variables) => {
+      // Invalidate specific list query if context provided
+      if (variables.schoolYearId) {
+        queryClient.invalidateQueries({ queryKey: ["levels", variables.schoolYearId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["levels"] });
+      }
+    },
+  });
+};
+
+// ── DELETE single level ─────────────────────────────────────────────────────
+export const useDeleteLevel = (): UseMutationResult<
+  void,
+  Error,
+  { id: string; schoolYearId?: string }
+> => {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, { id: string; schoolYearId?: string }>({
+    mutationFn: ({ id }) => levelApi.deleteOne(id),
+    onSuccess: (_, variables) => {
+      // Invalidate specific list query if context provided
+      if (variables.schoolYearId) {
+        queryClient.invalidateQueries({ queryKey: ["levels", variables.schoolYearId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["levels"] });
+      }
     },
   });
 };

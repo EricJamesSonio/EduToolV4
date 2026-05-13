@@ -41,14 +41,21 @@ export const useCourse = (id: string): UseQueryResult<Course, unknown> => {
 export const useCreateCourse = (): UseMutationResult<
   Course,
   unknown,
-  CreateCourseRequest
+  CreateCourseRequest & { schoolYearId?: string; programId?: string }
 > => {
   const queryClient = useQueryClient();
-  return useMutation<Course, unknown, CreateCourseRequest>({
+  return useMutation<Course, unknown, CreateCourseRequest & { schoolYearId?: string; programId?: string }>({
     mutationFn: courseApi.create,
-    onSuccess: (newCourse) => {
+    onSuccess: (newCourse, variables) => {
       queryClient.setQueryData(courseKeys.detail(newCourse.id), newCourse);
-      queryClient.invalidateQueries({ queryKey: courseKeys.lists() });
+      // Invalidate specific list query if context provided
+      if (variables.schoolYearId || variables.programId) {
+        queryClient.invalidateQueries({
+          queryKey: courseKeys.list({ schoolYearId: variables.schoolYearId, programId: variables.programId })
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: courseKeys.lists() });
+      }
       toast.success("Course created successfully");
     },
     onError: (error: any) => {
@@ -61,10 +68,10 @@ export const useCreateCourse = (): UseMutationResult<
 export const useUpdateCourse = (): UseMutationResult<
   Course,
   unknown,
-  { id: string; data: UpdateCourseRequest }
+  { id: string; data: UpdateCourseRequest; schoolYearId?: string; programId?: string }
 > => {
   const queryClient = useQueryClient();
-  return useMutation<Course, unknown, { id: string; data: UpdateCourseRequest }>({
+  return useMutation<Course, unknown, { id: string; data: UpdateCourseRequest; schoolYearId?: string; programId?: string }>({
     mutationFn: ({ id, data }) => courseApi.update(id, data),
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.detail(id) });
@@ -85,7 +92,14 @@ export const useUpdateCourse = (): UseMutationResult<
     },
     onSettled: (data, error, variables) => {
       queryClient.invalidateQueries({ queryKey: courseKeys.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: courseKeys.lists() });
+      // Invalidate specific list query if context provided
+      if (variables.schoolYearId || variables.programId) {
+        queryClient.invalidateQueries({
+          queryKey: courseKeys.list({ schoolYearId: variables.schoolYearId, programId: variables.programId })
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: courseKeys.lists() });
+      }
     },
     onSuccess: () => {
       toast.success("Course updated successfully");
@@ -94,11 +108,15 @@ export const useUpdateCourse = (): UseMutationResult<
 };
 
 // Hook to delete a course
-export const useDeleteCourse = (): UseMutationResult<void, unknown, string> => {
+export const useDeleteCourse = (): UseMutationResult<
+  void,
+  unknown,
+  { id: string; schoolYearId?: string; programId?: string }
+> => {
   const queryClient = useQueryClient();
-  return useMutation<void, unknown, string>({
-    mutationFn: courseApi.remove,
-    onMutate: async (id) => {
+  return useMutation<void, unknown, { id: string; schoolYearId?: string; programId?: string }>({
+    mutationFn: ({ id }) => courseApi.remove(id),
+    onMutate: async ({ id }) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.detail(id) });
 
       const previousCourse = queryClient.getQueryData(courseKeys.detail(id));
@@ -109,12 +127,19 @@ export const useDeleteCourse = (): UseMutationResult<void, unknown, string> => {
     },
     onError: (err, variables, context: any) => {
       if (context?.previousCourse) {
-        queryClient.setQueryData(courseKeys.detail(variables), context.previousCourse);
+        queryClient.setQueryData(courseKeys.detail(variables.id), context.previousCourse);
       }
       toast.error("Failed to delete course");
     },
     onSettled: (data, error, variables) => {
-      queryClient.invalidateQueries({ queryKey: courseKeys.lists() });
+      // Invalidate specific list query if context provided
+      if (variables.schoolYearId || variables.programId) {
+        queryClient.invalidateQueries({
+          queryKey: courseKeys.list({ schoolYearId: variables.schoolYearId, programId: variables.programId })
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: courseKeys.lists() });
+      }
     },
     onSuccess: () => {
       toast.success("Course deleted successfully");

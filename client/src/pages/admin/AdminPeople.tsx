@@ -34,17 +34,8 @@ export const AdminPeople: React.FC = () => {
 
   return (
     <AdminLayout>
-      <div className="page">
-        <div className="page-header">
-          <h1>People</h1>
-          <p>Manage student and educator accounts</p>
-        </div>
-
-        <div className="page-content">
-          <div className="admin-people">
-            <div className="admin-people-content">{renderContent()}</div>
-          </div>
-        </div>
+      <div className="admin-people">
+        <div className="admin-people-content">{renderContent()}</div>
       </div>
     </AdminLayout>
   );

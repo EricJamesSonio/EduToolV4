@@ -20,6 +20,11 @@
   margin: 0 auto;
 }
 
+.people-categories {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
 .people-category-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -32,14 +37,16 @@
 
 .people-category-card {
   width: 100%;
-  text-align: left;
+  min-height: 180px;
+  text-align: center;
   border: 1px solid var(--color-border-primary);
   border-left: 4px solid var(--color-primary-500);
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: $spacing-3;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-5;
   color: var(--color-text-primary);
 
   &:hover {
@@ -53,33 +60,20 @@
   }
 }
 
-.people-category-kicker {
-  color: var(--color-text-tertiary);
-  font-size: $font-xs;
-  font-weight: $font-semibold;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
 .people-category-title {
   color: var(--color-text-primary);
-  font-size: $font-2xl;
+  font-size: $font-3xl;
   font-weight: $font-bold;
-}
-
-.people-category-description {
-  color: var(--color-text-secondary);
-  font-size: $font-sm;
-  line-height: $leading-relaxed;
 }
 
 .people-category-count {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: $spacing-3;
-  margin-top: $spacing-4;
-  padding-top: $spacing-4;
+  width: 100%;
+  padding-top: $spacing-5;
   border-top: 1px solid var(--color-border-primary);
 
   strong {
@@ -92,7 +86,7 @@
     color: var(--color-text-tertiary);
     font-size: $font-sm;
     font-weight: $font-medium;
-    text-align: right;
+    text-align: center;
   }
 }
 
