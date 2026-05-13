@@ -2,7 +2,7 @@
 // Displays the core features of EduTool in a responsive grid layout
 
 import React from 'react';
-import FeatureCard from '../FeatureCard/FeatureCard';
+import FeatureCard from './FeatureCard';
 
 const FeaturesSection: React.FC = () => {
   const features = [
