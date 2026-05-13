@@ -57,7 +57,7 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
 
   const confirmRemoveStrand = async () => {
     if (!strandToDelete) return;
-    await deleteStrandMutation.mutateAsync(strandToDelete.id);
+    await deleteStrandMutation.mutateAsync({ id: strandToDelete.id, schoolYearId, programId: program.id });
     setStrandToDelete(null);
   };
 

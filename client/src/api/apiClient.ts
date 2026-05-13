@@ -13,6 +13,10 @@ interface ApiEnvelope<T = unknown> {
   data: T;
 }
 
+interface AppAxiosRequestConfig extends AxiosRequestConfig {
+  suppressErrorToast?: boolean;
+}
+
 const isApiEnvelope = (data: unknown): data is ApiEnvelope => {
   return (
     !!data &&
@@ -67,7 +71,7 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
-    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as AppAxiosRequestConfig & { _retry?: boolean };
 
     logger.error('API Error', error, {
       url: originalRequest?.url,
@@ -143,6 +147,7 @@ apiClient.interceptors.response.use(
     if (
       error.response?.status !== 400 &&
       error.response?.status !== 422 &&
+      !originalRequest?.suppressErrorToast &&
       originalRequest?.url !== '/auth/login' &&
       originalRequest?.url !== '/auth/register'
     ) {

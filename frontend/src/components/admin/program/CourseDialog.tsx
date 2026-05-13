@@ -15,11 +15,11 @@ interface CourseForm {
 }
 
 interface CourseDialogProps {
-  programId:    string;
+  programId: string;
   schoolYearId: string;
-  course?:      { id: string; name: string; code: string | null };
-  open:         boolean;
-  onClose:      () => void;
+  course?: { id: string; name: string; code: string | null };
+  open: boolean;
+  onClose: () => void;
 }
 
 export function CourseDialog({
@@ -61,7 +61,7 @@ export function CourseDialog({
 
     if (isEdit) {
       updateMutation.mutate(
-        { id: course!.id, data: { name: values.name, code: values.code || undefined } },
+        { id: course!.id, data: { name: values.name, code: values.code || undefined }, schoolYearId, programId },
         { onSuccess, onError }
       );
     } else {

@@ -21,9 +21,15 @@ export const useCreateStrand = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateStrandDto) => strandApi.createStrand(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: strandKeys.lists() });
+    mutationFn: (data: CreateStrandDto & { schoolYearId?: string; programId?: string }) => strandApi.createStrand(data),
+    onSuccess: (_, variables) => {
+      if (variables.schoolYearId || variables.programId) {
+        queryClient.invalidateQueries({
+          queryKey: strandKeys.list({ schoolYearId: variables.schoolYearId, programId: variables.programId })
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: strandKeys.lists() });
+      }
     },
   });
 };
@@ -32,10 +38,16 @@ export const useUpdateStrand = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateStrandDto }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdateStrandDto; schoolYearId?: string; programId?: string }) =>
       strandApi.updateStrand(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: strandKeys.lists() });
+    onSuccess: (_, variables) => {
+      if (variables.schoolYearId || variables.programId) {
+        queryClient.invalidateQueries({
+          queryKey: strandKeys.list({ schoolYearId: variables.schoolYearId, programId: variables.programId })
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: strandKeys.lists() });
+      }
     },
   });
 };
@@ -44,9 +56,15 @@ export const useDeleteStrand = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => strandApi.deleteStrand(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: strandKeys.lists() });
+    mutationFn: ({ id }: { id: string; schoolYearId?: string; programId?: string }) => strandApi.deleteStrand(id),
+    onSuccess: (_, variables) => {
+      if (variables.schoolYearId || variables.programId) {
+        queryClient.invalidateQueries({
+          queryKey: strandKeys.list({ schoolYearId: variables.schoolYearId, programId: variables.programId })
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: strandKeys.lists() });
+      }
     },
   });
 };

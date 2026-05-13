@@ -22,21 +22,21 @@ import type { Level } from "@/types/admin/level.types";
 import { cn } from "@/lib/utils";
 
 interface CoursesSectionProps {
-  program:      Program;
+  program: Program;
   schoolYearId: string;
-  courses:      CourseSnapshot[];
-  isEnded:      boolean;
+  courses: CourseSnapshot[];
+  isEnded: boolean;
 }
 
 // ── Inline level + section CRUD rendered inside an expanded course row ────────
 
 interface CourseLevelCrudProps {
-  programId:    string;
-  programType:  string;
+  programId: string;
+  programType: string;
   schoolYearId: string;
-  isEnded:      boolean;
-  courseId:     string;
-  allLevels:    Level[];
+  isEnded: boolean;
+  courseId: string;
+  allLevels: Level[];
   onInvalidate: () => void;
 }
 
@@ -49,13 +49,13 @@ function CourseLevelCrud({
   allLevels,
   onInvalidate,
 }: CourseLevelCrudProps): React.JSX.Element {
-  const [expandedIds,  setExpandedIds]  = useState<Set<string>>(new Set());
-  const [editingId,    setEditingId]    = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Level | null>(null);
   const [showGenerate, setShowGenerate] = useState(false);
-  const [updatingId,   setUpdatingId]   = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const cfg    = getCountConfig(programType);
+  const cfg = getCountConfig(programType);
   const [genCount, setGenCount] = useState(cfg.default);
 
   const levels = allLevels.filter((l) => l.program_id === programId);
@@ -63,9 +63,9 @@ function CourseLevelCrud({
   const updateMutation = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) =>
       levelApi.updateOne(id, name),
-    onMutate:  ({ id }) => setUpdatingId(id),
-    onSuccess: () => { toast.success("Level renamed."); onInvalidate(); },
-    onError:   () => toast.error("Failed to rename level."),
+    onMutate: ({ id }) => setUpdatingId(id),
+    onSuccess: () => { toast.success("Level renamed."); },
+    onError: () => toast.error("Failed to rename level."),
     onSettled: () => setUpdatingId(null),
   });
 
@@ -75,7 +75,6 @@ function CourseLevelCrud({
     onSuccess: () => {
       toast.success("Levels generated.");
       setShowGenerate(false);
-      onInvalidate();
     },
     onError: () => toast.error("Failed to generate levels."),
   });
@@ -88,7 +87,7 @@ function CourseLevelCrud({
         schoolYearId,
       }),
     onSuccess: () => { toast.success("Level added."); onInvalidate(); },
-    onError:   () => toast.error("Failed to add level."),
+    onError: () => toast.error("Failed to add level."),
   });
 
   const deleteMutation = useMutation({
@@ -274,7 +273,7 @@ export function CoursesSection({
 
   const { data: allLevels = [], isLoading: levelsLoading } = useQuery({
     queryKey: ["admin", "levels", schoolYearId],
-    queryFn:  () => levelApi.getBySchoolYear(schoolYearId),
+    queryFn: () => levelApi.getBySchoolYear(schoolYearId),
   });
 
   const invalidateLevels = () =>
@@ -289,7 +288,7 @@ export function CoursesSection({
 
   const handleDelete = () => {
     if (!deleteTarget) return;
-    deleteMutation.mutate(deleteTarget.id, {
+    deleteMutation.mutate({ id: deleteTarget.id, schoolYearId, programId: program.id }, {
       onSuccess: () => { toast.success("Course deleted."); setDeleteTarget(null); },
       onError: (err) => {
         const axiosErr = err as AxiosError<{ message: string }>;
