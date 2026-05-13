@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import AdminLayout from '../../components/AdminLayout';
-import AdminEducatorPage from '../../components/admin/AdminEducatorPage';
-import AdminStudentPage from '../../components/admin/AdminStudentPage';
-import PeopleCategoryPage from '../../components/admin/PeopleCategoryPage';
-import { useEducators } from '../../hooks/useEducators';
-import { useStudents } from '../../hooks/useStudents';
+import AdminLayout from '@/components/AdminLayout';
+import AdminEducatorPage from './pages/AdminEducatorPage';
+import AdminStudentPage from './pages/AdminStudentPage';
+import PeopleCategoryPage from './pages/PeopleCategoryPage';
+import { useEducators } from './hooks/useEducators';
+import { useStudents } from './hooks/useStudents';
 
 type PeopleView = 'categories' | 'students' | 'educators';
 

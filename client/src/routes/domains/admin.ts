@@ -2,9 +2,9 @@
 // Register all admin pages in the route registry
 
 import { registerPage } from '../utils/registry';
-import { AdminDashboard } from '../../modules/admin/dashboard/AdminDashboard';
-import { AdminAcademics } from '../../modules/admin/academic/AdminAcademics';
-import { AdminPeople } from '../../pages/admin/AdminPeople';
+import { AdminDashboard } from '@/modules/admin/dashboard/AdminDashboard';
+import { AdminAcademics } from '@/modules/admin/academic/AdminAcademics';
+import { AdminPeople } from '@/modules/admin/people/AdminPeople';
 import { AdminSystem } from '../../modules/admin/system/AdminSystem';
 import { AdminSecurity } from '../../pages/admin/AdminSecurity';
 

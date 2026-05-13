@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useEducators } from '../../hooks/useEducators';
+import { useEducators } from '../hooks/useEducators';
 
 interface AdminEducatorPageProps {
   onBack: () => void;

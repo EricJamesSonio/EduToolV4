@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useStudents } from '../../hooks/useStudents';
-import type { StudentStatus } from '../../types/student.types';
+import { useStudents } from '../hooks/useStudents';
+import type { StudentStatus } from '../types/student.types';
 
 interface AdminStudentPageProps {
   onBack: () => void;
