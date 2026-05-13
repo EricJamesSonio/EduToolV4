@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import type { ProgramWithStats } from '../../types/program.types';
 import { useCreateCourse, useCoursesByProgram, useDeleteCourse } from '../../hooks/useCourses';
 import { useAddNextLevel, useLevelsBySchoolYear, useRemoveLevel } from '../../hooks/useLevels';
 import BaseCard from '../BaseCard';
+import CreateCourseModal from '../CreateCourseModal';
+import type { CreateCourseDto } from '../../types/course.types';
 
 interface AcademicCoursePageProps {
   program: ProgramWithStats;
@@ -14,6 +17,7 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
   schoolYearId,
   onBackToPrograms,
 }) => {
+  const [isCreateCourseModalOpen, setIsCreateCourseModalOpen] = useState(false);
   const { data: courses = [], isLoading: isCoursesLoading } = useCoursesByProgram(schoolYearId, program.id);
   const { data: schoolYearLevels = [], isLoading: isLevelsLoading } = useLevelsBySchoolYear(schoolYearId);
   const createCourseMutation = useCreateCourse();
@@ -24,14 +28,9 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
   const levels = schoolYearLevels.filter((level) => level.program_id === program.id);
   const isLoading = isCoursesLoading || isLevelsLoading;
 
-  const handleAddCourse = async () => {
-    const nextNumber = courses.length + 1;
-    await createCourseMutation.mutateAsync({
-      schoolYearId,
-      programId: program.id,
-      name: `${program.name} Course ${nextNumber}`,
-      code: `C${nextNumber}`,
-    });
+  const handleCreateCourse = async (data: CreateCourseDto) => {
+    await createCourseMutation.mutateAsync(data);
+    setIsCreateCourseModalOpen(false);
   };
 
   const handleRemoveCourse = async () => {
@@ -66,12 +65,12 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
         </div>
         <div className="header-actions">
           <button
-            onClick={handleAddCourse}
+            onClick={() => setIsCreateCourseModalOpen(true)}
             className="btn btn-primary"
             disabled={createCourseMutation.isPending}
             title="Add course"
           >
-            {createCourseMutation.isPending ? '...' : '+ Course'}
+            + Course
           </button>
           {courses.length > 0 && (
             <button
@@ -113,8 +112,8 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
         <div className="empty-state">
           <h3>No Courses Found</h3>
           <p>Get started by creating your first course.</p>
-          <button onClick={handleAddCourse} className="btn btn-primary" disabled={createCourseMutation.isPending}>
-            {createCourseMutation.isPending ? '...' : '+ Course'}
+          <button onClick={() => setIsCreateCourseModalOpen(true)} className="btn btn-primary">
+            + Course
           </button>
         </div>
       ) : (
@@ -158,6 +157,16 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
           ))}
         </div>
       )}
+
+      <CreateCourseModal
+        isOpen={isCreateCourseModalOpen}
+        onClose={() => setIsCreateCourseModalOpen(false)}
+        onSubmit={handleCreateCourse}
+        isLoading={createCourseMutation.isPending}
+        programId={program.id}
+        schoolYearId={schoolYearId}
+        programName={program.name}
+      />
     </div>
   );
 };
