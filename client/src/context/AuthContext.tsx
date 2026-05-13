@@ -12,8 +12,8 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { loginApi, logoutApi, getProfileApi } from '../api/auth.api';
-import type { UserProfile } from '../types/auth';
-import { getRoleHomePath } from '../types/auth';
+import type { UserProfile } from '../modules/home/login/types/auth';
+import { getRoleHomePath } from '../modules/home/login/types/auth';
 
 interface AuthContextValue {
   user: UserProfile | null;

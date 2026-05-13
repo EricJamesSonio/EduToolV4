@@ -2,7 +2,7 @@
 // Security settings and access control
 
 import React from 'react';
-import AdminLayout from '../../components/AdminLayout';
+import AdminLayout from '../../../components/AdminLayout';
 
 export const AdminSecurity: React.FC = () => {
   return (

@@ -1,7 +1,7 @@
 import { registerPage } from '../utils/registry';
 import HomePage from '../../pages/HomePage';
 import LoginPage from '../../pages/LoginPage';
-import AboutPage from '../../pages/AboutPage';
+import AboutPage from '../../modules/home/about/AboutPage';
 import ThemePage from '../../pages/ThemePage';
 
 // Register public pages

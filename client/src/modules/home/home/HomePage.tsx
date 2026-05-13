@@ -2,10 +2,10 @@
 // Main landing page with hero section, features, testimonials, and stats
 
 import { useNavigate } from 'react-router-dom';
-import Button from '../components/Button';
-import FeatureCard from '../components/FeatureCard/FeatureCard';
-import TestimonialCard from '../components/TestimonialCard/TestimonialCard';
-import StatCard from '../components/StatCard/StatCard';
+import Button from '@/components/Button';
+import FeatureCard from '@/modules/home/about/components/FeatureCard';
+import TestimonialCard from './components/TestimonialCard';
+import StatCard from '@/components/StatCard/StatCard';
 
 const HomePage = () => {
   const navigate = useNavigate();

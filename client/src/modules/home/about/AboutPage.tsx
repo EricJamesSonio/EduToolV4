@@ -1,8 +1,8 @@
 // AboutPage Component
 // Comprehensive about page explaining EduTool platform
 
-import Button from '../components/Button';
-import FeatureCard from '../components/FeatureCard/FeatureCard';
+import Button from '@/components/Button';
+import FeatureCard from './components/FeatureCard';
 
 const AboutPage = () => (
   <div className="home-page">

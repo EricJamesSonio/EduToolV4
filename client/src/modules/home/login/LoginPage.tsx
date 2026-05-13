@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useLogin, useSignUp } from '../services/auth.service';
-import { useErrorToast } from '../components/ErrorDisplay/ErrorDisplay';
-import Button from '../components/Button';
-import { getProfileApi } from '../api/auth.api';
-import { getRoleHomePath } from '../types/auth';
+import { useLogin, useSignUp } from './services/auth.service';
+import { useErrorToast } from '@/components/ErrorDisplay/ErrorDisplay';
+import Button from '@/components/Button';
+import { getProfileApi } from './api/auth.api';
+import { getRoleHomePath } from './types/auth';
 
 type AuthMode = 'signin' | 'signup';
 

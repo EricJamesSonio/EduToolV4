@@ -2,7 +2,7 @@
 // Reusable card component for displaying user testimonials (image and info only)
 
 import React from 'react';
-import { cn } from '../../utils/helpers';
+import { cn } from '../../../../utils/helpers';
 
 export interface TestimonialCardProps {
   author: string;

@@ -5,7 +5,7 @@ import { AdminDashboard } from '@/modules/admin/dashboard/AdminDashboard';
 import { AdminAcademics } from '@/modules/admin/academic/AdminAcademics';
 import { AdminPeople } from '@/pages/admin/AdminPeople';
 import { AdminSystem } from '@/modules/admin/system/AdminSystem';
-import { AdminSecurity } from '@/pages/admin/AdminSecurity';
+import { AdminSecurity } from '@/modules/admin/security/AdminSecurity';
 
 // Register admin pages in the centralized registry
 registerPage({
