@@ -1,4 +1,5 @@
-// ===== File: client\src\modules\admin\academic\pages\AcademicLevelPage.tsx =====
+// client/src/modules/admin/academic/pages/AcademicLevelPage.tsx
+
 import { useMemo, useState } from 'react';
 import type { ProgramWithStats } from '../types/program.types';
 import {
@@ -25,16 +26,18 @@ import type { Section } from '../api/section.api';
 interface AcademicLevelPageProps {
   program: ProgramWithStats;
   schoolYearId: string;
+  /** Present when drilling in from a College course */
+  courseId?: string;
+  /** Present when drilling in from a SHS strand */
+  strandId?: string;
+  /** Display name of the course or strand for the subtitle */
+  contextLabel?: string;
   onBackToPrograms: () => void;
 }
 
 interface SectionModalState {
   levelId: string;
   editTarget?: Section;
-}
-
-interface SectionDeleteState {
-  section: Section;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +64,8 @@ interface LevelCardProps {
   levelItems: Level[];
   program: ProgramWithStats;
   schoolYearId: string;
+  courseId?: string;
+  strandId?: string;
   onAddSection: (levelId: string) => void;
   onEditSection: (levelId: string, section: Section) => void;
   onDeleteSection: (section: Section) => void;
@@ -71,16 +76,23 @@ const LevelCard: React.FC<LevelCardProps> = ({
   levelItems,
   program,
   schoolYearId,
+  courseId,
+  strandId,
   onAddSection,
   onEditSection,
   onDeleteSection,
 }) => {
-  // Use the first level item's id as the canonical levelId for section queries.
-  // If multiple level records share the same name, we show sections for all of them.
   const primaryLevelId = levelItems[0].id;
 
   const { data: sections = [], isLoading: sectionsLoading } =
     useSectionsByLevel(schoolYearId, primaryLevelId);
+
+  // When scoped to a course or strand, only show sections that belong to it
+  const visibleSections = useMemo(() => {
+    if (courseId) return sections.filter((s) => s.course_id === courseId);
+    if (strandId) return sections.filter((s) => s.strand_id === strandId);
+    return sections;
+  }, [sections, courseId, strandId]);
 
   return (
     <BaseCard className="academic-detail-card level-section-card">
@@ -131,11 +143,11 @@ const LevelCard: React.FC<LevelCardProps> = ({
               <div className="loading-spinner loading-spinner-sm" />
               <span className="loading-text">Loading...</span>
             </div>
-          ) : sections.length === 0 ? (
+          ) : visibleSections.length === 0 ? (
             <p className="sections-empty">No sections yet.</p>
           ) : (
             <div className="sections-list">
-              {sections.map((section) => (
+              {visibleSections.map((section) => (
                 <div key={section.id} className="section-row">
                   <div className="section-info">
                     <span className="section-name">{section.name}</span>
@@ -176,42 +188,34 @@ const LevelCard: React.FC<LevelCardProps> = ({
 const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
   program,
   schoolYearId,
+  courseId,
+  strandId,
+  contextLabel,
   onBackToPrograms,
 }) => {
-  // ── Level state ──
   const [levelToDelete, setLevelToDelete] = useState<Level | null>(null);
-
-  // ── Section modal state ──
   const [sectionModal, setSectionModal] = useState<SectionModalState | null>(null);
-  const [sectionToDelete, setSectionToDelete] = useState<SectionDeleteState | null>(null);
+  const [sectionToDelete, setSectionToDelete] = useState<Section | null>(null);
 
-  // ── Queries ──
   const { data: schoolYearLevels = [], isLoading } =
     useLevelsBySchoolYear(schoolYearId);
 
-  // ── Level mutations ──
   const addNextLevelMutation = useAddNextLevel();
   const removeLevelMutation = useRemoveLevel();
-
-  // ── Section mutations ──
   const createSectionMutation = useCreateSection();
   const updateSectionMutation = useUpdateSection();
   const removeSectionMutation = useRemoveSection();
 
-  // ── Derived ──
   const levels = schoolYearLevels.filter(
     (level) => level.program_id === program.id,
   );
 
   const visibleLevels = useMemo(() => {
-    const groupedLevels = new Map<string, Level[]>();
+    const grouped = new Map<string, Level[]>();
     levels.forEach((level) => {
-      groupedLevels.set(level.name, [
-        ...(groupedLevels.get(level.name) ?? []),
-        level,
-      ]);
+      grouped.set(level.name, [...(grouped.get(level.name) ?? []), level]);
     });
-    return Array.from(groupedLevels.entries())
+    return Array.from(grouped.entries())
       .map(([name, items]) => ({ name, items, primaryLevel: items[0] }))
       .sort((a, b) => getLevelSortValue(a.name) - getLevelSortValue(b.name));
   }, [levels]);
@@ -249,18 +253,12 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
   };
 
   // ── Section handlers ──
-  const handleAddSection = (levelId: string) => {
-    setSectionModal({ levelId });
-  };
+  const handleAddSection = (levelId: string) => setSectionModal({ levelId });
 
-  const handleEditSection = (levelId: string, section: Section) => {
+  const handleEditSection = (levelId: string, section: Section) =>
     setSectionModal({ levelId, editTarget: section });
-  };
 
-  const handleSectionFormSubmit = async (data: {
-    name: string;
-    capacity: number;
-  }) => {
+  const handleSectionFormSubmit = async (data: { name: string; capacity: number }) => {
     if (!sectionModal) return;
     try {
       if (sectionModal.editTarget) {
@@ -272,6 +270,8 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
         await createSectionMutation.mutateAsync({
           levelId: sectionModal.levelId,
           schoolYearId,
+          courseId,   // undefined for non-college programs
+          strandId,   // undefined for non-shs programs
           ...data,
         });
       }
@@ -281,14 +281,12 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
     }
   };
 
-  const handleDeleteSection = (section: Section) => {
-    setSectionToDelete({ section });
-  };
+  const handleDeleteSection = (section: Section) => setSectionToDelete(section);
 
   const confirmDeleteSection = async () => {
     if (!sectionToDelete) return;
     try {
-      await removeSectionMutation.mutateAsync(sectionToDelete.section.id);
+      await removeSectionMutation.mutateAsync(sectionToDelete.id);
       setSectionToDelete(null);
     } catch (error) {
       console.error('Failed to delete section:', error);
@@ -298,16 +296,27 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
   const isSectionFormLoading =
     createSectionMutation.isPending || updateSectionMutation.isPending;
 
-  // ── Render ──
+  // Build the subtitle: "Program Name > Course/Strand Name" or just "Program Name"
+  const subtitle = contextLabel
+    ? `${program.name} › ${contextLabel}`
+    : program.name;
+
+  // Back button label changes based on context
+  const backLabel = courseId
+    ? 'Back to Courses'
+    : strandId
+      ? 'Back to Strands'
+      : 'Back to Programs';
+
   return (
     <div className="view-container">
       <div className="view-header">
         <button onClick={onBackToPrograms} className="back-button">
-          Back to Programs
+          {backLabel}
         </button>
         <div className="header-title">
           <h2 className="dashboard-section-title">Levels</h2>
-          <p className="dashboard-section-subtitle">{program.name}</p>
+          <p className="dashboard-section-subtitle">{subtitle}</p>
         </div>
         <div className="header-actions">
           <button
@@ -357,6 +366,8 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
               levelItems={items}
               program={program}
               schoolYearId={schoolYearId}
+              courseId={courseId}
+              strandId={strandId}
               onAddSection={handleAddSection}
               onEditSection={handleEditSection}
               onDeleteSection={handleDeleteSection}
@@ -365,7 +376,6 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
         </div>
       )}
 
-      {/* Level delete confirmation */}
       <ConfirmationModal
         isOpen={!!levelToDelete}
         title="Remove Level"
@@ -376,7 +386,6 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
         onClose={() => setLevelToDelete(null)}
       />
 
-      {/* Section create/edit modal */}
       <SectionFormModal
         isOpen={!!sectionModal}
         levelId={sectionModal?.levelId ?? ''}
@@ -387,11 +396,10 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
         onClose={() => setSectionModal(null)}
       />
 
-      {/* Section delete confirmation */}
       <ConfirmationModal
         isOpen={!!sectionToDelete}
         title="Delete Section"
-        message={`Delete "${sectionToDelete?.section.name ?? 'this section'}"? This cannot be undone if the section has no enrolled students.`}
+        message={`Delete "${sectionToDelete?.name ?? 'this section'}"? This cannot be undone if the section has no enrolled students.`}
         confirmLabel="Delete Section"
         isLoading={removeSectionMutation.isPending}
         onConfirm={confirmDeleteSection}

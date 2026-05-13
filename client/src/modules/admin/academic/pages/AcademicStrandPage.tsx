@@ -1,3 +1,5 @@
+// client/src/modules/admin/academic/pages/AcademicStrandPage.tsx
+
 import type { ProgramWithStats } from '../types/program.types';
 import { useAddNextLevel, useLevelsBySchoolYear, useRemoveLevel } from '../hooks/useLevels';
 import { useCreateStrand, useDeleteStrand, useStrandsByProgram } from '../hooks/useStrands';
@@ -11,15 +13,18 @@ interface AcademicStrandPageProps {
   program: ProgramWithStats;
   schoolYearId: string;
   onBackToPrograms: () => void;
+  onViewStrand: (strand: Strand) => void;
 }
 
 const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
   program,
   schoolYearId,
   onBackToPrograms,
+  onViewStrand,
 }) => {
   const [strandToDelete, setStrandToDelete] = useState<Strand | null>(null);
   const [levelToDelete, setLevelToDelete] = useState<Level | null>(null);
+
   const { data: strands = [], isLoading: isStrandsLoading } = useStrandsByProgram(schoolYearId, program.id);
   const { data: schoolYearLevels = [], isLoading: isLevelsLoading } = useLevelsBySchoolYear(schoolYearId);
   const createStrandMutation = useCreateStrand();
@@ -39,7 +44,7 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
     });
   };
 
-  const handleRemoveStrand = async () => {
+  const handleRemoveStrand = () => {
     const strand = strands[strands.length - 1];
     if (!strand) return;
     setStrandToDelete(strand);
@@ -49,7 +54,7 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
     await addNextLevelMutation.mutateAsync({ programId: program.id, schoolYearId });
   };
 
-  const handleRemoveLevel = async () => {
+  const handleRemoveLevel = () => {
     const level = levels[levels.length - 1];
     if (!level) return;
     setLevelToDelete(level);
@@ -82,7 +87,6 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
             onClick={handleAddStrand}
             className="btn btn-primary"
             disabled={createStrandMutation.isPending}
-            title="Add strand"
           >
             {createStrandMutation.isPending ? '...' : '+ Strand'}
           </button>
@@ -91,7 +95,6 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
               onClick={handleRemoveStrand}
               className="btn btn-secondary"
               disabled={deleteStrandMutation.isPending}
-              title="Remove last strand"
             >
               {deleteStrandMutation.isPending ? '...' : '- Strand'}
             </button>
@@ -100,7 +103,6 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
             onClick={handleAddLevel}
             className="btn btn-primary"
             disabled={addNextLevelMutation.isPending}
-            title="Add level"
           >
             {addNextLevelMutation.isPending ? '...' : '+ Level'}
           </button>
@@ -109,7 +111,6 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
               onClick={handleRemoveLevel}
               className="btn btn-secondary"
               disabled={removeLevelMutation.isPending}
-              title="Remove last level"
             >
               {removeLevelMutation.isPending ? '...' : '- Level'}
             </button>
@@ -119,7 +120,7 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
 
       {isLoading ? (
         <div className="dashboard-loading">
-          <div className="loading-spinner"></div>
+          <div className="loading-spinner" />
           <span className="loading-text">Loading strands...</span>
         </div>
       ) : strands.length === 0 ? (
@@ -150,21 +151,26 @@ const AcademicStrandPage: React.FC<AcademicStrandPageProps> = ({
                     <span className="detail-label">Type</span>
                     <span className="detail-value">{program.type}</span>
                   </div>
+                  <div className="academic-detail-row">
+                    <span className="detail-label">Levels</span>
+                    <span className="detail-value">
+                      {levels.length > 0 ? `${levels.length} level(s)` : 'No levels yet'}
+                    </span>
+                  </div>
                 </div>
-
-                <div className="nested-levels">
-                  <div className="nested-levels-title">Levels</div>
-                  {levels.length === 0 ? (
-                    <p className="nested-empty">No levels added yet.</p>
-                  ) : (
-                    <div className="nested-level-list">
-                      {levels.map((level) => (
-                        <span key={level.id} className="nested-level-chip">
-                          {level.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+              </div>
+              <div className="card-footer">
+                <div className="footer-actions">
+                  {/* Primary CTA: drill into levels+sections for this strand */}
+                  <button
+                    type="button"
+                    onClick={() => onViewStrand(strand)}
+                    className="btn btn-primary btn-sm"
+                    disabled={levels.length === 0}
+                    title={levels.length === 0 ? 'Add levels first' : 'View levels and sections'}
+                  >
+                    View Levels →
+                  </button>
                 </div>
               </div>
             </BaseCard>

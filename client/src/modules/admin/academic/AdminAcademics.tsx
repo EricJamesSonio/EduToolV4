@@ -1,5 +1,4 @@
-// Admin Academics Page
-// Academic management and configuration
+// client/src/modules/admin/academic/AdminAcademics.tsx
 
 "use client";
 
@@ -13,6 +12,8 @@ import {
 import { useSchoolYears } from "./hooks/useSchoolYears";
 import type { SchoolYear, CreateSchoolYearDto } from './types/school-year.types';
 import type { ProgramWithStats, CreateProgramDto, UpdateProgramDto } from './types/program.types';
+import type { Course } from './types/course.types';
+import type { Strand } from './types/strand.types';
 import AdminLayout from "@/components/AdminLayout";
 import CreateSchoolYearModal from "./components/modals/CreateSchoolYearModal";
 import CreateProgramModal from "./components/modals/CreateProgramModal";
@@ -36,6 +37,9 @@ function AdminAcademics() {
   const [viewMode, setViewMode] = useState<ViewMode>("school-year-selection");
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<SchoolYear | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<ProgramWithStats | null>(null);
+  // Track which course or strand the user drilled into
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [selectedStrand, setSelectedStrand] = useState<Strand | null>(null);
   const [userInitiatedBack, setUserInitiatedBack] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreateProgramModalOpen, setIsCreateProgramModalOpen] = useState(false);
@@ -72,25 +76,16 @@ function AdminAcademics() {
   const handleSchoolYearSelect = (schoolYear: SchoolYear) => {
     setSelectedSchoolYear(schoolYear);
     setSelectedProgram(null);
+    setSelectedCourse(null);
+    setSelectedStrand(null);
     setViewMode("program-list");
     setUserInitiatedBack(false);
   };
 
-  const handleCreateProgram = () => {
-    setIsCreateProgramModalOpen(true);
-  };
-
-  const handleCreateSchoolYear = () => {
-    setIsCreateModalOpen(true);
-  };
-
-  const handleCloseCreateModal = () => {
-    setIsCreateModalOpen(false);
-  };
-
-  const handleCloseCreateProgramModal = () => {
-    setIsCreateProgramModalOpen(false);
-  };
+  const handleCreateProgram = () => setIsCreateProgramModalOpen(true);
+  const handleCreateSchoolYear = () => setIsCreateModalOpen(true);
+  const handleCloseCreateModal = () => setIsCreateModalOpen(false);
+  const handleCloseCreateProgramModal = () => setIsCreateProgramModalOpen(false);
 
   const handleCreateSchoolYearSubmit = async (data: CreateSchoolYearDto) => {
     try {
@@ -123,10 +118,7 @@ function AdminAcademics() {
   const handleEditProgramSubmit = async (data: UpdateProgramDto) => {
     if (!programToEdit) return;
     try {
-      await updateProgramMutation.mutateAsync({
-        id: programToEdit.id,
-        data,
-      });
+      await updateProgramMutation.mutateAsync({ id: programToEdit.id, data });
       setIsEditProgramModalOpen(false);
       setProgramToEdit(null);
     } catch (error) {
@@ -134,9 +126,7 @@ function AdminAcademics() {
     }
   };
 
-  const handleDeleteProgram = async (program: ProgramWithStats) => {
-    setProgramToDelete(program);
-  };
+  const handleDeleteProgram = (program: ProgramWithStats) => setProgramToDelete(program);
 
   const confirmDeleteProgram = async () => {
     if (!programToDelete) return;
@@ -146,34 +136,68 @@ function AdminAcademics() {
 
   const handleViewProgram = (program: ProgramWithStats) => {
     setSelectedProgram(program);
+    setSelectedCourse(null);
+    setSelectedStrand(null);
 
     if (program.type === 'college') {
       setViewMode("courses-view");
       return;
     }
-
-    if (program.type === 'senior-high' || program.type === 'senior_high') {
+    if (program.type === 'senior-high' || program.type === 'shs') {
       setViewMode("strands-view");
       return;
     }
+    setViewMode("levels-view");
+  };
 
+  // Called from AcademicCoursePage when user clicks into a course
+  const handleViewCourse = (course: Course) => {
+    setSelectedCourse(course);
+    setViewMode("levels-view");
+  };
+
+  // Called from AcademicStrandPage when user clicks into a strand
+  const handleViewStrand = (strand: Strand) => {
+    setSelectedStrand(strand);
     setViewMode("levels-view");
   };
 
   const handleBackToSelection = () => {
     setSelectedSchoolYear(null);
     setSelectedProgram(null);
+    setSelectedCourse(null);
+    setSelectedStrand(null);
     setViewMode("school-year-selection");
     setUserInitiatedBack(true);
   };
 
   const handleBackToPrograms = () => {
     setSelectedProgram(null);
+    setSelectedCourse(null);
+    setSelectedStrand(null);
     setViewMode("program-list");
+  };
+
+  // Back from levels to courses/strands list (for college/shs drill-down)
+  const handleBackToCourses = () => {
+    setSelectedCourse(null);
+    setViewMode("courses-view");
+  };
+
+  const handleBackToStrands = () => {
+    setSelectedStrand(null);
+    setViewMode("strands-view");
   };
 
   const isLoading =
     schoolYearsLoading || (programsLoading && viewMode === "program-list");
+
+  // Determine the correct "back" handler for the levels view
+  const levelsBackHandler = selectedCourse
+    ? handleBackToCourses
+    : selectedStrand
+      ? handleBackToStrands
+      : handleBackToPrograms;
 
   return (
     <AdminLayout>
@@ -211,6 +235,7 @@ function AdminAcademics() {
                   program={selectedProgram}
                   schoolYearId={currentSchoolYear?.id || ""}
                   onBackToPrograms={handleBackToPrograms}
+                  onViewCourse={handleViewCourse}
                 />
               )}
 
@@ -219,6 +244,7 @@ function AdminAcademics() {
                   program={selectedProgram}
                   schoolYearId={currentSchoolYear?.id || ""}
                   onBackToPrograms={handleBackToPrograms}
+                  onViewStrand={handleViewStrand}
                 />
               )}
 
@@ -226,7 +252,10 @@ function AdminAcademics() {
                 <AcademicLevelPage
                   program={selectedProgram}
                   schoolYearId={currentSchoolYear?.id || ""}
-                  onBackToPrograms={handleBackToPrograms}
+                  courseId={selectedCourse?.id}
+                  strandId={selectedStrand?.id}
+                  contextLabel={selectedCourse?.name ?? selectedStrand?.name}
+                  onBackToPrograms={levelsBackHandler}
                 />
               )}
             </>
@@ -267,7 +296,6 @@ function AdminAcademics() {
         onConfirm={confirmDeleteProgram}
         onClose={() => setProgramToDelete(null)}
       />
-
     </AdminLayout>
   );
 }

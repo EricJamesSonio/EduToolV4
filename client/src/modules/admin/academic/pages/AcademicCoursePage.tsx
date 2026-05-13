@@ -1,3 +1,5 @@
+// client/src/modules/admin/academic/pages/AcademicCoursePage.tsx
+
 import { useState } from 'react';
 import type { ProgramWithStats } from '../types/program.types';
 import { useCreateCourse, useCoursesByProgram, useDeleteCourse, useUpdateCourse } from '../hooks/useCourses';
@@ -12,17 +14,20 @@ interface AcademicCoursePageProps {
   program: ProgramWithStats;
   schoolYearId: string;
   onBackToPrograms: () => void;
+  onViewCourse: (course: Course) => void;
 }
 
 const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
   program,
   schoolYearId,
   onBackToPrograms,
+  onViewCourse,
 }) => {
   const [isCreateCourseModalOpen, setIsCreateCourseModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
   const [levelToDelete, setLevelToDelete] = useState<Level | null>(null);
+
   const { data: courses = [], isLoading: isCoursesLoading } = useCoursesByProgram(schoolYearId, program.id);
   const { data: schoolYearLevels = [], isLoading: isLevelsLoading } = useLevelsBySchoolYear(schoolYearId);
   const createCourseMutation = useCreateCourse();
@@ -38,22 +43,14 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
     if (editingCourse) {
       await updateCourseMutation.mutateAsync({
         id: editingCourse.id,
-        data: {
-          name: data.name,
-          code: data.code,
-        },
+        data: { name: data.name, code: data.code },
       });
       setEditingCourse(null);
       setIsCreateCourseModalOpen(false);
       return;
     }
-
     await createCourseMutation.mutateAsync(data);
     setIsCreateCourseModalOpen(false);
-  };
-
-  const handleDeleteCourse = async (course: Course) => {
-    setCourseToDelete(course);
   };
 
   const handleEditCourse = (course: Course) => {
@@ -70,7 +67,7 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
     await addNextLevelMutation.mutateAsync({ programId: program.id, schoolYearId });
   };
 
-  const handleRemoveLevel = async () => {
+  const handleRemoveLevel = () => {
     const level = levels[levels.length - 1];
     if (!level) return;
     setLevelToDelete(level);
@@ -103,7 +100,6 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
             onClick={() => setIsCreateCourseModalOpen(true)}
             className="btn btn-primary"
             disabled={createCourseMutation.isPending || updateCourseMutation.isPending}
-            title="Add course"
           >
             Create Course
           </button>
@@ -111,7 +107,6 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
             onClick={handleAddLevel}
             className="btn btn-primary"
             disabled={addNextLevelMutation.isPending}
-            title="Add level"
           >
             {addNextLevelMutation.isPending ? '...' : '+ Level'}
           </button>
@@ -120,7 +115,6 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
               onClick={handleRemoveLevel}
               className="btn btn-secondary"
               disabled={removeLevelMutation.isPending}
-              title="Remove last level"
             >
               {removeLevelMutation.isPending ? '...' : '- Level'}
             </button>
@@ -130,7 +124,7 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
 
       {isLoading ? (
         <div className="dashboard-loading">
-          <div className="loading-spinner"></div>
+          <div className="loading-spinner" />
           <span className="loading-text">Loading courses...</span>
         </div>
       ) : courses.length === 0 ? (
@@ -161,25 +155,26 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
                     <span className="detail-label">Program</span>
                     <span className="detail-value">{program.name}</span>
                   </div>
-                </div>
-
-                <div className="nested-levels">
-                  <div className="nested-levels-title">Levels</div>
-                  {levels.length === 0 ? (
-                    <p className="nested-empty">No levels added yet.</p>
-                  ) : (
-                    <div className="nested-level-list">
-                      {levels.map((level) => (
-                        <span key={level.id} className="nested-level-chip">
-                          {level.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  <div className="academic-detail-row">
+                    <span className="detail-label">Levels</span>
+                    <span className="detail-value">
+                      {levels.length > 0 ? `${levels.length} level(s)` : 'No levels yet'}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="card-footer">
                 <div className="footer-actions">
+                  {/* Primary CTA: drill into levels+sections for this course */}
+                  <button
+                    type="button"
+                    onClick={() => onViewCourse(course)}
+                    className="btn btn-primary btn-sm"
+                    disabled={levels.length === 0}
+                    title={levels.length === 0 ? 'Add levels first' : 'View levels and sections'}
+                  >
+                    View Levels →
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleEditCourse(course)}
@@ -189,7 +184,7 @@ const AcademicCoursePage: React.FC<AcademicCoursePageProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDeleteCourse(course)}
+                    onClick={() => setCourseToDelete(course)}
                     className="btn btn-danger btn-sm"
                     disabled={deleteCourseMutation.isPending}
                   >
