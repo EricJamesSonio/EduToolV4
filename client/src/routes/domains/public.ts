@@ -1,8 +1,8 @@
 import { registerPage } from '../utils/registry';
-import HomePage from '../../pages/HomePage';
-import LoginPage from '../../pages/LoginPage';
-import AboutPage from '../../modules/home/about/AboutPage';
-import ThemePage from '../../pages/ThemePage';
+import HomePage from '@/modules/home/home/HomePage';
+import LoginPage from '@/modules/home/login/LoginPage';
+import AboutPage from '@/modules/home/about/AboutPage';
+import ThemePage from '@/modules/home/theme/ThemePage';
 
 // Register public pages
 export const registerPublicDomain = () => {
@@ -10,7 +10,7 @@ export const registerPublicDomain = () => {
     path: '/',
     component: HomePage,
     title: 'Home',
-    isPublic: true,
+    isPublic: true, 
   });
 
   registerPage({

@@ -3,7 +3,7 @@ import { registerPage } from '../utils/registry';
 // Import admin page components
 import { AdminDashboard } from '@/modules/admin/dashboard/AdminDashboard';
 import { AdminAcademics } from '@/modules/admin/academic/AdminAcademics';
-import { AdminPeople } from '@/pages/admin/AdminPeople';
+import { AdminPeople } from '@/modules/admin/people/AdminPeople';
 import { AdminSystem } from '@/modules/admin/system/AdminSystem';
 import { AdminSecurity } from '@/modules/admin/security/AdminSecurity';
 

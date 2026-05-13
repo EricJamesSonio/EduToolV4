@@ -2,7 +2,7 @@
 // Reusable card component for displaying features with image, title, and description
 
 import React from 'react';
-import { cn } from '../../utils/helpers';
+import { cn } from '@/utils/helpers';
 
 export interface FeatureCardProps {
   image?: string;

@@ -9,7 +9,7 @@ import CreateOrganizationModal from './components/CreateOrganizationModal';
 import GradingSchemeTemplatePage from './pages/GradingSchemeTemplatePage';
 import SystemCategoryPage from './pages/SystemCategoryPage';
 import GradingScalePage from './pages/GradingScalePage';
-import { refreshTokenApi } from '@/api/auth.api';
+import { refreshTokenApi } from '@/modules/home/login/api/auth.api';
 import { useAuthContext } from '@/context/AuthContext';
 import {
   useCreateOrganization,

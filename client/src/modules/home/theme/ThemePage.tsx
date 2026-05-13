@@ -1,7 +1,7 @@
 // ThemePage Component
 // Theme settings page
 
-import Button from '../components/Button';
+import Button from '@/components/Button';
 
 const ThemePage = () => (
   <div className="home-page">

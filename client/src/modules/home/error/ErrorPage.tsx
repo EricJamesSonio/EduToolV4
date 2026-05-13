@@ -2,7 +2,7 @@
 // Used as fallback for Error Boundary and route-level failures
 
 import { useNavigate } from 'react-router-dom';
-import Button from '../components/Button';
+import Button from '@/components/Button';
 
 export const ErrorPage = () => {
   const navigate = useNavigate();
