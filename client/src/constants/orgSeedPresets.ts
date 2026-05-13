@@ -63,6 +63,36 @@ export const seedLevels = [
   { programKey: 'college', name: '5th Year' },
 ];
 
+export const seedLevelDefaults: Record<string, { label: string; defaultCount: number; min: number; max: number }> = {
+  daycare: { label: 'Daycare levels', defaultCount: 2, min: 1, max: 5 },
+  kinder: { label: 'Kindergarten levels', defaultCount: 2, min: 1, max: 3 },
+  elementary: { label: 'Elementary grade levels', defaultCount: 6, min: 1, max: 6 },
+  jhs: { label: 'Junior High School grade levels', defaultCount: 4, min: 1, max: 4 },
+  shs: { label: 'Senior High School grade levels', defaultCount: 2, min: 1, max: 2 },
+  college: { label: 'College year levels', defaultCount: 4, min: 1, max: 5 },
+};
+
+export const generateSeedLevelNames = (programKey: string, count: number): string[] => {
+  switch (programKey) {
+    case 'daycare':
+      return Array.from({ length: count }, (_, index) => `Daycare ${index + 1}`);
+    case 'kinder':
+      return Array.from({ length: count }, (_, index) => `Kinder ${index + 1}`);
+    case 'elementary':
+      return Array.from({ length: count }, (_, index) => `Grade ${index + 1}`);
+    case 'jhs':
+      return Array.from({ length: count }, (_, index) => `Grade ${index + 7}`);
+    case 'shs':
+      return Array.from({ length: count }, (_, index) => `Grade ${index + 11}`);
+    case 'college': {
+      const labels = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
+      return labels.slice(0, count);
+    }
+    default:
+      return [];
+  }
+};
+
 const k12Scale = [
   { label: 'Outstanding', minScore: 90, maxScore: 100, gradeValue: '1.0' },
   { label: 'Very Satisfactory', minScore: 85, maxScore: 89, gradeValue: '2.0' },
@@ -205,6 +235,64 @@ export const seedSubjectGroups = [
   { programKey: 'shs', name: 'Senior High School subjects', detail: 'SHS core, strand, and shared subjects.' },
   { programKey: 'college', name: 'College subjects', detail: 'College majors and general education subjects.' },
 ];
+
+export const seedSubjectCatalog: Record<string, string[]> = {
+  'Daycare 1': [
+    'Language and Literacy',
+    'Cognitive and Numeracy Skills',
+    'Physical Development, Health, and Safety',
+    'Social and Emotional Development',
+    'Creative Arts and Music',
+    'Understanding the World / Discovery',
+  ],
+  'Daycare 2': [
+    'Language and Literacy',
+    'Cognitive and Numeracy Skills',
+    'Physical Development, Health, and Safety',
+    'Social and Emotional Development',
+    'Creative Arts and Music',
+    'Understanding the World / Discovery',
+  ],
+  'Kinder 1': [
+    'Language, Literacy, and Communication',
+    'Mathematical Thinking',
+    'Physical Development, Health, and Safety',
+    'Social and Emotional Development / Values Formation',
+    'Creative Arts',
+    'Understanding the World / Discovery',
+  ],
+  'Kinder 2': [
+    'Language, Literacy, and Communication',
+    'Mathematical Thinking',
+    'Physical Development, Health, and Safety',
+    'Social and Emotional Development / Values Formation',
+    'Creative Arts',
+    'Understanding the World / Discovery',
+  ],
+  'Grade 1': ['English', 'Mathematics', 'Science', 'Filipino', 'Araling Panlipunan', 'MAPEH', 'Edukasyon sa Pagpapakatao (ESP)'],
+  'Grade 2': ['English', 'Mathematics', 'Science', 'Filipino', 'Araling Panlipunan', 'MAPEH', 'Edukasyon sa Pagpapakatao (ESP)'],
+  'Grade 3': ['English', 'Mathematics', 'Science', 'Filipino', 'Araling Panlipunan', 'MAPEH', 'Edukasyon sa Pagpapakatao (ESP)'],
+  'Grade 4': ['English', 'Mathematics', 'Science', 'Filipino', 'Araling Panlipunan', 'MAPEH', 'Edukasyon sa Pagpapakatao (ESP)'],
+  'Grade 5': ['English', 'Mathematics', 'Science', 'Filipino', 'Araling Panlipunan', 'MAPEH', 'Edukasyon sa Pagpapakatao (ESP)'],
+  'Grade 6': ['English', 'Mathematics', 'Science', 'Filipino', 'Araling Panlipunan', 'MAPEH', 'Edukasyon sa Pagpapakatao (ESP)'],
+  'Grade 7': ['English', 'Mathematics', 'Science', 'Filipino', 'Araling Panlipunan', 'MAPEH', 'Edukasyon sa Pagpapakatao (ESP)', 'TLE'],
+  'Grade 8': ['English', 'Mathematics', 'Science', 'Filipino', 'Araling Panlipunan', 'MAPEH', 'Edukasyon sa Pagpapakatao (ESP)', 'TLE'],
+  'Grade 9': ['English', 'Mathematics', 'Science', 'Filipino', 'Araling Panlipunan', 'MAPEH', 'Edukasyon sa Pagpapakatao (ESP)', 'TLE'],
+  'Grade 10': ['English', 'Mathematics', 'Science', 'Filipino', 'Araling Panlipunan', 'MAPEH', 'Edukasyon sa Pagpapakatao (ESP)', 'TLE'],
+  'Grade 11': ['Oral Communication', 'Reading and Writing Skills', 'General Mathematics', 'Earth and Life Science', 'Physical Education / Health'],
+  'Grade 12': ['Practical Research', 'Entrepreneurship', 'Contemporary Philippine Arts', 'Physical Education / Health'],
+  college_ge: [
+    'Mathematics in the Modern World',
+    'Understanding the Self',
+    'Contemporary World',
+    'Readings in Philippine History',
+    'Life and Works of Jose Rizal',
+    'Ethics',
+    'Art Appreciation',
+    'Science, Technology, and Society',
+    'National Service Training Program (NSTP)',
+  ],
+};
 
 export const seedPayloadFeatureLabels = [
   'Programs',

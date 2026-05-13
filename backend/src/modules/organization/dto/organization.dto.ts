@@ -119,6 +119,16 @@ export class SeedOrganizationDto {
   excludedLevelSubjects?: Record<string, string[]>   // levelName → plain subject names
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  excludedGradingSchemePrograms?: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  excludedSemesterTemplatePrograms?: string[]
+
+  @IsOptional()
   @IsObject()
   levelConfigs?: Record<string, string[]>
 

@@ -1,6 +1,7 @@
 import type { SchoolYear } from '../../types/school-year.types';
 import type { ProgramWithStats } from '../../types/program.types';
 import ProgramCard from './ProgramCard';
+import Button from '../../components/Button/Button';
 
 interface AcademicProgramPageProps {
   schoolYear: SchoolYear | null;
@@ -24,21 +25,33 @@ const AcademicProgramPage: React.FC<AcademicProgramPageProps> = ({
   return (
     <div className="program-list">
       <div className="program-list-header">
-        <button onClick={onBackToSchoolYears} className="back-button">
+
+        {/* Back Button (reusable component) */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBackToSchoolYears}
+          icon="←"
+          iconPosition="left"
+        >
           Back to School Years
-        </button>
+        </Button>
 
         <div className="header-title">
           <h2 className="dashboard-section-title">Programs</h2>
-          <p className="dashboard-section-subtitle">{schoolYear?.name}</p>
+          <p className="dashboard-section-subtitle">
+            {schoolYear?.name}
+          </p>
         </div>
 
-        <button
+        <Button
+          variant="primary"
           onClick={onCreateProgram}
-          className="btn btn-primary create-program-btn"
+          className="create-program-btn"
         >
           Create Program
-        </button>
+        </Button>
+
       </div>
 
       {programs.length === 0 ? (
@@ -48,9 +61,13 @@ const AcademicProgramPage: React.FC<AcademicProgramPageProps> = ({
             <p className="empty-state-text">
               Get started by creating your first academic program.
             </p>
-            <button onClick={onCreateProgram} className="btn btn-primary">
+
+            <Button
+              variant="primary"
+              onClick={onCreateProgram}
+            >
               Create Program
-            </button>
+            </Button>
           </div>
         </div>
       ) : (

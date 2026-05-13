@@ -1,8 +1,12 @@
+// AdminSystem
+// System settings page. Routes between sub-pages via local view state.
+
 import { useEffect, useState } from 'react';
 import AdminLayout from '../../components/AdminLayout';
 import AdminDataSeederPage from '../../components/admin/AdminDataSeederPage';
 import AdminOrganizationPage from '../../components/admin/AdminOrganizationPage';
 import CreateOrganizationModal from '../../components/admin/CreateOrganizationModal';
+import GradingSchemeTemplatePage from '../../components/admin/GradingSchemeTemplatePage';
 import SystemCategoryPage from '../../components/admin/SystemCategoryPage';
 import { refreshTokenApi } from '../../api/auth.api';
 import { useAuthContext } from '../../context/AuthContext';
@@ -18,7 +22,7 @@ import type {
   UpdateOrganizationDto,
 } from '../../types/organization.types';
 
-type SystemView = 'categories' | 'organization' | 'seeder';
+type SystemView = 'categories' | 'organization' | 'seeder' | 'grading-schemes';
 
 export const AdminSystem: React.FC = () => {
   const [view, setView] = useState<SystemView>('categories');
@@ -84,10 +88,17 @@ export const AdminSystem: React.FC = () => {
       );
     }
 
+    if (view === 'grading-schemes') {
+      return (
+        <GradingSchemeTemplatePage onBack={() => setView('categories')} />
+      );
+    }
+
     return (
       <SystemCategoryPage
         onSelectOrganization={() => setView('organization')}
         onSelectSeeder={() => setView('seeder')}
+        onSelectGradingSchemes={() => setView('grading-schemes')}
       />
     );
   };

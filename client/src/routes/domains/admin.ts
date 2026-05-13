@@ -1,7 +1,7 @@
 // Admin Domain Registration
 // Register all admin pages in the route registry
 
-import { registerPage } from '../registry';
+import { registerPage } from '../utils/registry';
 import { AdminDashboard } from '../../pages/admin/AdminDashboard';
 import { AdminAcademics } from '../../pages/admin/AdminAcademics';
 import { AdminPeople } from '../../pages/admin/AdminPeople';

@@ -1,6 +1,3 @@
-// Dynamic Page Registration System
-// Central registry for managing all application routes and pages
-
 export interface PageConfig {
   path: string;
   component: React.ComponentType;

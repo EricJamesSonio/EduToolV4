@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { LevelRepository } from './level.repository';
 import {
   UpdateLevelDefaultsDto,
@@ -13,7 +17,7 @@ export class LevelService {
   constructor(
     private readonly levelRepository: LevelRepository,
     private readonly db: DatabaseService,
-  ) { }
+  ) {}
 
   /**
    * Get default levels (not scoped to school year)
@@ -85,7 +89,11 @@ export class LevelService {
     schoolYearId: string,
     programMap: Record<string, string>,
   ) {
-    return this.levelRepository.seedFromDefaults(orgId, schoolYearId, programMap);
+    return this.levelRepository.seedFromDefaults(
+      orgId,
+      schoolYearId,
+      programMap,
+    );
   }
 
   /**
@@ -115,17 +123,20 @@ export class LevelService {
     if (!program) throw new NotFoundException('Program not found.');
 
     // Get existing levels for this program to determine next number
-    const existingLevels = await this.levelRepository.findByProgramAndSchoolYear(
-      orgId,
-      programId,
-      schoolYearId,
-    );
+    const existingLevels =
+      await this.levelRepository.findByProgramAndSchoolYear(
+        orgId,
+        programId,
+        schoolYearId,
+      );
 
     // Extract level numbers from existing level names
     const levelNumbers = existingLevels
-      .map(level => {
+      .map((level) => {
         // Try to extract number from patterns like "ProgramName Level X", "Grade X", "Xst Year", etc.
-        const match = level.name.match(/(?:Level|Grade|(\d+)(?:st|nd|rd|th)? Year)?\s*(\d+)$/);
+        const match = level.name.match(
+          /(?:Level|Grade|(\d+)(?:st|nd|rd|th)? Year)?\s*(\d+)$/,
+        );
         if (match) {
           return parseInt(match[match.length - 1], 10);
         }
@@ -133,9 +144,10 @@ export class LevelService {
         const numberMatch = level.name.match(/\d+/);
         return numberMatch ? parseInt(numberMatch[0], 10) : 0;
       })
-      .filter(num => !isNaN(num));
+      .filter((num) => !isNaN(num));
 
-    const nextLevelNumber = levelNumbers.length > 0 ? Math.max(...levelNumbers) + 1 : 1;
+    const nextLevelNumber =
+      levelNumbers.length > 0 ? Math.max(...levelNumbers) + 1 : 1;
 
     // Generate level name
     const levelName = `${program.name} Level ${nextLevelNumber}`;
@@ -153,7 +165,90 @@ export class LevelService {
   async deleteOne(id: string, orgId: string) {
     const existing = await this.levelRepository.findById(id, orgId);
     if (!existing) throw new NotFoundException('Level not found.');
-    return this.levelRepository.delete(id);
+
+    const [sectionIds, subjectIds] = await Promise.all([
+      this.db.section.findMany({
+        where: { org_id: orgId, level_id: id },
+        select: { id: true },
+      }),
+      this.db.subject.findMany({
+        where: { org_id: orgId, level_id: id },
+        select: { id: true },
+      }),
+    ]);
+
+    const sectionIdList = sectionIds.map((section) => section.id);
+    const subjectIdList = subjectIds.map((subject) => subject.id);
+
+    const classFilters = [
+      ...(subjectIdList.length > 0
+        ? [{ subject_id: { in: subjectIdList } }]
+        : []),
+      ...(sectionIdList.length > 0
+        ? [{ section_id: { in: sectionIdList } }]
+        : []),
+    ];
+
+    const [enrollmentCount, classCount] = await Promise.all([
+      this.db.studentProgramEnrollment.count({
+        where: {
+          org_id: orgId,
+          OR: [
+            { level_id: id },
+            ...(sectionIdList.length > 0
+              ? [{ section_id: { in: sectionIdList } }]
+              : []),
+          ],
+        },
+      }),
+      classFilters.length > 0
+        ? this.db.class.count({
+            where: {
+              org_id: orgId,
+              OR: classFilters,
+            },
+          })
+        : Promise.resolve(0),
+    ]);
+
+    if (enrollmentCount > 0 || classCount > 0) {
+      throw new BadRequestException(
+        'Cannot remove this level because it is already used by enrollments or classes.',
+      );
+    }
+
+    return this.db.$transaction(async (tx) => {
+      if (subjectIdList.length > 0) {
+        await tx.subjectPrerequisite.deleteMany({
+          where: {
+            OR: [
+              { subject_id: { in: subjectIdList } },
+              { prerequisite_id: { in: subjectIdList } },
+            ],
+          },
+        });
+        await tx.subjectSharing.deleteMany({
+          where: {
+            OR: [{ subject_id: { in: subjectIdList } }, { level_id: id }],
+          },
+        });
+        await tx.subject.deleteMany({
+          where: { org_id: orgId, level_id: id },
+        });
+      } else {
+        await tx.subjectSharing.deleteMany({
+          where: { org_id: orgId, level_id: id },
+        });
+      }
+
+      await tx.section.deleteMany({
+        where: { org_id: orgId, level_id: id },
+      });
+
+      return tx.level.delete({
+        where: { id },
+      });
+    });
   }
 
   /**
@@ -190,7 +285,13 @@ export class LevelService {
       case 'senior_high':
         return ['Grade 11', 'Grade 12'].slice(0, count);
       case 'college': {
-        const ordinals = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
+        const ordinals = [
+          '1st Year',
+          '2nd Year',
+          '3rd Year',
+          '4th Year',
+          '5th Year',
+        ];
         return ordinals.slice(0, count);
       }
       default:

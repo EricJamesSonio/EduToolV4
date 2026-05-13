@@ -1,5 +1,3 @@
-// Route Guards and Permission System
-// Cookie-based authentication guards
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';

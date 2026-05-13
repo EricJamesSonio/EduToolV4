@@ -43,6 +43,8 @@ export interface SeedOrganizationDto {
   excludedLevels?: string[];
   excludedSubjects?: string[];
   excludedLevelSubjects?: Record<string, string[]>;
+  excludedGradingSchemePrograms?: string[];
+  excludedSemesterTemplatePrograms?: string[];
   levelConfigs?: Record<string, string[]>;
   gradingScales?: Record<string, GradingScalePayload>;
   sectionConfigs?: Record<string, SectionSeedItem[]>;

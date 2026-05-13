@@ -2,7 +2,7 @@
 // Central route management using registered pages
 
 import { Routes, Route } from 'react-router-dom';
-import { getRegisteredRoutes } from './registry';
+import { getRegisteredRoutes } from './utils/registry';
 import { registerPublicDomain } from './domains/public';
 import { registerAdminDomain } from './domains/admin';
 import NotFoundPage from '../pages/NotFoundPage';

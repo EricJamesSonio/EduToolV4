@@ -1,4 +1,4 @@
-import { registerPage } from '../registry';
+import { registerPage } from '../utils/registry';
 import HomePage from '../../pages/HomePage';
 import LoginPage from '../../pages/LoginPage';
 import AboutPage from '../../pages/AboutPage';

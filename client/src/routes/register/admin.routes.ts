@@ -1,14 +1,11 @@
-// Admin Routes
-// Domain-specific routes for admin portal following RBAC architecture
-
-import { registerPage } from './registry';
+import { registerPage } from '../utils/registry';
 
 // Import admin page components
-import { AdminDashboard } from '../pages/admin/AdminDashboard';
-import { AdminAcademics } from '../pages/admin/AdminAcademics';
-import { AdminPeople } from '../pages/admin/AdminPeople';
-import { AdminSystem } from '../pages/admin/AdminSystem';
-import { AdminSecurity } from '../pages/admin/AdminSecurity';
+import { AdminDashboard } from '@/pages/admin/AdminDashboard';
+import { AdminAcademics } from '@/pages/admin/AdminAcademics';
+import { AdminPeople } from '@/pages/admin/AdminPeople';
+import { AdminSystem } from '@/pages/admin/AdminSystem';
+import { AdminSecurity } from '@/pages/admin/AdminSecurity';
 
 // Register admin pages in the centralized registry
 registerPage({

@@ -1,4 +1,3 @@
-// backend/src/modules/organization/organization.service.ts
 import {
   Injectable,
   ConflictException,
@@ -87,6 +86,8 @@ await this.orgSeeder.seedOrg({
   excludedLevels:        dto.excludedLevels,
   excludedSubjects:      dto.excludedSubjects,
   excludedLevelSubjects: dto.excludedLevelSubjects,  // ← ADD THIS
+  excludedGradingSchemePrograms: dto.excludedGradingSchemePrograms,
+  excludedSemesterTemplatePrograms: dto.excludedSemesterTemplatePrograms,
   levelConfigs:          dto.levelConfigs,
   sectionConfigs:        dto.sectionConfigs,
   gradingScales:         dto.gradingScales,
