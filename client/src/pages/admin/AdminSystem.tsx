@@ -8,6 +8,7 @@ import AdminOrganizationPage from '../../components/admin/AdminOrganizationPage'
 import CreateOrganizationModal from '../../components/admin/CreateOrganizationModal';
 import GradingSchemeTemplatePage from '../../components/admin/GradingSchemeTemplatePage';
 import SystemCategoryPage from '../../components/admin/SystemCategoryPage';
+import GradingScalePage from '../../components/admin/GradingScalePage';
 import { refreshTokenApi } from '../../api/auth.api';
 import { useAuthContext } from '../../context/AuthContext';
 import {
@@ -22,7 +23,12 @@ import type {
   UpdateOrganizationDto,
 } from '../../types/organization.types';
 
-type SystemView = 'categories' | 'organization' | 'seeder' | 'grading-schemes';
+type SystemView =
+  | 'categories'
+  | 'organization'
+  | 'seeder'
+  | 'grading-schemes'
+  | 'grading-scales';
 
 export const AdminSystem: React.FC = () => {
   const [view, setView] = useState<SystemView>('categories');
@@ -43,8 +49,10 @@ export const AdminSystem: React.FC = () => {
 
   const handleCreateOrganization = async (data: CreateOrganizationDto) => {
     await createOrganizationMutation.mutateAsync(data);
+
     const refreshedTokens = await refreshTokenApi();
     localStorage.setItem('accessToken', refreshedTokens.accessToken);
+
     await refreshUser();
     setShowCreateOrganizationModal(false);
   };
@@ -63,50 +71,62 @@ export const AdminSystem: React.FC = () => {
       );
     }
 
-    if (view === 'organization') {
-      return (
-        <AdminOrganizationPage
-          organization={organizationQuery.data ?? null}
-          isSaving={updateOrganizationMutation.isPending}
-          onBack={() => setView('categories')}
-          onSubmit={handleUpdateOrganization}
-        />
-      );
-    }
+    switch (view) {
+      case 'organization':
+        return (
+          <AdminOrganizationPage
+            organization={organizationQuery.data ?? null}
+            isSaving={updateOrganizationMutation.isPending}
+            onBack={() => setView('categories')}
+            onSubmit={handleUpdateOrganization}
+          />
+        );
 
-    if (view === 'seeder') {
-      return (
-        <AdminDataSeederPage
-          isSeeding={seedOrganizationMutation.isPending}
-          seedResult={seedResult}
-          onBack={() => setView('categories')}
-          onSeed={async (data) => {
-            const result = await seedOrganizationMutation.mutateAsync(data);
-            setSeedResult(result);
-          }}
-        />
-      );
-    }
+      case 'seeder':
+        return (
+          <AdminDataSeederPage
+            isSeeding={seedOrganizationMutation.isPending}
+            seedResult={seedResult}
+            onBack={() => setView('categories')}
+            onSeed={async (data) => {
+              const result = await seedOrganizationMutation.mutateAsync(data);
+              setSeedResult(result);
+            }}
+          />
+        );
 
-    if (view === 'grading-schemes') {
-      return (
-        <GradingSchemeTemplatePage onBack={() => setView('categories')} />
-      );
-    }
+      case 'grading-schemes':
+        return (
+          <GradingSchemeTemplatePage
+            onBack={() => setView('categories')}
+          />
+        );
 
-    return (
-      <SystemCategoryPage
-        onSelectOrganization={() => setView('organization')}
-        onSelectSeeder={() => setView('seeder')}
-        onSelectGradingSchemes={() => setView('grading-schemes')}
-      />
-    );
+      case 'grading-scales':
+        return (
+          <GradingScalePage
+            onBack={() => setView('categories')}
+          />
+        );
+
+      default:
+        return (
+          <SystemCategoryPage
+            onSelectOrganization={() => setView('organization')}
+            onSelectSeeder={() => setView('seeder')}
+            onSelectGradingSchemes={() => setView('grading-schemes')}
+            onSelectGradingScales={() => setView('grading-scales')} // ✅ FIXED
+          />
+        );
+    }
   };
 
   return (
     <AdminLayout>
       <div className="admin-system">
-        <div className="admin-system-content">{renderContent()}</div>
+        <div className="admin-system-content">
+          {renderContent()}
+        </div>
       </div>
 
       <CreateOrganizationModal

@@ -1,16 +1,15 @@
-// SystemCategoryPage
-// Landing grid for the System section. Each card navigates to a sub-page.
-
 interface SystemCategoryPageProps {
   onSelectOrganization: () => void;
   onSelectSeeder: () => void;
   onSelectGradingSchemes: () => void;
+  onSelectGradingScales: () => void; // ✅ added
 }
 
 const SystemCategoryPage: React.FC<SystemCategoryPageProps> = ({
   onSelectOrganization,
   onSelectSeeder,
   onSelectGradingSchemes,
+  onSelectGradingScales, // ✅ added
 }) => {
   return (
     <div className="system-categories">
@@ -51,6 +50,18 @@ const SystemCategoryPage: React.FC<SystemCategoryPageProps> = ({
           <span className="system-category-title">Grading Schemes</span>
           <span className="system-category-description">
             Create and manage reusable grading scheme templates scoped by program type.
+          </span>
+        </button>
+
+        {/* ✅ NEW CARD */}
+        <button
+          type="button"
+          className="card system-category-card"
+          onClick={onSelectGradingScales}
+        >
+          <span className="system-category-title">Grading Scales</span>
+          <span className="system-category-description">
+            Define grade ranges (e.g., A–F or numeric equivalents) used across grading schemes.
           </span>
         </button>
       </div>
