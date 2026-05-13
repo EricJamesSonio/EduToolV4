@@ -11,7 +11,7 @@ import {
   seedSemesterTemplates,
   seedSubjectCatalog,
   seedStrands,
-} from "@/constants/orgSeedPresets";
+} from "@/modules/admin/system/constants/orgSeedPresets";
 import { useCreateSchoolYear } from "../../academic/hooks/useSchoolYearMutations";
 import { useSchoolYears } from "../../academic/hooks/useSchoolYears";
 import { useSystemSeedExistingData } from "../hooks/useSystemSeedExistingData";

@@ -8,7 +8,7 @@ import {
   useUpdateGradingSchemeTemplate,
   useDeleteGradingSchemeTemplate,
 } from '../hooks/useGradingSchemeTemplates';
-import { PROGRAM_TYPES, getProgramTypeLabel } from '@/constants/programTypes';
+import { PROGRAM_TYPES, getProgramTypeLabel } from '@/modules/admin/academic/api/constants/programTypes';
 import {
   COMPONENT_TYPES,
   COMPONENT_TYPE_LABELS,

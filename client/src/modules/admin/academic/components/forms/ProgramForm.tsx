@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { Program, CreateProgramDto, UpdateProgramDto, ProgramType } from '../../types/program.types';
-import { PROGRAM_TYPES } from '../../../../../constants/programTypes';
+import { PROGRAM_TYPES } from '../../api/constants/programTypes';
 
 export interface ProgramFormProps {
   program?: Program | null;
