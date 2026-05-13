@@ -2,7 +2,7 @@
 // React Query hook for fetching school years with efficient caching
 
 import { useQuery } from '@tanstack/react-query';
-import { schoolYearApi } from '../api/school-year.api';
+import { schoolYearApi } from '../../../../api/school-year.api';
 
 // Query keys for cache management
 export const schoolYearKeys = {

@@ -4,7 +4,7 @@
 import React from 'react';
 import Modal from './Modal';
 import SchoolYearForm from './SchoolYearForm';
-import type { CreateSchoolYearDto } from '../types/school-year.types';
+import type { CreateSchoolYearDto } from '../modules/admin/academic/types/school-year.types';
 
 interface CreateSchoolYearModalProps {
   isOpen: boolean;

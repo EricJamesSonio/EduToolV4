@@ -8,7 +8,7 @@ import {
   useUpdateGradingScale,
   useDeleteGradingScale,
 } from '../../hooks/useGradingScales';
-import { useSchoolYears } from '../../hooks/useSchoolYears';
+import { useSchoolYears } from '../../modules/admin/academic/hooks/useSchoolYears';
 import { useProgramsBySchoolYear } from '../../hooks/usePrograms';
 import SchoolYearSelector from '../shared/SchoolYearSelector';
 import type {

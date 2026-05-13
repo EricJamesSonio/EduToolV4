@@ -4,7 +4,7 @@
 import React from 'react';
 import Modal from './Modal';
 import ProgramForm from './admin/ProgramForm';
-import type { CreateProgramDto, UpdateProgramDto } from '../types/program.types';
+import type { CreateProgramDto, UpdateProgramDto } from '../modules/admin/academic/types/program.types';
 
 interface CreateProgramModalProps {
   isOpen: boolean;

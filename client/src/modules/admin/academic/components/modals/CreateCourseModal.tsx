@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import Modal from './Modal';
 import Button from './Button/Button';
-import type { Course } from '../types/course.types';
-import type { CreateCourseDto } from '../types/course.types';
+import type { Course } from '../modules/admin/academic/types/course.types';
+import type { CreateCourseDto } from '../modules/admin/academic/types/course.types';
 
 interface CreateCourseModalProps {
   isOpen: boolean;

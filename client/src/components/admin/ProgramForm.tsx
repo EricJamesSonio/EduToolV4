@@ -2,7 +2,7 @@
 // Form for creating and editing programs
 
 import React, { useState, useEffect } from 'react';
-import type { Program, CreateProgramDto, UpdateProgramDto, ProgramType } from '../../types/program.types';
+import type { Program, CreateProgramDto, UpdateProgramDto, ProgramType } from '../../modules/admin/academic/types/program.types';
 import { PROGRAM_TYPES } from '../../constants/programTypes';
 
 export interface ProgramFormProps {

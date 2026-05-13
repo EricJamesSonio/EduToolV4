@@ -1,12 +1,12 @@
-import type { ProgramWithStats } from "../../types/program.types";
+import type { ProgramWithStats } from "../types/program.types";
 import {
   useLevelsBySchoolYear,
   useAddNextLevel,
   useRemoveLevel,
 } from "../../hooks/useLevels";
-import AcademicDetailCard from "./AcademicDetailCard";
-import ConfirmationModal from "../ConfirmationModal";
-import type { Level } from "../../types/level.types";
+import AcademicDetailCard from "../../../../components/admin/AcademicDetailCard";
+import ConfirmationModal from "../../../../components/ConfirmationModal";
+import type { Level } from "../types/level.types";
 import { useMemo, useState } from "react";
 
 interface AcademicLevelPageProps {

@@ -2,7 +2,7 @@
 // Displays school year cards for selection when no active year exists
 
 import React from 'react';
-import type { SchoolYear } from '../../types/school-year.types';
+import type { SchoolYear } from '../../modules/admin/academic/types/school-year.types';
 
 export interface SchoolYearCardsProps {
   schoolYears: SchoolYear[];

@@ -1,7 +1,7 @@
 // ===== client/src/components/shared/SchoolYearSelector.tsx =====
 
 import { useEffect } from 'react';
-import type { SchoolYear } from '../../types/school-year.types';
+import type { SchoolYear } from '../../modules/admin/academic/types/school-year.types';
 
 export interface SchoolYearSelectorProps {
   schoolYears: SchoolYear[];

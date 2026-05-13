@@ -3,7 +3,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { schoolYearApi } from '../api/school-year.api';
-import { schoolYearKeys } from './useSchoolYears';
+import { schoolYearKeys } from '../modules/admin/academic/hooks/useSchoolYears';
 import type { CreateSchoolYearDto } from '../types/school-year.types';
 
 export const useCreateSchoolYear = () => {

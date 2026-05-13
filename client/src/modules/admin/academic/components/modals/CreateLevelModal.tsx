@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Modal from './Modal';
 import Button from './Button/Button';
-import type { CreateLevelDto } from '../types/level.types';
+import type { CreateLevelDto } from '../modules/admin/academic/types/level.types';
 
 interface CreateLevelModalProps {
   isOpen: boolean;

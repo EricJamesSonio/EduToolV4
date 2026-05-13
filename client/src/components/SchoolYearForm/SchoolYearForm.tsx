@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import Button from '../Button/Button';
-import type { CreateSchoolYearDto } from '../../types/school-year.types';
+import type { CreateSchoolYearDto } from '../../modules/admin/academic/types/school-year.types';
 
 interface SchoolYearFormProps {
   onSubmit: (data: CreateSchoolYearDto) => void;

@@ -1,5 +1,5 @@
-import type { SchoolYear } from '../../types/school-year.types';
-import type { ProgramWithStats } from '../../types/program.types';
+import type { SchoolYear } from '../../modules/admin/academic/types/school-year.types';
+import type { ProgramWithStats } from '../../modules/admin/academic/types/program.types';
 import ProgramCard from './ProgramCard';
 import Button from '../../components/Button/Button';
 

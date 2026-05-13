@@ -2,7 +2,7 @@
 // Individual program card with stats display
 
 import React from 'react';
-import type { ProgramWithStats } from '../../types/program.types';
+import type { ProgramWithStats } from '../../modules/admin/academic/types/program.types';
 import ActionButtons from '../ActionButtons';
 import BaseCard from '../BaseCard';
 import { getProgramTypeLabel } from '../../constants/programTypes';

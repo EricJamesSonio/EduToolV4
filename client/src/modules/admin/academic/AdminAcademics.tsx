@@ -9,21 +9,21 @@ import {
   useUpdateProgram,
   useDeleteProgram,
   useProgramsWithStats,
-} from "../../hooks/usePrograms";
-import { useSchoolYears } from "../../hooks/useSchoolYears";
-import type { SchoolYear, CreateSchoolYearDto } from '../../types/school-year.types';
-import type { ProgramWithStats, CreateProgramDto, UpdateProgramDto } from '../../types/program.types';
-import AdminLayout from "../../components/AdminLayout";
-import CreateSchoolYearModal from "../../components/CreateSchoolYearModal";
-import CreateProgramModal from "../../components/CreateProgramModal";
-import EditProgramModal from "../../components/EditProgramModal";
-import ConfirmationModal from "../../components/ConfirmationModal";
-import AcademicCoursePage from "../../components/admin/AcademicCoursePage";
-import AcademicLevelPage from "../../components/admin/AcademicLevelPage";
-import AcademicProgramPage from "../../components/admin/AcademicProgramPage";
-import AcademicSchoolYearPage from "../../components/admin/AcademicSchoolYearPage";
-import AcademicStrandPage from "../../components/admin/AcademicStrandPage";
-import { useCreateSchoolYear } from "../../hooks/useSchoolYearMutations";
+} from "../../../hooks/usePrograms";
+import { useSchoolYears } from "./hooks/useSchoolYears";
+import type { SchoolYear, CreateSchoolYearDto } from './types/school-year.types';
+import type { ProgramWithStats, CreateProgramDto, UpdateProgramDto } from './types/program.types';
+import AdminLayout from "../../../components/AdminLayout";
+import CreateSchoolYearModal from "../../../components/CreateSchoolYearModal";
+import CreateProgramModal from "../../../components/CreateProgramModal";
+import EditProgramModal from "../../../components/EditProgramModal";
+import ConfirmationModal from "../../../components/ConfirmationModal";
+import AcademicCoursePage from "./pages/AcademicCoursePage";
+import AcademicLevelPage from "./pages/AcademicLevelPage";
+import AcademicProgramPage from "../../../components/admin/AcademicProgramPage";
+import AcademicSchoolYearPage from "../../../components/admin/AcademicSchoolYearPage";
+import AcademicStrandPage from "./pages/AcademicStrandPage";
+import { useCreateSchoolYear } from "../../../hooks/useSchoolYearMutations";
 
 type ViewMode =
   | "school-year-selection"
