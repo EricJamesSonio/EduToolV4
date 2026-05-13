@@ -5,7 +5,7 @@ import React from 'react';
 import type { ProgramWithStats } from '../../types/program.types';
 import ActionButtons from '@/components/ActionButtons';
 import BaseCard from '@/components/BaseCard';
-import { getProgramTypeLabel } from '@/modules/admin/academic/api/constants/programTypes';
+import { getProgramTypeLabel } from '@/modules/admin/academic/constants/programTypes';
 
 interface ProgramCardProps {
   program: ProgramWithStats;
