@@ -2,12 +2,12 @@
 // Main admin dashboard with statistics, academic context, and alerts
 
 import React from 'react';
-import AdminLayout from '../../components/AdminLayout';
-import StatCard from '../../components/StatCard/StatCard';
-import AlertCard from '../../components/AlertCard/AlertCard';
-import AcademicContext from '../../components/AcademicContext/AcademicContext';
-import { useDashboardData } from '../../hooks/useDashboardData';
-import { InlineError } from '../../components/ErrorDisplay/ErrorDisplay';
+import AdminLayout from '@/components/AdminLayout';
+import StatCard from '@/components/StatCard/StatCard';
+import AlertCard from '@/components/AlertCard/AlertCard';
+import AcademicContext from './context/AcademicContext';
+import { useDashboardData } from './hooks/useDashboardData';
+import { InlineError } from '@/components/ErrorDisplay/ErrorDisplay';
 
 export const AdminDashboard: React.FC = () => {
   const { stats, academicContext, alerts, isLoading, isError, refetch } = useDashboardData();

@@ -2,8 +2,8 @@
 // Displays current academic year, semester, and grading information
 
 import React from 'react';
-import { cn } from '../../utils/helpers';
-import type { AcademicContext as AcademicContextType } from '../../api/dashboard.api';
+import { cn } from '@/utils/helpers';
+import type { AcademicContext as AcademicContextType } from '../api/dashboard.api';
 
 export interface AcademicContextProps {
   academicContext: AcademicContextType;

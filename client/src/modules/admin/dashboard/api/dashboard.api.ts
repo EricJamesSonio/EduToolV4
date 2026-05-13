@@ -1,7 +1,7 @@
 // Dashboard API
 // API endpoints for dashboard statistics, academic context, and alerts
 
-import apiClient from './apiClient';
+import apiClient from '@/api/apiClient';
 
 export interface DashboardStats {
   totalStudents: number;
