@@ -1,13 +1,13 @@
 // client/src/modules/admin/academic/components/LevelCard.tsx
 
-import { useMemo } from 'react';
-import type { ProgramWithStats } from '../../types/program.types';
-import type { Level } from '../../types/level.types';
-import type { Section } from '../../api/section.api';
-import { useSectionsByLevel } from '../../hooks/useSections';
-import BaseCard from '@/components/BaseCard';
-import EmptyState from '@/components/EmptyState';
-import SectionRow from '../rows/SectionRow';
+import { useMemo } from "react";
+import type { ProgramWithStats } from "../../types/program.types";
+import type { Level } from "../../types/level.types";
+import type { Section } from "../../api/section.api";
+import { useSectionsByLevel } from "../../hooks/useSections";
+import BaseCard from "@/components/BaseCard";
+import EmptyState from "@/components/EmptyState";
+import SectionRow from "../rows/SectionRow";
 
 interface LevelCardProps {
   levelName: string;
@@ -26,13 +26,13 @@ interface LevelCardProps {
     levelId: string;
     context: { courseId?: string; strandId?: string };
   }) => void;
-onViewLevelSubjects?: (args: {
-  schoolYearId: string;
-  levelId: string;
-  levelName?: string;
-  programId: string;
-  context: { courseId?: string; strandId?: string };
-}) => void;
+  onViewLevelSubjects?: (args: {
+    schoolYearId: string;
+    levelId: string;
+    levelName?: string;
+    programId: string;
+    context: { courseId?: string; strandId?: string };
+  }) => void;
 }
 
 const LevelCard: React.FC<LevelCardProps> = ({
@@ -71,13 +71,13 @@ const LevelCard: React.FC<LevelCardProps> = ({
               type="button"
               className="level-title-button"
               onClick={() =>
-  onViewLevelSubjects({
-  schoolYearId,
-  levelId: primaryLevelId,
-  levelName,
-  programId: program.id,
-  context: subjectsContext,
-})
+                onViewLevelSubjects({
+                  schoolYearId,
+                  levelId: primaryLevelId,
+                  levelName,
+                  programId: program.id,
+                  context: subjectsContext,
+                })
               }
             >
               {levelName}
@@ -125,13 +125,13 @@ const LevelCard: React.FC<LevelCardProps> = ({
               <button
                 className="btn btn-secondary btn-xs"
                 onClick={() =>
-onViewLevelSubjects({
-  schoolYearId,
-  levelId: primaryLevelId,
-  levelName,
-  programId: program.id,
-  context: subjectsContext,
-})
+                  onViewLevelSubjects({
+                    schoolYearId,
+                    levelId: primaryLevelId,
+                    levelName,
+                    programId: program.id,
+                    context: subjectsContext,
+                  })
                 }
                 title="View subjects"
               >
