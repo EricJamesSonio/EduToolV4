@@ -10,6 +10,7 @@ import type {
 interface EducatorFormModalProps {
   isOpen: boolean;
   educator?: Educator | null;
+  emailExtension?: string | null;
   isLoading?: boolean;
   onSubmit: (data: CreateEducatorDto | UpdateEducatorDto) => Promise<void>;
   onClose: () => void;
@@ -18,6 +19,7 @@ interface EducatorFormModalProps {
 const EducatorFormModal: React.FC<EducatorFormModalProps> = ({
   isOpen,
   educator = null,
+  emailExtension,
   isLoading = false,
   onSubmit,
   onClose,
@@ -26,19 +28,31 @@ const EducatorFormModal: React.FC<EducatorFormModalProps> = ({
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const isEdit = !!educator;
+  const normalizedExtension = emailExtension?.startsWith('@')
+    ? emailExtension
+    : emailExtension
+      ? `@${emailExtension}`
+      : '';
 
   useEffect(() => {
     if (isOpen) {
       setFullName(educator?.fullName ?? '');
-      setEmail(educator?.email ?? '');
+      if (isEdit && educator?.email) {
+        // Extract emailName from full email (remove domain part)
+        const emailName = educator.email.split('@')[0];
+        setEmail(emailName);
+      } else {
+        setEmail('');
+      }
       setErrors({});
     }
-  }, [educator, isOpen]);
+  }, [educator, isOpen, isEdit]);
 
   const validate = () => {
     const next: Record<string, string> = {};
     if (!fullName.trim()) next.fullName = 'Full name is required.';
-    if (!email.trim()) next.email = 'Email is required.';
+    if (!email.trim()) next.email = 'Email name is required.';
+    if (email.includes('@')) next.email = 'Enter only the email name (without the @domain part).';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -49,7 +63,8 @@ const EducatorFormModal: React.FC<EducatorFormModalProps> = ({
 
     await onSubmit({
       fullName: fullName.trim(),
-      email: email.trim(),
+      // Backend DTO expects `emailName` (not `email`). For edit, send `emailName` too.
+      ...(isEdit ? { emailName: email.trim() } : { emailName: email.trim() }),
     });
   };
 
@@ -78,16 +93,19 @@ const EducatorFormModal: React.FC<EducatorFormModalProps> = ({
 
         <div className="form-group">
           <label className="form-label" htmlFor="educator-email">
-            Email
+            Email Name
           </label>
-          <input
-            id="educator-email"
-            type="email"
-            className={`form-input${errors.email ? ' error' : ''}`}
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            disabled={isLoading}
-          />
+          <div className="people-email-field">
+            <input
+              id="educator-email"
+              type="text"
+              className={`form-input${errors.email ? ' error' : ''}`}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              disabled={isLoading}
+            />
+            <span className="people-email-extension">{normalizedExtension}</span>
+          </div>
           {errors.email && <span className="form-error">{errors.email}</span>}
         </div>
 

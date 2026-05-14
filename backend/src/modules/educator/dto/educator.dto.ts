@@ -21,8 +21,10 @@ export class CreateEducatorDto {
   @MaxLength(150)
   fullName: string;
 
-  @IsEmail()
-  email: string;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  emailName: string;
 }
 
 // ── PATCH /educators/:id ──────────────────────────────────────────────────────
@@ -35,8 +37,10 @@ export class UpdateEducatorDto {
   fullName?: string;
 
   @IsOptional()
-  @IsEmail()
-  email?: string;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  emailName?: string;
 }
 
 export class UpdateEducatorStatusDto {

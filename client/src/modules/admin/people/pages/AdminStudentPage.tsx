@@ -4,6 +4,7 @@ import AccountCredentialModal from '../components/AccountCredentialModal';
 import PeopleDetailModal from '../components/PeopleDetailModal';
 import StatusModal from '../components/StatusModal';
 import StudentFormModal from '../components/StudentFormModal';
+import { useOrganization } from '../../system/hooks/useOrganization';
 import {
   useCreateStudent,
   useResetStudentPassword,
@@ -55,6 +56,7 @@ const AdminStudentPage: React.FC<AdminStudentPageProps> = ({ onBack }) => {
   );
 
   const { data: students = [], isLoading, isError } = useStudents(queryParams);
+  const { data: organization } = useOrganization();
   const createStudent = useCreateStudent();
   const updateStudent = useUpdateStudent();
   const updateStatus = useUpdateStudentStatus();
@@ -101,10 +103,20 @@ const AdminStudentPage: React.FC<AdminStudentPageProps> = ({ onBack }) => {
   };
 
   const isSaving = createStudent.isPending || updateStudent.isPending;
+  const emailExtension = organization?.emailExtension?.trim() || '';
+  const canCreateAccount = !!emailExtension;
   const requiresStatusReason =
     statusStudent?.status === 'dropped' ||
     statusStudent?.status === 'transferred' ||
     statusStudent?.status === 'graduated';
+
+  const handleOpenCreateStudent = () => {
+    if (!canCreateAccount) {
+      toast.error('Set the organization email extension before creating student accounts.');
+      return;
+    }
+    setFormStudent(null);
+  };
 
   return (
     <div className="people-list-page">
@@ -124,7 +136,7 @@ const AdminStudentPage: React.FC<AdminStudentPageProps> = ({ onBack }) => {
           <button
             type="button"
             className="btn btn-primary people-header-action"
-            onClick={() => setFormStudent(null)}
+            onClick={handleOpenCreateStudent}
           >
             Create Student
           </button>
@@ -275,6 +287,7 @@ const AdminStudentPage: React.FC<AdminStudentPageProps> = ({ onBack }) => {
       <StudentFormModal
         isOpen={formStudent !== undefined}
         student={formStudent}
+        emailExtension={emailExtension}
         isLoading={isSaving}
         onSubmit={handleSaveStudent}
         onClose={() => setFormStudent(undefined)}

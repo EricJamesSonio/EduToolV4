@@ -18,12 +18,12 @@ export interface EducatorQueryParams {
 
 export interface CreateEducatorDto {
   fullName: string;
-  email: string;
+  emailName: string;
 }
 
 export interface UpdateEducatorDto {
   fullName?: string;
-  email?: string;
+  emailName?: string;
 }
 
 export interface UpdateEducatorStatusDto {

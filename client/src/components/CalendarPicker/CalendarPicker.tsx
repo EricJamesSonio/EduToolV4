@@ -7,6 +7,8 @@ interface CalendarPickerProps {
   onChange: (date: string) => void;
   dateMin?: string; // yyyy-mm-dd (school year start)
   dateMax?: string; // yyyy-mm-dd (school year end)
+  disablePastDates?: boolean; // Disable dates before today (default: true)
+  defaultMonth?: Date; // Override initial calendar month for smart range selection
   disabled?: boolean;
   placeholder?: string;
   id?: string;
@@ -17,16 +19,24 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
   onChange,
   dateMin,
   dateMax,
+  disablePastDates = true,
+  defaultMonth,
   disabled = false,
   placeholder = 'Select date',
   id,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(() => {
+    // Use defaultMonth if provided (for smart range selection)
+    if (defaultMonth) {
+      return new Date(defaultMonth.getFullYear(), defaultMonth.getMonth(), 1);
+    }
+    // Otherwise use value if exists
     if (value) {
       const date = new Date(value);
       return new Date(date.getFullYear(), date.getMonth(), 1);
     }
+    // Default to today
     return new Date();
   });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -67,6 +77,15 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
   const minDate = parseDate(dateMin || '');
   const maxDate = parseDate(dateMax || '');
 
+  // Get today's date at midnight for accurate comparison
+  const getTodayAtMidnight = (): Date => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  };
+
+  const todayAtMidnight = getTodayAtMidnight();
+
   // Check if a date is within the allowed range
   const isDateInRange = (date: Date): boolean => {
     if (minDate && date < minDate) return false;
@@ -74,9 +93,18 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
     return true;
   };
 
+  // Check if a date is in the past
+  const isDateInPast = (date: Date): boolean => {
+    const dateAtMidnight = new Date(date);
+    dateAtMidnight.setHours(0, 0, 0, 0);
+    return dateAtMidnight < todayAtMidnight;
+  };
+
   // Check if a date is disabled
   const isDateDisabled = (date: Date): boolean => {
-    return !isDateInRange(date);
+    if (!isDateInRange(date)) return true;
+    if (disablePastDates && isDateInPast(date)) return true;
+    return false;
   };
 
   // Navigate to previous month
@@ -183,18 +211,17 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
               const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
               const isSelected = selectedDate && formatDate(date) === formatDate(selectedDate);
               const isDisabled = isDateDisabled(date);
+              const isPast = disablePastDates && isDateInPast(date);
 
               return (
                 <button
                   key={index}
                   type="button"
-                  className={`calendar-picker-day ${
-                    isCurrentMonth ? 'calendar-picker-day--current' : 'calendar-picker-day--other'
-                  } ${
-                    isSelected ? 'calendar-picker-day--selected' : ''
-                  } ${
-                    isDisabled ? 'calendar-picker-day--disabled' : ''
-                  }`}
+                  className={`calendar-picker-day ${isCurrentMonth ? 'calendar-picker-day--current' : 'calendar-picker-day--other'
+                    } ${isSelected ? 'calendar-picker-day--selected' : ''
+                    } ${isDisabled ? 'calendar-picker-day--disabled' : ''
+                    } ${isPast ? 'calendar-picker-day--past' : ''
+                    }`}
                   onClick={() => handleDateSelect(date)}
                   disabled={isDisabled}
                 >

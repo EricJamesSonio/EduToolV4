@@ -6,6 +6,7 @@ import type { CreateStudentDto, Student, UpdateStudentDto } from '../types/stude
 interface StudentFormModalProps {
   isOpen: boolean;
   student?: Student | null;
+  emailExtension?: string | null;
   isLoading?: boolean;
   onSubmit: (data: CreateStudentDto | UpdateStudentDto) => Promise<void>;
   onClose: () => void;
@@ -14,6 +15,7 @@ interface StudentFormModalProps {
 const StudentFormModal: React.FC<StudentFormModalProps> = ({
   isOpen,
   student = null,
+  emailExtension,
   isLoading = false,
   onSubmit,
   onClose,
@@ -25,34 +27,47 @@ const StudentFormModal: React.FC<StudentFormModalProps> = ({
   const [sectionId, setSectionId] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const isEdit = !!student;
+  const normalizedExtension = emailExtension?.startsWith('@')
+    ? emailExtension
+    : emailExtension
+      ? `@${emailExtension}`
+      : '';
 
   useEffect(() => {
     if (isOpen) {
       setFullName(student?.fullName ?? '');
-      setEmail(student?.email ?? '');
+      if (isEdit && student?.email) {
+        // Extract emailName from full email (remove domain part)
+        const emailName = student.email.split('@')[0];
+        setEmail(emailName);
+      } else {
+        setEmail('');
+      }
       setStudentId(student?.studentId ?? '');
       setLevelId(student?.levelId ?? '');
       setSectionId(student?.sectionId ?? '');
       setErrors({});
     }
-  }, [isOpen, student]);
+  }, [isOpen, student, isEdit]);
 
   const validate = () => {
     const next: Record<string, string> = {};
     if (!fullName.trim()) next.fullName = 'Full name is required.';
-    if (!email.trim()) next.email = 'Email is required.';
+    if (!email.trim()) next.email = 'Email name is required.';
+    if (email.includes('@')) next.email = 'Enter only the email name (without the @domain part).';
     if (!isEdit && !studentId.trim()) next.studentId = 'Student ID is required.';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     if (!validate()) return;
 
     const payload = {
       fullName: fullName.trim(),
-      email: email.trim(),
+      ...(isEdit ? { email: email.trim() } : { emailName: email.trim() }),
       ...(isEdit ? {} : { studentId: studentId.trim() }),
       ...(levelId.trim() ? { levelId: levelId.trim() } : {}),
       ...(sectionId.trim() ? { sectionId: sectionId.trim() } : {}),
@@ -86,16 +101,19 @@ const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
         <div className="form-group">
           <label className="form-label" htmlFor="student-email">
-            Email
+            Email Name
           </label>
-          <input
-            id="student-email"
-            type="email"
-            className={`form-input${errors.email ? ' error' : ''}`}
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            disabled={isLoading}
-          />
+          <div className="people-email-field">
+            <input
+              id="student-email"
+              type="text"
+              className={`form-input${errors.email ? ' error' : ''}`}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              disabled={isLoading}
+            />
+            <span className="people-email-extension">{normalizedExtension}</span>
+          </div>
           {errors.email && <span className="form-error">{errors.email}</span>}
         </div>
 

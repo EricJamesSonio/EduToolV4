@@ -4,6 +4,7 @@ import AccountCredentialModal from '../components/AccountCredentialModal';
 import EducatorFormModal from '../components/EducatorFormModal';
 import PeopleDetailModal from '../components/PeopleDetailModal';
 import StatusModal from '../components/StatusModal';
+import { useOrganization } from '../../system/hooks/useOrganization';
 import {
   useCreateEducator,
   useEducators,
@@ -46,6 +47,7 @@ const AdminEducatorPage: React.FC<AdminEducatorPageProps> = ({ onBack }) => {
     [search, status]
   );
   const { data: educators = [], isLoading, isError } = useEducators(queryParams);
+  const { data: organization } = useOrganization();
   const createEducator = useCreateEducator();
   const updateEducator = useUpdateEducator();
   const updateStatus = useUpdateEducatorStatus();
@@ -92,6 +94,16 @@ const AdminEducatorPage: React.FC<AdminEducatorPageProps> = ({ onBack }) => {
   };
 
   const isSaving = createEducator.isPending || updateEducator.isPending;
+  const emailExtension = organization?.emailExtension?.trim() || '';
+  const canCreateAccount = !!emailExtension;
+
+  const handleOpenCreateEducator = () => {
+    if (!canCreateAccount) {
+      toast.error('Set the organization email extension before creating educator accounts.');
+      return;
+    }
+    setFormEducator(null);
+  };
 
   return (
     <div className="people-list-page">
@@ -111,7 +123,7 @@ const AdminEducatorPage: React.FC<AdminEducatorPageProps> = ({ onBack }) => {
           <button
             type="button"
             className="btn btn-primary people-header-action"
-            onClick={() => setFormEducator(null)}
+            onClick={handleOpenCreateEducator}
           >
             Create Educator
           </button>
@@ -260,6 +272,7 @@ const AdminEducatorPage: React.FC<AdminEducatorPageProps> = ({ onBack }) => {
       <EducatorFormModal
         isOpen={formEducator !== undefined}
         educator={formEducator}
+        emailExtension={emailExtension}
         isLoading={isSaving}
         onSubmit={handleSaveEducator}
         onClose={() => setFormEducator(undefined)}

@@ -32,7 +32,7 @@ export interface StudentQueryParams {
 
 export interface CreateStudentDto {
   fullName: string;
-  email: string;
+  emailName: string;
   studentId: string;
   levelId?: string;
   sectionId?: string;
@@ -40,7 +40,7 @@ export interface CreateStudentDto {
 
 export interface UpdateStudentDto {
   fullName?: string;
-  email?: string;
+  emailName?: string;
   levelId?: string;
   sectionId?: string;
 }

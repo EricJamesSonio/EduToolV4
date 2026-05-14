@@ -24,32 +24,46 @@ const TermDateRow: React.FC<TermDateRowProps> = ({
   disabled,
   dateMin,
   dateMax,
-}) => (
-  <div className="term-date-row">
-    <div className="term-date-label">
-      <span className="term-date-semester">{semesterName}</span>
-      <span className="term-date-name">{term.name}</span>
+}) => {
+  // Calculate default month for end date picker (next day after start date)
+  const getEndDateDefaultMonth = (): Date | undefined => {
+    if (!value.startDate) return undefined;
+    const startDate = new Date(value.startDate);
+    const nextDay = new Date(startDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    return nextDay;
+  };
+
+  return (
+    <div className="term-date-row">
+      <div className="term-date-label">
+        <span className="term-date-semester">{semesterName}</span>
+        <span className="term-date-name">{term.name}</span>
+      </div>
+      <CalendarPicker
+        value={value.startDate}
+        onChange={(val) => onChange(term.id, 'startDate', val)}
+        dateMin={dateMin}
+        dateMax={value.endDate || dateMax}
+        disablePastDates={true}
+        disabled={disabled}
+        placeholder="Start date"
+        id={`term-start-${term.id}`}
+      />
+      <span className="range-dash">–</span>
+      <CalendarPicker
+        value={value.endDate}
+        onChange={(val) => onChange(term.id, 'endDate', val)}
+        dateMin={value.startDate || dateMin}
+        dateMax={dateMax}
+        disablePastDates={true}
+        defaultMonth={getEndDateDefaultMonth()}
+        disabled={disabled}
+        placeholder="End date"
+        id={`term-end-${term.id}`}
+      />
     </div>
-    <CalendarPicker
-      value={value.startDate}
-      onChange={(val) => onChange(term.id, 'startDate', val)}
-      dateMin={dateMin}
-      dateMax={value.endDate || dateMax}
-      disabled={disabled}
-      placeholder="Start date"
-      id={`term-start-${term.id}`}
-    />
-    <span className="range-dash">–</span>
-    <CalendarPicker
-      value={value.endDate}
-      onChange={(val) => onChange(term.id, 'endDate', val)}
-      dateMin={value.startDate || dateMin}
-      dateMax={dateMax}
-      disabled={disabled}
-      placeholder="End date"
-      id={`term-end-${term.id}`}
-    />
-  </div>
-);
+  );
+};
 
 export default TermDateRow;

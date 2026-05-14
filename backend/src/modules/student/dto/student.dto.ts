@@ -24,8 +24,10 @@ export class CreateStudentDto {
   @MaxLength(150)
   fullName!: string;
 
-  @IsEmail()
-  email!: string;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  emailName!: string;
 
   @IsString()
   @MinLength(1)
@@ -49,8 +51,10 @@ export class UpdateStudentDto {
   fullName?: string;
 
   @IsOptional()
-  @IsEmail()
-  email?: string;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  emailName?: string;
 
   @IsOptional()
   @IsUUID()

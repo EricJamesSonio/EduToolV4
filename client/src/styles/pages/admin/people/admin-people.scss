@@ -167,6 +167,46 @@
   gap: $spacing-4;
 }
 
+.people-email-field {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+
+  .form-input {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  @include respond-to-max(sm) {
+    flex-direction: column;
+
+    .form-input {
+      border-radius: 16px 16px 0 0;
+    }
+  }
+}
+
+.people-email-extension {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 $spacing-4;
+  border: 2px solid var(--color-border-primary);
+  border-left: 0;
+  border-radius: 0 16px 16px 0;
+  background-color: var(--color-secondary-50);
+  color: var(--color-text-secondary);
+  font-size: $font-sm;
+  font-weight: $font-semibold;
+  white-space: nowrap;
+
+  @include respond-to-max(sm) {
+    min-height: 44px;
+    border-left: 2px solid var(--color-border-primary);
+    border-top: 0;
+    border-radius: 0 0 16px 16px;
+  }
+}
+
 .people-detail-grid,
 .people-credential-panel {
   display: grid;

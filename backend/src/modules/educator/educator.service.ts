@@ -3,6 +3,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { EducatorRepository } from './educator.repository';
 import {
@@ -14,16 +15,22 @@ import {
 import { generateEducatorId, generateSystemPassword } from './educator.utils';
 import { hashPassword } from '@/commons/utils/hash.util';
 import { ClassService } from '../class/class.service';
+import { OrganizationService } from '../organization/organization.service';
 
 @Injectable()
 export class EducatorService {
-  constructor(private readonly educatorRepository: EducatorRepository,private readonly classService: ClassService,) {}
+  constructor(
+    private readonly educatorRepository: EducatorRepository,
+    private readonly classService: ClassService,
+    private readonly organizationService: OrganizationService,
+  ) { }
 
   // ── POST /educators ─────────────────────────────────────────────────────────
 
   async create(orgId: string, dto: CreateEducatorDto) {
+    const email = await this.buildOrgEmail(orgId, dto.emailName);
     // Guard: email must be unique within the org
-    const existing = await this.educatorRepository.findByEmail(dto.email, orgId);
+    const existing = await this.educatorRepository.findByEmail(email, orgId);
     if (existing) {
       throw new ConflictException(
         'An account with this email already exists in the organization.',
@@ -36,7 +43,7 @@ export class EducatorService {
 
     const account = await this.educatorRepository.create({
       orgId,
-      email: dto.email,
+      email,
       hashedPassword,
       fullName: dto.fullName,
       educatorId,
@@ -65,6 +72,23 @@ export class EducatorService {
     return accounts.map((a) => this.formatAccount(a));
   }
 
+  private async buildOrgEmail(orgId: string, emailName: string) {
+    const org = await this.organizationService.getOwn(orgId);
+    const extension = org?.emailExtension?.trim();
+    if (!extension) {
+      throw new BadRequestException(
+        'Set the organization email extension before creating educator accounts.',
+      );
+    }
+
+    const localPart = emailName.trim().replace(/^@+/, '');
+    if (!localPart || localPart.includes('@')) {
+      throw new BadRequestException('Email name must not include an email extension.');
+    }
+
+    return `${localPart}${extension.startsWith('@') ? extension : `@${extension}`}`.toLowerCase();
+  }
+
   // ── GET /educators/:id ──────────────────────────────────────────────────────
 
   async findById(id: string, orgId: string) {
@@ -86,9 +110,14 @@ export class EducatorService {
       throw new NotFoundException('Educator not found.');
     }
 
+    let email = account.email;
+    if (dto.emailName) {
+      email = await this.buildOrgEmail(orgId, dto.emailName);
+    }
+
     // Guard: new email must be unique within org
-    if (dto.email && dto.email !== account.email) {
-      const emailTaken = await this.educatorRepository.findByEmail(dto.email, orgId);
+    if (email && email !== account.email) {
+      const emailTaken = await this.educatorRepository.findByEmail(email, orgId);
       if (emailTaken) {
         throw new ConflictException(
           'An account with this email already exists in the organization.',
@@ -98,7 +127,7 @@ export class EducatorService {
 
     const updated = await this.educatorRepository.updateProfile(id, {
       fullName: dto.fullName,
-      email: dto.email,
+      email: email,
     });
 
     return this.formatAccount(updated);
@@ -128,8 +157,8 @@ export class EducatorService {
     }
 
     // Phase 3 hook: check for active classes
-  const hasClasses = await this.classService.hasActiveClasses(id, orgId);
-  if (hasClasses) throw new ConflictException('Reassign all active classes first.');
+    const hasClasses = await this.classService.hasActiveClasses(id, orgId);
+    if (hasClasses) throw new ConflictException('Reassign all active classes first.');
 
     await this.educatorRepository.softDelete(id);
   }
