@@ -30,9 +30,6 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({ level, onBack }) => {
 
       <div className="panel">
         <h3 className="panel-title">Subject List</h3>
-        <p className="panel-subtitle">
-          TODO: Fetch subjects for level id <b>{level.id}</b>.
-        </p>
         <EmptyState
           title="No Subjects Found"
           description="Subjects added to this level will appear here."
