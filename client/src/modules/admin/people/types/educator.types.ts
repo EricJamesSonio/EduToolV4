@@ -13,6 +13,7 @@ export interface Educator {
 
 export interface EducatorQueryParams {
   search?: string;
+  status?: EducatorStatus;
 }
 
 export interface CreateEducatorDto {
@@ -23,6 +24,10 @@ export interface CreateEducatorDto {
 export interface UpdateEducatorDto {
   fullName?: string;
   email?: string;
+}
+
+export interface UpdateEducatorStatusDto {
+  status: EducatorStatus;
 }
 
 export interface EducatorWithPassword extends Educator {

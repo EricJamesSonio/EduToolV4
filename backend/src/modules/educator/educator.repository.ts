@@ -33,12 +33,15 @@ export class EducatorRepository {
     });
   }
 
-  async findAll(orgId: string, search?: string) {
+  async findAll(orgId: string, filters: { search?: string; status?: string }) {
+    const { search, status } = filters;
+
     return this.db.account.findMany({
       where: {
         org_id: orgId,
         role: 'educator',
         deleted_at: null,
+        ...(status ? { status: status as any } : {}),
         ...(search
           ? {
               OR: [
@@ -97,6 +100,14 @@ export class EducatorRepository {
         where: { id: accountId },
         include: { profile: true },
       });
+    });
+  }
+
+  async updateStatus(accountId: string, status: string) {
+    return this.db.account.update({
+      where: { id: accountId },
+      data: { status: status as any },
+      include: { profile: true },
     });
   }
 

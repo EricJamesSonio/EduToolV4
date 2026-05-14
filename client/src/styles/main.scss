@@ -58,6 +58,9 @@
 @import 'components/cards/testimonialCard';
 @import 'components/cards/programCard';
 
+// Calendar Picker
+@import 'components/calendar/CalendarPicker';
+
 // Error
 @import 'components/error/ErrorDisplay';
 
@@ -90,6 +93,7 @@
 @import 'pages/admin/system/admin-system';
 @import 'pages/admin/system/grading-scale/grading-scale';
 @import 'pages/admin/system/grading-scheme/grading-scheme';
+@import 'pages/admin/system/semester-template';
 
 // =====================================================
 // 8. Utility Classes

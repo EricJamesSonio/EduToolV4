@@ -17,6 +17,7 @@ import {
   CreateEducatorDto,
   UpdateEducatorDto,
   QueryEducatorDto,
+  UpdateEducatorStatusDto,
 } from './dto/educator.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -79,6 +80,16 @@ export class EducatorController {
     @Body() dto: UpdateEducatorDto,
   ) {
     return this.educatorService.update(id, orgId, dto);
+  }
+
+  @Patch(':id/status')
+  @Roles('admin')
+  async updateStatus(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: UpdateEducatorStatusDto,
+  ) {
+    return this.educatorService.updateStatus(id, orgId, dto);
   }
 
   /**

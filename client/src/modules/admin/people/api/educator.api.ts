@@ -6,6 +6,7 @@ import type {
   EducatorWithPassword,
   ResetEducatorPasswordResponse,
   UpdateEducatorDto,
+  UpdateEducatorStatusDto,
 } from '../types/educator.types';
 
 const cleanParams = (params: EducatorQueryParams) => {
@@ -34,6 +35,11 @@ export const educatorApi = {
 
   update: async (id: string, data: UpdateEducatorDto): Promise<Educator> => {
     const response = await apiClient.patch(`/educators/${id}`, data);
+    return response.data;
+  },
+
+  updateStatus: async (id: string, data: UpdateEducatorStatusDto): Promise<Educator> => {
+    const response = await apiClient.patch(`/educators/${id}/status`, data);
     return response.data;
   },
 

@@ -1,14 +1,97 @@
 import { useMemo, useState } from 'react';
-import { useEducators } from '../hooks/useEducators';
+import { toast } from 'sonner';
+import AccountCredentialModal from '../components/AccountCredentialModal';
+import EducatorFormModal from '../components/EducatorFormModal';
+import PeopleDetailModal from '../components/PeopleDetailModal';
+import StatusModal from '../components/StatusModal';
+import {
+  useCreateEducator,
+  useEducators,
+  useResetEducatorPassword,
+  useUpdateEducator,
+  useUpdateEducatorStatus,
+} from '../hooks/useEducators';
+import type {
+  CreateEducatorDto,
+  Educator,
+  EducatorStatus,
+  EducatorWithPassword,
+  UpdateEducatorDto,
+} from '../types/educator.types';
 
 interface AdminEducatorPageProps {
   onBack: () => void;
 }
 
+const educatorStatuses: Array<{ value: EducatorStatus | ''; label: string }> = [
+  { value: '', label: 'All statuses' },
+  { value: 'active', label: 'Active' },
+  { value: 'suspended', label: 'Suspended' },
+];
+
+const educatorStatusOptions: Array<{ value: EducatorStatus; label: string }> = [
+  { value: 'active', label: 'Active' },
+  { value: 'suspended', label: 'Suspended' },
+];
+
 const AdminEducatorPage: React.FC<AdminEducatorPageProps> = ({ onBack }) => {
   const [search, setSearch] = useState('');
-  const queryParams = useMemo(() => ({ search }), [search]);
+  const [status, setStatus] = useState<EducatorStatus | ''>('');
+  const [detailEducator, setDetailEducator] = useState<Educator | null>(null);
+  const [formEducator, setFormEducator] = useState<Educator | null | undefined>(undefined);
+  const [statusEducator, setStatusEducator] = useState<Educator | null>(null);
+  const [credential, setCredential] = useState<EducatorWithPassword | null>(null);
+  const queryParams = useMemo(
+    () => ({ search, status: status || undefined }),
+    [search, status]
+  );
   const { data: educators = [], isLoading, isError } = useEducators(queryParams);
+  const createEducator = useCreateEducator();
+  const updateEducator = useUpdateEducator();
+  const updateStatus = useUpdateEducatorStatus();
+  const resetPassword = useResetEducatorPassword();
+
+  const handleSaveEducator = async (data: CreateEducatorDto | UpdateEducatorDto) => {
+    if (formEducator) {
+      await updateEducator.mutateAsync({
+        id: formEducator.id,
+        data: data as UpdateEducatorDto,
+      });
+      toast.success('Educator updated.');
+    } else {
+      const created = await createEducator.mutateAsync(data as CreateEducatorDto);
+      setCredential(created);
+      toast.success('Educator created.');
+    }
+    setFormEducator(undefined);
+  };
+
+  const handleStatusSubmit = async (nextStatus: EducatorStatus) => {
+    if (!statusEducator) return;
+    await updateStatus.mutateAsync({
+      id: statusEducator.id,
+      data: { status: nextStatus },
+    });
+    toast.success('Educator status updated.');
+    setStatusEducator(null);
+  };
+
+  const handleToggleBlock = async (educator: Educator) => {
+    const nextStatus: EducatorStatus = educator.status === 'suspended' ? 'active' : 'suspended';
+    await updateStatus.mutateAsync({
+      id: educator.id,
+      data: { status: nextStatus },
+    });
+    toast.success(nextStatus === 'suspended' ? 'Educator blocked.' : 'Educator unblocked.');
+  };
+
+  const handleResetPassword = async (educator: Educator) => {
+    const result = await resetPassword.mutateAsync(educator.id);
+    setCredential({ ...educator, plainPassword: result.plainPassword });
+    toast.success('Educator password reset.');
+  };
+
+  const isSaving = createEducator.isPending || updateEducator.isPending;
 
   return (
     <div className="people-list-page">
@@ -24,6 +107,14 @@ const AdminEducatorPage: React.FC<AdminEducatorPageProps> = ({ onBack }) => {
               Manage faculty accounts and educator profile details.
             </p>
           </div>
+
+          <button
+            type="button"
+            className="btn btn-primary people-header-action"
+            onClick={() => setFormEducator(null)}
+          >
+            Create Educator
+          </button>
         </div>
       </div>
 
@@ -38,6 +129,19 @@ const AdminEducatorPage: React.FC<AdminEducatorPageProps> = ({ onBack }) => {
             aria-label="Search educators"
           />
         </div>
+
+        <select
+          className="form-select people-filter"
+          value={status}
+          onChange={(event) => setStatus(event.target.value as EducatorStatus | '')}
+          aria-label="Filter educators by status"
+        >
+          {educatorStatuses.map((option) => (
+            <option key={option.label} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {isLoading ? (
@@ -79,6 +183,7 @@ const AdminEducatorPage: React.FC<AdminEducatorPageProps> = ({ onBack }) => {
                     <th>Email</th>
                     <th>Status</th>
                     <th>Personal Email</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -93,6 +198,51 @@ const AdminEducatorPage: React.FC<AdminEducatorPageProps> = ({ onBack }) => {
                         </span>
                       </td>
                       <td>{educator.personalEmail ?? '-'}</td>
+                      <td className="action-cell">
+                        <div className="action-buttons action-buttons-compact people-row-actions">
+                          <button
+                            type="button"
+                            className="action-button"
+                            onClick={() => setDetailEducator(educator)}
+                          >
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            className="action-button action-button-edit"
+                            onClick={() => setFormEducator(educator)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="action-button action-button-edit"
+                            onClick={() => setStatusEducator(educator)}
+                          >
+                            Status
+                          </button>
+                          <button
+                            type="button"
+                            className={
+                              educator.status === 'suspended'
+                                ? 'action-button action-button-edit'
+                                : 'action-button action-button-delete'
+                            }
+                            onClick={() => handleToggleBlock(educator)}
+                            disabled={updateStatus.isPending}
+                          >
+                            {educator.status === 'suspended' ? 'Unblock' : 'Block'}
+                          </button>
+                          <button
+                            type="button"
+                            className="action-button"
+                            onClick={() => handleResetPassword(educator)}
+                            disabled={resetPassword.isPending}
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -101,6 +251,35 @@ const AdminEducatorPage: React.FC<AdminEducatorPageProps> = ({ onBack }) => {
           </div>
         </div>
       )}
+
+      <PeopleDetailModal
+        account={detailEducator}
+        accountType="educator"
+        onClose={() => setDetailEducator(null)}
+      />
+      <EducatorFormModal
+        isOpen={formEducator !== undefined}
+        educator={formEducator}
+        isLoading={isSaving}
+        onSubmit={handleSaveEducator}
+        onClose={() => setFormEducator(undefined)}
+      />
+      <StatusModal
+        isOpen={!!statusEducator}
+        title="Manage Educator Status"
+        currentStatus={statusEducator?.status}
+        options={educatorStatusOptions}
+        isLoading={updateStatus.isPending}
+        onSubmit={(nextStatus) => handleStatusSubmit(nextStatus as EducatorStatus)}
+        onClose={() => setStatusEducator(null)}
+      />
+      <AccountCredentialModal
+        isOpen={!!credential}
+        title="Educator Credentials"
+        email={credential?.email}
+        plainPassword={credential?.plainPassword}
+        onClose={() => setCredential(null)}
+      />
     </div>
   );
 };

@@ -5,7 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EducatorRepository } from './educator.repository';
-import { CreateEducatorDto, UpdateEducatorDto, QueryEducatorDto } from './dto/educator.dto';
+import {
+  CreateEducatorDto,
+  QueryEducatorDto,
+  UpdateEducatorDto,
+  UpdateEducatorStatusDto,
+} from './dto/educator.dto';
 import { generateEducatorId, generateSystemPassword } from './educator.utils';
 import { hashPassword } from '@/commons/utils/hash.util';
 import { ClassService } from '../class/class.service';
@@ -53,7 +58,10 @@ export class EducatorService {
   // ── GET /educators ──────────────────────────────────────────────────────────
 
   async findAll(orgId: string, query: QueryEducatorDto) {
-    const accounts = await this.educatorRepository.findAll(orgId, query.search);
+    const accounts = await this.educatorRepository.findAll(orgId, {
+      search: query.search,
+      status: query.status,
+    });
     return accounts.map((a) => this.formatAccount(a));
   }
 
@@ -96,7 +104,16 @@ export class EducatorService {
     return this.formatAccount(updated);
   }
 
-  // ── DELETE /educators/:id ───────────────────────────────────────────────────
+  async updateStatus(id: string, orgId: string, dto: UpdateEducatorStatusDto) {
+    const account = await this.educatorRepository.findById(id, orgId);
+
+    if (!account) {
+      throw new NotFoundException('Educator not found.');
+    }
+
+    const updated = await this.educatorRepository.updateStatus(id, dto.status);
+    return this.formatAccount(updated);
+  }
 
   /**
    * Soft deletes the educator account.

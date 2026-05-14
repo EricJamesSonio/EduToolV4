@@ -1,6 +1,23 @@
 import { useMemo, useState } from 'react';
-import { useStudents } from '../hooks/useStudents';
-import type { StudentStatus } from '../types/student.types';
+import { toast } from 'sonner';
+import AccountCredentialModal from '../components/AccountCredentialModal';
+import PeopleDetailModal from '../components/PeopleDetailModal';
+import StatusModal from '../components/StatusModal';
+import StudentFormModal from '../components/StudentFormModal';
+import {
+  useCreateStudent,
+  useResetStudentPassword,
+  useStudents,
+  useUpdateStudent,
+  useUpdateStudentStatus,
+} from '../hooks/useStudents';
+import type {
+  CreateStudentDto,
+  Student,
+  StudentStatus,
+  StudentWithPassword,
+  UpdateStudentDto,
+} from '../types/student.types';
 
 interface AdminStudentPageProps {
   onBack: () => void;
@@ -16,9 +33,18 @@ const studentStatuses: Array<{ value: StudentStatus | ''; label: string }> = [
   { value: 'graduated', label: 'Graduated' },
 ];
 
+const studentStatusOptions: Array<{ value: StudentStatus; label: string }> =
+  studentStatuses.filter(
+    (option): option is { value: StudentStatus; label: string } => !!option.value
+  );
+
 const AdminStudentPage: React.FC<AdminStudentPageProps> = ({ onBack }) => {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<StudentStatus | ''>('');
+  const [detailStudent, setDetailStudent] = useState<Student | null>(null);
+  const [formStudent, setFormStudent] = useState<Student | null | undefined>(undefined);
+  const [statusStudent, setStatusStudent] = useState<Student | null>(null);
+  const [credential, setCredential] = useState<StudentWithPassword | null>(null);
 
   const queryParams = useMemo(
     () => ({
@@ -29,6 +55,56 @@ const AdminStudentPage: React.FC<AdminStudentPageProps> = ({ onBack }) => {
   );
 
   const { data: students = [], isLoading, isError } = useStudents(queryParams);
+  const createStudent = useCreateStudent();
+  const updateStudent = useUpdateStudent();
+  const updateStatus = useUpdateStudentStatus();
+  const resetPassword = useResetStudentPassword();
+
+  const handleSaveStudent = async (data: CreateStudentDto | UpdateStudentDto) => {
+    if (formStudent) {
+      await updateStudent.mutateAsync({
+        id: formStudent.id,
+        data: data as UpdateStudentDto,
+      });
+      toast.success('Student updated.');
+    } else {
+      const created = await createStudent.mutateAsync(data as CreateStudentDto);
+      setCredential(created);
+      toast.success('Student created.');
+    }
+    setFormStudent(undefined);
+  };
+
+  const handleStatusSubmit = async (nextStatus: StudentStatus, reason?: string) => {
+    if (!statusStudent) return;
+    await updateStatus.mutateAsync({
+      id: statusStudent.id,
+      data: { status: nextStatus, ...(reason ? { reason } : {}) },
+    });
+    toast.success('Student status updated.');
+    setStatusStudent(null);
+  };
+
+  const handleToggleBlock = async (student: Student) => {
+    const nextStatus: StudentStatus = student.status === 'suspended' ? 'active' : 'suspended';
+    await updateStatus.mutateAsync({
+      id: student.id,
+      data: { status: nextStatus },
+    });
+    toast.success(nextStatus === 'suspended' ? 'Student blocked.' : 'Student unblocked.');
+  };
+
+  const handleResetPassword = async (student: Student) => {
+    const result = await resetPassword.mutateAsync(student.id);
+    setCredential({ ...student, plainPassword: result.plainPassword });
+    toast.success('Student password reset.');
+  };
+
+  const isSaving = createStudent.isPending || updateStudent.isPending;
+  const requiresStatusReason =
+    statusStudent?.status === 'dropped' ||
+    statusStudent?.status === 'transferred' ||
+    statusStudent?.status === 'graduated';
 
   return (
     <div className="people-list-page">
@@ -44,6 +120,14 @@ const AdminStudentPage: React.FC<AdminStudentPageProps> = ({ onBack }) => {
               Manage learner accounts and academic profile metadata.
             </p>
           </div>
+
+          <button
+            type="button"
+            className="btn btn-primary people-header-action"
+            onClick={() => setFormStudent(null)}
+          >
+            Create Student
+          </button>
         </div>
       </div>
 
@@ -113,6 +197,7 @@ const AdminStudentPage: React.FC<AdminStudentPageProps> = ({ onBack }) => {
                     <th>Status</th>
                     <th>Level</th>
                     <th>Section</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -128,6 +213,51 @@ const AdminStudentPage: React.FC<AdminStudentPageProps> = ({ onBack }) => {
                       </td>
                       <td>{student.levelId ?? '-'}</td>
                       <td>{student.sectionId ?? '-'}</td>
+                      <td className="action-cell">
+                        <div className="action-buttons action-buttons-compact people-row-actions">
+                          <button
+                            type="button"
+                            className="action-button"
+                            onClick={() => setDetailStudent(student)}
+                          >
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            className="action-button action-button-edit"
+                            onClick={() => setFormStudent(student)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="action-button action-button-edit"
+                            onClick={() => setStatusStudent(student)}
+                          >
+                            Status
+                          </button>
+                          <button
+                            type="button"
+                            className={
+                              student.status === 'suspended'
+                                ? 'action-button action-button-edit'
+                                : 'action-button action-button-delete'
+                            }
+                            onClick={() => handleToggleBlock(student)}
+                            disabled={updateStatus.isPending}
+                          >
+                            {student.status === 'suspended' ? 'Unblock' : 'Block'}
+                          </button>
+                          <button
+                            type="button"
+                            className="action-button"
+                            onClick={() => handleResetPassword(student)}
+                            disabled={resetPassword.isPending}
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -136,6 +266,38 @@ const AdminStudentPage: React.FC<AdminStudentPageProps> = ({ onBack }) => {
           </div>
         </div>
       )}
+
+      <PeopleDetailModal
+        account={detailStudent}
+        accountType="student"
+        onClose={() => setDetailStudent(null)}
+      />
+      <StudentFormModal
+        isOpen={formStudent !== undefined}
+        student={formStudent}
+        isLoading={isSaving}
+        onSubmit={handleSaveStudent}
+        onClose={() => setFormStudent(undefined)}
+      />
+      <StatusModal
+        isOpen={!!statusStudent}
+        title="Manage Student Status"
+        currentStatus={statusStudent?.status}
+        options={studentStatusOptions}
+        requiresReason={requiresStatusReason}
+        isLoading={updateStatus.isPending}
+        onSubmit={(nextStatus, reason) =>
+          handleStatusSubmit(nextStatus as StudentStatus, reason)
+        }
+        onClose={() => setStatusStudent(null)}
+      />
+      <AccountCredentialModal
+        isOpen={!!credential}
+        title="Student Credentials"
+        email={credential?.email}
+        plainPassword={credential?.plainPassword}
+        onClose={() => setCredential(null)}
+      />
     </div>
   );
 };

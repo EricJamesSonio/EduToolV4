@@ -1,0 +1,270 @@
+// Semester Template Page Styles
+// Page-specific styles for semester template management
+
+// ─── View Toggle Buttons ───────────────────────────────────────────────────────
+
+.view-toggle-group {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-1;
+  background-color: var(--color-secondary-100);
+  border-radius: $radius-lg;
+}
+
+.view-toggle-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-2 $spacing-4;
+  font-size: $font-sm;
+  font-weight: $font-medium;
+  color: var(--color-text-secondary);
+  background-color: transparent;
+  border: none;
+  border-radius: $radius-md;
+  cursor: pointer;
+  transition: $transition-fast;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    color: var(--color-text-primary);
+    background-color: var(--color-white);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.active {
+    color: var(--color-white);
+    background-color: var(--color-primary-500);
+    box-shadow: 0 2px 4px rgba(88, 204, 2, 0.2);
+
+    &:hover {
+      background-color: var(--color-primary-600);
+    }
+  }
+}
+
+.view-toggle-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 $spacing-1;
+  font-size: $font-xs;
+  font-weight: $font-bold;
+  color: var(--color-white);
+  background-color: var(--color-primary-600);
+  border-radius: $radius-full;
+
+  .view-toggle-btn:not(.active) & {
+    background-color: var(--color-secondary-400);
+  }
+}
+
+// ─── Term Date Row ─────────────────────────────────────────────────────────────
+
+.term-date-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: $spacing-3;
+  align-items: center;
+  padding: $spacing-3;
+  border: 1px solid var(--color-border-primary);
+  border-radius: $radius-md;
+  background-color: var(--color-white);
+
+  @include respond-to-max(sm) {
+    grid-template-columns: 1fr;
+    gap: $spacing-2;
+  }
+}
+
+.term-date-label {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+  min-width: 0;
+}
+
+.term-date-semester {
+  font-size: $font-xs;
+  font-weight: $font-semibold;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.term-date-name {
+  font-size: $font-sm;
+  font-weight: $font-medium;
+  color: var(--color-text-primary);
+}
+
+.range-dash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+  font-size: $font-lg;
+  font-weight: $font-light;
+
+  @include respond-to-max(sm) {
+    display: none;
+  }
+}
+
+// ─── Term Dates Header ─────────────────────────────────────────────────────────
+
+.term-dates-header-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: $spacing-3;
+  padding: $spacing-2 $spacing-3;
+  margin-bottom: $spacing-2;
+  font-size: $font-xs;
+  font-weight: $font-medium;
+  color: var(--color-text-tertiary);
+  border-bottom: 1px solid var(--color-border-primary);
+
+  @include respond-to-max(sm) {
+    grid-template-columns: 1fr;
+    gap: $spacing-2;
+  }
+}
+
+.term-dates-col-label {
+  text-align: center;
+
+  @include respond-to-max(sm) {
+    text-align: left;
+  }
+}
+
+// ─── Term Dates List ─────────────────────────────────────────────────────────
+
+.term-dates-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: $spacing-1;
+}
+
+// ─── School Year Date Banner ───────────────────────────────────────────────────
+
+.school-year-date-banner {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-3;
+  margin-bottom: $spacing-4;
+  background-color: var(--color-info-50);
+  border: 1px solid var(--color-info-200);
+  border-radius: $radius-md;
+  font-size: $font-sm;
+
+  @include respond-to-max(sm) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $spacing-1;
+  }
+}
+
+.banner-label {
+  font-weight: $font-semibold;
+  color: var(--color-info-700);
+}
+
+.banner-value {
+  font-weight: $font-medium;
+  color: var(--color-text-primary);
+}
+
+.banner-range {
+  margin-left: auto;
+  color: var(--color-text-tertiary);
+  font-family: $font-family-mono;
+  font-size: $font-xs;
+
+  @include respond-to-max(sm) {
+    margin-left: 0;
+  }
+}
+
+// ─── Template Structure Preview ───────────────────────────────────────────────
+
+.template-structure-preview {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  padding: $spacing-3;
+  background-color: var(--color-secondary-50);
+  border: 1px solid var(--color-border-primary);
+  border-radius: $radius-md;
+}
+
+.template-sem-preview {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+}
+
+.template-sem-name {
+  font-size: $font-sm;
+  font-weight: $font-semibold;
+  color: var(--color-text-primary);
+  min-width: 80px;
+}
+
+.template-term-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-1;
+}
+
+.template-term-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: $spacing-1 $spacing-2;
+  font-size: $font-xs;
+  font-weight: $font-medium;
+  color: var(--color-text-secondary);
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border-primary);
+  border-radius: $radius-sm;
+}
+
+// ─── Assign Template Button ────────────────────────────────────────────────────
+
+.assign-template-btn {
+  @extend .btn, .btn-primary;
+  margin-left: auto;
+  font-size: $font-xs;
+  padding: $spacing-2 $spacing-3;
+}
+
+// ─── Responsive Adjustments ───────────────────────────────────────────────────
+
+@include respond-to-max(sm) {
+  .view-toggle-group {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .view-toggle-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}

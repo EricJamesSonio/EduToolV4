@@ -4,6 +4,7 @@ import type {
   CreateEducatorDto,
   EducatorQueryParams,
   UpdateEducatorDto,
+  UpdateEducatorStatusDto,
 } from '../types/educator.types';
 
 export const educatorKeys = {
@@ -47,6 +48,19 @@ export const useUpdateEducator = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateEducatorDto }) =>
       educatorApi.update(id, data),
+    onSuccess: (educator) => {
+      queryClient.setQueryData(educatorKeys.detail(educator.id), educator);
+      queryClient.invalidateQueries({ queryKey: educatorKeys.lists() });
+    },
+  });
+};
+
+export const useUpdateEducatorStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateEducatorStatusDto }) =>
+      educatorApi.updateStatus(id, data),
     onSuccess: (educator) => {
       queryClient.setQueryData(educatorKeys.detail(educator.id), educator);
       queryClient.invalidateQueries({ queryKey: educatorKeys.lists() });

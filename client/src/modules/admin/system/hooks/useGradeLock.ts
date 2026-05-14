@@ -9,7 +9,7 @@ import type {
   LockClassDto,
   UnlockClassDto,
   OverrideGradeLockDto,
-} from './grade-lock.types';
+} from '../types/grade-lock.types';
 
 // ── Query keys ───────────────────────────────────────────────────────────────
 

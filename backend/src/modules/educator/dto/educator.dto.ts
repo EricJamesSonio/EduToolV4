@@ -39,10 +39,19 @@ export class UpdateEducatorDto {
   email?: string;
 }
 
+export class UpdateEducatorStatusDto {
+  @IsEnum(EducatorStatus)
+  status!: EducatorStatus;
+}
+
 // ── GET /educators ────────────────────────────────────────────────────────────
 
 export class QueryEducatorDto {
   @IsOptional()
   @IsString()
   search?: string; // search by name or educatorId
+
+  @IsOptional()
+  @IsEnum(EducatorStatus)
+  status?: EducatorStatus;
 }
