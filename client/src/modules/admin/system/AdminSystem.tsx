@@ -1,9 +1,13 @@
+// AdminSystem
+// System settings page. Routes between sub-pages via local view state.
+
 import { useEffect, useState } from 'react';
 
 import AdminLayout from '../../../components/AdminLayout';
 
 import AdminDataSeederPage from './pages/AdminDataSeederPage';
 import AdminOrganizationPage from './pages/AdminOrganizationPage';
+
 import CreateOrganizationModal from './components/organization/CreateOrganizationModal';
 
 import SystemCategoryPage from './pages/SystemCategoryPage';
@@ -11,6 +15,7 @@ import SystemCategoryPage from './pages/SystemCategoryPage';
 import GradingSchemeTemplatePage from './pages/GradingSchemeTemplatePage';
 import GradingScalePage from './pages/GradingScalePage';
 import SemesterTemplatePage from './pages/SemesterTemplatePage';
+import GradeLockPage from './pages/GradeLockPage';
 
 import { refreshTokenApi } from '@/modules/home/login/api/auth.api';
 import { useAuthContext } from '@/context/AuthContext';
@@ -34,7 +39,8 @@ type SystemView =
   | 'seeder'
   | 'grading-schemes'
   | 'grading-scales'
-  | 'semester-templates';
+  | 'semester-templates'
+  | 'grade-lock';
 
 export const AdminSystem: React.FC = () => {
   const [view, setView] = useState<SystemView>('categories');
@@ -145,6 +151,13 @@ export const AdminSystem: React.FC = () => {
           />
         );
 
+      case 'grade-lock':
+        return (
+          <GradeLockPage
+            onBack={() => setView('categories')}
+          />
+        );
+
       default:
         return (
           <SystemCategoryPage
@@ -162,6 +175,9 @@ export const AdminSystem: React.FC = () => {
             }
             onSelectSemesterTemplates={() =>
               setView('semester-templates')
+            }
+            onSelectGradeLock={() =>
+              setView('grade-lock')
             }
           />
         );

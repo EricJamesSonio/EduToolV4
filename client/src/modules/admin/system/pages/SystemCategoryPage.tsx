@@ -2,14 +2,18 @@ interface SystemCategoryPageProps {
   onSelectOrganization: () => void;
   onSelectSeeder: () => void;
   onSelectGradingSchemes: () => void;
-  onSelectGradingScales: () => void; // ✅ added
+  onSelectGradingScales: () => void;
+  onSelectSemesterTemplates: () => void;
+  onSelectGradeLock: () => void;
 }
 
 const SystemCategoryPage: React.FC<SystemCategoryPageProps> = ({
   onSelectOrganization,
   onSelectSeeder,
   onSelectGradingSchemes,
-  onSelectGradingScales, // ✅ added
+  onSelectGradingScales,
+  onSelectSemesterTemplates,
+  onSelectGradeLock,
 }) => {
   return (
     <div className="system-categories">
@@ -25,9 +29,13 @@ const SystemCategoryPage: React.FC<SystemCategoryPageProps> = ({
           className="card system-category-card"
           onClick={onSelectOrganization}
         >
-          <span className="system-category-title">Organization</span>
+          <span className="system-category-title">
+            Organization
+          </span>
+
           <span className="system-category-description">
-            Manage school details, email extension, and description.
+            Manage school details, email extension,
+            and organization information.
           </span>
         </button>
 
@@ -36,9 +44,13 @@ const SystemCategoryPage: React.FC<SystemCategoryPageProps> = ({
           className="card system-category-card"
           onClick={onSelectSeeder}
         >
-          <span className="system-category-title">Data Seeder</span>
+          <span className="system-category-title">
+            Data Seeder
+          </span>
+
           <span className="system-category-description">
-            Seed academic setup data for a selected school year.
+            Seed academic setup data for a selected
+            school year.
           </span>
         </button>
 
@@ -47,21 +59,59 @@ const SystemCategoryPage: React.FC<SystemCategoryPageProps> = ({
           className="card system-category-card"
           onClick={onSelectGradingSchemes}
         >
-          <span className="system-category-title">Grading Schemes</span>
+          <span className="system-category-title">
+            Grading Schemes
+          </span>
+
           <span className="system-category-description">
-            Create and manage reusable grading scheme templates scoped by program type.
+            Create and manage reusable grading
+            scheme templates scoped by program type.
           </span>
         </button>
 
-        {/* ✅ NEW CARD */}
         <button
           type="button"
           className="card system-category-card"
           onClick={onSelectGradingScales}
         >
-          <span className="system-category-title">Grading Scales</span>
+          <span className="system-category-title">
+            Grading Scales
+          </span>
+
           <span className="system-category-description">
-            Define grade ranges (e.g., A–F or numeric equivalents) used across grading schemes.
+            Define grade ranges such as A–F or
+            numeric equivalents used across
+            grading schemes.
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className="card system-category-card"
+          onClick={onSelectSemesterTemplates}
+        >
+          <span className="system-category-title">
+            Semester Templates
+          </span>
+
+          <span className="system-category-description">
+            Manage reusable semester structures,
+            academic terms, and template defaults.
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className="card system-category-card"
+          onClick={onSelectGradeLock}
+        >
+          <span className="system-category-title">
+            Grade Lock
+          </span>
+
+          <span className="system-category-description">
+            Manage grade lock settings and control
+            class locking by school year.
           </span>
         </button>
       </div>

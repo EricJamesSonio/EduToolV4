@@ -1,799 +1,28 @@
 // client/src/modules/admin/system/pages/SemesterTemplatePage.tsx
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
+import ConfirmationModal from '@/components/ConfirmationModal';
+import SchoolYearSelector from '@/components/shared/SchoolYearSelector';
 import {
-  useSemesterTemplatesBySchoolYear,
+  useAllSemesterTemplates,
   useSemesterTemplateAssignments,
-  useCreateSemesterTemplate,
-  useUpdateSemesterTemplate,
   useDeleteSemesterTemplate,
-  useAssignSemesterTemplate,
-  useRemoveSemesterTemplateAssignment,
-  useSaveTermDates,
 } from '../hooks/useSemesterTemplates';
 import { useSchoolYears } from '../../academic/hooks/useSchoolYears';
 import { useProgramsBySchoolYear } from '../../academic/hooks/usePrograms';
-import SchoolYearSelector from '@/components/shared/SchoolYearSelector';
+import {
+  SemesterTemplateCard,
+  AssignmentCard,
+  SemesterTemplateFormModal,
+  AssignTemplateModal,
+} from '../components/semester-template';
 import type {
   SemesterTemplate,
   SemesterTemplateAssignment,
-  SemesterTemplateItem,
-  SemesterTemplateTerm,
-  CreateSemesterTemplateDto,
-  UpdateSemesterTemplateDto,
-  ProgramType,
-  TermDateMap,
 } from '../types/semester-template.types';
-import { PROGRAM_TYPE_LABELS } from '../types/semester-template.types';
 
-// ── Constants ────────────────────────────────────────────────────────────────
-
-const PROGRAM_TYPES: ProgramType[] = [
-  'daycare',
-  'kinder',
-  'elementary',
-  'jhs',
-  'shs',
-  'college',
-  'custom',
-];
-
-const EMPTY_TERM = { name: '', orderIndex: 1 };
-const EMPTY_SEMESTER = { name: '', orderIndex: 1, terms: [{ ...EMPTY_TERM }] };
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function buildTermDateMap(
-  assignment: SemesterTemplateAssignment,
-): TermDateMap {
-  const map: TermDateMap = {};
-  for (const td of assignment.termDates) {
-    map[td.term_id] = {
-      startDate: td.start_date.slice(0, 10),
-      endDate: td.end_date.slice(0, 10),
-    };
-  }
-  return map;
-}
-
-// ── TermDateRow ──────────────────────────────────────────────────────────────
-
-interface TermDateRowProps {
-  term: SemesterTemplateTerm;
-  semesterName: string;
-  value: { startDate: string; endDate: string };
-  onChange: (termId: string, field: 'startDate' | 'endDate', val: string) => void;
-  disabled?: boolean;
-}
-
-const TermDateRow: React.FC<TermDateRowProps> = ({
-  term,
-  semesterName,
-  value,
-  onChange,
-  disabled,
-}) => (
-  <div className="term-date-row">
-    <div className="term-date-label">
-      <span className="term-date-semester">{semesterName}</span>
-      <span className="term-date-name">{term.name}</span>
-    </div>
-    <input
-      type="date"
-      className="form-input term-date-input"
-      value={value.startDate}
-      onChange={(e) => onChange(term.id, 'startDate', e.target.value)}
-      disabled={disabled}
-    />
-    <span className="range-dash">–</span>
-    <input
-      type="date"
-      className="form-input term-date-input"
-      value={value.endDate}
-      onChange={(e) => onChange(term.id, 'endDate', e.target.value)}
-      disabled={disabled}
-    />
-  </div>
-);
-
-// ── AssignTemplateModal ───────────────────────────────────────────────────────
-
-interface AssignTemplateModalProps {
-  schoolYearId: string;
-  templates: SemesterTemplate[];
-  existingAssignment?: SemesterTemplateAssignment | null;
-  programId: string;
-  programName: string;
-  onClose: () => void;
-}
-
-const AssignTemplateModal: React.FC<AssignTemplateModalProps> = ({
-  schoolYearId,
-  templates,
-  existingAssignment,
-  programId,
-  programName,
-  onClose,
-}) => {
-  const assignMutation = useAssignSemesterTemplate();
-  const saveTermDatesMutation = useSaveTermDates();
-  const removeMutation = useRemoveSemesterTemplateAssignment();
-
-  const [selectedTemplateId, setSelectedTemplateId] = useState(
-    existingAssignment?.template_id ?? '',
-  );
-  const [termDateMap, setTermDateMap] = useState<TermDateMap>(
-    existingAssignment ? buildTermDateMap(existingAssignment) : {},
-  );
-
-  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
-  const isSaving = assignMutation.isPending || saveTermDatesMutation.isPending;
-
-  const allTerms = useMemo(() => {
-    if (!selectedTemplate) return [];
-    return selectedTemplate.semesters.flatMap((sem) =>
-      sem.terms.map((t) => ({ term: t, semesterName: sem.name })),
-    );
-  }, [selectedTemplate]);
-
-  const handleTermDateChange = (
-    termId: string,
-    field: 'startDate' | 'endDate',
-    val: string,
-  ) => {
-    setTermDateMap((prev) => ({
-      ...prev,
-      [termId]: { ...prev[termId], startDate: prev[termId]?.startDate ?? '', endDate: prev[termId]?.endDate ?? '', [field]: val },
-    }));
-  };
-
-  const handleSave = async () => {
-    if (!selectedTemplateId) {
-      toast.error('Please select a template.');
-      return;
-    }
-
-    try {
-      // 1. Assign the template to the program
-      await assignMutation.mutateAsync({
-        programId,
-        templateId: selectedTemplateId,
-      });
-
-      // 2. Save term dates if any have been filled
-      const termDates = Object.entries(termDateMap)
-        .filter(([, v]) => v.startDate && v.endDate)
-        .map(([termId, v]) => ({
-          termId,
-          startDate: v.startDate,
-          endDate: v.endDate,
-        }));
-
-      if (termDates.length > 0) {
-        await saveTermDatesMutation.mutateAsync({ programId, data: { termDates } });
-      }
-
-      toast.success('Template assigned successfully.');
-      onClose();
-    } catch {
-      // handled by apiClient interceptor
-    }
-  };
-
-  const handleRemove = async () => {
-    try {
-      await removeMutation.mutateAsync(programId);
-      toast.success('Assignment removed.');
-      onClose();
-    } catch {
-      // handled by apiClient interceptor
-    }
-  };
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-panel modal-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h3 className="modal-title">
-            Assign Semester Template — <span className="modal-subtitle">{programName}</span>
-          </h3>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="modal-body">
-          {/* Template selector */}
-          <div className="form-group">
-            <label className="form-label">Semester Template</label>
-            <div className="program-select-wrapper">
-              <select
-                className="program-select"
-                value={selectedTemplateId}
-                onChange={(e) => {
-                  setSelectedTemplateId(e.target.value);
-                  setTermDateMap({});
-                }}
-                disabled={isSaving}
-              >
-                <option value="">Select a template…</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} — {PROGRAM_TYPE_LABELS[t.program_type]}
-                  </option>
-                ))}
-              </select>
-              <div className="program-select__chevron" aria-hidden="true">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Template structure preview */}
-          {selectedTemplate && (
-            <div className="form-group">
-              <label className="form-label">Template Structure</label>
-              <div className="template-structure-preview">
-                {selectedTemplate.semesters.map((sem) => (
-                  <div key={sem.id} className="template-sem-preview">
-                    <span className="template-sem-name">{sem.name}</span>
-                    <div className="template-term-chips">
-                      {sem.terms.map((t) => (
-                        <span key={t.id} className="template-term-chip">
-                          {t.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Term dates — inline after assigning */}
-          {allTerms.length > 0 && (
-            <div className="form-group">
-              <label className="form-label">Term Dates</label>
-              <div className="term-dates-header-row">
-                <span />
-                <span className="term-dates-col-label">Start Date</span>
-                <span />
-                <span className="term-dates-col-label">End Date</span>
-              </div>
-              <div className="term-dates-list">
-                {allTerms.map(({ term, semesterName }) => (
-                  <TermDateRow
-                    key={term.id}
-                    term={term}
-                    semesterName={semesterName}
-                    value={
-                      termDateMap[term.id] ?? { startDate: '', endDate: '' }
-                    }
-                    onChange={handleTermDateChange}
-                    disabled={isSaving}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="modal-footer">
-          {existingAssignment && (
-            <button
-              type="button"
-              className="btn-danger"
-              onClick={handleRemove}
-              disabled={isSaving || removeMutation.isPending}
-            >
-              {removeMutation.isPending ? 'Removing…' : 'Remove Assignment'}
-            </button>
-          )}
-          <div className="modal-footer-right">
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={onClose}
-              disabled={isSaving}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving…' : 'Save Assignment'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── SemesterTemplateFormModal ─────────────────────────────────────────────────
-
-interface SemesterTemplateFormModalProps {
-  template?: SemesterTemplate | null;
-  onClose: () => void;
-}
-
-const SemesterTemplateFormModal: React.FC<SemesterTemplateFormModalProps> = ({
-  template,
-  onClose,
-}) => {
-  const isEdit = !!template;
-  const createMutation = useCreateSemesterTemplate();
-  const updateMutation = useUpdateSemesterTemplate();
-  const isSaving = createMutation.isPending || updateMutation.isPending;
-
-  const [name, setName] = useState(template?.name ?? '');
-  const [programType, setProgramType] = useState<ProgramType>(
-    template?.program_type ?? 'college',
-  );
-  const [semesters, setSemesters] = useState<CreateSemesterTemplateDto['semesters']>(
-    template
-      ? template.semesters.map((sem) => ({
-          name: sem.name,
-          orderIndex: sem.order_index,
-          terms: sem.terms.map((t) => ({
-            name: t.name,
-            orderIndex: t.order_index,
-          })),
-        }))
-      : [{ ...EMPTY_SEMESTER, terms: [{ ...EMPTY_TERM }] }],
-  );
-
-  const addSemester = () =>
-    setSemesters((prev) => [
-      ...prev,
-      { name: '', orderIndex: prev.length + 1, terms: [{ ...EMPTY_TERM }] },
-    ]);
-
-  const removeSemester = (si: number) =>
-    setSemesters((prev) => prev.filter((_, i) => i !== si));
-
-  const updateSemesterField = (
-    si: number,
-    field: 'name' | 'orderIndex',
-    val: string | number,
-  ) =>
-    setSemesters((prev) =>
-      prev.map((sem, i) => (i === si ? { ...sem, [field]: val } : sem)),
-    );
-
-  const addTerm = (si: number) =>
-    setSemesters((prev) =>
-      prev.map((sem, i) =>
-        i === si
-          ? {
-              ...sem,
-              terms: [
-                ...sem.terms,
-                { name: '', orderIndex: sem.terms.length + 1 },
-              ],
-            }
-          : sem,
-      ),
-    );
-
-  const removeTerm = (si: number, ti: number) =>
-    setSemesters((prev) =>
-      prev.map((sem, i) =>
-        i === si
-          ? { ...sem, terms: sem.terms.filter((_, j) => j !== ti) }
-          : sem,
-      ),
-    );
-
-  const updateTermField = (
-    si: number,
-    ti: number,
-    field: 'name' | 'orderIndex',
-    val: string | number,
-  ) =>
-    setSemesters((prev) =>
-      prev.map((sem, i) =>
-        i === si
-          ? {
-              ...sem,
-              terms: sem.terms.map((t, j) =>
-                j === ti ? { ...t, [field]: val } : t,
-              ),
-            }
-          : sem,
-      ),
-    );
-
-  const handleSubmit = async () => {
-    if (!name.trim()) { toast.error('Template name is required.'); return; }
-    if (semesters.length === 0) { toast.error('Add at least one semester.'); return; }
-    for (const sem of semesters) {
-      if (!sem.name.trim()) { toast.error('All semesters must have a name.'); return; }
-      if (sem.terms.length === 0) { toast.error(`Semester "${sem.name}" needs at least one term.`); return; }
-      for (const t of sem.terms) {
-        if (!t.name.trim()) { toast.error('All terms must have a name.'); return; }
-      }
-    }
-
-    try {
-      if (isEdit && template) {
-        const dto: UpdateSemesterTemplateDto = { name: name.trim(), semesters };
-        await updateMutation.mutateAsync({ id: template.id, data: dto });
-        toast.success('Template updated.');
-      } else {
-        const dto: CreateSemesterTemplateDto = {
-          name: name.trim(),
-          programType,
-          semesters,
-        };
-        await createMutation.mutateAsync(dto);
-        toast.success('Template created.');
-      }
-      onClose();
-    } catch {
-      // handled by apiClient interceptor
-    }
-  };
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-panel modal-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h3 className="modal-title">
-            {isEdit ? 'Edit Semester Template' : 'New Semester Template'}
-          </h3>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </div>
-
-        <div className="modal-body">
-          {/* Name */}
-          <div className="form-group">
-            <label className="form-label">Template Name</label>
-            <input
-              type="text"
-              className="form-input"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. College Standard (2 Sem)"
-              maxLength={100}
-              disabled={isSaving}
-            />
-          </div>
-
-          {/* Program type — only on create */}
-          {!isEdit && (
-            <div className="form-group">
-              <label className="form-label">Program Type</label>
-              <div className="program-select-wrapper">
-                <select
-                  className="program-select"
-                  value={programType}
-                  onChange={(e) => setProgramType(e.target.value as ProgramType)}
-                  disabled={isSaving}
-                >
-                  {PROGRAM_TYPES.map((pt) => (
-                    <option key={pt} value={pt}>
-                      {PROGRAM_TYPE_LABELS[pt]}
-                    </option>
-                  ))}
-                </select>
-                <div className="program-select__chevron" aria-hidden="true">
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Semesters */}
-          <div className="form-group">
-            <div className="ranges-header">
-              <label className="form-label">Semesters &amp; Terms</label>
-              <button
-                type="button"
-                className="add-range-btn"
-                onClick={addSemester}
-                disabled={isSaving}
-              >
-                + Add Semester
-              </button>
-            </div>
-
-            <div className="semester-items-list">
-              {semesters.map((sem, si) => (
-                <div key={si} className="semester-item-block">
-                  <div className="semester-item-header">
-                    <input
-                      type="text"
-                      className="form-input semester-name-input"
-                      value={sem.name}
-                      onChange={(e) => updateSemesterField(si, 'name', e.target.value)}
-                      placeholder={`Semester ${si + 1} name`}
-                      maxLength={100}
-                      disabled={isSaving}
-                    />
-                    <input
-                      type="number"
-                      className="form-input order-input"
-                      value={sem.orderIndex}
-                      min={1}
-                      onChange={(e) =>
-                        updateSemesterField(si, 'orderIndex', Number(e.target.value))
-                      }
-                      title="Order"
-                      disabled={isSaving}
-                    />
-                    <button
-                      type="button"
-                      className="remove-range-btn"
-                      onClick={() => removeSemester(si)}
-                      disabled={isSaving || semesters.length === 1}
-                      aria-label="Remove semester"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {/* Terms */}
-                  <div className="term-items-list">
-                    {sem.terms.map((term, ti) => (
-                      <div key={ti} className="term-item-row">
-                        <span className="term-item-bullet">·</span>
-                        <input
-                          type="text"
-                          className="form-input term-name-input"
-                          value={term.name}
-                          onChange={(e) =>
-                            updateTermField(si, ti, 'name', e.target.value)
-                          }
-                          placeholder={`Term ${ti + 1} name`}
-                          maxLength={100}
-                          disabled={isSaving}
-                        />
-                        <input
-                          type="number"
-                          className="form-input order-input"
-                          value={term.orderIndex}
-                          min={1}
-                          onChange={(e) =>
-                            updateTermField(si, ti, 'orderIndex', Number(e.target.value))
-                          }
-                          title="Order"
-                          disabled={isSaving}
-                        />
-                        <button
-                          type="button"
-                          className="remove-range-btn"
-                          onClick={() => removeTerm(si, ti)}
-                          disabled={isSaving || sem.terms.length === 1}
-                          aria-label="Remove term"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      className="add-term-btn"
-                      onClick={() => addTerm(si)}
-                      disabled={isSaving}
-                    >
-                      + Add Term
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="modal-footer">
-          <button type="button" className="btn-secondary" onClick={onClose} disabled={isSaving}>
-            Cancel
-          </button>
-          <button type="button" className="btn-primary" onClick={handleSubmit} disabled={isSaving}>
-            {isSaving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Template'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── SemesterTemplateCard ──────────────────────────────────────────────────────
-
-interface SemesterTemplateCardProps {
-  template: SemesterTemplate;
-  assignment?: SemesterTemplateAssignment;
-  onEdit: (t: SemesterTemplate) => void;
-  onDelete: (t: SemesterTemplate) => void;
-  onAssign: (t: SemesterTemplate) => void;
-}
-
-const SemesterTemplateCard: React.FC<SemesterTemplateCardProps> = ({
-  template,
-  assignment,
-  onEdit,
-  onDelete,
-  onAssign,
-}) => {
-  const totalTerms = template.semesters.reduce(
-    (acc, sem) => acc + sem.terms.length,
-    0,
-  );
-  const hasTermDates = assignment && assignment.termDates.length > 0;
-
-  return (
-    <div className="grading-scale-card card">
-      <div className="scale-card-header">
-        <div>
-          <h4 className="scale-name">{template.name}</h4>
-          <span className="scale-range-count">
-            {PROGRAM_TYPE_LABELS[template.program_type]}
-          </span>
-        </div>
-        <div className="scale-card-actions action-buttons action-buttons-sm">
-          <button
-            type="button"
-            className="action-button action-button-edit"
-            onClick={() => onEdit(template)}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            className="action-button action-button-delete"
-            onClick={() => onDelete(template)}
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-
-      {/* Semester + term structure */}
-      <div className="ranges-preview">
-        {template.semesters.map((sem) => (
-          <div key={sem.id} className="sem-preview-row">
-            <span className="sem-preview-name">{sem.name}</span>
-            <div className="template-term-chips">
-              {sem.terms.map((t) => (
-                <span key={t.id} className="template-term-chip">
-                  {t.name}
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="scale-card-footer">
-        <span className="scale-stat passing">
-          {template.semesters.length} semester{template.semesters.length !== 1 ? 's' : ''}
-        </span>
-        <span className="scale-stat">
-          {totalTerms} term{totalTerms !== 1 ? 's' : ''}
-        </span>
-        {hasTermDates && (
-          <span className="scale-stat passing">✓ Dates set</span>
-        )}
-        <button
-          type="button"
-          className="assign-template-btn"
-          onClick={() => onAssign(template)}
-        >
-          {assignment ? 'Manage Assignment' : 'Assign to Program'}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// ── AssignmentCard ────────────────────────────────────────────────────────────
-
-interface AssignmentCardProps {
-  assignment: SemesterTemplateAssignment;
-  templates: SemesterTemplate[];
-  onManage: (assignment: SemesterTemplateAssignment) => void;
-}
-
-const AssignmentCard: React.FC<AssignmentCardProps> = ({
-  assignment,
-  templates,
-  onManage,
-}) => {
-  const totalTerms = assignment.template.semesters.reduce(
-    (acc, s) => acc + s.terms.length,
-    0,
-  );
-  const datesSet = assignment.termDates.length;
-
-  return (
-    <div className="grading-scale-card card">
-      <div className="scale-card-header">
-        <div>
-          <h4 className="scale-name">{assignment.program.name}</h4>
-          <span className="scale-range-count">
-            {PROGRAM_TYPE_LABELS[assignment.program.type]}
-          </span>
-        </div>
-        <button
-          type="button"
-          className="action-button action-button-edit"
-          onClick={() => onManage(assignment)}
-        >
-          Manage
-        </button>
-      </div>
-
-      <div className="ranges-preview">
-        <div className="sem-preview-row">
-          <span className="sem-preview-name">Template:</span>
-          <span className="template-term-chip">{assignment.template.name}</span>
-        </div>
-        {assignment.template.semesters.map((sem) => (
-          <div key={sem.id} className="sem-preview-row">
-            <span className="sem-preview-name">{sem.name}</span>
-            <div className="template-term-chips">
-              {sem.terms.map((t) => {
-                const td = assignment.termDates.find((d) => d.term_id === t.id);
-                return (
-                  <span
-                    key={t.id}
-                    className={`template-term-chip ${td ? 'chip-dated' : ''}`}
-                    title={
-                      td
-                        ? `${td.start_date.slice(0, 10)} → ${td.end_date.slice(0, 10)}`
-                        : 'No dates set'
-                    }
-                  >
-                    {t.name}
-                    {td ? ' ✓' : ''}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="scale-card-footer">
-        <span className="scale-stat passing">
-          {datesSet}/{totalTerms} dates set
-        </span>
-        {datesSet === totalTerms && totalTerms > 0 && (
-          <span className="locked-badge">✓ Complete</span>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 type PageView = 'templates' | 'assignments';
 
@@ -801,40 +30,53 @@ interface SemesterTemplatePageProps {
   onBack: () => void;
 }
 
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) => {
+  // ── School year (only used for assignments tab) ────────────────────────────
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
   const [view, setView] = useState<PageView>('templates');
 
-  // Template modals
-  const [modalTemplate, setModalTemplate] = useState<SemesterTemplate | null | undefined>(
+  // ── Template form modal ───────────────────────────────────────────────────
+  // undefined = closed, null = create, SemesterTemplate = edit
+  const [formTemplate, setFormTemplate] = useState<SemesterTemplate | null | undefined>(
     undefined,
   );
+
+  // ── Delete confirm ────────────────────────────────────────────────────────
   const [pendingDelete, setPendingDelete] = useState<SemesterTemplate | null>(null);
 
-  // Assignment modal state
-  const [assignModal, setAssignModal] = useState<{
+  // ── Assign modal ──────────────────────────────────────────────────────────
+  // Opened from template card "Assign to Program"
+  const [assignTarget, setAssignTarget] = useState<{
     template: SemesterTemplate;
-    programId: string;
-    programName: string;
+    programId: string | null;
+    programName: string | null;
     existingAssignment: SemesterTemplateAssignment | null;
   } | null>(null);
 
-  // Assignment modal opened from the Assignments view
-  const [manageModal, setManageModal] = useState<SemesterTemplateAssignment | null>(null);
+  // Opened from assignment card "Manage"
+  const [manageTarget, setManageTarget] =
+    useState<SemesterTemplateAssignment | null>(null);
 
+  // ── Data ──────────────────────────────────────────────────────────────────
   const { data: schoolYears = [], isLoading: schoolYearsLoading } = useSchoolYears();
+
+  // Templates: global (org-wide), no school year filter
   const { data: templates = [], isLoading: templatesLoading } =
-    useSemesterTemplatesBySchoolYear(selectedSchoolYearId ?? '');
+    useAllSemesterTemplates();
+
+  // Assignments: scoped to selected school year
   const { data: assignments = [], isLoading: assignmentsLoading } =
     useSemesterTemplateAssignments(selectedSchoolYearId ?? '');
+
+  // Programs: needed by assign modal — load for selected school year
   const { data: programs = [], isLoading: programsLoading } =
     useProgramsBySchoolYear(selectedSchoolYearId ?? '');
 
   const deleteMutation = useDeleteSemesterTemplate();
 
-  const handleSchoolYearSelect = (id: string) => {
-    setSelectedSchoolYearId(id);
-  };
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleDeleteConfirm = async () => {
     if (!pendingDelete) return;
@@ -848,37 +90,34 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
     }
   };
 
-  // When clicking "Assign to Program" from a template card, pick which program
-  const [pickProgramFor, setPickProgramFor] = useState<SemesterTemplate | null>(null);
-  const [pickedProgramId, setPickedProgramId] = useState('');
+  const handleAssignFromCard = (template: SemesterTemplate) => {
+    // No program pre-selected — modal will have full school year + program pickers
+    const existingAssignment = selectedSchoolYearId
+      ? (assignments.find((a) => a.template_id === template.id) ?? null)
+      : null;
 
-  const handleOpenAssign = (template: SemesterTemplate) => {
-    setPickProgramFor(template);
-    setPickedProgramId('');
-  };
-
-  const handleConfirmProgramPick = () => {
-    if (!pickProgramFor || !pickedProgramId) return;
-    const program = programs.find((p) => p.id === pickedProgramId);
-    if (!program) return;
-    const existingAssignment =
-      assignments.find((a) => a.program_id === pickedProgramId) ?? null;
-    setAssignModal({
-      template: pickProgramFor,
-      programId: pickedProgramId,
-      programName: program.name,
+    setAssignTarget({
+      template,
+      programId: null,
+      programName: null,
       existingAssignment,
     });
-    setPickProgramFor(null);
-    setPickedProgramId('');
   };
 
   const handleManageAssignment = (assignment: SemesterTemplateAssignment) => {
-    setManageModal(assignment);
+    const tmpl =
+      templates.find((t) => t.id === assignment.template_id) ??
+      assignment.template;
+
+    setAssignTarget({
+      template: tmpl,
+      programId: assignment.program_id,
+      programName: assignment.program.name,
+      existingAssignment: assignment,
+    });
   };
 
-  const isLoading =
-    view === 'templates' ? templatesLoading : assignmentsLoading;
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="system-detail-page">
@@ -891,7 +130,7 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
           <div className="header-title">
             <h2 className="dashboard-section-title">Semester Templates</h2>
             <p className="dashboard-section-subtitle">
-              Define reusable semester &amp; term structures, then assign them to programs.
+              Define reusable semester &amp; term structures, then assign them to programs per school year.
             </p>
           </div>
         </div>
@@ -900,15 +139,18 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
       {/* ── Filters + view toggle ── */}
       <div className="card grading-scale-filters">
         <div className="filter-row">
-          <div className="form-group filter-group">
-            <label className="form-label">School Year</label>
-            <SchoolYearSelector
-              schoolYears={schoolYears}
-              isLoading={schoolYearsLoading}
-              selectedId={selectedSchoolYearId}
-              onSelect={handleSchoolYearSelect}
-            />
-          </div>
+          {/* School year selector — only relevant for Assignments tab */}
+          {view === 'assignments' && (
+            <div className="form-group filter-group">
+              <label className="form-label">School Year</label>
+              <SchoolYearSelector
+                schoolYears={schoolYears}
+                isLoading={schoolYearsLoading}
+                selectedId={selectedSchoolYearId}
+                onSelect={setSelectedSchoolYearId}
+              />
+            </div>
+          )}
 
           <div className="view-toggle-group">
             <button
@@ -917,6 +159,9 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
               onClick={() => setView('templates')}
             >
               Templates
+              {templates.length > 0 && (
+                <span className="view-toggle-badge">{templates.length}</span>
+              )}
             </button>
             <button
               type="button"
@@ -934,7 +179,7 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
             <button
               type="button"
               className="btn-primary"
-              onClick={() => setModalTemplate(null)}
+              onClick={() => setFormTemplate(null)}
             >
               + New Template
             </button>
@@ -942,25 +187,21 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
         </div>
       </div>
 
-      {/* ── Templates grid ── */}
+      {/* ── Templates grid (global — no school year needed) ── */}
       {view === 'templates' && (
         <div className="grading-scales-grid">
-          {!selectedSchoolYearId ? (
-            <div className="empty-state">
-              <p>Select a school year above to view semester templates.</p>
-            </div>
-          ) : isLoading ? (
+          {templatesLoading ? (
             <div className="dashboard-loading">
               <div className="loading-spinner" />
               <span className="loading-text">Loading templates…</span>
             </div>
           ) : templates.length === 0 ? (
             <div className="empty-state">
-              <p>No semester templates found for this school year.</p>
+              <p>No semester templates yet.</p>
               <button
                 type="button"
                 className="btn-primary"
-                onClick={() => setModalTemplate(null)}
+                onClick={() => setFormTemplate(null)}
               >
                 Create First Template
               </button>
@@ -973,9 +214,9 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
                   key={t.id}
                   template={t}
                   assignment={assignment}
-                  onEdit={(tmpl) => setModalTemplate(tmpl)}
+                  onEdit={(tmpl) => setFormTemplate(tmpl)}
                   onDelete={(tmpl) => setPendingDelete(tmpl)}
-                  onAssign={handleOpenAssign}
+                  onAssign={handleAssignFromCard}
                 />
               );
             })
@@ -983,14 +224,14 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
         </div>
       )}
 
-      {/* ── Assignments grid ── */}
+      {/* ── Assignments grid (scoped to school year) ── */}
       {view === 'assignments' && (
         <div className="grading-scales-grid">
           {!selectedSchoolYearId ? (
             <div className="empty-state">
               <p>Select a school year above to view assignments.</p>
             </div>
-          ) : isLoading ? (
+          ) : assignmentsLoading ? (
             <div className="dashboard-loading">
               <div className="loading-spinner" />
               <span className="loading-text">Loading assignments…</span>
@@ -1011,7 +252,6 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
               <AssignmentCard
                 key={a.id}
                 assignment={a}
-                templates={templates}
                 onManage={handleManageAssignment}
               />
             ))
@@ -1019,162 +259,41 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
         </div>
       )}
 
-      {/* ── Program picker modal (before AssignTemplateModal) ── */}
-      {pickProgramFor && (
-        <div className="modal-overlay" onClick={() => setPickProgramFor(null)}>
-          <div
-            className="modal-panel modal-sm"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3 className="modal-title">
-                Assign "{pickProgramFor.name}" to Program
-              </h3>
-              <button
-                type="button"
-                className="icon-btn"
-                onClick={() => setPickProgramFor(null)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label className="form-label">Program</label>
-                {programsLoading ? (
-                  <div className="program-select__skeleton" />
-                ) : (
-                  <div className="program-select-wrapper">
-                    <select
-                      className="program-select"
-                      value={pickedProgramId}
-                      onChange={(e) => setPickedProgramId(e.target.value)}
-                    >
-                      <option value="">
-                        {programs.length === 0
-                          ? 'No programs in this school year'
-                          : 'Select program…'}
-                      </option>
-                      {programs
-                        .filter((p) => p.type === pickProgramFor.program_type)
-                        .map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))}
-                    </select>
-                    <div className="program-select__chevron" aria-hidden="true">
-                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                )}
-                {programs.filter((p) => p.type === pickProgramFor.program_type)
-                  .length === 0 &&
-                  !programsLoading && (
-                    <p className="empty-ranges-hint">
-                      No {PROGRAM_TYPE_LABELS[pickProgramFor.program_type]} programs
-                      exist in this school year.
-                    </p>
-                  )}
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setPickProgramFor(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={!pickedProgramId}
-                onClick={handleConfirmProgramPick}
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Assign + term dates modal ── */}
-      {assignModal && selectedSchoolYearId && (
-        <AssignTemplateModal
-          schoolYearId={selectedSchoolYearId}
-          templates={templates}
-          existingAssignment={assignModal.existingAssignment}
-          programId={assignModal.programId}
-          programName={assignModal.programName}
-          onClose={() => setAssignModal(null)}
-        />
-      )}
-
-      {/* ── Manage assignment modal (from Assignments view) ── */}
-      {manageModal && selectedSchoolYearId && (
-        <AssignTemplateModal
-          schoolYearId={selectedSchoolYearId}
-          templates={templates}
-          existingAssignment={manageModal}
-          programId={manageModal.program_id}
-          programName={manageModal.program.name}
-          onClose={() => setManageModal(null)}
-        />
-      )}
-
       {/* ── Create / Edit template modal ── */}
-      {modalTemplate !== undefined && (
+      {formTemplate !== undefined && (
         <SemesterTemplateFormModal
-          template={modalTemplate}
-          onClose={() => setModalTemplate(undefined)}
+          template={formTemplate}
+          onClose={() => setFormTemplate(undefined)}
+        />
+      )}
+
+      {/* ── Assign / Manage modal ── */}
+      {assignTarget && (
+        <AssignTemplateModal
+          template={assignTarget.template}
+          allTemplates={templates}
+          existingAssignment={assignTarget.existingAssignment}
+          programId={assignTarget.programId}
+          programName={assignTarget.programName}
+          schoolYears={schoolYears}
+          selectedSchoolYearId={selectedSchoolYearId}
+          programs={programs}
+          programsLoading={programsLoading}
+          onClose={() => setAssignTarget(null)}
         />
       )}
 
       {/* ── Delete confirm ── */}
-      {pendingDelete && (
-        <div className="modal-overlay" onClick={() => setPendingDelete(null)}>
-          <div
-            className="modal-panel modal-sm"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3 className="modal-title">Delete Semester Template</h3>
-            </div>
-            <div className="modal-body">
-              <p>
-                Are you sure you want to delete{' '}
-                <strong>{pendingDelete.name}</strong>? This cannot be undone.
-              </p>
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setPendingDelete(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-danger"
-                onClick={handleDeleteConfirm}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmationModal
+        isOpen={!!pendingDelete}
+        title="Delete Semester Template"
+        message={`Are you sure you want to delete "${pendingDelete?.name}"? This cannot be undone and will remove all associated assignments.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={deleteMutation.isPending}
+        onConfirm={handleDeleteConfirm}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   );
 };
