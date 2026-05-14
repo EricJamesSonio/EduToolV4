@@ -3,7 +3,7 @@ import type {
   CreateOrganizationDto,
   Organization,
   UpdateOrganizationDto,
-} from '../types/organization.types';
+} from '../../types/organization.types';
 
 interface OrganizationFormProps {
   organization?: Organization | null;

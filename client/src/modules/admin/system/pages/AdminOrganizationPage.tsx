@@ -1,4 +1,4 @@
-import OrganizationForm from '../components/OrganizationForm';
+import OrganizationForm from '../components/organization/OrganizationForm';
 import type {
   Organization,
   UpdateOrganizationDto,

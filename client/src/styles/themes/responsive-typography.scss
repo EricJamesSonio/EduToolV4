@@ -647,10 +647,10 @@ $font-sizes: (
   }
 
   .text-print-black {
-    color: $black;
+    color: var(--color-black);
   }
 
   .text-print-gray {
-    color: $gray-600;
+    color: var(--color-text-secondary);
   }
 }

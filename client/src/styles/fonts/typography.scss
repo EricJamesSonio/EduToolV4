@@ -77,14 +77,14 @@ $font-family-mono: 'JetBrains Mono', 'Fira Code', Consolas, 'Liberation Mono', '
     font-size: $font-xs;
     font-weight: $font-normal;
     line-height: $leading-normal;
-    color: $gray-600;
+    color: var(--color-text-secondary);
   }
 
   .label {
     font-size: $font-sm;
     font-weight: $font-medium;
     line-height: $leading-normal;
-    color: $gray-700;
+    color: var(--color-text-primary);
   }
 
   // Specialized text styles
@@ -109,20 +109,20 @@ $font-family-mono: 'JetBrains Mono', 'Fira Code', Consolas, 'Liberation Mono', '
 
   // Text colors
   .text-muted {
-    color: $gray-500;
+    color: var(--color-text-secondary);
   }
 
   .text-subtle {
-    color: $gray-400;
+    color: var(--color-text-tertiary);
   }
 
   .text-inverse {
-    color: $white;
+    color: var(--color-text-inverse);
   }
 
   // Link styles
   .link {
-    color: $primary-color;
+    color: var(--color-primary-500);
     text-decoration: none;
     transition: $transition-fast;
 
@@ -132,24 +132,24 @@ $font-family-mono: 'JetBrains Mono', 'Fira Code', Consolas, 'Liberation Mono', '
     }
 
     &:focus {
-      outline: 2px solid $primary-color;
+      outline: 2px solid var(--color-primary-500);
       outline-offset: 2px;
     }
   }
 
   .link-muted {
-    color: $gray-600;
+    color: var(--color-text-secondary);
 
     &:hover {
-      color: $gray-800;
+      color: var(--color-text-primary);
     }
   }
 
   .link-inverse {
-    color: $white;
+    color: var(--color-text-inverse);
 
     &:hover {
-      color: $gray-200;
+      color: var(--color-secondary-200);
     }
   }
 }

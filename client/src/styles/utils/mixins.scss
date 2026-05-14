@@ -122,7 +122,7 @@
   text-decoration: none;
 
   &:focus {
-    outline: 2px solid $primary-color;
+    outline: 2px solid var(--color-primary-500);
     outline-offset: 2px;
   }
 
@@ -132,12 +132,14 @@
   }
 }
 
-@mixin button-variant($bg-color, $text-color: $white) {
+@mixin button-variant($bg-color, $text-color: var(--color-white)) {
   background-color: $bg-color;
   color: $text-color;
 
   &:hover:not(:disabled) {
-    background-color: darken($bg-color, 10%);
+    // Cannot use darken() with CSS custom properties
+    // Components should use specific color variants for hover states
+    opacity: 0.9;
   }
 
   &:active:not(:disabled) {
@@ -147,7 +149,7 @@
 
 // Card styles
 @mixin card {
-  background-color: $white;
+  background-color: var(--color-white);
   border-radius: $radius-lg;
   box-shadow: $shadow-base;
   padding: $spacing-6;
@@ -167,20 +169,20 @@
 @mixin input-base {
   width: 100%;
   padding: $spacing-3 $spacing-4;
-  border: 1px solid $gray-300;
+  border: 1px solid var(--color-border-primary);
   border-radius: $radius-md;
   font-size: $font-base;
   transition: $transition-base;
-  background-color: $white;
+  background-color: var(--color-white);
 
   &:focus {
     outline: none;
-    border-color: $primary-color;
-    box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 3px rgba(88, 204, 2, 0.1);
   }
 
   &::placeholder {
-    color: $gray-400;
+    color: var(--color-text-tertiary);
   }
 }
 
@@ -211,7 +213,7 @@
 }
 
 // Scrollbar styling
-@mixin scrollbar($size: 8px, $track-color: $gray-100, $thumb-color: $gray-400) {
+@mixin scrollbar($size: 8px, $track-color: var(--color-secondary-100), $thumb-color: var(--color-secondary-400)) {
   &::-webkit-scrollbar {
     width: $size;
     height: $size;
@@ -227,14 +229,14 @@
     border-radius: $radius-full;
 
     &:hover {
-      background: darken($thumb-color, 10%);
+      background: var(--color-secondary-500);
     }
   }
 }
 
 // Loading states
 @mixin loading-skeleton {
-  background: linear-gradient(90deg, $gray-200 25%, $gray-100 50%, $gray-200 75%);
+  background: linear-gradient(90deg, var(--color-secondary-200) 25%, var(--color-secondary-100) 50%, var(--color-secondary-200) 75%);
   background-size: 200% 100%;
   animation: loading 1.5s infinite;
 }
@@ -259,6 +261,17 @@
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+// Spin animation for loading spinners
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
   }
 }
 

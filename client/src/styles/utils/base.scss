@@ -18,8 +18,8 @@ body {
   font-size: $font-base;
   font-weight: $font-normal;
   line-height: $leading-normal;
-  color: $gray-900;
-  background-color: $gray-50;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
   margin: 0;
   padding: 0;
   min-height: 100vh;
@@ -35,7 +35,7 @@ h6 {
   font-weight: $font-semibold;
   line-height: $leading-tight;
   margin: 0 0 $spacing-4 0;
-  color: $gray-900;
+  color: var(--color-text-primary);
 }
 
 h1 {
@@ -68,7 +68,7 @@ p {
 }
 
 a {
-  color: $primary-color;
+  color: var(--color-primary-500);
   text-decoration: none;
   transition: $transition-fast;
 
@@ -78,7 +78,7 @@ a {
   }
 
   &:focus {
-    outline: 2px solid $primary-color;
+    outline: 2px solid var(--color-primary-500);
     outline-offset: 2px;
   }
 }
@@ -98,16 +98,16 @@ li {
 code {
   font-family: $font-family-mono;
   font-size: $font-sm;
-  background-color: $gray-100;
+  background-color: var(--color-secondary-100);
   padding: $spacing-1 $spacing-2;
   border-radius: $radius-sm;
-  color: $gray-800;
+  color: var(--color-secondary-800);
 }
 
 pre {
   font-family: $font-family-mono;
   font-size: $font-sm;
-  background-color: $gray-100;
+  background-color: var(--color-secondary-100);
   padding: $spacing-4;
   border-radius: $radius-md;
   overflow-x: auto;
@@ -130,13 +130,13 @@ th,
 td {
   padding: $spacing-3 $spacing-4;
   text-align: left;
-  border-bottom: 1px solid $gray-200;
+  border-bottom: 1px solid var(--color-border-primary);
 }
 
 th {
   font-weight: $font-semibold;
-  color: $gray-700;
-  background-color: $gray-50;
+  color: var(--color-text-primary);
+  background-color: var(--color-secondary-50);
 }
 
 // Forms
@@ -174,13 +174,13 @@ button {
 
 // Focus styles
 :focus-visible {
-  outline: 2px solid $primary-color;
+  outline: 2px solid var(--color-primary-500);
   outline-offset: 2px;
 }
 
 // Selection
 ::selection {
-  background-color: rgba($primary-color, 0.2);
+  background-color: rgba(88, 204, 2, 0.2);
 }
 
 // Scrollbar

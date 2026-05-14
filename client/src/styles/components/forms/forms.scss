@@ -346,72 +346,6 @@
     .btn {
       width: 100%;
     }
-
-    // Duolingo-style form buttons
-    .form-button {
-      padding: $spacing-4 $spacing-6;
-      border: none;
-      border-radius: 16px;
-      font-size: $font-base;
-      font-weight: $font-semibold;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 120px;
-
-      &.btn-primary {
-        background-color: var(--color-primary-500);
-        color: var(--color-white);
-        box-shadow: 0 4px 12px rgba(88, 204, 2, 0.25);
-
-        &:hover {
-          background-color: var(--color-primary-300);
-          box-shadow: 0 6px 16px rgba(88, 204, 2, 0.3);
-          transform: translateY(-1px);
-        }
-
-        &:active {
-          background-color: var(--color-primary-700);
-          box-shadow: 0 2px 8px rgba(88, 204, 2, 0.2);
-          transform: translateY(0);
-        }
-
-        &.btn-secondary {
-          background-color: transparent;
-          color: var(--color-primary-500);
-          border: 2px solid var(--color-primary-500);
-
-          &:hover {
-            background-color: var(--color-secondary-50);
-            border-color: var(--color-primary-600);
-            color: var(--color-primary-600);
-          }
-
-          &:active {
-            background-color: var(--color-primary-100);
-            border-color: var(--color-primary-700);
-            color: var(--color-primary-700);
-          }
-
-          &.btn-small {
-            padding: $spacing-3 $spacing-4;
-            font-size: $font-sm;
-            border-radius: 12px;
-            min-width: 100px;
-          }
-
-          &.btn-large {
-            padding: $spacing-5 $spacing-8;
-            font-size: $font-lg;
-            border-radius: 20px;
-            min-width: 160px;
-          }
-        }
-      }
-    }
   }
 }
 
@@ -491,24 +425,12 @@
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 2;
-    width: 24px;
-    height: 24px;
-    border: 2px solid var(--color-border-primary);
-    border-top-color: var(--color-primary-500);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+    // Using loading-spinner-sm from utils/helpers.scss
+    @extend .loading-spinner-sm;
   }
 }
 
-@keyframes spin {
-  0% {
-    transform: translate(-50%, -50%) rotate(0deg);
-  }
-
-  100% {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
+// Note: @keyframes spin is defined in utils/mixins.scss
 
 // Login form specific styles
 .login-form {

@@ -49,64 +49,9 @@
   margin-left: auto;
   margin-right: auto;
 
-  .btn-primary {
-    padding: 1rem 2rem;
-    border: none;
-    border-radius: 16px;
-    font-size: 1.1rem;
-    font-weight: 700;
-    background-color: var(--color-primary-500);
-    color: var(--color-white);
-    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
-    cursor: pointer;
-    transition: all 0.15s ease;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-
-    &:hover {
-      background-color: var(--color-primary-300);
-      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
-      transform: translateY(-2px);
-    }
-
-    &:active {
-      background-color: var(--color-primary-700);
-      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.1);
-      transform: translateY(0);
-    }
-  }
-
+  // Use button classes from components/buttons/buttons.scss
+  .btn-primary,
   .btn-secondary {
-    padding: 1rem 2rem;
-    border: 2px solid var(--color-border-primary);
-    border-radius: 16px;
-    font-size: 1rem;
-    font-weight: 600;
-    background-color: transparent;
-    color: var(--color-primary-500);
-    cursor: pointer;
-    transition: all 0.15s ease;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     width: 100%;
-
-    &:hover {
-      background-color: var(--color-secondary-50);
-      border-color: var(--color-primary-600);
-      color: var(--color-primary-600);
-    }
-
-    &:active {
-      background-color: var(--color-primary-100);
-      border-color: var(--color-primary-700);
-      color: var(--color-primary-700);
-    }
   }
 }
