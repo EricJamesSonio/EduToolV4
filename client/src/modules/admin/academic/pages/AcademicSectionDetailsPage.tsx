@@ -97,6 +97,9 @@ const AcademicSectionDetailsPage: React.FC<Props> = ({
             classes={classes}
             isLoading={classesLoading}
             isError={classesError}
+            schoolYearId={schoolYearId}
+            sectionId={section.id}
+            levelId={levelId}
           />
         )}
         {tab === 'schedule' && (

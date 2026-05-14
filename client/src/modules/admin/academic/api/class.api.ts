@@ -30,11 +30,32 @@ export interface ClassQueryParams {
   sectionId?: string;
 }
 
-const cleanParams = (params: ClassQueryParams) => {
-  return Object.fromEntries(
+export interface ScheduleSlotInput {
+  weekday: number;
+  startTime: string;
+  endTime: string;
+}
+
+export interface CreateClassDto {
+  subjectId: string;
+  educatorId: string;
+  sectionId?: string;
+  schoolYearId: string;
+  capacity: number;
+  schedules: ScheduleSlotInput[];
+}
+
+export interface UpdateClassDto {
+  educatorId?: string;
+  sectionId?: string;
+  capacity?: number;
+  schedules?: ScheduleSlotInput[];
+}
+
+const cleanParams = (params: ClassQueryParams) =>
+  Object.fromEntries(
     Object.entries(params).filter(([, value]) => value !== undefined && value !== ''),
   );
-};
 
 export const classApi = {
   getAll: async (params: ClassQueryParams = {}): Promise<AcademicClass[]> => {
@@ -42,5 +63,24 @@ export const classApi = {
       params: cleanParams(params),
     });
     return response.data;
+  },
+
+  getById: async (id: string): Promise<AcademicClass> => {
+    const response = await apiClient.get(`/classes/${id}`);
+    return response.data;
+  },
+
+  create: async (dto: CreateClassDto): Promise<AcademicClass> => {
+    const response = await apiClient.post('/classes', dto);
+    return response.data;
+  },
+
+  update: async (id: string, dto: UpdateClassDto): Promise<AcademicClass> => {
+    const response = await apiClient.patch(`/classes/${id}`, dto);
+    return response.data;
+  },
+
+  remove: async (id: string): Promise<void> => {
+    await apiClient.delete(`/classes/${id}`);
   },
 };
