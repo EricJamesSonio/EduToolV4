@@ -6,6 +6,7 @@ import ActionButtons from '@/components/ActionButtons/ActionButtons';
 import { useErrorToast } from '@/components/ErrorDisplay/UnifiedError';
 import { useSubjectsByLevel, useCreateSubject, useUpdateSubject } from '../hooks/useSubjects';
 import SubjectFormModal from '../components/modals/SubjectFormModal';
+import SubjectDetailsModal from '../components/modals/SubjectDetailsModal';
 import type { Level } from '../types/level.types';
 import type { Subject } from '../types/subject.types';
 
@@ -26,6 +27,7 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Subject | null>(null);
+  const [viewTarget, setViewTarget] = useState<Subject | null>(null);
 
   const {
     data: subjects = [],
@@ -50,6 +52,10 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({
     setModalOpen(true);
   };
 
+  const handleOpenView = (subject: Subject) => {
+    setViewTarget(subject);
+  };
+
   const handleCloseModal = () => {
     setModalOpen(false);
     setEditTarget(null);
@@ -69,6 +75,7 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({
           subjectType: data.subjectType,
           programId: level.program_id,
           levelId: level.id,
+          yearLevel: level.name,
           ...(context.courseId ? { courseId: context.courseId } : {}),
           ...(context.strandId ? { strandId: context.strandId } : {}),
         });
@@ -162,6 +169,7 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({
                           <ActionButtons
                             variant="compact"
                             size="sm"
+                            onView={() => handleOpenView(subject)}
                             onEdit={
                               subject.lockStatus === 'locked'
                                 ? undefined
@@ -187,6 +195,12 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({
         onSubmit={handleSubmit}
         isLoading={createSubject.isPending || updateSubject.isPending}
         subject={editTarget}
+      />
+
+      <SubjectDetailsModal
+        isOpen={!!viewTarget}
+        onClose={() => setViewTarget(null)}
+        subject={viewTarget}
       />
     </>
   );
