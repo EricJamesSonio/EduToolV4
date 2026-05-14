@@ -14,6 +14,7 @@ import type { SchoolYear, CreateSchoolYearDto } from './types/school-year.types'
 import type { ProgramWithStats, CreateProgramDto, UpdateProgramDto } from './types/program.types';
 import type { Course } from './types/course.types';
 import type { Strand } from './types/strand.types';
+import type { Level } from './types/level.types';
 import AdminLayout from "@/components/AdminLayout";
 import CreateSchoolYearModal from "./components/modals/CreateSchoolYearModal";
 import CreateProgramModal from "./components/modals/CreateProgramModal";
@@ -24,14 +25,20 @@ import AcademicLevelPage from "./pages/AcademicLevelPage";
 import AcademicProgramPage from "./pages/AcademicProgramPage";
 import AcademicSchoolYearPage from "./pages/AcademicSchoolYearPage";
 import AcademicStrandPage from "./pages/AcademicStrandPage";
+import AcademicSectionDetailsPage from "./pages/AcademicSectionDetailsPage";
+import AcademicLevelSubjectsPage from "./pages/AcademicLevelSubjectsPage";
 import { useCreateSchoolYear } from "./hooks/useSchoolYearMutations";
+
 
 type ViewMode =
   | "school-year-selection"
   | "program-list"
   | "courses-view"
   | "strands-view"
-  | "levels-view";
+  | "levels-view"
+  | "section-details"
+  | "level-subjects";
+
 
 function AdminAcademics() {
   const [viewMode, setViewMode] = useState<ViewMode>("school-year-selection");
@@ -40,6 +47,7 @@ function AdminAcademics() {
   // Track which course or strand the user drilled into
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedStrand, setSelectedStrand] = useState<Strand | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [userInitiatedBack, setUserInitiatedBack] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreateProgramModalOpen, setIsCreateProgramModalOpen] = useState(false);
@@ -143,10 +151,13 @@ function AdminAcademics() {
       setViewMode("courses-view");
       return;
     }
-    if (program.type === 'senior-high' || program.type === 'shs') {
+    // program.type values in this repo are: "elementary" | "high_school" | "senior_high" | "custom"
+    if (program.type === 'senior_high') {
       setViewMode("strands-view");
       return;
     }
+
+
     setViewMode("levels-view");
   };
 
@@ -187,6 +198,23 @@ function AdminAcademics() {
   const handleBackToStrands = () => {
     setSelectedStrand(null);
     setViewMode("strands-view");
+  };
+
+  const handleViewLevelSubjects = (args: {
+    schoolYearId: string;
+    levelId: string;
+    context: { courseId?: string; strandId?: string };
+  }) => {
+    // Create a minimal Level object for navigation
+    // The actual level data will be fetched in the subjects page
+    setSelectedLevel({
+      id: args.levelId,
+      org_id: '',
+      program_id: '',
+      school_year_id: args.schoolYearId,
+      name: '',
+    });
+    setViewMode("level-subjects");
   };
 
   const isLoading =
@@ -256,8 +284,28 @@ function AdminAcademics() {
                   strandId={selectedStrand?.id}
                   contextLabel={selectedCourse?.name ?? selectedStrand?.name}
                   onBackToPrograms={levelsBackHandler}
+                  onViewSectionDetails={(args) => {
+                    setSelectedSchoolYear(currentSchoolYear ?? null);
+                    setSelectedProgram(selectedProgram);
+                    setSelectedCourse(selectedCourse);
+                    setSelectedStrand(selectedStrand);
+                    setViewMode("section-details");
+                  }}
+                  onViewLevelSubjects={handleViewLevelSubjects}
                 />
               )}
+
+              {viewMode === "level-subjects" && selectedLevel && (
+                <AcademicLevelSubjectsPage
+                  schoolYearId={currentSchoolYear?.id || ""}
+                  level={selectedLevel}
+                  onBack={() => {
+                    setSelectedLevel(null);
+                    setViewMode("levels-view");
+                  }}
+                />
+              )}
+
             </>
           )}
         </div>

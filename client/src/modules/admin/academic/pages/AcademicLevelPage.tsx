@@ -33,7 +33,21 @@ interface AcademicLevelPageProps {
   /** Display name of the course or strand for the subtitle */
   contextLabel?: string;
   onBackToPrograms: () => void;
+  onViewSectionDetails?: (args: {
+    schoolYearId: string;
+    sectionId: string;
+    levelId: string;
+    context: { courseId?: string; strandId?: string };
+  }) => void;
+  onViewLevelSubjects?: (args: {
+    schoolYearId: string;
+    levelId: string;
+    context: { courseId?: string; strandId?: string };
+  }) => void;
 }
+
+
+
 
 interface SectionModalState {
   levelId: string;
@@ -69,7 +83,19 @@ interface LevelCardProps {
   onAddSection: (levelId: string) => void;
   onEditSection: (levelId: string, section: Section) => void;
   onDeleteSection: (section: Section) => void;
+  onViewSectionDetails?: (args: {
+    schoolYearId: string;
+    sectionId: string;
+    levelId: string;
+    context: { courseId?: string; strandId?: string };
+  }) => void;
+  onViewLevelSubjects?: (args: {
+    schoolYearId: string;
+    levelId: string;
+    context: { courseId?: string; strandId?: string };
+  }) => void;
 }
+
 
 const LevelCard: React.FC<LevelCardProps> = ({
   levelName,
@@ -81,7 +107,10 @@ const LevelCard: React.FC<LevelCardProps> = ({
   onAddSection,
   onEditSection,
   onDeleteSection,
+  onViewSectionDetails,
+  onViewLevelSubjects,
 }) => {
+
   const primaryLevelId = levelItems[0].id;
 
   const { data: sections = [], isLoading: sectionsLoading } =
@@ -136,6 +165,19 @@ const LevelCard: React.FC<LevelCardProps> = ({
             >
               +
             </button>
+            {onViewLevelSubjects && (
+              <button
+                className="btn btn-secondary btn-xs"
+                onClick={() => onViewLevelSubjects({
+                  schoolYearId,
+                  levelId: primaryLevelId,
+                  context: { courseId, strandId },
+                })}
+                title="View subjects"
+              >
+                Subjects
+              </button>
+            )}
           </div>
 
           {sectionsLoading ? (
@@ -148,14 +190,38 @@ const LevelCard: React.FC<LevelCardProps> = ({
           ) : (
             <div className="sections-list">
               {visibleSections.map((section) => (
-                <div key={section.id} className="section-row">
+                <div
+                  key={section.id}
+                  className="section-row section-row-clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() =>
+                    onViewSectionDetails?.({
+                      schoolYearId,
+                      sectionId: section.id,
+                      levelId: primaryLevelId,
+                      context: { courseId, strandId },
+                    })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onViewSectionDetails?.({
+                        schoolYearId,
+                        sectionId: section.id,
+                        levelId: primaryLevelId,
+                        context: { courseId, strandId },
+                      });
+                    }
+                  }}
+                >
                   <div className="section-info">
                     <span className="section-name">{section.name}</span>
                     <span className="section-meta">
                       {section.studentCount}/{section.capacity} students
                     </span>
                   </div>
-                  <div className="section-actions">
+                  <div className="section-actions" onClick={(e) => e.stopPropagation()}>
                     <button
                       className="icon-btn"
                       title="Edit section"
@@ -173,6 +239,7 @@ const LevelCard: React.FC<LevelCardProps> = ({
                   </div>
                 </div>
               ))}
+
             </div>
           )}
         </div>
@@ -192,6 +259,8 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
   strandId,
   contextLabel,
   onBackToPrograms,
+  onViewSectionDetails,
+  onViewLevelSubjects,
 }) => {
   const [levelToDelete, setLevelToDelete] = useState<Level | null>(null);
   const [sectionModal, setSectionModal] = useState<SectionModalState | null>(null);
@@ -371,8 +440,11 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
               onAddSection={handleAddSection}
               onEditSection={handleEditSection}
               onDeleteSection={handleDeleteSection}
+              onViewSectionDetails={onViewSectionDetails}
+              onViewLevelSubjects={onViewLevelSubjects}
             />
           ))}
+
         </div>
       )}
 
