@@ -1,0 +1,20 @@
+  .assign-modal-scroll-body {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px; /* prevents scrollbar from clipping content */
+}
+
+.assign-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  margin-top: 0.5rem;
+}
+
+.assign-modal-footer-right {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}

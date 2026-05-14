@@ -16,12 +16,11 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+// Mirrors backend ProgramType enum exactly
 export type ProgramType =
-  | 'daycare'
-  | 'kinder'
   | 'elementary'
-  | 'jhs'
-  | 'shs'
+  | 'high_school'
+  | 'senior_high'
   | 'college'
   | 'custom';
 
@@ -51,7 +50,7 @@ export class CreateSemesterTemplateDto {
   @IsString() @MinLength(1) @MaxLength(100)
   name!: string;
 
-  @IsIn(['college', 'shs', 'jhs', 'elementary', 'kinder', 'daycare', 'custom'])
+  @IsIn(['elementary', 'high_school', 'senior_high', 'college', 'custom'])
   programType!: ProgramType;
 
   @IsArray()

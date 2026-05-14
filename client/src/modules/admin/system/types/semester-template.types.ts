@@ -1,37 +1,33 @@
 // client/src/modules/admin/system/types/semester-template.types.ts
 
-// ── Program type (mirrors backend ProgramType) ─────────────────────────────
+// ── Program type — mirrors backend ProgramType enum exactly ───────────────────
 
 export type ProgramType =
-  | 'daycare'
-  | 'kinder'
   | 'elementary'
-  | 'jhs'
-  | 'shs'
+  | 'high_school'
+  | 'senior_high'
   | 'college'
   | 'custom';
 
 export const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
-  daycare: 'Day Care',
-  kinder: 'Kinder',
-  elementary: 'Elementary',
-  jhs: 'Junior High School',
-  shs: 'Senior High School',
-  college: 'College',
-  custom: 'Custom',
+  elementary:  'Elementary',
+  high_school: 'High School',
+  senior_high: 'Senior High School',
+  college:     'College',
+  custom:      'Custom',
 };
 
-// ── Term (inside a template semester item) ──────────────────────────────────
+// ── Term (inside a template semester item) ─────────────────────────────────────
 
 export interface SemesterTemplateTerm {
   id: string;
   name: string;
   order_index: number;
   org_id: string;
-  semester_id: string; // references SemesterTemplateItem.id
+  semester_id: string;
 }
 
-// ── Template semester item ──────────────────────────────────────────────────
+// ── Template semester item ─────────────────────────────────────────────────────
 
 export interface SemesterTemplateItem {
   id: string;
@@ -42,7 +38,7 @@ export interface SemesterTemplateItem {
   terms: SemesterTemplateTerm[];
 }
 
-// ── Semester template ───────────────────────────────────────────────────────
+// ── Semester template ──────────────────────────────────────────────────────────
 
 export interface SemesterTemplate {
   id: string;
@@ -54,7 +50,7 @@ export interface SemesterTemplate {
   updated_at: string;
 }
 
-// ── Assignment term date ────────────────────────────────────────────────────
+// ── Assignment term date ───────────────────────────────────────────────────────
 
 export interface AssignmentTermDate {
   id: string;
@@ -65,7 +61,7 @@ export interface AssignmentTermDate {
   end_date: string;
 }
 
-// ── Program (slim shape returned by assignment includes) ────────────────────
+// ── Program (slim shape returned by assignment includes) ───────────────────────
 
 export interface AssignedProgram {
   id: string;
@@ -74,7 +70,7 @@ export interface AssignedProgram {
   school_year_id: string;
 }
 
-// ── Assignment (findAssignmentsBySchoolYear return shape) ───────────────────
+// ── Assignment ─────────────────────────────────────────────────────────────────
 
 export interface SemesterTemplateAssignment {
   id: string;
@@ -86,7 +82,7 @@ export interface SemesterTemplateAssignment {
   termDates: AssignmentTermDate[];
 }
 
-// ── DTOs (client → API) ─────────────────────────────────────────────────────
+// ── DTOs (client → API) ────────────────────────────────────────────────────────
 
 export interface CreateSemesterTemplateTermDto {
   name: string;
@@ -117,14 +113,14 @@ export interface AssignSemesterTemplateDto {
 
 export interface TermDateEntry {
   termId: string;
-  startDate: string; // ISO date string
-  endDate: string;   // ISO date string
+  startDate: string;
+  endDate: string;
 }
 
 export interface SaveTermDatesDto {
   termDates: TermDateEntry[];
 }
 
-// ── UI helper: flat term date map keyed by     ───────────────────────────
+// ── UI helper ─────────────────────────────────────────────────────────────────
 
 export type TermDateMap = Record<string, { startDate: string; endDate: string }>;

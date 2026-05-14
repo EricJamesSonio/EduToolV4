@@ -56,6 +56,7 @@
 @import 'components/cards/featureCard';
 @import 'components/cards/statCard';
 @import 'components/cards/testimonialCard';
+@import 'components/cards/programCard';
 
 // Error
 @import 'components/error/ErrorDisplay';
@@ -67,6 +68,7 @@
 // Modals
 @import 'components/modals/modal';
 @import 'components/modals/modals';
+@import 'components/modals/assignModal';
 
 // Navigation
 @import 'components/navbar/admin-navbar';

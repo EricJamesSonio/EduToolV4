@@ -1,21 +1,12 @@
-// Program Types
-// Type definitions for program related components and APIs
+// client/src/modules/admin/academic/types/program.types.ts
+// Program Types — source of truth: backend ProgramType enum
 
 export type ProgramType =
   | 'elementary'
-  | 'junior-high'
-  | 'senior-high'
+  | 'high_school'
   | 'senior_high'
   | 'college'
-  | 'vocational'
-  | 'special'
-  | 'stem'
-  | 'arts'
-  | 'sports'
-  | 'other'
-  | 'daycare'
-  | 'preschool'
-  | 'kindergarten';
+  | 'custom';
 
 export interface Program {
   id: string;

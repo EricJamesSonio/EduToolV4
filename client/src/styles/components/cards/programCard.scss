@@ -1,0 +1,7 @@
+.assignment-status-badge { padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+.badge-complete   { background: var(--success-bg, #d1fae5); color: var(--success-text, #065f46); }
+.badge-partial    { background: var(--warning-bg, #fef3c7); color: var(--warning-text, #92400e); }
+.badge-unassigned { background: var(--muted-bg, #f3f4f6);  color: var(--muted-text, #6b7280); }
+
+.program-no-assignment-hint { padding: 0.5rem 0; color: var(--text-muted); font-size: 0.875rem; }
+.assign-template-btn--primary { background: var(--color-primary); color: white; }
