@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { subjectApi } from '../api/subject.api';
+import type { CreateSubjectDto, UpdateSubjectDto } from '../api/subject.api';
 import type { QuerySubjectParams } from '../types/subject.types';
 
 export const subjectKeys = {
@@ -32,5 +33,29 @@ export const useSubject = (id: string) => {
     queryFn: () => subjectApi.getById(id),
     enabled: !!id,
     staleTime: 10 * 60 * 1000,
+  });
+};
+
+export const useCreateSubject = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (dto: CreateSubjectDto) => subjectApi.create(dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: subjectKeys.lists() });
+    },
+  });
+};
+
+export const useUpdateSubject = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateSubjectDto }) =>
+      subjectApi.update(id, dto),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(subjectKeys.detail(updated.id), updated);
+      queryClient.invalidateQueries({ queryKey: subjectKeys.lists() });
+    },
   });
 };

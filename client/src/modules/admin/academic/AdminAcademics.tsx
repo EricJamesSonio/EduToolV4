@@ -45,6 +45,10 @@ function AdminAcademics() {
   const [viewMode, setViewMode] = useState<ViewMode>("school-year-selection");
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<SchoolYear | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<ProgramWithStats | null>(null);
+  const [selectedLevelSubjectsContext, setSelectedLevelSubjectsContext] = useState<{
+  courseId?: string;
+  strandId?: string;
+} | null>(null);
   // Track which course or strand the user drilled into
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedStrand, setSelectedStrand] = useState<Strand | null>(null);
@@ -226,18 +230,19 @@ function AdminAcademics() {
     schoolYearId: string;
     levelId: string;
     levelName?: string;
+    programId: string;
     context: { courseId?: string; strandId?: string };
   }) => {
-    // Create a minimal Level object for navigation
-    // The actual level data will be fetched in the subjects page
     setSelectedLevel({
       id: args.levelId,
       org_id: '',
-      program_id: '',
+      program_id: args.programId,
       school_year_id: args.schoolYearId,
       name: args.levelName ?? '',
     });
+
     setSelectedSectionDetails(null);
+    setSelectedLevelSubjectsContext(args.context);
     setViewMode("level-subjects");
   };
 
@@ -326,14 +331,16 @@ function AdminAcademics() {
               )}
 
               {viewMode === "level-subjects" && selectedLevel && (
-                <AcademicLevelSubjectsPage
-                  schoolYearId={currentSchoolYear?.id || ""}
-                  level={selectedLevel}
-                  onBack={() => {
-                    setSelectedLevel(null);
-                    setViewMode("levels-view");
-                  }}
-                />
+              <AcademicLevelSubjectsPage
+                schoolYearId={currentSchoolYear?.id || ""}
+                level={selectedLevel}
+                context={selectedLevelSubjectsContext ?? {}}
+                onBack={() => {
+                  setSelectedLevel(null);
+                  setSelectedLevelSubjectsContext(null);
+                  setViewMode("levels-view");
+                }}
+              />
               )}
 
               {viewMode === "section-details" && selectedSectionDetails && (
