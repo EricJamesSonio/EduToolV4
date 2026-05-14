@@ -71,7 +71,30 @@
     }
   }
 }
+.subject-details-content {
+  display: flex;
+  flex-direction: column;
 
+  max-height: 65vh;
+  overflow-y: auto;
+
+  padding-right: $spacing-2;
+
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: var(--color-border-secondary);
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
 @include respond-to-max(sm) {
   .detail-value {
     font-size: $font-sm;
