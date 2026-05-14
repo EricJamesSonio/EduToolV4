@@ -1,8 +1,11 @@
-// Main SCSS entry point
-// Import all styles in the correct order
+// =====================================================
+// Main SCSS Entry Point
+// Global import order architecture
+// =====================================================
 
 // =====================================================
 // 1. Utils / Core
+// Must load first because everything depends on these
 // =====================================================
 
 @import 'utils/variables';
@@ -18,7 +21,7 @@
 @import 'utils/base';
 
 // =====================================================
-// 3. Typography
+// 3. Typography / Fonts
 // =====================================================
 
 @import 'fonts/typography';
@@ -45,63 +48,118 @@
 
 // =====================================================
 // 6. Shared Components
+// Reusable global components
 // =====================================================
 
+// -----------------------------------------------------
 // Buttons
+// -----------------------------------------------------
+
 @import 'components/buttons/buttons';
 @import 'components/buttons/actionButtons';
 
+// -----------------------------------------------------
 // Cards
+// -----------------------------------------------------
+
 @import 'components/cards/cards';
-@import 'components/cards/featureCard';
 @import 'components/cards/statCard';
-@import 'components/cards/testimonialCard';
-@import 'components/cards/programCard';
 
-// Details
-@import 'components/details/subject-details';
+// -----------------------------------------------------
+// Calendar
+// -----------------------------------------------------
 
-// Calendar Picker
 @import 'components/calendar/CalendarPicker';
 
-// Error
+// -----------------------------------------------------
+// Error Components
+// -----------------------------------------------------
+
 @import 'components/error/ErrorDisplay';
 
+// -----------------------------------------------------
 // Forms
-@import 'components/forms/forms';
-@import 'components/forms/schoolYearForm';
+// -----------------------------------------------------
 
+@import 'components/forms/forms';
+
+// -----------------------------------------------------
 // Modals
+// -----------------------------------------------------
+
 @import 'components/modals/modal';
 @import 'components/modals/modals';
 @import 'components/modals/assignModal';
-@import 'components/modals/classModal';
-@import 'components/modals/subjectModal';
 
-// Navigation
+// -----------------------------------------------------
+// Navbar Components
+// -----------------------------------------------------
+
 @import 'components/navbar/admin-navbar';
 
-// Generic Components
+// -----------------------------------------------------
+// Generic Shared Components
+// -----------------------------------------------------
+
 @import 'components/tables';
 @import 'components/hero';
 
 // =====================================================
-// 7. Pages
+// 7. Module Styles
+// Feature-scoped reusable styles
+// =====================================================
+
+// -----------------------------------------------------
+// Admin Modules
+// -----------------------------------------------------
+
+// Academic
+@import 'modules/admin/academic/cards/programCard';
+
+@import 'modules/admin/academic/details/subject-details';
+
+@import 'modules/admin/academic/modals/classModal';
+@import 'modules/admin/academic/modals/enrollModal';
+@import 'modules/admin/academic/modals/subjectModal';
+
+// System
+@import 'modules/admin/system/schoolYearForm';
+
+// -----------------------------------------------------
+// Home Modules
+// -----------------------------------------------------
+
+@import 'modules/home/about/cards/featureCard';
+@import 'modules/home/home/testimonialCard';
+
+// =====================================================
+// 8. Pages
+// Actual page-level styling
 // =====================================================
 
 @import 'pages/page';
 
+// -----------------------------------------------------
 // Admin Pages
+// -----------------------------------------------------
+
 @import 'pages/admin/academic/admin-academics';
+
 @import 'pages/admin/dashboard/dashboard';
+
 @import 'pages/admin/people/admin-people';
+
 @import 'pages/admin/system/admin-system';
+
 @import 'pages/admin/system/grading-scale/grading-scale';
+
 @import 'pages/admin/system/grading-scheme/grading-scheme';
+
 @import 'pages/admin/system/semester-template';
 
 // =====================================================
-// 8. Utility Classes
+// 9. Utilities
+// Should load last so utility classes can override
 // =====================================================
 
 @import 'utils/helpers';

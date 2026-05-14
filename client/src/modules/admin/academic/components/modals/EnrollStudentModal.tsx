@@ -8,9 +8,6 @@ import type { Student } from '../../../people/types/student.types';
 interface EnrollStudentModalProps {
   isOpen: boolean;
   sectionId: string;
-  levelId: string;
-  courseId?: string;
-  strandId?: string;
   enrolledStudentIds: string[]; // IDs of already enrolled students
   isLoading?: boolean;
   onEnroll: (student: Student) => Promise<void>;
@@ -20,9 +17,6 @@ interface EnrollStudentModalProps {
 const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
   isOpen,
   sectionId,
-  levelId,
-  courseId,
-  strandId,
   enrolledStudentIds,
   isLoading = false,
   onEnroll,
@@ -32,12 +26,8 @@ const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isEnrolling, setIsEnrolling] = useState(false);
 
-  // Fetch students at the same level (not yet enrolled in this section)
-  const { data: availableStudents = [], isLoading: isLoadingStudents } = useStudents({
-    levelId,
-    courseId,
-    strandId,
-  });
+  // Fetch ALL students globally (no level/course/strand filters)
+  const { data: availableStudents = [], isLoading: isLoadingStudents } = useStudents();
 
   // Filter out already enrolled students and apply search
   const filteredStudents = useMemo(() => {
@@ -113,10 +103,12 @@ const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
               </div>
             ) : filteredStudents.length === 0 ? (
               <div className="empty-placeholder">
-                {enrolledStudentIds.length > 0 && availableStudents.length > 0 ? (
-                  <p>All available students at this level are already enrolled.</p>
+                {availableStudents.length > 0 && enrolledStudentIds.length > 0 ? (
+                  <p>All students are already enrolled in this section.</p>
+                ) : availableStudents.length === 0 ? (
+                  <p>No students available in the system.</p>
                 ) : (
-                  <p>No students available at this level.</p>
+                  <p>No students match your search.</p>
                 )}
               </div>
             ) : (

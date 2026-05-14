@@ -13,9 +13,6 @@ type Props = {
   isLoading: boolean;
   isError: boolean;
   sectionId: string;
-  levelId: string;
-  courseId?: string;
-  strandId?: string;
 };
 
 const SectionStudentsTab: React.FC<Props> = ({
@@ -23,9 +20,6 @@ const SectionStudentsTab: React.FC<Props> = ({
   isLoading,
   isError,
   sectionId,
-  levelId,
-  courseId,
-  strandId,
 }) => {
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -158,13 +152,10 @@ const SectionStudentsTab: React.FC<Props> = ({
         </div>
       </BaseCard>
 
-      {/* Enroll Student Modal - Select from existing students */}
+      {/* Enroll Student Modal - Select from ALL global students */}
       <EnrollStudentModal
         isOpen={isEnrollModalOpen}
         sectionId={sectionId}
-        levelId={levelId}
-        courseId={courseId}
-        strandId={strandId}
         enrolledStudentIds={enrolledStudentIds}
         isLoading={updateStudentMutation.isPending}
         onEnroll={handleEnrollStudent}
