@@ -498,6 +498,304 @@
   line-height: $leading-relaxed;
 }
 
+.empty-state-action {
+  display: flex;
+  justify-content: center;
+}
+
+.empty-state-compact {
+  padding: $spacing-5;
+  box-shadow: none;
+
+  .empty-state-content {
+    max-width: none;
+  }
+
+  .empty-state-title {
+    font-size: $font-base;
+    margin-bottom: $spacing-2;
+  }
+
+  .empty-state-text {
+    font-size: $font-sm;
+    margin-bottom: 0;
+  }
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $radius-full;
+  font-size: $font-xs;
+  font-weight: $font-medium;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  &.status-default {
+    background-color: var(--color-secondary-100);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border-primary);
+  }
+}
+
+.level-sections-block {
+  margin-top: $spacing-5;
+  padding-top: $spacing-4;
+  border-top: 1px solid var(--color-border-primary);
+}
+
+.level-sections-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-2;
+  margin-bottom: $spacing-3;
+}
+
+.level-sections-title {
+  flex: 1;
+  color: var(--color-text-primary);
+  font-size: $font-sm;
+  font-weight: $font-semibold;
+}
+
+.level-title-button {
+  border: 1px solid var(--color-border-primary);
+  border-radius: $radius-md;
+  background-color: var(--color-secondary-50);
+  color: var(--color-primary-600);
+  cursor: pointer;
+  font-size: $font-lg;
+  font-weight: $font-semibold;
+  line-height: 1.2;
+  padding: $spacing-2 $spacing-3;
+  text-align: left;
+  transition: $transition-fast;
+
+  &:hover {
+    background-color: var(--color-primary-50);
+    border-color: var(--color-primary-200);
+    color: var(--color-primary-700);
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgba(88, 204, 2, 0.25);
+    outline-offset: 2px;
+  }
+}
+
+.sections-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-5;
+}
+
+.loading-spinner-sm {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+.sections-list,
+.section-class-list,
+.weekly-schedule-slots {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.section-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: $spacing-2;
+  align-items: stretch;
+}
+
+.section-main-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-3;
+  min-width: 0;
+  width: 100%;
+  padding: $spacing-3;
+  border: 1px solid var(--color-border-primary);
+  border-radius: $radius-md;
+  background-color: var(--color-white);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: $transition-fast;
+
+  &:hover {
+    background-color: var(--color-secondary-50);
+    border-color: var(--color-primary-200);
+    box-shadow: $shadow-sm;
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgba(88, 204, 2, 0.25);
+    outline-offset: 2px;
+  }
+}
+
+.section-info {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+  min-width: 0;
+}
+
+.section-name {
+  color: var(--color-text-primary);
+  font-size: $font-sm;
+  font-weight: $font-semibold;
+  overflow-wrap: anywhere;
+}
+
+.section-meta,
+.section-open-indicator,
+.section-class-meta,
+.weekly-schedule-time,
+.weekly-schedule-empty {
+  color: var(--color-text-tertiary);
+  font-size: $font-xs;
+  font-weight: $font-medium;
+}
+
+.section-open-indicator {
+  color: var(--color-primary-600);
+  white-space: nowrap;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-1;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border-primary);
+  border-radius: $radius-md;
+  background-color: var(--color-white);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: $transition-fast;
+
+  &:hover {
+    background-color: var(--color-secondary-50);
+    color: var(--color-text-primary);
+  }
+
+  &.icon-btn-danger {
+    color: var(--color-error-600);
+    border-color: var(--color-error-200);
+
+    &:hover {
+      background-color: var(--color-error-50);
+      color: var(--color-error-700);
+    }
+  }
+}
+
+.section-detail-choice-card {
+  margin-bottom: $spacing-5;
+}
+
+.section-detail-choice-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-3;
+  justify-content: center;
+}
+
+.section-details-body {
+  display: grid;
+  gap: $spacing-5;
+}
+
+.section-details-card {
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-3;
+  }
+}
+
+.section-class-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-4;
+  padding: $spacing-4;
+  border: 1px solid var(--color-border-primary);
+  border-radius: $radius-md;
+  background-color: var(--color-secondary-50);
+}
+
+.section-class-title {
+  color: var(--color-text-primary);
+  font-size: $font-base;
+  font-weight: $font-semibold;
+  margin: 0 0 $spacing-1 0;
+}
+
+.section-class-meta {
+  margin: 0;
+}
+
+.weekly-schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(140px, 1fr));
+  gap: $spacing-3;
+  overflow-x: auto;
+}
+
+.weekly-schedule-day {
+  min-width: 140px;
+  padding: $spacing-3;
+  border: 1px solid var(--color-border-primary);
+  border-radius: $radius-md;
+  background-color: var(--color-secondary-50);
+}
+
+.weekly-schedule-day-title {
+  color: var(--color-text-primary);
+  font-size: $font-sm;
+  font-weight: $font-semibold;
+  margin: 0 0 $spacing-3 0;
+}
+
+.weekly-schedule-empty {
+  margin: 0;
+}
+
+.weekly-schedule-slot {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+  padding: $spacing-2;
+  border: 1px solid var(--color-primary-200);
+  border-radius: $radius-md;
+  background-color: var(--color-white);
+}
+
+.weekly-schedule-subject {
+  color: var(--color-text-primary);
+  font-size: $font-sm;
+  font-weight: $font-semibold;
+  overflow-wrap: anywhere;
+}
+
 // Button overrides for this component
 .btn {
   padding: $spacing-2 $spacing-4;
@@ -577,5 +875,19 @@
 
   .program-list-header {
     gap: $spacing-3;
+  }
+
+  .section-row,
+  .section-class-item {
+    grid-template-columns: 1fr;
+  }
+
+  .section-class-item {
+    align-items: flex-start;
+  }
+
+  .section-details-card .card-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

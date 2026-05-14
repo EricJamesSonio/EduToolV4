@@ -16,6 +16,7 @@ import {
 import ConfirmationModal from '@/components/ConfirmationModal';
 import SectionFormModal from '../components/modals/SectionFormModal';
 import BaseCard from '@/components/BaseCard';
+import EmptyState from '@/components/EmptyState';
 import type { Level } from '../types/level.types';
 import type { Section } from '../api/section.api';
 
@@ -35,6 +36,7 @@ interface AcademicLevelPageProps {
   onBackToPrograms: () => void;
   onViewSectionDetails?: (args: {
     schoolYearId: string;
+    section: Section;
     sectionId: string;
     levelId: string;
     context: { courseId?: string; strandId?: string };
@@ -42,6 +44,7 @@ interface AcademicLevelPageProps {
   onViewLevelSubjects?: (args: {
     schoolYearId: string;
     levelId: string;
+    levelName?: string;
     context: { courseId?: string; strandId?: string };
   }) => void;
 }
@@ -85,6 +88,7 @@ interface LevelCardProps {
   onDeleteSection: (section: Section) => void;
   onViewSectionDetails?: (args: {
     schoolYearId: string;
+    section: Section;
     sectionId: string;
     levelId: string;
     context: { courseId?: string; strandId?: string };
@@ -92,6 +96,7 @@ interface LevelCardProps {
   onViewLevelSubjects?: (args: {
     schoolYearId: string;
     levelId: string;
+    levelName?: string;
     context: { courseId?: string; strandId?: string };
   }) => void;
 }
@@ -128,7 +133,22 @@ const LevelCard: React.FC<LevelCardProps> = ({
       {/* ── Card Header ── */}
       <div className="card-header">
         <div className="academic-detail-card-header">
-          <h3 className="card-title">{levelName}</h3>
+          {onViewLevelSubjects ? (
+            <button
+              type="button"
+              className="level-title-button"
+              onClick={() => onViewLevelSubjects({
+                schoolYearId,
+                levelId: primaryLevelId,
+                levelName,
+                context: { courseId, strandId },
+              })}
+            >
+              {levelName}
+            </button>
+          ) : (
+            <h3 className="card-title">{levelName}</h3>
+          )}
           <span className="status-badge status-default">Level</span>
         </div>
       </div>
@@ -171,6 +191,7 @@ const LevelCard: React.FC<LevelCardProps> = ({
                 onClick={() => onViewLevelSubjects({
                   schoolYearId,
                   levelId: primaryLevelId,
+                  levelName,
                   context: { courseId, strandId },
                 })}
                 title="View subjects"
@@ -186,43 +207,42 @@ const LevelCard: React.FC<LevelCardProps> = ({
               <span className="loading-text">Loading...</span>
             </div>
           ) : visibleSections.length === 0 ? (
-            <p className="sections-empty">No sections yet.</p>
+            <EmptyState
+              className="empty-state-compact"
+              title="No Sections Yet"
+              description="Sections added to this level will appear here."
+            />
           ) : (
             <div className="sections-list">
               {visibleSections.map((section) => (
                 <div
                   key={section.id}
-                  className="section-row section-row-clickable"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() =>
-                    onViewSectionDetails?.({
-                      schoolYearId,
-                      sectionId: section.id,
-                      levelId: primaryLevelId,
-                      context: { courseId, strandId },
-                    })
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
+                  className="section-row"
+                >
+                  <button
+                    type="button"
+                    className="section-main-button"
+                    onClick={() =>
                       onViewSectionDetails?.({
                         schoolYearId,
+                        section,
                         sectionId: section.id,
                         levelId: primaryLevelId,
                         context: { courseId, strandId },
-                      });
+                      })
                     }
-                  }}
-                >
-                  <div className="section-info">
-                    <span className="section-name">{section.name}</span>
-                    <span className="section-meta">
-                      {section.studentCount}/{section.capacity} students
+                  >
+                    <span className="section-info">
+                      <span className="section-name">{section.name}</span>
+                      <span className="section-meta">
+                        {section.studentCount}/{section.capacity} students
+                      </span>
                     </span>
-                  </div>
-                  <div className="section-actions" onClick={(e) => e.stopPropagation()}>
+                    <span className="section-open-indicator">Open</span>
+                  </button>
+                  <div className="section-actions">
                     <button
+                      type="button"
                       className="icon-btn"
                       title="Edit section"
                       onClick={() => onEditSection(primaryLevelId, section)}
@@ -230,6 +250,7 @@ const LevelCard: React.FC<LevelCardProps> = ({
                       ✎
                     </button>
                     <button
+                      type="button"
                       className="icon-btn icon-btn-danger"
                       title="Delete section"
                       onClick={() => onDeleteSection(section)}
@@ -415,17 +436,20 @@ const AcademicLevelPage: React.FC<AcademicLevelPageProps> = ({
           <span className="loading-text">Loading levels...</span>
         </div>
       ) : levels.length === 0 ? (
-        <div className="empty-state">
-          <h3>No Levels Found</h3>
-          <p>Get started by adding your first level.</p>
-          <button
-            onClick={handleAddLevel}
-            className="btn btn-primary"
-            disabled={addNextLevelMutation.isPending}
-          >
-            {addNextLevelMutation.isPending ? '...' : '+'}
-          </button>
-        </div>
+        <EmptyState
+          title="No Levels Found"
+          description="Get started by adding your first level."
+          action={
+            <button
+              type="button"
+              onClick={handleAddLevel}
+              className="btn btn-primary"
+              disabled={addNextLevelMutation.isPending}
+            >
+              {addNextLevelMutation.isPending ? '...' : '+'}
+            </button>
+          }
+        />
       ) : (
         <div className="academic-detail-grid">
           {visibleLevels.map(({ name, items }) => (

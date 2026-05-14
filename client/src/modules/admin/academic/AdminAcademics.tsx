@@ -28,6 +28,7 @@ import AcademicStrandPage from "./pages/AcademicStrandPage";
 import AcademicSectionDetailsPage from "./pages/AcademicSectionDetailsPage";
 import AcademicLevelSubjectsPage from "./pages/AcademicLevelSubjectsPage";
 import { useCreateSchoolYear } from "./hooks/useSchoolYearMutations";
+import type { Section } from "./api/section.api";
 
 
 type ViewMode =
@@ -48,6 +49,11 @@ function AdminAcademics() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedStrand, setSelectedStrand] = useState<Strand | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
+  const [selectedSectionDetails, setSelectedSectionDetails] = useState<{
+    section: Section;
+    levelId: string;
+    context: { courseId?: string; strandId?: string };
+  } | null>(null);
   const [userInitiatedBack, setUserInitiatedBack] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreateProgramModalOpen, setIsCreateProgramModalOpen] = useState(false);
@@ -86,6 +92,8 @@ function AdminAcademics() {
     setSelectedProgram(null);
     setSelectedCourse(null);
     setSelectedStrand(null);
+    setSelectedLevel(null);
+    setSelectedSectionDetails(null);
     setViewMode("program-list");
     setUserInitiatedBack(false);
   };
@@ -146,6 +154,8 @@ function AdminAcademics() {
     setSelectedProgram(program);
     setSelectedCourse(null);
     setSelectedStrand(null);
+    setSelectedLevel(null);
+    setSelectedSectionDetails(null);
 
     if (program.type === 'college') {
       setViewMode("courses-view");
@@ -164,12 +174,16 @@ function AdminAcademics() {
   // Called from AcademicCoursePage when user clicks into a course
   const handleViewCourse = (course: Course) => {
     setSelectedCourse(course);
+    setSelectedLevel(null);
+    setSelectedSectionDetails(null);
     setViewMode("levels-view");
   };
 
   // Called from AcademicStrandPage when user clicks into a strand
   const handleViewStrand = (strand: Strand) => {
     setSelectedStrand(strand);
+    setSelectedLevel(null);
+    setSelectedSectionDetails(null);
     setViewMode("levels-view");
   };
 
@@ -178,6 +192,8 @@ function AdminAcademics() {
     setSelectedProgram(null);
     setSelectedCourse(null);
     setSelectedStrand(null);
+    setSelectedLevel(null);
+    setSelectedSectionDetails(null);
     setViewMode("school-year-selection");
     setUserInitiatedBack(true);
   };
@@ -186,23 +202,30 @@ function AdminAcademics() {
     setSelectedProgram(null);
     setSelectedCourse(null);
     setSelectedStrand(null);
+    setSelectedLevel(null);
+    setSelectedSectionDetails(null);
     setViewMode("program-list");
   };
 
   // Back from levels to courses/strands list (for college/shs drill-down)
   const handleBackToCourses = () => {
     setSelectedCourse(null);
+    setSelectedLevel(null);
+    setSelectedSectionDetails(null);
     setViewMode("courses-view");
   };
 
   const handleBackToStrands = () => {
     setSelectedStrand(null);
+    setSelectedLevel(null);
+    setSelectedSectionDetails(null);
     setViewMode("strands-view");
   };
 
   const handleViewLevelSubjects = (args: {
     schoolYearId: string;
     levelId: string;
+    levelName?: string;
     context: { courseId?: string; strandId?: string };
   }) => {
     // Create a minimal Level object for navigation
@@ -212,8 +235,9 @@ function AdminAcademics() {
       org_id: '',
       program_id: '',
       school_year_id: args.schoolYearId,
-      name: '',
+      name: args.levelName ?? '',
     });
+    setSelectedSectionDetails(null);
     setViewMode("level-subjects");
   };
 
@@ -289,6 +313,12 @@ function AdminAcademics() {
                     setSelectedProgram(selectedProgram);
                     setSelectedCourse(selectedCourse);
                     setSelectedStrand(selectedStrand);
+                    setSelectedLevel(null);
+                    setSelectedSectionDetails({
+                      section: args.section,
+                      levelId: args.levelId,
+                      context: args.context,
+                    });
                     setViewMode("section-details");
                   }}
                   onViewLevelSubjects={handleViewLevelSubjects}
@@ -301,6 +331,19 @@ function AdminAcademics() {
                   level={selectedLevel}
                   onBack={() => {
                     setSelectedLevel(null);
+                    setViewMode("levels-view");
+                  }}
+                />
+              )}
+
+              {viewMode === "section-details" && selectedSectionDetails && (
+                <AcademicSectionDetailsPage
+                  schoolYearId={currentSchoolYear?.id || ""}
+                  section={selectedSectionDetails.section}
+                  levelId={selectedSectionDetails.levelId}
+                  context={selectedSectionDetails.context}
+                  onBack={() => {
+                    setSelectedSectionDetails(null);
                     setViewMode("levels-view");
                   }}
                 />

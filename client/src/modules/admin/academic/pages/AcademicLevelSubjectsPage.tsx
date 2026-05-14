@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import EmptyState from '@/components/EmptyState';
 import type { Level } from '../types/level.types';
 
 // NOTE: UI scaffold for the Subjects drill-down.
@@ -32,10 +33,10 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({ level, onBack }) => {
         <p className="panel-subtitle">
           TODO: Fetch subjects for level id <b>{level.id}</b>.
         </p>
-        <div className="panel-placeholder">
-          <p>No subjects have been added to this level yet.</p>
-          <p className="panel-subtitle">Subject data will appear here once the backend API is implemented.</p>
-        </div>
+        <EmptyState
+          title="No Subjects Found"
+          description="Subjects added to this level will appear here."
+        />
       </div>
     </div>
   );
