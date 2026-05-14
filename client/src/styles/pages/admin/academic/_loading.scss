@@ -1,0 +1,31 @@
+// _loading.scss
+// Loading spinner and related states
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border-primary);
+  border-top: 3px solid var(--color-primary-500);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner-sm {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+.loading-text {
+  margin-left: $spacing-3;
+  color: var(--color-text-secondary);
+}
+
+.sections-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-5;
+}
+
+// Note: @keyframes spin is defined globally in utils/mixins.scss

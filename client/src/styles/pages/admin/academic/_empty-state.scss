@@ -1,0 +1,59 @@
+// _empty-state.scss
+// Empty state blocks — full and compact variants
+
+.empty-state {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border-primary);
+  border-radius: $radius-lg;
+  padding: $spacing-12;
+  text-align: center;
+  box-shadow: $shadow-sm;
+
+  @include respond-to-max(md) {
+    padding: $spacing-8;
+  }
+}
+
+.empty-state-content {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.empty-state-title {
+  font-size: $font-lg;
+  font-weight: $font-semibold;
+  color: var(--color-text-primary);
+  margin: 0 0 $spacing-4 0;
+}
+
+.empty-state-text {
+  font-size: $font-base;
+  color: var(--color-text-secondary);
+  margin-bottom: $spacing-6;
+  line-height: $leading-relaxed;
+}
+
+.empty-state-action {
+  display: flex;
+  justify-content: center;
+}
+
+// Compact variant — used inline within cards
+.empty-state-compact {
+  padding: $spacing-5;
+  box-shadow: none;
+
+  .empty-state-content {
+    max-width: none;
+  }
+
+  .empty-state-title {
+    font-size: $font-base;
+    margin-bottom: $spacing-2;
+  }
+
+  .empty-state-text {
+    font-size: $font-sm;
+    margin-bottom: 0;
+  }
+}

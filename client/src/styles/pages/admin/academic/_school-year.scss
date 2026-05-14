@@ -1,0 +1,78 @@
+// _school-year.scss
+// School year selection grid and cards
+
+.school-year-selection {
+  .school-year-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: $spacing-6;
+
+    @include respond-to(sm) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @include respond-to(lg) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .school-year-card {
+    cursor: pointer;
+    transition: $transition-base;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: $shadow-lg;
+    }
+
+    &:active {
+      transform: translateY(-2px);
+      box-shadow: $shadow-md;
+    }
+  }
+
+  .school-year-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: $spacing-4;
+
+    @include respond-to-max(sm) {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: $spacing-2;
+    }
+  }
+
+  .school-year-details {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-2;
+  }
+
+  .school-year-date {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: $font-sm;
+    color: var(--color-text-secondary);
+  }
+
+  .date-label {
+    font-weight: $font-medium;
+    color: var(--color-text-tertiary);
+  }
+
+  .date-value {
+    font-weight: $font-medium;
+    color: var(--color-text-primary);
+  }
+}
+
+// Responsive override for school-year-grid at md
+@include respond-to-max(md) {
+  .school-year-grid {
+    grid-template-columns: 1fr;
+    gap: $spacing-4;
+  }
+}

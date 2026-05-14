@@ -1,0 +1,107 @@
+// _buttons.scss
+// Local button overrides and icon buttons specific to admin-academics.
+// NOTE: Base .btn styles live in components/buttons/buttons.scss.
+// Only admin-academics-specific variants and icon buttons are defined here.
+
+// ─── Local .btn variant overrides ────────────────────────────────────────────
+// These extend or override the global .btn for this page's specific color needs.
+
+.btn {
+  &.btn-primary {
+    background-color: var(--color-primary-500);
+    color: var(--color-white);
+
+    &:hover {
+      background-color: var(--color-primary-600);
+    }
+
+    &:active {
+      background-color: var(--color-primary-700);
+    }
+  }
+
+  &.btn-secondary {
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border-primary);
+
+    &:hover {
+      background-color: var(--color-secondary-50);
+      color: var(--color-text-primary);
+    }
+  }
+
+  &.btn-danger {
+    background-color: transparent;
+    color: var(--color-error-600);
+    border: 1px solid var(--color-error-200);
+
+    &:hover {
+      background-color: var(--color-error-50);
+      color: var(--color-error-700);
+    }
+  }
+}
+
+// ─── Icon button ──────────────────────────────────────────────────────────────
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border-primary);
+  border-radius: $radius-md;
+  background-color: var(--color-white);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: $transition-fast;
+
+  &:hover {
+    background-color: var(--color-secondary-50);
+    color: var(--color-text-primary);
+  }
+
+  &.icon-btn-danger {
+    color: var(--color-error-600);
+    border-color: var(--color-error-200);
+
+    &:hover {
+      background-color: var(--color-error-50);
+      color: var(--color-error-700);
+    }
+  }
+}
+
+// ─── Status badge ─────────────────────────────────────────────────────────────
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $radius-full;
+  font-size: $font-xs;
+  font-weight: $font-medium;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  &.status-active {
+    background-color: var(--color-success-100);
+    color: var(--color-success-700);
+    border: 1px solid var(--color-success-200);
+  }
+
+  &.status-inactive {
+    background-color: var(--color-warning-100);
+    color: var(--color-warning-700);
+    border: 1px solid var(--color-warning-200);
+  }
+
+  &.status-default {
+    background-color: var(--color-secondary-100);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border-primary);
+  }
+}

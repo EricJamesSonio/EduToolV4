@@ -1,0 +1,13 @@
+// admin-academics/index.scss
+// Replaces the monolithic admin-academics.scss.
+// Import this single file from main.scss instead:
+//   @import 'pages/admin/academic/admin-academics/index';
+
+@import 'layout';
+@import 'loading';
+@import 'section-header';
+@import 'school-year';
+@import 'program-list';
+@import 'academic-detail';
+@import 'empty-state';
+@import 'buttons';

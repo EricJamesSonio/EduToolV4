@@ -1,0 +1,21 @@
+// _layout.scss
+// Top-level page layout containers
+
+.admin-academics {
+  background-color: var(--color-white);
+  min-height: auto;
+  padding: $spacing-6;
+
+  @include respond-to-max(md) {
+    padding: $spacing-4;
+  }
+
+  @include respond-to-max(sm) {
+    padding: $spacing-3;
+  }
+}
+
+.admin-academics-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
