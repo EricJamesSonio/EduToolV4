@@ -79,7 +79,7 @@ export class StudentService {
   }
 
   async create(orgId: string, dto: CreateStudentDto) {
-    const email = await this.buildOrgEmail(orgId, dto.emailNameName);
+    const email = await this.buildOrgEmail(orgId, dto.emailName);
     const emailTaken = await this.studentRepository.findByEmail(email, orgId);
     if (emailTaken) {
       throw new ConflictException(

@@ -67,8 +67,11 @@ const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
     const payload = {
       fullName: fullName.trim(),
-      ...(isEdit ? { email: email.trim() } : { emailName: email.trim() }),
+      // Backend DTO expects `emailName` (not `email`)
+      ...(isEdit ? { emailName: email.trim() } : { emailName: email.trim() }),
       ...(isEdit ? {} : { studentId: studentId.trim() }),
+      // Level/Section are assigned later via enrollment workflow.
+      // Only include them if the admin explicitly enters values.
       ...(levelId.trim() ? { levelId: levelId.trim() } : {}),
       ...(sectionId.trim() ? { sectionId: sectionId.trim() } : {}),
     };
@@ -131,33 +134,12 @@ const StudentFormModal: React.FC<StudentFormModalProps> = ({
           {errors.studentId && <span className="form-error">{errors.studentId}</span>}
         </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label className="form-label" htmlFor="student-level-id">
-              Level ID
-            </label>
-            <input
-              id="student-level-id"
-              className="form-input"
-              value={levelId}
-              onChange={(event) => setLevelId(event.target.value)}
-              disabled={isLoading}
-            />
-          </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="student-section-id">
-              Section ID
-            </label>
-            <input
-              id="student-section-id"
-              className="form-input"
-              value={sectionId}
-              onChange={(event) => setSectionId(event.target.value)}
-              disabled={isLoading}
-            />
-          </div>
-        </div>
+
+
+
+
+
 
         <div className="form-actions">
           <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>
