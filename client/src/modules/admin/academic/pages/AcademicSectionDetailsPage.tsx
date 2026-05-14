@@ -90,6 +90,10 @@ const AcademicSectionDetailsPage: React.FC<Props> = ({
             students={students}
             isLoading={studentsLoading}
             isError={studentsError}
+            sectionId={section.id}
+            levelId={levelId}
+            courseId={context.courseId}
+            strandId={context.strandId}
           />
         )}
         {tab === 'classes' && (
