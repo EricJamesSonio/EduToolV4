@@ -4,8 +4,10 @@
 import React from 'react';
 
 interface ActionButtonsProps {
+  onView?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  viewLabel?: string;
   editLabel?: string;
   deleteLabel?: string;
   size?: 'sm' | 'md' | 'lg';
@@ -14,8 +16,10 @@ interface ActionButtonsProps {
 }
 
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
+  onView,
   onEdit,
   onDelete,
+  viewLabel = 'View',
   editLabel = 'Edit',
   deleteLabel = 'Delete',
   size = 'md',
@@ -24,6 +28,18 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 }) => {
   return (
     <div className={`action-buttons action-buttons-${variant} action-buttons-${size}`}>
+      {onView && (
+        <button
+          type="button"
+          className="action-button action-button-view"
+          onClick={onView}
+          disabled={disabled}
+          aria-label={viewLabel}
+        >
+          {viewLabel}
+        </button>
+      )}
+
       {onEdit && (
         <button
           type="button"

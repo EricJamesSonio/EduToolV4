@@ -213,7 +213,7 @@ async findAll(
     const subject = await this.db.subject.findFirst({
       where: { id, org_id: orgId },
       include: {
-        program: { select: { id: true, type: true } },  // ← ADD
+        program: { select: { id: true, type: true, name: true } },
         prerequisites: {
           include: {
             prerequisite: { select: { id: true, name: true, year_level: true, term_label: true } },

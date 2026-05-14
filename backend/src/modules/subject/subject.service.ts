@@ -24,7 +24,7 @@ private mapToResponse(subject: any) {
     title:        subject.name,
     subjectType:  subject.subject_type ?? 'major',
     programId:    subject.program_id ?? null,
-    programName:  subject.programName ?? null,
+    programName: subject.program?.name ?? null,
     programType:  subject.program?.type ?? null,   // ← ADD
     realProgramId: subject.program_id ?? null,
     levelId:      subject.level_id ?? null,

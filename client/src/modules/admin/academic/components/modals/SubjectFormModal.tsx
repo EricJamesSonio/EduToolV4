@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import Modal from '@/components/Modal';
 import Button from '@/components/Button/Button';
 import type { Subject } from '../../types/subject.types';
+import type { Level } from '../../types/level.types';
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; subjectType?: 'major' | 'minor' }) => Promise<void>;
+  onSubmit: (data: { name: string; subjectType?: 'major' | 'minor'; levelId?: string }) => Promise<void>;
   isLoading?: boolean;
   subject?: Subject | null;
+  availableLevels?: Level[];
+  currentLevelId?: string;
 };
 
 const SUBJECT_TYPES: Array<{ value: 'major' | 'minor'; label: string }> = [
@@ -22,11 +25,14 @@ const SubjectFormModal: React.FC<Props> = ({
   onSubmit,
   isLoading = false,
   subject = null,
+  availableLevels = [],
+  currentLevelId,
 }) => {
   const isEdit = !!subject;
 
   const [name, setName] = useState('');
   const [subjectType, setSubjectType] = useState<'major' | 'minor'>('major');
+  const [selectedLevelId, setSelectedLevelId] = useState<string>('');
   const [nameError, setNameError] = useState('');
 
   useEffect(() => {
@@ -35,13 +41,15 @@ const SubjectFormModal: React.FC<Props> = ({
     if (subject) {
       setName(subject.title);
       setSubjectType(subject.subjectType);
+      setSelectedLevelId(subject.levelId || currentLevelId || '');
     } else {
       setName('');
       setSubjectType('major');
+      setSelectedLevelId(currentLevelId || '');
     }
 
     setNameError('');
-  }, [isOpen, subject]);
+  }, [isOpen, subject, currentLevelId]);
 
   const handleClose = () => {
     if (isLoading) return;
@@ -57,7 +65,10 @@ const SubjectFormModal: React.FC<Props> = ({
     }
 
     if (isEdit) {
-      await onSubmit({ name: name.trim() });
+      await onSubmit({
+        name: name.trim(),
+        levelId: selectedLevelId !== currentLevelId ? selectedLevelId : undefined,
+      });
     } else {
       await onSubmit({ name: name.trim(), subjectType });
     }
@@ -107,6 +118,27 @@ const SubjectFormModal: React.FC<Props> = ({
               {SUBJECT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {isEdit && availableLevels.length > 0 && (
+          <div className="form-group">
+            <label htmlFor="level-select" className="form-label">
+              Level
+            </label>
+            <select
+              id="level-select"
+              value={selectedLevelId}
+              onChange={(e) => setSelectedLevelId(e.target.value)}
+              className="form-input"
+              disabled={isLoading}
+            >
+              {availableLevels.map((level) => (
+                <option key={level.id} value={level.id}>
+                  {level.name}
                 </option>
               ))}
             </select>

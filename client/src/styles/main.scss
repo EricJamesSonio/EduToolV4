@@ -58,6 +58,9 @@
 @import 'components/cards/testimonialCard';
 @import 'components/cards/programCard';
 
+// Details
+@import 'components/details/subject-details';
+
 // Calendar Picker
 @import 'components/calendar/CalendarPicker';
 
@@ -73,6 +76,7 @@
 @import 'components/modals/modals';
 @import 'components/modals/assignModal';
 @import 'components/modals/classModal';
+@import 'components/modals/subjectModal';
 
 // Navigation
 @import 'components/navbar/admin-navbar';
