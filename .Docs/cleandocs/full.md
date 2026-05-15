@@ -33,4 +33,10 @@ Level management:
   - add and remove of levels but just increment and decrement
 - Section management
   - creation of section by input name of the section and student capacity (capacity of this tells the count of student that can be enroll in this program - level- sections like BSCS 1-B only 30 students allowed. unless modified and update the capacity)
-    -class management - Creates class by selecting an educator to handle it and subject and the week day and time. much easier because the parent already passes the program id, level id, course id , section id, already because level management sits inside the program - level - course - strand
+- class management
+  - Creates class by selecting an educator to handle it and subject and the week day and time. much easier because the parent already passes the program id, level id, course id , section id, already because level management sits inside the program - level - course - strand
+
+Section management:
+
+- capacity
+- enroll students in here for example this is the section A of BSCS 1 so automatically the students enroll in here will be enrolled in BSCS 1-A . so the parents passes down the props to the child
