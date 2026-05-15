@@ -25,6 +25,15 @@ export const useGradingSchemeTemplates = (programType?: string) => {
   });
 };
 
+// Fetches all templates with no filter — used for assignment matching
+export const useAllGradingSchemeTemplates = () => {
+  return useQuery({
+    queryKey: gradingSchemeTemplateKeys.list(undefined),
+    queryFn: () => gradingSchemeTemplateApi.getAll(),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
 export const useCreateGradingSchemeTemplate = () => {
   const queryClient = useQueryClient();
 
