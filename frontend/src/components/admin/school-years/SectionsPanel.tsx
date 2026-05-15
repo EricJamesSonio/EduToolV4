@@ -1,24 +1,27 @@
 "use client";
 
+// frontend/src/components/admin/school-years/SectionsPanel.tsx
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronRight } from "lucide-react";
 import { sectionApi } from "@/api/admin/section.api";
 import type { Section } from "@/types/admin/section.types";
 import type { Level }   from "@/types/admin/level.types";
-import { ConfirmDialog }    from "@/components/shared/ConfirmDialog";
-import { Skeleton }         from "@/components/ui/skeleton";
-import { Badge }            from "@/components/ui/badge";
-import { SectionFormDialog } from "./SectionFormDialog";
+import { ConfirmDialog }      from "@/components/shared/ConfirmDialog";
+import { Skeleton }           from "@/components/ui/skeleton";
+import { Badge }              from "@/components/ui/badge";
+import { SectionFormDialog }  from "./SectionFormDialog";
+import { SectionDetailPanel } from "./SectionDetailPanel";
 import type { SectionFormValues } from "./SectionFormDialog";
 
 interface SectionsPanelProps {
   level:        Level;
   schoolYearId: string;
   isEnded:      boolean;
-  courseId?:    string; // college
-  strandId?:    string; // SHS
+  courseId?:    string;
+  strandId?:    string;
 }
 
 export function SectionsPanel({
@@ -29,11 +32,11 @@ export function SectionsPanel({
   strandId,
 }: SectionsPanelProps): React.JSX.Element {
   const queryClient = useQueryClient();
-  const [dialogOpen,   setDialogOpen]   = useState(false);
-  const [editTarget,   setEditTarget]   = useState<Section | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Section | null>(null);
+  const [dialogOpen,    setDialogOpen]    = useState(false);
+  const [editTarget,    setEditTarget]    = useState<Section | null>(null);
+  const [deleteTarget,  setDeleteTarget]  = useState<Section | null>(null);
+  const [detailSection, setDetailSection] = useState<Section | null>(null);
 
-  // Query key scoped to course/strand if present
   const qKey = [
     "admin", "sections", schoolYearId, level.id,
     ...(courseId ? [courseId] : []),
@@ -48,7 +51,6 @@ export function SectionsPanel({
   const visibleSections = sections.filter((s) => {
     if (courseId) {
       const sc = s as Section & { course_id?: string | null };
-      // show if explicitly matched OR if section has no course scoping (shared/seeded)
       return sc.course_id === courseId || sc.course_id == null;
     }
     if (strandId) {
@@ -105,77 +107,105 @@ export function SectionsPanel({
   const isMutating = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="border-t bg-muted/10">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-2.5">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Sections
-          {visibleSections.length > 0 && (
-            <span className="ml-1.5 font-normal normal-case">
-              ({visibleSections.length})
-            </span>
+    <>
+      <div className="border-t bg-muted/10">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-2.5">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Sections
+            {visibleSections.length > 0 && (
+              <span className="ml-1.5 font-normal normal-case">
+                ({visibleSections.length})
+              </span>
+            )}
+          </span>
+          {!isEnded && (
+            <button
+              onClick={() => setDialogOpen(true)}
+              className="flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <Plus className="h-3 w-3" />
+              Add section
+            </button>
           )}
-        </span>
-        {!isEnded && (
-          <button
-            onClick={() => setDialogOpen(true)}
-            className="flex items-center gap-1 text-xs text-primary hover:underline"
-          >
-            <Plus className="h-3 w-3" />
-            Add section
-          </button>
+        </div>
+
+        {/* List */}
+        {isLoading ? (
+          <div className="px-6 pb-3 space-y-1.5">
+            {[1, 2].map((i) => (
+              <Skeleton key={i} className="h-7 w-full rounded" />
+            ))}
+          </div>
+        ) : visibleSections.length === 0 ? (
+          <p className="px-6 pb-3 text-xs text-muted-foreground">No sections yet.</p>
+        ) : (
+          <div className="px-6 pb-3 space-y-1">
+            {visibleSections.map((sec) => (
+              <div
+                key={sec.id}
+                className="flex items-center justify-between gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
+              >
+                {/* Clickable left side → opens detail panel */}
+                <button
+                  onClick={() => setDetailSection(sec)}
+                  className="flex items-center gap-2 min-w-0 flex-1 text-left"
+                >
+                  <span className="text-xs font-medium truncate">{sec.name}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    cap. {sec.capacity}
+                  </span>
+                  {sec.studentCount !== undefined && sec.studentCount > 0 && (
+                    <Badge
+                      variant="secondary"
+                      className="text-xs font-normal px-1.5 py-0"
+                    >
+                      {sec.studentCount}{" "}
+                      {sec.studentCount === 1 ? "student" : "students"}
+                    </Badge>
+                  )}
+                  <ChevronRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                </button>
+
+                {/* Edit / delete — only on hover, non-ended */}
+                {!isEnded && (
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditTarget(sec);
+                      }}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(sec);
+                      }}
+                      className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* List */}
-      {isLoading ? (
-        <div className="px-6 pb-3 space-y-1.5">
-          {[1, 2].map((i) => (
-            <Skeleton key={i} className="h-7 w-full rounded" />
-          ))}
-        </div>
-      ) : visibleSections.length === 0 ? (
-        <p className="px-6 pb-3 text-xs text-muted-foreground">No sections yet.</p>
-      ) : (
-        <div className="px-6 pb-3 space-y-1">
-          {visibleSections.map((sec) => (
-            <div
-              key={sec.id}
-              className="flex items-center justify-between gap-3 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xs font-medium truncate">{sec.name}</span>
-                <span className="text-xs text-muted-foreground shrink-0">
-                  cap. {sec.capacity}
-                </span>
-                {sec.studentCount > 0 && (
-                  <Badge variant="secondary" className="text-xs font-normal px-1.5 py-0">
-                    {sec.studentCount}{" "}
-                    {sec.studentCount === 1 ? "student" : "students"}
-                  </Badge>
-                )}
-              </div>
-              {!isEnded && (
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <button
-                    onClick={() => setEditTarget(sec)}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteTarget(sec)}
-                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Section detail panel */}
+      <SectionDetailPanel
+        section={detailSection}
+        schoolYearId={schoolYearId}
+        levelName={level.name}
+        open={detailSection !== null}
+        onClose={() => setDetailSection(null)}
+      />
 
+      {/* Create / edit dialogs */}
       {dialogOpen && (
         <SectionFormDialog
           mode="create"
@@ -208,6 +238,6 @@ export function SectionsPanel({
           onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
         />
       )}
-    </div>
+    </>
   );
 }

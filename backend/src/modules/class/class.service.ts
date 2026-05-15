@@ -233,20 +233,25 @@ async create(orgId: string, dto: CreateClassDto) {
       sectionId:    query.sectionId,
     })
 
-    return classes.map((cls) => {
-      const subject = (cls as any).subject
-      const programId =
-        subject?.program_id ??
-        subject?.course?.program_id ??
-        subject?.strand?.program_id ??
-        null
+return classes.map((cls) => {
+  const subject = (cls as any).subject
+  const educator = (cls as any).educator
 
-      return {
-        ...cls,
-        program_id:    programId,
-        subject_name:  subject?.name ?? null,
-      }
-    })
+  const programId =
+    subject?.program_id ??
+    subject?.course?.program_id ??
+    subject?.strand?.program_id ??
+    null
+
+  return {
+    ...cls,
+    program_id:    programId,
+    subject_name:  subject?.name ?? null,
+
+    // ✅ THIS IS THE FIX
+    educatorName: educator?.profile?.full_name ?? null,
+  }
+})
   }
 
   async findById(id: string, orgId: string) {
