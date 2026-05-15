@@ -412,26 +412,25 @@ export class OrgSeederService {
           const courseId = courseMap[courseCode];
           if (!courseId) continue;
 
+          // Step 2: Create sections per level only (shared across courses in seeding)
           for (const levelName of levelNames) {
             if (!shouldSeedL(levelName)) continue;
 
             const levelId = levelMap[levelName];
             if (!levelId) continue;
 
-            const scopedKey = `${courseCode}|${levelName}`;
             const defaultSections = defaultDefs.find(
               (l) => l.programKey === progKey && l.name === levelName,
             )?.sections ?? [
               { name: 'Section A', capacity: 40 },
               { name: 'Section B', capacity: 40 },
             ];
-            const sections = sectionConfigs[scopedKey] ?? defaultSections;
+            const sections = sectionConfigs[levelName] ?? defaultSections;
 
             for (const sec of sections) {
               const sectionId = seedId(
                 'section',
                 progKey,
-                courseCode,
                 levelName,
                 sec.name,
                 schoolYearId,
@@ -449,7 +448,6 @@ export class OrgSeederService {
                     id: sectionId,
                     org_id: orgId,
                     level_id: levelId,
-                    course_id: courseId,
                     school_year_id: schoolYearId,
                     name: sec.name,
                     capacity: sec.capacity,
@@ -501,26 +499,25 @@ export class OrgSeederService {
           const strandId = strandMap[strandName];
           if (!strandId) continue;
 
+          // Step 2: Create sections per level only (shared across strands in seeding)
           for (const levelName of levelNames) {
             if (!shouldSeedL(levelName)) continue;
 
             const levelId = levelMap[levelName];
             if (!levelId) continue;
 
-            const scopedKey = `${strandName}|${levelName}`;
             const defaultSections = defaultDefs.find(
               (l) => l.programKey === progKey && l.name === levelName,
             )?.sections ?? [
               { name: 'Section A', capacity: 40 },
               { name: 'Section B', capacity: 40 },
             ];
-            const sections = sectionConfigs[scopedKey] ?? defaultSections;
+            const sections = sectionConfigs[levelName] ?? defaultSections;
 
             for (const sec of sections) {
               const sectionId = seedId(
                 'section',
                 progKey,
-                strandName,
                 levelName,
                 sec.name,
                 schoolYearId,
@@ -538,7 +535,6 @@ export class OrgSeederService {
                     id: sectionId,
                     org_id: orgId,
                     level_id: levelId,
-                    strand_id: strandId,
                     school_year_id: schoolYearId,
                     name: sec.name,
                     capacity: sec.capacity,
