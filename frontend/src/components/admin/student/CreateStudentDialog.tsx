@@ -1,18 +1,19 @@
+// ===== File: frontend/src/components/admin/student/CreateStudentDialog.tsx =====
 "use client";
 
-import { useForm }     from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
-import { toast }       from "sonner";
-import { useState }    from "react";
+import { toast } from "sonner";
+import { useState } from "react";
 import type { AxiosError } from "axios";
 
-import { studentApi }               from "@/api/admin/student.api";
+import { studentApi } from "@/api/admin/student.api";
 import type { CreateStudentRequest } from "@/api/admin/student.api";
-import { useOrganization }          from "@/hooks/admin/useOrganization";
-import { EmailInput }               from "@/components/shared/EmailInput";
-import { Button }  from "@/components/ui/button";
-import { Input }   from "@/components/ui/input";
-import { Label }   from "@/components/ui/label";
+import { useOrganization } from "@/hooks/admin/useOrganization";
+import { EmailInput } from "@/components/shared/EmailInput";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -21,21 +22,21 @@ import {
 } from "@/components/ui/dialog";
 
 interface CredentialsPreview {
-  fullName:  string;
-  email:     string;
+  fullName: string;
+  email: string;
   studentId: string;
-  password:  string;
+  password: string;
 }
 
 interface CreateStudentForm {
-  fullName:  string;
-  email:     string;
+  fullName: string;
+  email: string;
   studentId: string;
 }
 
 interface CreateStudentDialogProps {
-  open:      boolean;
-  onClose:   () => void;
+  open: boolean;
+  onClose: () => void;
   onCreated: () => void;
 }
 
@@ -46,7 +47,7 @@ export function CreateStudentDialog({
 }: CreateStudentDialogProps): React.JSX.Element {
   const [credentials, setCredentials] = useState<CredentialsPreview | null>(null);
 
-  const { data: org }  = useOrganization();
+  const { data: org } = useOrganization();
   const emailExtension = org?.emailExtension ?? null;
 
   const {
@@ -62,19 +63,23 @@ export function CreateStudentDialog({
 
   const mutation = useMutation({
     mutationFn: (values: CreateStudentForm) => {
+      // ✅ NEW: Build full email with .student suffix
+      const fullEmail = buildFullEmail(values.email, emailExtension, "student");
+
       const payload: CreateStudentRequest = {
-        fullName:  values.fullName,
-        email:     values.email,
+        fullName: values.fullName,
+        email: fullEmail,
         studentId: values.studentId,
       };
       return studentApi.create(payload).then((res) => ({ res, values }));
     },
     onSuccess: ({ res, values }) => {
+      const fullEmail = buildFullEmail(values.email, emailExtension, "student");
       setCredentials({
-        fullName:  values.fullName,
-        email:     values.email,
+        fullName: values.fullName,
+        email: fullEmail,
         studentId: values.studentId,
-        password:  res.plainPassword,
+        password: res.plainPassword,
       });
       onCreated();
     },
@@ -102,10 +107,22 @@ export function CreateStudentDialog({
               Save these credentials — the password won&apos;t be shown again.
             </p>
             <div className="rounded-lg border bg-muted/40 p-4 space-y-2 text-sm font-mono">
-              <div><span className="text-muted-foreground">Name: </span>{credentials.fullName}</div>
-              <div><span className="text-muted-foreground">Email: </span>{credentials.email}</div>
-              <div><span className="text-muted-foreground">ID: </span>{credentials.studentId}</div>
-              <div><span className="text-muted-foreground">Password: </span>{credentials.password}</div>
+              <div>
+                <span className="text-muted-foreground">Name: </span>
+                {credentials.fullName}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Email: </span>
+                {credentials.email}
+              </div>
+              <div>
+                <span className="text-muted-foreground">ID: </span>
+                {credentials.studentId}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Password: </span>
+                {credentials.password}
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-1">
               <Button onClick={handleClose}>Done</Button>
@@ -132,20 +149,23 @@ export function CreateStudentDialog({
             <Input
               placeholder="e.g. Juan Dela Cruz"
               {...register("fullName", { required: "Full name is required" })}
+              disabled={mutation.isPending}
             />
             {errors.fullName && (
               <p className="text-xs text-destructive">{errors.fullName.message}</p>
             )}
           </div>
 
+          {/* ✅ UPDATED: EmailInput with role="student" */}
           <div className="space-y-1.5">
             <Label>Email</Label>
             <EmailInput
               value={watch("email")}
               onChange={(v) => setValue("email", v)}
               extension={emailExtension}
-              placeholder="student"
+              placeholder="student_username"
               disabled={mutation.isPending}
+              role="student" // ✅ NEW
             />
             {errors.email && (
               <p className="text-xs text-destructive">{errors.email.message}</p>
@@ -157,6 +177,7 @@ export function CreateStudentDialog({
             <Input
               placeholder="e.g. STU-2024-001"
               {...register("studentId", { required: "Student ID is required" })}
+              disabled={mutation.isPending}
             />
             {errors.studentId && (
               <p className="text-xs text-destructive">{errors.studentId.message}</p>
@@ -176,7 +197,7 @@ export function CreateStudentDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending}>
+            <Button type="submit" disabled={mutation.isPending || !watch("email").trim()}>
               {mutation.isPending ? "Creating..." : "Create Student"}
             </Button>
           </div>
@@ -184,4 +205,18 @@ export function CreateStudentDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+// ✅ NEW: Helper function to build full email with role suffix
+function buildFullEmail(
+  username: string,
+  extension: string | null,
+  role: "student" | "educator"
+): string {
+  if (!extension) return username;
+
+  const baseDomain = extension.replace(/^@/, "");
+  const suffix = role === "student" ? ".student" : ".educator";
+
+  return `${username}@${baseDomain}${suffix}.com`;
 }

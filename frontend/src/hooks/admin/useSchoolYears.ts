@@ -1,69 +1,183 @@
-// ===== File: frontend/src/hooks/admin/useSchoolYears.ts =====
+// ===== File: frontend/src/hooks/admin/useSchoolYears.ts
+
 import {
-  useQuery, useMutation, useQueryClient,
-  UseQueryResult, UseMutationResult,
-} from "@tanstack/react-query";
+  useAsyncQuery,
+  useMutationWithInvalidation,
+} from "@/hooks/hook-factory.utils";
+
 import { schoolYearApi } from "@/api/admin/school-year.api";
-import { programApi }    from "@/api/admin/program.api";
-import { sectionApi }    from "@/api/admin/section.api";
-import { courseApi }     from "@/api/admin/course.api";
-import type { SchoolYear } from "@/types/admin/school-year.types";
+import { programApi } from "@/api/admin/program.api";
+import { sectionApi } from "@/api/admin/section.api";
+import { courseApi } from "@/api/admin/course.api";
 
-// ─── School Years ──────────────────────────────────────────────
+import type {
+  SchoolYear,
+} from "@/types/admin/school-year.types";
 
-export const useSchoolYears = (): UseQueryResult<SchoolYear[], unknown> => {
-  return useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn:  schoolYearApi.getAll,
-  });
+const schoolYearKeys = {
+  schoolYears: {
+    all: () =>
+      ["admin", "school-years"] as const,
+  },
+
+  programs: (
+    schoolYearId: string | null,
+  ) =>
+    [
+      "admin",
+      "programs",
+      schoolYearId,
+    ] as const,
+
+  sections: (
+    schoolYearId: string | null,
+    levelId?: string,
+  ) =>
+    [
+      "admin",
+      "sections",
+      schoolYearId,
+      levelId,
+    ] as const,
+
+  courses: (
+    schoolYearId: string | null,
+    programId?: string,
+  ) =>
+    [
+      "admin",
+      "courses",
+      schoolYearId,
+      programId,
+    ] as const,
 };
 
-export const useCreateSchoolYear = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: schoolYearApi.create,
-    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] }),
-  });
+
+// ─── School Years ─────────────────────────────────
+
+export const useSchoolYears = () => {
+  return useAsyncQuery<SchoolYear[]>(
+    schoolYearKeys.schoolYears.all(),
+    schoolYearApi.getAll,
+  );
 };
 
-export const useActivateSchoolYear = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: schoolYearApi.activate,
-    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] }),
-  });
+
+export const useCreateSchoolYear =
+  () => {
+    return useMutationWithInvalidation(
+      schoolYearApi.create,
+
+      {
+        invalidateKeys: [
+          schoolYearKeys
+            .schoolYears
+            .all(),
+        ],
+      },
+    );
+  };
+
+
+export const useActivateSchoolYear =
+  () => {
+    return useMutationWithInvalidation(
+      schoolYearApi.activate,
+
+      {
+        invalidateKeys: [
+          schoolYearKeys
+            .schoolYears
+            .all(),
+        ],
+      },
+    );
+  };
+
+
+export const useEndSchoolYear =
+  () => {
+    return useMutationWithInvalidation(
+      schoolYearApi.end,
+
+      {
+        invalidateKeys: [
+          schoolYearKeys
+            .schoolYears
+            .all(),
+        ],
+      },
+    );
+  };
+
+
+// ─── Scoped by School Year ───────────────────────
+
+export const usePrograms = (
+  schoolYearId: string | null,
+) => {
+  return useAsyncQuery(
+    schoolYearKeys.programs(
+      schoolYearId,
+    ),
+
+    () =>
+      programApi.getAll(
+        schoolYearId!,
+      ),
+
+    {
+      enabled:
+        !!schoolYearId,
+    },
+  );
 };
 
-export const useEndSchoolYear = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: schoolYearApi.end,
-    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] }),
-  });
+
+export const useSections = (
+  schoolYearId: string | null,
+  levelId?: string,
+) => {
+  return useAsyncQuery(
+    schoolYearKeys.sections(
+      schoolYearId,
+      levelId,
+    ),
+
+    () =>
+      sectionApi.getAll(
+        schoolYearId!,
+        levelId,
+      ),
+
+    {
+      enabled:
+        !!schoolYearId,
+    },
+  );
 };
 
-// ─── Scoped by School Year ─────────────────────────────────────
 
-export const usePrograms = (schoolYearId: string | null) => {
-  return useQuery({
-    queryKey: ["admin", "programs", schoolYearId],
-    queryFn:  () => programApi.getAll(schoolYearId!),
-    enabled:  !!schoolYearId,
-  });
-};
+export const useCourses = (
+  schoolYearId: string | null,
+  programId?: string,
+) => {
+  return useAsyncQuery(
+    schoolYearKeys.courses(
+      schoolYearId,
+      programId,
+    ),
 
-export const useSections = (schoolYearId: string | null, levelId?: string) => {
-  return useQuery({
-    queryKey: ["admin", "sections", schoolYearId, levelId],
-    queryFn:  () => sectionApi.getAll(schoolYearId!, levelId),
-    enabled:  !!schoolYearId,
-  });
-};
+    () =>
+      courseApi.getAll({
+        schoolYearId:
+          schoolYearId!,
+        programId,
+      }),
 
-export const useCourses = (schoolYearId: string | null, programId?: string) => {
-  return useQuery({
-    queryKey: ["admin", "courses", schoolYearId, programId],
-    queryFn:  () => courseApi.getAll({ schoolYearId: schoolYearId!, programId }),
-    enabled:  !!schoolYearId,
-  });
+    {
+      enabled:
+        !!schoolYearId,
+    },
+  );
 };

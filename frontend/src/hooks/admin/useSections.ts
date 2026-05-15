@@ -1,49 +1,122 @@
-import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
-import { sectionApi } from "@/api/admin/section.api";
-import type { CreateSectionRequest, UpdateSectionRequest } from "@/api/admin/section.api";
-import type { Section } from "@/types/admin/section.types";
+// ===== File: frontend/src/hooks/admin/useSections.ts
 
-// ✅ Make schoolYearId required
+import {
+  useAsyncQuery,
+  useMutationWithInvalidation,
+} from "@/hooks/hook-factory.utils";
+
+import { sectionApi } from "@/api/admin/section.api";
+
+import type {
+  CreateSectionRequest,
+  UpdateSectionRequest,
+} from "@/api/admin/section.api";
+
+import type {
+  Section,
+} from "@/types/admin/section.types";
+
+
+const sectionKeys = {
+  all: ["sections"] as const,
+
+  list: (
+    schoolYearId: string,
+    levelId?: string,
+  ) =>
+    [
+      "sections",
+      schoolYearId,
+      levelId,
+    ] as const,
+};
+
+
+// ── GET sections ─────────────────────────────────────
+
 export const useSections = (
   schoolYearId: string,
-  levelId?: string
-): UseQueryResult<Section[], Error> => {
-  return useQuery({
-    queryKey: ["sections", schoolYearId, levelId],
-    queryFn: () => sectionApi.getAll(schoolYearId, levelId),
-  });
-};
+  levelId?: string,
+) => {
+  return useAsyncQuery<Section[]>(
+    sectionKeys.list(
+      schoolYearId,
+      levelId,
+    ),
 
-export const useCreateSection = (): UseMutationResult<Section, Error, CreateSectionRequest> => {
-  const queryClient = useQueryClient();
+    () =>
+      sectionApi.getAll(
+        schoolYearId,
+        levelId,
+      ),
 
-  return useMutation({
-    mutationFn: sectionApi.create,
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["sections", variables.schoolYearId] });
+    {
+      enabled:
+        !!schoolYearId,
     },
-  });
+  );
 };
 
-export const useUpdateSection = (): UseMutationResult<Section, Error, { id: string; data: UpdateSectionRequest }> => {
-  const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateSectionRequest }) =>
-      sectionApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sections"] });
-    },
-  });
-};
+// ── CREATE section ──────────────────────────────────
 
-export const useDeleteSection = (): UseMutationResult<void, Error, string> => {
-  const queryClient = useQueryClient();
+export const useCreateSection =
+  () => {
+    return useMutationWithInvalidation(
+      (
+        data: CreateSectionRequest,
+      ) =>
+        sectionApi.create(
+          data,
+        ),
 
-  return useMutation({
-    mutationFn: sectionApi.delete,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sections"] });
-    },
-  });
-};
+      {
+        invalidateKeys: [
+          sectionKeys.all,
+        ],
+      },
+    );
+  };
+
+
+// ── UPDATE section ──────────────────────────────────
+
+export const useUpdateSection =
+  () => {
+    return useMutationWithInvalidation(
+      ({
+        id,
+        data,
+      }: {
+        id: string;
+        data: UpdateSectionRequest;
+      }) =>
+        sectionApi.update(
+          id,
+          data,
+        ),
+
+      {
+        invalidateKeys: [
+          sectionKeys.all,
+        ],
+      },
+    );
+  };
+
+
+// ── DELETE section ──────────────────────────────────
+
+export const useDeleteSection =
+  () => {
+    return useMutationWithInvalidation(
+      (id: string) =>
+        sectionApi.delete(id),
+
+      {
+        invalidateKeys: [
+          sectionKeys.all,
+        ],
+      },
+    );
+  };

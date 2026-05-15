@@ -1,3 +1,4 @@
+// ===== File: frontend/src/components/admin/educator/CreateEducatorDialog.tsx =====
 "use client";
 
 import { useState } from "react";
@@ -13,8 +14,6 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useCreateEducator } from "@/hooks/admin/useEducators";
 import { EducatorCredentialsCard } from "./EducatorCredentialsCard";
-
-// ✅ Added imports
 import { useOrganization } from "@/hooks/admin/useOrganization";
 import { EmailInput } from "@/components/shared/EmailInput";
 
@@ -50,8 +49,11 @@ export function CreateEducatorDialog({
     e.preventDefault();
     setError(null);
 
+    // ✅ NEW: Build full email with .educator suffix
+    const fullEmail = buildFullEmail(email, emailExtension, "educator");
+
     createMutation.mutate(
-      { fullName, email },
+      { fullName, email: fullEmail },
       {
         onSuccess: (result) => {
           setCredentials({
@@ -102,15 +104,16 @@ export function CreateEducatorDialog({
               />
             </div>
 
-            {/* ✅ Replaced Input with EmailInput */}
+            {/* ✅ UPDATED: EmailInput with role="educator" */}
             <div className="space-y-1.5">
               <Label htmlFor="edu-email">Email</Label>
               <EmailInput
                 value={email}
                 onChange={setEmail}
                 extension={emailExtension}
-                placeholder="educator"
+                placeholder="educator_username"
                 disabled={createMutation.isPending}
+                role="educator" // ✅ NEW
               />
             </div>
 
@@ -133,7 +136,7 @@ export function CreateEducatorDialog({
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || !email.trim()}
               >
                 {createMutation.isPending ? (
                   <>
@@ -158,4 +161,18 @@ export function CreateEducatorDialog({
       )}
     </>
   );
+}
+
+// ✅ NEW: Helper function to build full email with role suffix
+function buildFullEmail(
+  username: string,
+  extension: string | null,
+  role: "student" | "educator"
+): string {
+  if (!extension) return username;
+
+  const baseDomain = extension.replace(/^@/, "");
+  const suffix = role === "student" ? ".student" : ".educator";
+
+  return `${username}@${baseDomain}${suffix}.com`;
 }

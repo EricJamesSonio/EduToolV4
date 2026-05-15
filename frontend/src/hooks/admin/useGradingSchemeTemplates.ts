@@ -1,6 +1,12 @@
-// ===== File: frontend\src\hooks\admin\useGradingSchemeTemplates.ts =====
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+// ===== File: frontend/src/hooks/admin/useGradingSchemeTemplates.ts =====
+
+import {
+  useAsyncQuery,
+  useMutationWithInvalidation,
+} from '@/hooks/hook-factory.utils'
+
 import { adminGradingSchemeTemplateApi } from '@/api/admin/grading-scheme-template.api'
+
 import type {
   CreateGradingSchemeTemplateDto,
   ApplyTemplateToClassDto,
@@ -8,111 +14,158 @@ import type {
 
 const gradingSchemeTemplateKeys = {
   all: ['grading-scheme-templates'] as const,
+
   list: (programType?: string) =>
     ['grading-scheme-templates', 'list', programType] as const,
+
   detail: (templateId: string) =>
     ['grading-scheme-templates', 'detail', templateId] as const,
 }
 
+
 // Query: Get all templates
-export const useGradingSchemeTemplates = (programType?: string) => {
-  return useQuery({
-    queryKey: gradingSchemeTemplateKeys.list(programType),
-    queryFn: () => adminGradingSchemeTemplateApi.getAll(programType),
-  })
+
+export const useGradingSchemeTemplates = (
+  programType?: string,
+) => {
+  return useAsyncQuery(
+    gradingSchemeTemplateKeys.list(programType),
+    () =>
+      adminGradingSchemeTemplateApi.getAll(
+        programType,
+      ),
+  )
 }
+
 
 // Query: Get single template
-export const useGradingSchemeTemplate = (templateId: string) => {
-  return useQuery({
-    queryKey: gradingSchemeTemplateKeys.detail(templateId),
-    queryFn: () => adminGradingSchemeTemplateApi.getById(templateId),
-    enabled: !!templateId,
-  })
+
+export const useGradingSchemeTemplate = (
+  templateId: string,
+) => {
+  return useAsyncQuery(
+    gradingSchemeTemplateKeys.detail(
+      templateId,
+    ),
+
+    () =>
+      adminGradingSchemeTemplateApi.getById(
+        templateId,
+      ),
+
+    {
+      enabled: !!templateId,
+    },
+  )
 }
+
 
 // Mutation: Create template
-export const useCreateGradingSchemeTemplate = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (data: CreateGradingSchemeTemplateDto) =>
-      adminGradingSchemeTemplateApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: gradingSchemeTemplateKeys.all,
-      })
-    },
-  })
-}
+
+export const useCreateGradingSchemeTemplate =
+  () => {
+    return useMutationWithInvalidation(
+      (
+        data: CreateGradingSchemeTemplateDto,
+      ) =>
+        adminGradingSchemeTemplateApi.create(
+          data,
+        ),
+
+      {
+        invalidateKeys: [
+          gradingSchemeTemplateKeys.all,
+        ],
+      },
+    )
+  }
+
 
 // Mutation: Update template
-export const useUpdateGradingSchemeTemplate = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({
-      templateId,
-      data,
-    }: {
-      templateId: string
-      data: Partial<CreateGradingSchemeTemplateDto>
-    }) => adminGradingSchemeTemplateApi.update(templateId, data),
-    onSuccess: (_, { templateId }) => {
-      queryClient.invalidateQueries({
-        queryKey: gradingSchemeTemplateKeys.detail(templateId),
-      })
-      queryClient.invalidateQueries({
-        queryKey: gradingSchemeTemplateKeys.all,
-      })
-    },
-  })
-}
+
+export const useUpdateGradingSchemeTemplate =
+  () => {
+    return useMutationWithInvalidation(
+      ({
+        templateId,
+        data,
+      }: {
+        templateId: string
+        data: Partial<CreateGradingSchemeTemplateDto>
+      }) =>
+        adminGradingSchemeTemplateApi.update(
+          templateId,
+          data,
+        ),
+
+      {
+        invalidateKeys: [
+          gradingSchemeTemplateKeys.all,
+        ],
+      },
+    )
+  }
+
 
 // Mutation: Delete template
-export const useDeleteGradingSchemeTemplate = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (templateId: string) =>
-      adminGradingSchemeTemplateApi.delete(templateId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: gradingSchemeTemplateKeys.all,
-      })
-    },
-  })
-}
+
+export const useDeleteGradingSchemeTemplate =
+  () => {
+    return useMutationWithInvalidation(
+      (templateId: string) =>
+        adminGradingSchemeTemplateApi.delete(
+          templateId,
+        ),
+
+      {
+        invalidateKeys: [
+          gradingSchemeTemplateKeys.all,
+        ],
+      },
+    )
+  }
+
 
 // Mutation: Apply to single class
-export const useApplyTemplateToClass = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: ApplyTemplateToClassDto) =>
-      adminGradingSchemeTemplateApi.applyToClass(payload),
-    onSuccess: () => {
-      // Invalidate grading schemes for the affected class
-      queryClient.invalidateQueries({
-        queryKey: ['grading-schemes'],
-      })
-    },
-  })
-}
 
-// Mutation: Apply to program (bulk to all classes)
-export const useApplyTemplateToProgram = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: {
-      programId: string
-      templateId: string
-      overwriteExisting?: boolean
-    }) => adminGradingSchemeTemplateApi.applyToProgram(payload),
-    onSuccess: () => {
-      // Invalidate all grading schemes since bulk operation
-      queryClient.invalidateQueries({
-        queryKey: ['grading-schemes'],
-      })
-      queryClient.invalidateQueries({
-        queryKey: gradingSchemeTemplateKeys.all,
-      })
-    },
-  })
-}
+export const useApplyTemplateToClass =
+  () => {
+    return useMutationWithInvalidation(
+      (
+        payload: ApplyTemplateToClassDto,
+      ) =>
+        adminGradingSchemeTemplateApi.applyToClass(
+          payload,
+        ),
+
+      {
+        invalidateKeys: [
+          ['grading-schemes'],
+        ],
+      },
+    )
+  }
+
+
+// Mutation: Apply to program
+
+export const useApplyTemplateToProgram =
+  () => {
+    return useMutationWithInvalidation(
+      (payload: {
+        programId: string
+        templateId: string
+        overwriteExisting?: boolean
+      }) =>
+        adminGradingSchemeTemplateApi.applyToProgram(
+          payload,
+        ),
+
+      {
+        invalidateKeys: [
+          ['grading-schemes'],
+          gradingSchemeTemplateKeys.all,
+        ],
+      },
+    )
+  }
