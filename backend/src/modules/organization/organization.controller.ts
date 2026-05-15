@@ -1,4 +1,5 @@
 // ===== File: backend/src/modules/organization/organization.controller.ts =====
+
 import {
   Controller,
   Post,
@@ -53,7 +54,11 @@ export class OrganizationController {
   @Roles('admin')
   async getOwn(@CurrentUser('org_id') orgId: string | null) {
     const org = await this.orgService.getOwn(orgId)
-    if (!org) throw new NotFoundException('Organization not found.')
+
+    if (!org) {
+      throw new NotFoundException('Organization not found.')
+    }
+
     return org
   }
 
@@ -82,13 +87,16 @@ export class OrganizationController {
   /**
    * ✅ NEW: Validate email extension uniqueness
    * POST /organization/validate-email-extension
-   * 
-   * Request Body: { emailExtension: "@example.com" }
-   * Response: { isUnique: boolean, message?: string }
-   * 
+   *
+   * Request Body:
+   * { emailExtension: "@example.com" }
+   *
+   * Response:
+   * { isUnique: boolean, message?: string }
+   *
    * Checks if the extension is:
-   * 1. Valid format (no special chars except dots and hyphens)
-   * 2. Unique across the entire platform
+   * 1. Valid format
+   * 2. Unique across the platform
    */
   @Post('validate-email-extension')
   @Roles('admin')
@@ -98,6 +106,7 @@ export class OrganizationController {
   ): Promise<ValidateEmailExtensionResponse> {
     const cleaned = dto.emailExtension.trim().replace(/^@/, '')
 
+    // Empty check
     if (!cleaned) {
       return {
         isUnique: false,
@@ -105,32 +114,39 @@ export class OrganizationController {
       }
     }
 
-    // Basic format validation: only letters, numbers, dots, hyphens
+    // Format validation
     if (!/^[a-zA-Z0-9.-]+$/.test(cleaned)) {
       return {
         isUnique: false,
-        message: 'Extension contains invalid characters. Use only letters, numbers, dots, and hyphens.',
+        message:
+          'Extension contains invalid characters. Use only letters, numbers, dots, and hyphens.',
       }
     }
 
-    // Check uniqueness (excluding current org in case of edit)
-    const isUnique = await this.orgService.isEmailExtensionUnique(cleaned, orgId)
+    // Check uniqueness
+    const isUnique = await this.orgService.isEmailExtensionUnique(
+      cleaned,
+      orgId,
+    )
 
     return {
       isUnique,
-      message: isUnique
-        ? null
-        : 'This email extension is already in use by another organization.',
+      ...(isUnique
+        ? {}
+        : {
+            message:
+              'This email extension is already in use by another organization.',
+          }),
     }
   }
 
   /**
    * ✅ NEW: Check if organization has accounts
    * GET /organization/check-accounts
-   * 
-   * Response: { hasAccounts: boolean, count: number }
-   * 
-   * Returns whether the org has any accounts (students, educators, admins).
+   *
+   * Response:
+   * { hasAccounts: boolean, count: number }
+   *
    * Used to prevent email extension changes when accounts exist.
    */
   @Get('check-accounts')
@@ -139,7 +155,9 @@ export class OrganizationController {
     @CurrentUser('org_id') orgId: string,
   ): Promise<CheckAccountsResponse> {
     if (!orgId) {
-      throw new BadRequestException('No organization found for this account.')
+      throw new BadRequestException(
+        'No organization found for this account.',
+      )
     }
 
     const count = await this.orgService.countAccounts(orgId)

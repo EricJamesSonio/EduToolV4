@@ -34,6 +34,10 @@ export interface GradeLock {
   id: string
   org_id: string
   class_id: string
+
+  // ✅ add this
+  setting_id?: string | null
+
   is_locked: boolean
   locked_by: string | null
   locked_at: string | null

@@ -1,4 +1,5 @@
 // ===== File: frontend/src/components/admin/educator/CreateEducatorDialog.tsx =====
+
 "use client";
 
 import { useState } from "react";
@@ -16,6 +17,7 @@ import { useCreateEducator } from "@/hooks/admin/useEducators";
 import { EducatorCredentialsCard } from "./EducatorCredentialsCard";
 import { useOrganization } from "@/hooks/admin/useOrganization";
 import { EmailInput } from "@/components/shared/EmailInput";
+import { buildFullEmail } from "@/lib/email/buildFullEmail";
 
 interface CreateEducatorDialogProps {
   open: boolean;
@@ -41,7 +43,6 @@ export function CreateEducatorDialog({
 
   const createMutation = useCreateEducator();
 
-  // ✅ Get organization email extension
   const { data: org } = useOrganization();
   const emailExtension = org?.emailExtension ?? null;
 
@@ -49,11 +50,17 @@ export function CreateEducatorDialog({
     e.preventDefault();
     setError(null);
 
-    // ✅ NEW: Build full email with .educator suffix
-    const fullEmail = buildFullEmail(email, emailExtension, "educator");
+    const fullEmail = buildFullEmail(
+      email,
+      emailExtension,
+      "educator"
+    );
 
     createMutation.mutate(
-      { fullName, email: fullEmail },
+      {
+        fullName,
+        email: fullEmail,
+      },
       {
         onSuccess: (result) => {
           setCredentials({
@@ -63,6 +70,7 @@ export function CreateEducatorDialog({
               result.educatorId ?? result.educatorCode ?? "",
             password: result.plainPassword,
           });
+
           setFullName("");
           setEmail("");
         },
@@ -92,6 +100,7 @@ export function CreateEducatorDialog({
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4 py-2">
+            {/* Full Name */}
             <div className="space-y-1.5">
               <Label htmlFor="edu-fullname">Full Name</Label>
               <Input
@@ -99,26 +108,46 @@ export function CreateEducatorDialog({
                 placeholder="Juan dela Cruz"
                 required
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) =>
+                  setFullName(e.target.value)
+                }
                 disabled={createMutation.isPending}
               />
             </div>
 
-            {/* ✅ UPDATED: EmailInput with role="educator" */}
+            {/* Username only (NO @ input anymore) */}
             <div className="space-y-1.5">
-              <Label htmlFor="edu-email">Email</Label>
-              <EmailInput
+              <Label htmlFor="edu-email">Email Username</Label>
+              <Input
+                id="edu-email"
+                placeholder="juan.delacruz"
+                required
                 value={email}
-                onChange={setEmail}
-                extension={emailExtension}
-                placeholder="educator_username"
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
                 disabled={createMutation.isPending}
-                role="educator" // ✅ NEW
               />
+
+              {email.trim() && emailExtension && (
+                <p className="text-xs text-muted-foreground">
+                  Preview:{" "}
+                  <span className="font-medium">
+                    {buildFullEmail(
+                      email,
+                      emailExtension,
+                      "educator"
+                    )}
+                  </span>
+                </p>
+              )}
             </div>
 
             {error && (
-              <p className="text-sm text-destructive" role="alert">
+              <p
+                className="text-sm text-destructive"
+                role="alert"
+              >
                 {error}
               </p>
             )}
@@ -133,10 +162,14 @@ export function CreateEducatorDialog({
               >
                 Cancel
               </Button>
+
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={createMutation.isPending || !email.trim()}
+                disabled={
+                  createMutation.isPending ||
+                  !email.trim()
+                }
               >
                 {createMutation.isPending ? (
                   <>
@@ -163,16 +196,3 @@ export function CreateEducatorDialog({
   );
 }
 
-// ✅ NEW: Helper function to build full email with role suffix
-function buildFullEmail(
-  username: string,
-  extension: string | null,
-  role: "student" | "educator"
-): string {
-  if (!extension) return username;
-
-  const baseDomain = extension.replace(/^@/, "");
-  const suffix = role === "student" ? ".student" : ".educator";
-
-  return `${username}@${baseDomain}${suffix}.com`;
-}
