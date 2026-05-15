@@ -10,37 +10,33 @@ interface SectionRowProps {
   strandId?: string;
   onEdit: (levelId: string, section: Section) => void;
   onDelete: (section: Section) => void;
+  programId: string;
   onViewDetails?: (args: {
     schoolYearId: string;
     section: Section;
     sectionId: string;
     levelId: string;
+    programId: string;
     context: { courseId?: string; strandId?: string };
   }) => void;
 }
 
 const SectionRow: React.FC<SectionRowProps> = ({
-  section,
-  levelId,
-  schoolYearId,
-  courseId,
-  strandId,
-  onEdit,
-  onDelete,
-  onViewDetails,
+  section, levelId, schoolYearId, courseId, strandId, programId, onEdit, onDelete, onViewDetails,
 }) => (
   <div className="section-row">
     <button
       type="button"
       className="section-main-button"
       onClick={() =>
-        onViewDetails?.({
-          schoolYearId,
-          section,
-          sectionId: section.id,
-          levelId,
-          context: { courseId, strandId },
-        })
+onViewDetails?.({
+  schoolYearId,
+  section,
+  sectionId: section.id,
+  levelId,
+  programId,
+  context: { courseId, strandId },
+})
       }
     >
       <span className="section-info">

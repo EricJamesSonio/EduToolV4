@@ -5,6 +5,7 @@ import Button from '@/components/Button/Button';
 import ActionButtons from '@/components/ActionButtons/ActionButtons';
 import { useErrorToast } from '@/components/ErrorDisplay/UnifiedError';
 import { useCreateClass, useUpdateClass, useDeleteClass } from '../../hooks/useClasses';
+import { useSemesterTemplateAssignments } from '../../../system/hooks/useSemesterTemplates';
 import ClassFormModal from '../../components/modals/ClassFormModal';
 import { getClassTitle } from '../../utils/section-details.utils';
 import type { AcademicClass, CreateClassDto, UpdateClassDto } from '../../api/class.api';
@@ -24,6 +25,7 @@ type Props = {
   schoolYearId: string;
   sectionId: string;
   levelId: string;
+  programId: string;
   onView?: (academicClass: AcademicClass) => void;
 };
 
@@ -34,6 +36,7 @@ const SectionClassesTab: React.FC<Props> = ({
   schoolYearId,
   sectionId,
   levelId,
+  programId,
   onView,
 }) => {
   const { showError, showSuccess } = useErrorToast();
@@ -44,6 +47,11 @@ const SectionClassesTab: React.FC<Props> = ({
   const createClass = useCreateClass();
   const updateClass = useUpdateClass();
   const deleteClass = useDeleteClass();
+
+  const { data: assignments = [], isLoading: assignmentsLoading } =
+    useSemesterTemplateAssignments(schoolYearId);
+
+  const hasSemesterTemplate = assignments.some((a) => a.program_id === programId);
 
   const isMutating =
     createClass.isPending || updateClass.isPending || deleteClass.isPending;
@@ -104,14 +112,26 @@ const SectionClassesTab: React.FC<Props> = ({
             <h3 className="card-title">Class List</h3>
             <span className="status-badge status-default">{classes.length} found</span>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleOpenCreate}
-            disabled={isMutating}
-          >
-            + Create Class
-          </Button>
+          <div className="card-header-right">
+            {!assignmentsLoading && !hasSemesterTemplate && (
+              <span className="status-badge status-inactive">
+                No semester template assigned
+              </span>
+            )}
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleOpenCreate}
+              disabled={isMutating || !hasSemesterTemplate || assignmentsLoading}
+              title={
+                !hasSemesterTemplate
+                  ? 'Assign a semester template to this program before creating classes.'
+                  : undefined
+              }
+            >
+              + Create Class
+            </Button>
+          </div>
         </div>
 
         <div className="card-body">
@@ -128,7 +148,11 @@ const SectionClassesTab: React.FC<Props> = ({
           ) : classes.length === 0 ? (
             <EmptyState
               title="No Classes Found"
-              description="Classes assigned to this section will appear here."
+              description={
+                hasSemesterTemplate
+                  ? 'Classes assigned to this section will appear here.'
+                  : 'Assign a semester template to this program first, then create classes here.'
+              }
             />
           ) : (
             <div className="section-class-list">

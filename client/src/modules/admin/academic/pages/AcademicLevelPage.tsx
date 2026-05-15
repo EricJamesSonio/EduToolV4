@@ -31,13 +31,14 @@ interface AcademicLevelPageProps {
   strandId?: string;
   contextLabel?: string;
   onBackToPrograms: () => void;
-  onViewSectionDetails?: (args: {
-    schoolYearId: string;
-    section: Section;
-    sectionId: string;
-    levelId: string;
-    context: { courseId?: string; strandId?: string };
-  }) => void;
+onViewSectionDetails?: (args: {
+  schoolYearId: string;
+  section: Section;
+  sectionId: string;
+  levelId: string;
+  programId: string;
+  context: { courseId?: string; strandId?: string };
+}) => void;
 onViewLevelSubjects?: (args: {
   schoolYearId: string;
   levelId: string;

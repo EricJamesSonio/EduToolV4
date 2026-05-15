@@ -105,9 +105,8 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
     }
   };
 
-  const handleAssignFromCard = (template: SemesterTemplate) => {
-    // From template card — no specific program, switch to assignments tab
-    // and let user pick from there. Just switch view as convenience.
+  const handleAssignFromCard = (_template: SemesterTemplate) => {
+    // From template card — switch to assignments tab and let user pick from there.
     setView('assignments');
   };
 

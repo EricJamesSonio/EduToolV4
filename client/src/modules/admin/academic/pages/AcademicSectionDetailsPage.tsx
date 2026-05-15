@@ -11,6 +11,7 @@ type Props = {
   schoolYearId: string;
   section: Section;
   levelId: string;
+  programId: string;
   context: { courseId?: string; strandId?: string };
   onBack: () => void;
 };
@@ -24,11 +25,7 @@ const tabOptions: Array<{ key: TabKey; label: string }> = [
 ];
 
 const AcademicSectionDetailsPage: React.FC<Props> = ({
-  schoolYearId,
-  section,
-  levelId,
-  context,
-  onBack,
+  schoolYearId, section, levelId, programId, context, onBack,
 }) => {
   const [tab, setTab] = useState<TabKey>('students');
 
@@ -93,14 +90,15 @@ const AcademicSectionDetailsPage: React.FC<Props> = ({
           />
         )}
         {tab === 'classes' && (
-          <SectionClassesTab
-            classes={classes}
-            isLoading={classesLoading}
-            isError={classesError}
-            schoolYearId={schoolYearId}
-            sectionId={section.id}
-            levelId={levelId}
-          />
+<SectionClassesTab
+  classes={classes}
+  isLoading={classesLoading}
+  isError={classesError}
+  schoolYearId={schoolYearId}
+  sectionId={section.id}
+  levelId={levelId}
+  programId={programId}
+/>
         )}
         {tab === 'schedule' && (
           <SectionScheduleTab
