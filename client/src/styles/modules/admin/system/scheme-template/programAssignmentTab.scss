@@ -561,21 +561,3 @@
     transition-duration: 0.01ms !important;
   }
 }
-
-// Dark theme support
-@media (prefers-color-scheme: dark) {
-  .gs-assignment-row {
-    &:hover {
-      background-color: var(--color-secondary-800);
-    }
-  }
-
-  .modal-overlay {
-    background-color: rgba(0, 0, 0, 0.8);
-  }
-
-  .gs-assignment-program-type {
-    background-color: transparent;
-    color: var(--color-text-secondary);
-  }
-}

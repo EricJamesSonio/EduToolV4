@@ -121,7 +121,6 @@
   }
 }
 
-// Select
 .form-select {
   @extend .form-input;
   cursor: pointer;
@@ -130,15 +129,14 @@
   background-repeat: no-repeat;
   background-position: right $spacing-3 center;
   padding-right: $spacing-8;
-  color: #000000;
+  color: var(--color-text-primary);  // ✅ Use CSS variable instead
 
   &:hover {
     border-color: var(--color-border-primary);
   }
 
-  // Style the dropdown options
   option {
-    color: #000000;
+    color: var(--color-text-primary);  // ✅ Use CSS variable
     background-color: var(--color-white);
   }
 }
