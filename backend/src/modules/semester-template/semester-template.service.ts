@@ -202,12 +202,66 @@ async assignToProgram(orgId: string, dto: AssignTemplateDto) {
     )
   }
 
-  return this.repo.assignToProgram({
+  // ✅ NEW: Create the assignment first
+  const assignment = await this.repo.assignToProgram({
     orgId,
     programId: dto.programId,
     templateId: dto.templateId,
     termDates: dto.termDates,
   })
+
+  // ✅ NEW: If termDates provided, immediately create Semester + Term rows
+  if (dto.termDates && dto.termDates.length > 0) {
+    await this.saveTermDates(orgId, dto.programId, dto.termDates)
+  } else {
+    // ✅ NEW: If NO termDates, create placeholder semesters from template
+    await this.createPlaceholderSemesters(orgId, program.school_year_id, template)
+  }
+
+  return assignment
+}
+
+private async createPlaceholderSemesters(
+  orgId: string,
+  schoolYearId: string,
+  template: any,
+) {
+  for (const semItem of template.semesters) {
+    const existingSemester = await this.db.semester.findFirst({
+      where: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        name: semItem.name,
+      },
+    })
+
+    if (existingSemester) continue
+
+    // Create with placeholder dates (can be updated later)
+    const semester = await this.db.semester.create({
+      data: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        name: semItem.name,
+        start_date: new Date(),
+        end_date: new Date(),
+      },
+    })
+
+    // Create placeholder terms
+    for (const termItem of semItem.terms) {
+      await this.db.term.create({
+        data: {
+          org_id: orgId,
+          semester_id: semester.id,
+          name: termItem.name,
+          order_index: termItem.orderIndex ?? termItem.order_index ?? 0, // ✅ FIX: Add order_index
+          start_date: new Date(),
+          end_date: new Date(),
+        },
+      })
+    }
+  }
 }
 
   async removeAssignment(programId: string, orgId: string) {

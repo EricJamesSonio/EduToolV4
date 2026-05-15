@@ -51,7 +51,9 @@ export const semesterTemplateApi = {
     return res.data.data ?? []
   },
 
-  assign: async (dto: AssignTemplateDto): Promise<TemplateAssignment> => {
+  assign: async (
+    dto: AssignTemplateDto
+  ): Promise<TemplateAssignment> => {
     const res = await clientApi.post<Envelope<TemplateAssignment>>(
       '/semester-templates/assignments',
       dto

@@ -75,19 +75,7 @@ export function useSeedState() {
   )
   const [selectedStrands, setSelectedStrands] = useState<Set<string>>(new Set(SHS_STRANDS))
 
-  const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(() => {
-    const all = new Set<string>()
-    Object.entries(LEVEL_SUBJECTS).forEach(([lvl, subjects]) =>
-      subjects.forEach((s) => all.add(subjectKey(lvl, s))),
-    )
-    Object.entries(SHS_STRAND_SUBJECTS).forEach(([strand, subjects]) =>
-      subjects.forEach((s) => all.add(subjectKey(strand, s))),
-    )
-    Object.entries(COURSE_SUBJECTS).forEach(([code, subjects]) =>
-      subjects.forEach((s) => all.add(subjectKey(code, s))),
-    )
-    return all
-  })
+const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(new Set())
 
   const allSelectableSubjects = useMemo(() => {
     const out = new Set<string>()
