@@ -28,22 +28,22 @@ type ConfirmAssignModalProps = {
 const ConfirmAssignModal: React.FC<ConfirmAssignModalProps> = ({
   program, template, isLoading, onConfirm, onCancel,
 }) => (
-  <div className="modal-overlay" onClick={onCancel}>
-    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-      <div className="modal-header">
-        <h3 className="modal-title">Assign Grading Scheme</h3>
+  <div className="gs-assignment-modal-overlay" onClick={onCancel}>
+    <div className="gs-assignment-modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="gs-assignment-modal-header">
+        <h3 className="gs-assignment-modal-title">Assign Grading Scheme</h3>
       </div>
-      <div className="modal-body">
-        <p className="modal-description">
+      <div className="gs-assignment-modal-body">
+        <p className="gs-assignment-modal-description">
           Are you sure you want to apply{' '}
           <strong>"{template.name}"</strong> to all classes under{' '}
           <strong>{program.name}</strong>?
         </p>
-        <p className="modal-description" style={{ marginTop: '0.5rem' }}>
+        <p className="gs-assignment-modal-description" style={{ marginTop: '0.5rem' }}>
           This will create or overwrite the grading scheme for every class in this program.
         </p>
       </div>
-      <div className="modal-actions">
+      <div className="gs-assignment-modal-actions">
         <button
           type="button"
           className="btn btn-outline"
@@ -174,7 +174,7 @@ const ProgramAssignmentTab: React.FC = () => {
       });
       showSuccess(
         `Applied to ${result.applied} class${result.applied !== 1 ? 'es' : ''}.` +
-          (result.skipped > 0 ? ` ${result.skipped} skipped.` : ''),
+        (result.skipped > 0 ? ` ${result.skipped} skipped.` : ''),
       );
     } catch (err: unknown) {
       const message =

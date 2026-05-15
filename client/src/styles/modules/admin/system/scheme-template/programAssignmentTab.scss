@@ -347,7 +347,7 @@
 
 // ─── Modal Overlay ────────────────────────────────────────────────────────────
 
-.modal-overlay {
+.gs-assignment-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -366,7 +366,7 @@
   }
 }
 
-.modal-content {
+.gs-assignment-modal-content {
   background-color: var(--color-white);
   border-radius: $radius-lg;
   box-shadow: $shadow-2xl;
@@ -380,7 +380,7 @@
   }
 }
 
-.modal-header {
+.gs-assignment-modal-header {
   padding: $spacing-6;
   border-bottom: 1px solid var(--color-border-primary);
   background-color: var(--color-secondary-50);
@@ -390,7 +390,7 @@
   }
 }
 
-.modal-title {
+.gs-assignment-modal-title {
   font-size: $font-xl;
   font-weight: $font-bold;
   color: var(--color-text-primary);
@@ -402,7 +402,7 @@
   }
 }
 
-.modal-body {
+.gs-assignment-modal-body {
   padding: $spacing-6;
 
   @include respond-to(sm) {
@@ -410,7 +410,7 @@
   }
 }
 
-.modal-description {
+.gs-assignment-modal-description {
   font-size: $font-base;
   color: var(--color-text-primary);
   line-height: $leading-relaxed;
@@ -430,7 +430,7 @@
   }
 }
 
-.modal-actions {
+.gs-assignment-modal-actions {
   display: flex;
   flex-direction: column;
   gap: $spacing-3;
