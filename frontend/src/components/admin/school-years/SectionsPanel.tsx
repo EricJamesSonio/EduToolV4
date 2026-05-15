@@ -45,10 +45,16 @@ export function SectionsPanel({
     queryFn:  () => sectionApi.getAll(schoolYearId, level.id),
   });
 
-  // Filter client-side by course/strand since backend may not filter yet
   const visibleSections = sections.filter((s) => {
-    if (courseId) return (s as Section & { course_id?: string }).course_id === courseId;
-    if (strandId) return (s as Section & { strand_id?: string }).strand_id === strandId;
+    if (courseId) {
+      const sc = s as Section & { course_id?: string | null };
+      // show if explicitly matched OR if section has no course scoping (shared/seeded)
+      return sc.course_id === courseId || sc.course_id == null;
+    }
+    if (strandId) {
+      const ss = s as Section & { strand_id?: string | null };
+      return ss.strand_id === strandId || ss.strand_id == null;
+    }
     return true;
   });
 

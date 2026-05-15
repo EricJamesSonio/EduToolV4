@@ -40,3 +40,36 @@ Section management:
 
 - capacity
 - enroll students in here for example this is the section A of BSCS 1 so automatically the students enroll in here will be enrolled in BSCS 1-A . so the parents passes down the props to the child
+
+grade lock management:
+
+- Sets the date and time for the grades to be lock to notify the educators that they should have already completed the gradings before this set time. once the set time is done it will automatically locked.
+
+grading-scheme mangement:
+
+- global reusable scheme that can be use in different school years. just if the program type matches it.
+- for example created "Standard scheme College" then set the program type to be college, then this will be only reusable in different school years as long as the program type is college.
+- have collection of global schemes to be assigned to the programs of the school yearss.
+- Selector of school year thne it will dispaly all the progams and show which program doesnt have schemes yet so that we can apply , so in applying only show in modal the schemes that matches that program type
+- validation in the schemes .
+- basically the grading system of the educators depends on this but the educator can manually modify it its just the base form that the admin will provide but the educator will handle it
+
+grading--scale management:
+
+- global reusable scale that can be use in different school yeasr, just if the program type matches it the sam with the grading scheme.
+- just have valid scaling
+- again this is just the base form , and the educator can still have its own grading scale to be use and modify
+
+semester setting template:
+
+- global reusable semester tempaltes
+- can be use in different school years as long as the program type matches it
+
+student managemnet:
+
+- create student account , block, update the status, edit creadentials , reset password
+- view details
+
+educator management:
+
+- creats educator account , suispend, update the status, edit credentatils, reset password
