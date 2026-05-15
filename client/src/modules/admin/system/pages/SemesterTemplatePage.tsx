@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import ConfirmationModal from '@/components/ConfirmationModal';
-import SchoolYearSelector from '@/components/shared/SchoolYearSelector';
 import {
   useAllSemesterTemplates,
   useSemesterTemplateAssignments,
@@ -12,12 +11,12 @@ import {
 import { useSchoolYears } from '../../academic/hooks/useSchoolYears';
 import { useProgramsBySchoolYear } from '../../academic/hooks/usePrograms';
 import {
-  SemesterTemplateCard,
   SemesterTemplateFormModal,
   AssignTemplateModal,
-  ProgramAssignmentGrid,
 } from '../components/semester-template';
 import type { SchoolYearOption } from '../components/semester-template';
+import TemplatesSection from '../components/semester-template/sections/TemplatesSection';
+import AssignmentsSection from '../components/semester-template/sections/AssignmentsSection';
 import type {
   SemesterTemplate,
   SemesterTemplateAssignment,
@@ -37,38 +36,29 @@ interface SemesterTemplatePageProps {
 const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) => {
 
   // ── View state ────────────────────────────────────────────────────────────
-  const [view, setView] = useState<PageView>('templates');
+  const [view, setView]                           = useState<PageView>('templates');
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
 
-  // ── Template form modal: undefined=closed, null=create, obj=edit ──────────
+  // ── Modal state ───────────────────────────────────────────────────────────
+  // undefined = closed, null = create mode, SemesterTemplate = edit mode
   const [formTemplate, setFormTemplate] = useState<SemesterTemplate | null | undefined>(undefined);
-
-  // ── Delete confirm ────────────────────────────────────────────────────────
   const [pendingDelete, setPendingDelete] = useState<SemesterTemplate | null>(null);
-
-  // ── Assign modal ──────────────────────────────────────────────────────────
   const [assignModal, setAssignModal] = useState<{
     program: Program;
     existingAssignment: SemesterTemplateAssignment | null;
   } | null>(null);
 
   // ── Data ──────────────────────────────────────────────────────────────────
-
-  const { data: schoolYears = [], isLoading: schoolYearsLoading } = useSchoolYears();
-
-  // Templates: global org-wide, no school year filter
-  const { data: templates = [], isLoading: templatesLoading } = useAllSemesterTemplates();
-
-  // Assignments + programs: only loaded when a school year is selected
-  const { data: assignments = [], isLoading: assignmentsLoading } =
+  const { data: schoolYears = [],  isLoading: schoolYearsLoading  } = useSchoolYears();
+  const { data: templates = [],    isLoading: templatesLoading     } = useAllSemesterTemplates();
+  const { data: assignments = [],  isLoading: assignmentsLoading   } =
     useSemesterTemplateAssignments(selectedSchoolYearId ?? '');
-
-  const { data: programs = [], isLoading: programsLoading } =
+  const { data: programs = [],     isLoading: programsLoading      } =
     useProgramsBySchoolYear(selectedSchoolYearId ?? '');
 
   const deleteMutation = useDeleteSemesterTemplate();
 
-  // ── Derived: selected school year object (for date range) ─────────────────
+  // ── Derived ───────────────────────────────────────────────────────────────
 
   const selectedSchoolYear = useMemo((): SchoolYearOption | null => {
     if (!selectedSchoolYearId) return null;
@@ -82,13 +72,9 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
     };
   }, [schoolYears, selectedSchoolYearId]);
 
-  // ── Templates filtered to program type (for assign modal) ─────────────────
-
   const availableTemplatesForProgram = useMemo(() => {
     if (!assignModal) return [];
-    return templates.filter(
-      (t) => t.program_type === assignModal.program.type,
-    );
+    return templates.filter((t) => t.program_type === assignModal.program.type);
   }, [assignModal, templates]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -99,20 +85,18 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
       await deleteMutation.mutateAsync(pendingDelete.id);
       toast.success('Template deleted.');
     } catch {
-      // handled by apiClient
+      // handled by apiClient interceptor
     } finally {
       setPendingDelete(null);
     }
   };
 
   const handleAssignFromCard = (_template: SemesterTemplate) => {
-    // From template card — switch to assignments tab and let user pick from there.
     setView('assignments');
   };
 
   const handleAssignProgram = (program: Program) => {
-    const existingAssignment =
-      assignments.find((a) => a.program_id === program.id) ?? null;
+    const existingAssignment = assignments.find((a) => a.program_id === program.id) ?? null;
     setAssignModal({ program, existingAssignment });
   };
 
@@ -143,23 +127,9 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
         </div>
       </div>
 
-      {/* ── Filters + view toggle ── */}
+      {/* ── View toggle + actions bar ── */}
       <div className="card grading-scale-filters">
         <div className="filter-row">
-
-          {/* School year selector — only shown in assignments tab */}
-          {view === 'assignments' && (
-            <div className="form-group filter-group">
-              <label className="form-label">School Year</label>
-              <SchoolYearSelector
-                schoolYears={schoolYears}
-                isLoading={schoolYearsLoading}
-                selectedId={selectedSchoolYearId}
-                onSelect={setSelectedSchoolYearId}
-              />
-            </div>
-          )}
-
           <div className="view-toggle-group">
             <button
               type="button"
@@ -195,60 +165,31 @@ const SemesterTemplatePage: React.FC<SemesterTemplatePageProps> = ({ onBack }) =
         </div>
       </div>
 
-      {/* ── Templates tab — global, no school year filter ── */}
+      {/* ── Tab content ── */}
       {view === 'templates' && (
-        <div className="grading-scales-grid">
-          {templatesLoading ? (
-            <div className="dashboard-loading">
-              <div className="loading-spinner" />
-              <span className="loading-text">Loading templates…</span>
-            </div>
-          ) : templates.length === 0 ? (
-            <div className="empty-state">
-              <p>No semester templates yet.</p>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => setFormTemplate(null)}
-              >
-                Create First Template
-              </button>
-            </div>
-          ) : (
-            templates.map((t) => (
-              <SemesterTemplateCard
-                key={t.id}
-                template={t}
-                onEdit={(tmpl) => setFormTemplate(tmpl)}
-                onDelete={(tmpl) => setPendingDelete(tmpl)}
-                onAssign={handleAssignFromCard}
-              />
-            ))
-          )}
-        </div>
+        <TemplatesSection
+          templates={templates}
+          isLoading={templatesLoading}
+          onEdit={(tmpl) => setFormTemplate(tmpl)}
+          onDelete={(tmpl) => setPendingDelete(tmpl)}
+          onAssign={handleAssignFromCard}
+          onCreateFirst={() => setFormTemplate(null)}
+        />
       )}
 
-      {/* ── Assignments tab — shows all programs for selected school year ── */}
       {view === 'assignments' && (
-        <>
-          {!selectedSchoolYearId ? (
-            <div className="empty-state">
-              <p>Select a school year above to view and manage program assignments.</p>
-            </div>
-          ) : assignmentsLoading || programsLoading ? (
-            <div className="dashboard-loading">
-              <div className="loading-spinner" />
-              <span className="loading-text">Loading programs…</span>
-            </div>
-          ) : (
-            <ProgramAssignmentGrid
-              programs={programs}
-              assignments={assignments}
-              onAssign={handleAssignProgram}
-              onManage={handleManageAssignment}
-            />
-          )}
-        </>
+        <AssignmentsSection
+          schoolYears={schoolYears}
+          schoolYearsLoading={schoolYearsLoading}
+          selectedSchoolYearId={selectedSchoolYearId}
+          onSelectSchoolYear={setSelectedSchoolYearId}
+          programs={programs}
+          assignments={assignments}
+          assignmentsLoading={assignmentsLoading}
+          programsLoading={programsLoading}
+          onAssign={handleAssignProgram}
+          onManage={handleManageAssignment}
+        />
       )}
 
       {/* ── Create / Edit template modal ── */}

@@ -21,10 +21,8 @@
 }
 
 .calendar-picker-popover {
-  position: absolute;
-  top: calc(100% + $spacing-2);
-  left: 0;
-  z-index: 1000;
+  position: fixed;
+  z-index: 1300;
   min-width: 280px;
   padding: $spacing-3;
   background-color: var(--color-white);

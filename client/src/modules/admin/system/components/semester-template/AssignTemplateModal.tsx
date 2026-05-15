@@ -46,6 +46,17 @@ function toInputDate(iso: string | null | undefined): string {
   return iso.slice(0, 10);
 }
 
+/** Returns yyyy-mm-dd of the day after a given yyyy-mm-dd string */
+function nextDay(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() + 1);
+  const yy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
 // ── Props ──────────────────────────────────────────────────────────────────────
 
 interface AssignTemplateModalProps {
@@ -81,11 +92,18 @@ const AssignTemplateModal: React.FC<AssignTemplateModalProps> = ({
   const selectedTemplate = availableTemplates.find((t) => t.id === selectedTemplateId);
   const isSaving         = assignMutation.isPending || saveTermDatesMutation.isPending;
 
+  // Flat ordered list of all terms across all semesters
   const allTerms = useMemo(() => {
     if (!selectedTemplate) return [];
-    return selectedTemplate.semesters.flatMap((sem) =>
-      sem.terms.map((t) => ({ term: t, semesterName: sem.name })),
-    );
+    return selectedTemplate.semesters
+      .slice()
+      .sort((a, b) => a.order_index - b.order_index)
+      .flatMap((sem) =>
+        sem.terms
+          .slice()
+          .sort((a, b) => a.order_index - b.order_index)
+          .map((t) => ({ term: t, semesterName: sem.name })),
+      );
   }, [selectedTemplate]);
 
   const dateMin = toInputDate(schoolYear.start_date);
@@ -99,19 +117,55 @@ const AssignTemplateModal: React.FC<AssignTemplateModalProps> = ({
     [allTerms, termDateMap],
   );
 
+  // ── Smart date chaining ────────────────────────────────────────────────────
+  // For each term at index i, compute the chained start min:
+  // = day after term[i-1]'s endDate (if it exists), else undefined.
+  const chainedStartMins = useMemo((): (string | undefined)[] => {
+    return allTerms.map((_, i) => {
+      if (i === 0) return undefined;
+      const prevTermId = allTerms[i - 1].term.id;
+      const prevEnd = termDateMap[prevTermId]?.endDate;
+      return prevEnd ? nextDay(prevEnd) : undefined;
+    });
+  }, [allTerms, termDateMap]);
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
   const handleTermDateChange = (
     termId: string,
     field: 'startDate' | 'endDate',
     val: string,
   ) => {
-    setTermDateMap((prev) => ({
-      ...prev,
-      [termId]: {
-        startDate: prev[termId]?.startDate ?? '',
-        endDate:   prev[termId]?.endDate   ?? '',
-        [field]:   val,
-      },
-    }));
+    setTermDateMap((prev) => {
+      const updated: TermDateMap = {
+        ...prev,
+        [termId]: {
+          startDate: prev[termId]?.startDate ?? '',
+          endDate:   prev[termId]?.endDate   ?? '',
+          [field]:   val,
+        },
+      };
+
+      // Smart chaining: when endDate of term N is set,
+      // pre-fill startDate of term N+1 to the next day
+      // (only if it hasn't been set yet, to avoid overwriting user input)
+      if (field === 'endDate' && val) {
+        const termIndex = allTerms.findIndex((t) => t.term.id === termId);
+        if (termIndex !== -1 && termIndex + 1 < allTerms.length) {
+          const nextTermId = allTerms[termIndex + 1].term.id;
+          const nextTermCurrent = updated[nextTermId];
+          // Only auto-fill if startDate is empty
+          if (!nextTermCurrent?.startDate) {
+            updated[nextTermId] = {
+              startDate: nextDay(val),
+              endDate:   nextTermCurrent?.endDate ?? '',
+            };
+          }
+        }
+      }
+
+      return updated;
+    });
   };
 
   const handleSaveClick = () => {
@@ -164,7 +218,7 @@ const AssignTemplateModal: React.FC<AssignTemplateModalProps> = ({
     }
   };
 
-  // ── No templates available ────────────────────────────────────────────────────
+  // ── No templates available ─────────────────────────────────────────────────
 
   if (availableTemplates.length === 0) {
     return (
@@ -185,9 +239,9 @@ const AssignTemplateModal: React.FC<AssignTemplateModalProps> = ({
     );
   }
 
-  // ── Main modal ────────────────────────────────────────────────────────────────
+  // ── Main modal ─────────────────────────────────────────────────────────────
 
-  return (
+return (
     <>
       <Modal
         isOpen
@@ -196,105 +250,112 @@ const AssignTemplateModal: React.FC<AssignTemplateModalProps> = ({
         size="lg"
         closeOnOverlayClick={!isSaving}
       >
-        <div className="assign-modal-scroll-body">
+        <div className="assign-modal-scroll-wrapper">
+          <div className="assign-modal-scroll-body">
 
-          {/* School year context banner */}
-          {(schoolYear.start_date || schoolYear.end_date) && (
-            <div className="school-year-date-banner">
-              <span className="banner-label">School Year:</span>
-              <span className="banner-value">{schoolYear.name}</span>
-              {schoolYear.start_date && schoolYear.end_date && (
-                <span className="banner-range">
-                  {toInputDate(schoolYear.start_date)} → {toInputDate(schoolYear.end_date)}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Template selector */}
-          <div className="form-group">
-            <label className="form-label">
-              Semester Template
-              <span className="form-label-hint">
-                &nbsp;({PROGRAM_TYPE_LABELS[program.type]} only)
-              </span>
-            </label>
-            <div className="program-select-wrapper">
-              <select
-                className="program-select"
-                value={selectedTemplateId}
-                onChange={(e) => {
-                  setSelectedTemplateId(e.target.value);
-                  setTermDateMap({});
-                }}
-                disabled={isSaving}
-              >
-                {availableTemplates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-              <div className="program-select__chevron" aria-hidden="true">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Template structure preview */}
-          {selectedTemplate && (
-            <div className="form-group">
-              <label className="form-label">Template Structure</label>
-              <div className="template-structure-preview">
-                {selectedTemplate.semesters.map((sem) => (
-                  <div key={sem.id} className="template-sem-preview">
-                    <span className="template-sem-name">{sem.name}</span>
-                    <div className="template-term-chips">
-                      {sem.terms.map((t) => (
-                        <span key={t.id} className="template-term-chip">{t.name}</span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Term dates with school year range constraint */}
-          {allTerms.length > 0 && (
-            <div className="form-group">
-              <label className="form-label">
-                Term Dates
-                {(dateMin || dateMax) && (
-                  <span className="form-label-hint">
-                    &nbsp;— dates must be within school year range
+            {/* School year context banner */}
+            {(schoolYear.start_date || schoolYear.end_date) && (
+              <div className="school-year-date-banner">
+                <span className="banner-label">School Year:</span>
+                <span className="banner-value">{schoolYear.name}</span>
+                {schoolYear.start_date && schoolYear.end_date && (
+                  <span className="banner-range">
+                    {toInputDate(schoolYear.start_date)} → {toInputDate(schoolYear.end_date)}
                   </span>
                 )}
-              </label>
-              <div className="term-dates-header-row">
-                <span />
-                <span className="term-dates-col-label">Start Date</span>
-                <span />
-                <span className="term-dates-col-label">End Date</span>
               </div>
-              <div className="term-dates-list">
-                {allTerms.map(({ term, semesterName }) => (
-                  <TermDateRow
-                    key={term.id}
-                    term={term}
-                    semesterName={semesterName}
-                    value={termDateMap[term.id] ?? { startDate: '', endDate: '' }}
-                    onChange={handleTermDateChange}
-                    disabled={isSaving}
-                    dateMin={dateMin}
-                    dateMax={dateMax}
-                  />
-                ))}
+            )}
+
+            {/* Template selector */}
+            <div className="form-group">
+              <label className="form-label">
+                Semester Template
+                <span className="form-label-hint">
+                  &nbsp;({PROGRAM_TYPE_LABELS[program.type]} only)
+                </span>
+              </label>
+              <div className="program-select-wrapper">
+                <select
+                  className="program-select"
+                  value={selectedTemplateId}
+                  onChange={(e) => {
+                    setSelectedTemplateId(e.target.value);
+                    setTermDateMap({});
+                  }}
+                  disabled={isSaving}
+                >
+                  {availableTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="program-select__chevron" aria-hidden="true">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </div>
             </div>
-          )}
+
+            {/* Template structure preview */}
+            {selectedTemplate && (
+              <div className="form-group">
+                <label className="form-label">Template Structure</label>
+                <div className="template-structure-preview">
+                  {selectedTemplate.semesters.map((sem) => (
+                    <div key={sem.id} className="template-sem-preview">
+                      <span className="template-sem-name">{sem.name}</span>
+                      <div className="template-term-chips">
+                        {sem.terms.map((t) => (
+                          <span key={t.id} className="template-term-chip">{t.name}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Term dates */}
+            {allTerms.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">
+                  Term Dates
+                  {(dateMin || dateMax) && (
+                    <span className="form-label-hint">
+                      &nbsp;— dates must be within school year range
+                    </span>
+                  )}
+                </label>
+                <p className="form-hint">
+                  Selecting an end date will automatically pre-fill the next term's start date.
+                </p>
+                <div className="term-dates-header-row">
+                  <span />
+                  <span className="term-dates-col-label">Start Date</span>
+                  <span />
+                  <span className="term-dates-col-label">End Date</span>
+                </div>
+                <div className="term-dates-list">
+                  {allTerms.map(({ term, semesterName }, index) => (
+                    <TermDateRow
+                      key={term.id}
+                      term={term}
+                      semesterName={semesterName}
+                      value={termDateMap[term.id] ?? { startDate: '', endDate: '' }}
+                      onChange={handleTermDateChange}
+                      disabled={isSaving}
+                      dateMin={dateMin}
+                      dateMax={dateMax}
+                      chainedStartMin={chainedStartMins[index]}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </div>
         </div>
 
         {/* Sticky footer */}

@@ -1,17 +1,23 @@
 // client/src/components/CalendarPicker/CalendarPicker.tsx
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface CalendarPickerProps {
   value: string; // yyyy-mm-dd
   onChange: (date: string) => void;
-  dateMin?: string; // yyyy-mm-dd (school year start)
-  dateMax?: string; // yyyy-mm-dd (school year end)
-  disablePastDates?: boolean; // Disable dates before today (default: true)
-  defaultMonth?: Date; // Override initial calendar month for smart range selection
+  dateMin?: string;
+  dateMax?: string;
+  disablePastDates?: boolean;
+  defaultMonth?: Date;
   disabled?: boolean;
   placeholder?: string;
   id?: string;
+}
+
+interface PopoverPosition {
+  top: number;
+  left: number;
+  width: number;
 }
 
 const CalendarPicker: React.FC<CalendarPickerProps> = ({
@@ -26,39 +32,86 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
   id,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [popoverPos, setPopoverPos] = useState<PopoverPosition | null>(null);
   const [currentMonth, setCurrentMonth] = useState(() => {
-    // Use defaultMonth if provided (for smart range selection)
     if (defaultMonth) {
       return new Date(defaultMonth.getFullYear(), defaultMonth.getMonth(), 1);
     }
-    // Otherwise use value if exists
     if (value) {
       const date = new Date(value);
       return new Date(date.getFullYear(), date.getMonth(), 1);
     }
-    // Default to today
     return new Date();
   });
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Close calendar when clicking outside
+  const inputRef  = useRef<HTMLInputElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Calculate fixed position from input's bounding rect
+  const calculatePosition = (): PopoverPosition | null => {
+    if (!inputRef.current) return null;
+    const rect = inputRef.current.getBoundingClientRect();
+    const popoverHeight = 320; // approx calendar height
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    // Flip upward if not enough space below
+    const top = spaceBelow >= popoverHeight || spaceBelow >= spaceAbove
+      ? rect.bottom + 4
+      : rect.top - popoverHeight - 4;
+
+    return {
+      top,
+      left: rect.left,
+      width: Math.max(rect.width, 280),
+    };
+  };
+
+  const openCalendar = () => {
+    if (disabled) return;
+    const pos = calculatePosition();
+    setPopoverPos(pos);
+    setIsOpen(true);
+  };
+
+  const closeCalendar = () => setIsOpen(false);
+
+  // Close on outside click
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        inputRef.current?.contains(target) ||
+        popoverRef.current?.contains(target)
+      ) return;
+      closeCalendar();
     };
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
 
+  // Reposition on scroll or resize while open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleReposition = () => {
+      const pos = calculatePosition();
+      setPopoverPos(pos);
+    };
+
+    window.addEventListener('scroll', handleReposition, true);
+    window.addEventListener('resize', handleReposition);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleReposition, true);
+      window.removeEventListener('resize', handleReposition);
     };
   }, [isOpen]);
 
-  // Parse date strings to Date objects for comparison
+  // ── Date utils ─────────────────────────────────────────────────────────────
+
   const parseDate = (dateStr: string): Date | null => {
     if (!dateStr) return null;
     const parts = dateStr.split('-');
@@ -68,119 +121,110 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
   };
 
   const formatDate = (date: Date): string => {
-    const year = date.getFullYear();
+    const year  = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const day   = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
   const minDate = parseDate(dateMin || '');
   const maxDate = parseDate(dateMax || '');
 
-  // Get today's date at midnight for accurate comparison
-  const getTodayAtMidnight = (): Date => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today;
-  };
+  const todayAtMidnight = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
 
-  const todayAtMidnight = getTodayAtMidnight();
-
-  // Check if a date is within the allowed range
   const isDateInRange = (date: Date): boolean => {
     if (minDate && date < minDate) return false;
     if (maxDate && date > maxDate) return false;
     return true;
   };
 
-  // Check if a date is in the past
   const isDateInPast = (date: Date): boolean => {
-    const dateAtMidnight = new Date(date);
-    dateAtMidnight.setHours(0, 0, 0, 0);
-    return dateAtMidnight < todayAtMidnight;
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d < todayAtMidnight;
   };
 
-  // Check if a date is disabled
   const isDateDisabled = (date: Date): boolean => {
     if (!isDateInRange(date)) return true;
     if (disablePastDates && isDateInPast(date)) return true;
     return false;
   };
 
-  // Navigate to previous month
-  const goToPreviousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
-  };
+  // ── Calendar grid ──────────────────────────────────────────────────────────
 
-  // Navigate to next month
-  const goToNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
-  };
-
-  // Handle date selection
-  const handleDateSelect = (date: Date) => {
-    if (isDateDisabled(date)) return;
-    onChange(formatDate(date));
-    setIsOpen(false);
-  };
-
-  // Handle input change (manual typing)
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value);
-  };
-
-  // Generate calendar grid
-  const generateCalendar = () => {
-    const year = currentMonth.getFullYear();
+  const generateCalendar = (): Date[] => {
+    const year  = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
-
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
-    const startDate = new Date(firstDayOfMonth);
-    startDate.setDate(startDate.getDate() - firstDayOfMonth.getDay());
+    const firstDay = new Date(year, month, 1);
+    const start = new Date(firstDay);
+    start.setDate(start.getDate() - firstDay.getDay());
 
     const days: Date[] = [];
-    const currentDate = new Date(startDate);
-
+    const cur = new Date(start);
     for (let i = 0; i < 42; i++) {
-      days.push(new Date(currentDate));
-      currentDate.setDate(currentDate.getDate() + 1);
+      days.push(new Date(cur));
+      cur.setDate(cur.getDate() + 1);
     }
-
     return days;
   };
 
-  const calendarDays = generateCalendar();
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const handleDateSelect = (date: Date) => {
+    if (isDateDisabled(date)) return;
+    onChange(formatDate(date));
+    closeCalendar();
+  };
 
-  const selectedDate = parseDate(value);
+  const selectedDate  = parseDate(value);
+  const calendarDays  = generateCalendar();
+  const monthNames    = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December',
+  ];
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="calendar-picker" ref={containerRef}>
+    <div className="calendar-picker">
       <input
+        ref={inputRef}
         type="text"
         id={id}
         className="form-input calendar-picker-input"
         value={value}
-        onChange={handleInputChange}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        onFocus={() => !disabled && setIsOpen(true)}
+        onChange={(e) => onChange(e.target.value)}
+        onClick={openCalendar}
+        onFocus={openCalendar}
         placeholder={placeholder}
         disabled={disabled}
         readOnly
       />
 
-      {isOpen && !disabled && (
-        <div className="calendar-picker-popover">
+      {isOpen && !disabled && popoverPos && (
+        <div
+          ref={popoverRef}
+          className="calendar-picker-popover"
+          style={{
+            position: 'fixed',
+            top:      popoverPos.top,
+            left:     popoverPos.left,
+            minWidth: popoverPos.width,
+            zIndex:   1300,
+          }}
+        >
           <div className="calendar-picker-header">
             <button
               type="button"
               className="calendar-picker-nav"
-              onClick={goToPreviousMonth}
+              onClick={() =>
+                setCurrentMonth(
+                  new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1),
+                )
+              }
               aria-label="Previous month"
             >
               ‹
@@ -191,7 +235,11 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
             <button
               type="button"
               className="calendar-picker-nav"
-              onClick={goToNextMonth}
+              onClick={() =>
+                setCurrentMonth(
+                  new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1),
+                )
+              }
               aria-label="Next month"
             >
               ›
@@ -200,28 +248,28 @@ const CalendarPicker: React.FC<CalendarPickerProps> = ({
 
           <div className="calendar-picker-weekdays">
             {dayNames.map((day) => (
-              <div key={day} className="calendar-picker-weekday">
-                {day}
-              </div>
+              <div key={day} className="calendar-picker-weekday">{day}</div>
             ))}
           </div>
 
           <div className="calendar-picker-days">
             {calendarDays.map((date, index) => {
               const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
-              const isSelected = selectedDate && formatDate(date) === formatDate(selectedDate);
-              const isDisabled = isDateDisabled(date);
-              const isPast = disablePastDates && isDateInPast(date);
+              const isSelected     = selectedDate && formatDate(date) === formatDate(selectedDate);
+              const isDisabled     = isDateDisabled(date);
+              const isPast         = disablePastDates && isDateInPast(date);
 
               return (
                 <button
                   key={index}
                   type="button"
-                  className={`calendar-picker-day ${isCurrentMonth ? 'calendar-picker-day--current' : 'calendar-picker-day--other'
-                    } ${isSelected ? 'calendar-picker-day--selected' : ''
-                    } ${isDisabled ? 'calendar-picker-day--disabled' : ''
-                    } ${isPast ? 'calendar-picker-day--past' : ''
-                    }`}
+                  className={[
+                    'calendar-picker-day',
+                    isCurrentMonth ? 'calendar-picker-day--current' : 'calendar-picker-day--other',
+                    isSelected     ? 'calendar-picker-day--selected' : '',
+                    isDisabled     ? 'calendar-picker-day--disabled' : '',
+                    isPast         ? 'calendar-picker-day--past'     : '',
+                  ].join(' ')}
                   onClick={() => handleDateSelect(date)}
                   disabled={isDisabled}
                 >
