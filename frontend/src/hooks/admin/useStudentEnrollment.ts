@@ -1,11 +1,12 @@
+// frontend/src/hooks/admin/useStudentEnrollment.ts
+
 import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  UseQueryResult,
-  UseMutationResult,
-} from "@tanstack/react-query";
+  useAsyncQuery,
+  useMutationWithInvalidation,
+} from "@/hooks/hook-factory.utils";
+
 import { studentEnrollmentApi } from "@/api/admin/student-enrollment.api";
+
 import type {
   StudentSchoolYearEnrollment,
   ProgramEnrollmentSnapshot,
@@ -17,129 +18,218 @@ import type {
   UpdateProgramEnrollmentRequest,
 } from "@/types/admin/student-enrollment.types";
 
-const KEY = (schoolYearId: string) =>
-  ["admin", "school-year-enrollments", schoolYearId] as const;
 
-// ── Queries ───────────────────────────────────────────────────────────────────
+const enrollmentKeys = {
+  bySchoolYear: (schoolYearId: string) =>
+    [
+      "admin",
+      "school-year-enrollments",
+      schoolYearId,
+    ] as const,
+};
+
+
+// ── QUERY ─────────────────────────────────────────────
 
 export const useSchoolYearEnrollments = (
   schoolYearId: string,
-): UseQueryResult<StudentSchoolYearEnrollment[], Error> =>
-  useQuery({
-    queryKey: KEY(schoolYearId),
-    queryFn: () => studentEnrollmentApi.getBySchoolYear(schoolYearId),
-    enabled: !!schoolYearId,
-  });
+) => {
+  return useAsyncQuery<
+    StudentSchoolYearEnrollment[]
+  >(
+    enrollmentKeys.bySchoolYear(
+      schoolYearId,
+    ),
 
-// ── Mutations ─────────────────────────────────────────────────────────────────
+    () =>
+      studentEnrollmentApi.getBySchoolYear(
+        schoolYearId,
+      ),
+
+    {
+      enabled: !!schoolYearId,
+    },
+  );
+};
+
+
+// ── MUTATIONS ─────────────────────────────────────────
+
+
+// Enroll student
 
 export const useEnrollStudent = (
   schoolYearId: string,
-): UseMutationResult<
-  StudentSchoolYearEnrollment,
-  Error,
-  EnrollStudentRequest
-> => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) => studentEnrollmentApi.enroll(schoolYearId, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY(schoolYearId) }),
-  });
+) => {
+  return useMutationWithInvalidation(
+    (data: EnrollStudentRequest) =>
+      studentEnrollmentApi.enroll(
+        schoolYearId,
+        data,
+      ),
+
+    {
+      invalidateKeys: [
+        enrollmentKeys.bySchoolYear(
+          schoolYearId,
+        ),
+      ],
+    },
+  );
 };
+
+
+// Bulk enroll
 
 export const useBulkEnrollStudents = (
   schoolYearId: string,
-): UseMutationResult<
-  BulkEnrollResult,
-  Error,
-  BulkEnrollStudentsRequest
-> => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) =>
-      studentEnrollmentApi.bulkEnroll(schoolYearId, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY(schoolYearId) }),
-  });
-};
-
-export const useUpdateSchoolYearEnrollment = (
-  schoolYearId: string,
-): UseMutationResult<
-  StudentSchoolYearEnrollment,
-  Error,
-  { enrollmentId: string; data: UpdateSchoolYearEnrollmentRequest }
-> => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ enrollmentId, data }) =>
-      studentEnrollmentApi.updateEnrollment(
+) => {
+  return useMutationWithInvalidation(
+    (data: BulkEnrollStudentsRequest) =>
+      studentEnrollmentApi.bulkEnroll(
         schoolYearId,
-        enrollmentId,
         data,
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY(schoolYearId) }),
-  });
+
+    {
+      invalidateKeys: [
+        enrollmentKeys.bySchoolYear(
+          schoolYearId,
+        ),
+      ],
+    },
+  );
 };
+
+
+// Update school year enrollment
+
+export const useUpdateSchoolYearEnrollment =
+  (schoolYearId: string) => {
+    return useMutationWithInvalidation(
+      ({
+        enrollmentId,
+        data,
+      }: {
+        enrollmentId: string;
+        data: UpdateSchoolYearEnrollmentRequest;
+      }) =>
+        studentEnrollmentApi.updateEnrollment(
+          schoolYearId,
+          enrollmentId,
+          data,
+        ),
+
+      {
+        invalidateKeys: [
+          enrollmentKeys.bySchoolYear(
+            schoolYearId,
+          ),
+        ],
+      },
+    );
+  };
+
+
+// Unenroll student
 
 export const useUnenrollStudent = (
   schoolYearId: string,
-): UseMutationResult<void, Error, string> => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (enrollmentId) =>
-      studentEnrollmentApi.unenroll(schoolYearId, enrollmentId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY(schoolYearId) }),
-  });
+) => {
+  return useMutationWithInvalidation(
+    (enrollmentId: string) =>
+      studentEnrollmentApi.unenroll(
+        schoolYearId,
+        enrollmentId,
+      ),
+
+    {
+      invalidateKeys: [
+        enrollmentKeys.bySchoolYear(
+          schoolYearId,
+        ),
+      ],
+    },
+  );
 };
+
+
+// Enroll in program
 
 export const useEnrollInProgram = (
   schoolYearId: string,
-): UseMutationResult<
-  ProgramEnrollmentSnapshot,
-  Error,
-  { studentId: string; data: EnrollStudentProgramRequest }
-> => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ studentId, data }) =>
+) => {
+  return useMutationWithInvalidation(
+    ({
+      studentId,
+      data,
+    }: {
+      studentId: string;
+      data: EnrollStudentProgramRequest;
+    }) =>
       studentEnrollmentApi.enrollInProgram(
         schoolYearId,
         studentId,
         data,
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY(schoolYearId) }),
-  });
+
+    {
+      invalidateKeys: [
+        enrollmentKeys.bySchoolYear(
+          schoolYearId,
+        ),
+      ],
+    },
+  );
 };
 
-export const useUpdateProgramEnrollment = (
-  schoolYearId: string,
-): UseMutationResult<
-  ProgramEnrollmentSnapshot,
-  Error,
-  { programEnrollmentId: string; data: UpdateProgramEnrollmentRequest }
-> => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ programEnrollmentId, data }) =>
-      studentEnrollmentApi.updateProgramEnrollment(
-        schoolYearId,
+
+// Update program enrollment
+
+export const useUpdateProgramEnrollment =
+  (schoolYearId: string) => {
+    return useMutationWithInvalidation(
+      ({
         programEnrollmentId,
         data,
-      ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY(schoolYearId) }),
-  });
-};
+      }: {
+        programEnrollmentId: string;
+        data: UpdateProgramEnrollmentRequest;
+      }) =>
+        studentEnrollmentApi.updateProgramEnrollment(
+          schoolYearId,
+          programEnrollmentId,
+          data,
+        ),
 
-export const useRemoveProgramEnrollment = (
-  schoolYearId: string,
-): UseMutationResult<void, Error, string> => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (programEnrollmentId) =>
-      studentEnrollmentApi.removeProgramEnrollment(
-        schoolYearId,
-        programEnrollmentId,
-      ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY(schoolYearId) }),
-  });
-};
+      {
+        invalidateKeys: [
+          enrollmentKeys.bySchoolYear(
+            schoolYearId,
+          ),
+        ],
+      },
+    );
+  };
+
+
+// Remove program enrollment
+
+export const useRemoveProgramEnrollment =
+  (schoolYearId: string) => {
+    return useMutationWithInvalidation(
+      (programEnrollmentId: string) =>
+        studentEnrollmentApi.removeProgramEnrollment(
+          schoolYearId,
+          programEnrollmentId,
+        ),
+
+      {
+        invalidateKeys: [
+          enrollmentKeys.bySchoolYear(
+            schoolYearId,
+          ),
+        ],
+      },
+    );
+  };

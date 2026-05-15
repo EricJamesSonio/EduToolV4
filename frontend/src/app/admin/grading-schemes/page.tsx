@@ -45,11 +45,16 @@ async function fetchPrograms(schoolYearId: string): Promise<Program[]> {
   return res.data.data ?? [];
 }
 
-function usePrograms(schoolYearId: string) {
+function usePrograms(schoolYearId: any) {
+  const fixedId =
+    typeof schoolYearId === "string"
+      ? schoolYearId
+      : schoolYearId?.schoolYearId;
+
   return useQuery({
-    queryKey: ["programs", schoolYearId],
-    queryFn: () => fetchPrograms(schoolYearId),
-    enabled: !!schoolYearId,
+    queryKey: ["programs", fixedId],
+    queryFn: () => fetchPrograms(fixedId),
+    enabled: !!fixedId,
   });
 }
 
