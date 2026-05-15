@@ -60,30 +60,48 @@ export class StudentRepository {
     // two-step query, then filter Account with id IN [...].
     let matchingStudentIds: string[] | null = null;
 
-    if (hasHierarchyFilter) {
-      const matchingSSY = await this.db.studentSchoolYear.findMany({
-        where: {
-          org_id: orgId,
-          ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
-          programEnrollments: {
-            some: {
-              org_id: orgId,
-              ...(programId ? { program_id: programId } : {}),
-              ...(courseId  ? { course_id:  courseId  } : {}),
-              ...(strandId  ? { strand_id:  strandId  } : {}),
-              ...(levelId   ? { level_id:   levelId   } : {}),
-              ...(sectionId ? { section_id: sectionId } : {}),
-            },
+  if (hasHierarchyFilter) {
+    const matchingSSY = await this.db.studentSchoolYear.findMany({
+      where: {
+        org_id: orgId,
+        ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
+        programEnrollments: {
+          some: {
+            org_id: orgId,
+            ...(programId  ? { program_id: programId } : {}),
+            ...(courseId   ? { course_id:  courseId  } : {}),
+            ...(strandId   ? { strand_id:  strandId  } : {}),
+            ...(levelId    ? { level_id:   levelId   } : {}),
+            ...(sectionId  ? { section_id: sectionId } : {}),
           },
         },
-        select: { student_id: true },
+      },
+      select: { student_id: true },
+    });
+
+    matchingStudentIds = matchingSSY.map((r) => r.student_id);
+
+    // Fallback: if only sectionId is provided and enrollment table returned nothing,
+    // check profile.metadata directly — students enrolled via simple profile update
+    // are stored there instead of in StudentProgramEnrollment.
+    if (
+      matchingStudentIds.length === 0 &&
+      sectionId &&
+      !schoolYearId && !programId && !courseId && !strandId && !levelId
+    ) {
+      const metaMatches = await this.db.profile.findMany({
+        where: {
+          metadata: { path: ['sectionId'], equals: sectionId },
+          account: { org_id: orgId, role: 'student', deleted_at: null },
+        },
+        select: { account_id: true },
       });
 
-      matchingStudentIds = matchingSSY.map((r) => r.student_id);
-
-      // Short-circuit — no students matched the hierarchy, no need to continue
-      if (matchingStudentIds.length === 0) return [];
+      matchingStudentIds = metaMatches.map((r) => r.account_id);
     }
+
+    if (matchingStudentIds.length === 0) return [];
+  }
 
     return this.db.account.findMany({
       where: {

@@ -34,13 +34,9 @@ const AcademicSectionDetailsPage: React.FC<Props> = ({
 
   const studentFilters = useMemo(
     () => ({
-      schoolYearId,
-      levelId,
       sectionId: section.id,
-      courseId: context.courseId,
-      strandId: context.strandId,
     }),
-    [context.courseId, context.strandId, levelId, schoolYearId, section.id],
+    [section.id],
   );
 
   const {

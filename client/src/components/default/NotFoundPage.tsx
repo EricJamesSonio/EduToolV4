@@ -1,7 +1,7 @@
 // NotFoundPage Component
 // 404 page for unknown routes
 
-import Button from '../components/Button';
+import Button from '../Button';
 
 const NotFoundPage = () => (
   <div className="page">

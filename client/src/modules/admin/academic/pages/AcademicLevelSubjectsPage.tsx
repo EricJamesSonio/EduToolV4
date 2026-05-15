@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
+import BaseCard from '@/components/BaseCard';
+import EmptyState from '@/components/EmptyState';
+import Button from '@/components/Button/Button';
+import ActionButtons from '@/components/ActionButtons/ActionButtons';
 import { useErrorToast } from '@/components/ErrorDisplay/UnifiedError';
 import { useSubjectsByLevel, useCreateSubject, useUpdateSubject } from '../hooks/useSubjects';
-import { useLevelsBySchoolYear } from '../hooks/useLevels';
+import { useSemesterTemplateAssignments } from '@/modules/admin/system/hooks/useSemesterTemplates';
 import SubjectFormModal from '../components/modals/SubjectFormModal';
-import SubjectDetailsModal from '../components/modals/SubjectDetailsModal';
-import SubjectDetailsSection from '../components/details/SubjectDetailsSection';
 import type { Level } from '../types/level.types';
 import type { Subject } from '../types/subject.types';
 
@@ -25,7 +27,6 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Subject | null>(null);
-  const [viewTarget, setViewTarget] = useState<Subject | null>(null);
 
   const {
     data: subjects = [],
@@ -33,15 +34,18 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({
     isError,
   } = useSubjectsByLevel(level.id, schoolYearId);
 
-  const { data: schoolYearLevels = [] } = useLevelsBySchoolYear(schoolYearId);
-  const programLevels = schoolYearLevels.filter((l) => l.program_id === level.program_id);
+  const { data: assignments = [] } = useSemesterTemplateAssignments(schoolYearId);
+
+  // Derive termLabel from the program's assigned semester template
+  const termLabel = useMemo(() => {
+    const assignment = assignments.find((a) => a.program_id === level.program_id);
+    return assignment?.template.semesters[0]?.name ?? null;
+  }, [assignments, level.program_id]);
 
   const createSubject = useCreateSubject();
   const updateSubject = useUpdateSubject();
 
   const isMutating = createSubject.isPending || updateSubject.isPending;
-
-  const hierarchyTitle = useMemo(() => level.name, [level.name]);
 
   const handleOpenCreate = () => {
     setEditTarget(null);
@@ -53,28 +57,17 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({
     setModalOpen(true);
   };
 
-  const handleOpenView = (subject: Subject) => {
-    setViewTarget(subject);
-  };
-
   const handleCloseModal = () => {
     setModalOpen(false);
     setEditTarget(null);
   };
 
-  const handleSubmit = async (data: {
-    name: string;
-    subjectType?: 'major' | 'minor';
-    levelId?: string;
-  }) => {
+  const handleSubmit = async (data: { name: string; subjectType?: 'major' | 'minor' }) => {
     try {
       if (editTarget) {
         await updateSubject.mutateAsync({
           id: editTarget.id,
-          dto: {
-            name: data.name,
-            levelId: data.levelId,
-          },
+          dto: { name: data.name },
         });
         showSuccess('Subject updated successfully.');
       } else {
@@ -84,6 +77,7 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({
           programId: level.program_id,
           levelId: level.id,
           yearLevel: level.name,
+          ...(termLabel ? { termLabel } : {}),
           ...(context.courseId ? { courseId: context.courseId } : {}),
           ...(context.strandId ? { strandId: context.strandId } : {}),
         });
@@ -106,19 +100,94 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({
           </button>
           <div className="header-title">
             <h2 className="dashboard-section-title">Subjects</h2>
-            <p className="dashboard-section-subtitle">{hierarchyTitle}</p>
+            <p className="dashboard-section-subtitle">{level.name}</p>
           </div>
         </div>
 
-        <SubjectDetailsSection
-          subjects={subjects}
-          isLoading={isLoading}
-          isError={isError}
-          isMutating={isMutating}
-          onCreateClick={handleOpenCreate}
-          onView={handleOpenView}
-          onEdit={handleOpenEdit}
-        />
+        <BaseCard className="section-details-card" hover={false}>
+          <div className="card-header">
+            <div className="card-header-left">
+              <h3 className="card-title">Subject List</h3>
+              <span className="status-badge status-default">{subjects.length} found</span>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleOpenCreate}
+              disabled={isMutating}
+            >
+              + Create Subject
+            </Button>
+          </div>
+
+          <div className="card-body">
+            {isLoading ? (
+              <div className="sections-loading">
+                <div className="loading-spinner loading-spinner-sm" />
+                <span className="loading-text">Loading subjects...</span>
+              </div>
+            ) : isError ? (
+              <EmptyState
+                title="Unable to Load Subjects"
+                description="Subjects for this level could not be loaded right now."
+              />
+            ) : subjects.length === 0 ? (
+              <EmptyState
+                title="No Subjects Found"
+                description="Subjects added to this level will appear here."
+              />
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Year Level</th>
+                      <th>Term</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subjects.map((subject) => (
+                      <tr key={subject.id}>
+                        <td>{subject.title}</td>
+                        <td>
+                          <span className={`status-badge status-${subject.subjectType}`}>
+                            {subject.subjectType}
+                          </span>
+                        </td>
+                        <td>{subject.yearLevel ?? '—'}</td>
+                        <td>{subject.termLabel ?? '—'}</td>
+                        <td>
+                          <span
+                            className={`status-badge status-${subject.lockStatus === 'locked' ? 'warning' : 'default'}`}
+                          >
+                            {subject.lockStatus}
+                          </span>
+                        </td>
+                        <td>
+                          <ActionButtons
+                            variant="compact"
+                            size="sm"
+                            onEdit={
+                              subject.lockStatus === 'locked'
+                                ? undefined
+                                : () => handleOpenEdit(subject)
+                            }
+                            editLabel="Edit"
+                            disabled={isMutating}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </BaseCard>
       </div>
 
       <SubjectFormModal
@@ -127,14 +196,6 @@ const AcademicLevelSubjectsPage: React.FC<Props> = ({
         onSubmit={handleSubmit}
         isLoading={createSubject.isPending || updateSubject.isPending}
         subject={editTarget}
-        availableLevels={programLevels}
-        currentLevelId={level.id}
-      />
-
-      <SubjectDetailsModal
-        isOpen={!!viewTarget}
-        onClose={() => setViewTarget(null)}
-        subject={viewTarget}
       />
     </>
   );

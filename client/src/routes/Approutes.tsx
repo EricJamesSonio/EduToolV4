@@ -1,11 +1,8 @@
-// Approutes - Main Route Orchestrator
-// Central route management using registered pages
-
 import { Routes, Route } from 'react-router-dom';
 import { getRegisteredRoutes } from './utils/registry';
 import { registerPublicDomain } from './domains/public';
 import { registerAdminDomain } from './domains/admin';
-import NotFoundPage from '../pages/NotFoundPage';
+import NotFoundPage from '../components/default/NotFoundPage';
 
 // Register all domains
 registerPublicDomain();
