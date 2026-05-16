@@ -138,7 +138,7 @@ const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClas
 
   if (clsLoading) {
     return (
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4">
         <Skeleton className="h-5 w-40" />
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-40 w-full rounded-lg" />
@@ -159,7 +159,7 @@ const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClas
   const enrolledCount = enrichedCls.enrolledCount ?? enrollments.length;
 
   return (
-    <div className="space-y-6 max-w-4xl">
+   <div className="space-y-6">
       <ClassDetailHeader
         cls={enrichedCls}
         onEdit={() => setEditOpen(true)}

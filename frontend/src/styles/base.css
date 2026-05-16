@@ -131,48 +131,51 @@
     background: var(--muted-foreground);
   }
 
-  /* ── Table defaults (for grade tables, transcripts, etc.) ── */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 1rem;
-    border: 2px solid var(--border);
-  }
+/* ── Minimal Black & White Table Style ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1rem;
+  border: 3px solid black;
+  background: white;
+}
 
-  thead tr {
-    background-color: var(--secondary);
-  }
+thead tr {
+  background-color: black;
+}
 
-  th {
-    font-family: var(--font-sans);
-    font-weight: 700;
-    font-size: 0.875rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--foreground);
-    text-align: left;
-    padding: 0.875rem 1.125rem;
-    border-bottom: 2px solid var(--primary);
-    white-space: nowrap;
-  }
+th {
+  font-family: Arial Black, Helvetica, sans-serif;
+  font-weight: 900;
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: white;
+  text-align: left;
+  padding: 0.95rem 1.25rem;
+  border-bottom: 3px solid black;
+  white-space: nowrap;
+}
 
-  td {
-    padding: 0.875rem 1.125rem;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-  }
+td {
+  padding: 0.95rem 1.25rem;
+  border-bottom: 1px solid black;
+  vertical-align: middle;
+  color: black;
+  background: white;
+}
 
-  tr:last-child td {
-    border-bottom: none;
-  }
+tr:last-child td {
+  border-bottom: none;
+}
 
-  tr:hover td {
-    background-color: var(--secondary);
-  }
+tbody tr:hover td {
+  background-color: #f5f5f5;
+}
 
-  tr:hover {
-    border-left: 3px solid var(--accent);
-  }
+tbody tr:hover {
+  border-left: 3px solid black;
+}
 
   /* ── HR ── */
   hr {
