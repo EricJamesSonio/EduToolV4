@@ -9,7 +9,7 @@ import type {
   GetGradingScalesQuery,
 } from "@/api/admin/grading-scale.api";
 
-// Get grading scales
+// Get grading scales with optional filters
 export const useGradingScales = (
   query?: GetGradingScalesQuery,
 ): UseQueryResult<GradingScale[], Error> => {
@@ -19,7 +19,7 @@ export const useGradingScales = (
   );
 };
 
-// Create grading scale
+// Create grading scale (includes programId in request)
 export const useCreateGradingScale = (): UseMutationResult<
   GradingScale,
   Error,

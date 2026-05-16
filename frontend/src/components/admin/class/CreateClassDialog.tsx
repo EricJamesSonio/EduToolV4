@@ -1,21 +1,25 @@
-// frontend\src\components\admin\class\CreateClassDialog.tsx
 "use client";
 import { useEffect, useMemo } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import type { AxiosError } from "axios";
-import { classApi }    from "@/api/admin/class.api";
+import { AlertTriangle, ArrowRight } from "lucide-react";
+
+import { classApi }            from "@/api/admin/class.api";
 import type { CreateClassRequest, ScheduleSlot } from "@/api/admin/class.api";
-import { subjectApi }  from "@/api/admin/subject.api";
-import { educatorApi } from "@/api/admin/educator.api";
-import { programApi }  from "@/api/admin/program.api";
-import { courseApi }   from "@/api/admin/course.api";
-import { strandApi }   from "@/api/admin/strand.api";
-import { levelApi }    from "@/api/admin/level.api";
-import { sectionApi }  from "@/api/admin/section.api";
-import type { Level }   from "@/types/admin/level.types";
-import type { Subject } from "@/types/admin/subject.types";
+import { subjectApi }          from "@/api/admin/subject.api";
+import { educatorApi }         from "@/api/admin/educator.api";
+import { programApi }          from "@/api/admin/program.api";
+import { courseApi }           from "@/api/admin/course.api";
+import { strandApi }           from "@/api/admin/strand.api";
+import { levelApi }            from "@/api/admin/level.api";
+import { sectionApi }          from "@/api/admin/section.api";
+import { semesterTemplateApi } from "@/api/admin/semester-template.api";
+import type { Level }          from "@/types/admin/level.types";
+import type { Subject }        from "@/types/admin/subject.types";
+
 import { Button }   from "@/components/ui/button";
 import { Input }    from "@/components/ui/input";
 import { Label }    from "@/components/ui/label";
@@ -59,11 +63,11 @@ const EMPTY_DEFAULTS: CreateClassForm = {
 };
 
 interface CreateClassDialogProps {
-  open:             boolean;
-  onClose:          () => void;
+  open:              boolean;
+  onClose:           () => void;
   defaultSubjectId?: string;
-  schoolYearId:     string | null;
-  schoolYearName:   string | null;
+  schoolYearId:      string | null;
+  schoolYearName:    string | null;
 }
 
 export function CreateClassDialog({
@@ -74,24 +78,29 @@ export function CreateClassDialog({
   schoolYearName,
 }: CreateClassDialogProps): React.JSX.Element {
   const queryClient = useQueryClient();
+  const router      = useRouter();
 
-  // Load draft once on mount — fall back to empty defaults
-  const draft = loadClassDraft();
+  const draft    = loadClassDraft();
   const hasDraft = !!draft && Object.keys(draft).length > 0;
 
   const methods = useForm<CreateClassForm>({
     defaultValues: {
       ...EMPTY_DEFAULTS,
       ...draft,
-      // URL param always wins over draft for subjectId
       subjectId: defaultSubjectId ?? draft?.subjectId ?? "",
     },
   });
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = methods;
-  const formValues = watch();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = methods;
 
-  // Autosave whenever any field changes
+  const formValues = watch();
   useClassDraftAutosave(formValues);
 
   const selectedProgramId  = formValues.programId;
@@ -100,6 +109,8 @@ export function CreateClassDialog({
   const selectedSectionId  = formValues.sectionId;
   const selectedSubjectId  = formValues.subjectId;
   const selectedEducatorId = formValues.educatorId;
+
+  // ── Data queries ────────────────────────────────────────────────────────────
 
   const { data: programsRaw } = useQuery({
     queryKey: ["admin", "programs", schoolYearId],
@@ -165,7 +176,27 @@ export function CreateClassDialog({
   });
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
-  // Cascade resets — only clear downstream fields, not ones loaded from draft
+  // ── Semester template assignment check ─────────────────────────────────────
+  // Fired as soon as schoolYearId is available; result is cached so selecting
+  // a program costs zero extra network round-trips.
+  const { data: templateAssignments = [] } = useQuery({
+    queryKey: ["admin", "semester-template-assignments", schoolYearId],
+    queryFn:  () => semesterTemplateApi.getAssignmentsBySchoolYear(schoolYearId!),
+    enabled:  !!schoolYearId,
+  });
+
+  // Build a Set of program IDs that already have a template assigned
+  const assignedProgramIds = useMemo(
+    () => new Set(templateAssignments.map((a) => a.program_id)),
+    [templateAssignments],
+  );
+
+  // True when the user has picked a program that has no semester template assignment
+  const programMissingTemplate =
+    !!selectedProgramId && !assignedProgramIds.has(selectedProgramId);
+
+  // ── Cascade resets ──────────────────────────────────────────────────────────
+
   useEffect(() => {
     setValue("trackId",   "");
     setValue("levelId",   "");
@@ -188,6 +219,8 @@ export function CreateClassDialog({
     setValue("subjectId", "");
   }, [selectedSectionId, setValue]);
 
+  // ── Submit ──────────────────────────────────────────────────────────────────
+
   const mutation = useMutation({
     mutationFn: (values: CreateClassForm) => {
       const payload: CreateClassRequest = {
@@ -206,7 +239,7 @@ export function CreateClassDialog({
     },
     onSuccess: () => {
       toast.success("Class created.");
-      clearClassDraft(); // ← clear on success
+      clearClassDraft();
       queryClient.invalidateQueries({ queryKey: ["admin", "classes"] });
       reset(EMPTY_DEFAULTS);
       onClose();
@@ -217,23 +250,23 @@ export function CreateClassDialog({
   });
 
   function handleClose(): void {
-    // Just close — draft is preserved so user can resume
     onClose();
   }
 
   function handleDiscard(): void {
-    clearClassDraft(); // ← clear on explicit discard
+    clearClassDraft();
     reset(EMPTY_DEFAULTS);
     onClose();
   }
 
   const isSubmitDisabled =
-    mutation.isPending     ||
-    !selectedProgramId     ||
+    mutation.isPending        ||
+    !selectedProgramId        ||
+    programMissingTemplate    || // ← block submit when template missing
     (hasTrack && !selectedTrackId) ||
-    !selectedLevelId       ||
-    !selectedSectionId     ||
-    !selectedSubjectId     ||
+    !selectedLevelId          ||
+    !selectedSectionId        ||
+    !selectedSubjectId        ||
     !selectedEducatorId;
 
   return (
@@ -249,12 +282,17 @@ export function CreateClassDialog({
             )}
           </DialogTitle>
         </DialogHeader>
+
         <FormProvider {...methods}>
           <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-1">
+
             {/* School Year — read-only */}
             <div className="space-y-1.5">
               <Label>School Year</Label>
-              <Input value={schoolYearName ?? schoolYearId ?? "No school year selected"} disabled />
+              <Input
+                value={schoolYearName ?? schoolYearId ?? "No school year selected"}
+                disabled
+              />
             </div>
 
             {/* Program */}
@@ -266,7 +304,9 @@ export function CreateClassDialog({
                 disabled={!schoolYearId}
               >
                 <SelectTrigger>
-                  <span>{programs.find((p) => p.id === selectedProgramId)?.name ?? "Select program"}</span>
+                  <span>
+                    {programs.find((p) => p.id === selectedProgramId)?.name ?? "Select program"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {programs.map((p) => (
@@ -276,6 +316,33 @@ export function CreateClassDialog({
               </Select>
             </div>
 
+            {/* ── Semester template warning — shown immediately after program select ── */}
+            {programMissingTemplate && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-4 py-3 flex items-start gap-3">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                    No semester template assigned
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                    This program doesn&apos;t have a semester template yet. Classes can&apos;t be
+                    created until one is assigned.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDiscard();
+                      router.push("/admin/semester-settings");
+                    }}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-amber-800 dark:text-amber-300 hover:underline"
+                  >
+                    Go to Semester Settings
+                    <ArrowRight className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Course / Strand */}
             {hasTrack && (
               <div className="space-y-1.5">
@@ -283,10 +350,13 @@ export function CreateClassDialog({
                 <Select
                   value={selectedTrackId}
                   onValueChange={(v) => setValue("trackId", v ?? "")}
-                  disabled={!selectedProgramId}
+                  disabled={!selectedProgramId || programMissingTemplate}
                 >
                   <SelectTrigger>
-                    <span>{tracks.find((t) => t.id === selectedTrackId)?.name ?? `Select ${isCourseTrack ? "course" : "strand"}`}</span>
+                    <span>
+                      {tracks.find((t) => t.id === selectedTrackId)?.name ??
+                        `Select ${isCourseTrack ? "course" : "strand"}`}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {tracks.map((t) => (
@@ -303,10 +373,16 @@ export function CreateClassDialog({
               <Select
                 value={selectedLevelId}
                 onValueChange={(v) => setValue("levelId", v ?? "")}
-                disabled={!selectedProgramId || (hasTrack && !selectedTrackId)}
+                disabled={
+                  !selectedProgramId ||
+                  programMissingTemplate ||
+                  (hasTrack && !selectedTrackId)
+                }
               >
                 <SelectTrigger>
-                  <span>{levels.find((l) => l.id === selectedLevelId)?.name ?? "Select level"}</span>
+                  <span>
+                    {levels.find((l) => l.id === selectedLevelId)?.name ?? "Select level"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {levels.length === 0 ? (
@@ -326,14 +402,18 @@ export function CreateClassDialog({
               <Select
                 value={selectedSectionId}
                 onValueChange={(v) => setValue("sectionId", v ?? "")}
-                disabled={!selectedLevelId}
+                disabled={!selectedLevelId || programMissingTemplate}
               >
                 <SelectTrigger>
-                  <span>{sections.find((s) => s.id === selectedSectionId)?.name ?? "Select section"}</span>
+                  <span>
+                    {sections.find((s) => s.id === selectedSectionId)?.name ?? "Select section"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {sections.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No sections for this level</div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No sections for this level
+                    </div>
                   ) : (
                     sections.map((s) => (
                       <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
@@ -349,18 +429,21 @@ export function CreateClassDialog({
               <Select
                 value={selectedSubjectId}
                 onValueChange={(v) => setValue("subjectId", v ?? "")}
-                disabled={!selectedLevelId}
+                disabled={!selectedLevelId || programMissingTemplate}
               >
                 <SelectTrigger>
                   <span>
                     {!selectedLevelId
                       ? "Select a level first"
-                      : (subjects.find((s) => s.id === selectedSubjectId)?.title ?? "Select subject")}
+                      : (subjects.find((s) => s.id === selectedSubjectId)?.title ??
+                          "Select subject")}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
                   {subjects.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No subjects for this level</div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No subjects for this level
+                    </div>
                   ) : (
                     subjects.map((s) => (
                       <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
@@ -376,9 +459,13 @@ export function CreateClassDialog({
               <Select
                 value={selectedEducatorId}
                 onValueChange={(v) => setValue("educatorId", v ?? "")}
+                disabled={programMissingTemplate}
               >
                 <SelectTrigger>
-                  <span>{educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Select educator"}</span>
+                  <span>
+                    {educators.find((e) => e.id === selectedEducatorId)?.fullName ??
+                      "Select educator"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {educators.map((e) => (
@@ -394,6 +481,7 @@ export function CreateClassDialog({
               <Input
                 type="number"
                 min={1}
+                disabled={programMissingTemplate}
                 {...register("capacity", {
                   required: "Capacity is required",
                   min: { value: 1, message: "At least 1" },
@@ -408,11 +496,20 @@ export function CreateClassDialog({
             <ScheduleSlotFields />
 
             <div className="flex justify-end gap-2 pt-1">
-              {/* Discard clears draft; Cancel just closes and preserves it */}
-              <Button type="button" variant="ghost" onClick={handleDiscard} disabled={mutation.isPending}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleDiscard}
+                disabled={mutation.isPending}
+              >
                 Discard
               </Button>
-              <Button type="button" variant="outline" onClick={handleClose} disabled={mutation.isPending}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={mutation.isPending}
+              >
                 Save & Close
               </Button>
               <Button type="submit" disabled={isSubmitDisabled}>
