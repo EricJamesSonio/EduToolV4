@@ -363,11 +363,7 @@ export class StudentService {
     const classes = await this.classRepository.findAll(orgId, { educatorId });
     return Promise.all(
       classes.map(async (cls) => {
-        const { subject } = await this.classRepository.findSubjectWithEducator(
-          cls.subject_id,
-          cls.educator_id,
-          orgId,
-        );
+        const { subject } = await this.classRepository.findSubjectWithEducator(cls.id);
         return {
           id:           cls.id,
           subjectId:    cls.subject_id,

@@ -98,6 +98,8 @@ model Account {
   organization Organization? @relation(fields: [org_id], references: [id])
   profile      Profile?
 
+  classes Class[] @relation("EducatorClasses")
+
   @@unique([org_id, email])
 }
 
@@ -397,6 +399,8 @@ model Class {
   deleted_at     DateTime?
 
   subject        Subject   @relation(fields: [subject_id], references: [id])
+
+  educator       Account   @relation("EducatorClasses", fields: [educator_id], references: [id])
 
   schedules      ClassSchedule[]
   enrollments    Enrollment[]

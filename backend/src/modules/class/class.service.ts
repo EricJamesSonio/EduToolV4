@@ -376,9 +376,7 @@ return classes.map((cls) => {
     return Promise.all(
       enrollments.map(async (enrollment) => {
         const cls = (enrollment as any).class
-        const { subject, educatorProfile } = await this.classRepository.findSubjectWithEducator(
-          cls.subject_id, cls.educator_id, orgId,
-        )
+        const { subject, educatorProfile } = await this.classRepository.findSubjectWithEducator(cls.id)
         return {
           enrollmentId:     enrollment.id,
           enrollmentStatus: enrollment.status,
@@ -402,9 +400,7 @@ return classes.map((cls) => {
   async getStudentClassById(classId: string, studentId: string, orgId: string) {
     const enrollment = await this.enrollmentService.getStudentEnrollmentForClass(classId, studentId, orgId)
     const cls        = (enrollment as any).class
-    const { subject, educatorProfile } = await this.classRepository.findSubjectWithEducator(
-      cls.subject_id, cls.educator_id, orgId,
-    )
+    const { subject, educatorProfile } = await this.classRepository.findSubjectWithEducator(cls.id)
     return {
       enrollmentId:     enrollment.id,
       enrollmentStatus: enrollment.status,

@@ -11,6 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSidebar } from "@/context/SidebarContext";
 import type { LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -81,14 +82,14 @@ function NavLink({
 }
 
 export function SidebarShell({ header, groups, footer, className }: SidebarShellProps): React.JSX.Element {
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, setCollapsed } = useSidebar();
 
   return (
     <TooltipProvider delay={200}>
       <aside
         className={cn(
           "fixed left-0 top-14 bottom-0 z-40 flex flex-col border-r bg-background transition-all duration-200",
-          collapsed ? "w-14" : "w-56",
+          collapsed ? "w-14" : "w-56 min-w-[3.5rem]",
           className
         )}
       >

@@ -1,18 +1,18 @@
-import { Injectable } from '@nestjs/common'
-import { DatabaseService } from '@/core/database/database.provider'
+import { Injectable } from '@nestjs/common';
+import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
 export class ClassRepository {
   constructor(private readonly db: DatabaseService) {}
 
   async create(data: {
-    orgId: string
-    subjectId: string
-    educatorId: string
-    sectionId?: string
-    schoolYearId: string
-    semesterId: string
-    capacity: number
+    orgId: string;
+    subjectId: string;
+    educatorId: string;
+    sectionId?: string;
+    schoolYearId: string;
+    semesterId: string;
+    capacity: number;
   }) {
     return this.db.class.create({
       data: {
@@ -32,7 +32,7 @@ export class ClassRepository {
           },
         },
       },
-    })
+    });
   }
 
   async findAll(orgId: string, filters: any) {
@@ -71,7 +71,7 @@ export class ClassRepository {
         },
       },
       orderBy: { created_at: 'desc' },
-    })
+    });
   }
 
   async findById(id: string, orgId: string) {
@@ -91,15 +91,15 @@ export class ClassRepository {
           },
         },
       },
-    })
+    });
   }
 
   async update(
     id: string,
     data: {
-      educatorId?: string
-      sectionId?: string | null
-      capacity?: number
+      educatorId?: string;
+      sectionId?: string | null;
+      capacity?: number;
     },
   ) {
     return this.db.class.update({
@@ -117,7 +117,7 @@ export class ClassRepository {
           },
         },
       },
-    })
+    });
   }
 
   async findActiveClassesByEducator(educatorId: string, orgId: string) {
@@ -134,7 +134,7 @@ export class ClassRepository {
           },
         },
       },
-    })
+    });
   }
 
   async findEducatorSchedules(educatorId: string, orgId: string) {
@@ -154,7 +154,7 @@ export class ClassRepository {
           },
         },
       },
-    })
+    });
   }
 
   async findSectionSchedules(sectionId: string, orgId: string) {
@@ -164,7 +164,7 @@ export class ClassRepository {
         class: { section_id: sectionId, deleted_at: null },
       },
       include: { class: true },
-    })
+    });
   }
 
   async findBySchoolYear(schoolYearId: string, orgId: string) {
@@ -181,7 +181,7 @@ export class ClassRepository {
           },
         },
       },
-    })
+    });
   }
 
   async findEnrolledStudents(classId: string, orgId: string) {
@@ -192,10 +192,10 @@ export class ClassRepository {
         status: { not: 'removed' },
       },
       select: { student_id: true },
-    })
+    });
 
-    const studentIds = enrollments.map((e) => e.student_id)
-    if (!studentIds.length) return []
+    const studentIds = enrollments.map((e) => e.student_id);
+    if (!studentIds.length) return [];
 
     const profiles = await this.db.profile.findMany({
       where: { account_id: { in: studentIds } },
@@ -204,13 +204,13 @@ export class ClassRepository {
         full_name: true,
         account: { select: { email: true } },
       },
-    })
+    });
 
     return profiles.map((p) => ({
       id: p.account_id,
       fullName: p.full_name,
       email: p.account.email,
-    }))
+    }));
   }
 
   async replaceSchedules(
@@ -218,9 +218,9 @@ export class ClassRepository {
     classId: string,
     slots: Array<{ weekday: number; startTime: Date; endTime: Date }>,
   ) {
-    await this.db.classSchedule.deleteMany({ where: { class_id: classId } })
+    await this.db.classSchedule.deleteMany({ where: { class_id: classId } });
 
-    if (!slots.length) return []
+    if (!slots.length) return [];
 
     return this.db.classSchedule.createMany({
       data: slots.map((s) => ({
@@ -230,7 +230,7 @@ export class ClassRepository {
         start_time: s.startTime,
         end_time: s.endTime,
       })),
-    })
+    });
   }
 
   async createOwnershipLog(data: any) {
@@ -243,14 +243,14 @@ export class ClassRepository {
         reason: data.reason ?? null,
         reassigned_by: data.reassignedBy,
       },
-    })
+    });
   }
 
   async findOwnershipHistory(classId: string, orgId: string) {
     return this.db.classOwnershipLog.findMany({
       where: { class_id: classId, org_id: orgId },
       orderBy: { reassigned_at: 'asc' },
-    })
+    });
   }
 
   async lockGradingSchemeForClass(classId: string, orgId: string) {
@@ -264,6 +264,42 @@ export class ClassRepository {
         is_locked: true,
         locked_at: new Date(),
       },
-    })
+    });
+  }
+
+  async softDelete(id: string) {
+    return this.db.class.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+      },
+    });
+  }
+
+  async findSubjectWithEducator(id: string) {
+    const cls = await this.db.class.findUnique({
+      where: { id },
+      include: {
+        subject: true,
+        educator: {
+          include: {
+            profile: {
+              select: {
+                full_name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!cls) {
+      throw new Error('Class not found');
+    }
+
+    return {
+      subject: cls.subject,
+      educatorProfile: cls.educator.profile,
+    };
   }
 }
