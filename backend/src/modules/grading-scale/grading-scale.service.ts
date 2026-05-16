@@ -26,7 +26,7 @@ export class GradingScaleService {
     return {
       id: scale.id as string,
       orgId: scale.org_id as string,
-      programId: scale.program_id as string, // CHANGED from levelId → programId
+      programId: scale.program_id as string,
       schoolYearId: scale.school_year_id as string,
       name: scale.name as string,
       ranges: scale.ranges as GradeRangeEntity[],
@@ -93,40 +93,38 @@ export class GradingScaleService {
     }
   }
 
-async delete(id: string, orgId: string): Promise<void> {
-  const scale = await this.gradingScaleRepository.findById(id, orgId);
+  async delete(id: string, orgId: string): Promise<void> {
+    const scale = await this.gradingScaleRepository.findById(id, orgId);
 
-  if (!scale) {
-    throw new NotFoundException('Grading scale not found.');
-  }
+    if (!scale) {
+      throw new NotFoundException('Grading scale not found.');
+    }
 
-  if (scale.is_locked) {
-    throw new BadRequestException(
-      'This grading scale is locked and cannot be deleted.',
+    if (scale.is_locked) {
+      throw new BadRequestException(
+        'This grading scale is locked and cannot be deleted.',
+      );
+    }
+
+    const isUsed = await this.gradingScaleRepository.isUsedInGrades(
+      orgId,
+      scale.program_id,
+      scale.school_year_id,
     );
+
+    if (isUsed) {
+      throw new BadRequestException(
+        'Cannot delete grading scale because grades already exist for this program and school year.',
+      );
+    }
+
+    await this.gradingScaleRepository.delete(id);
   }
-
-  // ✅ REAL usage check (based on your schema)
-  const isUsed = await this.gradingScaleRepository.isUsedInGrades(
-    orgId,
-    scale.program_id,
-    scale.school_year_id,
-  );
-
-  if (isUsed) {
-    throw new BadRequestException(
-      'Cannot delete grading scale because grades already exist for this program and school year.',
-    );
-  }
-
-  await this.gradingScaleRepository.delete(id);
-}
 
   async create(
     orgId: string,
     dto: CreateGradingScaleDto,
   ): Promise<GradingScaleEntity> {
-    // CHANGED: Check by programId instead of levelId
     const existing = await this.gradingScaleRepository.findByProgramAndYear(
       orgId,
       dto.programId,
@@ -143,7 +141,7 @@ async delete(id: string, orgId: string): Promise<void> {
 
     const scale = await this.gradingScaleRepository.create({
       orgId,
-      programId: dto.programId, // CHANGED from levelId → programId
+      programId: dto.programId,
       schoolYearId: dto.schoolYearId,
       name: dto.name,
       ranges: dto.ranges,
@@ -156,7 +154,6 @@ async delete(id: string, orgId: string): Promise<void> {
     orgId: string,
     query: QueryGradingScaleDto,
   ): Promise<GradingScaleEntity[]> {
-    // CHANGED: Pass programId instead of levelId
     const scales = await this.gradingScaleRepository.findAll(
       orgId,
       query.programId,
@@ -204,7 +201,7 @@ async delete(id: string, orgId: string): Promise<void> {
     }
 
     if (scale.is_locked) {
-      return this.mapToEntity(scale as Record<string, unknown>); // idempotent
+      return this.mapToEntity(scale as Record<string, unknown>);
     }
 
     const locked = await this.gradingScaleRepository.lock(id);
@@ -224,7 +221,7 @@ async delete(id: string, orgId: string): Promise<void> {
 
   async resolveGrade(
     orgId: string,
-    programId: string, // CHANGED from levelId → programId
+    programId: string,
     schoolYearId: string,
     percent: number,
   ): Promise<{
@@ -232,7 +229,6 @@ async delete(id: string, orgId: string): Promise<void> {
     remark: string;
     isPassing: boolean;
   } | null> {
-    // CHANGED: Find by programId instead of levelId
     const scale = await this.gradingScaleRepository.findByProgramAndYear(
       orgId,
       programId,
@@ -263,5 +259,61 @@ async delete(id: string, orgId: string): Promise<void> {
       schoolYearId,
       orgId,
     );
+  }
+
+  /**
+   * Assign an existing grading scale to a program
+   *
+   * Flow:
+   * 1. Verify the scale exists and belongs to the org
+   * 2. Verify the program exists
+   * 3. Check if there's already a scale for this program in this school year
+   * 4. If yes, throw error (must delete old one first)
+   * 5. Assign the scale to the program
+   */
+  async assignToProgram(
+    orgId: string,
+    programId: string,
+    scaleId: string,
+  ): Promise<GradingScaleEntity> {
+    // 1. Verify scale exists
+    const scale = await this.gradingScaleRepository.findById(scaleId, orgId);
+    if (!scale) {
+      throw new NotFoundException('Grading scale not found.');
+    }
+
+    const schoolYearId = scale.school_year_id;
+
+    // 2. Verify program exists (basic check - you might want to query the program table)
+    // This assumes the program exists. Adjust if needed.
+
+    // 3. Check if there's already a scale for this program in this school year
+    const existingScale =
+      await this.gradingScaleRepository.findByProgramAndYear(
+        orgId,
+        programId,
+        schoolYearId,
+      );
+
+    if (existingScale && existingScale.id !== scaleId) {
+      throw new ConflictException(
+        `Program already has a grading scale assigned for this school year. ` +
+          `Delete or reassign the existing scale first.`,
+      );
+    }
+
+    // If the scale is already assigned to this program, return it as-is
+    if (existingScale && existingScale.id === scaleId) {
+      return this.mapToEntity(existingScale as Record<string, unknown>);
+    }
+
+    // 4. Assign the scale
+    const updated = await this.gradingScaleRepository.assignToProgram(
+      scaleId,
+      programId,
+      schoolYearId,
+    );
+
+    return this.mapToEntity(updated as Record<string, unknown>);
   }
 }

@@ -70,6 +70,11 @@ export class UpdateGradingScaleDto {
   ranges?: GradeRangeDto[];
 }
 
+export class AssignGradingScaleDto {
+  @IsUUID()
+  scaleId!: string;
+}
+
 export class QueryGradingScaleDto {
   @IsOptional()
   @IsUUID()

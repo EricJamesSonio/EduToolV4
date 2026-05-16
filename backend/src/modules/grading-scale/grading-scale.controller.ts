@@ -14,6 +14,7 @@ import {
   CreateGradingScaleDto,
   UpdateGradingScaleDto,
   QueryGradingScaleDto,
+  AssignGradingScaleDto,
 } from './dto/grading-scale.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -65,5 +66,29 @@ export class GradingScaleController {
     @Body() dto: UpdateGradingScaleDto,
   ) {
     return this.gradingScaleService.update(id, orgId, dto);
+  }
+
+  /**
+   * Assign an existing grading scale to a program
+   * POST /programs/:programId/grading-scale
+   * Body: { scaleId: string }
+   *
+   * This will:
+   * - Find the scale by scaleId and orgId
+   * - Unassign any existing scale for this program (if one exists)
+   * - Assign the new scale to the program
+   */
+  @Post('/programs/:programId/grading-scale')
+  @Roles('admin')
+  async assignToProgram(
+    @Param('programId') programId: string,
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: AssignGradingScaleDto,
+  ) {
+    return this.gradingScaleService.assignToProgram(
+      orgId,
+      programId,
+      dto.scaleId,
+    );
   }
 }

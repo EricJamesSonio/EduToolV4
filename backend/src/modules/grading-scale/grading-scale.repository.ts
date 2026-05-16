@@ -7,7 +7,7 @@ export class GradingScaleRepository {
 
   async create(data: {
     orgId: string;
-    programId: string; // CHANGED from levelId → programId
+    programId: string;
     schoolYearId: string;
     name: string;
     ranges: object;
@@ -15,7 +15,7 @@ export class GradingScaleRepository {
     return this.db.gradingScale.create({
       data: {
         org_id: data.orgId,
-        program_id: data.programId, // CHANGED from level_id → program_id
+        program_id: data.programId,
         school_year_id: data.schoolYearId,
         name: data.name,
         ranges: data.ranges,
@@ -26,11 +26,10 @@ export class GradingScaleRepository {
   }
 
   async findAll(orgId: string, programId?: string, schoolYearId?: string) {
-    // CHANGED: levelId → programId parameter
     return this.db.gradingScale.findMany({
       where: {
         org_id: orgId,
-        ...(programId ? { program_id: programId } : {}), // CHANGED
+        ...(programId ? { program_id: programId } : {}),
         ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
       },
       orderBy: { created_at: 'desc' },
@@ -45,13 +44,13 @@ export class GradingScaleRepository {
 
   async findByProgramAndYear(
     orgId: string,
-    programId: string, // CHANGED from levelId → programId
+    programId: string,
     schoolYearId: string,
   ) {
     return this.db.gradingScale.findFirst({
       where: {
         org_id: orgId,
-        program_id: programId, // CHANGED from level_id → program_id
+        program_id: programId,
         school_year_id: schoolYearId,
       },
     });
@@ -94,23 +93,53 @@ export class GradingScaleRepository {
     });
   }
 
-async isUsedInGrades(
-  orgId: string,
-  programId: string,
-  schoolYearId: string,
-): Promise<boolean> {
-  const count = await this.db.grade.count({
-    where: {
-      org_id: orgId,
-      class: {
-        school_year_id: schoolYearId,
-        subject: {
-          program_id: programId,
+  async isUsedInGrades(
+    orgId: string,
+    programId: string,
+    schoolYearId: string,
+  ): Promise<boolean> {
+    const count = await this.db.grade.count({
+      where: {
+        org_id: orgId,
+        class: {
+          school_year_id: schoolYearId,
+          subject: {
+            program_id: programId,
+          },
         },
       },
-    },
-  });
+    });
 
-  return count > 0;
-}
+    return count > 0;
+  }
+
+  /**
+   * Assign a scale to a program by updating the program_id
+   * This effectively "moves" the scale from one program to another
+   */
+  async assignToProgram(
+    scaleId: string,
+    programId: string,
+    schoolYearId: string,
+  ) {
+    return this.db.gradingScale.update({
+      where: { id: scaleId },
+      data: {
+        program_id: programId,
+        school_year_id: schoolYearId,
+      },
+    });
+  }
+
+  /**
+   * Get the program and school year of a scale
+   * Used to find what it was previously assigned to
+   */
+  async getScaleContext(id: string): Promise<{ program_id: string; school_year_id: string } | null> {
+    const scale = await this.db.gradingScale.findFirst({
+      where: { id },
+      select: { program_id: true, school_year_id: true },
+    });
+    return scale;
+  }
 }
