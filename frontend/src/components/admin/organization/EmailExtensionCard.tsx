@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { AtSign, Loader2, AlertTriangle } from "lucide-react";
 import { organizationApi } from "@/api/admin/organization.api";
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/hooks/queryKeys.factory";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function EmailExtensionCard(): React.JSX.Element {
   const { data: org, isLoading } = useOrganization();
@@ -25,12 +27,11 @@ export function EmailExtensionCard(): React.JSX.Element {
   const [validationError, setValidationError] = useState<string>("");
   const [isValidating, setIsValidating] = useState(false);
 
-  // ✅ NEW: Check if organization has accounts
-  const { data: accountsCheck } = useQuery({
-    queryKey: ["org", "accounts-check"],
-    queryFn: () => organizationApi.checkHasAccounts(),
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
+const { data: accountsCheck } = useQuery({
+  queryKey: queryKeys.admin.organization.accountsCheck(),
+  queryFn: () => organizationApi.checkHasAccounts(),
+  staleTime: 0, // always refetch when invalidated
+});
 
   const currentExtension = org?.emailExtension ?? null;
   const hasAccounts = accountsCheck?.hasAccounts ?? false;
@@ -80,17 +81,19 @@ export function EmailExtensionCard(): React.JSX.Element {
       setIsValidating(false);
     }
   }
+  const queryClient = useQueryClient();
 
   function handleConfirmSave() {
     updateMutation.mutate(
       { emailExtension: pendingExtension },
       {
-        onSuccess: () => {
-          toast.success("Email extension saved successfully.");
-          setConfirmOpen(false);
-          setEditing(false);
-          setPendingExtension("");
-        },
+      onSuccess: () => {
+        toast.success("Email extension saved successfully.");
+        setConfirmOpen(false);
+        setEditing(false);
+        setPendingExtension("");
+        queryClient.invalidateQueries({ queryKey: queryKeys.admin.organization.accountsCheck() }); // ← add
+      },
         onError: () => {
           toast.error("Failed to save email extension.");
           setConfirmOpen(false);
@@ -108,10 +111,11 @@ export function EmailExtensionCard(): React.JSX.Element {
     updateMutation.mutate(
       { emailExtension: null },
       {
-        onSuccess: () => {
-          toast.success("Email extension removed.");
-          setEditing(false);
-        },
+onSuccess: () => {
+  toast.success("Email extension removed.");
+  setEditing(false);
+  queryClient.invalidateQueries({ queryKey: queryKeys.admin.organization.accountsCheck() });
+},
         onError: () => toast.error("Failed to remove extension."),
       }
     );

@@ -138,7 +138,7 @@ async create(adminId: string, dto: CreateOrganizationDto) {
     const count = await this.db.account.count({
       where: {
         org_id: orgId,
-        role: { not: 'platform_owner' },
+        role: { in: ['educator', 'student'] },
       },
     })
     return count

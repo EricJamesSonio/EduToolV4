@@ -63,4 +63,19 @@ export const organizationApi = {
   seedOrg: async (data: SeedOrganizationRequest): Promise<void> => {
     await client.post("/organization/seed", data)
   },
+
+  validateEmailExtension: async (emailExtension: string): Promise<{ isUnique: boolean; message?: string }> => {
+      const res = await client.post<{ success: boolean; data: { isUnique: boolean; message?: string } }>(
+        "/organization/validate-email-extension",
+        { emailExtension },
+      )
+      return res.data.data
+    },
+
+    checkHasAccounts: async (): Promise<{ hasAccounts: boolean; count: number }> => {
+      const res = await client.get<{ success: boolean; data: { hasAccounts: boolean; count: number } }>(
+        "/organization/check-accounts",
+      )
+      return res.data.data
+    },
 }

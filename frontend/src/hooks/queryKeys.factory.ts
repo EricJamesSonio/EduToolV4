@@ -96,6 +96,7 @@ export const queryKeys = {
       all: [...adminKeys.all, 'organization'] as const,
       detail: () => [...adminKeys.all, 'organization', 'detail'] as const,
       settings: () => [...adminKeys.all, 'organization', 'settings'] as const,
+      accountsCheck: () => [...adminKeys.all, 'organization', 'accounts-check'] as const, // ← add
     },
     orgEnrollmentSetting: {
       all: [...adminKeys.all, 'orgEnrollmentSetting'] as const,

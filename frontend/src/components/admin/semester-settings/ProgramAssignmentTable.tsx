@@ -2,10 +2,17 @@
 "use client";
 
 import { useMemo } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { AssignRow } from "./AssignRow";
+import { DataTable } from "@/components/shared/DataTable";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   PROGRAM_TYPE_LABELS,
   PROGRAM_TYPE_COLORS,
@@ -27,6 +34,7 @@ interface ProgramAssignmentTableProps {
   schoolYearStart: string | null;
   schoolYearEnd: string | null;
   isLoading: boolean;
+  onAssignmentChange?: (programId: string, templateId: string | null) => void;
 }
 
 export function ProgramAssignmentTable({
@@ -35,6 +43,7 @@ export function ProgramAssignmentTable({
   schoolYearStart,
   schoolYearEnd,
   isLoading,
+  onAssignmentChange,
 }: ProgramAssignmentTableProps): React.JSX.Element {
   const programsByType = useMemo(() => {
     const map = new Map<string, Program[]>();
@@ -57,7 +66,7 @@ export function ProgramAssignmentTable({
   }, [templates]);
 
   const programTypes = useMemo(
-    () => Array.from(programsByType.keys()),
+    () => Array.from(programsByType.keys()).sort(),
     [programsByType]
   );
 
@@ -91,6 +100,81 @@ export function ProgramAssignmentTable({
           PROGRAM_TYPE_COLORS[type as ProgramType] ??
           "bg-gray-100 text-gray-600 border-gray-200";
 
+        // Build table data
+        const tableData = typePrograms.map((p) => ({
+          id: p.id,
+          name: p.name,
+          assignedTemplate: p.semesterAssignment
+            ? templates.find((t) => t.id === p.semesterAssignment?.template_id)?.name ?? "Unknown"
+            : null,
+          templateId: p.semesterAssignment?.template_id ?? "",
+        }));
+
+        // Define columns
+        const columns = [
+          {
+            accessorKey: "name",
+            header: "Program",
+            size: 300,
+          },
+          {
+            id: "template",
+            header: "Semester Template",
+            cell: ({ row }: any) => {
+              const prog = programs.find((p) => p.id === row.original.id);
+              if (!prog) return null;
+
+              return (
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={
+                      prog.semesterAssignment?.template_id ?? ""
+                    }
+                    onValueChange={(templateId) => {
+                      onAssignmentChange?.(prog.id, templateId || null);
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-56 text-xs">
+                      <SelectValue placeholder="Select template…">
+                        {prog.semesterAssignment
+                          ? templates.find(
+                              (t) => t.id === prog.semesterAssignment?.template_id
+                            )?.name ?? "Unknown"
+                          : "Select template…"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {compatibleTemplates.length === 0 ? (
+                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                          No templates for this program type
+                        </div>
+                      ) : (
+                        compatibleTemplates.map((t) => (
+                          <SelectItem key={t.id} value={t.id} className="text-xs">
+                            {t.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {prog.semesterAssignment && (
+                    <Layers className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  )}
+                </div>
+              );
+            },
+          },
+          {
+            id: "dates",
+            header: "Configure Dates",
+            cell: ({ row }: any) => (
+              <button className="text-xs px-2 py-1 rounded border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                Edit Dates
+              </button>
+            ),
+          },
+        ];
+
         return (
           <section key={type} className="space-y-3">
             <div className="flex items-center gap-2">
@@ -103,21 +187,18 @@ export function ProgramAssignmentTable({
               <div className="flex-1 h-px bg-border" />
             </div>
 
-            <div className="rounded-lg border bg-card overflow-hidden">
-              <div className="divide-y">
-                {typePrograms.map((p) => (
-                  <AssignRow
-                    key={p.id}
-                    program={p}
-                    templates={compatibleTemplates}
-                    schoolYearStart={schoolYearStart}
-                    schoolYearEnd={schoolYearEnd}
-                  />
-                ))}
-              </div>
+            {/* Table */}
+            <div className="rounded-lg border overflow-hidden">
+              <DataTable
+                columns={columns}
+                data={tableData}
+                isLoading={false}
+                emptyTitle="No programs"
+                emptyDescription="No programs found for this type."
+              />
             </div>
 
-            {/* Warning for unassigned programs */}
+            {/* Warning for unassigned */}
             {typePrograms.some((p) => !p.semesterAssignment) && (
               <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
                 <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
