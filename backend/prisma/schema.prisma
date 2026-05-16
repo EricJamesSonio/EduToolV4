@@ -104,14 +104,12 @@ model Account {
 }
 
 model Profile {
-  id         String   @id @default(uuid())
-  account_id String   @unique
-  full_name  String
-  metadata   Json?
-
-  personal_email String?   // NEW FIELD
-
-  created_at DateTime @default(now())
+  id             String   @id @default(uuid())
+  account_id     String   @unique
+  full_name      String
+  metadata       Json?
+  personal_email String?
+  created_at     DateTime @default(now())
 
   account Account @relation(fields: [account_id], references: [id])
 }
@@ -134,7 +132,8 @@ model Program {
   subjects           Subject[]
   studentEnrollments StudentProgramEnrollment[]
   semesterAssignment ProgramSemesterAssignment?
-  gradingScales     GradingScale[]
+  gradingScales      GradingScale[]
+  programCalendar    ProgramCalendar?
 }
 
 model Course {
@@ -145,12 +144,12 @@ model Course {
   name           String
   code           String?
 
-  schoolYear         SchoolYear               @relation(fields: [school_year_id], references: [id])
-  program            Program                  @relation(fields: [program_id], references: [id])
+  schoolYear         SchoolYear                @relation(fields: [school_year_id], references: [id])
+  program            Program                   @relation(fields: [program_id], references: [id])
   subjects           Subject[]
   sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
-  sections Section[]
+  sections           Section[]
 }
 
 model Strand {
@@ -160,12 +159,12 @@ model Strand {
   program_id     String
   name           String
 
-  schoolYear         SchoolYear               @relation(fields: [school_year_id], references: [id])
-  program            Program                  @relation(fields: [program_id], references: [id])
+  schoolYear         SchoolYear                @relation(fields: [school_year_id], references: [id])
+  program            Program                   @relation(fields: [program_id], references: [id])
   subjects           Subject[]
   sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
-  sections Section[]
+  sections           Section[]
 }
 
 model Level {
@@ -175,13 +174,12 @@ model Level {
   program_id     String
   name           String
 
-  schoolYear         SchoolYear               @relation(fields: [school_year_id], references: [id])
-  program            Program                  @relation(fields: [program_id], references: [id])
+  schoolYear         SchoolYear                @relation(fields: [school_year_id], references: [id])
+  program            Program                   @relation(fields: [program_id], references: [id])
   sections           Section[]
   sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
-  subjects Subject[]
-
+  subjects           Subject[]
 }
 
 model Section {
@@ -195,10 +193,10 @@ model Section {
   capacity       Int
   deleted_at     DateTime?
 
-  level              Level                    @relation(fields: [level_id], references: [id])
-  course             Course?                  @relation(fields: [course_id], references: [id])
-  strand             Strand?                  @relation(fields: [strand_id], references: [id])
-  schoolYear         SchoolYear               @relation(fields: [school_year_id], references: [id])
+  level              Level                     @relation(fields: [level_id], references: [id])
+  course             Course?                   @relation(fields: [course_id], references: [id])
+  strand             Strand?                   @relation(fields: [strand_id], references: [id])
+  schoolYear         SchoolYear                @relation(fields: [school_year_id], references: [id])
   studentEnrollments StudentProgramEnrollment[]
 }
 
@@ -219,6 +217,9 @@ model SchoolYear {
   studentEnrollments StudentSchoolYear[]
   semesters          Semester[]
   classes            Class[]
+  academicCalendars  AcademicCalendar[]
+  programCalendars   ProgramCalendar[]
+  orgHolidayConfigs  OrgHolidayConfig[]
 }
 
 model SemesterTemplate {
@@ -238,10 +239,9 @@ model SemesterTemplateItem {
   name        String
   order_index Int
 
-  template SemesterTemplate      @relation(fields: [template_id], references: [id])
+  template SemesterTemplate       @relation(fields: [template_id], references: [id])
   terms    SemesterTemplateTerm[]
 }
-
 
 model SemesterTemplateTerm {
   id          String @id @default(uuid())
@@ -250,7 +250,7 @@ model SemesterTemplateTerm {
   name        String
   order_index Int
 
-  semester  SemesterTemplateItem @relation(fields: [semester_id], references: [id], onDelete: Cascade)
+  semester  SemesterTemplateItem      @relation(fields: [semester_id], references: [id], onDelete: Cascade)
   termDates ProgramSemesterTermDate[]
 }
 
@@ -262,7 +262,21 @@ model ProgramSemesterAssignment {
 
   program   Program          @relation(fields: [program_id], references: [id])
   template  SemesterTemplate @relation(fields: [template_id], references: [id])
-  termDates ProgramSemesterTermDate[]   // ← ADD THIS
+  termDates ProgramSemesterTermDate[]
+}
+
+model ProgramSemesterTermDate {
+  id            String   @id @default(uuid())
+  org_id        String
+  assignment_id String
+  term_id       String
+  start_date    DateTime
+  end_date      DateTime
+
+  assignment ProgramSemesterAssignment @relation(fields: [assignment_id], references: [id])
+  term       SemesterTemplateTerm      @relation(fields: [term_id], references: [id], onDelete: Cascade)
+
+  @@unique([assignment_id, term_id])
 }
 
 model StudentSchoolYear {
@@ -275,7 +289,7 @@ model StudentSchoolYear {
   unenrolled_at  DateTime?
   notes          String?
 
-  schoolYear         SchoolYear               @relation(fields: [school_year_id], references: [id])
+  schoolYear         SchoolYear                @relation(fields: [school_year_id], references: [id])
   programEnrollments StudentProgramEnrollment[]
 
   @@unique([org_id, student_id, school_year_id])
@@ -398,19 +412,17 @@ model Class {
   created_at     DateTime  @default(now())
   deleted_at     DateTime?
 
-  subject        Subject   @relation(fields: [subject_id], references: [id])
-
-  educator       Account   @relation("EducatorClasses", fields: [educator_id], references: [id])
-
-  schedules      ClassSchedule[]
-  enrollments    Enrollment[]
-  gradeLock      GradeLock?
-  ownershipLogs  ClassOwnershipLog[]
-  meetings       Meeting[]
-  grades         Grade[]
-  gradingSchemes GradingScheme[]
+  subject         Subject            @relation(fields: [subject_id], references: [id])
+  educator        Account            @relation("EducatorClasses", fields: [educator_id], references: [id])
+  schoolYear      SchoolYear         @relation(fields: [school_year_id], references: [id])
+  schedules       ClassSchedule[]
+  enrollments     Enrollment[]
+  gradeLock       GradeLock?
+  ownershipLogs   ClassOwnershipLog[]
+  meetings        Meeting[]
+  grades          Grade[]
+  gradingSchemes  GradingScheme[]
   gradeLockEvents GradeLockEvent[]
-  schoolYear     SchoolYear @relation(fields: [school_year_id], references: [id])
 }
 
 model ClassSchedule {
@@ -448,28 +460,102 @@ model Enrollment {
   class Class @relation(fields: [class_id], references: [id])
 }
 
+//////////////////////
+// ACADEMIC CALENDAR (existing — events/holidays for CalendarTab)
+//////////////////////
+
 model AcademicCalendar {
   id             String   @id @default(uuid())
   org_id         String
   school_year_id String
   title          String
-  type           String
+  type           String   // 'holiday' | 'no_class_day' | 'exam_week' | 'special_event'
   start_date     DateTime
   end_date       DateTime
   description    String?
   created_at     DateTime @default(now())
+
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
 }
+
+//////////////////////
+// PROGRAM ACADEMIC CALENDAR (new — break/term structure for semester planning)
+//////////////////////
+
+model ProgramCalendar {
+  id             String   @id @default(uuid())
+  org_id         String
+  school_year_id String
+  program_id     String   @unique
+  start_date     DateTime
+  end_date       DateTime
+  notes          String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  schoolYear SchoolYear             @relation(fields: [school_year_id], references: [id], onDelete: Cascade)
+  program    Program                @relation(fields: [program_id], references: [id], onDelete: Cascade)
+  breaks     ProgramCalendarBreak[]
+  terms      ProgramCalendarTerm[]
+}
+
+model ProgramCalendarBreak {
+  id          String   @id @default(uuid())
+  org_id      String
+  calendar_id String
+  label       String   // e.g. "Semestral Break", "Christmas Break"
+  start_date  DateTime
+  end_date    DateTime
+  order_index Int      // auto-sorted chronologically by service
+  created_at  DateTime @default(now())
+
+  calendar ProgramCalendar @relation(fields: [calendar_id], references: [id], onDelete: Cascade)
+}
+
+model ProgramCalendarTerm {
+  id          String   @id @default(uuid())
+  org_id      String
+  calendar_id String
+  label       String   // e.g. "Term 1", "Term 2"
+  order_index Int
+  start_date  DateTime
+  end_date    DateTime
+  created_at  DateTime @default(now())
+
+  calendar ProgramCalendar @relation(fields: [calendar_id], references: [id], onDelete: Cascade)
+}
+
+//////////////////////
+// HOLIDAY CONFIG (per org, per school year)
+//////////////////////
+
+model OrgHolidayConfig {
+  id              String   @id @default(uuid())
+  org_id          String
+  school_year_id  String
+  /// Keys from the hardcoded PHILIPPINE_HOLIDAYS seed list that are enabled
+  enabled_keys    String[]
+  /// Admin-added custom holidays: [{title, date, description?}]
+  custom_holidays Json     @default("[]")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, school_year_id])
+}
+
+//////////////////////
+// GRADING SCALE
+//////////////////////
 
 model GradingScale {
   id             String    @id @default(uuid())
   org_id         String
   school_year_id String
-
-  program_id     String    
-
+  program_id     String
   name           String
   ranges         Json
-
   is_locked      Boolean   @default(false)
   locked_at      DateTime?
   created_at     DateTime  @default(now())
@@ -480,29 +566,30 @@ model GradingScale {
 
   @@unique([school_year_id, program_id])
 }
+
 //////////////////////
 // GRADING SCHEME TEMPLATES (admin-level, reusable)
 //////////////////////
 
 model GradingSchemeTemplate {
-  id           String  @id @default(uuid())
+  id           String   @id @default(uuid())
   org_id       String
   name         String
-  program_type String? // optional: "college" | "shs" | "jhs" etc — matches Program.type
+  program_type String?
   created_at   DateTime @default(now())
 
   components GradingSchemeTemplateComponent[]
 }
 
 model GradingSchemeTemplateComponent {
-  id          String  @id @default(uuid())
+  id          String   @id @default(uuid())
   org_id      String
   template_id String
   name        String
   type        String
   weight      Float
   max_score   Float?
-  created_at  DateTime @default(now()) 
+  created_at  DateTime @default(now())
 
   template GradingSchemeTemplate @relation(fields: [template_id], references: [id])
 }
@@ -514,32 +601,16 @@ model GradingSchemeTemplateComponent {
 model GradingScheme {
   id          String    @id @default(uuid())
   org_id      String
-  class_id    String                  // required — every scheme belongs to exactly one class
-  template_id String?                 // optional: trace origin template for auditing
+  class_id    String
+  template_id String?
   name        String
   is_locked   Boolean   @default(false)
   locked_at   DateTime?
   created_at  DateTime  @default(now())
-  is_default Boolean @default(false)
+  is_default  Boolean   @default(false)
 
   class      Class                    @relation(fields: [class_id], references: [id])
   components GradingSchemeComponent[]
-  
-}
-
-model ProgramSemesterTermDate {
-  id            String   @id @default(uuid())
-  org_id        String
-  assignment_id String
-  term_id       String
-  start_date    DateTime
-  end_date      DateTime
-
-  assignment ProgramSemesterAssignment @relation(fields: [assignment_id], references: [id])
-
-  term SemesterTemplateTerm @relation(fields: [term_id], references: [id], onDelete: Cascade)
-
-  @@unique([assignment_id, term_id])
 }
 
 model GradingSchemeComponent {
@@ -570,6 +641,7 @@ model Lesson {
   week_number Int
   sub_index   Int
   created_at  DateTime @default(now())
+
   @@unique([class_id, week_number, sub_index])
 }
 
@@ -616,11 +688,11 @@ model Assessment {
 }
 
 model Question {
-  id            String  @id @default(uuid())
-  org_id        String
-  assessment_id String
-  type          String
-  question_text String
+  id             String  @id @default(uuid())
+  org_id         String
+  assessment_id  String
+  type           String
+  question_text  String
   correct_answer String?
 }
 
@@ -667,59 +739,46 @@ model Grade {
 }
 
 model GradeLock {
-  id         String @id @default(uuid())
+  id         String    @id @default(uuid())
   org_id     String
-
-  class_id   String @unique
-  class      Class  @relation(fields: [class_id], references: [id])
-
+  class_id   String    @unique
   setting_id String
-  setting    GradeLockSetting @relation(fields: [setting_id], references: [id])
-
-  is_locked  Boolean  @default(false)
+  is_locked  Boolean   @default(false)
   locked_at  DateTime?
   locked_by  String?
+  created_at DateTime  @default(now())
 
-  created_at DateTime @default(now())
+  class   Class            @relation(fields: [class_id], references: [id])
+  setting GradeLockSetting @relation(fields: [setting_id], references: [id])
 }
 
 model GradeLockEvent {
-  id         String @id @default(uuid())
+  id         String   @id @default(uuid())
   org_id     String
-
   class_id   String
-  class      Class  @relation(fields: [class_id], references: [id])
-
-  type       String  // "lock" | "unlock" | "override" | "request"
+  type       String   // "lock" | "unlock" | "override" | "request"
   reason     String?
-
   actor_id   String
-
   metadata   Json?
-
   created_at DateTime @default(now())
+
+  class Class @relation(fields: [class_id], references: [id])
 }
 
 model GradeLockSetting {
-  id          String @id @default(uuid())
-  org_id      String
-
-  name         String @default("Default Setting")
-  description String?
-
-  lockType    String?  // "hard" | "soft" | "flexible"
-
+  id            String    @id @default(uuid())
+  org_id        String
+  name          String    @default("Default Setting")
+  description   String?
+  lockType      String?   // "hard" | "soft" | "flexible"
   lock_deadline DateTime?
   deadlineDays  Int?
+  allowOverride Boolean   @default(false)
+  is_default    Boolean   @default(false)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
 
-  allowOverride Boolean @default(false)
-
-  is_default   Boolean @default(false)
-
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-
-  gradeLocks   GradeLock[]
+  gradeLocks GradeLock[]
 
   @@unique([org_id, name])
 }
