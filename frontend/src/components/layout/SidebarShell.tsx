@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -29,7 +28,7 @@ export interface NavGroup {
 interface SidebarShellProps {
   header: React.ReactNode;
   groups: NavGroup[];
-  footer?: React.ReactNode; // ✅ new
+  footer?: React.ReactNode;
   className?: string;
 }
 
@@ -45,26 +44,27 @@ function NavLink({
 }: {
   item: NavItem;
   collapsed: boolean;
-}): React.JSX.Element {
+}) {
   const isActive = useIsActive(item.href, item.exact);
   const Icon = item.icon;
+
+  const base =
+    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors border border-transparent";
+
+  // 🔥 UNIFIED STYLE: ALWAYS BLACK THEME (NO ACTIVE INVERSION)
+  const stateStyles =
+    "bg-black text-white hover:bg-neutral-900 hover:text-white";
 
   const link = (
     <Link
       href={item.href}
       className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-        "hover:bg-muted hover:text-foreground",
-        isActive ? "bg-primary/10 text-primary" : "text-muted-foreground",
+        base,
+        stateStyles,
         collapsed && "justify-center px-2"
       )}
     >
-      <Icon
-        className={cn(
-          "h-4 w-4 shrink-0",
-          isActive ? "text-primary" : "text-muted-foreground"
-        )}
-      />
+      <Icon className="h-4 w-4 shrink-0 text-white" />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
   );
@@ -72,7 +72,7 @@ function NavLink({
   if (collapsed) {
     return (
       <Tooltip>
-        <TooltipTrigger render={link} />
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
         <TooltipContent side="right">{item.label}</TooltipContent>
       </Tooltip>
     );
@@ -81,60 +81,80 @@ function NavLink({
   return link;
 }
 
-export function SidebarShell({ header, groups, footer, className }: SidebarShellProps): React.JSX.Element {
+export function SidebarShell({
+  header,
+  groups,
+  footer,
+  className,
+}: SidebarShellProps) {
   const { collapsed, setCollapsed } = useSidebar();
 
   return (
-    <TooltipProvider delay={200}>
+    <TooltipProvider delayDuration={200}>
       <aside
         className={cn(
-          "fixed left-0 top-14 bottom-0 z-40 flex flex-col border-r bg-background transition-all duration-200",
-          collapsed ? "w-14" : "w-56 min-w-[3.5rem]",
+          "fixed left-0 top-14 bottom-0 z-40 flex flex-col border-r",
+          "bg-black text-white border-black",
+          "transition-all duration-200",
+          collapsed ? "w-14" : "w-56",
           className
         )}
       >
-        {/* Header slot */}
+        {/* Header */}
         {!collapsed && (
-          <div className="border-b px-4 py-3 text-sm">{header}</div>
+          <div className="border-b border-neutral-800 px-4 py-3 text-sm text-white">
+            {header}
+          </div>
         )}
 
-        {/* Nav groups */}
+        {/* Nav */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-4">
           {groups.map((group, gi) => (
-            <div key={gi} className="space-y-0.5">
+            <div key={gi} className="space-y-1">
               {group.label && !collapsed && (
-                <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
                   {group.label}
                 </p>
               )}
+
               {group.items.map((item) => (
-                <NavLink key={item.href} item={item} collapsed={collapsed} />
+                <NavLink
+                  key={item.href}
+                  item={item}
+                  collapsed={collapsed}
+                />
               ))}
             </div>
           ))}
         </nav>
 
-        {/* Footer slot */}
+        {/* Footer */}
         {footer && (
-          <div className={cn("border-t p-2", collapsed && "flex justify-center")}>
+          <div
+            className={cn(
+              "border-t border-neutral-800 p-2",
+              collapsed && "flex justify-center"
+            )}
+          >
             {footer}
           </div>
         )}
 
-        {/* Collapse toggle */}
-        <div className="border-t p-2">
+        {/* Toggle */}
+        <div className="border-t border-neutral-800 p-2">
           <button
             onClick={() => setCollapsed((c) => !c)}
             className={cn(
-              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors",
+              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm",
+              "bg-black text-white hover:bg-neutral-900 transition-colors",
               collapsed && "justify-center px-2"
             )}
           >
             {collapsed ? (
-              <ChevronRight className="h-4 w-4 shrink-0" />
+              <ChevronRight className="h-4 w-4 text-white" />
             ) : (
               <>
-                <ChevronLeft className="h-4 w-4 shrink-0" />
+                <ChevronLeft className="h-4 w-4 text-white" />
                 <span>Collapse</span>
               </>
             )}
