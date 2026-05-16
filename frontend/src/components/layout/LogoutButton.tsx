@@ -12,7 +12,7 @@ export function LogoutButton(): React.JSX.Element {
 
   function handleLogout(): void {
     localStorage.clear();
-    router.push("/login");
+    router.push("/");
   }
 
   const button = (

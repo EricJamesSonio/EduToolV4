@@ -100,7 +100,7 @@ apiClient.interceptors.response.use(
       } catch {
         clearTokens();
         setTimeout(() => {
-          window.location.href = "/login";
+          window.location.href = "/";
         }, 100);
         return Promise.reject(error);
       }

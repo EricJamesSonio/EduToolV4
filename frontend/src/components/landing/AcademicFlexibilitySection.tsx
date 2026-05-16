@@ -25,7 +25,7 @@ const programs = [
 
 export function AcademicFlexibilitySection() {
   return (
-    <section className="page-container py-16 md:py-24 space-y-12">
+    <section id="solutions" className="page-container py-16 md:py-24 space-y-12">
       {/* Header */}
       <div className="text-center space-y-4 max-w-2xl mx-auto">
         <h2 className="text-3xl md:text-4xl font-heading font-bold">

@@ -6,7 +6,7 @@ import { ArrowRight, Users, BookOpen, Award } from "lucide-react";
 
 export function HeroSection() {
   return (
-    <section className="page-container py-16 md:py-24 lg:py-32">
+    <section id="home"className="page-container py-16 md:py-24 lg:py-32">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         {/* Left: Text Content */}
         <div className="space-y-8">

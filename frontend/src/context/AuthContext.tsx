@@ -83,7 +83,7 @@ useEffect(() => {
     } finally {
       clearAuth();
       clearTokens();
-      router.push("/login");
+      router.push("/");
     }
   }, [clearAuth, router]);
 
