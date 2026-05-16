@@ -32,7 +32,9 @@ Each organization runs in its own **scoped portal**, meaning all data, users, an
 EduTool allows admins to fully customize their academic structure:
 
 ### Programs
+
 Supports different types of programs such as:
+
 - College
 - Elementary
 - Senior High School (SHS)
@@ -40,12 +42,16 @@ Supports different types of programs such as:
 - Or any custom program
 
 ### Levels
+
 Programs can define their own levels:
+
 - Grade 1, Grade 2, etc.
 - 1st Year, 2nd Year, etc.
 
 ### Structure
+
 Admins can manage:
+
 - Sections
 - Classes
 - Subjects
@@ -85,6 +91,7 @@ To reduce repetitive setup, EduTool provides reusable components:
 EduTool includes an **organization seeder** feature that allows admins to quickly set up a school by selecting predefined options.
 
 This can automatically generate:
+
 - Programs
 - Levels
 - Basic academic structure
