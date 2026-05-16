@@ -1,3 +1,5 @@
+// filepath: components/EducatorSidebar.tsx
+
 "use client";
 
 import { useParams, usePathname } from "next/navigation";
@@ -18,7 +20,6 @@ import {
 
 const TOP_LEVEL_GROUPS: NavGroup[] = [
   {
-    label: "Main",
     items: [
       { label: "My Classes", href: "/educator/classes", icon: BookOpen },
       { label: "Grading Scheme Library", href: "/educator/grading-scheme-library", icon: Library },
@@ -38,7 +39,6 @@ export function EducatorSidebar() {
   const groups: NavGroup[] = inClass
     ? [
         {
-          label: "Main",
           items: [
             { label: "My Classes", href: "/educator/classes", icon: BookOpen, exact: true },
             { label: "Grading Scheme Library", href: "/educator/grading-scheme-library", icon: Library },
@@ -63,7 +63,7 @@ export function EducatorSidebar() {
   return (
     <SidebarShell
       header={
-        <p className="text-xs font-bold uppercase tracking-widest text-white">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Educator Portal
         </p>
       }
