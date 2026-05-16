@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { Plus, Pencil, Trash2, Lock, Layers, Check } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, AlertCircle } from "lucide-react";
 import type { AxiosError } from "axios";
 
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -32,6 +32,14 @@ import { gradingScaleApi } from "@/api/admin/grading-scale.api";
 
 import type { GradingScale } from "@/types/admin/grading-scale.types";
 
+interface ProgramWithScale {
+  id: string;
+  name: string;
+  type: string;
+  assignedScaleId?: string;
+  assignedScaleName?: string;
+}
+
 export default function GradingScalesPage(): React.JSX.Element {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -40,8 +48,9 @@ export default function GradingScalesPage(): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<GradingScale | null>(null);
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
-  const [selectedProgramId, setSelectedProgramId] = useState<string>("");
-  const [assignTarget, setAssignTarget] = useState<{ scale: GradingScale; program: any } | null>(null);
+  const [assignTarget, setAssignTarget] = useState<ProgramWithScale | null>(null);
+  const [availableScalesOpen, setAvailableScalesOpen] = useState(false);
+  const [selectedScaleId, setSelectedScaleId] = useState<string>("");
 
   // Queries
   const { data: schoolYears = [], isLoading: schoolYearsLoading } = useSchoolYears();
@@ -64,38 +73,55 @@ export default function GradingScalesPage(): React.JSX.Element {
     },
   });
 
-  // Note: Assignment is actually done via creating a new scale for the program
-  // This is a confirmation before the user goes to create a new scale for that program
-  const handleAssignConfirm = () => {
-    if (!assignTarget) return;
-    // Redirect to create dialog or edit dialog with program pre-selected
-    toast.info(`Create a new grading scale for ${assignTarget.program.name} program.`);
-    setAssignTarget(null);
-    setCreateOpen(true);
-  };
+  const assignMutation = useMutation({
+    mutationFn: async ({
+      programId,
+      scaleId,
+    }: {
+      programId: string;
+      scaleId: string;
+    }) => {
+      // Call API to assign scale to program
+      // You'll need to add this endpoint to gradingScaleApi
+      const res = await fetch(`/api/admin/programs/${programId}/grading-scale`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scaleId }),
+      });
+      if (!res.ok) throw new Error("Failed to assign scale");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Grading scale assigned to program.");
+      queryClient.invalidateQueries({ queryKey: ["programs"] });
+      setAssignTarget(null);
+      setSelectedScaleId("");
+      setAvailableScalesOpen(false);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message ?? "Failed to assign grading scale.");
+    },
+  });
 
-  // Compute passing threshold
-  const passingThreshold = (scale: GradingScale): string => {
-    const passingRanges = scale.ranges.filter((r) => r.isPassing);
-    if (passingRanges.length === 0) return "—";
-    const min = Math.min(...passingRanges.map((r) => r.minPercent));
-    return `${min}%`;
-  };
+  // Map programs with their assigned scales
+  const programsWithScales = useMemo(() => {
+    return programs.map((program) => ({
+      ...program,
+      assignedScaleId: program.id, // TODO: get from API response
+      assignedScaleName: scales.find((s) => s.id === program.id)?.name,
+    }));
+  }, [programs, scales]);
 
-  // Get selected program
-  const selectedProgram = useMemo(
-    () => programs.find((p) => p.id === selectedProgramId) ?? null,
-    [programs, selectedProgramId]
-  );
+  // Get applicable scales for selected program type
+  const applicableScales = useMemo(() => {
+    if (!assignTarget) return scales;
+    // Filter scales by program type if needed
+    // For now, show all global scales
+    return scales;
+  }, [scales, assignTarget]);
 
-  // Filter scales by selected program
-  const filteredScales = useMemo(() => {
-    if (!selectedProgramId) return scales;
-    return scales.filter((scale) => scale.programId === selectedProgramId);
-  }, [scales, selectedProgramId]);
-
-  // Table columns
-  const columns = useMemo<ColumnDef<GradingScale>[]>(
+  // Table columns for global scales
+  const scaleColumns = useMemo<ColumnDef<GradingScale>[]>(
     () => [
       {
         id: "name",
@@ -116,24 +142,17 @@ export default function GradingScalesPage(): React.JSX.Element {
       {
         id: "passingThreshold",
         header: "Passing Threshold",
-        cell: ({ row }) => (
-          <Badge variant="outline" className="font-mono text-xs">
-            {passingThreshold(row.original)}
-          </Badge>
-        ),
-      },
-      {
-        id: "lockStatus",
-        header: "Lock Status",
-        cell: ({ row }) =>
-          row.original.isLocked ? (
-            <div className="flex items-center gap-1.5 text-amber-600">
-              <Lock className="h-3.5 w-3.5" />
-              <span className="text-xs font-medium">Locked</span>
-            </div>
-          ) : (
-            <span className="text-xs text-muted-foreground">Unlocked</span>
-          ),
+        cell: ({ row }) => {
+          const passingRanges = row.original.ranges.filter((r) => r.isPassing);
+          const threshold = passingRanges.length > 0
+            ? Math.min(...passingRanges.map((r) => r.minPercent))
+            : "—";
+          return (
+            <Badge variant="outline" className="font-mono text-xs">
+              {threshold === "—" ? threshold : `${threshold}%`}
+            </Badge>
+          );
+        },
       },
       {
         id: "actions",
@@ -168,12 +187,64 @@ export default function GradingScalesPage(): React.JSX.Element {
     [router]
   );
 
+  // Table columns for program assignments
+  const programColumns = useMemo<ColumnDef<ProgramWithScale>[]>(
+    () => [
+      {
+        id: "name",
+        header: "Program",
+        cell: ({ row }) => (
+          <div className="space-y-1">
+            <span className="font-medium">{row.original.name}</span>
+            <Badge variant="secondary" className="text-xs">
+              {row.original.type}
+            </Badge>
+          </div>
+        ),
+      },
+      {
+        id: "assignedScale",
+        header: "Assigned Scale",
+        cell: ({ row }) =>
+          row.original.assignedScaleName ? (
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium">{row.original.assignedScaleName}</span>
+            </div>
+          ) : (
+            <span className="text-sm text-muted-foreground">Not assigned</span>
+          ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs gap-1 text-primary hover:bg-primary/10"
+            onClick={() => {
+              setAssignTarget(row.original);
+              setAvailableScalesOpen(true);
+              setSelectedScaleId(row.original.assignedScaleId || "");
+            }}
+            title="Assign or change grading scale"
+          >
+            <Check className="h-3.5 w-3.5" />
+            {row.original.assignedScaleName ? "Change" : "Assign"}
+          </Button>
+        ),
+      },
+    ],
+    []
+  );
+
   return (
     <div className="space-y-8 p-6">
       {/* ================= HEADER ================= */}
       <PageHeader
         title="Grading Scales"
-        description="Create and manage grading scale templates for different program types."
+        description="Manage global grading scale templates and assign them to programs."
         actions={
           <Button onClick={() => setCreateOpen(true)} size="sm">
             <Plus className="mr-1.5 h-4 w-4" />
@@ -182,85 +253,73 @@ export default function GradingScalesPage(): React.JSX.Element {
         }
       />
 
-      {/* ================= SCHOOL YEAR SELECTOR ================= */}
-      <div className="rounded-lg border p-4 bg-muted/30">
-        <SchoolYearSelector
-          schoolYears={schoolYears}
-          isLoading={schoolYearsLoading}
-          selectedId={selectedSchoolYearId}
-          onSelect={setSelectedSchoolYearId}
-        />
+      {/* ================= GLOBAL SCALES SECTION ================= */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Global Templates</h2>
+          <Badge variant="outline">{scales.length} scales</Badge>
+        </div>
+
+        {scalesLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+            ))}
+          </div>
+        ) : (
+          <DataTable
+            columns={scaleColumns}
+            data={scales}
+            emptyTitle="No grading scales"
+            emptyDescription="Create your first grading scale template."
+          />
+        )}
       </div>
 
-      {/* ================= PROGRAM FILTER ================= */}
-      {selectedSchoolYearId && (
-        <div className="rounded-lg border p-4 space-y-3 bg-muted/30">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Layers className="h-4 w-4" />
-            Filter by Program
+      {/* ================= SCHOOL YEAR SELECTOR ================= */}
+      {scales.length > 0 && (
+        <>
+          <div className="border-t pt-8" />
+
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Assign to Programs</h2>
+
+            <div className="rounded-lg border p-4 bg-muted/30">
+              <SchoolYearSelector
+                schoolYears={schoolYears}
+                isLoading={schoolYearsLoading}
+                selectedId={selectedSchoolYearId}
+                onSelect={setSelectedSchoolYearId}
+              />
+            </div>
+
+            {/* ================= PROGRAMS TABLE ================= */}
+            {selectedSchoolYearId && (
+              <>
+                {programsLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                    ))}
+                  </div>
+                ) : (
+                  <DataTable
+                    columns={programColumns}
+                    data={programsWithScales}
+                    emptyTitle="No programs"
+                    emptyDescription="No programs found for this school year."
+                  />
+                )}
+              </>
+            )}
           </div>
-
-          {programsLoading ? (
-            <Skeleton className="h-10 w-full" />
-          ) : programs.length > 0 ? (
-            <Select value={selectedProgramId} onValueChange={setSelectedProgramId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a program to filter..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Programs</SelectItem>
-                {programs.map((program) => (
-                  <SelectItem key={program.id} value={program.id}>
-                    {program.name} ({program.type})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              No programs found for this school year.
-            </div>
-          )}
-
-          {selectedProgram && (
-            <div className="rounded-md border bg-background p-3 text-sm">
-              <p className="text-muted-foreground">
-                Showing scales for: <span className="font-medium text-foreground">{selectedProgram.name}</span>{" "}
-                <Badge variant="secondary" className="text-xs ml-2">
-                  {selectedProgram.type}
-                </Badge>
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ================= SCALES TABLE ================= */}
-      {scalesLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-12 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : (
-        <DataTable
-          columns={columns}
-          data={filteredScales}
-          isLoading={scalesLoading}
-          emptyTitle={selectedProgramId ? "No grading scales" : "No grading scales"}
-          emptyDescription={
-            selectedProgramId
-              ? `No grading scales created for ${selectedProgram?.name} yet.`
-              : "Select a program or create your first grading scale."
-          }
-        />
+        </>
       )}
 
       {/* ================= CREATE DIALOG ================= */}
       <CreateGradingScaleDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        defaultProgramId={selectedProgramId || undefined}
       />
 
       {/* ================= DELETE CONFIRM ================= */}
@@ -277,6 +336,92 @@ export default function GradingScalesPage(): React.JSX.Element {
             if (!o) setDeleteTarget(null);
           }}
         />
+      )}
+
+      {/* ================= ASSIGN SCALE MODAL ================= */}
+      {availableScalesOpen && assignTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-lg bg-background p-6 space-y-4 border">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Assign Grading Scale</h2>
+            </div>
+
+            {/* Program Info */}
+            <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <p className="text-xs text-muted-foreground">Program</p>
+              <p className="font-medium text-sm">{assignTarget.name}</p>
+              <Badge variant="secondary" className="text-xs">
+                {assignTarget.type}
+              </Badge>
+            </div>
+
+            {/* Scale Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select Scale</label>
+              <Select value={selectedScaleId} onValueChange={setSelectedScaleId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a grading scale..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {applicableScales.map((scale) => (
+                    <SelectItem key={scale.id} value={scale.id}>
+                      {scale.name} ({scale.ranges.length} ranges)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Scale Details */}
+            {selectedScaleId && (
+              <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+                {applicableScales.find((s) => s.id === selectedScaleId) && (
+                  <>
+                    <p className="text-muted-foreground">Scale details:</p>
+                    <p>{applicableScales.find((s) => s.id === selectedScaleId)?.ranges.length} grade ranges</p>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Confirmation Message */}
+            <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
+              <p className="text-xs text-blue-900">
+                Are you sure you want to assign this grading scale to{" "}
+                <span className="font-medium">{assignTarget.name}</span>?
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAvailableScalesOpen(false);
+                  setAssignTarget(null);
+                  setSelectedScaleId("");
+                }}
+                disabled={assignMutation.isPending}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                onClick={() => {
+                  if (!assignTarget || !selectedScaleId) return;
+                  assignMutation.mutate({
+                    programId: assignTarget.id,
+                    scaleId: selectedScaleId,
+                  });
+                }}
+                disabled={assignMutation.isPending || !selectedScaleId}
+              >
+                {assignMutation.isPending ? "Assigning..." : "Yes, Assign"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
