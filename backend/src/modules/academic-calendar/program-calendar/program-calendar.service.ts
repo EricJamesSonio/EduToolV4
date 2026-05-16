@@ -21,7 +21,7 @@ import {
   getDefaultEnabledKeys,
   resolveHolidays,
   buildHolidayDates,
-} from './data/holidays.data';
+} from '../data/holidays.data';
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 

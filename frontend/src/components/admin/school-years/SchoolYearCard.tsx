@@ -12,9 +12,10 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 
-import type { SchoolYear } from "@/types/admin/school-years.types";
+import type { SchoolYear } from "@/types/admin/school-year.types";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/date.util";
+import { ui } from "@/styles/ui";
 
 interface Props {
   year: SchoolYear;
@@ -81,7 +82,7 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
         {/* HEADER */}
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
-            <h3 className="font-bold text-base uppercase tracking-wide">
+            <h3 className={ui.title}>
               {year.name}
             </h3>
 

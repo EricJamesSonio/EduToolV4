@@ -1,27 +1,38 @@
-// frontend\src\app\admin\school-years\[id]\page.tsx
 "use client";
 
 import { use, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery }      from "@tanstack/react-query";
-import Link              from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+
 import { schoolYearApi } from "@/api/admin/school-year.api";
+
 import { EnrollmentTab } from "@/components/admin/enrollment/EnrollmentTab";
-import { OverviewTab }   from "@/components/admin/school-years/OverviewTab";
-import { CalendarTab }   from "@/components/admin/school-years/CalendarTab";
-import { ProgramsTab }   from "@/components/admin/school-years/ProgramsTab";
-import { StatusBadge }   from "@/components/shared/StatusBadge";
-import { Skeleton }      from "@/components/ui/skeleton";
-import { AlertTriangle, BookOpen, ChevronLeft, Users } from "lucide-react";
-import { cn }            from "@/lib/utils";
-import type { Tab }      from "@/components/admin/school-years/constants";
+import { OverviewTab } from "@/components/admin/school-years/OverviewTab";
+import { CalendarTab } from "@/components/admin/school-years/CalendarTab";
+import { ProgramsTab } from "@/components/admin/school-years/ProgramsTab";
+
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { Skeleton } from "@/components/ui/skeleton";
+
+import {
+  AlertTriangle,
+  BookOpen,
+  ChevronLeft,
+  Users,
+} from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import type { Tab } from "@/components/admin/school-years/constants";
+
+import { ui } from "@/styles/ui";
 
 export default function SchoolYearDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
-}): React.JSX.Element {
-  const { id }       = use(params);
+}) {
+  const { id } = use(params);
   const searchParams = useSearchParams();
 
   const initialTab = (searchParams.get("tab") as Tab | null) ?? "overview";
@@ -29,7 +40,7 @@ export default function SchoolYearDetailPage({
 
   const { data: schoolYear, isLoading } = useQuery({
     queryKey: ["admin", "school-years", id],
-    queryFn:  () => schoolYearApi.getById(id),
+    queryFn: () => schoolYearApi.getById(id),
   });
 
   const handleTabChange = (tab: Tab) => {
@@ -50,7 +61,7 @@ export default function SchoolYearDetailPage({
 
   if (!schoolYear) {
     return (
-      <p className="text-sm text-muted-foreground py-12 text-center">
+      <p className={ui.helperText + " text-center py-12"}>
         School year not found.
       </p>
     );
@@ -59,18 +70,27 @@ export default function SchoolYearDetailPage({
   const isEnded = schoolYear.status === "ended";
 
   const TABS: { key: Tab; label: string; icon?: React.ReactNode }[] = [
-    { key: "overview",   label: "Overview" },
-    { key: "enrollment", label: "Enrollment", icon: <Users    className="inline mr-1.5 h-3.5 w-3.5" /> },
-    { key: "programs",   label: "Programs",   icon: <BookOpen className="inline mr-1.5 h-3.5 w-3.5" /> },
-    { key: "calendar",   label: "Calendar" },
+    { key: "overview", label: "Overview" },
+    {
+      key: "enrollment",
+      label: "Enrollment",
+      icon: <Users className="inline mr-1.5 h-3.5 w-3.5" />,
+    },
+    {
+      key: "programs",
+      label: "Programs",
+      icon: <BookOpen className="inline mr-1.5 h-3.5 w-3.5" />,
+    },
+    { key: "calendar", label: "Calendar" },
   ];
 
   return (
     <div className="space-y-6 max-w-4xl">
+
       {/* Breadcrumb */}
       <Link
         href="/admin/school-years"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className={ui.helperText + " inline-flex items-center gap-1.5 hover:text-black"}
       >
         <ChevronLeft className="h-4 w-4" />
         School Years
@@ -78,29 +98,31 @@ export default function SchoolYearDetailPage({
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-semibold">{schoolYear.name}</h1>
+        <h1 className={ui.title}>
+          {schoolYear.name}
+        </h1>
         <StatusBadge status={schoolYear.status} />
       </div>
 
-      {/* Ended banner */}
+      {/* Banner */}
       {isEnded && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
+        <div className={ui.card + " flex items-center gap-2 bg-neutral-100"}>
+          <AlertTriangle className="h-4 w-4" />
           This school year has ended and is read-only.
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="border-b flex gap-0">
+      {/* Tabs (NOW CONSISTENT PATTERN LIKE YOUR SELECTOR) */}
+      <div className="border-b-2 border-black flex gap-0">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => handleTabChange(tab.key)}
             className={cn(
-              "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px",
+              "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
               activeTab === tab.key
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                ? "border-black text-black"
+                : "border-transparent text-black/60 hover:text-black"
             )}
           >
             {tab.icon}
@@ -111,11 +133,20 @@ export default function SchoolYearDetailPage({
 
       {/* Content */}
       <div>
-        {activeTab === "overview"   && <OverviewTab schoolYear={schoolYear} />}
-        {activeTab === "enrollment" && <EnrollmentTab schoolYearId={id} isEnded={isEnded} />}
-        {activeTab === "programs"   && <ProgramsTab schoolYearId={id} isEnded={isEnded} />}
-        {activeTab === "calendar"   && <CalendarTab schoolYearId={id} />}
+        {activeTab === "overview" && (
+          <OverviewTab schoolYear={schoolYear} />
+        )}
+        {activeTab === "enrollment" && (
+          <EnrollmentTab schoolYearId={id} isEnded={isEnded} />
+        )}
+        {activeTab === "programs" && (
+          <ProgramsTab schoolYearId={id} isEnded={isEnded} />
+        )}
+        {activeTab === "calendar" && (
+          <CalendarTab schoolYearId={id} />
+        )}
       </div>
+
     </div>
   );
 }
