@@ -2,10 +2,10 @@ import client from "@/api/client";
 import type { GradingScale, GradeRange } from "@/types/admin/grading-scale.types";
 
 export interface CreateGradingScaleRequest {
-  programId: string; // CHANGED from levelId → programId
+  programId: string;
   schoolYearId: string;
   name: string;
-  ranges: GradeRange[]; // now correctly typed — fields match backend GradeRangeDto
+  ranges: GradeRange[];
 }
 
 export interface UpdateGradingScaleRequest {
@@ -14,7 +14,7 @@ export interface UpdateGradingScaleRequest {
 }
 
 export interface GetGradingScalesQuery {
-  programId?: string; // CHANGED from levelId → programId
+  programId?: string;
   schoolYearId?: string;
 }
 
@@ -24,7 +24,7 @@ export const gradingScaleApi = {
       "/grading-scales",
       { params: query }
     );
-    return res.data.data; // ← unwrap the actual array
+    return res.data.data;
   },
 
   create: async (data: CreateGradingScaleRequest): Promise<GradingScale> => {
@@ -49,4 +49,16 @@ export const gradingScaleApi = {
   delete: async (id: string): Promise<void> => {
     await client.delete(`/grading-scales/${id}`);
   },
+
+assignToProgram: async (
+  programId: string,
+  scaleId: string
+): Promise<GradingScale> => {
+  const res = await client.post<{ success: boolean; data: GradingScale }>(
+    `/grading-scales/programs/${programId}/grading-scale`,
+    { scaleId }
+  );
+
+  return res.data.data;
+},
 };

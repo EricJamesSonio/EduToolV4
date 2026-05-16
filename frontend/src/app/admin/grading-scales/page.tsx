@@ -49,7 +49,6 @@ export default function GradingScalesPage(): React.JSX.Element {
   const [deleteTarget, setDeleteTarget] = useState<GradingScale | null>(null);
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
   const [assignTarget, setAssignTarget] = useState<ProgramWithScale | null>(null);
-  const [availableScalesOpen, setAvailableScalesOpen] = useState(false);
   const [selectedScaleId, setSelectedScaleId] = useState<string>("");
 
   // Queries
@@ -74,51 +73,49 @@ export default function GradingScalesPage(): React.JSX.Element {
   });
 
   const assignMutation = useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       programId,
       scaleId,
     }: {
       programId: string;
       scaleId: string;
-    }) => {
-      // Call API to assign scale to program
-      // You'll need to add this endpoint to gradingScaleApi
-      const res = await fetch(`/api/admin/programs/${programId}/grading-scale`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scaleId }),
-      });
-      if (!res.ok) throw new Error("Failed to assign scale");
-      return res.json();
-    },
+    }) => gradingScaleApi.assignToProgram(programId, scaleId),
     onSuccess: () => {
-      toast.success("Grading scale assigned to program.");
-      queryClient.invalidateQueries({ queryKey: ["programs"] });
+      toast.success("Grading scale assigned to program successfully.");
+      queryClient.invalidateQueries({ queryKey: ["gradingScales"] });
       setAssignTarget(null);
       setSelectedScaleId("");
-      setAvailableScalesOpen(false);
     },
-    onError: (err: any) => {
-      toast.error(err?.message ?? "Failed to assign grading scale.");
+    onError: (err: AxiosError<{ message: string }>) => {
+      toast.error(err?.response?.data?.message ?? "Failed to assign grading scale.");
     },
   });
 
   // Map programs with their assigned scales
   const programsWithScales = useMemo(() => {
-    return programs.map((program) => ({
-      ...program,
-      assignedScaleId: program.id, // TODO: get from API response
-      assignedScaleName: scales.find((s) => s.id === program.id)?.name,
-    }));
+    return programs.map((program) => {
+      const assignedScale = scales.find((s) => s.programId === program.id);
+      return {
+        ...program,
+        assignedScaleId: assignedScale?.id,
+        assignedScaleName: assignedScale?.name,
+      };
+    });
   }, [programs, scales]);
 
-  // Get applicable scales for selected program type
-  const applicableScales = useMemo(() => {
-    if (!assignTarget) return scales;
-    // Filter scales by program type if needed
-    // For now, show all global scales
-    return scales;
-  }, [scales, assignTarget]);
+  // Get selected scale from state
+  const selectedScale = useMemo(
+    () => scales.find((s) => s.id === selectedScaleId),
+    [scales, selectedScaleId]
+  );
+
+  // Helper to compute passing threshold
+  const passingThreshold = (scale: GradingScale): string => {
+    const passingRanges = scale.ranges.filter((r) => r.isPassing);
+    if (passingRanges.length === 0) return "—";
+    const min = Math.min(...passingRanges.map((r) => r.minPercent));
+    return `${min}%`;
+  };
 
   // Table columns for global scales
   const scaleColumns = useMemo<ColumnDef<GradingScale>[]>(
@@ -142,17 +139,11 @@ export default function GradingScalesPage(): React.JSX.Element {
       {
         id: "passingThreshold",
         header: "Passing Threshold",
-        cell: ({ row }) => {
-          const passingRanges = row.original.ranges.filter((r) => r.isPassing);
-          const threshold = passingRanges.length > 0
-            ? Math.min(...passingRanges.map((r) => r.minPercent))
-            : "—";
-          return (
-            <Badge variant="outline" className="font-mono text-xs">
-              {threshold === "—" ? threshold : `${threshold}%`}
-            </Badge>
-          );
-        },
+        cell: ({ row }) => (
+          <Badge variant="outline" className="font-mono text-xs">
+            {passingThreshold(row.original)}
+          </Badge>
+        ),
       },
       {
         id: "actions",
@@ -225,7 +216,6 @@ export default function GradingScalesPage(): React.JSX.Element {
             className="h-7 px-2 text-xs gap-1 text-primary hover:bg-primary/10"
             onClick={() => {
               setAssignTarget(row.original);
-              setAvailableScalesOpen(true);
               setSelectedScaleId(row.original.assignedScaleId || "");
             }}
             title="Assign or change grading scale"
@@ -276,7 +266,7 @@ export default function GradingScalesPage(): React.JSX.Element {
         )}
       </div>
 
-      {/* ================= SCHOOL YEAR SELECTOR ================= */}
+      {/* ================= ASSIGNMENT SECTION ================= */}
       {scales.length > 0 && (
         <>
           <div className="border-t pt-8" />
@@ -339,7 +329,7 @@ export default function GradingScalesPage(): React.JSX.Element {
       )}
 
       {/* ================= ASSIGN SCALE MODAL ================= */}
-      {availableScalesOpen && assignTarget && (
+      {assignTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md rounded-lg bg-background p-6 space-y-4 border">
             <div className="flex items-center gap-2">
@@ -364,7 +354,7 @@ export default function GradingScalesPage(): React.JSX.Element {
                   <SelectValue placeholder="Choose a grading scale..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {applicableScales.map((scale) => (
+                  {scales.map((scale) => (
                     <SelectItem key={scale.id} value={scale.id}>
                       {scale.name} ({scale.ranges.length} ranges)
                     </SelectItem>
@@ -373,15 +363,15 @@ export default function GradingScalesPage(): React.JSX.Element {
               </Select>
             </div>
 
-            {/* Scale Details */}
-            {selectedScaleId && (
-              <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
-                {applicableScales.find((s) => s.id === selectedScaleId) && (
-                  <>
-                    <p className="text-muted-foreground">Scale details:</p>
-                    <p>{applicableScales.find((s) => s.id === selectedScaleId)?.ranges.length} grade ranges</p>
-                  </>
-                )}
+            {/* Selected Scale Details */}
+            {selectedScale && (
+              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                <p className="text-xs text-muted-foreground">Scale Details</p>
+                <p className="font-medium text-sm">{selectedScale.name}</p>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span>{selectedScale.ranges.length} grade ranges</span>
+                  <span>Passing: {passingThreshold(selectedScale)}</span>
+                </div>
               </div>
             )}
 
@@ -398,7 +388,6 @@ export default function GradingScalesPage(): React.JSX.Element {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setAvailableScalesOpen(false);
                   setAssignTarget(null);
                   setSelectedScaleId("");
                 }}
