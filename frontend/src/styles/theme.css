@@ -4,10 +4,9 @@
 ───────────────────────────────────────── */
 
 @theme inline {
-  /* Typography */
-  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-  --font-heading: 'Fraunces', Georgia, serif;
+--font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+--font-mono: 'JetBrains Mono', ui-monospace, monospace;
+--font-heading: 'Manrope', ui-sans-serif, system-ui, sans-serif;
 
   /* Colors (mapped from CSS vars) */
   --color-background: var(--background);
