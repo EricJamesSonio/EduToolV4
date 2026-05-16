@@ -68,7 +68,7 @@ model Organization {
   name             String
   description      String?
 
-  email_extension  String  @unique
+  email_extension  String?  @unique
 
   admin_account_id String? @unique
 

@@ -32,7 +32,6 @@ export class OrganizationService {
       const org = await this.orgRepository.create({
         name: dto.name,
         description: dto.description,
-        email_extension: dto.emailExtension,
       })
       await this.orgRepository.linkToAdmin(adminId, org.id)
       return org
