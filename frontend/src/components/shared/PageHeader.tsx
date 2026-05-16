@@ -10,9 +10,7 @@ interface BreadcrumbItem {
 interface PageHeaderProps {
   title: string;
   breadcrumbs?: BreadcrumbItem[];
-  /** Right-side action buttons or elements */
   actions?: React.ReactNode;
-  /** Optional subtitle / description below the title */
   description?: string;
   className?: string;
 }
@@ -25,27 +23,18 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-2",
-        className
-      )}
-    >
-      {/* SHEIN-Style Title Header */}
-      <div className="w-full border-[3px] border-black bg-black px-6 py-4 shadow-sm">
-        <h1
-          className="text-center text-3xl font-black uppercase text-white"
-          style={{
-            letterSpacing: "0.35em",
-            fontFamily: "Arial Black, Helvetica, sans-serif",
-          }}
-        >
+    <div className={cn("flex flex-col gap-3", className)}>
+
+      {/* HEADER (THEME-BASED, NOT HARD-CODED) */}
+      <div className="w-full rounded-lg border border-border bg-card px-6 py-4">
+        <h1 className="text-center text-2xl font-bold tracking-wide text-foreground">
           {title}
         </h1>
       </div>
 
-      {/* Breadcrumb and Actions Row */}
+      {/* Breadcrumb + Actions */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+
         <div className="space-y-1">
           {/* Breadcrumb */}
           {breadcrumbs && breadcrumbs.length > 0 && (
@@ -53,12 +42,14 @@ export function PageHeader({
               <ol className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
                 {breadcrumbs.map((crumb, i) => (
                   <li key={i} className="flex items-center gap-1">
-                    {i > 0 && <ChevronRight className="h-3.5 w-3.5" />}
+                    {i > 0 && (
+                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
 
                     {crumb.href ? (
                       <Link
                         href={crumb.href}
-                        className="transition-colors hover:text-foreground"
+                        className="hover:text-foreground transition-colors"
                       >
                         {crumb.label}
                       </Link>
@@ -89,7 +80,7 @@ export function PageHeader({
 
         {/* Actions */}
         {actions && (
-          <div className="mt-1 flex shrink-0 items-center gap-2 sm:mt-0">
+          <div className="flex shrink-0 items-center gap-2 sm:mt-0">
             {actions}
           </div>
         )}

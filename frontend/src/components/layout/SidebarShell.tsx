@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -49,22 +50,23 @@ function NavLink({
   const Icon = item.icon;
 
   const base =
-    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors border border-transparent";
+    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors";
 
-  // 🔥 UNIFIED STYLE: ALWAYS BLACK THEME (NO ACTIVE INVERSION)
-  const stateStyles =
-    "bg-black text-white hover:bg-neutral-900 hover:text-white";
+  const stateStyles = isActive
+    ? "bg-muted text-foreground"
+    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground";
 
   const link = (
     <Link
       href={item.href}
-      className={cn(
-        base,
-        stateStyles,
-        collapsed && "justify-center px-2"
-      )}
+      className={cn(base, stateStyles, collapsed && "justify-center px-2")}
     >
-      <Icon className="h-4 w-4 shrink-0 text-white" />
+      <Icon
+        className={cn(
+          "h-4 w-4 shrink-0",
+          isActive ? "text-foreground" : "text-muted-foreground"
+        )}
+      />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
   );
@@ -94,7 +96,7 @@ export function SidebarShell({
       <aside
         className={cn(
           "fixed left-0 top-14 bottom-0 z-40 flex flex-col border-r",
-          "bg-black text-white border-black",
+          "bg-card text-foreground border-border",
           "transition-all duration-200",
           collapsed ? "w-14" : "w-56",
           className
@@ -102,7 +104,7 @@ export function SidebarShell({
       >
         {/* Header */}
         {!collapsed && (
-          <div className="border-b border-neutral-800 px-4 py-3 text-sm text-white">
+          <div className="border-b border-border px-4 py-3 text-sm text-foreground">
             {header}
           </div>
         )}
@@ -112,18 +114,20 @@ export function SidebarShell({
           {groups.map((group, gi) => (
             <div key={gi} className="space-y-1">
               {group.label && !collapsed && (
-                <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+                <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {group.label}
                 </p>
               )}
 
-              {group.items.map((item) => (
-                <NavLink
-                  key={item.href}
-                  item={item}
-                  collapsed={collapsed}
-                />
-              ))}
+              {group.items.map((item) => {
+                return (
+                  <NavLink
+                    key={item.href}
+                    item={item}
+                    collapsed={collapsed}
+                  />
+                );
+              })}
             </div>
           ))}
         </nav>
@@ -132,7 +136,7 @@ export function SidebarShell({
         {footer && (
           <div
             className={cn(
-              "border-t border-neutral-800 p-2",
+              "border-t border-border p-2",
               collapsed && "flex justify-center"
             )}
           >
@@ -141,20 +145,20 @@ export function SidebarShell({
         )}
 
         {/* Toggle */}
-        <div className="border-t border-neutral-800 p-2">
+        <div className="border-t border-border p-2">
           <button
             onClick={() => setCollapsed((c) => !c)}
             className={cn(
               "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm",
-              "bg-black text-white hover:bg-neutral-900 transition-colors",
+              "bg-muted text-foreground hover:bg-muted/80 transition-colors",
               collapsed && "justify-center px-2"
             )}
           >
             {collapsed ? (
-              <ChevronRight className="h-4 w-4 text-white" />
+              <ChevronRight className="h-4 w-4" />
             ) : (
               <>
-                <ChevronLeft className="h-4 w-4 text-white" />
+                <ChevronLeft className="h-4 w-4" />
                 <span>Collapse</span>
               </>
             )}

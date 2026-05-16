@@ -1,76 +1,79 @@
 export const ui = {
   /* ─────────────────────────────
-     TYPOGRAPHY SYSTEM (NEW)
+     TYPOGRAPHY SYSTEM
   ───────────────────────────── */
 
   text: {
-    base: "text-base text-black",
-    sm: "text-sm text-black",
-    xs: "text-xs text-black",
-    muted: "text-xs text-black/70",
+    base: "text-foreground",
+    sm: "text-sm text-foreground",
+    xs: "text-xs text-foreground",
+    muted: "text-xs text-muted-foreground",
   },
 
   heading: {
-    h1: "text-2xl font-bold text-black",
-    h2: "text-xl font-bold text-black",
-    h3: "text-lg font-bold text-black",
+    h1: "text-foreground",
+    h2: "text-foreground",
+    h3: "text-foreground",
   },
 
-  label: "text-sm font-medium text-black",
+  label: "text-sm font-medium text-foreground",
 
-  title: "font-bold text-base uppercase tracking-wide text-black",
+  title: "font-bold text-base uppercase tracking-wide text-foreground",
 
   sectionTitle:
-    "text-xs font-bold uppercase tracking-wide text-black",
+    "text-xs font-bold uppercase tracking-wide text-foreground",
 
-  helperText: "text-xs text-black/70",
+  helperText: "text-xs text-muted-foreground",
 
-  errorText: "text-xs text-black",
+  errorText: "text-xs text-destructive",
 
   /* ─────────────────────────────
      FORM ELEMENTS
   ───────────────────────────── */
 
   input:
-    "h-10 w-full rounded-md border-2 border-black bg-white px-3 text-sm text-black placeholder:text-neutral-400 focus:outline-none",
+    "h-10 w-full rounded-md border-2 border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring",
 
   textarea:
-    "w-full rounded-md border-2 border-black bg-white px-3 py-2 text-sm text-black placeholder:text-neutral-400 focus:outline-none",
+    "w-full rounded-md border-2 border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring",
 
   selectTrigger:
-    "w-64 h-11 border-2 border-black bg-white text-black text-base font-medium",
+    "w-64 h-11 border-2 border-border bg-card text-foreground text-sm font-medium",
 
   /* ─────────────────────────────
      LAYOUT / SURFACES
   ───────────────────────────── */
 
-  card: "rounded-lg border-2 border-black bg-white p-6",
+  card: "rounded-lg border border-border bg-card p-6",
 
   section:
-    "rounded-lg border-2 border-black bg-white p-6 space-y-4",
+    "rounded-lg border border-border bg-card p-6 space-y-4",
 
-  divider: "border-t-2 border-black",
+  divider: "border-t border-border",
 
   /* ─────────────────────────────
      BUTTONS
   ───────────────────────────── */
 
   buttonPrimary:
-    "bg-black text-white hover:bg-black/90 font-medium",
+    "bg-primary text-primary-foreground hover:opacity-90 font-medium",
 
   buttonOutline:
-    "border-2 border-black bg-white text-black hover:bg-black hover:text-white",
+    "border border-border bg-card text-foreground hover:bg-muted",
 
   buttonDanger:
-    "border-2 border-black text-black hover:bg-black hover:text-white",
+    "border border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground",
 
   /* ─────────────────────────────
      BADGES / TAGS
   ───────────────────────────── */
 
   badge: {
-    default: "border-2 border-black bg-white text-black text-xs font-medium",
-    active: "bg-black text-white text-xs font-medium",
-    muted: "bg-white text-black/70 border border-black/30 text-xs",
+    default:
+      "border border-border bg-card text-foreground text-xs font-medium",
+    active:
+      "bg-primary text-primary-foreground text-xs font-medium",
+    muted:
+      "bg-muted text-muted-foreground border border-border text-xs",
   },
-}
+};
