@@ -5,7 +5,7 @@ import {
   Body, Param, Query,
   UseGuards, HttpCode, HttpStatus,
 } from '@nestjs/common';
-import { ProgramCalendarService }    from './program-calendar.service';
+import { ProgramCalendarService } from './program-calendar.service';
 import {
   CreateProgramCalendarDto,
   UpdateProgramCalendarDto,
@@ -23,90 +23,15 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 export class ProgramCalendarController {
   constructor(private readonly service: ProgramCalendarService) {}
 
-  // ── Program Calendars ────────────────────────────────────────────────────
-
-  /**
-   * POST /program-calendars
-   * Create a program-scoped academic calendar.
-   * Breaks are validated, sorted, and terms are auto-computed + stored.
-   */
-  @Post()
-  @Roles('admin')
-  async create(
-    @CurrentUser('org_id') orgId: string,
-    @Body() dto: CreateProgramCalendarDto,
-  ) {
-    return this.service.create(orgId, dto);
-  }
-
-  /**
-   * GET /program-calendars?schoolYearId=&programId=
-   */
-  @Get()
-  async findAll(
-    @CurrentUser('org_id') orgId: string,
-    @Query() query: QueryProgramCalendarDto,
-  ) {
-    return this.service.findAll(orgId, query);
-  }
-
-  /**
-   * GET /program-calendars/:id
-   */
-  @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
-    return this.service.findById(id, orgId);
-  }
-
-  /**
-   * GET /program-calendars/by-program?programId=&schoolYearId=
-   * Convenience endpoint — finds the calendar for a specific program+year.
-   */
-  @Get('by-program')
-  async findByProgram(
-    @CurrentUser('org_id') orgId: string,
-    @Query('programId')    programId: string,
-    @Query('schoolYearId') schoolYearId: string,
-  ) {
-    return this.service.findByProgram(programId, schoolYearId, orgId);
-  }
-
-  /**
-   * PATCH /program-calendars/:id
-   * Update dates or breaks (full replacement of breaks triggers term recompute).
-   */
-  @Patch(':id')
-  @Roles('admin')
-  async update(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-    @Body() dto: UpdateProgramCalendarDto,
-  ) {
-    return this.service.update(id, orgId, dto);
-  }
-
-  /**
-   * DELETE /program-calendars/:id
-   */
-  @Delete(':id')
-  @Roles('admin')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
-    await this.service.delete(id, orgId);
-  }
+  // ── IMPORTANT: all static string routes MUST come before /:id ────────────
+  // NestJS matches routes top-to-bottom. If /:id comes first, "holidays",
+  // "by-program", and "terms" will all be swallowed by it as the id param.
 
   // ── Holiday Config ────────────────────────────────────────────────────────
 
   /**
    * GET /program-calendars/holidays?schoolYearId=
    * Returns the full holiday list with enabled/disabled status.
-   * If no config saved yet, defaults (isDefault=true) are returned.
    */
   @Get('holidays')
   async getHolidayConfig(
@@ -131,9 +56,7 @@ export class ProgramCalendarController {
 
   /**
    * POST /program-calendars/holidays/seed
-   * Seeds all enabled holidays into AcademicCalendar events table
-   * for the given school year and year number.
-   * Idempotent — skips already-seeded holidays.
+   * Seeds enabled holidays into AcademicCalendar events. Idempotent.
    */
   @Post('holidays/seed')
   @Roles('admin')
@@ -145,9 +68,23 @@ export class ProgramCalendarController {
     return this.service.seedHolidaysToCalendar(orgId, dto);
   }
 
+  // ── Static query routes ───────────────────────────────────────────────────
+
+  /**
+   * GET /program-calendars/by-program?programId=&schoolYearId=
+   */
+  @Get('by-program')
+  async findByProgram(
+    @CurrentUser('org_id') orgId: string,
+    @Query('programId')    programId: string,
+    @Query('schoolYearId') schoolYearId: string,
+  ) {
+    return this.service.findByProgram(programId, schoolYearId, orgId);
+  }
+
   /**
    * GET /program-calendars/terms?programId=&schoolYearId=
-   * Returns computed terms for a program — used by Semester Template module.
+   * Returns computed terms — consumed by Semester Template module.
    */
   @Get('terms')
   async getTerms(
@@ -156,5 +93,69 @@ export class ProgramCalendarController {
     @Query('schoolYearId') schoolYearId: string,
   ) {
     return this.service.getTermsForProgram(programId, schoolYearId, orgId);
+  }
+
+  // ── Collection ────────────────────────────────────────────────────────────
+
+  /**
+   * POST /program-calendars
+   */
+  @Post()
+  @Roles('admin')
+  async create(
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: CreateProgramCalendarDto,
+  ) {
+    return this.service.create(orgId, dto);
+  }
+
+  /**
+   * GET /program-calendars?schoolYearId=&programId=
+   */
+  @Get()
+  async findAll(
+    @CurrentUser('org_id') orgId: string,
+    @Query() query: QueryProgramCalendarDto,
+  ) {
+    return this.service.findAll(orgId, query);
+  }
+
+  // ── /:id routes LAST — after all static string routes ────────────────────
+
+  /**
+   * GET /program-calendars/:id
+   */
+  @Get(':id')
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.service.findById(id, orgId);
+  }
+
+  /**
+   * PATCH /program-calendars/:id
+   */
+  @Patch(':id')
+  @Roles('admin')
+  async update(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: UpdateProgramCalendarDto,
+  ) {
+    return this.service.update(id, orgId, dto);
+  }
+
+  /**
+   * DELETE /program-calendars/:id
+   */
+  @Delete(':id')
+  @Roles('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    await this.service.delete(id, orgId);
   }
 }

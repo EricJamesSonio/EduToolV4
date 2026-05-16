@@ -12,6 +12,7 @@ export interface HolidaySeed {
   description?: string;
   isDefault:    boolean;
   enabled:      boolean;
+  isMovable?:   boolean;
 }
 
 export interface CustomHoliday {
@@ -56,8 +57,6 @@ export interface ProgramCalendar {
   terms:        CalendarTerm[];
 }
 
-// ── Requests ──────────────────────────────────────────────────────────────────
-
 export interface SaveHolidayConfigRequest {
   schoolYearId:    string;
   enabledKeys:     string[];
@@ -85,16 +84,15 @@ export interface UpdateProgramCalendarRequest {
   breaks?:    Omit<CalendarBreak, "id" | "orderIndex">[];
 }
 
+// ── Unwrap helper — every response is { success: true, data: T } ──────────────
+
 interface ApiResponse<T> {
   success: boolean;
   data:    T;
 }
 
-// ── Unwrap helper ─────────────────────────────────────────────────────────────
-
-function unwrap<T>(res: { data: ApiResponse<T> | T }): T {
-  const d = res.data as ApiResponse<T>;
-  return d?.data !== undefined ? d.data : (res.data as T);
+function unwrap<T>(res: { data: ApiResponse<T> }): T {
+  return res.data.data;
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────
@@ -103,22 +101,27 @@ export const programCalendarApi = {
   // ── Holiday config ─────────────────────────────────────────────────────────
 
   getHolidayConfig: async (schoolYearId: string): Promise<HolidayConfig> => {
-    const res = await client.get("/program-calendars/holidays", {
-      params: { schoolYearId },
-    });
-    // Backend returns { schoolYearId, holidays: [...], customHolidays: [...] }
-    // directly (not wrapped in ApiResponse)
-    return res.data as HolidayConfig;
+    const res = await client.get<ApiResponse<HolidayConfig>>(
+      "/program-calendars/holidays",
+      { params: { schoolYearId } },
+    );
+    return unwrap(res);  // { success, data: { schoolYearId, holidays, customHolidays } }
   },
 
   saveHolidayConfig: async (data: SaveHolidayConfigRequest): Promise<HolidayConfig> => {
-    const res = await client.post("/program-calendars/holidays", data);
-    return res.data as HolidayConfig;
+    const res = await client.post<ApiResponse<HolidayConfig>>(
+      "/program-calendars/holidays",
+      data,
+    );
+    return unwrap(res);
   },
 
   seedHolidays: async (data: SeedHolidaysRequest): Promise<{ seeded: number }> => {
-    const res = await client.post("/program-calendars/holidays/seed", data);
-    return res.data as { seeded: number };
+    const res = await client.post<ApiResponse<{ seeded: number }>>(
+      "/program-calendars/holidays/seed",
+      data,
+    );
+    return unwrap(res);
   },
 
   // ── Program calendars ──────────────────────────────────────────────────────
@@ -127,23 +130,23 @@ export const programCalendarApi = {
     schoolYearId?: string;
     programId?:    string;
   }): Promise<ProgramCalendar[]> => {
-    const res = await client.get("/program-calendars", { params });
-    return unwrap<ProgramCalendar[]>(res);
+    const res = await client.get<ApiResponse<ProgramCalendar[]>>(
+      "/program-calendars",
+      { params },
+    );
+    return unwrap(res);
   },
 
-  /**
-   * Returns null if no calendar exists yet for this program (404).
-   * Components should treat null as "not set up yet".
-   */
   getByProgram: async (
     programId:    string,
     schoolYearId: string,
   ): Promise<ProgramCalendar | null> => {
     try {
-      const res = await client.get("/program-calendars/by-program", {
-        params: { programId, schoolYearId },
-      });
-      return unwrap<ProgramCalendar>(res);
+      const res = await client.get<ApiResponse<ProgramCalendar>>(
+        "/program-calendars/by-program",
+        { params: { programId, schoolYearId } },
+      );
+      return unwrap(res);
     } catch (err: any) {
       if (err?.response?.status === 404) return null;
       throw err;
@@ -151,16 +154,22 @@ export const programCalendarApi = {
   },
 
   create: async (data: CreateProgramCalendarRequest): Promise<ProgramCalendar> => {
-    const res = await client.post("/program-calendars", data);
-    return unwrap<ProgramCalendar>(res);
+    const res = await client.post<ApiResponse<ProgramCalendar>>(
+      "/program-calendars",
+      data,
+    );
+    return unwrap(res);
   },
 
   update: async (
     id:   string,
     data: UpdateProgramCalendarRequest,
   ): Promise<ProgramCalendar> => {
-    const res = await client.patch(`/program-calendars/${id}`, data);
-    return unwrap<ProgramCalendar>(res);
+    const res = await client.patch<ApiResponse<ProgramCalendar>>(
+      `/program-calendars/${id}`,
+      data,
+    );
+    return unwrap(res);
   },
 
   delete: async (id: string): Promise<void> => {
@@ -171,9 +180,10 @@ export const programCalendarApi = {
     programId:    string,
     schoolYearId: string,
   ): Promise<CalendarTerm[]> => {
-    const res = await client.get("/program-calendars/terms", {
-      params: { programId, schoolYearId },
-    });
-    return unwrap<CalendarTerm[]>(res);
+    const res = await client.get<ApiResponse<CalendarTerm[]>>(
+      "/program-calendars/terms",
+      { params: { programId, schoolYearId } },
+    );
+    return unwrap(res);
   },
 };
