@@ -96,7 +96,10 @@ export function useSeedState() {
 
     selectedPrograms.forEach((prog) => {
       if (LEVEL_DEFS[prog]) {
-        levelConfigs[prog]?.names.forEach((lvl) => {
+        // Fall back to LEVEL_DEFS[prog] when the user hasn't adjusted
+        // level count yet — same fallback used in SeederCard and derivedSelectedLevels
+        const levelNames = levelConfigs[prog]?.names ?? LEVEL_DEFS[prog]
+        levelNames.forEach((lvl) => {
           LEVEL_SUBJECTS[lvl]?.forEach((s) => {
             out.add(subjectKey(lvl, s))
           })
