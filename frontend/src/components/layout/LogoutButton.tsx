@@ -3,16 +3,15 @@
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useSidebar } from "@/context/SidebarContext";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-interface LogoutButtonProps {
-  collapsed?: boolean;
-}
-
-export function LogoutButton({ collapsed = false }: LogoutButtonProps): React.JSX.Element {
+export function LogoutButton(): React.JSX.Element {
   const router = useRouter();
+  const { collapsed } = useSidebar();
 
   function handleLogout(): void {
-    localStorage.clear(); // clears all localStorage entries
+    localStorage.clear();
     router.push("/login");
   }
 
@@ -29,6 +28,15 @@ export function LogoutButton({ collapsed = false }: LogoutButtonProps): React.JS
       {!collapsed && <span>Log out</span>}
     </button>
   );
+
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger render={button} />
+        <TooltipContent side="right">Log out</TooltipContent>
+      </Tooltip>
+    );
+  }
 
   return button;
 }
