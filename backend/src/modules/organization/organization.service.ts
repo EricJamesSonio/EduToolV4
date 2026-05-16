@@ -22,8 +22,9 @@ export class OrganizationService {
     private readonly db: DatabaseService,
   ) {}
 
-  async create(adminId: string, dto: CreateOrganizationDto) {
-    const alreadyExists = await this.orgRepository.existsForAdmin(adminId)
+async create(adminId: string, dto: CreateOrganizationDto) {
+  console.log('create org dto:', dto) // ← add this
+  const alreadyExists = await this.orgRepository.existsForAdmin(adminId)
     if (alreadyExists) {
       throw new ConflictException('An organization already exists for this account.')
     }
