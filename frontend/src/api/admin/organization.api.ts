@@ -37,6 +37,8 @@ export interface SeedOrganizationRequest {
   levelConfigs?:         Record<string, string[]>
   gradingScales?:        Record<string, GradingScalePayload>
   sectionConfigs?:       Record<string, { name: string; capacity: number }[]>
+  seedGradingSchemes?:    boolean
+  seedSemesterTemplates?: boolean
 }
 
 export const organizationApi = {

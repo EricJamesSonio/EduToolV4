@@ -9,6 +9,7 @@ import {
   IsObject,
   IsNumber,
   ValidateNested,
+  IsBoolean, // FIXED
 } from 'class-validator'
 import { Type } from 'class-transformer'
 
@@ -112,11 +113,11 @@ export class SeedOrganizationDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  excludedSubjects?: string[]   // plain names — minors/GE only
+  excludedSubjects?: string[] // plain names — minors/GE only
 
   @IsOptional()
   @IsObject()
-  excludedLevelSubjects?: Record<string, string[]>   // levelName → plain subject names
+  excludedLevelSubjects?: Record<string, string[]> // levelName → plain subject names
 
   @IsOptional()
   @IsObject()
@@ -129,4 +130,13 @@ export class SeedOrganizationDto {
   @IsOptional()
   @IsObject()
   sectionConfigs?: Record<string, SectionItemDto[]>
+
+  // NEW FLAGS
+  @IsOptional()
+  @IsBoolean()
+  seedGradingSchemes?: boolean
+
+  @IsOptional()
+  @IsBoolean()
+  seedSemesterTemplates?: boolean
 }

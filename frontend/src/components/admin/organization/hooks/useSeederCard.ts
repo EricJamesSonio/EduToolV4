@@ -147,6 +147,8 @@ export function useSeederCard() {
     gradingSchemesByProgram,
     semesterTemplatesByProgram,
     sectionConfigs,
+    seedGradingSchemes,        // ← add this
+    seedSemesterTemplates,     // ← add this
   } = seedState;
 
   function buildSectionConfigsPayload(): Record<string, { name: string; capacity: number }[]> {
@@ -239,6 +241,12 @@ export function useSeederCard() {
       excludedLevelSubjects:
         Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
       gradingScales,
+      seedGradingSchemes: seedGradingSchemes
+        ? Object.values(gradingSchemesByProgram).some(Boolean)  // at least one enabled
+        : false,
+      seedSemesterTemplates: seedSemesterTemplates
+        ? Object.values(semesterTemplatesByProgram).some(Boolean)
+        : false,
     });
   }
 
