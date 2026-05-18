@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { TermDatesPanel } from "./assign-row/term-dates-panel";
+import { TermDatesPanelModal } from "./assign-row/term-dates-panel";
 import { ConfirmDialog } from "./assign-row/confirm-dialog";
 import { toDateInput } from "./assign-row/helpers";
 import { useAssignRow } from "./assign-row/use-assign-row";
@@ -71,12 +71,12 @@ export function TermDatesModal({
   return (
     <>
       <Dialog open={open && hasTemplate} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="text-xl font-bold">
+        <DialogContent className="!w-[95vw] !h-[95vh] !max-w-none !max-h-none !p-0 !gap-0 !flex !flex-col">
+          <DialogHeader className="px-8 py-6 pb-3 border-b shrink-0">
+            <DialogTitle className="text-2xl font-bold">
               Configure Term Dates
             </DialogTitle>
-            <DialogDescription className="text-sm">
+            <DialogDescription className="text-sm mt-1">
               Set term dates for <strong>{program.name}</strong> using the{" "}
               <strong>{assignedTemplate?.name ?? current.template.name}</strong>{" "}
               template.
@@ -95,9 +95,9 @@ export function TermDatesModal({
             )}
           </DialogHeader>
 
-          {/* Term Dates Panel */}
-          <div className="py-6 px-2 border-t">
-            <TermDatesPanel
+          {/* Term Dates Panel - SPREADS FULL WIDTH */}
+          <div className="flex-1 overflow-y-auto px-8 py-6">
+            <TermDatesPanelModal
               templateName={assignedTemplate?.name ?? current.template.name}
               allTerms={allTerms}
               termDates={termDates}

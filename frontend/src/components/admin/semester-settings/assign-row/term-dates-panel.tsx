@@ -1,15 +1,15 @@
-// frontend/src/components/admin/semester-settings/assign-row/term-dates-panel.tsx
+// ===== File: frontend/src/components/admin/semester-settings/TermDatesPanelModal.tsx =====
 "use client"
 
 import { AlertCircle, Pencil, CalendarRange } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { TermDateRow } from "./term-date-row"
-import type { TermDatesMap, TermWithSemester } from "./types"
-import type { PanelMode } from "./use-assign-row"
+import { TermDateRow } from "../assign-row/term-date-row"
+import type { TermDatesMap, TermWithSemester } from "../assign-row/types"
+import type { PanelMode } from "../assign-row/use-assign-row"
 
-interface TermDatesPanelProps {
+interface TermDatesPanelModalProps {
   templateName: string
   allTerms: TermWithSemester[]
   termDates: TermDatesMap
@@ -34,7 +34,7 @@ function formatDate(iso: string): string {
   })
 }
 
-export function TermDatesPanel({
+export function TermDatesPanelModal({
   templateName,
   allTerms,
   termDates,
@@ -48,7 +48,7 @@ export function TermDatesPanel({
   onCancelEdit,
   onEnterEdit,
   onClose,
-}: TermDatesPanelProps) {
+}: TermDatesPanelModalProps) {
   // Group terms by semesterName for cleaner view
   const grouped = allTerms.reduce<Record<string, TermWithSemester[]>>((acc, term) => {
     if (!acc[term.semesterName]) acc[term.semesterName] = []
@@ -57,12 +57,12 @@ export function TermDatesPanel({
   }, {})
 
   return (
-    <div className="ml-7 border bg-muted/30 p-3 space-y-3 rounded-md">
+    <div className="border bg-muted/30 p-4 space-y-4 rounded-md w-full">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium">{templateName}</span>
+          <CalendarRange className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-semibold">{templateName}</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -82,10 +82,10 @@ export function TermDatesPanel({
             <Button
               size="sm"
               variant="outline"
-              className="h-6 px-2 text-xs gap-1"
+              className="h-8 px-3 text-xs gap-1"
               onClick={onEnterEdit}
             >
-              <Pencil className="h-3 w-3" />
+              <Pencil className="h-3.5 w-3.5" />
               Edit
             </Button>
           )}
@@ -96,13 +96,13 @@ export function TermDatesPanel({
 
       {/* Content */}
       {panelMode === "view" ? (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {Object.entries(grouped).map(([semName, terms]) => (
-            <div key={semName} className="space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div key={semName} className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {semName}
               </p>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {terms.map((term) => {
                   const d = termDates[term.id]
                   const hasDate = d?.startDate && d?.endDate
@@ -110,15 +110,15 @@ export function TermDatesPanel({
                   return (
                     <div
                       key={term.id}
-                      className="flex items-center justify-between px-2 py-1.5 rounded bg-background border"
+                      className="flex items-center justify-between px-3 py-2 rounded bg-background border"
                     >
-                      <span className="text-xs text-muted-foreground">{term.name}</span>
+                      <span className="text-sm text-muted-foreground">{term.name}</span>
                       {hasDate ? (
-                        <span className="text-xs tabular-nums">
+                        <span className="text-sm tabular-nums font-medium">
                           {formatDate(d.startDate)} → {formatDate(d.endDate)}
                         </span>
                       ) : (
-                        <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+                        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
                           Not set
                         </Badge>
                       )}
@@ -130,44 +130,46 @@ export function TermDatesPanel({
           ))}
 
           {/* Close */}
-          <div className="flex justify-end pt-1">
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onClose}>
+          <div className="flex justify-end pt-2">
+            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={onClose}>
               Close
             </Button>
           </div>
         </div>
       ) : (
         /* Edit mode */
-        <div className="space-y-2">
+        <div className="space-y-4">
           {Object.entries(grouped).map(([semName, terms]) => (
-            <div key={semName} className="space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div key={semName} className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {semName}
               </p>
-              {terms.map((term) => {
-                const d = termDates[term.id] ?? { startDate: "", endDate: "" }
-                const termIdx = allTerms.findIndex((t) => t.id === term.id)
-                const prevEndDate =
-                  termIdx > 0 ? (termDates[allTerms[termIdx - 1].id]?.endDate ?? "") : ""
+              <div className="space-y-3">
+                {terms.map((term) => {
+                  const d = termDates[term.id] ?? { startDate: "", endDate: "" }
+                  const termIdx = allTerms.findIndex((t) => t.id === term.id)
+                  const prevEndDate =
+                    termIdx > 0 ? (termDates[allTerms[termIdx - 1].id]?.endDate ?? "") : ""
 
-                return (
-                  <TermDateRow
-                    key={term.id}
-                    term={term}
-                    startDate={d.startDate}
-                    endDate={d.endDate}
-                    prevEndDate={prevEndDate}
-                    syMin={syMin}
-                    syMax={syMax}
-                    onDateChange={onDateChange}
-                  />
-                )
-              })}
+                  return (
+                    <TermDateRow
+                      key={term.id}
+                      term={term}
+                      startDate={d.startDate}
+                      endDate={d.endDate}
+                      prevEndDate={prevEndDate}
+                      syMin={syMin}
+                      syMax={syMax}
+                      onDateChange={onDateChange}
+                    />
+                  )
+                })}
+              </div>
             </div>
           ))}
 
           {/* Edit actions */}
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2 pt-3 border-t">
             <Button
               size="sm"
               onClick={onRequestSave}
