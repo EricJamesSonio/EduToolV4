@@ -1,19 +1,16 @@
-// frontend/src/app/admin/school-years/page.tsx
-
+// ===== File: frontend/src/app/admin/school-years/page.tsx =====
 "use client";
 
-import { useState }   from "react";
-import { useQuery }   from "@tanstack/react-query";
-
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { schoolYearApi } from "@/api/admin/school-year.api";
-import { PageHeader }    from "@/components/shared/PageHeader";
-import { EmptyState }    from "@/components/shared/EmptyState";
-import { Button }        from "@/components/ui/button";
-import { Skeleton }      from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, CalendarDays } from "lucide-react";
-
 import { CreateSchoolYearDialog } from "@/components/admin/school-years/CreateSchoolYearDialog";
-import { SchoolYearCard }         from "@/components/admin/school-years/SchoolYearCard";
+import { SchoolYearCard } from "@/components/admin/school-years/SchoolYearCard";
 
 // ---------------------------------------------------------------------------
 
@@ -22,13 +19,13 @@ export default function SchoolYearsPage(): React.JSX.Element {
 
   const { data: schoolYears, isLoading } = useQuery({
     queryKey: ["admin", "school-years"],
-    queryFn:  schoolYearApi.getAll,
+    queryFn: schoolYearApi.getAll,
   });
 
   const hasActive = schoolYears?.some((y) => y.status === "active") ?? false;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       <PageHeader
         title="School Years"
         actions={
@@ -40,9 +37,9 @@ export default function SchoolYearsPage(): React.JSX.Element {
       />
 
       {isLoading ? (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            <Skeleton key={i} className="h-32 rounded-lg" />
           ))}
         </div>
       ) : !schoolYears?.length ? (
@@ -52,7 +49,7 @@ export default function SchoolYearsPage(): React.JSX.Element {
           description="Create your first school year to get started."
         />
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {schoolYears.map((year) => (
             <SchoolYearCard key={year.id} year={year} hasActive={hasActive} />
           ))}

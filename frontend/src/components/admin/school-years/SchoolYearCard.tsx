@@ -1,56 +1,55 @@
-// frontend/src/app/admin/school-years/SchoolYearCard.tsx
-
+// ===== File: frontend/src/app/admin/school-years/SchoolYearCard.tsx =====
 "use client";
 
-import { useState }                    from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast }                       from "sonner";
-import { useRouter }                   from "next/navigation";
-import { isAxiosError }                from "axios";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { isAxiosError } from "axios";
 
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { StatusBadge }   from "@/components/shared/StatusBadge";
-import { Button }        from "@/components/ui/button";
-import { Eye }           from "lucide-react";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { Button } from "@/components/ui/button";
+import { Eye, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { formatDate } from "@/utils/date.util";
 
 import type { SchoolYear } from "@/types/admin/school-year.types";
-import { cn }         from "@/lib/utils";
-import { formatDate } from "@/utils/date.util";
 
 // ---------------------------------------------------------------------------
 
 interface Props {
-  year:      SchoolYear;
+  year: SchoolYear;
   hasActive: boolean;
 }
 
 type ConfirmAction = "activate" | "end";
 
 interface ConfirmCopy {
-  title:        string;
-  message:      string;
+  title: string;
+  message: string;
   confirmLabel: string;
-  destructive:  boolean;
+  destructive: boolean;
 }
 
 const CONFIRM_COPY: Record<ConfirmAction, ConfirmCopy> = {
   activate: {
-    title:        "Activate this school year?",
-    message:      "This will make it the active school year. This cannot be undone.",
+    title: "Activate this school year?",
+    message: "This will make it the active school year. This cannot be undone.",
     confirmLabel: "Activate",
-    destructive:  false,
+    destructive: false,
   },
   end: {
-    title:        "End this school year?",
-    message:      "It will become read-only and archived. This cannot be undone.",
+    title: "End this school year?",
+    message: "It will become read-only and archived. This cannot be undone.",
     confirmLabel: "End School Year",
-    destructive:  true,
+    destructive: true,
   },
 };
 
 export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
-  const router      = useRouter();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
@@ -88,7 +87,17 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
 
   const handleConfirm = () => {
     if (confirmAction === "activate") activateMutation.mutate();
-    else if (confirmAction === "end")  endMutation.mutate();
+    else if (confirmAction === "end") endMutation.mutate();
+  };
+
+  const getStatusIcon = () => {
+    if (year.status === "active") {
+      return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
+    }
+    if (year.status === "archived") {
+      return <AlertCircle className="h-5 w-5 text-muted-foreground" />;
+    }
+    return <Calendar className="h-5 w-5 text-primary" />;
   };
 
   return (
@@ -99,9 +108,13 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
           year.status === "active" && "border-primary/30 bg-primary/5"
         )}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <h3 className="font-semibold text-base">{year.name}</h3>
+        {/* Header with Icon and Info */}
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 shrink-0 mt-0.5">
+            {getStatusIcon()}
+          </div>
+          <div className="flex-1 space-y-1">
+            <h3 className="font-semibold text-sm leading-tight">{year.name}</h3>
             {(year.start_date || year.end_date) && (
               <p className="text-xs text-muted-foreground">
                 {year.start_date ? formatDate(year.start_date) : "—"}
@@ -110,9 +123,10 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
               </p>
             )}
           </div>
-          <StatusBadge status={year.status} />
+          <StatusBadge status={year.status} className="shrink-0" />
         </div>
 
+        {/* Actions */}
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
@@ -158,7 +172,9 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
           destructive={CONFIRM_COPY[confirmAction].destructive}
           isLoading={isMutating}
           onConfirm={handleConfirm}
-          onOpenChange={(o) => { if (!o) setConfirmAction(null); }}
+          onOpenChange={(o) => {
+            if (!o) setConfirmAction(null);
+          }}
         />
       )}
     </>
