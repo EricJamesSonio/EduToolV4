@@ -5,7 +5,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, List, CalendarDays, Info } from "lucide-react";
+import { Loader2, List, CalendarDays, Info, Sparkles } from "lucide-react";
 import { programCalendarApi }  from "@/api/admin/program-calendar.api";
 import type { CustomHoliday }  from "@/api/admin/program-calendar.api";
 import { HolidayCalendarGrid } from "./HolidayCalendarGrid";
@@ -57,6 +57,19 @@ export function HolidayBaseTab({ year }: HolidayBaseTabProps) {
       setDirty(false);
     },
     onError: () => toast.error("Failed to save holiday config."),
+  });
+
+  const seedMutation = useMutation({
+    mutationFn: () => programCalendarApi.seedDefaultHolidays(),
+    onSuccess: (res) => {
+      const msg = res.added.length > 0
+        ? `Seeded ${res.added.length} default holidays (${res.skipped} already present). Synced ${res.synced} program calendars.`
+        : `All ${res.skipped} default holidays already enabled. No new holidays added.`;
+      toast.success(msg);
+      queryClient.invalidateQueries({ queryKey: ["admin", "holiday-config"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "program-calendar"] });
+    },
+    onError: () => toast.error("Failed to seed default holidays."),
   });
 
   function toggleKey(key: string, enabled: boolean) {
@@ -132,6 +145,20 @@ export function HolidayBaseTab({ year }: HolidayBaseTabProps) {
               List
             </button>
           </div>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => seedMutation.mutate()}
+            disabled={seedMutation.isPending}
+          >
+            {seedMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            Seed Default Holidays
+          </Button>
 
           {dirty && (
             <Button

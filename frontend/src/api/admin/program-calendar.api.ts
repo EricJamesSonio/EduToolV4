@@ -2,6 +2,14 @@
 
 import client from "@/api/client";
 
+export interface SeedHolidaysResult {
+  holidays:       HolidaySeed[];
+  customHolidays: CustomHoliday[];
+  added:          string[];
+  skipped:        number;
+  synced:         number;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface HolidaySeed {
@@ -63,7 +71,6 @@ export interface ProgramCalendar {
   createdAt:    string;
   updatedAt:    string;
   breaks:       CalendarBreak[];
-  terms:        CalendarTerm[];
   holidays:     CalendarHoliday[]; // inherited from OrgHolidayConfig at creation/re-sync
 }
 
@@ -126,6 +133,14 @@ export const programCalendarApi = {
     return unwrap(res);
   },
 
+  /** Seed default Philippine holidays — smart: skips already-enabled keys */
+  seedDefaultHolidays: async (): Promise<SeedHolidaysResult> => {
+    const res = await client.post<ApiResponse<SeedHolidaysResult>>(
+      "/program-calendars/holidays/seed",
+    );
+    return unwrap(res);
+  },
+
   // ── Program calendars ──────────────────────────────────────────────────────
 
   getAll: async (params: {
@@ -177,6 +192,23 @@ export const programCalendarApi = {
 
   delete: async (id: string): Promise<void> => {
     await client.delete(`/program-calendars/${id}`);
+  },
+
+  /** Get calendar info + breaks for a program, or null if none exists */
+  getForProgram: async (
+    programId: string,
+    schoolYearId: string,
+  ): Promise<ProgramCalendar | null> => {
+    try {
+      const res = await client.get<ApiResponse<ProgramCalendar>>(
+        `/program-calendars/for-program/${programId}`,
+        { params: { schoolYearId } },
+      );
+      return unwrap(res);
+    } catch (err: any) {
+      if (err?.response?.status === 404) return null;
+      throw err;
+    }
   },
 
   getTerms: async (

@@ -34,7 +34,7 @@ function formatDate(iso: string): string {
   })
 }
 
-export function TermDatesPanelModal({
+export function TermDatesPanel({
   templateName,
   allTerms,
   termDates,
@@ -175,7 +175,7 @@ export function TermDatesPanelModal({
               onClick={onRequestSave}
               disabled={savingDates || !isValid}
             >
-              {savingDates ? "Saving…" : "Save"}
+              {savingDates ? "Saving…" : "Apply Template"}
             </Button>
             <Button size="sm" variant="outline" onClick={onCancelEdit}>
               Cancel

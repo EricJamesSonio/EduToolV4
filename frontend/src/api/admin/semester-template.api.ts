@@ -70,4 +70,16 @@ saveTermDates: async (
 ): Promise<void> => {
   await clientApi.post(`/semester-templates/assignments/${programId}/term-dates`, { termDates })
 },
+
+/** Compute smart default term dates from calendar breaks + template */
+getDefaultTermDates: async (
+  programId: string,
+  templateId: string,
+): Promise<{ termId: string; startDate: string; endDate: string }[]> => {
+  const res = await clientApi.get<Envelope<{ termId: string; startDate: string; endDate: string }[]>>(
+    `/semester-templates/assignments/${programId}/default-term-dates`,
+    { params: { templateId } },
+  )
+  return res.data.data ?? []
+},
 }

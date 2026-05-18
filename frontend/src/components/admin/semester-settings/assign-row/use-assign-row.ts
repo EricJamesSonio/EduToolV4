@@ -1,10 +1,11 @@
-// frontend/src/components/admin/semester-settings/assign-row/use-assign-row.ts
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { toast } from "sonner"
-import { useAssignTemplate, useRemoveTemplateAssignment } from "@/hooks/admin/useSemesterTemplate"
+import { useQuery } from "@tanstack/react-query"
+import { programCalendarApi } from "@/api/admin/program-calendar.api"
 import { semesterTemplateApi } from "@/api/admin/semester-template.api"
+import { useAssignTemplate, useRemoveTemplateAssignment } from "@/hooks/admin/useSemesterTemplate"
 import type { SemesterTemplate } from "@/types/admin/semester-template.types"
 import type { ProgramWithAssignment, TermDatesMap, TermWithSemester } from "./types"
 import { errMsg, toDateInput, addOneDay } from "./helpers"
@@ -21,6 +22,7 @@ export function useAssignRow(
   const isPending = assignMutation.isPending || removeMutation.isPending
   const current = program.semesterAssignment
 
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
   const [panelMode, setPanelMode] = useState<PanelMode>("view")
   const [savingDates, setSavingDates] = useState(false)
@@ -31,10 +33,12 @@ export function useAssignRow(
   const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null)
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
 
+  // Use the selected template (either from existing assignment or newly selected)
   const assignedTemplate = useMemo(() => {
-    if (!current) return null
-    return templates.find((t) => t.id === current.template_id) ?? null
-  }, [current, templates])
+    const id = current?.template_id ?? selectedTemplateId
+    if (!id || id === "none") return null
+    return templates.find((t) => t.id === id) ?? null
+  }, [current, selectedTemplateId, templates])
 
   const allTerms = useMemo<TermWithSemester[]>(() => {
     if (!assignedTemplate) return []
@@ -46,6 +50,26 @@ export function useAssignRow(
       })),
     )
   }, [assignedTemplate])
+
+  // Fetch calendar info for this program
+  const { data: calendarInfo } = useQuery({
+    queryKey: ["program-calendar", program.id, program.school_year_id],
+    queryFn: () => programCalendarApi.getForProgram(program.id, program.school_year_id),
+    enabled: !!program.school_year_id,
+  })
+
+  const calendarBreaks = calendarInfo?.breaks ?? []
+  const calendarStart = calendarInfo?.startDate ?? ""
+  const calendarEnd = calendarInfo?.endDate ?? ""
+
+  // Filter templates to only those matching calendar break count
+  const matchingTemplates = useMemo(() => {
+    if (!calendarBreaks.length) return templates // If no calendar, show all (with disabled state handled in UI)
+    return templates.filter((t) => t.semesters.length === calendarBreaks.length)
+  }, [templates, calendarBreaks.length])
+
+  // Has no calendar = can't assign
+  const hasNoCalendar = !calendarInfo && !current
 
   // Init term dates from existing assignment
   useEffect(() => {
@@ -69,7 +93,63 @@ export function useAssignRow(
     if (!expanded) setPanelMode("view")
   }, [expanded])
 
-  /* ---------- Template change ---------- */
+  // Sync selectedTemplateId from existing assignment (one-time init)
+  useEffect(() => {
+    if (current && !selectedTemplateId) {
+      setSelectedTemplateId(current.template_id)
+    }
+  }, [current]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Smart default computation when selecting a template ──
+
+  const computeAndFillDefaults = useCallback(async (templateId: string) => {
+    try {
+      const defaults = await semesterTemplateApi.getDefaultTermDates(
+        program.id,
+        templateId,
+      )
+      const map: TermDatesMap = {}
+      for (const d of defaults) {
+        if (!d.termId) continue
+        map[d.termId] = { startDate: d.startDate, endDate: d.endDate }
+      }
+      setTermDates(map)
+      setPanelMode("edit")
+    } catch {
+      toast.error("Failed to compute default term dates.")
+    }
+  }, [program.id])
+
+  // ── Apply assignment (with term dates) ──
+
+  const applyAssignment = useCallback(async () => {
+    if (!selectedTemplateId || selectedTemplateId === "none") return
+
+    const payload = allTerms
+      .filter((t) => termDates[t.id]?.startDate && termDates[t.id]?.endDate)
+      .map((t) => ({
+        termId: t.id,
+        startDate: termDates[t.id].startDate,
+        endDate: termDates[t.id].endDate,
+      }))
+
+    assignMutation.mutate(
+      { programId: program.id, templateId: selectedTemplateId, termDates: payload },
+      {
+        onSuccess: () => {
+          toast.success("Template assigned with term dates.")
+          setPanelMode("view")
+        },
+        onError: (e) => {
+          const msg = errMsg(e)
+          toast.error(msg)
+          // If the error is about no calendar, we can show it inline
+        },
+      },
+    )
+  }, [selectedTemplateId, allTerms, termDates, assignMutation, program.id])
+
+  // ── Handle template selection ──
 
   const requestTemplateChange = (templateId: string) => {
     if (current && templateId !== current.template_id) {
@@ -88,23 +168,17 @@ export function useAssignRow(
           toast.success("Assignment removed.")
           setTermDates({})
           setExpanded(false)
+          setSelectedTemplateId(null)
         },
         onError: (e) => toast.error(errMsg(e)),
       })
       return
     }
 
-    assignMutation.mutate(
-      { programId: program.id, templateId },
-      {
-        onSuccess: () => {
-          toast.success("Template assigned.")
-          setExpanded(true)
-          setPanelMode("view")
-        },
-        onError: (e) => toast.error(errMsg(e)),
-      },
-    )
+    // Don't assign immediately — just show smart defaults
+    setSelectedTemplateId(templateId)
+    setExpanded(true)
+    computeAndFillDefaults(templateId)
   }
 
   const handleConfirm = () => {
@@ -120,7 +194,7 @@ export function useAssignRow(
     setPendingTemplateId(null)
   }
 
-  /* ---------- Date editing ---------- */
+  // ── Date editing ──
 
   const handleDateChange = (
     termId: string,
@@ -182,7 +256,6 @@ export function useAssignRow(
     return { ok: true, msg: null }
   }
 
-  // Step 1: user clicks Save → open confirm dialog
   const handleRequestSave = () => {
     if (!validation.isValid) {
       toast.error("Please fill all term dates first.")
@@ -193,36 +266,19 @@ export function useAssignRow(
       toast.error(rule.msg ?? "Invalid dates.")
       return
     }
+    if (!selectedTemplateId || selectedTemplateId === "none") {
+      toast.error("No template selected.")
+      return
+    }
     setConfirmSaveOpen(true)
   }
 
-  // Step 2: user confirms → actually save
   const handleSaveDates = async () => {
     setConfirmSaveOpen(false)
-
-    // Build correct payload — termId + startDate + endDate per term
-    const termDatesPayload = allTerms
-      .filter((t) => termDates[t.id]?.startDate && termDates[t.id]?.endDate)
-      .map((t) => ({
-        termId: t.id,
-        startDate: termDates[t.id].startDate,
-        endDate: termDates[t.id].endDate,
-      }))
-
-    try {
-      setSavingDates(true)
-      await semesterTemplateApi.saveTermDates(program.id, termDatesPayload)
-      toast.success("Term dates saved!")
-      setPanelMode("view")
-    } catch (e) {
-      toast.error(errMsg(e))
-    } finally {
-      setSavingDates(false)
-    }
+    await applyAssignment()
   }
 
   const handleCancelEdit = () => {
-    // Reset dates back to what came from server
     if (current?.termDates) {
       const reset: TermDatesMap = {}
       for (const td of current.termDates) {
@@ -238,7 +294,9 @@ export function useAssignRow(
   }
 
   return {
+    // State
     current,
+    selectedTemplateId: current?.template_id ?? selectedTemplateId,
     assignedTemplate,
     allTerms,
     termDates,
@@ -249,17 +307,24 @@ export function useAssignRow(
     savingDates,
     isPending,
     validation,
-    // template change confirm
+    // Calendar info
+    calendarInfo,
+    hasNoCalendar,
+    calendarBreaks,
+    calendarStart,
+    calendarEnd,
+    matchingTemplates,
+    // Template change confirm
     confirmOpen,
     handleConfirm,
     handleCancelConfirm,
     requestTemplateChange,
-    // date editing
+    // Date editing
     handleDateChange,
     handleRequestSave,
     handleSaveDates,
     handleCancelEdit,
-    // save confirm
+    // Save confirm
     confirmSaveOpen,
     setConfirmSaveOpen,
   }

@@ -91,11 +91,18 @@ function DayPopover({
     weekday: "long", month: "long", day: "numeric",
   });
 
+  function toLocalDateString(d: Date) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
   function submitCustom() {
     if (!customTitle.trim()) return;
     onAddCustom({
       title:       customTitle.trim(),
-      date:        date.toISOString().slice(0, 10),
+      date:        toLocalDateString(date),
       description: customDesc.trim() || undefined,
     });
     setCustomTitle(""); setCustomDesc(""); setAddingCustom(false);
@@ -271,7 +278,7 @@ export function HolidayCalendarGrid({
   }
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden select-none">
+    <div className="rounded-xl border bg-card select-none">
       {/* Month nav */}
       <div className="flex items-center justify-between px-5 py-4 border-b bg-muted/30">
         <button

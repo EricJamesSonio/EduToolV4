@@ -1,4 +1,3 @@
-// frontend/src/components/admin/semester-settings/AssignRow.tsx
 "use client"
 
 import {
@@ -7,6 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   CalendarDays,
+  AlertTriangle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 
 import type { AssignRowProps } from "./assign-row/types"
 import { toDateInput } from "./assign-row/helpers"
@@ -31,6 +32,7 @@ export function AssignRow({
 }: AssignRowProps): React.JSX.Element {
   const {
     current,
+    selectedTemplateId,
     assignedTemplate,
     allTerms,
     termDates,
@@ -51,10 +53,18 @@ export function AssignRow({
     handleCancelEdit,
     confirmSaveOpen,
     setConfirmSaveOpen,
+    hasNoCalendar,
+    calendarBreaks,
+    calendarStart,
+    calendarEnd,
+    matchingTemplates,
   } = useAssignRow(program, templates)
 
   const syMin = schoolYearStart ? toDateInput(schoolYearStart) : ""
   const syMax = schoolYearEnd ? toDateInput(schoolYearEnd) : ""
+
+  const hasAssignment = !!current
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId)
 
   return (
     <div className="py-2.5 px-1 space-y-2">
@@ -68,29 +78,48 @@ export function AssignRow({
 
         <span className="text-sm font-medium flex-1 truncate">{program.name}</span>
 
-        <div className="w-52">
-          <Select
-            value={current?.template_id ?? "none"}
-            onValueChange={(value) => value && requestTemplateChange(value)}
-            disabled={isPending}
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Assign template…">
-                {assignedTemplate?.name || current ? "Assigned template" : "Assign template…"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">— None —</SelectItem>
-              {templates.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {hasNoCalendar && !current ? (
+          <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 shrink-0 ml-auto">
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            No Calendar
+          </Badge>
+        ) : (
+          <div className="w-52">
+            <Select
+              value={selectedTemplateId ?? "none"}
+              onValueChange={(value) => value && requestTemplateChange(value)}
+              disabled={isPending}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Assign template…">
+                  {selectedTemplate ? selectedTemplate.name : current?.template.name ?? "Assign template…"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— None —</SelectItem>
+                {templates.map((t) => {
+                  const matches = matchingTemplates.some((mt) => mt.id === t.id)
+                  return (
+                    <SelectItem
+                      key={t.id}
+                      value={t.id}
+                      disabled={!matches}
+                    >
+                      {t.name}
+                      {!matches && (
+                        <span className="text-muted-foreground ml-2">
+                          ({t.semesters.length} sem &ne; {calendarBreaks.length} breaks)
+                        </span>
+                      )}
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
-        {current && allTerms.length > 0 && (
+        {hasAssignment && allTerms.length > 0 && (
           <Button
             size="sm"
             variant="ghost"
@@ -107,23 +136,53 @@ export function AssignRow({
         )}
       </div>
 
-      {/* Panel */}
-      {expanded && current && allTerms.length > 0 && (
-        <TermDatesPanel
-          templateName={assignedTemplate?.name ?? current.template.name}
-          allTerms={allTerms}
-          termDates={termDates}
-          isValid={validation.isValid}
-          savingDates={savingDates}
-          panelMode={panelMode}
-          syMin={syMin}
-          syMax={syMax}
-          onDateChange={handleDateChange}
-          onRequestSave={handleRequestSave}
-          onCancelEdit={handleCancelEdit}
-          onEnterEdit={() => setPanelMode("edit")}
-          onClose={() => setExpanded(false)}
-        />
+      {/* No calendar banner */}
+      {hasNoCalendar && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/10 dark:border-amber-800 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Set up an Academic Calendar for this program first (go to{" "}
+            <strong>Academic Calendar → Program Calendars</strong>), then
+            assign a semester template.
+          </span>
+        </div>
+      )}
+
+      {/* Calendar info when selected template differs from break count */}
+      {!hasNoCalendar && calendarBreaks.length > 0 && (
+        <p className="text-[11px] text-muted-foreground px-1">
+          Calendar has <strong>{calendarBreaks.length} break point{calendarBreaks.length !== 1 ? "s" : ""}</strong>{" "}
+          ({calendarBreaks.map((b) => b.label).join(", ")}) — only templates with {calendarBreaks.length} semester(s) are available.
+        </p>
+      )}
+
+      {/* Term dates panel */}
+      {expanded && (
+        <>
+          {(!selectedTemplateId || selectedTemplateId === "none" || allTerms.length === 0) ? (
+            <div className="border bg-muted/30 p-4 rounded-md w-full text-center text-xs text-muted-foreground">
+              {hasNoCalendar
+                ? "Set up an academic calendar first, then select a matching template."
+                : "Select a template to configure term dates."}
+            </div>
+          ) : (
+            <TermDatesPanel
+              templateName={selectedTemplate?.name ?? ""}
+              allTerms={allTerms}
+              termDates={termDates}
+              isValid={validation.isValid}
+              savingDates={savingDates}
+              panelMode={panelMode}
+              syMin={syMin}
+              syMax={syMax}
+              onDateChange={handleDateChange}
+              onRequestSave={handleRequestSave}
+              onCancelEdit={handleCancelEdit}
+              onEnterEdit={() => setPanelMode("edit")}
+              onClose={() => setExpanded(false)}
+            />
+          )}
+        </>
       )}
 
       {/* Template change confirm */}
@@ -140,8 +199,8 @@ export function AssignRow({
       <ConfirmDialog
         open={confirmSaveOpen}
         title="Save term dates?"
-        description="This will overwrite any previously saved term dates for this program."
-        confirmLabel="Save"
+        description="This will assign the template with the configured term dates."
+        confirmLabel="Apply"
         onConfirm={handleSaveDates}
         onCancel={() => setConfirmSaveOpen(false)}
       />

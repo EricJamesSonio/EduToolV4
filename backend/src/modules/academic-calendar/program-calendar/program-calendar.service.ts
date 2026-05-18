@@ -4,7 +4,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ConflictException,
 } from '@nestjs/common';
 import { ProgramCalendarRepository } from './program-calendar.repository';
 import {
@@ -21,102 +20,6 @@ import {
   buildHolidayDates,
 } from '../data/holidays.data';
 
-// ── Internal helpers ──────────────────────────────────────────────────────────
-
-interface BreakInput {
-  label:     string;
-  startDate: Date;
-  endDate:   Date;
-}
-
-interface ComputedTerm {
-  label:      string;
-  orderIndex: number;
-  startDate:  Date;
-  endDate:    Date;
-}
-
-function computeTerms(
-  calendarStart: Date,
-  calendarEnd:   Date,
-  sortedBreaks:  BreakInput[],
-): ComputedTerm[] {
-  const terms: ComputedTerm[] = [];
-  let termStart = new Date(calendarStart);
-  termStart.setHours(0, 0, 0, 0);
-
-  for (let i = 0; i < sortedBreaks.length; i++) {
-    const brk     = sortedBreaks[i];
-    const termEnd = new Date(brk.startDate);
-    termEnd.setHours(0, 0, 0, 0);
-    termEnd.setDate(termEnd.getDate() - 1);
-
-    if (termEnd < termStart) {
-      throw new BadRequestException(
-        `Break "${brk.label}" starts before or on the same day as the previous term start.`,
-      );
-    }
-
-    terms.push({
-      label:      `Term ${i + 1}`,
-      orderIndex: i + 1,
-      startDate:  new Date(termStart),
-      endDate:    termEnd,
-    });
-
-    termStart = new Date(brk.endDate);
-    termStart.setHours(0, 0, 0, 0);
-    termStart.setDate(termStart.getDate() + 1);
-  }
-
-  const finalEnd = new Date(calendarEnd);
-  finalEnd.setHours(0, 0, 0, 0);
-  if (termStart <= finalEnd) {
-    terms.push({
-      label:      `Term ${sortedBreaks.length + 1}`,
-      orderIndex: sortedBreaks.length + 1,
-      startDate:  new Date(termStart),
-      endDate:    finalEnd,
-    });
-  }
-
-  return terms;
-}
-
-function validateAndSortBreaks(
-  breaks:        BreakInput[],
-  calendarStart: Date,
-  calendarEnd:   Date,
-): BreakInput[] {
-  for (const b of breaks) {
-    if (b.startDate > b.endDate) {
-      throw new BadRequestException(
-        `Break "${b.label}": start date must be before or equal to end date.`,
-      );
-    }
-    if (b.startDate < calendarStart || b.endDate > calendarEnd) {
-      throw new BadRequestException(
-        `Break "${b.label}" falls outside the calendar range ` +
-        `(${calendarStart.toDateString()} – ${calendarEnd.toDateString()}).`,
-      );
-    }
-  }
-
-  const sorted = [...breaks].sort(
-    (a, b) => a.startDate.getTime() - b.startDate.getTime(),
-  );
-
-  for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i].startDate <= sorted[i - 1].endDate) {
-      throw new BadRequestException(
-        `Breaks "${sorted[i - 1].label}" and "${sorted[i].label}" overlap.`,
-      );
-    }
-  }
-
-  return sorted;
-}
-
 // ── Service ───────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -126,14 +29,6 @@ export class ProgramCalendarService {
   ) {}
 
   // ── Private helpers ────────────────────────────────────────────────────────
-
-  private parseBreaks(rawBreaks: BreakDto[]): BreakInput[] {
-    return rawBreaks.map((b) => ({
-      label:     b.label,
-      startDate: new Date(b.startDate),
-      endDate:   new Date(b.endDate),
-    }));
-  }
 
   private mapCalendar(cal: any) {
     return {
@@ -152,13 +47,6 @@ export class ProgramCalendarService {
         startDate:  b.start_date,
         endDate:    b.end_date,
         orderIndex: b.order_index,
-      })),
-      terms: (cal.terms ?? []).map((t: any) => ({
-        id:         t.id,
-        label:      t.label,
-        startDate:  t.start_date,
-        endDate:    t.end_date,
-        orderIndex: t.order_index,
       })),
       holidays: (cal.holidays ?? []).map((h: any) => ({
         id:          h.id,
@@ -199,24 +87,47 @@ export class ProgramCalendarService {
     return [...systemHolidays, ...custom];
   }
 
-  private async _applyBreaks(
-    calendarId: string,
-    orgId:      string,
-    rawBreaks:  BreakDto[],
-    startDate:  Date,
-    endDate:    Date,
+  private validateBreaks(
+    rawBreaks:    BreakDto[],
+    calendarStart: Date,
+    calendarEnd:   Date,
   ) {
-    const parsed = this.parseBreaks(rawBreaks);
-    const sorted = validateAndSortBreaks(parsed, startDate, endDate);
-    await this.repo.replaceBreaks(
-      calendarId, orgId,
-      sorted.map((b, i) => ({ ...b, orderIndex: i + 1 })),
+    const parsed = rawBreaks.map((b) => ({
+      label:     b.label,
+      startDate: new Date(b.startDate),
+      endDate:   new Date(b.endDate),
+    }));
+
+    for (const b of parsed) {
+      if (b.startDate > b.endDate) {
+        throw new BadRequestException(
+          `Break "${b.label}": start date must be before or equal to end date.`,
+        );
+      }
+      if (b.startDate < calendarStart || b.endDate > calendarEnd) {
+        throw new BadRequestException(
+          `Break "${b.label}" falls outside the calendar range ` +
+          `(${calendarStart.toDateString()} – ${calendarEnd.toDateString()}).`,
+        );
+      }
+    }
+
+    const sorted = [...parsed].sort(
+      (a, b) => a.startDate.getTime() - b.startDate.getTime(),
     );
-    const computed = computeTerms(startDate, endDate, sorted);
-    await this.repo.replaceTerms(calendarId, orgId, computed);
+
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].startDate <= sorted[i - 1].endDate) {
+        throw new BadRequestException(
+          `Breaks "${sorted[i - 1].label}" and "${sorted[i].label}" overlap.`,
+        );
+      }
+    }
+
+    return sorted;
   }
 
-  // ── Create ─────────────────────────────────────────────────────────────────
+  // ── Create (idempotent — redirects to update if exists) ────────────────────
 
   async create(orgId: string, dto: CreateProgramCalendarDto) {
     const startDate = new Date(dto.startDate);
@@ -228,9 +139,13 @@ export class ProgramCalendarService {
 
     const existing = await this.repo.findByProgram(dto.programId, dto.schoolYearId, orgId);
     if (existing) {
-      throw new ConflictException(
-        'A calendar already exists for this program and school year. Update it instead.',
-      );
+      // Idempotent: silently update instead of throwing ConflictException
+      return this.update(existing.id, orgId, {
+        startDate: dto.startDate,
+        endDate:   dto.endDate,
+        notes:     dto.notes,
+        breaks:    dto.breaks ?? [],
+      });
     }
 
     // Create the calendar record
@@ -243,13 +158,13 @@ export class ProgramCalendarService {
       notes:        dto.notes,
     });
 
-    // Apply breaks + compute terms
+    // Save breaks (skeleton only — no term computing)
     if (dto.breaks && dto.breaks.length > 0) {
-      await this._applyBreaks(calendar.id, orgId, dto.breaks, startDate, endDate);
-    } else {
-      await this.repo.replaceTerms(calendar.id, orgId, [
-        { label: 'Term 1', orderIndex: 1, startDate, endDate },
-      ]);
+      const sorted = this.validateBreaks(dto.breaks, startDate, endDate);
+      await this.repo.replaceBreaks(
+        calendar.id, orgId,
+        sorted.map((b, i) => ({ ...b, orderIndex: i + 1 })),
+      );
     }
 
     // Inherit holidays from org-global config
@@ -287,6 +202,13 @@ export class ProgramCalendarService {
     return this.mapCalendar(cal);
   }
 
+  /** Returns calendar info + breaks for semester-template assignment, or null if none */
+  async getCalendarForProgram(programId: string, schoolYearId: string, orgId: string) {
+    const cal = await this.repo.findByProgram(programId, schoolYearId, orgId);
+    if (!cal) return null;
+    return this.mapCalendar(cal);
+  }
+
   // ── Update ─────────────────────────────────────────────────────────────────
 
   async update(id: string, orgId: string, dto: UpdateProgramCalendarDto) {
@@ -307,7 +229,11 @@ export class ProgramCalendarService {
     });
 
     if (dto.breaks !== undefined) {
-      await this._applyBreaks(id, orgId, dto.breaks, startDate, endDate);
+      const sorted = this.validateBreaks(dto.breaks, startDate, endDate);
+      await this.repo.replaceBreaks(
+        id, orgId,
+        sorted.map((b, i) => ({ ...b, orderIndex: i + 1 })),
+      );
     }
 
     const fresh = await this.repo.findById(id, orgId);
@@ -324,11 +250,6 @@ export class ProgramCalendarService {
 
   // ── Holiday Config (org-global) ────────────────────────────────────────────
 
-  /**
-   * Get the org's global holiday config.
-   * schoolYearId is accepted for the query param but config is org-scoped.
-   * We return it with the full resolved holiday list (enabled/disabled).
-   */
   async getHolidayConfig(orgId: string) {
     const config         = await this.repo.findHolidayConfig(orgId);
     const enabledKeys    = config?.enabled_keys    ?? getDefaultEnabledKeys();
@@ -340,20 +261,13 @@ export class ProgramCalendarService {
     };
   }
 
-  /**
-   * Save the org's global holiday config.
-   * After saving, ALL existing ProgramCalendars for this org are re-synced:
-   * their ProgramCalendarHoliday rows are deleted and rebuilt from the new config.
-   */
   async saveHolidayConfig(orgId: string, dto: SaveHolidayConfigDto) {
-    // Validate keys
     const validKeys = new Set(PHILIPPINE_HOLIDAYS.map((h) => h.key));
     const invalid   = dto.enabledKeys.filter((k) => !validKeys.has(k));
     if (invalid.length > 0) {
       throw new BadRequestException(`Unknown holiday keys: ${invalid.join(', ')}`);
     }
 
-    // Persist config
     const config = await this.repo.upsertHolidayConfig({
       orgId,
       enabledKeys:    dto.enabledKeys,
@@ -384,17 +298,57 @@ export class ProgramCalendarService {
     };
   }
 
-  // ── Terms (consumed by semester template module) ───────────────────────────
+  // ── Seed default holidays (smart — skips already-enabled) ──────────────────
+
+  async seedDefaultHolidays(orgId: string) {
+    const existing = await this.repo.findHolidayConfig(orgId);
+    const currentEnabled = new Set(existing?.enabled_keys ?? []);
+
+    const defaultKeys = getDefaultEnabledKeys();
+    const merged = [...new Set([...currentEnabled, ...defaultKeys])];
+
+    const added = merged.filter((k) => !currentEnabled.has(k));
+    const skipped = merged.length - added.length;
+
+    const config = await this.repo.upsertHolidayConfig({
+      orgId,
+      enabledKeys:    merged,
+      customHolidays: (existing?.custom_holidays as any[]) ?? [],
+    });
+
+    // Re-sync existing program calendars
+    const allCalendars = await this.repo.findAllByOrg(orgId);
+    const allFull      = await Promise.all(
+      allCalendars.map((c) => this.repo.findById(c.id, orgId)),
+    );
+
+    for (const cal of allFull) {
+      if (!cal) continue;
+      const year        = new Date(cal.start_date).getFullYear();
+      const holidayRows = this.buildHolidayRows(
+        config.enabled_keys,
+        config.custom_holidays as any[],
+        year,
+      );
+      await this.repo.replaceHolidays(cal.id, orgId, holidayRows);
+    }
+
+    return {
+      holidays:       resolveHolidays(config.enabled_keys),
+      customHolidays: config.custom_holidays,
+      added,
+      skipped,
+      synced: allCalendars.length,
+    };
+  }
+
+  // ── Terms (for semester template module — reads from breaks) ───────────────
 
   async getTermsForProgram(programId: string, schoolYearId: string, orgId: string) {
     const cal = await this.repo.findByProgram(programId, schoolYearId, orgId);
     if (!cal) return [];
-    return (cal.terms ?? []).map((t: any) => ({
-      id:         t.id,
-      label:      t.label,
-      startDate:  t.start_date,
-      endDate:    t.end_date,
-      orderIndex: t.order_index,
-    }));
+
+    // No term computing — return empty; semester template module handles this
+    return [];
   }
 }

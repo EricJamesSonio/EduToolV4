@@ -13,6 +13,7 @@ import {
   UpdateOrganizationDto,
   SeedOrganizationDto,
 } from './dto/organization.dto'
+import { getDefaultEnabledKeys } from '@/modules/academic-calendar/data/holidays.data'
 
 @Injectable()
 export class OrganizationService {
@@ -97,6 +98,17 @@ async create(adminId: string, dto: CreateOrganizationDto) {
     seedGradingSchemes:    dto.seedGradingSchemes,
     seedSemesterTemplates: dto.seedSemesterTemplates,
   })
+
+    // Seed org-global holiday config with default Philippine holidays
+    await this.db.orgHolidayConfig.upsert({
+      where:  { org_id: orgId },
+      create: {
+        org_id:          orgId,
+        enabled_keys:    getDefaultEnabledKeys(),
+        custom_holidays: [],
+      },
+      update: {}, // don't overwrite if already exists
+    });
 
     return { success: true, message: 'Seed completed successfully.' }
   }

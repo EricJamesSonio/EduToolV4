@@ -76,10 +76,7 @@ export default function AcademicCalendarPage(): React.JSX.Element {
         {/* Tab content */}
         <div>
           {activeTab === "holidays" && (
-            <HolidayBaseTab
-              schoolYearId={selectedSchoolYearId ?? ""}
-              year={displayYear}
-            />
+            <HolidayBaseTab year={displayYear} />
           )}
           {activeTab === "programs" && (
             <ProgramCalendarsTab

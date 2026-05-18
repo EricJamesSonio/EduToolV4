@@ -32,7 +32,7 @@ async create(data: { name: string; description?: string; email_extension?: strin
     data: {
       name: data.name,
       description: data.description ?? null,
-      email_extension: data.email_extension ?? '', // ← default to empty string
+      email_extension: data.email_extension ?? undefined,
     },
   });
 }

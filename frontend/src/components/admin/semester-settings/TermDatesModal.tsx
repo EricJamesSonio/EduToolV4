@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { TermDatesPanelModal } from "./assign-row/term-dates-panel";
+import { TermDatesPanel } from "./assign-row/term-dates-panel";
 import { ConfirmDialog } from "./assign-row/confirm-dialog";
 import { toDateInput } from "./assign-row/helpers";
 import { useAssignRow } from "./assign-row/use-assign-row";
@@ -97,7 +97,7 @@ export function TermDatesModal({
 
           {/* Term Dates Panel - SPREADS FULL WIDTH */}
           <div className="flex-1 overflow-y-auto px-8 py-6">
-            <TermDatesPanelModal
+            <TermDatesPanel
               templateName={assignedTemplate?.name ?? current.template.name}
               allTerms={allTerms}
               termDates={termDates}

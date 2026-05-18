@@ -113,6 +113,17 @@ export function ProgramCalendarCard({
   const isSaving    = createMutation.isPending || updateMutation.isPending;
   const hasCalendar = calendar !== null && calendar !== undefined;
 
+  const activeBreaks = breaks.filter((b) => b.startDate && b.endDate);
+  const validationErrors: string[] = [];
+  if (activeBreaks.length > 0) {
+    if (activeBreaks[0].startDate !== startDate) {
+      validationErrors.push("First break start must match the calendar start date.");
+    }
+    if (activeBreaks[activeBreaks.length - 1].endDate !== endDate) {
+      validationErrors.push("Last break end must match the calendar end date.");
+    }
+  }
+
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3">
@@ -133,9 +144,6 @@ export function ProgramCalendarCard({
             <Skeleton className="h-5 w-24 rounded" />
           ) : hasCalendar ? (
             <>
-              <Badge variant="secondary" className="text-xs bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
-                {calendar!.terms.length} term{calendar!.terms.length !== 1 ? "s" : ""}
-              </Badge>
               <Badge variant="outline" className="text-xs">
                 {formatDate(calendar!.startDate)} – {formatDate(calendar!.endDate)}
               </Badge>
@@ -179,13 +187,25 @@ export function ProgramCalendarCard({
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Semester Breaks</p>
                 <p className="text-xs text-muted-foreground">Define break periods — terms are auto-computed between them.</p>
-                <BreakEditor breaks={breaks} onChange={setBreaks} />
+                <BreakEditor
+                  breaks={breaks}
+                  onChange={setBreaks}
+                  calendarStart={startDate}
+                  calendarEnd={endDate}
+                />
               </div>
+              {validationErrors.length > 0 && (
+                <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2">
+                  {validationErrors.map((err, i) => (
+                    <p key={i} className="text-xs text-destructive">{err}</p>
+                  ))}
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button
                   size="sm"
                   onClick={() => hasCalendar ? updateMutation.mutate() : createMutation.mutate()}
-                  disabled={isSaving || !startDate || !endDate}
+                  disabled={isSaving || !startDate || !endDate || validationErrors.length > 0}
                 >
                   {isSaving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
                   {hasCalendar ? "Update Calendar" : "Create Calendar"}
@@ -210,17 +230,6 @@ export function ProgramCalendarCard({
                   </div>
                 </div>
               )}
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Generated Terms</p>
-                <div className="space-y-1.5">
-                  {calendar!.terms.map((t) => (
-                    <div key={t.id} className="flex items-center gap-3 rounded-md border bg-primary/5 border-primary/20 px-3 py-2">
-                      <span className="text-xs font-semibold text-primary w-14 shrink-0">{t.label}</span>
-                      <span className="text-xs text-muted-foreground">{formatDate(t.startDate)} – {formatDate(t.endDate)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
               {calendar!.notes && (
                 <p className="text-xs text-muted-foreground italic">{calendar!.notes}</p>
               )}

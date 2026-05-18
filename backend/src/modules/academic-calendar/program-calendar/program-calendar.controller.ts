@@ -52,6 +52,19 @@ export class ProgramCalendarController {
   }
 
   /**
+   * POST /program-calendars/holidays/seed
+   * Seed default Philippine holidays into the org-global config.
+   * Smart: only adds holidays not already enabled — skips existing.
+   */
+  @Post('holidays/seed')
+  @Roles('admin')
+  async seedDefaultHolidays(
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.service.seedDefaultHolidays(orgId);
+  }
+
+  /**
    * GET /program-calendars/by-program?programId=&schoolYearId=
    */
   @Get('by-program')
@@ -61,6 +74,19 @@ export class ProgramCalendarController {
     @Query('schoolYearId') schoolYearId: string,
   ) {
     return this.service.findByProgram(programId, schoolYearId, orgId);
+  }
+
+  /**
+   * GET /program-calendars/for-program/:programId?schoolYearId=
+   * Returns calendar info + breaks for semester-template assignment, or null if none.
+   */
+  @Get('for-program/:programId')
+  async getForProgram(
+    @CurrentUser('org_id') orgId: string,
+    @Param('programId')    programId: string,
+    @Query('schoolYearId') schoolYearId: string,
+  ) {
+    return this.service.getCalendarForProgram(programId, schoolYearId, orgId);
   }
 
   /**
