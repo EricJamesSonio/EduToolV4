@@ -10,13 +10,6 @@ export function useGuides(portal?: GuidePortal) {
   });
 }
 
-export function useGuidesWithSteps(portal: GuidePortal) {
-  return useQuery({
-    queryKey: ['platform-guides-with-steps', portal],
-    queryFn: () => guideApi.getGuidesWithSteps(portal),
-  });
-}
-
 export function useGuide(id: string) {
   return useQuery({
     queryKey: ['platform-guide', id],

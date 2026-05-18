@@ -25,7 +25,7 @@ export class AuditLogController {
   @Get('audit-log')
   @Roles('admin')
   async getAuditLog(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: QueryAuditLogDto,
   ) {
     return this.auditLogService.findAdminLogs(orgId, query);
@@ -39,7 +39,7 @@ export class AuditLogController {
   @Get('activity-log')
   @Roles('educator', 'admin')
   async getActivityLog(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: QueryActivityLogDto,
   ) {
     return this.auditLogService.findActivityLogs(orgId, query);

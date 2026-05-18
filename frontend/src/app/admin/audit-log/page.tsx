@@ -97,10 +97,22 @@ function formatActionLabel(action: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function safeFormatDate(dateString: string, formatStr: string): string {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return "Invalid date";
+    }
+    return format(date, formatStr);
+  } catch {
+    return "Invalid date";
+  }
+}
+
 function exportToCsv(logs: (AuditLog | ActivityLog)[], filename: string) {
   const headers = ["Timestamp", "Actor ID", "Action", "Entity Type", "Entity ID", "Metadata"];
   const rows = logs.map((l) => [
-    format(new Date(l.createdAt), "yyyy-MM-dd HH:mm:ss"),
+    safeFormatDate(l.createdAt, "yyyy-MM-dd HH:mm:ss"),
     l.actorId,
     l.action,
     l.entityType,
@@ -225,9 +237,9 @@ function AuditLogTab() {
       header: "Timestamp",
       cell: ({ row }) => (
         <span className="tabular-nums text-xs text-muted-foreground whitespace-nowrap">
-          {format(new Date(row.original.createdAt), "MMM d, yyyy")}
+          {safeFormatDate(row.original.createdAt, "MMM d, yyyy")}
           <br />
-          {format(new Date(row.original.createdAt), "h:mm:ss a")}
+          {safeFormatDate(row.original.createdAt, "h:mm:ss a")}
         </span>
       ),
     },
@@ -412,9 +424,9 @@ function ActivityLogTab() {
       header: "Timestamp",
       cell: ({ row }) => (
         <span className="tabular-nums text-xs text-muted-foreground whitespace-nowrap">
-          {format(new Date(row.original.createdAt), "MMM d, yyyy")}
+          {safeFormatDate(row.original.createdAt, "MMM d, yyyy")}
           <br />
-          {format(new Date(row.original.createdAt), "h:mm:ss a")}
+          {safeFormatDate(row.original.createdAt, "h:mm:ss a")}
         </span>
       ),
     },

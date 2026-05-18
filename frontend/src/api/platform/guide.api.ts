@@ -8,11 +8,6 @@ import type {
   UpdateGuideStepDto,
 } from '@/types/platform/guide.types';
 
-export async function getGuidesWithSteps(portal: string): Promise<Guide[]> {
-  const res = await apiClient.get(`/platform/guides/portal/${portal}`);
-  return res.data.data;
-}
-
 export async function getGuides(portal?: string): Promise<GuideListItem[]> {
   const params = portal ? { portal } : {};
   const res = await apiClient.get('/platform/guides', { params });
