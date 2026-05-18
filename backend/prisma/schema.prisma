@@ -884,3 +884,43 @@ model MeetingChatMessage {
   message     String
   created_at  DateTime @default(now())
 }
+
+//////////////////////
+// GUIDE MANAGEMENT
+//////////////////////
+
+enum GuidePortal {
+  admin
+  student
+  educator
+}
+
+model Guide {
+  id          String       @id @default(uuid())
+  portal      GuidePortal
+  page_path   String       // e.g. "/admin/dashboard"
+  title       String
+  description String?
+  is_active   Boolean      @default(false)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+
+  steps GuideStep[]
+
+  @@unique([portal, page_path])
+}
+
+model GuideStep {
+  id          String   @id @default(uuid())
+  guide_id    String
+  order_index Int
+  title       String?
+  text        String
+  image_url   String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  guide Guide @relation(fields: [guide_id], references: [id], onDelete: Cascade)
+
+  @@unique([guide_id, order_index])
+}

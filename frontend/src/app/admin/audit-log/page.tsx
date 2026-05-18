@@ -296,7 +296,7 @@ function AuditLogTab() {
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Action Type</label>
-            <Select value={action} onValueChange={(v) => { setAction(v); setPage(1); }}>
+            <Select value={action} onValueChange={(v) => { setAction(v ?? "all"); setPage(1); }}>
               <SelectTrigger><SelectValue placeholder="All Actions" /></SelectTrigger>
               <SelectContent>
                 {ADMIN_ACTION_OPTIONS.map((opt) => (
@@ -480,7 +480,7 @@ function ActivityLogTab() {
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Action Type</label>
-            <Select value={action} onValueChange={(v) => { setAction(v); setPage(1); }}>
+            <Select value={action} onValueChange={(v) => { setAction(v ?? "all"); setPage(1); }}>
               <SelectTrigger><SelectValue placeholder="All Actions" /></SelectTrigger>
               <SelectContent>
                 {ACTIVITY_ACTION_OPTIONS.map((opt) => (

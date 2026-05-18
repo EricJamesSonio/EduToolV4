@@ -36,6 +36,7 @@ function mapProgram(raw: RawProgram): Program {
     id: raw.id,
     orgId: raw.org_id,
     schoolYearId: raw.school_year_id,
+    school_year_id: raw.school_year_id,
     name: raw.name,
     type: raw.type,
     courses: raw.courses ?? [],

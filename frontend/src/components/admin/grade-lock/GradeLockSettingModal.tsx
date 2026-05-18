@@ -25,7 +25,7 @@ interface GradeLockSettingModalProps {
   existingSetting?: {
     id: string
     name?: string
-    lock_deadline?: string
+    lock_deadline?: string | null
   } | null
 }
 

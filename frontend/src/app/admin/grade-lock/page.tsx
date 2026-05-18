@@ -28,7 +28,7 @@ import {
 } from "@/hooks/admin/useGradeLocks";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 
-import type { GradeLock } from "@/types/admin/grade-lock.types";
+import type { GradeLock, GradeLockSetting } from "@/types/admin/grade-lock.types";
 
 export default function GradeLockPage(): React.ReactElement {
   const [settingModalOpen, setSettingModalOpen] = useState(false);
@@ -263,7 +263,7 @@ export default function GradeLockPage(): React.ReactElement {
               <label className="text-sm font-medium">Select Template</label>
             <Select
               value={selectedTemplateId}
-              onValueChange={setSelectedTemplateId}
+              onValueChange={(v) => setSelectedTemplateId(v ?? "")}
             >
               <SelectTrigger className="w-full">
                 <SelectValue>
