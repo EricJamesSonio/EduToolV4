@@ -105,9 +105,18 @@ export class OrgSeederService {
     const shouldSeedStrand = (name: string) =>
       strands.length === 0 || selectedStrands.has(name);
     const shouldSeedLevel = (name: string) => !excludedLevelSet.has(name);
-    const shouldSeedSubject = (name: string, levelName?: string) => {
+    const shouldSeedSubject = (
+      name: string,
+      levelName?: string,
+      strandName?: string,
+      courseCode?: string,
+    ) => {
       if (excludedSubjSet.has(name)) return false;
       if (levelName && excludedLevelSubjects[levelName]?.includes(name))
+        return false;
+      if (strandName && excludedLevelSubjects[strandName]?.includes(name))
+        return false;
+      if (courseCode && excludedLevelSubjects[courseCode]?.includes(name))
         return false;
       return true;
     };
@@ -211,6 +220,7 @@ export class OrgSeederService {
       strandMap,
       programMap,
       subjectNameToId,
+      excludedLevelSubjects,
       result,
     );
     await this.seedPrerequisites(
@@ -851,7 +861,7 @@ export class OrgSeederService {
   private async seedMajorSubjects(
     orgId: string,
     shouldSeedP: (k: string) => boolean,
-    shouldSeedSubj: (name: string, levelName?: string) => boolean,
+    shouldSeedSubj: (name: string, levelName?: string, strandName?: string, courseCode?: string) => boolean,
     levelMap: Record<string, string>,
     courseMap: Record<string, string>,
     strandMap: Record<string, string>,
@@ -864,7 +874,7 @@ export class OrgSeederService {
     );
 
     for (const s of subjectDefs) {
-      if (!shouldSeedSubj(s.name, s.levelName)) {
+      if (!shouldSeedSubj(s.name, s.levelName, s.strandName ?? undefined, s.courseCode ?? undefined)) {
         result.subjects.skipped++;
         continue;
       }
@@ -933,21 +943,34 @@ export class OrgSeederService {
   private async seedMinorSubjects(
     orgId: string,
     shouldSeedP: (k: string) => boolean,
-    shouldSeedSubj: (name: string, levelName?: string) => boolean,
+    shouldSeedSubj: (name: string, levelName?: string, strandName?: string, courseCode?: string) => boolean,
     levelMap: Record<string, string>,
     courseMap: Record<string, string>,
     strandMap: Record<string, string>,
     programMap: Record<string, string>,
     subjectNameToId: Record<string, string>,
+    excludedLevelSubjects: Record<string, string[]>,
     result: SeedResult,
   ) {
+    // ── College GE minors — shared across courses, scoped to year level ──
     if (shouldSeedP('college') && programMap['college']) {
       const collegeMinors = allMinorSubjects().filter(
         (s) => deriveProgramKey(s.levelName) === 'college',
       );
 
       for (const s of collegeMinors) {
-        if (!shouldSeedSubj(s.name)) {
+        const courseCodes = Object.keys(courseMap);
+        const excludedFromAllCourses = courseCodes.length > 0
+          ? courseCodes.every((code) => excludedLevelSubjects[code]?.includes(s.name))
+          : false;
+
+        if (excludedFromAllCourses) {
+          result.subjects.skipped++;
+          continue;
+        }
+
+        const levelId = s.yearLevel ? levelMap[s.yearLevel] : null;
+        if (!levelId) {
           result.subjects.skipped++;
           continue;
         }
@@ -966,7 +989,7 @@ export class OrgSeederService {
               org_id: orgId,
               subject_type: 'minor',
               program_id: programMap['college'],
-              level_id: null,
+              level_id: levelId,
               name: s.name,
               year_level: s.yearLevel,
               term_label: s.termLabel,
@@ -979,7 +1002,10 @@ export class OrgSeederService {
 
         subjectNameToId[s.name] = subjectId;
 
-        for (const [, courseId] of Object.entries(courseMap)) {
+        for (const [code, courseId] of Object.entries(courseMap)) {
+          const isExcluded = excludedLevelSubjects[code]?.includes(s.name);
+          if (isExcluded) continue;
+
           const sharingId = seedId('sharing', subjectId, courseId, orgId);
           await this.db.subjectSharing.upsert({
             where: { id: sharingId },
@@ -997,25 +1023,49 @@ export class OrgSeederService {
       }
     }
 
+    // ── SHS core/minor subjects — shared across strands, scoped to grade level ──
     if (shouldSeedP('shs') && programMap['shs']) {
-      const seenShsMinors = new Map<string, string>();
       const shsMinorDefs = allMajorSubjects().filter(
         (s) => s.isMinor && deriveProgramKey(s.levelName) === 'shs',
       );
 
+      // Pre‑compute which dedupeKeys have at least one strand that selected them
+      const strandSelections = new Map<string, Set<string>>();
       for (const s of shsMinorDefs) {
-        if (!shouldSeedSubj(s.name)) {
+        const dedupeKey = `${s.name}:${s.yearLevel}`;
+        if (!strandSelections.has(dedupeKey)) {
+          strandSelections.set(dedupeKey, new Set());
+        }
+        if (s.strandName) {
+          const isExcluded = excludedLevelSubjects[s.strandName]?.includes(s.name);
+          if (!isExcluded) {
+            strandSelections.get(dedupeKey)!.add(s.strandName);
+          }
+        }
+      }
+
+      const seenShsMinors = new Map<string, string>();
+
+      for (const s of shsMinorDefs) {
+        const dedupeKey = `${s.name}:${s.yearLevel}`;
+        const selectedStrands = strandSelections.get(dedupeKey);
+        if (!selectedStrands || selectedStrands.size === 0) {
           result.subjects.skipped++;
           continue;
         }
 
-        const dedupeKey = `${s.name}:${s.yearLevel}`;
         let subjectId: string;
 
         if (seenShsMinors.has(dedupeKey)) {
           subjectId = seenShsMinors.get(dedupeKey)!;
           result.subjects.already_exists++;
         } else {
+          const levelId = s.levelName ? levelMap[s.levelName] : null;
+          if (!levelId) {
+            result.subjects.skipped++;
+            continue;
+          }
+
           const id = seedId('subject', 'shs_minor', s.yearLevel, s.name, orgId);
           const existing = await this.db.subject.findFirst({ where: { id } });
 
@@ -1029,7 +1079,7 @@ export class OrgSeederService {
                 org_id: orgId,
                 subject_type: 'minor',
                 program_id: programMap['shs'],
-                level_id: null,
+                level_id: levelId,
                 name: s.name,
                 year_level: s.yearLevel,
                 term_label: s.termLabel,
@@ -1044,7 +1094,8 @@ export class OrgSeederService {
           subjectNameToId[s.name] = subjectId;
         }
 
-        if (s.strandName && strandMap[s.strandName]) {
+        // Only share with strands that have this subject selected
+        if (s.strandName && strandMap[s.strandName] && selectedStrands.has(s.strandName)) {
           const strandId = strandMap[s.strandName];
           const sharingId = seedId(
             'sharing',
