@@ -35,6 +35,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import type { EnrollmentBreakdownRow } from "@/types/admin/analytics.types";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { cn } from "@/lib/utils";
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 
 interface StatCardProps {
   label: string;
@@ -265,12 +266,15 @@ export default function AdminDashboardPage(): React.JSX.Element {
       <PageHeader
         title="Dashboard"
         actions={
-          <SchoolYearSelector
-            schoolYears={schoolYears}
-            isLoading={syLoading}
-            selectedId={selectedYearId}
-            onSelect={setSelectedYearId}
-          />
+          <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_dashboard" />
+            <SchoolYearSelector
+              schoolYears={schoolYears}
+              isLoading={syLoading}
+              selectedId={selectedYearId}
+              onSelect={setSelectedYearId}
+            />
+          </div>
         }
       />
 

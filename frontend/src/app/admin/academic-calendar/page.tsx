@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Globe, CalendarRange } from "lucide-react";
 import { schoolYearApi }       from "@/api/admin/school-year.api";
 import { PageHeader }          from "@/components/shared/PageHeader";
+import { HelpGuide }           from "@/components/shared/help-guide/HelpGuide";
 import { SchoolYearSelector }  from "@/components/shared/SchoolYearSelector";
 import { cn }                  from "@/lib/utils";
 import { HolidayBaseTab }      from "@/components/admin/academic-calendar/HolidayBaseTab";
@@ -39,12 +40,15 @@ export default function AcademicCalendarPage(): React.JSX.Element {
         title="Academic Calendar"
         description="Configure holidays and set up program-scoped academic calendars with break periods and auto-generated terms."
         actions={
-          <SchoolYearSelector
-            schoolYears={schoolYears}
-            isLoading={syLoading}
-            selectedId={selectedSchoolYearId}
-            onSelect={setSelectedSchoolYearId}
-          />
+          <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_academic_calendar" />
+            <SchoolYearSelector
+              schoolYears={schoolYears}
+              isLoading={syLoading}
+              selectedId={selectedSchoolYearId}
+              onSelect={setSelectedSchoolYearId}
+            />
+          </div>
         }
       />
 

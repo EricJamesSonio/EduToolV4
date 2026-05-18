@@ -19,6 +19,7 @@ import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { Class } from "@/types/admin/class.types";
 
 import { PageHeader } from "@/components/shared/PageHeader";
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
@@ -181,6 +182,7 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
         title="Classes"
         actions={
           <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_classes" />
             <SchoolYearSelector
               schoolYears={schoolYears}
               isLoading={isSchoolYearsLoading}

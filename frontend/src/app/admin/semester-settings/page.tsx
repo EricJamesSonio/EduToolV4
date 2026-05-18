@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import {
   Dialog,
   DialogContent,
@@ -123,10 +124,13 @@ export default function SemesterSettingsPage(): React.JSX.Element {
         title="Semester Settings"
         description="Define reusable semester templates per program type, then assign them to programs."
         actions={
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            New Template
-          </Button>
+          <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_semester_settings" />
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              New Template
+            </Button>
+          </div>
         }
       />
 

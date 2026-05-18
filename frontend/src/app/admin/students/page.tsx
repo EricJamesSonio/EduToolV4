@@ -10,6 +10,7 @@ import type { Student } from "@/types/admin/student.types";
 import type { GetStudentsQuery } from "@/api/admin/student.api";
 
 import { PageHeader }    from "@/components/shared/PageHeader";
+import { HelpGuide }     from "@/components/shared/help-guide/HelpGuide";
 import { EmptyState }    from "@/components/shared/EmptyState";
 import { Skeleton }      from "@/components/ui/skeleton";
 import { Button }        from "@/components/ui/button";
@@ -50,6 +51,7 @@ function StudentsPageInner(): React.JSX.Element {
         title="Students"
         actions={
           <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_students" />
             <Button variant="outline" size="sm" onClick={handleDownloadCredentials}>
               <Download className="mr-1.5 h-4 w-4" />
               Download Credentials

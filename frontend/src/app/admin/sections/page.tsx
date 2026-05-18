@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 import { Plus, Search } from "lucide-react";
@@ -102,14 +103,17 @@ export default function SectionsPage(): React.JSX.Element {
       <PageHeader
         title="Sections"
         actions={
-          <Button
-            onClick={() => setCreateOpen(true)}
-            size="sm"
-            disabled={!schoolYearId}
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            New Section
-          </Button>
+          <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_sections" />
+            <Button
+              onClick={() => setCreateOpen(true)}
+              size="sm"
+              disabled={!schoolYearId}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              New Section
+            </Button>
+          </div>
         }
       />
 

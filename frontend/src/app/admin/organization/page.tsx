@@ -2,6 +2,7 @@
 "use client"
 
 import { PageHeader } from "@/components/shared/PageHeader"
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide"
 import { OrgDetailsCard } from "@/components/admin/organization/OrgDetailsCard"
 import { SeederCard } from "@/components/admin/organization/SeederCard"
 import { EmailExtensionCard } from "@/components/admin/organization/EmailExtensionCard"
@@ -9,7 +10,10 @@ import { EmailExtensionCard } from "@/components/admin/organization/EmailExtensi
 export default function OrganizationPage(): React.JSX.Element {
   return (
     <div className="space-y-8 pb-10">
-      <PageHeader title="Organization" />
+      <PageHeader
+        title="Organization"
+        actions={<HelpGuide slug="admin_organization" />}
+      />
 
       {/* ================= DETAILS + EMAIL EXTENSION SIDE BY SIDE ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

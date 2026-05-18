@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { PageHeader } from "@/components/shared/PageHeader";
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 
 import { GradingSchemeTemplateList } from "@/components/admin/grading-scheme-template/GradingSchemeTemplateList";
@@ -144,15 +145,18 @@ export default function GradingSchemesPage(): React.JSX.Element {
         title="Grading Scheme Templates"
         description="Create reusable grading scheme templates and assign them to programs or individual classes."
         actions={
-          <Button
-            size="sm"
-            onClick={() =>
-              setCreateOpen(true)
-            }
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            New Template
-          </Button>
+          <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_grading_schemes" />
+            <Button
+              size="sm"
+              onClick={() =>
+                setCreateOpen(true)
+              }
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              New Template
+            </Button>
+          </div>
         }
       />
 

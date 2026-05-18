@@ -16,6 +16,7 @@ import {
 
 import { DataTable } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -610,6 +611,7 @@ export default function AuditLogPage() {
       <PageHeader
         title="Logs"
         description="Administrative audit trail and per-class educator activity logs."
+        actions={<HelpGuide slug="admin_audit_log" />}
       />
 
       {/* Tab switcher */}

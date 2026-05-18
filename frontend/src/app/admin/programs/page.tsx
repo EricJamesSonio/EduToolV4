@@ -7,6 +7,7 @@ import { programApi } from "@/api/admin/program.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import type { Program } from "@/types/admin/program.types";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -75,7 +76,8 @@ export default function ProgramsPage(): React.JSX.Element {
       <PageHeader
         title="Programs"
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_programs" />
             <SchoolYearSelector
               schoolYears={schoolYears}
               isLoading={syLoading}

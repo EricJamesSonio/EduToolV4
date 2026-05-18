@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { Lock, Settings, Layers, Pencil } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/PageHeader";
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { DataTable } from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
 import {
@@ -144,10 +145,13 @@ export default function GradeLockPage(): React.ReactElement {
         title="Grade Lock System"
         description="Manage reusable lock templates and apply them to classes."
         actions={
-          <Button onClick={() => setSettingModalOpen(true)} className="gap-2">
-            <Settings className="h-4 w-4" />
-            Manage Templates
-          </Button>
+          <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_grade_lock" />
+            <Button onClick={() => setSettingModalOpen(true)} className="gap-2">
+              <Settings className="h-4 w-4" />
+              Manage Templates
+            </Button>
+          </div>
         }
       />
 

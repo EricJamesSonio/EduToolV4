@@ -9,6 +9,7 @@ import type { AxiosError } from "axios";
 import { Plus } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/PageHeader";
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { GradingScaleList } from "@/components/admin/grading-scale/GradingScaleList";
 import { GradingScaleAssignmentSection } from "@/components/admin/grading-scale/GradingScaleAssignmentSection";
 import { CreateGradingScaleDialog } from "@/components/admin/grading-scale/CreateGradingScaleDialog";
@@ -65,10 +66,13 @@ export default function GradingScalesPage(): React.JSX.Element {
         title="Grading Scales"
         description="Manage global grading scale templates and assign them to programs."
         actions={
-          <Button onClick={() => setCreateOpen(true)} size="sm">
-            <Plus className="mr-1.5 h-4 w-4" />
-            New Scale
-          </Button>
+          <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_grading_scales" />
+            <Button onClick={() => setCreateOpen(true)} size="sm">
+              <Plus className="mr-1.5 h-4 w-4" />
+              New Scale
+            </Button>
+          </div>
         }
       />
 

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,10 +30,13 @@ export default function SchoolYearsPage(): React.JSX.Element {
       <PageHeader
         title="School Years"
         actions={
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New School Year
-          </Button>
+          <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_school_years" />
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New School Year
+            </Button>
+          </div>
         }
       />
 

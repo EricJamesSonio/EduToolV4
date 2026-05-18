@@ -8,6 +8,7 @@ import { useEducators, useResetEducatorPassword } from "@/hooks/admin/useEducato
 import { useOrganization } from "@/hooks/admin/useOrganization";
 import type { Educator } from "@/types/admin/educator.types";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -62,22 +63,25 @@ export default function EducatorsPage(): React.JSX.Element {
       <PageHeader
         title="Educators"
         actions={
-          hasEmailExtension ? (
-            <Button onClick={() => setCreateOpen(true)} size="sm">
-              <UserPlus className="mr-1.5 h-4 w-4" />
-              New Educator
-            </Button>
-          ) : (
-            <Button
-              onClick={handleSetupEmail}
-              size="sm"
-              variant="destructive"
-              disabled={orgLoading}
-            >
-              <AlertCircle className="mr-1.5 h-4 w-4" />
-              Setup Email Extension
-            </Button>
-          )
+          <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_educators" />
+            {hasEmailExtension ? (
+              <Button onClick={() => setCreateOpen(true)} size="sm">
+                <UserPlus className="mr-1.5 h-4 w-4" />
+                New Educator
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSetupEmail}
+                size="sm"
+                variant="destructive"
+                disabled={orgLoading}
+              >
+                <AlertCircle className="mr-1.5 h-4 w-4" />
+                Setup Email Extension
+              </Button>
+            )}
+          </div>
         }
       />
 
