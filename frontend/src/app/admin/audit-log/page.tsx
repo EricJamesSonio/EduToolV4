@@ -178,8 +178,15 @@ function ExpandableMetadata({
 
 // ─── Shared actor cell ─────────────────────────────────────────────────────────
 
-function ActorCell({ actorId }: { actorId: string }) {
-  const isSystem = actorId === "system";
+function ActorCell({
+  actorId,
+}: {
+  actorId?: string | null;
+}) {
+  const safeActorId = actorId ?? "unknown";
+
+  const isSystem = safeActorId === "system";
+
   return isSystem ? (
     <Badge variant="outline" className="font-mono text-xs">
       system
@@ -187,9 +194,11 @@ function ActorCell({ actorId }: { actorId: string }) {
   ) : (
     <span
       className="font-mono text-xs truncate max-w-[120px] block"
-      title={actorId}
+      title={safeActorId}
     >
-      {actorId.length > 12 ? `${actorId.slice(0, 8)}…` : actorId}
+      {safeActorId.length > 12
+        ? `${safeActorId.slice(0, 8)}…`
+        : safeActorId}
     </span>
   );
 }
@@ -260,19 +269,27 @@ function AuditLogTab() {
     {
       id: "target",
       header: "Target",
-      cell: ({ row }) => (
-        <div className="space-y-0.5">
-          <p className="text-xs font-medium capitalize">{row.original.entityType}</p>
-          <p
-            className="font-mono text-xs text-muted-foreground truncate max-w-[140px]"
-            title={row.original.entityId}
-          >
-            {row.original.entityId.length > 14
-              ? `${row.original.entityId.slice(0, 10)}…`
-              : row.original.entityId}
-          </p>
-        </div>
-      ),
+cell: ({ row }) => {
+  const entityId = row.original.entityId ?? "unknown";
+  const entityType = row.original.entityType ?? "unknown";
+
+  return (
+    <div className="space-y-0.5">
+      <p className="text-xs font-medium capitalize">
+        {entityType}
+      </p>
+
+      <p
+        className="font-mono text-xs text-muted-foreground truncate max-w-[140px]"
+        title={entityId}
+      >
+        {entityId.length > 14
+          ? `${entityId.slice(0, 10)}…`
+          : entityId}
+      </p>
+    </div>
+  );
+},
     },
     {
       accessorKey: "metadata",
