@@ -5,9 +5,11 @@ import { useState, useMemo } from "react";
 import { AlertCircle, Layers, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CheckCircle2, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DataTable } from "@/components/shared/DataTable";
 import { TermDatesModal } from "./TermDatesModal";
+import { useAssignRow } from "./assign-row/use-assign-row";
 import {
   Select,
   SelectContent,
@@ -36,7 +38,6 @@ interface ProgramAssignmentTableProps {
   schoolYearStart: string | null;
   schoolYearEnd: string | null;
   isLoading: boolean;
-  onAssignmentChange?: (programId: string, templateId: string | null) => void;
 }
 
 export function ProgramAssignmentTable({
@@ -45,7 +46,6 @@ export function ProgramAssignmentTable({
   schoolYearStart,
   schoolYearEnd,
   isLoading,
-  onAssignmentChange,
 }: ProgramAssignmentTableProps): React.JSX.Element {
   // ================= STATE =================
   const [datesModalOpen, setDatesModalOpen] = useState(false);
@@ -120,19 +120,29 @@ export function ProgramAssignmentTable({
           const tableData = typePrograms.map((p) => ({
             id: p.id,
             name: p.name,
-            assignedTemplate: p.semesterAssignment
-              ? templates.find((t) => t.id === p.semesterAssignment?.template_id)
-                  ?.name ?? "Unknown"
-              : null,
-            templateId: p.semesterAssignment?.template_id ?? "",
+            hasAssignment: !!p.semesterAssignment,
           }));
 
-          // Define columns
+          // Define columns with AssignRow logic
           const columns = [
             {
               accessorKey: "name",
               header: "Program",
-              size: 300,
+              cell: ({ row }: any) => {
+                const prog = programs.find((p) => p.id === row.original.id);
+                if (!prog) return null;
+
+                return (
+                  <div className="flex items-center gap-3">
+                    {prog.semesterAssignment ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    ) : (
+                      <Circle className="h-4 w-4 text-muted-foreground/30 shrink-0" />
+                    )}
+                    <span className="text-sm font-medium">{prog.name}</span>
+                  </div>
+                );
+              },
             },
             {
               id: "template",
@@ -141,47 +151,36 @@ export function ProgramAssignmentTable({
                 const prog = programs.find((p) => p.id === row.original.id);
                 if (!prog) return null;
 
+                // Use the same hook logic as AssignRow
+                const assignRowHook = useAssignRow(prog, templates);
+
                 return (
-                  <div className="flex items-center gap-2">
-                    <Select
-                      value={prog.semesterAssignment?.template_id ?? ""}
-                      onValueChange={(templateId) => {
-                        onAssignmentChange?.(prog.id, templateId || null);
-                      }}
-                    >
-                      <SelectTrigger className="h-8 w-56 text-xs">
-                        <SelectValue placeholder="Select template…">
-                          {prog.semesterAssignment
-                            ? templates.find(
-                                (t) =>
-                                  t.id ===
-                                  prog.semesterAssignment?.template_id
-                              )?.name ?? "Unknown"
-                            : "Select template…"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {compatibleTemplates.length === 0 ? (
-                          <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                            No templates for this program type
-                          </div>
-                        ) : (
-                          compatibleTemplates.map((t) => (
-                            <SelectItem
-                              key={t.id}
-                              value={t.id}
-                              className="text-xs"
-                            >
-                              {t.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {prog.semesterAssignment && (
-                      <Layers className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                    )}
-                  </div>
+                  <Select
+                    value={assignRowHook.current?.template_id ?? "none"}
+                    onValueChange={(value) => {
+                      if (value && value !== "none") {
+                        assignRowHook.requestTemplateChange(value);
+                      }
+                    }}
+                    disabled={assignRowHook.isPending}
+                  >
+                    <SelectTrigger className="h-8 w-56 text-xs">
+                      <SelectValue placeholder="Assign template…">
+                        {assignRowHook.assignedTemplate?.name ||
+                        assignRowHook.current
+                          ? "Assigned template"
+                          : "Assign template…"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— None —</SelectItem>
+                      {compatibleTemplates.map((t) => (
+                        <SelectItem key={t.id} value={t.id} className="text-xs">
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 );
               },
             },
