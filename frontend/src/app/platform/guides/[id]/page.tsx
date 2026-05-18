@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Eye, Pencil, Check, X, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Eye, Pencil, Check, X, Trash2, Save } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,10 +27,29 @@ export default function GuideDetailPage() {
   const [titleDraft, setTitleDraft] = useState("");
   const [showPreview, setShowPreview] = useState(false);
 
+  // Local edits for existing steps — only persisted on "Save Changes"
+  const [stepEdits, setStepEdits] = useState<Record<string, { title: string; content: string; imageUrl: string | null }>>({});
+
+  // Track removed step ids to delete on save
+  const [removedStepIds, setRemovedStepIds] = useState<Set<string>>(new Set());
+
   // Track new steps that haven't been saved yet
   const [newSteps, setNewSteps] = useState<
     { title: string; content: string; imageUrl: string | null }[]
   >([]);
+
+  const [saving, setSaving] = useState(false);
+
+  const dirtyCount = Object.keys(stepEdits).length;
+
+  const getStepValue = useCallback(
+    (step: GuideStep, field: "title" | "content" | "imageUrl"): string => {
+      const edit = stepEdits[step.id];
+      if (edit && edit[field] !== undefined) return edit[field] ?? "";
+      return step[field] ?? "";
+    },
+    [stepEdits],
+  );
 
   if (isLoading) {
     return (
@@ -59,6 +78,49 @@ export default function GuideDetailPage() {
       updateGuide.mutate({ id, dto: { title: titleDraft } });
     }
     setEditingTitle(false);
+  };
+
+  const handleStepChange = (
+    stepId: string,
+    field: "title" | "content" | "imageUrl",
+    value: string,
+  ) => {
+    setStepEdits((prev) => {
+      const current = prev[stepId] ?? {
+        title: guide.steps.find((s) => s.id === stepId)?.title ?? "",
+        content: guide.steps.find((s) => s.id === stepId)?.content ?? "",
+        imageUrl: guide.steps.find((s) => s.id === stepId)?.imageUrl ?? null,
+      };
+      const next = { ...current, [field]: field === "imageUrl" ? (value || null) : value };
+
+      // If the value matches the original, remove from edits
+      const original = guide.steps.find((s) => s.id === stepId);
+      if (original) {
+        const origField = field === "imageUrl" ? (original.imageUrl ?? "") : (original[field as keyof GuideStep] ?? "");
+        if (next[field] === origField || (field === "imageUrl" && !next[field] && !original.imageUrl)) {
+          const { [field]: _, ...rest } = next as any;
+          if (Object.keys(rest).length === 0) {
+            const { [stepId]: _s, ...remaining } = prev;
+            return remaining;
+          }
+          return { ...prev, [stepId]: rest };
+        }
+      }
+
+      return { ...prev, [stepId]: next };
+    });
+  };
+
+  const handleRemoveStep = (stepId: string) => {
+    setRemovedStepIds((prev) => new Set(prev).add(stepId));
+  };
+
+  const handleUndoRemove = (stepId: string) => {
+    setRemovedStepIds((prev) => {
+      const next = new Set(prev);
+      next.delete(stepId);
+      return next;
+    });
   };
 
   const handleAddStep = () => {
@@ -98,6 +160,38 @@ export default function GuideDetailPage() {
     setNewSteps((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleSaveChanges = async () => {
+    setSaving(true);
+
+    try {
+      // Save deleted steps first
+      for (const stepId of removedStepIds) {
+        deleteStep.mutate({ stepId, guideId: id });
+      }
+
+      // Save edited steps
+      for (const [stepId, edits] of Object.entries(stepEdits)) {
+        updateStep.mutate({
+          stepId,
+          dto: {
+            ...(edits.title !== undefined && { title: edits.title || undefined }),
+            ...(edits.content !== undefined && { content: edits.content }),
+            ...(edits.imageUrl !== undefined && { imageUrl: edits.imageUrl || undefined }),
+          },
+        });
+      }
+
+      setStepEdits({});
+      setRemovedStepIds(new Set());
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const hasChanges = dirtyCount > 0 || removedStepIds.size > 0;
+
+  const visibleSteps = guide.steps.filter((s) => !removedStepIds.has(s.id));
+
   const allSteps: (GuideStep | {
     id: string;
     orderIndex: number;
@@ -108,10 +202,10 @@ export default function GuideDetailPage() {
     updatedAt: string;
     isNew: true;
   })[] = [
-    ...guide.steps,
+    ...visibleSteps,
     ...newSteps.map((s, i) => ({
       id: `new-${i}`,
-      orderIndex: guide.steps.length + i,
+      orderIndex: visibleSteps.length + i,
       title: s.title || null,
       content: s.content,
       imageUrl: s.imageUrl,
@@ -215,6 +309,33 @@ export default function GuideDetailPage() {
         <p className="text-sm text-muted-foreground">{guide.description}</p>
       )}
 
+      {/* Unsaved changes bar */}
+      {hasChanges && (
+        <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm">
+          <span className="text-amber-800">
+            {dirtyCount > 0 && `${dirtyCount} step${dirtyCount > 1 ? "s" : ""} edited`}
+            {dirtyCount > 0 && removedStepIds.size > 0 && " · "}
+            {removedStepIds.size > 0 && `${removedStepIds.size} step${removedStepIds.size > 1 ? "s" : ""} removed (will be deleted)`}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setStepEdits({});
+                setRemovedStepIds(new Set());
+              }}
+            >
+              Discard
+            </Button>
+            <Button size="sm" onClick={handleSaveChanges} disabled={saving}>
+              <Save className="mr-1 h-4 w-4" />
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Preview Mode */}
       {showPreview ? (
         <div className="rounded-xl border border-border bg-card p-6">
@@ -229,7 +350,7 @@ export default function GuideDetailPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-foreground">
-                Steps ({guide.steps.length + newSteps.length})
+                Steps ({visibleSteps.length + newSteps.length})
               </h2>
               <Button onClick={handleAddStep} size="sm">
                 <Plus className="mr-1 h-4 w-4" />
@@ -238,40 +359,23 @@ export default function GuideDetailPage() {
             </div>
 
             {/* Saved Steps */}
-            {guide.steps.map((step, index) => (
+            {visibleSteps.map((step, index) => (
               <GuideStepEditor
                 key={step.id}
                 index={index}
-                title={step.title ?? ""}
-                content={step.content}
-                imageUrl={step.imageUrl}
-                onTitleChange={(value) => {
-                  updateStep.mutate({
-                    stepId: step.id,
-                    dto: { title: value || undefined },
-                  });
-                }}
-                onContentChange={(value) => {
-                  updateStep.mutate({
-                    stepId: step.id,
-                    dto: { content: value },
-                  });
-                }}
-                onImageChange={(url) => {
-                  updateStep.mutate({
-                    stepId: step.id,
-                    dto: { imageUrl: url || undefined },
-                  });
-                }}
-                onRemove={() => {
-                  deleteStep.mutate({ stepId: step.id, guideId: id });
-                }}
+                title={getStepValue(step, "title")}
+                content={getStepValue(step, "content")}
+                imageUrl={stepEdits[step.id]?.imageUrl ?? step.imageUrl}
+                onTitleChange={(value) => handleStepChange(step.id, "title", value)}
+                onContentChange={(value) => handleStepChange(step.id, "content", value)}
+                onImageChange={(url) => handleStepChange(step.id, "imageUrl", url ?? "")}
+                onRemove={() => handleRemoveStep(step.id)}
               />
             ))}
 
             {/* New Steps (unsaved) */}
             {newSteps.map((step, index) => {
-              const globalIndex = guide.steps.length + index;
+              const globalIndex = visibleSteps.length + index;
               return (
                 <div key={`new-${index}`} className="relative">
                   <div className="absolute -top-2 right-4 z-10 flex gap-1">
