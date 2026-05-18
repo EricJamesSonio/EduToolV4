@@ -201,18 +201,16 @@ export default function EducatorClassOverviewPage({
     };
   }, [cls, subjectsRaw, sectionsRaw, semestersRaw, schoolYearsRaw, courseMap, strandMap]);
 
-  // ── Loading / not found ─────────────────────────────────────────────────────
-
-  if (clsLoading) {
-    return (
-      <div className="space-y-4 max-w-4xl">
-        <Skeleton className="h-5 w-32" />
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-40 w-full rounded-lg" />
-        <Skeleton className="h-56 w-full rounded-lg" />
-      </div>
-    );
-  }
+if (clsLoading) {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-5 w-32" />
+      <Skeleton className="h-8 w-64" />
+      <Skeleton className="h-40 w-full rounded-lg" />
+      <Skeleton className="h-56 w-full rounded-lg" />
+    </div>
+  );
+}
 
   if (!enriched) {
     return (
@@ -243,18 +241,19 @@ export default function EducatorClassOverviewPage({
   ];
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <PageHeader
-        title={enriched.subjectName ?? enriched.subjectId}
-        description={contextLine || enriched.sectionName || undefined}
-        breadcrumbs={[{ label: "My Classes", href: "/educator/classes" }]}
-        actions={
-          <Badge variant="secondary" className="shrink-0">
-            {enriched.semesterName ?? "—"}
-          </Badge>
-        }
-      />
+  <div className="space-y-6">
+    <PageHeader
+      title={enriched.subjectName ?? enriched.subjectId}
+      description={contextLine || enriched.sectionName || undefined}
+      breadcrumbs={[{ label: "My Classes", href: "/educator/classes" }]}
+      actions={
+        <Badge variant="secondary" className="shrink-0">
+          {enriched.semesterName ?? "—"}
+        </Badge>
+      }
+    />
 
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Info card */}
       <div className="rounded-lg border bg-card px-5 py-1">
         <InfoRow
@@ -263,7 +262,6 @@ export default function EducatorClassOverviewPage({
           value={enriched.subjectName ?? enriched.subjectId}
         />
 
-        {/* Program — always shown */}
         {enriched.programName && (
           <InfoRow
             icon={GraduationCap}
@@ -272,7 +270,6 @@ export default function EducatorClassOverviewPage({
           />
         )}
 
-        {/* Course or Strand — shown when applicable (college / SHS) */}
         {enriched.courseName && (
           <InfoRow
             icon={Layers}
@@ -280,6 +277,7 @@ export default function EducatorClassOverviewPage({
             value={enriched.courseName}
           />
         )}
+
         {enriched.strandName && (
           <InfoRow
             icon={Layers}
@@ -288,7 +286,6 @@ export default function EducatorClassOverviewPage({
           />
         )}
 
-        {/* Level */}
         {enriched.levelName && (
           <InfoRow
             icon={BookOpen}
@@ -300,10 +297,18 @@ export default function EducatorClassOverviewPage({
         <InfoRow
           icon={Users}
           label="Section"
-          value={enriched.sectionName ?? <span className="text-muted-foreground">—</span>}
+          value={
+            enriched.sectionName ?? (
+              <span className="text-muted-foreground">—</span>
+            )
+          }
         />
 
-        <InfoRow icon={Clock} label="Schedule" value={schedule} />
+        <InfoRow
+          icon={Clock}
+          label="Schedule"
+          value={schedule}
+        />
 
         <InfoRow
           icon={Hash}
@@ -311,8 +316,13 @@ export default function EducatorClassOverviewPage({
           value={
             activeCount !== null ? (
               <span>
-                <span className="text-foreground">{activeCount}</span>
-                <span className="text-muted-foreground"> / {capacityLabel} enrolled</span>
+                <span className="text-foreground">
+                  {activeCount}
+                </span>
+                <span className="text-muted-foreground">
+                  {" "}
+                  / {capacityLabel} enrolled
+                </span>
               </span>
             ) : (
               capacityLabel
@@ -329,7 +339,10 @@ export default function EducatorClassOverviewPage({
 
       {/* Quick links */}
       <div>
-        <h2 className="text-sm font-semibold mb-3">Class Sections</h2>
+        <h2 className="text-sm font-semibold mb-3">
+          Class Sections
+        </h2>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {quickLinks.map((link) => (
             <QuickLink
@@ -341,5 +354,6 @@ export default function EducatorClassOverviewPage({
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }
