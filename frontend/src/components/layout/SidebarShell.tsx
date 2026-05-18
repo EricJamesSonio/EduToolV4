@@ -74,13 +74,13 @@ function NavLink({
 
   if (collapsed) {
     return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span>{linkContent}</span> {/* ✅ THIS FIXES THE ERROR */}
-        </TooltipTrigger>
-        <TooltipContent side="right">{item.label}</TooltipContent>
-      </Tooltip>
-    );
+  <Tooltip>
+    <TooltipTrigger>
+      {linkContent}
+    </TooltipTrigger>
+    <TooltipContent side="right">{item.label}</TooltipContent>
+  </Tooltip>
+      );
   }
 
   return linkContent;

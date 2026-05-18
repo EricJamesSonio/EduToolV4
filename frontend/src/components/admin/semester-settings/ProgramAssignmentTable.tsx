@@ -1,15 +1,13 @@
 // ===== File: frontend/src/components/admin/semester-settings/ProgramAssignmentTable.tsx =====
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
 import { AlertCircle, Layers, CalendarDays } from "lucide-react";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
 import { DataTable } from "@/components/shared/DataTable";
-
+import { TermDatesModal } from "./TermDatesModal";
 import {
   Select,
   SelectContent,
@@ -17,19 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import {
   PROGRAM_TYPE_LABELS,
   PROGRAM_TYPE_COLORS,
 } from "./constants";
-
-import { TermDatesModal } from "./TermDatesModal";
-
-import type {
-  SemesterTemplate,
-  TemplateAssignment,
-} from "@/types/admin/semester-template.types";
-
+import type { SemesterTemplate, TemplateAssignment } from "@/types/admin/semester-template.types";
 import type { ProgramType } from "@/types/admin/semester-template.types";
 
 interface Program {
@@ -46,10 +36,7 @@ interface ProgramAssignmentTableProps {
   schoolYearStart: string | null;
   schoolYearEnd: string | null;
   isLoading: boolean;
-  onAssignmentChange?: (
-    programId: string,
-    templateId: string | null
-  ) => void;
+  onAssignmentChange?: (programId: string, templateId: string | null) => void;
 }
 
 export function ProgramAssignmentTable({
@@ -61,34 +48,28 @@ export function ProgramAssignmentTable({
   onAssignmentChange,
 }: ProgramAssignmentTableProps): React.JSX.Element {
   // ================= STATE =================
-  const [selectedProgram, setSelectedProgram] =
+  const [datesModalOpen, setDatesModalOpen] = useState(false);
+  const [selectedProgramForDates, setSelectedProgramForDates] =
     useState<Program | null>(null);
 
-  const [datesModalOpen, setDatesModalOpen] =
-    useState(false);
-
-  // ================= MEMOS =================
+  // ================= COMPUTED =================
   const programsByType = useMemo(() => {
     const map = new Map<string, Program[]>();
-
     for (const p of programs) {
       const arr = map.get(p.type) ?? [];
       arr.push(p);
       map.set(p.type, arr);
     }
-
     return map;
   }, [programs]);
 
   const templatesByType = useMemo(() => {
     const map = new Map<string, SemesterTemplate[]>();
-
     for (const t of templates) {
       const arr = map.get(t.program_type) ?? [];
       arr.push(t);
       map.set(t.program_type, arr);
     }
-
     return map;
   }, [templates]);
 
@@ -97,7 +78,13 @@ export function ProgramAssignmentTable({
     [programsByType]
   );
 
-  // ================= LOADING =================
+  // ================= HANDLERS =================
+  const handleEditDates = (program: Program) => {
+    setSelectedProgramForDates(program);
+    setDatesModalOpen(true);
+  };
+
+  // ================= RENDER =================
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -111,7 +98,6 @@ export function ProgramAssignmentTable({
     );
   }
 
-  // ================= EMPTY =================
   if (programTypes.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -124,62 +110,43 @@ export function ProgramAssignmentTable({
     <>
       <div className="space-y-6">
         {programTypes.map((type) => {
-          const typePrograms =
-            programsByType.get(type) ?? [];
-
-          const compatibleTemplates =
-            templatesByType.get(type) ?? [];
-
+          const typePrograms = programsByType.get(type) ?? [];
+          const compatibleTemplates = templatesByType.get(type) ?? [];
           const typeColor =
             PROGRAM_TYPE_COLORS[type as ProgramType] ??
             "bg-gray-100 text-gray-600 border-gray-200";
 
-          // ================= TABLE DATA =================
+          // Build table data
           const tableData = typePrograms.map((p) => ({
             id: p.id,
             name: p.name,
             assignedTemplate: p.semesterAssignment
-              ? templates.find(
-                  (t) =>
-                    t.id ===
-                    p.semesterAssignment?.template_id
-                )?.name ?? "Unknown"
+              ? templates.find((t) => t.id === p.semesterAssignment?.template_id)
+                  ?.name ?? "Unknown"
               : null,
-            templateId:
-              p.semesterAssignment?.template_id ?? "",
+            templateId: p.semesterAssignment?.template_id ?? "",
           }));
 
-          // ================= COLUMNS =================
+          // Define columns
           const columns = [
             {
               accessorKey: "name",
               header: "Program",
               size: 300,
             },
-
             {
               id: "template",
               header: "Semester Template",
-
               cell: ({ row }: any) => {
-                const prog = programs.find(
-                  (p) => p.id === row.original.id
-                );
-
+                const prog = programs.find((p) => p.id === row.original.id);
                 if (!prog) return null;
 
                 return (
                   <div className="flex items-center gap-2">
                     <Select
-                      value={
-                        prog.semesterAssignment
-                          ?.template_id ?? ""
-                      }
+                      value={prog.semesterAssignment?.template_id ?? ""}
                       onValueChange={(templateId) => {
-                        onAssignmentChange?.(
-                          prog.id,
-                          templateId || null
-                        );
+                        onAssignmentChange?.(prog.id, templateId || null);
                       }}
                     >
                       <SelectTrigger className="h-8 w-56 text-xs">
@@ -188,18 +155,15 @@ export function ProgramAssignmentTable({
                             ? templates.find(
                                 (t) =>
                                   t.id ===
-                                  prog.semesterAssignment
-                                    ?.template_id
+                                  prog.semesterAssignment?.template_id
                               )?.name ?? "Unknown"
                             : "Select template…"}
                         </SelectValue>
                       </SelectTrigger>
-
                       <SelectContent>
                         {compatibleTemplates.length === 0 ? (
                           <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                            No templates for this
-                            program type
+                            No templates for this program type
                           </div>
                         ) : (
                           compatibleTemplates.map((t) => (
@@ -214,7 +178,6 @@ export function ProgramAssignmentTable({
                         )}
                       </SelectContent>
                     </Select>
-
                     {prog.semesterAssignment && (
                       <Layers className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
                     )}
@@ -222,34 +185,22 @@ export function ProgramAssignmentTable({
                 );
               },
             },
-
             {
               id: "dates",
-              header: "Configure Dates",
-
+              header: "Term Dates",
               cell: ({ row }: any) => {
-                const prog = programs.find(
-                  (p) => p.id === row.original.id
-                );
-
-                if (!prog) return null;
-
-                const hasTemplate =
-                  !!prog.semesterAssignment;
+                const prog = programs.find((p) => p.id === row.original.id);
+                if (!prog || !prog.semesterAssignment) return null;
 
                 return (
                   <Button
-                    variant="outline"
                     size="sm"
-                    className="h-8 text-xs"
-                    disabled={!hasTemplate}
-                    onClick={() => {
-                      setSelectedProgram(prog);
-                      setDatesModalOpen(true);
-                    }}
+                    variant="outline"
+                    className="h-8 text-xs gap-1.5"
+                    onClick={() => handleEditDates(prog)}
                   >
-                    <CalendarDays className="mr-1 h-3.5 w-3.5" />
-                    Edit Dates
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    Configure Dates
                   </Button>
                 );
               },
@@ -261,20 +212,14 @@ export function ProgramAssignmentTable({
               <div className="flex items-center gap-2">
                 <Badge
                   variant="outline"
-                  className={cn(
-                    "text-xs border px-2 py-0.5",
-                    typeColor
-                  )}
+                  className={cn("text-xs border px-2 py-0.5", typeColor)}
                 >
-                  {PROGRAM_TYPE_LABELS[
-                    type as ProgramType
-                  ] ?? type}
+                  {PROGRAM_TYPE_LABELS[type as ProgramType] ?? type}
                 </Badge>
-
                 <div className="flex-1 h-px bg-border" />
               </div>
 
-              {/* TABLE */}
+              {/* Table */}
               <div className="rounded-lg border overflow-hidden">
                 <DataTable
                   columns={columns}
@@ -285,16 +230,12 @@ export function ProgramAssignmentTable({
                 />
               </div>
 
-              {/* WARNING */}
-              {typePrograms.some(
-                (p) => !p.semesterAssignment
-              ) && (
+              {/* Warning for unassigned */}
+              {typePrograms.some((p) => !p.semesterAssignment) && (
                 <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
                   <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
-
                   <p className="text-[11px] text-amber-700">
-                    Some programs don&apos;t have a
-                    template assigned yet.
+                    Some programs don&apos;t have a template assigned yet.
                   </p>
                 </div>
               )}
@@ -303,18 +244,12 @@ export function ProgramAssignmentTable({
         })}
       </div>
 
-      {/* ================= TERM DATES MODAL ================= */}
-      {selectedProgram && (
+      {/* Term Dates Modal */}
+      {selectedProgramForDates && (
         <TermDatesModal
           open={datesModalOpen}
-          onOpenChange={(open) => {
-            setDatesModalOpen(open);
-
-            if (!open) {
-              setSelectedProgram(null);
-            }
-          }}
-          program={selectedProgram}
+          onOpenChange={setDatesModalOpen}
+          program={selectedProgramForDates}
           templates={templates}
           schoolYearStart={schoolYearStart}
           schoolYearEnd={schoolYearEnd}

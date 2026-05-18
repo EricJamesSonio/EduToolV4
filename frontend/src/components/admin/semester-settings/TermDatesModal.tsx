@@ -15,10 +15,7 @@ import { TermDatesPanel } from "./assign-row/term-dates-panel";
 import { ConfirmDialog } from "./assign-row/confirm-dialog";
 import { toDateInput } from "./assign-row/helpers";
 import { useAssignRow } from "./assign-row/use-assign-row";
-import type {
-  SemesterTemplate,
-  TemplateAssignment,
-} from "@/types/admin/semester-template.types";
+import type { SemesterTemplate, TemplateAssignment } from "@/types/admin/semester-template.types";
 
 interface TermDatesModalProps {
   open: boolean;
@@ -74,59 +71,47 @@ export function TermDatesModal({
   return (
     <>
       <Dialog open={open && hasTemplate} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[95vw] max-w-5xl h-[90vh] overflow-hidden p-0">
-          <div className="flex h-full flex-col">
-            <DialogHeader className="border-b px-6 py-4">
-              <DialogTitle className="text-xl">
-                Configure Term Dates
-              </DialogTitle>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="text-xl font-bold">
+              Configure Term Dates
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              Set term dates for <strong>{program.name}</strong> using the{" "}
+              <strong>{assignedTemplate?.name ?? current.template.name}</strong>{" "}
+              template.
+            </DialogDescription>
+            {schoolYearStart && schoolYearEnd && (
+              <div className="mt-3 pt-3 border-t text-xs text-muted-foreground space-y-1">
+                <p>
+                  <span className="font-semibold text-foreground">
+                    School Year Range:
+                  </span>{" "}
+                  {new Date(schoolYearStart).toLocaleDateString()} –{" "}
+                  {new Date(schoolYearEnd).toLocaleDateString()}
+                </p>
+                <p>Term dates must fall within this range.</p>
+              </div>
+            )}
+          </DialogHeader>
 
-              <DialogDescription>
-                Set term dates for <strong>{program.name}</strong> using the{" "}
-                <strong>
-                  {assignedTemplate?.name ?? current.template.name}
-                </strong>{" "}
-                template.
-                {schoolYearStart && schoolYearEnd && (
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    School year range:{" "}
-                    <span className="font-medium text-foreground">
-                      {new Date(schoolYearStart).toLocaleDateString()} –{" "}
-                      {new Date(schoolYearEnd).toLocaleDateString()}
-                    </span>
-                  </div>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-
-            {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto px-6 py-5">
-              <TermDatesPanel
-                templateName={assignedTemplate?.name ?? current.template.name}
-                allTerms={allTerms}
-                termDates={termDates}
-                isValid={validation.isValid}
-                savingDates={savingDates}
-                panelMode={panelMode}
-                syMin={syMin}
-                syMax={syMax}
-                onDateChange={handleDateChange}
-                onRequestSave={handleRequestSave}
-                onCancelEdit={handleCancelEdit}
-                onEnterEdit={() => setPanelMode("edit")}
-                onClose={() => onOpenChange(false)}
-              />
-            </div>
-
-            <DialogFooter className="border-t px-6 py-4">
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={savingDates}
-              >
-                Close
-              </Button>
-            </DialogFooter>
+          {/* Term Dates Panel */}
+          <div className="py-6 px-2 border-t">
+            <TermDatesPanel
+              templateName={assignedTemplate?.name ?? current.template.name}
+              allTerms={allTerms}
+              termDates={termDates}
+              isValid={validation.isValid}
+              savingDates={savingDates}
+              panelMode={panelMode}
+              syMin={syMin}
+              syMax={syMax}
+              onDateChange={handleDateChange}
+              onRequestSave={handleRequestSave}
+              onCancelEdit={handleCancelEdit}
+              onEnterEdit={() => setPanelMode("edit")}
+              onClose={() => onOpenChange(false)}
+            />
           </div>
         </DialogContent>
       </Dialog>
