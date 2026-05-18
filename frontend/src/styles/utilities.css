@@ -208,34 +208,35 @@
     border-left: 3px solid var(--accent);
   }
 
-  .table-enhanced {
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
+.table-enhanced {
+  border: 1px solid color-mix(in oklch, var(--border) 35%, transparent);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
 
-  .table-enhanced thead tr {
-    background-color: var(--secondary);
-    border-bottom: 2px solid var(--primary);
-  }
+.table-enhanced thead tr {
+  background-color: color-mix(in oklch, var(--muted) 50%, transparent);
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+}
 
-  .table-enhanced th {
-    color: var(--foreground);
-    font-weight: 500;
-    border-bottom: 1px solid var(--border);
-  }
+.table-enhanced th {
+  color: var(--muted-foreground);
+  font-weight: 500;
+  border-bottom: none;
+}
 
-  .table-enhanced tbody tr {
-    border-bottom: 1px solid var(--border);
-  }
+.table-enhanced tbody tr {
+  border-bottom: none;
+}
 
-  .table-enhanced tbody tr:hover {
-    background-color: var(--secondary);
-    border-left: 3px solid var(--accent);
-  }
+.table-enhanced tbody tr:hover {
+  background-color: color-mix(in oklch, var(--muted) 60%, transparent);
+  border-left: none;
+}
 
-  .table-enhanced td {
-    border-bottom: 1px solid var(--border);
-  }
+.table-enhanced td {
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 30%, transparent);
+}
 
   /* ── Enhanced Select/Dropdown Styling ── */
   .select-enhanced {

@@ -67,11 +67,11 @@ export interface OrgSeedOptions {
   excludedSubjects?: string[];
   excludedLevelSubjects?: Record<string, string[]>;
   levelConfigs?: Record<string, string[]>;
-  /** 🔥 FIX: sectionConfigs now expects scoped keys like "BSCS|1st Year" or "STEM|Grade 11" */
   sectionConfigs?: Record<string, { name: string; capacity: number }[]>;
-  gradingScales?: Record<string, GradingScaleOption>;
-  seedGradingSchemes?:    boolean
-  seedSemesterTemplates?: boolean
+  gradingScales?: Record<string, GradingScaleOption>;  // ← restore this
+  seedGradingScales?:     boolean;
+  seedGradingSchemes?:    boolean;
+  seedSemesterTemplates?: boolean;
 }
 
 @Injectable()
@@ -182,14 +182,9 @@ export class OrgSeederService {
       sectionConfigs,
       result,
     );
-    await this.seedGradingScales(
-      orgId,
-      schoolYearId,
-      shouldSeedProgram,
-      programMap,
-      gradingScales,
-      result,
-    );
+  if (options.seedGradingScales !== false) {
+    await this.seedGradingScales(orgId, schoolYearId, shouldSeedProgram, programMap, gradingScales, result)
+  }
     if (options.seedGradingSchemes !== false) {
       await this.seedGradingSchemes(orgId, shouldSeedProgram, result)
     }

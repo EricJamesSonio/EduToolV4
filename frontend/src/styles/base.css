@@ -131,11 +131,11 @@
     background: var(--muted-foreground);
   }
 
-/* ── Minimal Table Style ── */
+/* ── Soft Minimal Table Style ── */
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   background: transparent;
 }
 
@@ -146,18 +146,18 @@ thead tr {
 th {
   font-weight: 500;
   font-size: 0.875rem;
-  letter-spacing: normal;
+  letter-spacing: -0.01em;
   text-transform: none;
-  color: var(--foreground);
+  color: var(--muted-foreground);
   text-align: left;
-  padding: 0.875rem 1rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 td {
   padding: 0.875rem 1rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
   vertical-align: middle;
   color: var(--foreground);
   background: transparent;
@@ -167,12 +167,12 @@ tr:last-child td {
   border-bottom: none;
 }
 
-tbody tr:hover td {
-  background-color: var(--muted);
+tbody tr {
+  transition: background-color 150ms ease;
 }
 
-tbody tr:hover {
-  border-left: none;
+tbody tr:hover td {
+  background-color: color-mix(in oklch, var(--muted) 45%, transparent);
 }
   /* ── HR ── */
   hr {

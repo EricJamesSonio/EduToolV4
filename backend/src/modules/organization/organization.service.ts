@@ -81,19 +81,22 @@ async create(adminId: string, dto: CreateOrganizationDto) {
     const org = await this.orgRepository.findById(orgId)
     if (!org) throw new NotFoundException('Organization not found.')
 
-    await this.orgSeeder.seedOrg({
-      orgId,
-      schoolYearId: dto.schoolYearId,
-      programs: dto.programs,
-      courses: dto.courses,
-      strands: dto.strands,
-      excludedLevels: dto.excludedLevels,
-      excludedSubjects: dto.excludedSubjects,
-      excludedLevelSubjects: dto.excludedLevelSubjects,
-      levelConfigs: dto.levelConfigs,
-      sectionConfigs: dto.sectionConfigs,
-      gradingScales: dto.gradingScales,
-    })
+  await this.orgSeeder.seedOrg({
+    orgId,
+    schoolYearId:          dto.schoolYearId,
+    programs:              dto.programs,
+    courses:               dto.courses,
+    strands:               dto.strands,
+    excludedLevels:        dto.excludedLevels,
+    excludedSubjects:      dto.excludedSubjects,
+    excludedLevelSubjects: dto.excludedLevelSubjects,
+    levelConfigs:          dto.levelConfigs,
+    sectionConfigs:        dto.sectionConfigs,
+    gradingScales:         dto.gradingScales,
+    seedGradingScales:     dto.seedGradingScales,
+    seedGradingSchemes:    dto.seedGradingSchemes,
+    seedSemesterTemplates: dto.seedSemesterTemplates,
+  })
 
     return { success: true, message: 'Seed completed successfully.' }
   }

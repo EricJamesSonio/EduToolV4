@@ -240,13 +240,9 @@ export function useSeederCard() {
       sectionConfigs: sectionConfigsPayload,
       excludedLevelSubjects:
         Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
-      gradingScales,
-      seedGradingSchemes: seedGradingSchemes
-        ? Object.values(gradingSchemesByProgram).some(Boolean)  // at least one enabled
-        : false,
-      seedSemesterTemplates: seedSemesterTemplates
-        ? Object.values(semesterTemplatesByProgram).some(Boolean)
-        : false,
+seedGradingScales: seedGradingScale ? true : false,
+seedGradingSchemes: seedGradingSchemes ? Object.values(gradingSchemesByProgram).some(Boolean) : false,
+seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesByProgram).some(Boolean) : false,
     });
   }
 
