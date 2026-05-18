@@ -25,8 +25,7 @@ export function CTASection() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
-          <Button size="lg" variant="outline" className="w-full sm:w-auto text-primary-foreground border-primary-foreground hover:bg-primary-foreground/10">
-            <Calendar className="mr-2 h-4 w-4" />
+          <Button size="lg" variant="secondary" className="w-full sm:w-auto">
             Schedule Demo
           </Button>
         </div>
