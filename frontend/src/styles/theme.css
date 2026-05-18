@@ -18,16 +18,28 @@
   /* Semantic */
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+
   --color-secondary: var(--secondary);
+
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+
+  /* ADD THESE */
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+
+  --color-accent: var(--accent);
 
   /* Borders */
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* Sidebar tokens ONLY (no design decisions) */
+  /* Sidebar */
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-border: var(--sidebar-border);
@@ -50,6 +62,7 @@
   --primary-foreground: #ffffff;
 
   --secondary: #f5f5f5;
+
   --muted: #f0f0f0;
   --muted-foreground: #555555;
 
@@ -57,7 +70,17 @@
   --input: #000000;
   --ring: #000000;
 
-  /* Sidebar base only (NO styling rules) */
+  /* semantic colors */
+  --destructive: oklch(0.58 0.24 25);
+  --destructive-foreground: #ffffff;
+
+  --success: oklch(0.60 0.18 145);
+  --warning: oklch(0.75 0.15 85);
+  --info: oklch(0.65 0.12 240);
+
+  --accent: oklch(0.65 0.18 260);
+
+  /* sidebar */
   --sidebar: #000000;
   --sidebar-foreground: #ffffff;
   --sidebar-border: #ffffff;
@@ -78,6 +101,7 @@
   --primary-foreground: #000000;
 
   --secondary: #1a1a1a;
+
   --muted: #1a1a1a;
   --muted-foreground: #aaaaaa;
 
@@ -85,6 +109,17 @@
   --input: #ffffff;
   --ring: #ffffff;
 
+  /* semantic colors */
+  --destructive: oklch(0.70 0.22 25);
+  --destructive-foreground: #ffffff;
+
+  --success: oklch(0.72 0.16 145);
+  --warning: oklch(0.82 0.14 85);
+  --info: oklch(0.75 0.12 240);
+
+  --accent: oklch(0.72 0.18 260);
+
+  /* sidebar */
   --sidebar: #000000;
   --sidebar-foreground: #ffffff;
   --sidebar-border: #ffffff;

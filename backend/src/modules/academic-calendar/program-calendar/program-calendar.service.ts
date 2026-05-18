@@ -1,4 +1,4 @@
-// backend/src/modules/academic-calendar/program-calendar.service.ts
+// backend/src/modules/academic-calendar/program-calendar/program-calendar.service.ts
 
 import {
   Injectable,
@@ -7,13 +7,11 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { ProgramCalendarRepository } from './program-calendar.repository';
-import { AcademicCalendarRepository } from '../academic-calendar.repository';
 import {
   CreateProgramCalendarDto,
   UpdateProgramCalendarDto,
   QueryProgramCalendarDto,
   SaveHolidayConfigDto,
-  SeedHolidaysToCalendarDto,
   BreakDto,
 } from '../dto/program-calendar.dto';
 import {
@@ -38,35 +36,24 @@ interface ComputedTerm {
   endDate:    Date;
 }
 
-/**
- * Given a calendar start/end and sorted breaks, compute term date ranges.
- * Rules:
- *   term_end   = break_start - 1 day
- *   next_start = break_end   + 1 day
- *   last term  = last_break_end + 1 day → calendar end
- */
 function computeTerms(
   calendarStart: Date,
   calendarEnd:   Date,
   sortedBreaks:  BreakInput[],
 ): ComputedTerm[] {
   const terms: ComputedTerm[] = [];
-
   let termStart = new Date(calendarStart);
   termStart.setHours(0, 0, 0, 0);
 
   for (let i = 0; i < sortedBreaks.length; i++) {
-    const brk = sortedBreaks[i];
-
-    // Term ends the day before the break
+    const brk     = sortedBreaks[i];
     const termEnd = new Date(brk.startDate);
     termEnd.setHours(0, 0, 0, 0);
     termEnd.setDate(termEnd.getDate() - 1);
 
     if (termEnd < termStart) {
       throw new BadRequestException(
-        `Break "${brk.label}" starts before or on the same day as the previous term start. ` +
-        `Ensure breaks don't overlap and have at least 1 day between them.`,
+        `Break "${brk.label}" starts before or on the same day as the previous term start.`,
       );
     }
 
@@ -77,16 +64,13 @@ function computeTerms(
       endDate:    termEnd,
     });
 
-    // Next term starts the day after the break ends
     termStart = new Date(brk.endDate);
     termStart.setHours(0, 0, 0, 0);
     termStart.setDate(termStart.getDate() + 1);
   }
 
-  // Final term: from after last break (or calendar start if no breaks) → calendar end
   const finalEnd = new Date(calendarEnd);
   finalEnd.setHours(0, 0, 0, 0);
-
   if (termStart <= finalEnd) {
     terms.push({
       label:      `Term ${sortedBreaks.length + 1}`,
@@ -99,19 +83,11 @@ function computeTerms(
   return terms;
 }
 
-/**
- * Validate break list:
- * - each break: start <= end
- * - breaks don't overlap each other
- * - all breaks within calendar range
- * Returns sorted breaks.
- */
 function validateAndSortBreaks(
   breaks:        BreakInput[],
   calendarStart: Date,
   calendarEnd:   Date,
 ): BreakInput[] {
-  // Validate individual breaks
   for (const b of breaks) {
     if (b.startDate > b.endDate) {
       throw new BadRequestException(
@@ -120,25 +96,20 @@ function validateAndSortBreaks(
     }
     if (b.startDate < calendarStart || b.endDate > calendarEnd) {
       throw new BadRequestException(
-        `Break "${b.label}" falls outside the calendar date range ` +
+        `Break "${b.label}" falls outside the calendar range ` +
         `(${calendarStart.toDateString()} – ${calendarEnd.toDateString()}).`,
       );
     }
   }
 
-  // Sort chronologically
   const sorted = [...breaks].sort(
     (a, b) => a.startDate.getTime() - b.startDate.getTime(),
   );
 
-  // Check overlaps
   for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1];
-    const curr = sorted[i];
-    if (curr.startDate <= prev.endDate) {
+    if (sorted[i].startDate <= sorted[i - 1].endDate) {
       throw new BadRequestException(
-        `Breaks "${prev.label}" and "${curr.label}" overlap. ` +
-        `Each break must end before the next one starts.`,
+        `Breaks "${sorted[i - 1].label}" and "${sorted[i].label}" overlap.`,
       );
     }
   }
@@ -151,11 +122,10 @@ function validateAndSortBreaks(
 @Injectable()
 export class ProgramCalendarService {
   constructor(
-    private readonly repo:           ProgramCalendarRepository,
-    private readonly calendarRepo:   AcademicCalendarRepository,
+    private readonly repo: ProgramCalendarRepository,
   ) {}
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Private helpers ────────────────────────────────────────────────────────
 
   private parseBreaks(rawBreaks: BreakDto[]): BreakInput[] {
     return rawBreaks.map((b) => ({
@@ -190,7 +160,60 @@ export class ProgramCalendarService {
         endDate:    t.end_date,
         orderIndex: t.order_index,
       })),
+      holidays: (cal.holidays ?? []).map((h: any) => ({
+        id:          h.id,
+        holidayKey:  h.holiday_key ?? null,
+        title:       h.title,
+        date:        h.date,
+        description: h.description ?? null,
+        type:        h.type,
+      })),
     };
+  }
+
+  /**
+   * Build the holiday rows to store from OrgHolidayConfig.
+   * Uses the calendar's start_date year to compute actual dates.
+   */
+  private buildHolidayRows(
+    enabledKeys:    string[],
+    customHolidays: any[],
+    calendarYear:   number,
+  ) {
+    const systemHolidays = buildHolidayDates(enabledKeys, calendarYear).map((h) => ({
+      holidayKey:  h.key,
+      title:       h.title,
+      date:        h.date,
+      description: h.description ?? null,
+      type:        'system' as const,
+    }));
+
+    const custom = customHolidays.map((ch: any) => ({
+      holidayKey:  null,
+      title:       ch.title,
+      date:        new Date(ch.date),
+      description: ch.description ?? null,
+      type:        'custom' as const,
+    }));
+
+    return [...systemHolidays, ...custom];
+  }
+
+  private async _applyBreaks(
+    calendarId: string,
+    orgId:      string,
+    rawBreaks:  BreakDto[],
+    startDate:  Date,
+    endDate:    Date,
+  ) {
+    const parsed = this.parseBreaks(rawBreaks);
+    const sorted = validateAndSortBreaks(parsed, startDate, endDate);
+    await this.repo.replaceBreaks(
+      calendarId, orgId,
+      sorted.map((b, i) => ({ ...b, orderIndex: i + 1 })),
+    );
+    const computed = computeTerms(startDate, endDate, sorted);
+    await this.repo.replaceTerms(calendarId, orgId, computed);
   }
 
   // ── Create ─────────────────────────────────────────────────────────────────
@@ -203,7 +226,6 @@ export class ProgramCalendarService {
       throw new BadRequestException('Calendar start date must be before end date.');
     }
 
-    // Check uniqueness
     const existing = await this.repo.findByProgram(dto.programId, dto.schoolYearId, orgId);
     if (existing) {
       throw new ConflictException(
@@ -211,7 +233,7 @@ export class ProgramCalendarService {
       );
     }
 
-    // Create base calendar
+    // Create the calendar record
     const calendar = await this.repo.create({
       orgId,
       schoolYearId: dto.schoolYearId,
@@ -221,15 +243,21 @@ export class ProgramCalendarService {
       notes:        dto.notes,
     });
 
-    // Process breaks + compute terms if breaks provided
+    // Apply breaks + compute terms
     if (dto.breaks && dto.breaks.length > 0) {
       await this._applyBreaks(calendar.id, orgId, dto.breaks, startDate, endDate);
     } else {
-      // No breaks → single term spanning entire calendar
       await this.repo.replaceTerms(calendar.id, orgId, [
         { label: 'Term 1', orderIndex: 1, startDate, endDate },
       ]);
     }
+
+    // Inherit holidays from org-global config
+    const config        = await this.repo.findHolidayConfig(orgId);
+    const enabledKeys   = config?.enabled_keys    ?? getDefaultEnabledKeys();
+    const customHols    = (config?.custom_holidays as any[]) ?? [];
+    const holidayRows   = this.buildHolidayRows(enabledKeys, customHols, startDate.getFullYear());
+    await this.repo.replaceHolidays(calendar.id, orgId, holidayRows);
 
     const fresh = await this.repo.findById(calendar.id, orgId);
     return this.mapCalendar(fresh);
@@ -275,10 +303,9 @@ export class ProgramCalendarService {
     await this.repo.update(id, {
       startDate: dto.startDate ? startDate : undefined,
       endDate:   dto.endDate   ? endDate   : undefined,
-      notes:     dto.notes     !== undefined ? (dto.notes ?? null) : undefined,
+      notes:     dto.notes !== undefined ? (dto.notes ?? null) : undefined,
     });
 
-    // Re-apply breaks if provided (full replacement)
     if (dto.breaks !== undefined) {
       await this._applyBreaks(id, orgId, dto.breaks, startDate, endDate);
     }
@@ -295,131 +322,70 @@ export class ProgramCalendarService {
     await this.repo.delete(id);
   }
 
-  // ── Internal: apply breaks + recompute terms ───────────────────────────────
-
-  private async _applyBreaks(
-    calendarId: string,
-    orgId:      string,
-    rawBreaks:  BreakDto[],
-    startDate:  Date,
-    endDate:    Date,
-  ) {
-    const parsed = this.parseBreaks(rawBreaks);
-    const sorted = validateAndSortBreaks(parsed, startDate, endDate);
-
-    // Persist sorted breaks
-    await this.repo.replaceBreaks(
-      calendarId,
-      orgId,
-      sorted.map((b, i) => ({ ...b, orderIndex: i + 1 })),
-    );
-
-    // Compute and persist terms
-    const computed = computeTerms(startDate, endDate, sorted);
-    await this.repo.replaceTerms(calendarId, orgId, computed);
-  }
-
-  // ── Holiday Config ─────────────────────────────────────────────────────────
+  // ── Holiday Config (org-global) ────────────────────────────────────────────
 
   /**
-   * Returns the full holiday list with enabled/disabled status for the org+year.
-   * If no config exists yet, defaults are used (isDefault=true holidays).
+   * Get the org's global holiday config.
+   * schoolYearId is accepted for the query param but config is org-scoped.
+   * We return it with the full resolved holiday list (enabled/disabled).
    */
-  async getHolidayConfig(orgId: string, schoolYearId: string) {
-    const config = await this.repo.findHolidayConfig(orgId, schoolYearId);
-    const enabledKeys = config?.enabled_keys ?? getDefaultEnabledKeys();
+  async getHolidayConfig(orgId: string) {
+    const config         = await this.repo.findHolidayConfig(orgId);
+    const enabledKeys    = config?.enabled_keys    ?? getDefaultEnabledKeys();
     const customHolidays = (config?.custom_holidays as any[]) ?? [];
 
     return {
-      schoolYearId,
       holidays:       resolveHolidays(enabledKeys),
       customHolidays,
     };
   }
 
   /**
-   * Saves which system holidays are enabled + any custom holidays.
+   * Save the org's global holiday config.
+   * After saving, ALL existing ProgramCalendars for this org are re-synced:
+   * their ProgramCalendarHoliday rows are deleted and rebuilt from the new config.
    */
   async saveHolidayConfig(orgId: string, dto: SaveHolidayConfigDto) {
-    // Validate all enabled keys exist in the seed list
+    // Validate keys
     const validKeys = new Set(PHILIPPINE_HOLIDAYS.map((h) => h.key));
     const invalid   = dto.enabledKeys.filter((k) => !validKeys.has(k));
     if (invalid.length > 0) {
-      throw new BadRequestException(
-        `Unknown holiday keys: ${invalid.join(', ')}`,
-      );
+      throw new BadRequestException(`Unknown holiday keys: ${invalid.join(', ')}`);
     }
 
+    // Persist config
     const config = await this.repo.upsertHolidayConfig({
       orgId,
-      schoolYearId:   dto.schoolYearId,
       enabledKeys:    dto.enabledKeys,
       customHolidays: dto.customHolidays ?? [],
     });
 
+    // Re-sync ALL existing program calendars for this org
+    const allCalendars = await this.repo.findAllByOrg(orgId);
+    const allFull      = await Promise.all(
+      allCalendars.map((c) => this.repo.findById(c.id, orgId)),
+    );
+
+    for (const cal of allFull) {
+      if (!cal) continue;
+      const year        = new Date(cal.start_date).getFullYear();
+      const holidayRows = this.buildHolidayRows(
+        config.enabled_keys,
+        config.custom_holidays as any[],
+        year,
+      );
+      await this.repo.replaceHolidays(cal.id, orgId, holidayRows);
+    }
+
     return {
-      schoolYearId:   dto.schoolYearId,
-      enabledKeys:    config.enabled_keys,
+      holidays:       resolveHolidays(config.enabled_keys),
       customHolidays: config.custom_holidays,
+      synced:         allCalendars.length,
     };
   }
 
-  /**
-   * Seeds enabled holidays into AcademicCalendar (existing event table)
-   * as type='holiday' events for the given year.
-   * Idempotent: skips any that already exist with the same title + date.
-   */
-  async seedHolidaysToCalendar(orgId: string, dto: SeedHolidaysToCalendarDto) {
-    const config      = await this.repo.findHolidayConfig(orgId, dto.schoolYearId);
-    const enabledKeys = config?.enabled_keys ?? getDefaultEnabledKeys();
-    const holidayDates = buildHolidayDates(enabledKeys, dto.year);
+  // ── Terms (consumed by semester template module) ───────────────────────────
 
-    // Fetch existing calendar events to avoid duplicates
-    const existing = await this.calendarRepo.findAll(orgId, dto.schoolYearId);
-    const existingTitles = new Set(
-      existing
-        .filter((e) => e.type === 'holiday')
-        .map((e) => `${e.title}__${new Date(e.start_date).toDateString()}`),
-    );
-
-    const toCreate = holidayDates.filter(
-      (h) => !existingTitles.has(`${h.title}__${h.date.toDateString()}`),
-    );
-
-    for (const h of toCreate) {
-      await this.calendarRepo.create({
-        orgId,
-        schoolYearId: dto.schoolYearId,
-        title:        h.title,
-        type:         'holiday',
-        startDate:    h.date,
-        endDate:      h.date,
-        description:  h.description,
-      });
-    }
-
-    // Also seed custom holidays
-    const customHolidays = (config?.custom_holidays as any[]) ?? [];
-    for (const ch of customHolidays) {
-      const date = new Date(ch.date);
-      const key  = `${ch.title}__${date.toDateString()}`;
-      if (!existingTitles.has(key)) {
-        await this.calendarRepo.create({
-          orgId,
-          schoolYearId: dto.schoolYearId,
-          title:        ch.title,
-          type:         'holiday',
-          startDate:    date,
-          endDate:      date,
-          description:  ch.description ?? null,
-        });
-      }
-    }
-
-    return { seeded: toCreate.length };
-  }
-
-  /** Exposed for other modules (e.g. semester template smart calc) */
   async getTermsForProgram(programId: string, schoolYearId: string, orgId: string) {
     const cal = await this.repo.findByProgram(programId, schoolYearId, orgId);
     if (!cal) return [];

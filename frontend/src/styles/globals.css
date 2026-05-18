@@ -21,3 +21,6 @@
 
 /* Responsive styles for all devices */
 @import "./responsive.css";
+
+/* Error display in login forms */
+@import "./error-login.css";

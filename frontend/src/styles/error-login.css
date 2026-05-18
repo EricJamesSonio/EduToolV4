@@ -1,0 +1,40 @@
+/* ── Login error box ── */
+.login-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-md);
+
+  /* softer red background */
+  background-color: oklch(0.62 0.22 25 / 0.10);
+
+  /* more visible red border */
+  border: 1px solid oklch(0.58 0.24 25 / 0.35);
+
+  color: var(--destructive);
+
+  font-size: 0.875rem;
+  line-height: 1.5;
+  animation: login-error-in 150ms ease;
+}
+
+.login-error span {
+  flex: 1;
+}
+
+@keyframes login-error-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dark .login-error {
+  background-color: oklch(0.58 0.22 25 / 0.18);
+  border-color: oklch(0.62 0.24 25 / 0.42);
+}

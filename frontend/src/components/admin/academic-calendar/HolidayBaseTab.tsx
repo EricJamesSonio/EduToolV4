@@ -5,32 +5,32 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Sparkles, List, CalendarDays } from "lucide-react";
-import { programCalendarApi }    from "@/api/admin/program-calendar.api";
-import type { CustomHoliday }    from "@/api/admin/program-calendar.api";
-import { HolidayCalendarGrid }   from "./HolidayCalendarGrid";
-import { HolidayListPanel }      from "./HolidayListPanel";
-import { Button }   from "@/components/ui/button";
-import { cn }       from "@/lib/utils";
+import { Loader2, List, CalendarDays, Info } from "lucide-react";
+import { programCalendarApi }  from "@/api/admin/program-calendar.api";
+import type { CustomHoliday }  from "@/api/admin/program-calendar.api";
+import { HolidayCalendarGrid } from "./HolidayCalendarGrid";
+import { HolidayListPanel }    from "./HolidayListPanel";
+import { Button } from "@/components/ui/button";
+import { cn }     from "@/lib/utils";
 
 type ViewMode = "calendar" | "list";
 
 interface HolidayBaseTabProps {
-  schoolYearId: string;
-  year:         number; // calendar display year
+  /** Used only to determine the display year for the calendar grid */
+  year: number;
 }
 
-export function HolidayBaseTab({ schoolYearId, year }: HolidayBaseTabProps) {
+export function HolidayBaseTab({ year }: HolidayBaseTabProps) {
   const queryClient = useQueryClient();
   const [viewMode,       setViewMode]       = useState<ViewMode>("calendar");
   const [enabledKeys,    setEnabledKeys]    = useState<Set<string>>(new Set());
   const [customHolidays, setCustomHolidays] = useState<CustomHoliday[]>([]);
   const [dirty,          setDirty]          = useState(false);
 
+  // Org-global config — no schoolYearId needed
   const { data: config, isLoading } = useQuery({
-    queryKey: ["admin", "holiday-config", schoolYearId],
-    queryFn:  () => programCalendarApi.getHolidayConfig(schoolYearId),
-    enabled:  !!schoolYearId,
+    queryKey: ["admin", "holiday-config"],
+    queryFn:  () => programCalendarApi.getHolidayConfig(),
   });
 
   useEffect(() => {
@@ -43,28 +43,20 @@ export function HolidayBaseTab({ schoolYearId, year }: HolidayBaseTabProps) {
   const saveMutation = useMutation({
     mutationFn: () =>
       programCalendarApi.saveHolidayConfig({
-        schoolYearId,
         enabledKeys:    [...enabledKeys],
         customHolidays,
       }),
-    onSuccess: () => {
-      toast.success("Holiday configuration saved.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "holiday-config", schoolYearId] });
+    onSuccess: (res) => {
+      const syncMsg = res.synced > 0
+        ? ` Re-synced ${res.synced} program calendar${res.synced !== 1 ? "s" : ""} automatically.`
+        : "";
+      toast.success(`Holiday configuration saved.${syncMsg}`);
+      queryClient.invalidateQueries({ queryKey: ["admin", "holiday-config"] });
+      // Invalidate all program calendars so they show updated holiday rows
+      queryClient.invalidateQueries({ queryKey: ["admin", "program-calendar"] });
       setDirty(false);
     },
     onError: () => toast.error("Failed to save holiday config."),
-  });
-
-  const seedMutation = useMutation({
-    mutationFn: () =>
-      programCalendarApi.seedHolidays({ schoolYearId, year }),
-    onSuccess: (res) => {
-      toast.success(
-        `Seeded ${res.seeded} holiday event${res.seeded !== 1 ? "s" : ""} to the school year calendar.`,
-      );
-      queryClient.invalidateQueries({ queryKey: ["admin", "calendar"] });
-    },
-    onError: () => toast.error("Failed to seed holidays."),
   });
 
   function toggleKey(key: string, enabled: boolean) {
@@ -86,21 +78,9 @@ export function HolidayBaseTab({ schoolYearId, year }: HolidayBaseTabProps) {
     setDirty(true);
   }
 
-  if (!schoolYearId) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <CalendarDays className="h-10 w-10 text-muted-foreground/30 mb-3" />
-        <p className="text-sm text-muted-foreground">
-          Select a school year to configure holidays.
-        </p>
-      </div>
-    );
-  }
-
-  const holidays = config?.holidays ?? [];
+  const holidays     = config?.holidays ?? [];
   const enabledCount = enabledKeys.size;
 
-  // Build holidays with current enabled state (local, not yet saved)
   const holidaysWithState = holidays.map((h) => ({
     ...h,
     enabled: enabledKeys.has(h.key),
@@ -108,16 +88,21 @@ export function HolidayBaseTab({ schoolYearId, year }: HolidayBaseTabProps) {
 
   return (
     <div className="space-y-4">
+      {/* Info banner */}
+      <div className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-950/20">
+        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+        <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+          This is the <strong>org-wide Holiday Base Calendar</strong> — reused across all school years.
+          Configure which holidays apply once here. When you save, all existing program academic
+          calendars are automatically updated to reflect the changes.
+        </p>
+      </div>
+
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <p className="text-sm font-medium">
-            {enabledCount} of {holidays.length} holidays enabled
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Click any day or use the list view to enable/disable. Save config first, then seed.
-          </p>
-        </div>
+        <p className="text-sm font-medium">
+          {isLoading ? "Loading…" : `${enabledCount} of ${holidays.length} holidays enabled`}
+        </p>
 
         <div className="flex items-center gap-2">
           {/* View toggle */}
@@ -160,20 +145,6 @@ export function HolidayBaseTab({ schoolYearId, year }: HolidayBaseTabProps) {
               Save Configuration
             </Button>
           )}
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => seedMutation.mutate()}
-            disabled={seedMutation.isPending || dirty}
-            title={dirty ? "Save configuration before seeding" : "Seed enabled holidays as calendar events"}
-          >
-            {seedMutation.isPending
-              ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-              : <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-            }
-            Seed to Calendar
-          </Button>
         </div>
       </div>
 

@@ -21,8 +21,8 @@ export interface CustomHoliday {
   description?: string;
 }
 
+/** Org-global — not scoped to any school year */
 export interface HolidayConfig {
-  schoolYearId:   string;
   holidays:       HolidaySeed[];
   customHolidays: CustomHoliday[];
 }
@@ -43,6 +43,15 @@ export interface CalendarTerm {
   orderIndex: number;
 }
 
+export interface CalendarHoliday {
+  id:          string;
+  holidayKey:  string | null;
+  title:       string;
+  date:        string;
+  description: string | null;
+  type:        "system" | "custom";
+}
+
 export interface ProgramCalendar {
   id:           string;
   orgId:        string;
@@ -55,17 +64,15 @@ export interface ProgramCalendar {
   updatedAt:    string;
   breaks:       CalendarBreak[];
   terms:        CalendarTerm[];
+  holidays:     CalendarHoliday[]; // inherited from OrgHolidayConfig at creation/re-sync
 }
 
+// ── Requests ──────────────────────────────────────────────────────────────────
+
+/** No schoolYearId — config is org-global */
 export interface SaveHolidayConfigRequest {
-  schoolYearId:    string;
   enabledKeys:     string[];
   customHolidays?: CustomHoliday[];
-}
-
-export interface SeedHolidaysRequest {
-  schoolYearId: string;
-  year:         number;
 }
 
 export interface CreateProgramCalendarRequest {
@@ -84,13 +91,9 @@ export interface UpdateProgramCalendarRequest {
   breaks?:    Omit<CalendarBreak, "id" | "orderIndex">[];
 }
 
-// ── Unwrap helper — every response is { success: true, data: T } ──────────────
+// ── Unwrap — every response is { success: true, data: T } ────────────────────
 
-interface ApiResponse<T> {
-  success: boolean;
-  data:    T;
-}
-
+interface ApiResponse<T> { success: boolean; data: T; }
 function unwrap<T>(res: { data: ApiResponse<T> }): T {
   return res.data.data;
 }
@@ -98,27 +101,26 @@ function unwrap<T>(res: { data: ApiResponse<T> }): T {
 // ── API ───────────────────────────────────────────────────────────────────────
 
 export const programCalendarApi = {
-  // ── Holiday config ─────────────────────────────────────────────────────────
+  // ── Holiday base config (org-global) ──────────────────────────────────────
 
-  getHolidayConfig: async (schoolYearId: string): Promise<HolidayConfig> => {
+  /** Get the org's global holiday config — not scoped to any school year */
+  getHolidayConfig: async (): Promise<HolidayConfig> => {
     const res = await client.get<ApiResponse<HolidayConfig>>(
       "/program-calendars/holidays",
-      { params: { schoolYearId } },
-    );
-    return unwrap(res);  // { success, data: { schoolYearId, holidays, customHolidays } }
-  },
-
-  saveHolidayConfig: async (data: SaveHolidayConfigRequest): Promise<HolidayConfig> => {
-    const res = await client.post<ApiResponse<HolidayConfig>>(
-      "/program-calendars/holidays",
-      data,
     );
     return unwrap(res);
   },
 
-  seedHolidays: async (data: SeedHolidaysRequest): Promise<{ seeded: number }> => {
-    const res = await client.post<ApiResponse<{ seeded: number }>>(
-      "/program-calendars/holidays/seed",
+  /**
+   * Save the org's global holiday config.
+   * Backend automatically re-syncs ProgramCalendarHoliday rows for ALL
+   * existing program calendars in the org.
+   */
+  saveHolidayConfig: async (
+    data: SaveHolidayConfigRequest,
+  ): Promise<HolidayConfig & { synced: number }> => {
+    const res = await client.post<ApiResponse<HolidayConfig & { synced: number }>>(
+      "/program-calendars/holidays",
       data,
     );
     return unwrap(res);
@@ -137,6 +139,7 @@ export const programCalendarApi = {
     return unwrap(res);
   },
 
+  /** Returns null if no calendar exists yet for this program (404) */
   getByProgram: async (
     programId:    string,
     schoolYearId: string,

@@ -2,12 +2,11 @@
 
 import {
   IsString, IsOptional, IsUUID, IsDateString,
-  IsArray, ValidateNested, IsInt, Min, MaxLength,
-  IsBoolean,
+  IsArray, ValidateNested, MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-// ── Break DTO ─────────────────────────────────────────────────────────────────
+// ── Break ─────────────────────────────────────────────────────────────────────
 
 export class BreakDto {
   @IsString()
@@ -64,10 +63,6 @@ export class UpdateProgramCalendarDto {
   @MaxLength(500)
   notes?: string;
 
-  /**
-   * Full replacement of breaks — send the complete desired list.
-   * Service will delete existing and recreate.
-   */
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
@@ -87,7 +82,7 @@ export class QueryProgramCalendarDto {
   programId?: string;
 }
 
-// ── Holiday Config ────────────────────────────────────────────────────────────
+// ── Holiday Config (org-global — no schoolYearId) ─────────────────────────────
 
 export class CustomHolidayDto {
   @IsString()
@@ -104,28 +99,15 @@ export class CustomHolidayDto {
 }
 
 export class SaveHolidayConfigDto {
-  @IsUUID()
-  schoolYearId!: string;
+  // No schoolYearId — config is org-global
 
-  /** Keys from PHILIPPINE_HOLIDAYS seed list that should be enabled */
   @IsArray()
   @IsString({ each: true })
   enabledKeys!: string[];
 
-  /** Admin-added holidays not in the seed list */
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CustomHolidayDto)
   customHolidays?: CustomHolidayDto[];
-}
-
-export class SeedHolidaysToCalendarDto {
-  @IsUUID()
-  schoolYearId!: string;
-
-  /** Year to use when computing holiday dates (e.g. 2026) */
-  @IsInt()
-  @Min(2000)
-  year!: number;
 }

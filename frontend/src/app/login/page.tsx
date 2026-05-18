@@ -1,3 +1,4 @@
+// ===== File: frontend\src\app\login\page.tsx =====
 "use client";
 
 import Link from "next/link";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Loader2, ArrowLeft, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -18,15 +19,55 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Updated handleSubmit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Client-side validation
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail) {
+      setError("Email is required.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    if (!trimmedPassword) {
+      setError("Password is required.");
+      return;
+    }
+
+    if (trimmedPassword.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await login(email, password);
-    } catch {
-      setError("Invalid email or password.");
+      await login(trimmedEmail, trimmedPassword);
+    } catch (err: any) {
+      const status = err?.response?.status;
+
+      if (status === 401) {
+        setError("Incorrect email or password. Please try again.");
+      } else if (status === 403) {
+        setError(
+          "Your account has been suspended. Contact your administrator."
+        );
+      } else if (status === 429) {
+        setError(
+          "Too many attempts. Please wait a moment and try again."
+        );
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -68,6 +109,7 @@ export default function LoginPage() {
               {/* Email */}
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
+
                 <Input
                   id="email"
                   type="email"
@@ -75,7 +117,9 @@ export default function LoginPage() {
                   autoComplete="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) =>
+                    setEmail(e.target.value.replace(/\s/g, ""))
+                  }
                   disabled={isLoading}
                 />
               </div>
@@ -92,7 +136,9 @@ export default function LoginPage() {
                     autoComplete="current-password"
                     required
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) =>
+                      setPassword(e.target.value.replace(/\s/g, ""))
+                    }
                     disabled={isLoading}
                     className="pr-10"
                   />
@@ -119,9 +165,13 @@ export default function LoginPage() {
 
               {/* Error */}
               {error && (
-                <p className="text-sm text-destructive" role="alert">
-                  {error}
-                </p>
+                <div
+                  className="flex items-start gap-2 rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                  role="alert"
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
               )}
 
               {/* Login */}
