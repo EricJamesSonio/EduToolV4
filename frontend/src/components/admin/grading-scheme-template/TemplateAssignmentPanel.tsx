@@ -1,12 +1,15 @@
-// ===== File: frontend/src/components/admin/grading-scheme-template/TemplateAssignmentPanel.tsx =====
+// frontend/src/components/admin/grading-scheme-template/TemplateAssignmentPanel.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/DataTable";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { cn } from "@/lib/utils";
+import { PROGRAM_TYPE_COLORS, PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
 import {
   Select,
   SelectContent,
@@ -20,9 +23,6 @@ import {
 } from "@/hooks/admin/useGradingSchemeTemplates";
 import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
 import type { AxiosError } from "axios";
-import { cn } from "@/lib/utils";
-import { PROGRAM_TYPE_COLORS, PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
-import { Badge } from "@/components/ui/badge";
 
 interface ClassInfo {
   id: string;
@@ -58,11 +58,9 @@ export function TemplateAssignmentPanel({
 }: TemplateAssignmentPanelProps) {
   const [selectedMode, setSelectedMode] = useState<"program" | "class">("program");
 
-  // Controlled select values — keyed by program/class id
   const [programTemplates, setProgramTemplates] = useState<Record<string, string>>({});
   const [classTemplates, setClassTemplates] = useState<Record<string, string>>({});
 
-  // Track which ones have been successfully applied
   const [appliedPrograms, setAppliedPrograms] = useState<Set<string>>(new Set());
   const [appliedClasses, setAppliedClasses] = useState<Set<string>>(new Set());
 
@@ -110,9 +108,7 @@ export function TemplateAssignmentPanel({
       {
         onSuccess: (res) => {
           const count = res.appliedCount ?? 0;
-          toast.success(
-            `Applied "${pendingApply.templateName}" to ${count} classes.`
-          );
+          toast.success(`Applied "${pendingApply.templateName}" to ${count} classes.`);
           setAppliedPrograms((prev) => new Set(prev).add(pendingApply.programId));
 
           const prog = programs.find((p) => p.id === pendingApply.programId);
@@ -135,10 +131,7 @@ export function TemplateAssignmentPanel({
         onError: (e) => {
           const err = e as AxiosError<{ message: string }>;
           toast.error(err?.response?.data?.message ?? "Failed to apply.");
-          setProgramTemplates((prev) => ({
-            ...prev,
-            [pendingApply.programId]: "",
-          }));
+          setProgramTemplates((prev) => ({ ...prev, [pendingApply.programId]: "" }));
           setPendingApply(null);
         },
       }
@@ -151,9 +144,7 @@ export function TemplateAssignmentPanel({
       { classId: cls.id, templateId },
       {
         onSuccess: () => {
-          toast.success(
-            `Applied "${getTemplateName(templateId)}" to "${cls.name}".`
-          );
+          toast.success(`Applied "${getTemplateName(templateId)}" to "${cls.name}".`);
           setAppliedClasses((prev) => new Set(prev).add(cls.id));
         },
         onError: (e) => {
@@ -165,24 +156,41 @@ export function TemplateAssignmentPanel({
     );
   };
 
-  // ================= TABLE DATA FOR PROGRAMS =================
+  // ── Program table data ────────────────────────────────────────────────────
+
   const programsTableData = useMemo(
     () =>
       programs.map((prog) => ({
         id: prog.id,
         name: prog.name,
-        classCount: prog.classes.length,
         type: prog.type,
+        classCount: prog.classes.length,
       })),
     [programs]
   );
 
-  // ================= TABLE COLUMNS FOR PROGRAMS =================
   const programColumns = useMemo(
     () => [
       {
         accessorKey: "name",
         header: "Program",
+        cell: ({ row }: any) => {
+          const color =
+            PROGRAM_TYPE_COLORS[row.original.type as keyof typeof PROGRAM_TYPE_COLORS]
+            ?? "bg-slate-500/10 text-slate-600 border-slate-200";
+          return (
+            <div className="flex flex-col gap-1">
+              <span className="font-medium text-sm">{row.original.name}</span>
+              <Badge
+                variant="outline"
+                className={cn("text-xs border px-2 py-0.5 w-fit font-normal", color)}
+              >
+                {PROGRAM_TYPE_LABELS[row.original.type as keyof typeof PROGRAM_TYPE_LABELS]
+                  ?? row.original.type}
+              </Badge>
+            </div>
+          );
+        },
       },
       {
         accessorKey: "classCount",
@@ -197,7 +205,6 @@ export function TemplateAssignmentPanel({
         cell: ({ row }: any) => {
           const prog = programs.find((p) => p.id === row.original.id);
           if (!prog) return null;
-
           return (
             <div className="flex items-center gap-2">
               {appliedPrograms.has(prog.id) && programTemplates[prog.id] && (
@@ -233,7 +240,8 @@ export function TemplateAssignmentPanel({
     [programs, programTemplates, appliedPrograms, templates, isPending]
   );
 
-  // ================= TABLE DATA FOR CLASSES =================
+  // ── Class table data ──────────────────────────────────────────────────────
+
   const classesTableData = useMemo(
     () =>
       programs.flatMap((prog) =>
@@ -242,12 +250,12 @@ export function TemplateAssignmentPanel({
           name: cls.name,
           program: prog.name,
           programId: prog.id,
+          programType: prog.type,
         }))
       ),
     [programs]
   );
 
-  // ================= TABLE COLUMNS FOR CLASSES =================
   const classColumns = useMemo(
     () => [
       {
@@ -257,6 +265,20 @@ export function TemplateAssignmentPanel({
       {
         accessorKey: "program",
         header: "Program",
+        cell: ({ row }: any) => {
+          const color =
+            PROGRAM_TYPE_COLORS[row.original.programType as keyof typeof PROGRAM_TYPE_COLORS]
+            ?? "bg-slate-500/10 text-slate-600 border-slate-200";
+          return (
+            <Badge
+              variant="outline"
+              className={cn("text-xs border px-2 py-0.5 w-fit font-normal", color)}
+            >
+              {PROGRAM_TYPE_LABELS[row.original.programType as keyof typeof PROGRAM_TYPE_LABELS]
+                ?? row.original.program}
+            </Badge>
+          );
+        },
       },
       {
         id: "actions",
@@ -264,7 +286,6 @@ export function TemplateAssignmentPanel({
         cell: ({ row }: any) => {
           const cls = classesTableData.find((c) => c.id === row.original.id);
           if (!cls) return null;
-
           return (
             <div className="flex items-center gap-2">
               {appliedClasses.has(cls.id) && classTemplates[cls.id] && (
@@ -272,9 +293,7 @@ export function TemplateAssignmentPanel({
               )}
               <Select
                 value={classTemplates[cls.id] ?? ""}
-                onValueChange={(templateId) =>
-                  handleApplyToClass(cls, templateId)
-                }
+                onValueChange={(templateId) => handleApplyToClass(cls, templateId)}
                 disabled={isPending}
               >
                 <SelectTrigger className="h-8 w-48 text-xs">
@@ -333,7 +352,6 @@ export function TemplateAssignmentPanel({
           </Button>
         </div>
 
-        {/* Program mode table */}
         {selectedMode === "program" && (
           <div className="rounded-lg border overflow-hidden">
             <DataTable
@@ -346,7 +364,6 @@ export function TemplateAssignmentPanel({
           </div>
         )}
 
-        {/* Class mode table */}
         {selectedMode === "class" && (
           <div className="rounded-lg border overflow-hidden">
             <DataTable
@@ -360,7 +377,6 @@ export function TemplateAssignmentPanel({
         )}
       </div>
 
-      {/* Confirm dialog for program-level apply */}
       {pendingApply && (
         <ConfirmDialog
           open
