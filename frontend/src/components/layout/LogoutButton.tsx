@@ -5,14 +5,18 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/context/SidebarContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { queryClient } from "@/lib/query-client.config";
+import { useAuth } from "@/hooks/useAuth";
 
 export function LogoutButton(): React.JSX.Element {
   const router = useRouter();
   const { collapsed } = useSidebar();
+  const { logout } = useAuth();
 
-  function handleLogout(): void {
-    localStorage.clear();
-    router.push("/");
+  async function handleLogout(): Promise<void> {
+    queryClient.clear();
+    await logout();
+    router.replace("/login");
   }
 
   const button = (

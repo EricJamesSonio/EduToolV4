@@ -75,17 +75,18 @@ useEffect(() => {
     [router, setTokens, setUser]
   );
 
-  const logout = useCallback(async (): Promise<void> => {
-    try {
-      await authApi.logout();
-    } catch {
-      // Swallow — we clear local state regardless
-    } finally {
-      clearAuth();
-      clearTokens();
-      router.push("/");
-    }
-  }, [clearAuth, router]);
+// Replace logout:
+const logout = useCallback(async (): Promise<void> => {
+  try {
+    await authApi.logout();
+  } catch {
+    // Swallow — we clear local state regardless
+  } finally {
+    clearAuth();
+    clearTokens();
+    // Don't navigate here — let the caller (LogoutButton) handle navigation
+  }
+}, [clearAuth]);
 
   const value: AuthContextValue = {
     user,
