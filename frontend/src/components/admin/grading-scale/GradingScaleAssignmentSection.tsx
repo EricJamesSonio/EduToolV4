@@ -7,7 +7,8 @@ import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-
+import { cn } from "@/lib/utils";
+import { PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
 import { DataTable } from "@/components/shared/DataTable";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { Button } from "@/components/ui/button";
@@ -72,7 +73,9 @@ export function GradingScaleAssignmentSection({
   const queryClient = useQueryClient();
 
   // State
-  const [assignTarget, setAssignTarget] = useState<ProgramWithScale | null>(null);
+  const [assignTarget, setAssignTarget] = useState<ProgramWithScale | null>(
+    null,
+  );
   const [selectedScaleId, setSelectedScaleId] = useState<string>("");
 
   // Mutation
@@ -91,7 +94,9 @@ export function GradingScaleAssignmentSection({
       setSelectedScaleId("");
     },
     onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to assign grading scale.");
+      toast.error(
+        err?.response?.data?.message ?? "Failed to assign grading scale.",
+      );
     },
   });
 
@@ -110,7 +115,7 @@ export function GradingScaleAssignmentSection({
   // Get selected scale
   const selectedScale = useMemo(
     () => scales.find((s) => s.id === selectedScaleId),
-    [scales, selectedScaleId]
+    [scales, selectedScaleId],
   );
 
   // Table columns
@@ -122,7 +127,15 @@ export function GradingScaleAssignmentSection({
         cell: ({ row }) => (
           <div className="space-y-1">
             <span className="font-medium text-sm">{row.original.name}</span>
-            <Badge variant="secondary" className="text-xs w-fit">
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-xs border px-2 py-0.5 w-fit font-normal",
+                PROGRAM_TYPE_COLORS[
+                  row.original.type as keyof typeof PROGRAM_TYPE_COLORS
+                ] ?? "bg-slate-500/10 text-slate-600 border-slate-200",
+              )}
+            >
               {row.original.type}
             </Badge>
           </div>
@@ -135,7 +148,9 @@ export function GradingScaleAssignmentSection({
           row.original.assignedScaleName ? (
             <div className="flex items-center gap-2">
               <Check className="h-4 w-4 text-emerald-600" />
-              <span className="text-sm font-medium">{row.original.assignedScaleName}</span>
+              <span className="text-sm font-medium">
+                {row.original.assignedScaleName}
+              </span>
             </div>
           ) : (
             <span className="text-sm text-muted-foreground">Not assigned</span>
@@ -160,7 +175,7 @@ export function GradingScaleAssignmentSection({
         ),
       },
     ],
-    []
+    [],
   );
 
   return (
@@ -220,7 +235,15 @@ export function GradingScaleAssignmentSection({
             <div className="rounded-md border bg-muted/30 p-3 space-y-2">
               <p className="text-xs text-muted-foreground">Program</p>
               <p className="font-medium text-sm">{assignTarget.name}</p>
-              <Badge variant="secondary" className="text-xs w-fit">
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-xs border px-2 py-0.5 w-fit font-normal",
+                  PROGRAM_TYPE_COLORS[
+                    assignTarget.type as keyof typeof PROGRAM_TYPE_COLORS
+                  ] ?? "bg-slate-500/10 text-slate-600 border-slate-200",
+                )}
+              >
                 {assignTarget.type}
               </Badge>
             </div>
@@ -228,7 +251,10 @@ export function GradingScaleAssignmentSection({
             {/* Scale Selector */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Select Scale</label>
-              <Select value={selectedScaleId} onValueChange={setSelectedScaleId}>
+              <Select
+                value={selectedScaleId}
+                onValueChange={setSelectedScaleId}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose a grading scale..." />
                 </SelectTrigger>

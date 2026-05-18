@@ -20,6 +20,9 @@ import {
 } from "@/hooks/admin/useGradingSchemeTemplates";
 import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
 import type { AxiosError } from "axios";
+import { cn } from "@/lib/utils";
+import { PROGRAM_TYPE_COLORS, PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
+import { Badge } from "@/components/ui/badge";
 
 interface ClassInfo {
   id: string;
