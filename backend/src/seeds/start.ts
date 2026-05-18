@@ -143,6 +143,51 @@ async function main() {
     console.log(`  OK    ${guide.slug}`)
   }
 
+  // ── Seed Educator Guides ────────────────────────────────────────────────
+  const EDUCATOR_GUIDES = [
+    { slug: 'educator_dashboard', title: 'Dashboard', description: 'Overview of your classes and schedule' },
+    { slug: 'educator_classes', title: 'Classes', description: 'Manage your classes, lessons, and students' },
+    { slug: 'educator_attendance', title: 'Attendance', description: 'Take and manage student attendance' },
+    { slug: 'educator_assessments', title: 'Assessments', description: 'Create and manage assessments and grading' },
+    { slug: 'educator_grading', title: 'Grading', description: 'View and manage student grades' },
+    { slug: 'educator_lessons', title: 'Lessons', description: 'Create and organize lesson plans' },
+  ]
+
+  console.log('\n▶ Educator Guides')
+  for (const guide of EDUCATOR_GUIDES) {
+    const existing = await db.guide.findUnique({ where: { slug: guide.slug } })
+    if (existing) {
+      console.log(`  SKIP  ${guide.slug}`)
+      continue
+    }
+    await db.guide.create({
+      data: { slug: guide.slug, portal: 'educator', title: guide.title, description: guide.description, is_active: true },
+    })
+    console.log(`  OK    ${guide.slug}`)
+  }
+
+  // ── Seed Student Guides ──────────────────────────────────────────────────
+  const STUDENT_GUIDES = [
+    { slug: 'student_dashboard', title: 'Dashboard', description: 'Overview of your classes and upcoming tasks' },
+    { slug: 'student_classes', title: 'Classes', description: 'View your enrolled classes and materials' },
+    { slug: 'student_assessments', title: 'Assessments', description: 'Take assessments and view results' },
+    { slug: 'student_grades', title: 'Grades', description: 'View your grades and academic progress' },
+    { slug: 'student_attendance', title: 'Attendance', description: 'View your attendance records' },
+  ]
+
+  console.log('\n▶ Student Guides')
+  for (const guide of STUDENT_GUIDES) {
+    const existing = await db.guide.findUnique({ where: { slug: guide.slug } })
+    if (existing) {
+      console.log(`  SKIP  ${guide.slug}`)
+      continue
+    }
+    await db.guide.create({
+      data: { slug: guide.slug, portal: 'student', title: guide.title, description: guide.description, is_active: true },
+    })
+    console.log(`  OK    ${guide.slug}`)
+  }
+
   console.log('\n✅ SEED COMPLETE\n')
 }
 

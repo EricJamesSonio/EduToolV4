@@ -50,6 +50,12 @@ export class GuideController {
     return this.service.getGuideById(id);
   }
 
+  @UseGuards(AuthGuard)
+  @Get('portal/:portal')
+  getGuidesByPortalWithSteps(@Param('portal') portal: string) {
+    return this.service.getGuidesWithSteps(portal);
+  }
+
   @UseGuards(AuthGuard, PlatformOwnerGuard)
   @Post()
   createGuide(@Body() dto: CreateGuideDto) {

@@ -68,6 +68,14 @@ export class GuideService {
     }));
   }
 
+  async getGuidesWithSteps(portal: string) {
+    return this.db.guide.findMany({
+      where: { portal: portal as any, is_active: true },
+      orderBy: { slug: 'asc' },
+      select: GUIDE_WITH_STEPS_SELECT,
+    });
+  }
+
   async getGuideById(id: string) {
     const guide = await this.db.guide.findUnique({
       where: { id },

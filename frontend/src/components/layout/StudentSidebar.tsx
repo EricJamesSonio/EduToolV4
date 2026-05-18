@@ -6,6 +6,7 @@ import { LogoutButton } from "./LogoutButton";
 import {
   BookOpen, Video, ScrollText, LayoutGrid,
   FileText, ClipboardCheck, CalendarCheck, BarChart2,
+  HelpCircle,
 } from "lucide-react";
 
 const TOP_LEVEL_GROUPS: NavGroup[] = [
@@ -14,6 +15,11 @@ const TOP_LEVEL_GROUPS: NavGroup[] = [
       { label: "My Classes", href: "/student/classes",   icon: BookOpen },
       { label: "Meetings",   href: "/student/meetings",  icon: Video },
       { label: "Transcript", href: "/student/transcript", icon: ScrollText },
+    ],
+  },
+  {
+    items: [
+      { label: "Help", href: "/student/help", icon: HelpCircle },
     ],
   },
 ];
@@ -42,6 +48,11 @@ export function StudentSidebar() {
             { label: "Assessments", href: `/student/classes/${classId}/assessments`, icon: ClipboardCheck },
             { label: "Attendance",  href: `/student/classes/${classId}/attendance`,  icon: CalendarCheck },
             { label: "Grades",      href: `/student/classes/${classId}/grades`,      icon: BarChart2 },
+          ],
+        },
+        {
+          items: [
+            { label: "Help", href: "/student/help", icon: HelpCircle },
           ],
         },
       ]
