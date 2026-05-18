@@ -131,38 +131,36 @@
     background: var(--muted-foreground);
   }
 
-/* ── Minimal Black & White Table Style ── */
+/* ── Minimal Table Style ── */
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 1rem;
-  border: 3px solid black;
-  background: white;
+  font-size: 0.95rem;
+  background: transparent;
 }
 
 thead tr {
-  background-color: black;
+  background-color: transparent;
 }
 
 th {
-  font-family: Arial Black, Helvetica, sans-serif;
-  font-weight: 900;
-  font-size: 0.75rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: white;
+  font-weight: 500;
+  font-size: 0.875rem;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--foreground);
   text-align: left;
-  padding: 0.95rem 1.25rem;
-  border-bottom: 3px solid black;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 td {
-  padding: 0.95rem 1.25rem;
-  border-bottom: 1px solid black;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--border);
   vertical-align: middle;
-  color: black;
-  background: white;
+  color: var(--foreground);
+  background: transparent;
 }
 
 tr:last-child td {
@@ -170,13 +168,12 @@ tr:last-child td {
 }
 
 tbody tr:hover td {
-  background-color: #f5f5f5;
+  background-color: var(--muted);
 }
 
 tbody tr:hover {
-  border-left: 3px solid black;
+  border-left: none;
 }
-
   /* ── HR ── */
   hr {
     border: none;

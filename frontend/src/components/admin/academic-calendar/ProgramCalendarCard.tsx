@@ -1,0 +1,237 @@
+// frontend/src/components/admin/academic-calendar/ProgramCalendarCard.tsx
+"use client";
+
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  ChevronDown, ChevronRight, BookOpen,
+  Pencil, Trash2, Plus, Loader2,
+} from "lucide-react";
+import { programCalendarApi } from "@/api/admin/program-calendar.api";
+import type { CalendarBreak } from "@/api/admin/program-calendar.api";
+import { Button }   from "@/components/ui/button";
+import { Badge }    from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Input }    from "@/components/ui/input";
+import { BreakEditor } from "./BreakEditor";
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-PH", {
+    year: "numeric", month: "short", day: "numeric",
+  });
+}
+
+interface Props {
+  programId:        string;
+  programName:      string;
+  schoolYearId:     string;
+  schoolYearStart?: string;
+  schoolYearEnd?:   string;
+}
+
+export function ProgramCalendarCard({
+  programId,
+  programName,
+  schoolYearId,
+  schoolYearStart,
+  schoolYearEnd,
+}: Props) {
+  const queryClient = useQueryClient();
+  const [expanded,  setExpanded]  = useState(false);
+  const [editing,   setEditing]   = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate,   setEndDate]   = useState("");
+  const [notes,     setNotes]     = useState("");
+  const [breaks,    setBreaks]    = useState<CalendarBreak[]>([]);
+
+  const qKey = ["admin", "program-calendar", programId, schoolYearId];
+
+  const { data: calendar, isLoading } = useQuery({
+    queryKey: qKey,
+    queryFn:  () => programCalendarApi.getByProgram(programId, schoolYearId),
+    retry:    false,
+  });
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: qKey });
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      programCalendarApi.create({
+        schoolYearId, programId, startDate, endDate,
+        notes: notes || undefined,
+        breaks: breaks
+          .filter((b) => b.startDate && b.endDate)
+          .map(({ label, startDate, endDate }) => ({ label, startDate, endDate })),
+      }),
+    onSuccess: () => { toast.success("Calendar created."); invalidate(); setEditing(false); },
+    onError:   (e: any) =>
+      toast.error(e?.response?.data?.message ?? "Failed to create calendar."),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      programCalendarApi.update(calendar!.id, {
+        startDate, endDate,
+        notes: notes || undefined,
+        breaks: breaks
+          .filter((b) => b.startDate && b.endDate)
+          .map(({ label, startDate, endDate }) => ({ label, startDate, endDate })),
+      }),
+    onSuccess: () => { toast.success("Calendar updated."); invalidate(); setEditing(false); },
+    onError:   (e: any) =>
+      toast.error(e?.response?.data?.message ?? "Failed to update calendar."),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => programCalendarApi.delete(calendar!.id),
+    onSuccess:  () => { toast.success("Calendar removed."); invalidate(); },
+    onError:    () => toast.error("Failed to delete calendar."),
+  });
+
+  function startEdit() {
+    if (calendar) {
+      setStartDate(calendar.startDate.slice(0, 10));
+      setEndDate(calendar.endDate.slice(0, 10));
+      setNotes(calendar.notes ?? "");
+      setBreaks(
+        calendar.breaks.map((b) => ({
+          label:     b.label,
+          startDate: (b.startDate as string).slice(0, 10),
+          endDate:   (b.endDate   as string).slice(0, 10),
+        })),
+      );
+    } else {
+      setStartDate(schoolYearStart?.slice(0, 10) ?? "");
+      setEndDate(schoolYearEnd?.slice(0, 10) ?? "");
+      setNotes(""); setBreaks([]);
+    }
+    setEditing(true);
+    setExpanded(true);
+  }
+
+  const isSaving    = createMutation.isPending || updateMutation.isPending;
+  const hasCalendar = calendar !== null && calendar !== undefined;
+
+  return (
+    <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="flex items-center gap-2 flex-1 text-left min-w-0"
+        >
+          {expanded
+            ? <ChevronDown  className="h-4 w-4 text-muted-foreground shrink-0" />
+            : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          }
+          <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium truncate">{programName}</span>
+        </button>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {isLoading ? (
+            <Skeleton className="h-5 w-24 rounded" />
+          ) : hasCalendar ? (
+            <>
+              <Badge variant="secondary" className="text-xs bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
+                {calendar!.terms.length} term{calendar!.terms.length !== 1 ? "s" : ""}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {formatDate(calendar!.startDate)} – {formatDate(calendar!.endDate)}
+              </Badge>
+              <button onClick={startEdit} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </>
+          ) : (
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={startEdit}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> Setup Calendar
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="border-t px-4 py-4 space-y-4">
+          {editing ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Start Date</label>
+                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-8 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">End Date</label>
+                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-8 text-sm" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Notes (optional)</label>
+                <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any notes for this calendar" className="h-8 text-sm" />
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Semester Breaks</p>
+                <p className="text-xs text-muted-foreground">Define break periods — terms are auto-computed between them.</p>
+                <BreakEditor breaks={breaks} onChange={setBreaks} />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => hasCalendar ? updateMutation.mutate() : createMutation.mutate()}
+                  disabled={isSaving || !startDate || !endDate}
+                >
+                  {isSaving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                  {hasCalendar ? "Update Calendar" : "Create Calendar"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+              </div>
+            </div>
+          ) : hasCalendar ? (
+            <div className="space-y-4">
+              {calendar!.breaks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Breaks</p>
+                  <div className="space-y-1.5">
+                    {calendar!.breaks.map((b, i) => (
+                      <div key={i} className="flex items-center gap-3 rounded-md border bg-muted/20 px-3 py-2">
+                        <span className="text-xs font-medium">{b.label}</span>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {formatDate(b.startDate as string)} – {formatDate(b.endDate as string)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Generated Terms</p>
+                <div className="space-y-1.5">
+                  {calendar!.terms.map((t) => (
+                    <div key={t.id} className="flex items-center gap-3 rounded-md border bg-primary/5 border-primary/20 px-3 py-2">
+                      <span className="text-xs font-semibold text-primary w-14 shrink-0">{t.label}</span>
+                      <span className="text-xs text-muted-foreground">{formatDate(t.startDate)} – {formatDate(t.endDate)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {calendar!.notes && (
+                <p className="text-xs text-muted-foreground italic">{calendar!.notes}</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              No calendar set up yet. Click &quotSetup Calendar&quot to begin.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

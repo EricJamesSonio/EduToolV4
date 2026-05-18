@@ -56,7 +56,8 @@ function NavLink({
     ? "bg-muted text-foreground"
     : "text-muted-foreground hover:bg-muted/60 hover:text-foreground";
 
-  const link = (
+  // ✅ FIX: Wrap Link with a DOM element (<span>) when using asChild
+  const linkContent = (
     <Link
       href={item.href}
       className={cn(base, stateStyles, collapsed && "justify-center px-2")}
@@ -74,13 +75,15 @@ function NavLink({
   if (collapsed) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipTrigger asChild>
+          <span>{linkContent}</span> {/* ✅ THIS FIXES THE ERROR */}
+        </TooltipTrigger>
         <TooltipContent side="right">{item.label}</TooltipContent>
       </Tooltip>
     );
   }
 
-  return link;
+  return linkContent;
 }
 
 export function SidebarShell({
@@ -119,15 +122,13 @@ export function SidebarShell({
                 </p>
               )}
 
-              {group.items.map((item) => {
-                return (
-                  <NavLink
-                    key={item.href}
-                    item={item}
-                    collapsed={collapsed}
-                  />
-                );
-              })}
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.href}
+                  item={item}
+                  collapsed={collapsed}
+                />
+              ))}
             </div>
           ))}
         </nav>

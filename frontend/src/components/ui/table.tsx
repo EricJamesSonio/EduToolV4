@@ -13,7 +13,7 @@ const Table: React.FC<React.ComponentProps<"table">> = ({
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className="w-full overflow-x-auto"
     >
       <table
         data-slot="table"
