@@ -21,6 +21,7 @@ export function Navbar() {
           <a href="#features" className="text-sm hover:text-primary transition-colors">Features</a>
           <a href="#solutions" className="text-sm hover:text-primary transition-colors">Solutions</a>
           <a href="#resources" className="text-sm hover:text-primary transition-colors">Resources</a>
+          <a href="#contact" className="text-sm hover:text-primary transition-colors">Contact</a>
           <a href="#about" className="text-sm hover:text-primary transition-colors">About</a>
         </div>
 

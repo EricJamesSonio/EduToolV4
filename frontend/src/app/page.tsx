@@ -15,6 +15,7 @@ import { ReusableComponentsSection } from "@/components/landing/ReusableComponen
 import { WorkflowSection } from "@/components/landing/WorkflowSection";
 import { AnalyticsPreviewSection } from "@/components/landing/AnalyticsPreviewSection";
 import { CTASection } from "@/components/landing/CTASection";
+import { ContactAdminSection } from "@/components/landing/Contactadminsection";
 import { Footer } from "@/components/landing/Footer";
 
 export default function RootPage(): React.ReactNode {
@@ -51,6 +52,7 @@ export default function RootPage(): React.ReactNode {
       <WorkflowSection />
       <AnalyticsPreviewSection />
       <CTASection />
+      <ContactAdminSection />
       <Footer />
     </div>
   );
