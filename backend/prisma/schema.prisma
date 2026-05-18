@@ -897,17 +897,19 @@ enum GuidePortal {
 
 model Guide {
   id          String       @id @default(uuid())
+
+  slug        String       @unique
   portal      GuidePortal
-  page_path   String       // e.g. "/admin/dashboard"
+
   title       String
   description String?
-  is_active   Boolean      @default(false)
+
+  is_active   Boolean      @default(true)
+
   created_at  DateTime     @default(now())
   updated_at  DateTime     @updatedAt
 
   steps GuideStep[]
-
-  @@unique([portal, page_path])
 }
 
 model GuideStep {
@@ -915,7 +917,7 @@ model GuideStep {
   guide_id    String
   order_index Int
   title       String?
-  text        String
+  content     String
   image_url   String?
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt

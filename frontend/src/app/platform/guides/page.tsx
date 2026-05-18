@@ -19,14 +19,6 @@ const PORTALS: { value: GuidePortal | "all"; label: string }[] = [
   { value: "educator", label: "Educator" },
 ];
 
-const ADMIN_PAGES = [
-  { group: "Main", pages: ["/admin/dashboard", "/admin/organization", "/admin/school-years"] },
-  { group: "Academic", pages: ["/admin/programs", "/admin/sections", "/admin/subjects", "/admin/semester-settings", "/admin/academic-calendar"] },
-  { group: "Grading", pages: ["/admin/grading-scales", "/admin/grading-schemes", "/admin/classes"] },
-  { group: "People", pages: ["/admin/educators", "/admin/students"] },
-  { group: "System", pages: ["/admin/grade-lock", "/admin/audit-log"] },
-];
-
 export default function GuidesPage() {
   const [activePortal, setActivePortal] = useState<GuidePortal | "all">("all");
   const [search, setSearch] = useState("");
@@ -44,20 +36,20 @@ export default function GuidesPage() {
     const s = search.toLowerCase();
     return (
       g.title.toLowerCase().includes(s) ||
-      g.pagePath.toLowerCase().includes(s)
+      g.slug.toLowerCase().includes(s)
     );
   });
 
   const handleCreate = (data: {
     portal: GuidePortal;
-    pagePath: string;
+    slug: string;
     title: string;
     description: string;
   }) => {
     createGuide.mutate(
       {
         portal: data.portal,
-        pagePath: data.pagePath,
+        slug: data.slug,
         title: data.title,
         description: data.description || undefined,
       },
@@ -108,31 +100,6 @@ export default function GuidesPage() {
         />
       </div>
 
-      {/* Admin Page Structure Reference (only when admin portal is active) */}
-      {(activePortal === "admin" || activePortal === "all") && (
-        <div className="rounded-lg border border-border bg-card p-4">
-          <h3 className="mb-3 text-sm font-medium text-muted-foreground">
-            Admin Portal Pages
-          </h3>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {ADMIN_PAGES.map((group) => (
-              <div key={group.group}>
-                <p className="mb-1 text-xs font-semibold text-muted-foreground">
-                  {group.group}
-                </p>
-                <ul className="space-y-0.5">
-                  {group.pages.map((page) => (
-                    <li key={page} className="text-xs text-muted-foreground">
-                      {page}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Guide List */}
       {isLoading ? (
         <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
@@ -167,7 +134,7 @@ export default function GuidesPage() {
                 </Badge>
               </div>
               <p className="mb-2 text-xs text-muted-foreground">
-                {guide.pagePath}
+                {guide.slug}
               </p>
               {guide.description && (
                 <p className="mb-3 text-xs text-muted-foreground line-clamp-2">

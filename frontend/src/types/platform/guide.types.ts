@@ -4,7 +4,7 @@ export interface GuideStep {
   id: string;
   orderIndex: number;
   title: string | null;
-  text: string;
+  content: string;
   imageUrl: string | null;
   createdAt: string;
   updatedAt: string;
@@ -12,8 +12,8 @@ export interface GuideStep {
 
 export interface Guide {
   id: string;
+  slug: string;
   portal: GuidePortal;
-  pagePath: string;
   title: string;
   description: string | null;
   isActive: boolean;
@@ -24,8 +24,8 @@ export interface Guide {
 
 export interface GuideListItem {
   id: string;
+  slug: string;
   portal: GuidePortal;
-  pagePath: string;
   title: string;
   description: string | null;
   isActive: boolean;
@@ -36,7 +36,7 @@ export interface GuideListItem {
 
 export interface CreateGuideDto {
   portal: GuidePortal;
-  pagePath: string;
+  slug: string;
   title: string;
   description?: string;
   isActive?: boolean;
@@ -51,13 +51,13 @@ export interface UpdateGuideDto {
 export interface CreateGuideStepDto {
   orderIndex: number;
   title?: string;
-  text: string;
+  content: string;
   imageUrl?: string;
 }
 
 export interface UpdateGuideStepDto {
   orderIndex?: number;
   title?: string;
-  text?: string;
+  content?: string;
   imageUrl?: string;
 }

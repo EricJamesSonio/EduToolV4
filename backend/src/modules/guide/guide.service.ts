@@ -8,8 +8,8 @@ import { UpdateGuideStepDto } from './dto/update-guide-step.dto';
 
 const GUIDE_WITH_STEPS_SELECT = {
   id: true,
+  slug: true,
   portal: true,
-  page_path: true,
   title: true,
   description: true,
   is_active: true,
@@ -21,7 +21,7 @@ const GUIDE_WITH_STEPS_SELECT = {
       id: true,
       order_index: true,
       title: true,
-      text: true,
+      content: true,
       image_url: true,
       created_at: true,
       updated_at: true,
@@ -39,11 +39,11 @@ export class GuideService {
     const where: Prisma.GuideWhereInput = portal ? { portal: portal as any } : {};
     const guides = await this.db.guide.findMany({
       where,
-      orderBy: [{ portal: 'asc' }, { page_path: 'asc' }],
+      orderBy: [{ portal: 'asc' }, { slug: 'asc' }],
       select: {
         id: true,
+        slug: true,
         portal: true,
-        page_path: true,
         title: true,
         description: true,
         is_active: true,
@@ -57,8 +57,8 @@ export class GuideService {
 
     return guides.map((g) => ({
       id: g.id,
+      slug: g.slug,
       portal: g.portal,
-      pagePath: g.page_path,
       title: g.title,
       description: g.description,
       isActive: g.is_active,
@@ -81,14 +81,14 @@ export class GuideService {
     return this.mapGuide(guide);
   }
 
-  async getGuideByPortalAndPath(portal: string, pagePath: string) {
+  async findBySlug(slug: string) {
     const guide = await this.db.guide.findUnique({
-      where: { portal_page_path: { portal: portal as any, page_path: pagePath } },
+      where: { slug },
       select: GUIDE_WITH_STEPS_SELECT,
     });
 
     if (!guide) {
-      throw new NotFoundException('Guide not found for this page');
+      throw new NotFoundException('Guide not found');
     }
 
     return this.mapGuide(guide);
@@ -96,22 +96,20 @@ export class GuideService {
 
   async createGuide(dto: CreateGuideDto) {
     const existing = await this.db.guide.findUnique({
-      where: {
-        portal_page_path: { portal: dto.portal, page_path: dto.page_path },
-      },
+      where: { slug: dto.slug },
     });
 
     if (existing) {
-      throw new ConflictException('A guide for this page already exists');
+      throw new ConflictException('A guide with this slug already exists');
     }
 
     const guide = await this.db.guide.create({
       data: {
+        slug: dto.slug,
         portal: dto.portal,
-        page_path: dto.page_path,
         title: dto.title,
         description: dto.description,
-        is_active: dto.is_active ?? false,
+        is_active: dto.isActive ?? true,
       },
       select: GUIDE_WITH_STEPS_SELECT,
     });
@@ -127,7 +125,11 @@ export class GuideService {
 
     const guide = await this.db.guide.update({
       where: { id },
-      data: dto,
+      data: {
+        ...(dto.title !== undefined && { title: dto.title }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.isActive !== undefined && { is_active: dto.isActive }),
+      },
       select: GUIDE_WITH_STEPS_SELECT,
     });
 
@@ -155,16 +157,16 @@ export class GuideService {
     const step = await this.db.guideStep.create({
       data: {
         guide_id: guideId,
-        order_index: dto.order_index,
+        order_index: dto.orderIndex,
         title: dto.title,
-        text: dto.text,
-        image_url: dto.image_url,
+        content: dto.content,
+        image_url: dto.imageUrl,
       },
       select: {
         id: true,
         order_index: true,
         title: true,
-        text: true,
+        content: true,
         image_url: true,
         created_at: true,
         updated_at: true,
@@ -182,12 +184,17 @@ export class GuideService {
 
     const updated = await this.db.guideStep.update({
       where: { id: stepId },
-      data: dto,
+      data: {
+        ...(dto.orderIndex !== undefined && { order_index: dto.orderIndex }),
+        ...(dto.title !== undefined && { title: dto.title }),
+        ...(dto.content !== undefined && { content: dto.content }),
+        ...(dto.imageUrl !== undefined && { image_url: dto.imageUrl }),
+      },
       select: {
         id: true,
         order_index: true,
         title: true,
-        text: true,
+        content: true,
         image_url: true,
         created_at: true,
         updated_at: true,
@@ -212,8 +219,8 @@ export class GuideService {
   private mapGuide(guide: Prisma.GuideGetPayload<{ select: typeof GUIDE_WITH_STEPS_SELECT }>) {
     return {
       id: guide.id,
+      slug: guide.slug,
       portal: guide.portal,
-      pagePath: guide.page_path,
       title: guide.title,
       description: guide.description,
       isActive: guide.is_active,
@@ -227,7 +234,7 @@ export class GuideService {
     id: string;
     order_index: number;
     title: string | null;
-    text: string;
+    content: string;
     image_url: string | null;
     created_at: Date;
     updated_at: Date;
@@ -236,7 +243,7 @@ export class GuideService {
       id: step.id,
       orderIndex: step.order_index,
       title: step.title,
-      text: step.text,
+      content: step.content,
       imageUrl: step.image_url,
       createdAt: step.created_at,
       updatedAt: step.updated_at,

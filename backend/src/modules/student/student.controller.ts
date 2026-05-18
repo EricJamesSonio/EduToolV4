@@ -22,7 +22,8 @@ import {
   CreateStudentDto,
   UpdateStudentDto,
   UpdateStudentStatusDto,
-  QueryStudentDto,AddEnrollmentDto
+  QueryStudentDto,
+  AddEnrollmentDto,
 } from './dto/student.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -43,8 +44,6 @@ export class StudentController {
     return this.studentService.create(orgId, dto);
   }
 
-  // NOTE: all static-path GET routes must come before /:id
-
   @Get('credentials-csv')
   @Roles('admin')
   async getCredentialsCsv(
@@ -57,7 +56,6 @@ export class StudentController {
     res.send(csv);
   }
 
-  // ✅ #4 — GET /students/import-template
   @Get('import-template')
   @Roles('admin')
   async getImportTemplate(@Res() res: Response) {
@@ -101,9 +99,10 @@ export class StudentController {
   async update(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,       // ← ADDED
     @Body() dto: UpdateStudentDto,
   ) {
-    return this.studentService.update(id, orgId, dto);
+    return this.studentService.update(id, orgId, dto, actorId);
   }
 
   @Patch(':id/status')
@@ -111,9 +110,10 @@ export class StudentController {
   async updateStatus(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,       // ← ADDED
     @Body() dto: UpdateStudentStatusDto,
   ) {
-    return this.studentService.updateStatus(id, orgId, dto);
+    return this.studentService.updateStatus(id, orgId, dto, actorId);
   }
 
   @Post(':id/reset-password')
@@ -122,38 +122,40 @@ export class StudentController {
   async resetPassword(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,       // ← ADDED
   ) {
-    return this.studentService.resetPassword(id, orgId);
+    return this.studentService.resetPassword(id, orgId, actorId);
   }
 
-@Get(':id/enrollments')
-@Roles('admin')
-async getEnrollments(
-  @Param('id') id: string,
-  @CurrentUser('org_id') orgId: string,
-) {
-  return this.studentService.getEnrollments(id, orgId);
-}
+  @Get(':id/enrollments')
+  @Roles('admin')
+  async getEnrollments(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.studentService.getEnrollments(id, orgId);
+  }
 
-@Post(':id/enrollments')
-@Roles('admin')
-async addEnrollment(
-  @Param('id') id: string,
-  @CurrentUser('org_id') orgId: string,
-  @Body() dto: AddEnrollmentDto,
-) {
-  return this.studentService.addEnrollment(id, orgId, dto.classId);
-}
+  @Post(':id/enrollments')
+  @Roles('admin')
+  async addEnrollment(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,       // ← ADDED
+    @Body() dto: AddEnrollmentDto,
+  ) {
+    return this.studentService.addEnrollment(id, orgId, dto.classId, actorId);
+  }
 
-@Delete(':id/enrollments/:enrollmentId')
-@Roles('admin')
-@HttpCode(HttpStatus.OK)
-async deleteEnrollment(
-  @Param('id') id: string,
-  @Param('enrollmentId') enrollmentId: string,
-  @CurrentUser('org_id') orgId: string,
-) {
-  return this.studentService.deleteEnrollment(id, enrollmentId, orgId);
-}
-
+  @Delete(':id/enrollments/:enrollmentId')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async deleteEnrollment(
+    @Param('id') id: string,
+    @Param('enrollmentId') enrollmentId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,       // ← ADDED
+  ) {
+    return this.studentService.deleteEnrollment(id, enrollmentId, orgId, actorId);
+  }
 }

@@ -19,13 +19,8 @@ export async function getGuide(id: string): Promise<Guide> {
   return res.data.data;
 }
 
-export async function getGuideByPortalAndPath(
-  portal: string,
-  pagePath: string,
-): Promise<Guide> {
-  const res = await apiClient.get('/platform/guides/by-page', {
-    params: { portal, pagePath },
-  });
+export async function getGuideBySlug(slug: string): Promise<Guide> {
+  const res = await apiClient.get(`/platform/guides/slug/${slug}`);
   return res.data.data;
 }
 
@@ -64,4 +59,13 @@ export async function updateStep(
 
 export async function deleteStep(stepId: string): Promise<void> {
   await apiClient.delete(`/platform/guides/steps/${stepId}`);
+}
+
+export async function uploadImage(file: File): Promise<string> {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await apiClient.post('/platform/guides/upload-image', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data.data.url;
 }

@@ -11,7 +11,7 @@ export class CreateGuideDto {
   portal!: GuidePortalEnum;
 
   @IsString()
-  page_path!: string;
+  slug!: string;
 
   @IsString()
   title!: string;
@@ -22,5 +22,5 @@ export class CreateGuideDto {
 
   @IsBoolean()
   @IsOptional()
-  is_active?: boolean;
+  isActive?: boolean;
 }

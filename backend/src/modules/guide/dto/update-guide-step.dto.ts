@@ -3,7 +3,7 @@ import { IsString, IsInt, IsOptional } from 'class-validator';
 export class UpdateGuideStepDto {
   @IsInt()
   @IsOptional()
-  order_index?: number;
+  orderIndex?: number;
 
   @IsString()
   @IsOptional()
@@ -11,9 +11,9 @@ export class UpdateGuideStepDto {
 
   @IsString()
   @IsOptional()
-  text?: string;
+  content?: string;
 
   @IsString()
   @IsOptional()
-  image_url?: string;
+  imageUrl?: string;
 }

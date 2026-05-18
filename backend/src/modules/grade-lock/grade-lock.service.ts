@@ -1,3 +1,4 @@
+// @/modules/grade-lock/grade-lock.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -14,10 +15,14 @@ import {
   UnlockClassDto,
   OverrideGradeLockDto,
 } from './dto/grade-lock.dto'
+import { AuditLogService } from '../audit-log/audit-log.service'
 
 @Injectable()
 export class GradeLockService {
-  constructor(private readonly repo: GradeLockRepository) {}
+  constructor(
+    private readonly repo: GradeLockRepository,
+    private readonly auditLogService: AuditLogService,  // ← INJECTED
+  ) {}
 
   // ─── Settings ──────────────────────────────────────────────────────────────
 
@@ -53,7 +58,7 @@ export class GradeLockService {
   }
 
   async updateSetting(orgId: string, settingId: string, dto: UpdateGradeLockSettingDto) {
-    await this.getSetting(orgId, settingId) // throws if not found
+    await this.getSetting(orgId, settingId)
 
     if (dto.is_default) {
       await this.repo.clearDefaultSettings(orgId, settingId)
@@ -117,10 +122,6 @@ export class GradeLockService {
     return gradeLock
   }
 
-  /**
-   * Called by class.service.ts after class creation.
-   * Priority: provided setting_id → org default → skip (admin assigns later)
-   */
   async autoAssignOnClassCreate(
     orgId: string,
     classId: string,
@@ -160,6 +161,16 @@ export class GradeLockService {
       reason: dto.reason,
     })
 
+    // ── Activity log: educator locked grades ─────────────────────────────
+    this.auditLogService.logActivityEvent({
+      orgId,
+      actorId:    userId,
+      action:     'grade_locked',
+      entityType: 'class',
+      entityId:   classId,
+      metadata:   { reason: dto.reason ?? null },
+    }).catch(() => {})
+
     return { success: true, gradeLock: updated }
   }
 
@@ -194,6 +205,22 @@ export class GradeLockService {
       metadata: { action, userRole },
     })
 
+    // ── Audit log: admin override unlock ─────────────────────────────────
+    if (userRole === 'admin') {
+      this.auditLogService.logAdminAction({
+        orgId,
+        actorId:    userId,
+        action:     'grade_lock_override',
+        entityType: 'class',
+        entityId:   classId,
+        metadata:   {
+          action: 'ADMIN_CLASS_UNLOCK_OVERRIDE',
+          reason: dto.reason ?? null,
+          previously_locked_by: gradeLock.locked_by,
+        },
+      }).catch(() => {})
+    }
+
     return { success: true, gradeLock: updated }
   }
 
@@ -219,73 +246,82 @@ export class GradeLockService {
       },
     })
 
+    // ── Audit log: grade lock override ───────────────────────────────────
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId:    userId,
+      action:     'grade_lock_override',
+      entityType: 'class',
+      entityId:   classId,
+      metadata:   {
+        reason:              dto.reason ?? null,
+        previous_locked_by:  gradeLock.locked_by,
+        previous_locked_at:  gradeLock.locked_at,
+      },
+    }).catch(() => {})
+
     return { success: true, gradeLock: updated }
   }
 
   // ─── Queries ───────────────────────────────────────────────────────────────
 
-async getClassLocks(orgId: string) {
-  const [classes, locks] = await Promise.all([
-    this.repo.findAllClassesWithRelations(orgId),
-    this.repo.findAllLocksWithClass(orgId),
-  ])
+  async getClassLocks(orgId: string) {
+    const [classes, locks] = await Promise.all([
+      this.repo.findAllClassesWithRelations(orgId),
+      this.repo.findAllLocksWithClass(orgId),
+    ])
 
-  const lockMap = new Map(locks.map((l) => [l.class_id, l]))
+    const lockMap = new Map(locks.map((l) => [l.class_id, l]))
 
-  const merged = classes.map((cls) => {
-    const existingLock = lockMap.get(cls.id)
+    const merged = classes.map((cls) => {
+      const existingLock = lockMap.get(cls.id)
+      if (existingLock) return existingLock
+      return {
+        id: `virtual-${cls.id}`,
+        org_id: orgId,
+        class_id: cls.id,
+        is_locked: false,
+        locked_by: null,
+        locked_at: null,
+        created_at: cls.created_at,
+        setting: null,
+        class: cls,
+      }
+    })
 
-    if (existingLock) return existingLock
+    return this.hydrateLocks(merged, orgId)
+  }
 
-    // 👇 create virtual "unlocked" lock
-    return {
-      id: `virtual-${cls.id}`,
-      org_id: orgId,
-      class_id: cls.id,
-      is_locked: false,
-      locked_by: null,
-      locked_at: null,
-      created_at: cls.created_at,
-      setting: null,
-      class: cls,
-    }
-  })
+  async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
+    const [classes, locks] = await Promise.all([
+      this.repo.findAllClassesWithRelations(orgId),
+      this.repo.findLocksBySchoolYear(orgId, schoolYearId),
+    ])
 
-  return this.hydrateLocks(merged, orgId)
-}
+    const filteredClasses = classes.filter(
+      (cls) => cls.school_year_id === schoolYearId,
+    )
 
-async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
-  const [classes, locks] = await Promise.all([
-    this.repo.findAllClassesWithRelations(orgId),
-    this.repo.findLocksBySchoolYear(orgId, schoolYearId),
-  ])
+    const lockMap = new Map(locks.map((l) => [l.class_id, l]))
 
-  const filteredClasses = classes.filter(
-    (cls) => cls.school_year_id === schoolYearId
-  )
+    const merged = filteredClasses.map((cls) => {
+      const existingLock = lockMap.get(cls.id)
+      if (existingLock) return existingLock
+      return {
+        id: `virtual-${cls.id}`,
+        org_id: orgId,
+        class_id: cls.id,
+        is_locked: false,
+        locked_by: null,
+        locked_at: null,
+        created_at: cls.created_at,
+        setting: null,
+        class: cls,
+      }
+    })
 
-  const lockMap = new Map(locks.map((l) => [l.class_id, l]))
-
-  const merged = filteredClasses.map((cls) => {
-    const existingLock = lockMap.get(cls.id)
-
-    if (existingLock) return existingLock
-
-    return {
-      id: `virtual-${cls.id}`,
-      org_id: orgId,
-      class_id: cls.id,
-      is_locked: false,
-      locked_by: null,
-      locked_at: null,
-      created_at: cls.created_at,
-      setting: null,
-      class: cls,
-    }
-  })
-
-  return this.hydrateLocks(merged, orgId)
-}
+    return this.hydrateLocks(merged, orgId)
+  }
 
   async getEventsForClass(orgId: string, classId: string) {
     return this.repo.findEventsByClassId(orgId, classId)
@@ -309,6 +345,17 @@ async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
         reason: 'Auto-locked: deadline passed',
         metadata: { lock_deadline: lock.setting.lock_deadline },
       })
+
+      // ── Audit log: auto grade lock ──────────────────────────────────────
+      this.auditLogService.logAdminAction({
+        orgId,
+        actorId:    'system',
+        action:     'AUTO_GRADE_LOCK',
+        entityType: 'class',
+        entityId:   lock.class_id,
+        metadata:   { reason: 'deadline_passed', lock_deadline: lock.setting.lock_deadline },
+      }).catch(() => {})
+
       lockedCount++
     }
 
@@ -331,6 +378,21 @@ async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
           reason: 'Auto-locked: relative deadline passed',
           metadata: { computed_deadline: deadline.toISOString(), deadlineDays: lock.setting.deadlineDays },
         })
+
+        // ── Audit log: auto grade lock (relative) ───────────────────────
+        this.auditLogService.logAdminAction({
+          orgId,
+          actorId:    'system',
+          action:     'AUTO_GRADE_LOCK',
+          entityType: 'class',
+          entityId:   lock.class_id,
+          metadata:   {
+            reason:            'relative_deadline_passed',
+            computed_deadline: deadline.toISOString(),
+            deadlineDays:      lock.setting.deadlineDays,
+          },
+        }).catch(() => {})
+
         lockedCount++
       }
     }
@@ -350,7 +412,6 @@ async getClassLocksBySchoolYear(orgId: string, schoolYearId: string) {
         deadline: setting.lock_deadline,
       }
     }
-    // deadlineDays requires school year context — caller handles that case separately
     return { isExpired: false, deadline: null }
   }
 

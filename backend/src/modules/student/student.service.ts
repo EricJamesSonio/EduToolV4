@@ -1,3 +1,4 @@
+// @/modules/student/student.service.ts
 import {
   Injectable,
   ConflictException,
@@ -21,6 +22,7 @@ import {
 import { hashPassword } from '@/commons/utils/hash.util';
 import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '../enrollment/enrollment.repository';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 const IRREVERSIBLE_STATUSES: StudentStatus[] = [
   StudentStatus.DROPPED,
@@ -35,6 +37,7 @@ export class StudentService {
     private readonly sectionService: SectionService,
     private readonly classRepository: ClassRepository,
     private readonly enrollmentRepo: EnrollmentRepository,
+    private readonly auditLogService: AuditLogService,   // ← INJECTED
   ) {}
 
   private extractMeta(account: Record<string, any>): Record<string, any> {
@@ -92,10 +95,6 @@ export class StudentService {
   }
 
   async findAll(orgId: string, query: QueryStudentDto) {
-    // Pass ALL hierarchy filters straight to the repository.
-    // The repository resolves them via StudentSchoolYear → StudentProgramEnrollment.
-    // Do NOT post-filter on profile metadata — enrolled students store their
-    // level/section in StudentProgramEnrollment, not in profile.metadata.
     const accounts = await this.studentRepository.findAll(orgId, {
       search:       query.search,
       status:       query.status,
@@ -116,7 +115,8 @@ export class StudentService {
     return this.formatAccount(account as Record<string, any>);
   }
 
-  async update(id: string, orgId: string, dto: UpdateStudentDto) {
+  // actorId added — the admin performing the action, threaded from controller
+  async update(id: string, orgId: string, dto: UpdateStudentDto, actorId: string) {
     const account = await this.studentRepository.findById(id, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
@@ -146,10 +146,25 @@ export class StudentService {
       sectionId: dto.sectionId,
     });
 
+    // ── Audit log ──────────────────────────────────────────────────────────
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action:     'student_profile_changed',
+      entityType: 'student',
+      entityId:   id,
+      metadata:   {
+        changes: Object.fromEntries(
+          Object.entries(dto).filter(([, v]) => v !== undefined),
+        ),
+      },
+    }).catch(() => { /* fire-and-forget — never block the response */ });
+
     return this.formatAccount(updated as Record<string, any>);
   }
 
-  async updateStatus(id: string, orgId: string, dto: UpdateStudentStatusDto) {
+  // actorId added
+  async updateStatus(id: string, orgId: string, dto: UpdateStudentStatusDto, actorId: string) {
     const account = await this.studentRepository.findById(id, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
@@ -169,6 +184,21 @@ export class StudentService {
     }
 
     const updated = await this.studentRepository.updateStatus(id, newStatus);
+
+    // ── Audit log ──────────────────────────────────────────────────────────
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action:     'student_status_changed',
+      entityType: 'student',
+      entityId:   id,
+      metadata:   {
+        from:   currentStatus,
+        to:     newStatus,
+        reason: dto.reason ?? null,
+      },
+    }).catch(() => {});
+
     return this.formatAccount(updated as Record<string, any>);
   }
 
@@ -255,7 +285,8 @@ export class StudentService {
     return { status: 'success', totalCreated: created.length, students: created };
   }
 
-  async resetPassword(id: string, orgId: string) {
+  // actorId added
+  async resetPassword(id: string, orgId: string, actorId: string) {
     const account = await this.studentRepository.findById(id, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
@@ -263,6 +294,17 @@ export class StudentService {
     const hashedPassword = await hashPassword(plainPassword);
 
     await this.studentRepository.updatePassword(id, hashedPassword);
+
+    // ── Audit log ──────────────────────────────────────────────────────────
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action:     'password_reset',
+      entityType: 'student',
+      entityId:   id,
+      metadata:   null,
+    }).catch(() => {});
+
     return { id, plainPassword };
   }
 
@@ -301,7 +343,7 @@ export class StudentService {
     return this.enrollmentRepo.findByStudentAcrossOrg(studentId, orgId);
   }
 
-  async addEnrollment(studentId: string, orgId: string, classId: string) {
+  async addEnrollment(studentId: string, orgId: string, classId: string, actorId: string) {
     const account = await this.studentRepository.findById(studentId, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
@@ -332,6 +374,16 @@ export class StudentService {
     if (cls.capacity > 0) {
       const activeCount = await this.enrollmentRepo.countActive(classId);
       if (activeCount >= cls.capacity) {
+        // ── Audit: capacity overflow ──────────────────────────────────────
+        this.auditLogService.logAdminAction({
+          orgId,
+          actorId,
+          action:     'class_capacity_overflow',
+          entityType: 'class',
+          entityId:   classId,
+          metadata:   { studentId, capacity: cls.capacity },
+        }).catch(() => {});
+
         return {
           overflow:  true,
           message:   `Class is at full capacity (${cls.capacity} students).`,
@@ -341,10 +393,27 @@ export class StudentService {
       }
     }
 
-    return this.enrollmentRepo.create({ orgId, classId, studentId, status: 'active' });
+    const enrollment = await this.enrollmentRepo.create({
+      orgId,
+      classId,
+      studentId,
+      status: 'active',
+    });
+
+    // ── Audit: enrollment created ─────────────────────────────────────────
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action:     'enrollment_created',
+      entityType: 'enrollment',
+      entityId:   (enrollment as any).id,
+      metadata:   { studentId, classId },
+    }).catch(() => {});
+
+    return enrollment;
   }
 
-  async deleteEnrollment(studentId: string, enrollmentId: string, orgId: string) {
+  async deleteEnrollment(studentId: string, enrollmentId: string, orgId: string, actorId: string) {
     const account = await this.studentRepository.findById(studentId, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
@@ -356,7 +425,19 @@ export class StudentService {
       throw new ConflictException('Enrollment is already removed.');
     }
 
-    return this.enrollmentRepo.updateStatus(enrollmentId, 'removed');
+    const result = await this.enrollmentRepo.updateStatus(enrollmentId, 'removed');
+
+    // ── Audit: enrollment removed ─────────────────────────────────────────
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action:     'enrollment_removed',
+      entityType: 'enrollment',
+      entityId:   enrollmentId,
+      metadata:   { studentId, classId: enrollment.class_id },
+    }).catch(() => {});
+
+    return result;
   }
 
   async getEducatorClasses(educatorId: string, orgId: string) {

@@ -1,6 +1,12 @@
 "use client";
 
 import type { GuideStep } from "@/types/platform/guide.types";
+import { API_BASE_URL } from "@/config/api.config";
+
+function resolveImageUrl(url: string | null): string | undefined {
+  if (!url) return undefined;
+  return url.startsWith("/uploads/") ? `${API_BASE_URL}${url}` : url;
+}
 
 interface GuidePreviewProps {
   steps: GuideStep[];
@@ -19,7 +25,7 @@ export function GuidePreview({ steps }: GuidePreviewProps) {
     <div className="space-y-8">
       {steps.map((step, index) => (
         <div key={step.id} className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* LEFT: Text - vertically centered, pointing to the image */}
+          {/* LEFT: Content - vertically centered, pointing to the image */}
           <div className="relative flex flex-col justify-center">
             <div className="flex items-start gap-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
@@ -32,7 +38,7 @@ export function GuidePreview({ steps }: GuidePreviewProps) {
                   </h3>
                 )}
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  {step.text}
+                  {step.content}
                 </p>
               </div>
             </div>
@@ -59,7 +65,7 @@ export function GuidePreview({ steps }: GuidePreviewProps) {
           {step.imageUrl ? (
             <div className="flex items-center justify-center">
               <img
-                src={step.imageUrl}
+                src={resolveImageUrl(step.imageUrl)}
                 alt={`Step ${index + 1}`}
                 className="w-full rounded-lg border border-border object-contain shadow-sm"
                 style={{ maxHeight: 240 }}

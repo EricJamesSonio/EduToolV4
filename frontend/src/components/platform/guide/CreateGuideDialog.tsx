@@ -17,7 +17,7 @@ interface CreateGuideDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: {
     portal: GuidePortal;
-    pagePath: string;
+    slug: string;
     title: string;
     description: string;
   }) => void;
@@ -29,15 +29,15 @@ export function CreateGuideDialog({
   onSubmit,
 }: CreateGuideDialogProps) {
   const [portal, setPortal] = useState<GuidePortal>("admin");
-  const [pagePath, setPagePath] = useState("");
+  const [slug, setSlug] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
   const handleSubmit = () => {
-    if (!pagePath || !title) return;
-    onSubmit({ portal, pagePath, title, description });
+    if (!slug || !title) return;
+    onSubmit({ portal, slug, title, description });
     setPortal("admin");
-    setPagePath("");
+    setSlug("");
     setTitle("");
     setDescription("");
   };
@@ -73,12 +73,12 @@ export function CreateGuideDialog({
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
-              Page Path
+              Slug
             </label>
             <Input
-              value={pagePath}
-              onChange={(e) => setPagePath(e.target.value)}
-              placeholder="/admin/dashboard"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="admin_dashboard"
             />
           </div>
 
@@ -109,7 +109,7 @@ export function CreateGuideDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!pagePath || !title}>
+          <Button onClick={handleSubmit} disabled={!slug || !title}>
             Create
           </Button>
         </DialogFooter>

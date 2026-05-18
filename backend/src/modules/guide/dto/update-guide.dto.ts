@@ -11,5 +11,5 @@ export class UpdateGuideDto {
 
   @IsBoolean()
   @IsOptional()
-  is_active?: boolean;
+  isActive?: boolean;
 }

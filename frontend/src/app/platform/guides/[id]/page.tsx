@@ -29,7 +29,7 @@ export default function GuideDetailPage() {
 
   // Track new steps that haven't been saved yet
   const [newSteps, setNewSteps] = useState<
-    { title: string; text: string; imageUrl: string | null }[]
+    { title: string; content: string; imageUrl: string | null }[]
   >([]);
 
   if (isLoading) {
@@ -64,13 +64,13 @@ export default function GuideDetailPage() {
   const handleAddStep = () => {
     setNewSteps((prev) => [
       ...prev,
-      { title: "", text: "", imageUrl: null },
+      { title: "", content: "", imageUrl: null },
     ]);
   };
 
   const handleSaveNewStep = (index: number) => {
     const step = newSteps[index];
-    if (!step.text) return;
+    if (!step.content) return;
 
     const maxOrder = guide.steps.length > 0
       ? Math.max(...guide.steps.map((s) => s.orderIndex))
@@ -82,7 +82,7 @@ export default function GuideDetailPage() {
         dto: {
           orderIndex: maxOrder + 1,
           title: step.title || undefined,
-          text: step.text,
+          content: step.content,
           imageUrl: step.imageUrl || undefined,
         },
       },
@@ -102,7 +102,7 @@ export default function GuideDetailPage() {
     id: string;
     orderIndex: number;
     title: string | null;
-    text: string;
+    content: string;
     imageUrl: string | null;
     createdAt: string;
     updatedAt: string;
@@ -113,7 +113,7 @@ export default function GuideDetailPage() {
       id: `new-${i}`,
       orderIndex: guide.steps.length + i,
       title: s.title || null,
-      text: s.text,
+      content: s.content,
       imageUrl: s.imageUrl,
       createdAt: "",
       updatedAt: "",
@@ -170,7 +170,7 @@ export default function GuideDetailPage() {
             </div>
           )}
           <p className="text-sm text-muted-foreground">
-            {guide.pagePath}
+            {guide.slug}
             <span className="ml-2 capitalize">({guide.portal})</span>
           </p>
         </div>
@@ -243,7 +243,7 @@ export default function GuideDetailPage() {
                 key={step.id}
                 index={index}
                 title={step.title ?? ""}
-                text={step.text}
+                content={step.content}
                 imageUrl={step.imageUrl}
                 onTitleChange={(value) => {
                   updateStep.mutate({
@@ -251,10 +251,10 @@ export default function GuideDetailPage() {
                     dto: { title: value || undefined },
                   });
                 }}
-                onTextChange={(value) => {
+                onContentChange={(value) => {
                   updateStep.mutate({
                     stepId: step.id,
-                    dto: { text: value },
+                    dto: { content: value },
                   });
                 }}
                 onImageChange={(url) => {
@@ -278,7 +278,7 @@ export default function GuideDetailPage() {
                     <Button
                       size="xs"
                       onClick={() => handleSaveNewStep(index)}
-                      disabled={!step.text}
+                      disabled={!step.content}
                     >
                       <Check className="mr-1 h-3 w-3" />
                       Save
@@ -294,7 +294,7 @@ export default function GuideDetailPage() {
                   <GuideStepEditor
                     index={globalIndex}
                     title={step.title}
-                    text={step.text}
+                    content={step.content}
                     imageUrl={step.imageUrl}
                     onTitleChange={(value) => {
                       setNewSteps((prev) =>
@@ -303,10 +303,10 @@ export default function GuideDetailPage() {
                         ),
                       );
                     }}
-                    onTextChange={(value) => {
+                    onContentChange={(value) => {
                       setNewSteps((prev) =>
                         prev.map((s, i) =>
-                          i === index ? { ...s, text: value } : s,
+                          i === index ? { ...s, content: value } : s,
                         ),
                       );
                     }}

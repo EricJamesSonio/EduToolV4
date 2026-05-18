@@ -18,6 +18,14 @@ export function useGuide(id: string) {
   });
 }
 
+export function useGuideBySlug(slug: string) {
+  return useQuery({
+    queryKey: ['platform-guide-slug', slug],
+    queryFn: () => guideApi.getGuideBySlug(slug),
+    enabled: !!slug,
+  });
+}
+
 export function useCreateGuide() {
   const qc = useQueryClient();
   return useMutation({
