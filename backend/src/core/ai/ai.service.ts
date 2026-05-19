@@ -24,6 +24,13 @@ export interface ConceptBuild {
   concepts: ConceptItem[];
 }
 
+export interface ConceptExtractResult {
+  conceptBuild: ConceptBuild;
+  rawResponse: string;
+  rawRequest: string;
+  promptVersion: string;
+}
+
 export interface QuestionBlueprint {
   type: 'identification' | 'true_false' | 'multiple_choice' | 'essay' | 'enumeration';
   sections: string[];
@@ -53,9 +60,16 @@ const TOKEN_COST: Record<string, number> = {
 const SAFE_OUTPUT_BUDGET = 1400;
 const ENVELOPE_OVERHEAD = 20;
 
+// ── Prompt versions ───────────────────────────────────────────────────────────
+
+const CONCEPT_EXTRACT_PROMPT_VERSION = 'concept-extract-v1';
+const CONCEPT_BUILD_PROMPT_VERSION = 'concept-build-v1';
+
 // ── System prompts ────────────────────────────────────────────────────────────
 
 const CONCEPT_SYSTEM = `You are an educational content analyzer. Extract structured learning concepts from lesson text. Return ONLY valid JSON. No markdown. No explanation. Start with { end with }`;
+
+const CONCEPT_BUILD_SYSTEM = `You are a curriculum design expert. Given a lesson, produce a structured concept intelligence model: organize content into logical sections, identify key concepts, and estimate question capacity per section. Return ONLY valid JSON. No markdown. No explanation. Start with { end with }`;
 
 const QUESTION_SYSTEM = `You are an assessment question generator. Generate questions ONLY from the provided lesson content. Return ONLY valid JSON. No markdown. No explanation. Start with { end with }`;
 
@@ -68,7 +82,7 @@ export class AiService {
 
   constructor(private readonly config: ConfigService) {
     this.apiKey = this.config.get<string>('OPENROUTER_API_KEY') ?? '';
-    this.model = this.config.get<string>('AI_MODEL') ?? 'meta-llama/llama-3.3-70b-instruct:free';
+    this.model = this.config.get<string>('AI_MODEL') ?? 'qwen/qwen3-235b-a22b:free';
   }
 
   // ── Core caller ─────────────────────────────────────────────────────────────
@@ -77,8 +91,9 @@ export class AiService {
     systemPrompt: string,
     userPrompt: string,
     maxTokens = 2000,
+    temperature = 0.3,
   ): Promise<string> {
-    this.logger.log(`[AI] Calling model: ${this.model} | max_tokens: ${maxTokens}`);
+    this.logger.log(`[AI] Calling model: ${this.model} | max_tokens: ${maxTokens} | temp: ${temperature}`);
 
     const response = await fetch(this.apiUrl, {
       method: 'POST',
@@ -91,7 +106,7 @@ export class AiService {
       body: JSON.stringify({
         model: this.model,
         max_tokens: maxTokens,
-        temperature: 0.3,
+        temperature,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -144,9 +159,49 @@ export class AiService {
     }
   }
 
-  // ── Concept extraction ───────────────────────────────────────────────────────
+  // ── Validation ───────────────────────────────────────────────────────────────
 
-  async extractConcepts(lessonDetail: string): Promise<ConceptBuild> {
+  private validateConceptBuild(build: ConceptBuild): void {
+    if (!build.sections.length) {
+      throw new Error('Validation failed: at least one section is required');
+    }
+    if (!build.concepts.length) {
+      throw new Error('Validation failed: at least one concept is required');
+    }
+
+    for (const sec of build.sections) {
+      if (!sec.trim()) {
+        throw new Error('Validation failed: section name cannot be empty');
+      }
+    }
+
+    for (const cap of Object.values(build.questionCapacity)) {
+      if (typeof cap !== 'number' || cap <= 0) {
+        throw new Error('Validation failed: question capacities must be positive numbers');
+      }
+    }
+
+    const seenNames = new Set<string>();
+    for (const c of build.concepts) {
+      if (!c.name.trim()) {
+        throw new Error('Validation failed: concept name cannot be empty');
+      }
+      if (seenNames.has(c.name)) {
+        throw new Error(`Validation failed: duplicate concept "${c.name}"`);
+      }
+      seenNames.add(c.name);
+
+      if (!build.sections.includes(c.section)) {
+        throw new Error(
+          `Validation failed: concept "${c.name}" references unknown section "${c.section}"`,
+        );
+      }
+    }
+  }
+
+  // ── Concept extraction (lightweight, called on lesson create/update) ────────
+
+  async extractConcepts(lessonDetail: string): Promise<ConceptExtractResult> {
     const prompt = `Analyze this lesson and extract teachable concepts.
 
 Lesson: ${lessonDetail}
@@ -169,11 +224,12 @@ Return ONLY this JSON (no markdown, no explanation):
 
 Rules:
 - sections = main topic headings in the lesson
-- question_capacity = how many questions each section can support
+- question_capacity = how many questions each section can support (must be positive integers)
 - difficulty = easy, medium, or hard
+- Do NOT create duplicate concept names
 - Return JSON ONLY. Start with { end with }`;
 
-    const raw = await this.callAi(CONCEPT_SYSTEM, prompt, 2000);
+    const raw = await this.callAi(CONCEPT_SYSTEM, prompt, 2000, 0.2);
     const parsed = this.parseJson<any>(raw);
 
     // Normalise + apply defaults (mirrors parse_concept_response)
@@ -196,11 +252,94 @@ Rules:
       }
     }
 
+    const conceptBuild: ConceptBuild = { sections, keywords, questionCapacity, concepts };
+
+    this.validateConceptBuild(conceptBuild);
+
     this.logger.log(
       `[Concept] Extracted ${sections.length} sections, ${concepts.length} concepts`,
     );
 
-    return { sections, keywords, questionCapacity, concepts };
+    return {
+      conceptBuild,
+      rawResponse: raw,
+      rawRequest: prompt,
+      promptVersion: CONCEPT_EXTRACT_PROMPT_VERSION,
+    };
+  }
+
+  // ── Concept build (full pipeline: concept intelligence) ─────────────────────
+
+  async buildConcepts(lessonDetail: string): Promise<ConceptExtractResult> {
+    const prompt = `You are a curriculum design expert. Analyze this lesson and produce a structured concept intelligence model.
+
+Lesson:
+${lessonDetail}
+
+Organize the content into logical sections. For each section, identify:
+- The key concepts that must be taught
+- How many assessment questions each section can support
+
+Return ONLY this JSON (no markdown, no explanation):
+{
+  "sections": ["Section Name 1", "Section Name 2"],
+  "keywords": ["keyword1", "keyword2"],
+  "question_capacity": {"Section Name 1": 10, "Section Name 2": 8},
+  "concepts": [
+    {
+      "name": "Concept Name",
+      "section": "Section Name",
+      "definition": "One-sentence definition",
+      "properties": ["property1", "property2"],
+      "difficulty": "easy"
+    }
+  ]
+}
+
+Rules:
+- sections = logical topic groupings taken from the lesson
+- Each section MUST have at least one concept
+- question_capacity values MUST be positive integers (total questions that section can support)
+- difficulty must be exactly "easy", "medium", or "hard"
+- concept names must be unique — no duplicates
+- Return JSON ONLY. Start with { end with }`;
+
+    const raw = await this.callAi(CONCEPT_BUILD_SYSTEM, prompt, 2500, 0.2);
+    const parsed = this.parseJson<any>(raw);
+
+    const sections: string[] = parsed.sections ?? [];
+    const keywords: string[] = parsed.keywords ?? [];
+    const concepts: ConceptItem[] = (parsed.concepts ?? []).map((c: any, i: number) => ({
+      name: c.name ?? `Concept ${i + 1}`,
+      section: c.section ?? sections[0] ?? 'General',
+      definition: c.definition ?? '',
+      properties: c.properties ?? [],
+      difficulty: ['easy', 'medium', 'hard'].includes(c.difficulty) ? c.difficulty : 'medium',
+    }));
+
+    let questionCapacity: Record<string, number> = parsed.question_capacity ?? {};
+    if (!Object.keys(questionCapacity).length) {
+      questionCapacity = Object.fromEntries(sections.map((s) => [s, 10]));
+    } else {
+      for (const s of sections) {
+        questionCapacity[s] ??= 10;
+      }
+    }
+
+    const conceptBuild: ConceptBuild = { sections, keywords, questionCapacity, concepts };
+
+    this.validateConceptBuild(conceptBuild);
+
+    this.logger.log(
+      `[ConceptBuild] Built ${sections.length} sections, ${concepts.length} concepts`,
+    );
+
+    return {
+      conceptBuild,
+      rawResponse: raw,
+      rawRequest: prompt,
+      promptVersion: CONCEPT_BUILD_PROMPT_VERSION,
+    };
   }
 
   // ── Question generation ──────────────────────────────────────────────────────
@@ -311,7 +450,7 @@ Rules:
     let lastError: unknown;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const raw = await this.callAi(QUESTION_SYSTEM, prompt, maxTokens);
+        const raw = await this.callAi(QUESTION_SYSTEM, prompt, maxTokens, 0.5);
         if (!raw?.trim()) throw new Error('Empty response from AI');
 
         const data = this.parseJson<{ questions: any[] }>(raw);

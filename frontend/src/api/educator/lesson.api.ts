@@ -88,6 +88,17 @@ export const lessonApi = {
     );
   },
 
+  conceptBuild: async (
+    classId: string,
+    lessonId: string,
+    detail: string
+  ): Promise<void> => {
+    await apiClient.post(
+      `/educator/classes/${classId}/lessons/${lessonId}/concept-build`,
+      { detail }
+    );
+  },
+
   getWeekStructure: async (classId: string) => {
     const { data } = await apiClient.get(
       `/educator/classes/${classId}/lessons/week-structure`

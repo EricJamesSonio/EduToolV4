@@ -236,7 +236,7 @@ if (clsLoading) {
     { icon: ClipboardCheck,label: "Assessments", description: "Quizzes, activities, and exams",         href: `${base}/assessments` },
     { icon: CalendarCheck, label: "Attendance",  description: "Track student attendance per session",   href: `${base}/attendance`  },
     { icon: BarChart2,     label: "Grades",      description: "View and compute term grades",           href: `${base}/grades`      },
-    { icon: ClipboardList, label: "Rubric",      description: "Grading scheme for this class",          href: `${base}/rubric`      },
+    { icon: ClipboardList, label: "Grading scheme",      description: "Grading scheme for this class",          href: `${base}/grading-scheme`      },
     { icon: Video,         label: "Meetings",    description: "Schedule and manage video sessions",     href: `${base}/meetings`    },
   ];
 

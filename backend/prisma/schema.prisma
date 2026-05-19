@@ -658,11 +658,14 @@ model Lesson {
 }
 
 model LessonConcept {
-  id         String   @id @default(uuid())
-  org_id     String
-  lesson_id  String
-  content    Json
-  created_at DateTime @default(now())
+  id             String   @id @default(uuid())
+  org_id         String
+  lesson_id      String
+  content        Json
+  raw_response   String?
+  raw_request    String?
+  prompt_version String?
+  created_at     DateTime @default(now())
 }
 
 //////////////////////

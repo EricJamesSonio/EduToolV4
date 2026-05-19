@@ -18,12 +18,13 @@ export const useLessons = (classId: string, weekNumber?: number) => {
   });
 };
 
-export const useLesson = (classId: string, lessonId: string) => {
+export const useLesson = (classId: string, lessonId: string, poll = false) => {
   return useQuery({
     queryKey: lessonKeys.detail(lessonId),
     queryFn: () => lessonApi.getOne(classId, lessonId),
     enabled: !!classId && !!lessonId,
-    staleTime: 1000 * 60 * 2, // 2 minutes for individual lesson
+    staleTime: poll ? 0 : 1000 * 60 * 2,
+    refetchInterval: poll ? 3000 : false,
   });
 };
 
@@ -118,6 +119,21 @@ export const useTriggerExtraction = (classId: string) => {
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || "Failed to trigger content extraction");
+    },
+  });
+};
+
+export const useConceptBuild = (classId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ lessonId, detail }: { lessonId: string; detail: string }) =>
+      lessonApi.conceptBuild(classId, lessonId, detail),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: lessonKeys.detail(variables.lessonId) });
+      toast.success("Concept build completed");
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to build concepts");
     },
   });
 };

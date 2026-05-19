@@ -1,12 +1,16 @@
-// filepath: frontend/src/app/educator/classes/[classId]/lessons/[lessonId]/page.tsx
-
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { useLesson, useUpdateLesson, useDeleteLesson, useTriggerExtraction } from "@/hooks/educator/useLessons";
+import {
+  useLesson,
+  useUpdateLesson,
+  useDeleteLesson,
+  useTriggerExtraction,
+  useConceptBuild,
+} from "@/hooks/educator/useLessons";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import { LessonForm } from "@/components/educator/lesson/LessonForm";
 import { ConceptBuildViewer } from "@/components/educator/lesson/ConceptBuildViewer";
@@ -24,26 +28,54 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { UpdateLessonRequest, CreateLessonRequest } from "@/api/educator/lesson.api";
-import { Pencil, Trash2, Loader2, ArrowLeft, RotateCcw } from "lucide-react";
+import { Pencil, Trash2, Loader2, RotateCcw } from "lucide-react";
 
 export default function LessonDetailPage(): React.JSX.Element {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const classId = params.classId as string;
   const lessonId = params.lessonId as string;
 
   const [isEditing, setIsEditing] = useState(false);
   const [showReExtractBanner, setShowReExtractBanner] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(
+    searchParams.get("extracting") === "true",
+  );
 
-  const { data: lesson, isLoading } = useLesson(classId, lessonId);
+  const {
+    data: lesson,
+    isLoading,
+    refetch,
+  } = useLesson(classId, lessonId, isBuilding);
+
   const { data: weeks } = useClassWeeks(classId);
-  const { mutateAsync: updateLesson, isPending: isUpdating } = useUpdateLesson(classId);
-  const { mutateAsync: deleteLesson, isPending: isDeleting } = useDeleteLesson(classId);
-  const { mutateAsync: triggerExtraction, isPending: isExtracting } = useTriggerExtraction(classId);
+  const { mutateAsync: updateLesson, isPending: isUpdating } =
+    useUpdateLesson(classId);
+  const { mutateAsync: deleteLesson, isPending: isDeleting } =
+    useDeleteLesson(classId);
+  const { mutateAsync: triggerExtraction, isPending: isTriggering } =
+    useTriggerExtraction(classId);
+  const { mutateAsync: conceptBuild, isPending: isConceptBuilding } =
+    useConceptBuild(classId);
+
+  const isExtracting = isBuilding || isTriggering || isConceptBuilding;
+
+  // Poll when building
+  useEffect(() => {
+    if (!isBuilding) return;
+    if (lesson?.concept) {
+      setIsBuilding(false);
+      return;
+    }
+    const timer = setInterval(() => refetch(), 3000);
+    return () => clearInterval(timer);
+  }, [isBuilding, lesson?.concept, refetch]);
 
   async function handleUpdate(data: CreateLessonRequest): Promise<void> {
-    const detailChanged = data.detail !== undefined && data.detail !== lesson?.detail;
-    const hasExistingBuild = lesson?.conceptBuild !== null;
+    const detailChanged =
+      data.detail !== undefined && data.detail !== lesson?.detail;
+    const hasExistingBuild = lesson?.concept !== null;
 
     await updateLesson({ lessonId, data });
     setIsEditing(false);
@@ -55,10 +87,27 @@ export default function LessonDetailPage(): React.JSX.Element {
     }
   }
 
+  async function handleBuildConcepts(): Promise<void> {
+    const detail = lesson?.detail;
+    if (!detail) {
+      toast.error("Lesson has no content to build from.");
+      return;
+    }
+    setIsBuilding(true);
+    await conceptBuild({ lessonId, detail });
+    refetch();
+  }
+
   async function handleReExtract(): Promise<void> {
-    await triggerExtraction(lessonId);
+    const detail = lesson?.detail;
+    if (!detail) {
+      toast.error("Lesson has no content to extract.");
+      return;
+    }
+    setIsBuilding(true);
     setShowReExtractBanner(false);
-    toast.success("Re-extraction started. You'll be notified when complete.");
+    await triggerExtraction({ lessonId, detail });
+    refetch();
   }
 
   async function handleDelete(): Promise<void> {
@@ -103,16 +152,16 @@ export default function LessonDetailPage(): React.JSX.Element {
           </Button>
 
           <AlertDialog>
-        <AlertDialogTrigger className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium text-destructive hover:bg-muted transition-colors">
-          <Trash2 className="h-3.5 w-3.5" />
-          Delete
-        </AlertDialogTrigger>
+            <AlertDialogTrigger className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium text-destructive hover:bg-muted transition-colors">
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete this lesson?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently remove &quot;{lesson.title}&quot; and its
-                  concept build. This action cannot be undone.
+                  This will permanently remove &quot;{lesson.title}&quot; and
+                  its concept build. This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -122,7 +171,9 @@ export default function LessonDetailPage(): React.JSX.Element {
                   disabled={isDeleting}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isDeleting && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   Delete Lesson
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -171,7 +222,14 @@ export default function LessonDetailPage(): React.JSX.Element {
       {isEditing ? (
         <LessonForm
           classId={classId}
-          availableWeeks={weeks ?? [{ label: String(lesson.weekNumber), value: lesson.weekNumber }]}
+          availableWeeks={
+            weeks ?? [
+              {
+                label: String(lesson.weekNumber),
+                value: lesson.weekNumber,
+              },
+            ]
+          }
           lesson={lesson}
           isLoading={isUpdating}
           onSubmit={handleUpdate}
@@ -184,7 +242,9 @@ export default function LessonDetailPage(): React.JSX.Element {
           </div>
           {lesson.description && (
             <div>
-              <p className="text-xs text-muted-foreground mb-0.5">Description</p>
+              <p className="text-xs text-muted-foreground mb-0.5">
+                Description
+              </p>
               <p className="text-sm">{lesson.description}</p>
             </div>
           )}
@@ -193,7 +253,9 @@ export default function LessonDetailPage(): React.JSX.Element {
             <p className="text-sm">Week {lesson.weekNumber}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-0.5">Lesson Detail</p>
+            <p className="text-xs text-muted-foreground mb-0.5">
+              Lesson Detail
+            </p>
             <p className="text-sm whitespace-pre-wrap">{lesson.detail}</p>
           </div>
         </div>
@@ -205,9 +267,9 @@ export default function LessonDetailPage(): React.JSX.Element {
         <ConceptBuildViewer
           classId={classId}
           lessonId={lessonId}
-          concept={lesson.conceptBuild}
-          onReExtract={
-            lesson.conceptBuild && !isEditing ? handleReExtract : undefined
+          concept={lesson.concept}
+          onBuildConcepts={
+            !isEditing && !isExtracting ? handleBuildConcepts : undefined
           }
           isExtracting={isExtracting}
         />
