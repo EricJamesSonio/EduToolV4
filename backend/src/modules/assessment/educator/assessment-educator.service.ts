@@ -238,7 +238,7 @@ export class AssessmentEducatorService {
         await this.db.submission.update({
           where: { id: existing.id },
           data: {
-            status: 'not_started',
+            status: 'draft',
             score: null,
             manual_score: null,
             submitted_at: null,
@@ -252,7 +252,7 @@ export class AssessmentEducatorService {
             org_id: orgId,
             assessment_id: assessmentId,
             student_id: studentId,
-            status: 'not_started',
+            status: 'draft',
             reopened_until: reopenedUntil,
           },
         });

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useAssessment, useDeleteAssessment } from "@/hooks/educator/useAssessments";
+import { useAssessment, useDeleteAssessment, usePublishAssessment, useUnpublishAssessment } from "@/hooks/educator/useAssessments";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,8 @@ export default function AssessmentDetailPage(): React.JSX.Element {
 
   const { data: assessment, isLoading } = useAssessment(classId, assessmentId);
   const { mutateAsync: deleteAssessment, isPending: isDeleting } = useDeleteAssessment(classId);
+  const { mutateAsync: publish, isPending: isPublishing } = usePublishAssessment(classId);
+  const { mutateAsync: unpublish, isPending: isUnpublishing } = useUnpublishAssessment(classId);
 
   const [assignOpen, setAssignOpen] = useState(false);
   const [reopenOpen, setReopenOpen] = useState(false);
@@ -194,6 +196,17 @@ export default function AssessmentDetailPage(): React.JSX.Element {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          {assessment.isPublished ? (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => unpublish(assessmentId)} disabled={isUnpublishing}>
+              {isUnpublishing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Unpublish Scores
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => publish(assessmentId)} disabled={isPublishing}>
+              {isPublishing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Publish Scores
+            </Button>
+          )}
           <Link href={`/educator/classes/${classId}/assessments/${assessmentId}/submissions`}>
             <Button variant="outline" size="sm" className="gap-1.5">
               <Users className="h-3.5 w-3.5" />View Submissions

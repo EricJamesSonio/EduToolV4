@@ -263,7 +263,7 @@ export const usePublishAssessment = (
       const previousAssessment = qc.getQueryData(assessmentKeys.detail(assessmentId));
 
       qc.setQueryData(assessmentKeys.detail(assessmentId), (old: Assessment) =>
-        old ? { ...old, published: true } : null
+        old ? { ...old, isPublished: true } : null
       );
 
       return { previousAssessment };
@@ -279,7 +279,7 @@ export const usePublishAssessment = (
       qc.invalidateQueries({ queryKey: assessmentKeys.lists() });
     },
     onSuccess: () => {
-      toast.success("Assessment published successfully");
+      toast.success("Scores published successfully");
     },
   });
 };
@@ -296,7 +296,7 @@ export const useUnpublishAssessment = (
       const previousAssessment = qc.getQueryData(assessmentKeys.detail(assessmentId));
 
       qc.setQueryData(assessmentKeys.detail(assessmentId), (old: Assessment) =>
-        old ? { ...old, published: false } : null
+        old ? { ...old, isPublished: false } : null
       );
 
       return { previousAssessment };
@@ -312,7 +312,7 @@ export const useUnpublishAssessment = (
       qc.invalidateQueries({ queryKey: assessmentKeys.lists() });
     },
     onSuccess: () => {
-      toast.success("Assessment unpublished successfully");
+      toast.success("Scores unpublished successfully");
     },
   });
 };

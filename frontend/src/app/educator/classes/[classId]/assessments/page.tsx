@@ -184,7 +184,7 @@ export default function AssessmentsPage(): React.JSX.Element {
                           </Button>
                         </Link>
                         <AlertDialog>
-                          <AlertDialogTrigger>
+                          <AlertDialogTrigger asChild>
                             <Button
                               variant="ghost"
                               size="sm"
