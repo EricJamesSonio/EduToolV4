@@ -129,19 +129,31 @@ export default function AttendanceSessionPage() {
   useEffect(() => {
     if (!session) return;
 
+    const studentList = session.students ?? [];
+
     setRows(
-      session.students.map((s) => {
-        const existing = recordMap.get(s.id)
-        return {
-          recordId: existing?.id ?? null,
-          studentId: s.id,
-          studentName: s.name,
-          studentCode: s.code,
-          status: existing?.status ?? 'present',
-          autoSet: false,
-          dirty: false,
-        }
-      })
+      studentList.length > 0
+        ? studentList.map((s) => {
+            const existing = recordMap.get(s.id)
+            return {
+              recordId: existing?.id ?? null,
+              studentId: s.id,
+              studentName: s.name,
+              studentCode: s.code,
+              status: existing?.status ?? 'present',
+              autoSet: false,
+              dirty: false,
+            }
+          })
+        : session.records.map((r) => ({
+            recordId: r.id,
+            studentId: r.student_id,
+            studentName: r.student_name ?? '',
+            studentCode: r.student_code ?? '',
+            status: r.status,
+            autoSet: false,
+            dirty: false,
+          }))
     );
   }, [session, recordMap]);
 
@@ -177,19 +189,31 @@ export default function AttendanceSessionPage() {
       recMap.set(r.student_id, r)
     }
 
+    const studentList = session.students ?? [];
+
     setRows(
-      session.students.map((s) => {
-        const existing = recMap.get(s.id)
-        return {
-          recordId: existing?.id ?? null,
-          studentId: s.id,
-          studentName: s.name,
-          studentCode: s.code,
-          status: existing?.status ?? 'present',
-          autoSet: false,
-          dirty: false,
-        }
-      })
+      studentList.length > 0
+        ? studentList.map((s) => {
+            const existing = recMap.get(s.id)
+            return {
+              recordId: existing?.id ?? null,
+              studentId: s.id,
+              studentName: s.name,
+              studentCode: s.code,
+              status: existing?.status ?? 'present',
+              autoSet: false,
+              dirty: false,
+            }
+          })
+        : session.records.map((r) => ({
+            recordId: r.id,
+            studentId: r.student_id,
+            studentName: r.student_name ?? '',
+            studentCode: r.student_code ?? '',
+            status: r.status,
+            autoSet: false,
+            dirty: false,
+          }))
     );
   }, [session]);
 

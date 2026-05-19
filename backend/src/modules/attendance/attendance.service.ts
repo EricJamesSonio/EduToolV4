@@ -196,18 +196,28 @@ export class AttendanceService {
 
     const enrollments = await this.db.enrollment.findMany({
       where: { class_id: classId, status: 'active' },
+      select: { student_id: true },
+    });
+
+    const studentIds = enrollments.map((e) => e.student_id);
+
+    const accounts = await this.db.account.findMany({
+      where: { id: { in: studentIds } },
       include: {
-        student: {
-          select: { id: true, first_name: true, last_name: true, student_code: true },
-        },
+        profile: { select: { full_name: true } },
       },
     });
 
-    const students = enrollments.map((e) => ({
-      id: e.student.id,
-      name: `${e.student.first_name} ${e.student.last_name}`,
-      code: e.student.student_code,
-    }));
+    const accountsMap = new Map(accounts.map((a) => [a.id, a]));
+
+    const students = enrollments.map((e) => {
+      const acc = accountsMap.get(e.student_id);
+      return {
+        id: e.student_id,
+        name: acc?.profile?.full_name ?? acc?.email?.split('@')[0] ?? 'Unknown',
+        code: acc?.email?.split('@')[0] ?? e.student_id.slice(0, 8),
+      };
+    });
 
     return { ...session, records, students };
   }
