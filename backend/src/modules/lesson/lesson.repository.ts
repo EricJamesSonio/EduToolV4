@@ -40,6 +40,7 @@ export class LessonRepository {
         ...(weekNumber ? { week_number: weekNumber } : {}),
       },
       orderBy: [{ week_number: 'asc' }, { sub_index: 'asc' }],
+      include: { concept: true },
     });
   }
 

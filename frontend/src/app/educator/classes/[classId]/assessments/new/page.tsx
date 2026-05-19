@@ -72,7 +72,7 @@ function Step1({ classId, selected, onSelect, onNext }: { classId: string; selec
       <p className="text-sm text-muted-foreground">Select a lesson with a completed concept build.</p>
       <div className="space-y-2 max-w-xl">
         {lessons.map((lesson) => {
-          const hasConcept = !!lesson.conceptBuild;
+          const hasConcept = !!lesson.concept;
           return (
             <button key={lesson.id} disabled={!hasConcept} onClick={() => onSelect(lesson)}
               className={cn("w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors", selected?.id === lesson.id && "border-primary bg-primary/5", hasConcept && selected?.id !== lesson.id && "hover:bg-muted/40 border-border", !hasConcept && "opacity-40 cursor-not-allowed bg-muted/20 border-border")}>
@@ -90,21 +90,56 @@ function Step1({ classId, selected, onSelect, onNext }: { classId: string; selec
   );
 }
 
+interface ConceptContent {
+  sections?: string[];
+  keywords?: string[];
+  questionCapacity?: Record<string, number>;
+}
+
+function getConceptContent(concept: LessonConcept | null): ConceptContent {
+  if (!concept?.content) return {};
+  const raw = concept.content as any;
+  return {
+    sections: Array.isArray(raw.sections) ? raw.sections : [],
+    keywords: Array.isArray(raw.keywords) ? raw.keywords : [],
+    questionCapacity: raw.questionCapacity ?? {},
+  };
+}
+
+function getConceptSections(concept: LessonConcept | null): ConceptSection[] {
+  const c = getConceptContent(concept);
+  const capacity = c.questionCapacity ?? {};
+  return (c.sections ?? []).map((name, i) => ({
+    id: `sec-${i}`,
+    name,
+    keywordCount: capacity[name] ?? 0,
+  }));
+}
+
+function getTotalItems(concept: LessonConcept | null): number {
+  const c = getConceptContent(concept);
+  return Object.values(c.questionCapacity ?? {}).reduce((sum, v) => sum + v, 0);
+}
+
 function Step2({ concept, onNext }: { concept: LessonConcept | null; onNext: () => void }): React.JSX.Element {
-  if (!concept) return <p className="text-sm text-muted-foreground">No concept build available.</p>;
+  const c = getConceptContent(concept);
+  if (!c.sections?.length) return <p className="text-sm text-muted-foreground">No concept build available.</p>;
+  const sections = c.sections;
+  const capacity = c.questionCapacity ?? {};
+  const totalItems = getTotalItems(concept);
   return (
     <div className="space-y-4 max-w-xl">
       <p className="text-sm text-muted-foreground">Review concept sections used to generate questions.</p>
       <div className="rounded-lg border divide-y">
-        {concept.sections.map((s) => (
-          <div key={s.id} className="px-4 py-3 flex items-center justify-between">
-            <span className="text-sm font-medium">{s.name}</span>
-            <span className="text-xs text-muted-foreground">{s.keywordCount} items</span>
+        {sections.map((name, i) => (
+          <div key={i} className="px-4 py-3 flex items-center justify-between">
+            <span className="text-sm font-medium">{name}</span>
+            <span className="text-xs text-muted-foreground">cap: {capacity[name] ?? 0}</span>
           </div>
         ))}
         <div className="px-4 py-3 flex items-center justify-between bg-muted/20">
           <span className="text-sm font-semibold">Total</span>
-          <span className="text-sm font-semibold">{concept.totalItems} items</span>
+          <span className="text-sm font-semibold">{totalItems} items</span>
         </div>
       </div>
       <Button onClick={onNext} size="sm">Next</Button>
@@ -280,7 +315,7 @@ export default function NewAssessmentPage(): React.JSX.Element {
   const { mutateAsync: updateAssessment, isPending: isUpdating } = useUpdateAssessment(classId);
   const patch = useCallback((u: Partial<BuilderState>) => setState((p) => ({ ...p, ...u })), []);
   const next = () => setStep((s) => s + 1);
-  const concept = state.selectedLesson?.conceptBuild ?? null;
+  const concept = state.selectedLesson?.concept ?? null;
 
   async function handleGenerate(): Promise<void> {
     if (!state.selectedLesson) return;
@@ -313,8 +348,8 @@ export default function NewAssessmentPage(): React.JSX.Element {
       <div className="pt-2">
         {step === 0 && <Step1 classId={classId} selected={state.selectedLesson} onSelect={(l) => patch({ selectedLesson: l })} onNext={next} />}
         {step === 1 && <Step2 concept={concept} onNext={next} />}
-        {step === 2 && <Step3 type={state.type} termId={state.termId} totalItems={state.totalItems} maxItems={concept?.totalItems ?? 999} onChange={(u) => patch(u)} onNext={next} />}
-        {step === 3 && <Step4 ranges={state.ranges} totalItems={state.totalItems} sections={concept?.sections ?? []} onChange={(ranges) => patch({ ranges })} onNext={handleGenerate} isLoading={isCreating} />}
+        {step === 2 && <Step3 type={state.type} termId={state.termId} totalItems={state.totalItems} maxItems={getTotalItems(concept)} onChange={(u) => patch(u)} onNext={next} />}
+        {step === 3 && <Step4 ranges={state.ranges} totalItems={state.totalItems} sections={getConceptSections(concept)} onChange={(ranges) => patch({ ranges })} onNext={handleGenerate} isLoading={isCreating} />}
         {step === 4 && state.createdAssessmentId && <Step5 classId={classId} assessmentId={state.createdAssessmentId} onQuestionsReady={(q) => { patch({ generatedQuestions: q }); next(); }} />}
         {step === 5 && state.createdAssessmentId && <Step6 classId={classId} assessmentId={state.createdAssessmentId} questions={state.generatedQuestions} onNext={next} />}
         {step === 6 && <Step7 releaseDate={state.releaseDate} endDate={state.endDate} onChange={(u) => patch(u)} onPublish={handlePublish} isLoading={isUpdating} />}

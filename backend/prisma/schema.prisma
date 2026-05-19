@@ -654,18 +654,22 @@ model Lesson {
   sub_index   Int
   created_at  DateTime @default(now())
 
+  concept LessonConcept?
+
   @@unique([class_id, week_number, sub_index])
 }
 
 model LessonConcept {
   id             String   @id @default(uuid())
   org_id         String
-  lesson_id      String
+  lesson_id      String   @unique
   content        Json
   raw_response   String?
   raw_request    String?
   prompt_version String?
   created_at     DateTime @default(now())
+
+  lesson Lesson @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
 }
 
 //////////////////////
