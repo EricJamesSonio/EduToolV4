@@ -74,7 +74,7 @@ function Step1({ classId, selected, onSelect, onNext }: { classId: string; selec
         {lessons.map((lesson) => {
           const hasConcept = !!lesson.concept;
           return (
-            <button key={lesson.id} disabled={!hasConcept} onClick={() => onSelect(lesson)}
+            <button key={lesson.id} disabled={!hasConcept} onClick={() => { onSelect(lesson); onNext(); }}
               className={cn("w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors", selected?.id === lesson.id && "border-primary bg-primary/5", hasConcept && selected?.id !== lesson.id && "hover:bg-muted/40 border-border", !hasConcept && "opacity-40 cursor-not-allowed bg-muted/20 border-border")}>
               <div className="flex items-center justify-between">
                 <span className="font-medium">{lesson.title}</span>
@@ -85,7 +85,6 @@ function Step1({ classId, selected, onSelect, onNext }: { classId: string; selec
           );
         })}
       </div>
-      <Button onClick={onNext} disabled={!selected} size="sm">Next</Button>
     </div>
   );
 }
