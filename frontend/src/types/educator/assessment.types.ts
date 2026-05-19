@@ -1,6 +1,9 @@
 // filepath: frontend/src/types/educator/assessment.types.ts
 
-export type AssessmentType = "quiz" | "activity" | "exam" | "custom";
+export type AssessmentType =
+  | "written_work" | "performance_task" | "quarterly_assessment"
+  | "exam" | "quiz" | "project" | "recitation"
+  | "attendance" | "activity" | "custom" | "other";
 
 export type QuestionType =
   | "multiple_choice"

@@ -8,6 +8,7 @@ import {
 import { SubmissionRepository } from './submission.repository';
 import { AssessmentRepository } from '../assessment/core/assessment-core.repository';
 import { AttendanceService } from '../attendance/attendance.service';
+import { GradeEducatorService } from '../grade/educator/grade-educator.service';
 import { SaveDraftDto, FinishSubmissionDto } from './dto/submission.dto';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class SubmissionService {
     private readonly submissionRepo: SubmissionRepository,
     private readonly assessmentRepo: AssessmentRepository,
     private readonly attendanceService: AttendanceService,
+    private readonly gradeService: GradeEducatorService,
   ) {}
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -216,6 +218,15 @@ export class SubmissionService {
           submittedAt: updated.submitted_at ?? new Date(),
         })
         .catch(() => {}); // non-blocking, never throws
+    }
+
+    // ── Fire-and-forget: auto-recompute grade ─────────────────────────────────
+    if (assessment.class_id && assessment.term_id) {
+      this.gradeService
+        .recomputeStudentGrade(assessment.class_id, assessment.term_id, studentId, orgId)
+        .catch((err) =>
+          console.error(`[Submission] Grade recompute failed for ${studentId}:`, err),
+        );
     }
 
     return {

@@ -97,6 +97,24 @@ export class GradeRepository {
     });
   }
 
+  // ───────── ASSESSMENTS (for computation) ─────────
+
+  async findAssessmentsForTerm(classId: string, termId: string, orgId: string) {
+    return this.db.assessment.findMany({
+      where: {
+        org_id: orgId,
+        class_id: classId,
+        term_id: termId,
+        deleted_at: null,
+      },
+      select: {
+        id: true,
+        type: true,
+        total_items: true,
+      },
+    });
+  }
+
   // ───────── SUBMISSIONS (for computation) ─────────
 
   async findSubmissionsForTerm(classId: string, termId: string, orgId: string) {

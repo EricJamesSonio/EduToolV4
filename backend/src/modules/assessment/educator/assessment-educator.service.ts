@@ -66,6 +66,7 @@ export class AssessmentEducatorService {
 
   async create(classId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    await this.assertTypeMatchesScheme(classId, orgId, dto.type);
 
     const concept = await this.lessonRepo.findConcept(dto.lessonId);
     if (!concept) throw new BadRequestException('No concept build found for this lesson. Run concept extraction first.');
@@ -279,7 +280,7 @@ export class AssessmentEducatorService {
         orgId,
         assessmentId,
         studentId,
-        status: 'not_started',
+        status: 'draft',
       }).catch(() => {});
     }
 
@@ -299,6 +300,24 @@ export class AssessmentEducatorService {
     });
   }
 
+  // ───────── VALIDATION ─────────
+
+  private async assertTypeMatchesScheme(classId: string, orgId: string, type: string) {
+    const scheme = await this.db.gradingScheme.findFirst({
+      where: { class_id: classId, org_id: orgId },
+      include: { components: { select: { type: true } } },
+    });
+    if (!scheme) return; // no scheme = no restriction
+    const validTypes = scheme.components
+      .map((c) => c.type)
+      .filter((t) => t !== 'manual');
+    if (!validTypes.includes(type)) {
+      throw new BadRequestException(
+        `Assessment type "${type}" is not in the class's grading scheme. Allowed: ${validTypes.join(', ')}`,
+      );
+    }
+  }
+
   // ───────── PRIVATE ─────────
 
   // ───────── PREVIEW FLOW (no DB save until confirmed) ─────────
@@ -313,6 +332,7 @@ export class AssessmentEducatorService {
 
   async generatePreview(classId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto): Promise<{ previewId: string }> {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    await this.assertTypeMatchesScheme(classId, orgId, dto.type);
     const concept = await this.lessonRepo.findConcept(dto.lessonId);
     if (!concept) throw new BadRequestException('No concept build found.');
     const rangeTotal = dto.ranges.reduce((sum, r) => sum + (r.to - r.from + 1), 0);

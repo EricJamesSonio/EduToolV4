@@ -76,6 +76,47 @@ export class GradeEducatorService {
     return this.buildTermResult(classId, termId, termName, orgId, cls);
   }
 
+  /**
+   * Recompute grade for a single student after submission.
+   * Called automatically on submission finish.
+   */
+  async recomputeStudentGrade(
+    classId: string,
+    termId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    const cls = await this.repo.findClassWithSubject(classId, orgId);
+    if (!cls) return;
+
+    const [scheme, submissions, allAssessments, manualScores] = await Promise.all([
+      this.repo.findGradingSchemeForClass(classId, orgId),
+      this.repo.findSubmissionsForTerm(classId, termId, orgId),
+      this.repo.findAssessmentsForTerm(classId, termId, orgId),
+      this.repo.findManualScores(classId, termId, orgId, studentId),
+    ]);
+
+    if (!scheme) return;
+
+    const categories = componentsToCategories(scheme.components);
+
+    const gradingScale = await this.resolveGradingScale(cls, orgId);
+    if (!gradingScale) return;
+    const ranges = gradingScale.ranges as unknown as GradeRange[];
+
+    const studentSubmissions = submissions.filter((s: any) => s.student_id === studentId);
+
+    const finalScore = this.core.computeWeightedScore(
+      studentSubmissions,
+      manualScores,
+      allAssessments,
+      categories,
+    );
+    const finalGrade = this.core.resolveGrade(finalScore, ranges);
+
+    await this.repo.upsert({ orgId, studentId, classId, termId, finalScore, finalGrade });
+  }
+
   async computeGrades(
     classId: string,
     termId: string,
@@ -99,8 +140,11 @@ export class GradeEducatorService {
     if (!gradingScale) throw new NotFoundException('No grading scale found for this class.');
     const ranges = gradingScale.ranges as unknown as GradeRange[];
 
-    const submissions = await this.repo.findSubmissionsForTerm(classId, termId, orgId);
-    const manualScores = await this.repo.findManualScores(classId, termId, orgId);
+    const [submissions, allAssessments, manualScores] = await Promise.all([
+      this.repo.findSubmissionsForTerm(classId, termId, orgId),
+      this.repo.findAssessmentsForTerm(classId, termId, orgId),
+      this.repo.findManualScores(classId, termId, orgId),
+    ]);
 
     let computed = 0;
     for (const studentId of enrolledStudentIds) {
@@ -110,6 +154,7 @@ export class GradeEducatorService {
       const finalScore = this.core.computeWeightedScore(
         studentSubmissions,
         studentManuals,
+        allAssessments,
         categories,
       );
       const finalGrade = this.core.resolveGrade(finalScore, ranges);
@@ -177,11 +222,12 @@ export class GradeEducatorService {
   ) {
     const enrolledStudentIds: string[] = cls.enrollments.map((e: any) => e.student_id);
 
-    const [submissions, grades, manualScores, scheme, studentProfiles] =
+    const [submissions, grades, manualScores, allAssessments, scheme, studentProfiles] =
       await Promise.all([
         this.repo.findSubmissionsForTerm(classId, termId, orgId),
         this.repo.findByClassAndTerm(classId, termId, orgId),
         this.repo.findManualScores(classId, termId, orgId),
+        this.repo.findAssessmentsForTerm(classId, termId, orgId),
         this.repo.findGradingSchemeForClass(classId, orgId),
         this.repo.findStudentProfiles(enrolledStudentIds),
       ]);
@@ -206,6 +252,7 @@ export class GradeEducatorService {
       const categoryBreakdown = this.core.buildCategoryBreakdown(
         studentSubs,
         studentManuals,
+        allAssessments,
         categories,
       );
 

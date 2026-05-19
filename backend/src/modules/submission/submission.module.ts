@@ -6,9 +6,10 @@ import { SubmissionRepository } from './submission.repository';
 import { AssessmentModule } from '../assessment/assessment.module';
 import { AssessmentCoreModule } from '../assessment/core/assessment-core.module';
 import { AttendanceModule } from '../attendance/attendance.module';
+import { GradeEducatorModule } from '../grade/educator/grade-educator.module';
 
 @Module({
-  imports: [AssessmentModule, AssessmentCoreModule, AttendanceModule],
+  imports: [AssessmentModule, AssessmentCoreModule, AttendanceModule, GradeEducatorModule],
   controllers: [SubmissionController],
   providers: [SubmissionService, SubmissionRepository],
   exports: [SubmissionService, SubmissionRepository],

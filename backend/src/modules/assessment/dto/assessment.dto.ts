@@ -28,10 +28,9 @@ export const QUESTION_TYPES = [
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
 export const ASSESSMENT_TYPES = [
-  'quiz',
-  'activity',
-  'exam',
-  'custom',
+  'written_work', 'performance_task', 'quarterly_assessment',
+  'exam', 'quiz', 'project', 'recitation',
+  'attendance', 'activity', 'custom', 'other',
 ] as const;
 
 // ── Item range for generation config ─────────────────────────────────────────

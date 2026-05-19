@@ -1,15 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
-// TODO: Add a `type` column to GradingSchemeComponent in schema.prisma
-// so components can explicitly map to assessment.type (quiz | exam | activity | manual).
-// Until then, callers derive `type` from component.name.toLowerCase().
 export interface SchemeCategory {
-  name: string;    // e.g. "Quiz", "Exam", "Activity"
-  type: string;    // maps to assessment.type: quiz | exam | activity | manual
-  weight: number;  // e.g. 0.3 = 30%
+  name: string;
+  type: string;
+  weight: number;
 }
 
-// Keep RubricCategory as a deprecated alias so any remaining imports don't break
 export type RubricCategory = SchemeCategory;
 
 export interface GradeRange {
@@ -22,9 +18,15 @@ export interface GradeRange {
 
 @Injectable()
 export class GradeCoreService {
+  /**
+   * Compute weighted score for a student considering ALL assessments in the term.
+   * Missing assessments (no submission or draft) count as 0.
+   * Exempted submissions are skipped entirely.
+   */
   computeWeightedScore(
-    submissions: any[],
-    manualScores: any[],
+    studentSubmissions: any[],
+    studentManualScores: any[],
+    allAssessments: any[],
     categories: SchemeCategory[],
   ): number {
     let totalWeightedScore = 0;
@@ -34,7 +36,7 @@ export class GradeCoreService {
       const weight = category.weight;
 
       if (category.type === 'manual') {
-        const manual = manualScores.find(
+        const manual = studentManualScores.find(
           (m) => m.category.toLowerCase() === category.name.toLowerCase(),
         );
         if (manual !== undefined) {
@@ -42,20 +44,37 @@ export class GradeCoreService {
           totalWeight += weight;
         }
       } else {
-        const categorySubs = submissions.filter(
-          (s) => s.assessment.type === category.type,
+        const categoryAssessments = allAssessments.filter(
+          (a) => a.type === category.type,
         );
-        if (categorySubs.length === 0) continue;
+        if (categoryAssessments.length === 0) continue;
 
-        const percentages = categorySubs.map((s) => {
-          const rawScore = s.manual_score ?? s.score ?? 0;
-          const totalItems = s.assessment.total_items;
-          return totalItems > 0 ? (rawScore / totalItems) * 100 : 0;
-        });
-        const average =
-          percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
-        totalWeightedScore += average * weight;
-        totalWeight += weight;
+        const percentages: number[] = [];
+        for (const assessment of categoryAssessments) {
+          const sub = studentSubmissions.find(
+            (s) => s.assessment_id === assessment.id,
+          );
+          if (!sub || sub.status === 'draft') {
+            percentages.push(0);
+          } else if (sub.status === 'exempted') {
+            // skip — don't count in average
+            continue;
+          } else {
+            const rawScore = sub.manual_score ?? sub.score ?? 0;
+            const pct =
+              assessment.total_items > 0
+                ? (rawScore / assessment.total_items) * 100
+                : 0;
+            percentages.push(pct);
+          }
+        }
+
+        if (percentages.length > 0) {
+          const average =
+            percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+          totalWeightedScore += average * weight;
+          totalWeight += weight;
+        }
       }
     }
 
@@ -64,8 +83,9 @@ export class GradeCoreService {
   }
 
   buildCategoryBreakdown(
-    submissions: any[],
-    manualScores: any[],
+    studentSubmissions: any[],
+    studentManualScores: any[],
+    allAssessments: any[],
     categories: SchemeCategory[],
   ) {
     return categories.map((category) => {
@@ -73,24 +93,38 @@ export class GradeCoreService {
       let manualScore: number | null = null;
 
       if (category.type === 'manual') {
-        const manual = manualScores.find(
+        const manual = studentManualScores.find(
           (m) => m.category.toLowerCase() === category.name.toLowerCase(),
         );
         manualScore = manual?.score ?? null;
         rawAverage = manualScore ?? 0;
       } else {
-        const categorySubs = submissions.filter(
-          (s) => s.assessment.type === category.type,
+        const categoryAssessments = allAssessments.filter(
+          (a) => a.type === category.type,
         );
-        if (categorySubs.length > 0) {
-          const percentages = categorySubs.map((s) => {
-            const rawScore = s.manual_score ?? s.score ?? 0;
-            return s.assessment.total_items > 0
-              ? (rawScore / s.assessment.total_items) * 100
-              : 0;
-          });
-          rawAverage =
-            percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+        if (categoryAssessments.length > 0) {
+          const percentages: number[] = [];
+          for (const assessment of categoryAssessments) {
+            const sub = studentSubmissions.find(
+              (s) => s.assessment_id === assessment.id,
+            );
+            if (!sub || sub.status === 'draft') {
+              percentages.push(0);
+            } else if (sub.status === 'exempted') {
+              continue;
+            } else {
+              const rawScore = sub.manual_score ?? sub.score ?? 0;
+              const pct =
+                assessment.total_items > 0
+                  ? (rawScore / assessment.total_items) * 100
+                  : 0;
+              percentages.push(pct);
+            }
+          }
+          if (percentages.length > 0) {
+            rawAverage =
+              percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+          }
         }
       }
 

@@ -14,6 +14,7 @@ import {
 } from "@/hooks/educator/useAssessments";
 import { assessmentApi } from "@/api/educator/assessment.api";
 import { educatorClassApi } from "@/api/educator/class.api";
+import { educatorGradingSchemeApi } from "@/api/educator/grading-scheme.api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -197,11 +198,19 @@ const Q_TYPES: { value: QuestionType; label: string }[] = [
 ];
 
 // ─── Step 3: Configuration (merged) ───────────────────────────────────────────
+const TYPE_LABELS: Record<string, string> = {
+  written_work: "Written Work", performance_task: "Performance Task",
+  quarterly_assessment: "Quarterly Assessment", exam: "Exam", quiz: "Quiz",
+  project: "Project", recitation: "Recitation", attendance: "Attendance",
+  activity: "Activity", custom: "Custom", other: "Other",
+};
+
 function Step3({
-  type, totalItems, sections, conceptItems, sectionNames, onChange, onNext, isLoading,
+  type, totalItems, sections, conceptItems, sectionNames, schemeTypes, onChange, onNext, isLoading,
 }: {
   type: AssessmentType; totalItems: number; sections: AssessmentSection[];
   conceptItems: ConceptItemInfo[]; sectionNames: string[];
+  schemeTypes: string[];
   onChange: (u: Partial<Pick<BuilderState, "type" | "totalItems" | "sections">>) => void;
   onNext: () => void; isLoading: boolean;
 }) {
@@ -299,7 +308,13 @@ function Step3({
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Assessment Type <span className="text-destructive">*</span></label>
           <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
-            <option value="quiz">Quiz</option><option value="activity">Activity</option><option value="exam">Exam</option><option value="custom">Custom</option>
+            {schemeTypes.length > 0 ? schemeTypes.map((t) => (
+              <option key={t} value={t}>{TYPE_LABELS[t] ?? t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</option>
+            )) : (
+              <>
+                <option value="quiz">Quiz</option><option value="activity">Activity</option><option value="exam">Exam</option><option value="custom">Custom</option>
+              </>
+            )}
           </select>
         </div>
         <div className="space-y-1.5">
@@ -700,6 +715,13 @@ export default function NewAssessmentPage() {
 
   const { mutateAsync: updateAssessment, isPending: isUpdating } = useUpdateAssessment(classId);
   const { data: weeks } = useClassWeeks(classId);
+  const { data: gradingScheme } = useQuery({
+    queryKey: ["grading-scheme", classId],
+    queryFn: () => educatorGradingSchemeApi.getForClass(classId),
+  });
+  const schemeTypes = gradingScheme?.components
+    ?.filter((c) => c.type !== "manual")
+    ?.map((c) => c.type) ?? [];
   const patch = useCallback((u: Partial<BuilderState>) => setState((p) => ({ ...p, ...u })), []);
   const next = () => setStep((s) => s + 1);
   const concept = state.selectedLesson?.concept ?? null;
@@ -750,7 +772,7 @@ export default function NewAssessmentPage() {
       <div className="pt-2">
         {step === 0 && <Step1 classId={classId} selected={state.selectedLesson} onSelect={(l) => patch({ selectedLesson: l })} onNext={next} />}
         {step === 1 && <Step2 concept={concept} onNext={next} />}
-        {step === 2 && <Step3 type={state.type} totalItems={state.totalItems} sections={state.sections} conceptItems={cc.conceptItems} sectionNames={cc.sections} onChange={(u) => patch(u)} onNext={handleGenerate} isLoading={false} />}
+        {step === 2 && <Step3 type={state.type} totalItems={state.totalItems} sections={state.sections} conceptItems={cc.conceptItems} sectionNames={cc.sections} schemeTypes={schemeTypes} onChange={(u) => patch(u)} onNext={handleGenerate} isLoading={false} />}
         {step === 3 && state.previewId && <Step4 classId={classId} previewId={state.previewId} onQuestionsReady={(q) => { patch({ generatedQuestions: q }); next(); }} />}
         {step === 4 && state.previewId && <Step5 classId={classId} previewId={state.previewId} questions={state.generatedQuestions} onConfirm={(assessmentId) => { patch({ createdAssessmentId: assessmentId }); next(); }} />}
         {step === 5 && <Step6 classId={classId} releaseDate={state.releaseDate} endDate={state.endDate} selectedStudentIds={state.selectedStudentIds} onChange={(u) => patch(u)} onPublish={handlePublish} isLoading={isUpdating} />}
