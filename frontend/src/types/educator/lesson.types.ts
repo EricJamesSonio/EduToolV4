@@ -41,6 +41,7 @@ export type WeekSlot = {
   termWeek: number;
   semesterWeek: number;
   termName: string;
+  termId: string;
   semesterName: string;
   semesterIndex: number;
   date: string;

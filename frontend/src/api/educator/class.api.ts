@@ -24,4 +24,13 @@ export const educatorClassApi = {
     const res = await client.get<ApiResponse<EducatorClass>>(`/classes/${classId}`);
     return res.data.data;
   },
+
+  /**
+   * GET /classes/:id/students
+   * Returns enrolled students with names.
+   */
+  getStudents: async (classId: string): Promise<{ id: string; fullName: string; email?: string }[]> => {
+    const res = await client.get<ApiResponse<{ id: string; fullName: string; email?: string }[]>>(`/classes/${classId}/students`);
+    return res.data.data;
+  },
 };

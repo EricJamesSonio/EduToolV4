@@ -358,6 +358,7 @@ async getWeekStructure(
     semesterWeek: number;
 
     termName: string;
+    termId: string;
     semesterName: string;
     semesterIndex: number;
 
@@ -412,6 +413,7 @@ async getWeekStructure(
           semesterWeek,
 
           termName: term.name,
+          termId: term.id,
           semesterName: sem.name,
           semesterIndex: si + 1,
 

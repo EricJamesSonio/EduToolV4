@@ -8,14 +8,17 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useLessons } from "@/hooks/educator/useLessons";
+import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import {
   useCreateAssessment,
   useAssessment,
   useUpdateAssessment,
 } from "@/hooks/educator/useAssessments";
 import { assessmentApi } from "@/api/educator/assessment.api";
+import { educatorClassApi } from "@/api/educator/class.api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import type { Lesson, LessonConcept, ConceptSection } from "@/types/educator/lesson.types";
 import type { AssessmentType, QuestionType, Question } from "@/types/educator/assessment.types";
 import type { CreateAssessmentRequest, RangeConfig } from "@/api/educator/assessment.api";
@@ -30,16 +33,16 @@ interface RangeRow {
 interface BuilderState {
   selectedLesson: Lesson | null;
   type: AssessmentType;
-  termId: string;
   totalItems: number;
   ranges: RangeRow[];
   createdAssessmentId: string | null;
   generatedQuestions: Question[];
   releaseDate: string;
   endDate: string;
+  selectedStudentIds: string[];
 }
 
-const STEPS = ["Select Lesson", "View Concepts", "Basic Config", "Item Ranges", "Generate", "Review Questions", "Set Dates"];
+const STEPS = ["Select Lesson", "View Concepts", "Basic Config", "Item Ranges", "Generate", "Review Questions", "Set Dates & Assign"];
 
 function StepIndicator({ current }: { current: number }): React.JSX.Element {
   return (
@@ -146,7 +149,7 @@ function Step2({ concept, onNext }: { concept: LessonConcept | null; onNext: () 
   );
 }
 
-function Step3({ type, termId, totalItems, maxItems, onChange, onNext }: { type: AssessmentType; termId: string; totalItems: number; maxItems: number; onChange: (u: Partial<Pick<BuilderState, "type" | "termId" | "totalItems">>) => void; onNext: () => void }): React.JSX.Element {
+function Step3({ type, totalItems, maxItems, onChange, onNext }: { type: AssessmentType; totalItems: number; maxItems: number; onChange: (u: Partial<Pick<BuilderState, "type" | "totalItems">>) => void; onNext: () => void }): React.JSX.Element {
   const err = totalItems > maxItems ? `Cannot exceed ${maxItems} items.` : totalItems < 1 ? "Must be at least 1." : null;
   return (
     <div className="space-y-5 max-w-sm">
@@ -157,15 +160,11 @@ function Step3({ type, termId, totalItems, maxItems, onChange, onNext }: { type:
         </select>
       </div>
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">Term ID <span className="text-destructive">*</span></label>
-        <input type="text" value={termId} onChange={(e) => onChange({ termId: e.target.value })} placeholder="Paste term UUID here" className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
-      </div>
-      <div className="space-y-1.5">
         <label className="text-sm font-medium">Total Items <span className="text-destructive">*</span></label>
         <input type="number" min={1} max={maxItems} value={totalItems} onChange={(e) => onChange({ totalItems: parseInt(e.target.value, 10) || 1 })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
         {err ? <p className="text-xs text-destructive">{err}</p> : <p className="text-xs text-muted-foreground">Max {maxItems} from concept build.</p>}
       </div>
-      <Button onClick={onNext} disabled={!!err || !termId.trim()} size="sm">Next</Button>
+      <Button onClick={onNext} disabled={!!err} size="sm">Next</Button>
     </div>
   );
 }
@@ -275,10 +274,15 @@ function Step6({ classId, assessmentId, questions, onNext }: { classId: string; 
   );
 }
 
-function Step7({ releaseDate, endDate, onChange, onPublish, isLoading }: { releaseDate: string; endDate: string; onChange: (u: Partial<Pick<BuilderState, "releaseDate" | "endDate">>) => void; onPublish: () => void; isLoading: boolean }): React.JSX.Element {
+function Step7({ classId, releaseDate, endDate, selectedStudentIds, onChange, onPublish, isLoading }: { classId: string; releaseDate: string; endDate: string; selectedStudentIds: string[]; onChange: (u: Partial<Pick<BuilderState, "releaseDate" | "endDate" | "selectedStudentIds">>) => void; onPublish: () => void; isLoading: boolean }): React.JSX.Element {
   const invalid = releaseDate && endDate && new Date(endDate) <= new Date(releaseDate);
+  const { data: students } = useQuery({
+    queryKey: ["class-students", classId],
+    queryFn: () => educatorClassApi.getStudents(classId),
+    enabled: !!classId,
+  });
   return (
-    <div className="space-y-5 max-w-sm">
+    <div className="space-y-6 max-w-md">
       <div className="space-y-1.5">
         <label className="text-sm font-medium">Release Date</label>
         <input type="datetime-local" value={releaseDate} onChange={(e) => onChange({ releaseDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
@@ -287,6 +291,26 @@ function Step7({ releaseDate, endDate, onChange, onPublish, isLoading }: { relea
         <label className="text-sm font-medium">End Date</label>
         <input type="datetime-local" value={endDate} onChange={(e) => onChange({ endDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
         {invalid && <p className="text-xs text-destructive">End date must be after release date.</p>}
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Assign to Students</label>
+        <p className="text-xs text-muted-foreground">Leave empty to assign to all enrolled students.</p>
+        <div className="max-h-48 overflow-y-auto rounded-lg border divide-y">
+          {students?.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">No enrolled students.</p>}
+          {students?.map((s) => (
+            <label key={s.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/30">
+              <input type="checkbox" checked={selectedStudentIds.includes(s.id)} onChange={(e) => onChange({ selectedStudentIds: e.target.checked ? [...selectedStudentIds, s.id] : selectedStudentIds.filter((id) => id !== s.id) })} className="rounded" />
+              <span>{s.fullName}</span>
+              {s.email && <span className="text-xs text-muted-foreground ml-auto">{s.email}</span>}
+            </label>
+          ))}
+        </div>
+        {students && students.length > 0 && (
+          <div className="flex gap-2">
+            <button type="button" onClick={() => onChange({ selectedStudentIds: students.map((s) => s.id) })} className="text-xs text-primary hover:underline">Select all</button>
+            <button type="button" onClick={() => onChange({ selectedStudentIds: [] })} className="text-xs text-muted-foreground hover:underline">Clear</button>
+          </div>
+        )}
       </div>
       <div className="pt-1 space-y-2">
         <Button onClick={onPublish} disabled={isLoading || !!invalid} size="sm">
@@ -306,21 +330,30 @@ export default function NewAssessmentPage(): React.JSX.Element {
 
   const [step, setStep] = useState(0);
   const [state, setState] = useState<BuilderState>({
-    selectedLesson: null, type: "quiz", termId: "", totalItems: 1,
-    ranges: [], createdAssessmentId: null, generatedQuestions: [], releaseDate: "", endDate: "",
+    selectedLesson: null, type: "quiz", totalItems: 1,
+    ranges: [], createdAssessmentId: null, generatedQuestions: [], releaseDate: "", endDate: "", selectedStudentIds: [],
   });
 
   const { mutateAsync: createAssessment, isPending: isCreating } = useCreateAssessment(classId);
   const { mutateAsync: updateAssessment, isPending: isUpdating } = useUpdateAssessment(classId);
+  const { data: weeks } = useClassWeeks(classId);
   const patch = useCallback((u: Partial<BuilderState>) => setState((p) => ({ ...p, ...u })), []);
   const next = () => setStep((s) => s + 1);
   const concept = state.selectedLesson?.concept ?? null;
 
+  function getTermId(): string {
+    if (!state.selectedLesson || !weeks.length) return "";
+    const week = weeks.find((w) => w.value === state.selectedLesson!.weekNumber);
+    return week?.termId ?? "";
+  }
+
   async function handleGenerate(): Promise<void> {
     if (!state.selectedLesson) return;
+    const termId = getTermId();
+    if (!termId) { toast.error("Could not determine term for this lesson's week."); return; }
     try {
       const assessment = await createAssessment({
-        lessonId: state.selectedLesson.id, termId: state.termId, type: state.type, totalItems: state.totalItems,
+        lessonId: state.selectedLesson.id, termId, type: state.type, totalItems: state.totalItems,
         ranges: state.ranges.map((r) => ({ from: r.from, to: r.to, questionType: r.questionType as RangeConfig["questionType"], conceptSections: r.conceptSections })),
       });
       patch({ createdAssessmentId: assessment.id });
@@ -332,6 +365,9 @@ export default function NewAssessmentPage(): React.JSX.Element {
     if (!state.createdAssessmentId) return;
     try {
       await updateAssessment({ assessmentId: state.createdAssessmentId, data: { releaseDate: state.releaseDate || undefined, endDate: state.endDate || undefined } });
+      if (state.selectedStudentIds.length > 0) {
+        await assessmentApi.publish(classId, state.createdAssessmentId, { studentIds: state.selectedStudentIds });
+      }
       toast.success("Assessment published!");
       router.push(`/educator/classes/${classId}/assessments/${state.createdAssessmentId}`);
     } catch { toast.error("Failed to publish."); }
@@ -347,11 +383,11 @@ export default function NewAssessmentPage(): React.JSX.Element {
       <div className="pt-2">
         {step === 0 && <Step1 classId={classId} selected={state.selectedLesson} onSelect={(l) => patch({ selectedLesson: l })} onNext={next} />}
         {step === 1 && <Step2 concept={concept} onNext={next} />}
-        {step === 2 && <Step3 type={state.type} termId={state.termId} totalItems={state.totalItems} maxItems={getTotalItems(concept)} onChange={(u) => patch(u)} onNext={next} />}
+        {step === 2 && <Step3 type={state.type} totalItems={state.totalItems} maxItems={getTotalItems(concept)} onChange={(u) => patch(u)} onNext={next} />}
         {step === 3 && <Step4 ranges={state.ranges} totalItems={state.totalItems} sections={getConceptSections(concept)} onChange={(ranges) => patch({ ranges })} onNext={handleGenerate} isLoading={isCreating} />}
         {step === 4 && state.createdAssessmentId && <Step5 classId={classId} assessmentId={state.createdAssessmentId} onQuestionsReady={(q) => { patch({ generatedQuestions: q }); next(); }} />}
         {step === 5 && state.createdAssessmentId && <Step6 classId={classId} assessmentId={state.createdAssessmentId} questions={state.generatedQuestions} onNext={next} />}
-        {step === 6 && <Step7 releaseDate={state.releaseDate} endDate={state.endDate} onChange={(u) => patch(u)} onPublish={handlePublish} isLoading={isUpdating} />}
+        {step === 6 && <Step7 classId={classId} releaseDate={state.releaseDate} endDate={state.endDate} selectedStudentIds={state.selectedStudentIds} onChange={(u) => patch(u)} onPublish={handlePublish} isLoading={isUpdating} />}
       </div>
     </div>
   );
