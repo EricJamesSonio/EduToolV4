@@ -194,7 +194,22 @@ export class AttendanceService {
 
     const records = await this.attendanceRepo.findRecordsBySession(sessionId);
 
-    return { ...session, records };
+    const enrollments = await this.db.enrollment.findMany({
+      where: { class_id: classId, status: 'active' },
+      include: {
+        student: {
+          select: { id: true, first_name: true, last_name: true, student_code: true },
+        },
+      },
+    });
+
+    const students = enrollments.map((e) => ({
+      id: e.student.id,
+      name: `${e.student.first_name} ${e.student.last_name}`,
+      code: e.student.student_code,
+    }));
+
+    return { ...session, records, students };
   }
 
   // =========================================================

@@ -36,8 +36,15 @@ export interface AttendanceRecord {
   status: "present" | "absent" | "late" | "excused";
 }
 
+export interface SessionStudent {
+  id: string;
+  name: string;
+  code: string;
+}
+
 export interface SessionWithRecords extends AttendanceSession {
   records: AttendanceRecord[];
+  students: SessionStudent[];
 }
 
 export const attendanceApi = {

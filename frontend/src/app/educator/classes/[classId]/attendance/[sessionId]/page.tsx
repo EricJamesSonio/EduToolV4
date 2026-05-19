@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   CheckCircle2,
@@ -9,9 +9,6 @@ import {
   FileText,
   ChevronLeft,
   Save,
-  Users,
-  Zap,
-  RotateCcw,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,6 +20,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import type { AttendanceStatus } from "@/types/educator/attendance.types";
+import type { AttendanceRecord } from "@/api/educator/attendance.api";
 
 interface RowState {
   recordId: string | null;
@@ -119,21 +117,33 @@ export default function AttendanceSessionPage() {
   const [rows, setRows] = useState<RowState[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // Merge enrolled students with existing attendance records
+  const recordMap = useMemo(() => {
+    const map = new Map<string, AttendanceRecord>()
+    for (const r of session?.records ?? []) {
+      map.set(r.student_id, r)
+    }
+    return map
+  }, [session])
+
   useEffect(() => {
     if (!session) return;
 
     setRows(
-session.records.map((r) => ({
-  recordId: r.id,
-  studentId: r.student_id,
-  studentName: r.student_name,
-  studentCode: r.student_code,
-  status: r.status,
-  autoSet: false,          // UI-only default
-  dirty: false,
-}))
+      session.students.map((s) => {
+        const existing = recordMap.get(s.id)
+        return {
+          recordId: existing?.id ?? null,
+          studentId: s.id,
+          studentName: s.name,
+          studentCode: s.code,
+          status: existing?.status ?? 'present',
+          autoSet: false,
+          dirty: false,
+        }
+      })
     );
-  }, [session]);
+  }, [session, recordMap]);
 
   const setStatus = useCallback(
     (studentId: string, status: AttendanceStatus) => {
@@ -162,16 +172,24 @@ session.records.map((r) => ({
   const resetDirty = useCallback(() => {
     if (!session) return;
 
+    const recMap = new Map<string, AttendanceRecord>()
+    for (const r of session.records) {
+      recMap.set(r.student_id, r)
+    }
+
     setRows(
-      session.records.map((r) => ({
-        recordId: r.id,
-        studentId: r.studentId,
-        studentName: r.studentName,
-        studentCode: r.studentCode,
-        status: r.status,
-        autoSet: r.autoSet,
-        dirty: false,
-      }))
+      session.students.map((s) => {
+        const existing = recMap.get(s.id)
+        return {
+          recordId: existing?.id ?? null,
+          studentId: s.id,
+          studentName: s.name,
+          studentCode: s.code,
+          status: existing?.status ?? 'present',
+          autoSet: false,
+          dirty: false,
+        }
+      })
     );
   }, [session]);
 
@@ -231,6 +249,11 @@ session.records.map((r) => ({
 
   const sessionLabel = `Session ${session.week_number}.${session.sub_index}`;
 
+  const sessionDate = new Date(session.date)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const isFuture = sessionDate > today
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -254,62 +277,86 @@ session.records.map((r) => ({
           </p>
         </div>
 
-        <Button
-          size="sm"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Save className="h-3.5 w-3.5" />
-          )}
-          {saving ? "Saving..." : dirtyCount ? `Save (${dirtyCount})` : "Save"}
-        </Button>
+        {isFuture ? (
+          <span className="text-xs text-muted-foreground italic">
+            Attendance cannot be taken for future sessions
+          </span>
+        ) : (
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saving || dirtyCount === 0}
+          >
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="h-3.5 w-3.5" />
+            )}
+            {saving ? "Saving..." : dirtyCount ? `Save (${dirtyCount})` : "Saved"}
+          </Button>
+        )}
       </div>
 
+      {/* Future session notice */}
+      {isFuture && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/10 dark:border-amber-800 px-4 py-3">
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            This session is scheduled for <strong>{dateLabel}</strong>. Attendance can only be marked on or after this date.
+          </p>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
-        {ALL_STATUSES.map((s) => (
-          <div key={s} className="rounded-lg border px-4 py-3">
-            <p className="text-lg font-bold">{stats[s] ?? 0}</p>
-            <p className="text-xs text-muted-foreground">
-              {STATUS_CONFIG[s].label}
-            </p>
-          </div>
-        ))}
-      </div>
+      {!isFuture && (
+        <div className="grid grid-cols-4 gap-3">
+          {ALL_STATUSES.map((s) => (
+            <div key={s} className="rounded-lg border px-4 py-3">
+              <p className="text-lg font-bold">{stats[s] ?? 0}</p>
+              <p className="text-xs text-muted-foreground">
+                {STATUS_CONFIG[s].label}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-lg border overflow-hidden">
-        {rows.map((row, idx) => (
-          <div
-            key={row.studentId}
-            className="flex justify-between px-4 py-3 border-b"
-          >
-            <div>
-              <p className="font-medium">{row.studentName}</p>
-              <p className="text-xs text-muted-foreground">
-                {row.studentCode}
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              {ALL_STATUSES.map((s) => (
-                <StatusChip
-                  key={s}
-                  status={s}
-                  selected={row.status === s}
-                  onClick={() => setStatus(row.studentId, s)}
-                />
-              ))}
-            </div>
+        {rows.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+            No enrolled students found.
           </div>
-        ))}
+        ) : (
+          rows.map((row) => (
+            <div
+              key={row.studentId}
+              className="flex items-center justify-between px-4 py-3 border-b last:border-0"
+            >
+              <div>
+                <p className="font-medium">{row.studentName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {row.studentCode}
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                {ALL_STATUSES.map((s) => (
+                  <StatusChip
+                    key={s}
+                    status={s}
+                    selected={row.status === s}
+                    onClick={() => setStatus(row.studentId, s)}
+                    disabled={isFuture}
+                  />
+                ))}
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Floating save */}
-      {dirtyCount > 0 && (
+      {!isFuture && dirtyCount > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2">
           <Button onClick={handleSave}>
             Save {dirtyCount} changes

@@ -1,42 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ChevronLeft,
-  ChevronRight,
   CalendarDays,
   Clock,
-  ArrowRight,
   Loader2,
 } from "lucide-react";
+import { format } from "date-fns";
 
 import { useAttendanceSessions } from "@/hooks/educator/useAttendance";
-import { useClassWeeks } from "@/hooks/educator/useClassWeeks"; // ✅ SAME SOURCE AS LESSONS
+import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Button } from "@/components/ui/button";
 
 import type { WeekSessions } from "@/api/educator/attendance.api";
-
-function formatSessionDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return {
-    weekday: d.toLocaleDateString("en-US", { weekday: "long" }),
-    date: d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }),
-  };
-}
 
 export default function AttendancePage() {
   const { classId } = useParams<{ classId: string }>();
   const router = useRouter();
 
-  const [currentWeek, setCurrentWeek] = useState<number>(1);
-
-  // ✅ SAME SOURCE OF TRUTH AS LESSONS
   const { data: weeks = [], isLoading: weeksLoading } =
     useClassWeeks(classId);
 
@@ -47,22 +29,53 @@ export default function AttendancePage() {
 
   const weekGroups: WeekSessions[] = Array.isArray(rawData) ? rawData : [];
 
-  // ✅ map attendance by week
-  const attendanceMap = new Map<number, WeekSessions>();
-  for (const w of weekGroups) {
-    attendanceMap.set(w.week_number, w);
-  }
-
-  const totalWeeks = weeks.length > 0 ? Math.max(...weeks.map((w) => w.globalWeek)) : 1;
-
-  useEffect(() => {
-    if (weeks.length > 0) {
-      setCurrentWeek(weeks[0].value);
+  // Map sessions by global week number
+  const sessionMap = useMemo(() => {
+    const map = new Map<number, WeekSessions["sessions"]>();
+    for (const g of weekGroups) {
+      map.set(g.week_number, g.sessions);
     }
-  }, [weeks]);
+    return map;
+  }, [weekGroups]);
 
-  const currentWeekMeta = weeks.find((w) => w.value === currentWeek);
-  const currentGroup = attendanceMap.get(currentWeek);
+  // Group weeks by semester → term (same as WeekCalendar in lessons)
+  const grouped = useMemo(() => {
+    const semMap = new Map<
+      string,
+      {
+        semesterName: string;
+        terms: Map<
+          string,
+          {
+            termName: string;
+            weeks: typeof weeks;
+          }
+        >;
+      }
+    >();
+
+    for (const week of weeks) {
+      if (!semMap.has(week.semesterName)) {
+        semMap.set(week.semesterName, {
+          semesterName: week.semesterName,
+          terms: new Map(),
+        });
+      }
+
+      const sem = semMap.get(week.semesterName)!;
+
+      if (!sem.terms.has(week.termName)) {
+        sem.terms.set(week.termName, {
+          termName: week.termName,
+          weeks: [],
+        });
+      }
+
+      sem.terms.get(week.termName)!.weeks.push(week);
+    }
+
+    return Array.from(semMap.values());
+  }, [weeks]);
 
   return (
     <div className="space-y-6">
@@ -71,104 +84,109 @@ export default function AttendancePage() {
         description="Synced with lesson calendar"
       />
 
-      {/* Week Navigator (NOW 100% MATCHES LESSON SYSTEM) */}
-      <div className="flex items-center justify-between rounded-lg border px-5 py-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCurrentWeek((w) => Math.max(1, w - 1))}
-          disabled={currentWeek <= 1}
-        >
-          <ChevronLeft className="h-4 w-4" /> Previous
-        </Button>
-
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">
-            {currentWeekMeta?.semesterName ?? "Semester"}
-          </p>
-
-          <p className="text-lg font-bold mt-0.5">
-            Week {currentWeekMeta?.semesterWeek ?? currentWeek}
-            <span className="text-sm text-muted-foreground font-normal ml-2">
-              of {weeks.filter((w) => w.semesterIndex === (currentWeekMeta?.semesterIndex ?? 1)).length}
-            </span>
-          </p>
-
-          <p className="text-xs text-muted-foreground">
-            {currentWeekMeta?.termName}
-          </p>
-        </div>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() =>
-            setCurrentWeek((w) => Math.min(totalWeeks, w + 1))
-          }
-          disabled={currentWeek >= totalWeeks}
-        >
-          Next <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Content */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading sessions...
         </div>
-      ) : !currentGroup || currentGroup.sessions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
-          <CalendarDays className="h-8 w-8 opacity-40" />
-          <p className="text-sm">
-            No attendance sessions for Week {currentWeek}
-          </p>
-        </div>
       ) : (
-        <div className="space-y-2">
-          {currentGroup.sessions.map((session) => {
-            const { weekday, date } = formatSessionDate(session.date);
+        <div className="space-y-8">
+          {grouped.map((semester, semIndex) => (
+            <div
+              key={`${semester.semesterName}-${semIndex}`}
+              className="space-y-4"
+            >
+              <h2 className="text-lg font-semibold">
+                {semester.semesterName}
+              </h2>
 
-            return (
-              <button
-                key={session.id}
-                onClick={() =>
-                  router.push(
-                    `/educator/classes/${classId}/attendance/${session.id}`
-                  )
-                }
-                className="w-full flex items-center justify-between rounded-lg border px-4 py-4 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex flex-col items-center justify-center rounded-lg border bg-muted w-12 h-12">
-                    <span className="text-[10px] font-bold uppercase text-muted-foreground">
-                      {new Date(session.date).toLocaleDateString("en-US", {
-                        month: "short",
-                      })}
-                    </span>
-                    <span className="text-lg font-bold">
-                      {new Date(session.date).getDate()}
-                    </span>
-                  </div>
+              {Array.from(semester.terms.values()).map((term) => (
+                <div
+                  key={`${semester.semesterName}-${term.termName}`}
+                  className="space-y-3"
+                >
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    {term.termName}
+                  </h3>
 
-                  <div>
-                    <p className="text-sm font-semibold">
-                      Session {session.week_number}.{session.sub_index}
-                    </p>
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    {term.weeks.map((week) => {
+                      const sessions =
+                        sessionMap.get(week.globalWeek) ?? [];
 
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <Clock className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">
-                        {weekday} · {date}
-                      </span>
-                    </div>
+                      return (
+                        <div
+                          key={`${week.semesterIndex}-${week.globalWeek}`}
+                          className="rounded-xl border p-4 space-y-3"
+                        >
+                          {/* Week label */}
+                          <div>
+                            <p className="text-sm font-medium">
+                              Week {week.semesterWeek}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(week.date), "MMM dd, yyyy")}
+                            </p>
+                          </div>
+
+                          {/* Sessions */}
+                          {sessions.length > 0 ? (
+                            <div className="space-y-2">
+                              {sessions.map((session) => {
+                                const sessionDate = new Date(session.date);
+                                const isPast = sessionDate <= new Date();
+
+                                return (
+                                  <button
+                                    key={session.id}
+                                    onClick={() =>
+                                      router.push(
+                                        `/educator/classes/${classId}/attendance/${session.id}`
+                                      )
+                                    }
+                                    className="w-full flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 text-left hover:bg-muted/60 transition-colors"
+                                  >
+                                    <div className="flex flex-col items-center justify-center rounded-md border bg-background w-10 h-10 shrink-0">
+                                      <span className="text-[9px] font-bold uppercase text-muted-foreground">
+                                        {format(sessionDate, "MMM")}
+                                      </span>
+                                      <span className="text-sm font-bold">
+                                        {format(sessionDate, "d")}
+                                      </span>
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-medium">
+                                        Session {session.week_number}.{session.sub_index}
+                                      </p>
+                                      <div className="flex items-center gap-1 mt-0.5">
+                                        <Clock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                                        <span className="text-[10px] text-muted-foreground truncate">
+                                          {format(sessionDate, "EEEE · MMM dd, yyyy")}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <span className={`text-[10px] font-medium ${isPast ? "text-emerald-600" : "text-muted-foreground"}`}>
+                                      {isPast ? "Mark" : "Upcoming"}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              No sessions
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </button>
-            );
-          })}
+              ))}
+            </div>
+          ))}
         </div>
       )}
     </div>
