@@ -1,4 +1,11 @@
-import { AssessmentType, Question } from "@/types/educator/assessment.types";
+export type QuestionType =
+  | "multiple_choice"
+  | "true_or_false"
+  | "identification"
+  | "enumeration"
+  | "essay";
+
+export type AssessmentType = "quiz" | "activity" | "exam" | "custom";
 
 export type StudentAssessmentStatus =
   | "not_yet_open"
@@ -7,6 +14,14 @@ export type StudentAssessmentStatus =
   | "submitted"
   | "missed"
   | "exempted";
+
+export interface StudentQuestion {
+  id: string;
+  order: number;
+  type: QuestionType;
+  questionText: string;
+  choices?: string[];
+}
 
 export interface StudentAssessment {
   id: string;
@@ -20,5 +35,5 @@ export interface StudentAssessment {
   status: StudentAssessmentStatus;
   score: number | null;
   isPublished: boolean;
-  questions: Question[];
+  questions: StudentQuestion[];
 }

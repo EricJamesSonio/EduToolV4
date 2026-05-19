@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useAssessment, useDeleteAssessment } from "@/hooks/educator/useAssessments";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -17,9 +18,9 @@ import {
 } from "@/components/ui/dialog";
 import { assessmentApi } from "@/api/educator/assessment.api";
 import { educatorClassApi } from "@/api/educator/class.api";
-import { Loader2, Trash2, Users, Pencil, UserPlus } from "lucide-react";
+import { Loader2, Trash2, Users, Pencil, UserPlus, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AssessmentType } from "@/types/educator/assessment.types";
 
 const STATUS_COLORS = {
@@ -41,14 +42,28 @@ export default function AssessmentDetailPage(): React.JSX.Element {
   const { data: assessment, isLoading } = useAssessment(classId, assessmentId);
   const { mutateAsync: deleteAssessment, isPending: isDeleting } = useDeleteAssessment(classId);
 
+  const queryClient = useQueryClient();
+
   const [assignOpen, setAssignOpen] = useState(false);
+  const [reopenOpen, setReopenOpen] = useState(false);
   const { data: students } = useQuery({
     queryKey: ["class-students", classId],
     queryFn: () => educatorClassApi.getStudents(classId),
-    enabled: assignOpen,
+    enabled: assignOpen || reopenOpen,
   });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [assigning, setAssigning] = useState(false);
+  const [reopening, setReopening] = useState(false);
+
+  const { mutate: updateAssessment } = useMutation({
+    mutationFn: (body: { showScoresImmediately?: boolean }) =>
+      assessmentApi.update(classId, assessmentId, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assessment", classId, assessmentId] });
+      toast.success("Assessment updated.");
+    },
+    onError: () => toast.error("Failed to update assessment."),
+  });
 
   const handleAssignOpen = useCallback(() => {
     setSelectedIds([]);
@@ -66,6 +81,20 @@ export default function AssessmentDetailPage(): React.JSX.Element {
       toast.error("Failed to assign students.");
     } finally {
       setAssigning(false);
+    }
+  }
+
+  async function handleReopen() {
+    if (!selectedIds.length) return;
+    setReopening(true);
+    try {
+      const res = await assessmentApi.reopen(classId, assessmentId, selectedIds);
+      toast.success(`Reopened for ${res.reopened} student${res.reopened !== 1 ? "s" : ""}.`);
+      setReopenOpen(false);
+    } catch {
+      toast.error("Failed to reopen assessment.");
+    } finally {
+      setReopening(false);
     }
   }
 
@@ -138,6 +167,36 @@ export default function AssessmentDetailPage(): React.JSX.Element {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          <Dialog open={reopenOpen} onOpenChange={(open) => { setReopenOpen(open); if (!open) setSelectedIds([]); }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <RotateCcw className="h-3.5 w-3.5" />Reopen
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Reopen for Students</DialogTitle>
+                <DialogDescription>Select students to reopen this assessment for. Their previous submissions will be reset so they can retake it.</DialogDescription>
+              </DialogHeader>
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {students?.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No enrolled students.</p>}
+                {students?.map((s) => (
+                  <label key={s.id} className="flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer hover:bg-muted/30">
+                    <input type="checkbox" checked={selectedIds.includes(s.id)} onChange={(e) => setSelectedIds(e.target.checked ? [...selectedIds, s.id] : selectedIds.filter((id) => id !== s.id))} className="rounded" />
+                    <span>{s.fullName}</span>
+                    {s.email && <span className="text-xs text-muted-foreground ml-auto">{s.email}</span>}
+                  </label>
+                ))}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => { setReopenOpen(false); setSelectedIds([]); }}>Cancel</Button>
+                <Button size="sm" onClick={handleReopen} disabled={!selectedIds.length || reopening}>
+                  {reopening && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                  Reopen ({selectedIds.length})
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Link href={`/educator/classes/${classId}/assessments/${assessmentId}/submissions`}>
             <Button variant="outline" size="sm" className="gap-1.5">
               <Users className="h-3.5 w-3.5" />View Submissions
@@ -180,6 +239,18 @@ export default function AssessmentDetailPage(): React.JSX.Element {
             <p className="text-sm font-medium">{item.value}</p>
           </div>
         ))}
+        <div className="rounded-lg border p-4 space-y-1 flex flex-col justify-center">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Show scores immediately</p>
+              <p className="text-[11px] text-muted-foreground/60">Students see score + review after submit</p>
+            </div>
+            <Switch
+              checked={assessment.showScoresImmediately}
+              onCheckedChange={(v) => updateAssessment({ showScoresImmediately: v })}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Questions */}

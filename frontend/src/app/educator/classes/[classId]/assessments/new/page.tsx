@@ -53,6 +53,7 @@ interface BuilderState {
   totalItems: number;
   sections: AssessmentSection[];
   createdAssessmentId: string | null;
+  previewId: string | null;
   generatedQuestions: Question[];
   releaseDate: string;
   endDate: string;
@@ -476,43 +477,126 @@ function getSectionsForRanges(sections: AssessmentSection[], conceptItems: Conce
     });
 }
 
-// ─── Step 4: Generating ───────────────────────────────────────────────────────
-function Step4({ classId, assessmentId, onQuestionsReady }: { classId: string; assessmentId: string; onQuestionsReady: (q: Question[]) => void }) {
+// ─── Step 4: Generating Preview (no DB save yet) ─────────────────────────────
+function Step4({ classId, previewId, onQuestionsReady }: { classId: string; previewId: string; onQuestionsReady: (q: Question[]) => void }) {
   const advancedRef = useRef(false);
-  const { data } = useAssessment(classId, assessmentId, {
-    refetchInterval: (query) => (query.state.data?.questions?.length ?? 0) > 0 ? false : 3000,
+  const router = useRouter();
+  const [cancelling, setCancelling] = useState(false);
+
+  const { data: preview } = useQuery({
+    queryKey: ["preview", previewId],
+    queryFn: () => assessmentApi.getPreview(classId, previewId),
+    refetchInterval: (query) => {
+      const s = query.state.data?.status;
+      return s === "completed" || s === "failed" ? false : 1500;
+    },
+    enabled: !!previewId && !advancedRef.current && !cancelling,
+    retry: false,
   });
-  const ready = (data?.questions?.length ?? 0) > 0;
-  if (ready && !advancedRef.current) { advancedRef.current = true; setTimeout(() => onQuestionsReady(data!.questions), 300); }
+
+  const ready = preview?.status === "completed" && !!preview?.questions?.length;
+  if (ready && !advancedRef.current) {
+    advancedRef.current = true;
+    setTimeout(() => {
+      const mapped = preview!.questions!.map((q: any, i: number) => ({
+        id: `preview-${i}`, assessmentId: previewId,
+        order: q.number ?? i + 1,
+        type: q.type as Question["type"],
+        text: q.question,
+        choices: Array.isArray(q.choices)
+          ? q.choices.slice(0, 4).map((t: string, j: number) => ({ label: ["A", "B", "C", "D"][j] as "A"|"B"|"C"|"D", text: t }))
+          : null,
+        correctAnswer: q.answer ?? q.correct_answer ?? null,
+        points: 1, isLocked: false,
+      }));
+      onQuestionsReady(mapped);
+    }, 300);
+  }
+
+  const failed = preview?.status === "failed" && !ready;
+
+  async function handleCancel() {
+    setCancelling(true);
+    try { await assessmentApi.cancelPreview(classId, previewId); } catch {}
+    router.back();
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center py-16 gap-4">
+    <div className="flex flex-col items-center justify-center py-16 gap-4 max-w-md mx-auto text-center">
       {ready ? (
-        <><div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center"><Check className="h-6 w-6 text-green-600" /></div><p className="text-sm font-medium">Questions generated! Advancing...</p></>
+        <>
+          <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+            <Check className="h-6 w-6 text-green-600" />
+          </div>
+          <p className="text-sm font-medium">Questions generated! Advancing...</p>
+        </>
+      ) : failed ? (
+        <>
+          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+            <span className="text-red-600 text-xl font-bold">!</span>
+          </div>
+          <p className="text-sm font-medium text-red-600">Generation failed</p>
+          <p className="text-xs text-muted-foreground">{preview?.message ?? "Unknown error"}</p>
+          <Button variant="outline" size="sm" onClick={() => router.back()}>
+            Go back and try again
+          </Button>
+        </>
       ) : (
-        <><div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center"><Loader2 className="h-6 w-6 text-muted-foreground animate-spin" /></div><p className="text-sm font-medium">Generating assessment questions...</p><p className="text-xs text-muted-foreground">Usually takes 10–30 seconds.</p></>
+        <>
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+            <Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
+          </div>
+          <p className="text-sm font-medium">Generating assessment questions...</p>
+          {preview?.chunksTotal ? (
+            <>
+              <p className="text-xs text-muted-foreground">{preview.message}</p>
+              <div className="w-48 h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary transition-all duration-500 rounded-full" style={{ width: `${(preview.chunksDone / preview.chunksTotal) * 100}%` }} />
+              </div>
+              <p className="text-xs text-muted-foreground">{preview.chunksDone}/{preview.chunksTotal} chunks</p>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">{preview?.message ?? "Starting generation..."}</p>
+          )}
+          <Button variant="outline" size="sm" onClick={handleCancel} disabled={cancelling} className="mt-4">
+            {cancelling ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+            Cancel
+          </Button>
+        </>
       )}
     </div>
   );
 }
 
-// ─── Step 5: Review Questions ─────────────────────────────────────────────────
-function Step5({ classId, assessmentId, questions, onNext }: { classId: string; assessmentId: string; questions: Question[]; onNext: () => void }) {
+// ─── Step 5: Review Questions & Confirm ──────────────────────────────────────
+function Step5({ classId, previewId, questions, onConfirm }: { classId: string; previewId: string; questions: Question[]; onConfirm: (assessmentId: string) => void }) {
+  const [confirming, setConfirming] = useState(false);
   const [edits, setEdits] = useState<Record<string, { text: string; correctAnswer: string }>>(() => Object.fromEntries(questions.map((q) => [q.id, { text: q.text, correctAnswer: q.correctAnswer ?? "" }])));
-  async function saveEdit(qId: string) {
-    const e = edits[qId]; if (!e) return;
-    try { await assessmentApi.updateQuestion(classId, assessmentId, qId, { questionText: e.text, correctAnswer: e.correctAnswer || undefined }); }
-    catch { toast.error("Failed to save question edit."); }
+
+  async function handleConfirm() {
+    setConfirming(true);
+    try {
+      const assessment = await assessmentApi.confirmPreview(classId, previewId);
+      toast.success("Assessment created with " + assessment.questions.length + " questions");
+      onConfirm(assessment.id);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to save assessment.");
+      setConfirming(false);
+    }
   }
+
   return (
     <div className="space-y-4 max-w-2xl">
-      <div className="rounded-lg border bg-amber-50 border-amber-200 px-4 py-3 text-sm text-amber-800">You can edit questions before publishing. After release date, questions lock.</div>
+      <div className="rounded-lg border bg-blue-50 border-blue-200 px-4 py-3 text-sm text-blue-800">
+        Review the generated questions below. Click "Create Assessment" to save them.
+      </div>
       <div className="space-y-3">
         {questions.map((q, i) => (
           <div key={q.id} className="rounded-lg border p-4 space-y-3">
             <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Item {i + 1} — {q.type.replace(/_/g, " ")}</span>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Question</label>
-              <textarea value={edits[q.id]?.text ?? q.text} onChange={(e) => setEdits((p) => ({ ...p, [q.id]: { ...p[q.id], text: e.target.value } }))} onBlur={() => saveEdit(q.id)} rows={2} className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none" />
+              <textarea value={edits[q.id]?.text ?? q.text} onChange={(e) => setEdits((p) => ({ ...p, [q.id]: { ...p[q.id], text: e.target.value } }))} rows={2} className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none" />
             </div>
             {q.choices && q.choices.length > 0 && (
               <div className="space-y-1">
@@ -531,13 +615,18 @@ function Step5({ classId, assessmentId, questions, onNext }: { classId: string; 
             {q.type !== "essay" && (
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Answer</label>
-                <input type="text" value={edits[q.id]?.correctAnswer ?? ""} onChange={(e) => setEdits((p) => ({ ...p, [q.id]: { ...p[q.id], correctAnswer: e.target.value } }))} onBlur={() => saveEdit(q.id)} className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" />
+                <input type="text" value={edits[q.id]?.correctAnswer ?? ""} onChange={(e) => setEdits((p) => ({ ...p, [q.id]: { ...p[q.id], correctAnswer: e.target.value } }))} className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" />
               </div>
             )}
           </div>
         ))}
       </div>
-      <Button onClick={onNext} size="sm">Next</Button>
+      <div className="flex gap-2">
+        <Button onClick={handleConfirm} disabled={confirming} size="sm">
+          {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Create Assessment
+        </Button>
+      </div>
     </div>
   );
 }
@@ -605,11 +694,10 @@ export default function NewAssessmentPage() {
   const [step, setStep] = useState(0);
   const [state, setState] = useState<BuilderState>({
     selectedLesson: null, type: "quiz", totalItems: 1,
-    sections: [], createdAssessmentId: null, generatedQuestions: [],
+    sections: [], createdAssessmentId: null, previewId: null, generatedQuestions: [],
     releaseDate: "", endDate: "", selectedStudentIds: [],
   });
 
-  const { mutateAsync: createAssessment, isPending: isCreating } = useCreateAssessment(classId);
   const { mutateAsync: updateAssessment, isPending: isUpdating } = useUpdateAssessment(classId);
   const { data: weeks } = useClassWeeks(classId);
   const patch = useCallback((u: Partial<BuilderState>) => setState((p) => ({ ...p, ...u })), []);
@@ -630,14 +718,14 @@ export default function NewAssessmentPage() {
     const ranges = getSectionsForRanges(state.sections, cc.conceptItems);
     if (!ranges.length) { toast.error("No sections configured."); return; }
     try {
-      const assessment = await createAssessment({
+      const { previewId } = await assessmentApi.generatePreview(classId, {
         lessonId: state.selectedLesson.id, termId, type: state.type,
         totalItems: state.totalItems,
         ranges: ranges.map((r) => ({ from: r.from, to: r.to, questionType: r.questionType as RangeConfig["questionType"], conceptSections: r.conceptSections })),
       });
-      patch({ createdAssessmentId: assessment.id });
+      patch({ previewId });
       next();
-    } catch { toast.error("Failed to create assessment."); }
+    } catch { toast.error("Failed to start question generation."); }
   }
 
   async function handlePublish() {
@@ -662,9 +750,9 @@ export default function NewAssessmentPage() {
       <div className="pt-2">
         {step === 0 && <Step1 classId={classId} selected={state.selectedLesson} onSelect={(l) => patch({ selectedLesson: l })} onNext={next} />}
         {step === 1 && <Step2 concept={concept} onNext={next} />}
-        {step === 2 && <Step3 type={state.type} totalItems={state.totalItems} sections={state.sections} conceptItems={cc.conceptItems} sectionNames={cc.sections} onChange={(u) => patch(u)} onNext={handleGenerate} isLoading={isCreating} />}
-        {step === 3 && state.createdAssessmentId && <Step4 classId={classId} assessmentId={state.createdAssessmentId} onQuestionsReady={(q) => { patch({ generatedQuestions: q }); next(); }} />}
-        {step === 4 && state.createdAssessmentId && <Step5 classId={classId} assessmentId={state.createdAssessmentId} questions={state.generatedQuestions} onNext={next} />}
+        {step === 2 && <Step3 type={state.type} totalItems={state.totalItems} sections={state.sections} conceptItems={cc.conceptItems} sectionNames={cc.sections} onChange={(u) => patch(u)} onNext={handleGenerate} isLoading={false} />}
+        {step === 3 && state.previewId && <Step4 classId={classId} previewId={state.previewId} onQuestionsReady={(q) => { patch({ generatedQuestions: q }); next(); }} />}
+        {step === 4 && state.previewId && <Step5 classId={classId} previewId={state.previewId} questions={state.generatedQuestions} onConfirm={(assessmentId) => { patch({ createdAssessmentId: assessmentId }); next(); }} />}
         {step === 5 && <Step6 classId={classId} releaseDate={state.releaseDate} endDate={state.endDate} selectedStudentIds={state.selectedStudentIds} onChange={(u) => patch(u)} onPublish={handlePublish} isLoading={isUpdating} />}
       </div>
     </div>

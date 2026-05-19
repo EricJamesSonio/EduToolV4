@@ -6,7 +6,7 @@ import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
-@Controller('classes/:classId/assessments')
+@Controller('student/classes/:classId/assessments')
 @UseGuards(AuthGuard, RolesGuard)
 @Roles('student')
 export class AssessmentStudentController {

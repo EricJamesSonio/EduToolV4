@@ -7,7 +7,7 @@ import { ClassRepository } from '@/modules/class/class.repository';
 import { AuditLogService } from '@/modules/audit-log/audit-log.service';
 import { NotificationService } from '@/modules/notification/notification.service';
 import { AttendanceService } from '@/modules/attendance/attendance.service';
-import { AiService, QuestionBlueprint, GeneratedQuestion } from '@/core/ai/ai.service';
+import { AiService, QuestionBlueprint, GeneratedQuestion, GenerationProgress, ConceptBuild } from '@/core/ai/ai.service';
 import {
   CreateAssessmentDto,
   UpdateAssessmentDto,
@@ -17,11 +17,15 @@ import {
   GradeEssayDto,
   UpdateSubmissionStatusDto,
   AssignStudentsDto,
+  ReopenAssessmentDto,
 } from '../dto/assessment.dto';
 
 @Injectable()
 export class AssessmentEducatorService {
   private readonly logger = new Logger(AssessmentEducatorService.name);
+
+  // In-memory generation status tracker (lost on restart — acceptable)
+  private generationStatuses = new Map<string, GenerationProgress>();
 
   constructor(
     private readonly repo: AssessmentRepository,
@@ -33,6 +37,10 @@ export class AssessmentEducatorService {
     private readonly attendanceService: AttendanceService,
     private readonly aiService: AiService,
   ) {}
+
+  getGenerationStatus(assessmentId: string): GenerationProgress | null {
+    return this.generationStatuses.get(assessmentId) ?? null;
+  }
 
   // ───────── GUARDS ─────────
 
@@ -74,7 +82,15 @@ export class AssessmentEducatorService {
       releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
     });
 
-    this.generateQuestions(assessment.id, orgId, educatorId, dto).catch(() => {});
+    this.generationStatuses.set(assessment.id, {
+      status: 'generating',
+      message: 'Starting generation...',
+      chunksTotal: 0,
+      chunksDone: 0,
+    });
+
+    // Fire generation asynchronously — frontend polls status endpoint
+    this.generateQuestions(assessment.id, orgId, educatorId, dto);
 
     await this.auditLog.logActivityEvent({
       orgId, actorId: educatorId,
@@ -95,7 +111,8 @@ export class AssessmentEducatorService {
     const assessment = await this.core.findAssessmentOrThrow(id, orgId);
     await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
     const questions = await this.core.getQuestions(id);
-    return { ...assessment, questions };
+    const genStatus = this.generationStatuses.get(id) ?? null;
+    return { ...assessment, questions, generationStatus: genStatus?.status ?? 'completed' };
   }
 
   async update(id: string, orgId: string, educatorId: string, dto: UpdateAssessmentDto) {
@@ -106,6 +123,7 @@ export class AssessmentEducatorService {
       releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
       endDate: dto.endDate ? new Date(dto.endDate) : undefined,
       type: dto.type,
+      showScoresImmediately: dto.showScoresImmediately,
     });
 
     await this.auditLog.logActivityEvent({
@@ -203,6 +221,22 @@ export class AssessmentEducatorService {
     return { success: true };
   }
 
+  async reopen(assessmentId: string, orgId: string, educatorId: string, dto: ReopenAssessmentDto) {
+    const assessment = await this.core.findAssessmentOrThrow(assessmentId, orgId);
+    await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
+
+    const deleted = await this.repo.deleteSubmissionsByStudentIds(assessmentId, dto.studentIds);
+
+    await this.auditLog.logActivityEvent({
+      orgId, actorId: educatorId,
+      action: 'assessment_reopened',
+      entityType: 'assessment', entityId: assessmentId,
+      metadata: { assessmentId, studentIds: dto.studentIds },
+    });
+
+    return { success: true, reopened: deleted };
+  }
+
   async assignStudents(assessmentId: string, orgId: string, educatorId: string, dto: AssignStudentsDto) {
     const assessment = await this.core.findAssessmentOrThrow(assessmentId, orgId);
     await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
@@ -235,37 +269,69 @@ export class AssessmentEducatorService {
 
   // ───────── PRIVATE ─────────
 
-  private async generateQuestions(assessmentId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto) {
-    // 1. Fetch lesson detail for AI context
-    const lesson = await this.lessonRepo.findById(dto.lessonId, orgId);
-    if (!lesson) throw new NotFoundException('Lesson not found');
-    const lessonDetail = lesson.detail ?? '';
+  // ───────── PREVIEW FLOW (no DB save until confirmed) ─────────
 
-    // 2. Convert ranges to AI QuestionBlueprints
-    const blueprints = dto.ranges.map((r) => ({
-      type: r.questionType as QuestionBlueprint['type'],
-      sections: r.conceptSections,
-      numbers: `${r.from}-${r.to}`,
-      count: r.to - r.from + 1,
-    }));
+  private previewResults = new Map<string, {
+    questions: GeneratedQuestion[];
+    orgId: string;
+    educatorId: string;
+    dto: CreateAssessmentDto;
+    classId: string;
+  }>();
 
-    // 3. Call AI to generate real questions
-    let generated: GeneratedQuestion[];
-    try {
-      generated = await this.aiService.generateQuestions(lessonDetail, blueprints);
-    } catch (err) {
-      this.logger.error(`[Assessment] AI generation failed: ${err}`);
-      throw new BadRequestException('Question generation via AI failed. Please try again.');
-    }
+  async generatePreview(classId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto): Promise<{ previewId: string }> {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    const concept = await this.lessonRepo.findConcept(dto.lessonId);
+    if (!concept) throw new BadRequestException('No concept build found.');
+    const rangeTotal = dto.ranges.reduce((sum, r) => sum + (r.to - r.from + 1), 0);
+    if (rangeTotal !== dto.totalItems) throw new BadRequestException('Range total mismatch.');
 
-    if (!generated?.length) {
-      throw new BadRequestException('AI returned no questions.');
-    }
+    const previewId = crypto.randomUUID();
+    this.generationStatuses.set(previewId, { status: 'generating', message: 'Starting...', chunksTotal: 0, chunksDone: 0 });
 
-    // 4. Map to DB format with correct order
+    this.generatePreviewQuestions(previewId, classId, orgId, educatorId, dto);
+
+    return { previewId };
+  }
+
+  async getPreview(previewId: string): Promise<{
+    status: GenerationProgress['status'];
+    message: string;
+    chunksTotal: number;
+    chunksDone: number;
+    questions?: GeneratedQuestion[];
+  }> {
+    const gen = this.generationStatuses.get(previewId);
+    if (!gen) return { status: 'failed', message: 'Preview not found or expired', chunksTotal: 0, chunksDone: 0 };
+    const result = this.previewResults.get(previewId);
+    return {
+      status: gen.status,
+      message: gen.message,
+      chunksTotal: gen.chunksTotal,
+      chunksDone: gen.chunksDone,
+      questions: result?.questions,
+    };
+  }
+
+  async confirmPreview(previewId: string, classId: string, orgId: string, educatorId: string): Promise<any> {
+    const result = this.previewResults.get(previewId);
+    if (!result) throw new BadRequestException('Preview not found or expired. Please generate again.');
+
+    const { questions: generated, dto } = result;
+    if (!generated?.length) throw new BadRequestException('No questions in preview.');
+
+    const assessment = await this.repo.create({
+      orgId, classId,
+      lessonId: dto.lessonId,
+      termId: dto.termId,
+      type: dto.type,
+      totalItems: dto.totalItems,
+      releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
+    });
+
     const questions = generated.map((q, idx) => ({
       orgId,
-      assessmentId,
+      assessmentId: assessment.id,
       type: q.type,
       questionText: q.question,
       correctAnswer: q.answer ?? q.correct_answer ?? (q.type !== 'essay' ? `Answer ${q.number}` : undefined),
@@ -275,19 +341,288 @@ export class AssessmentEducatorService {
 
     await this.repo.createQuestions(questions);
 
-    this.logger.log(`[Assessment] ${questions.length} questions generated for ${assessmentId}`);
+    this.generationStatuses.delete(previewId);
+    this.previewResults.delete(previewId);
 
-    await this.notificationService.createNotification({
-      orgId, accountId: educatorId,
-      type: 'assessment_generation_completed',
-      payload: { assessmentId },
+    this.logger.log(`[Assessment] ${questions.length} questions confirmed for ${assessment.id}`);
+    return { ...assessment, questions };
+  }
+
+  async cancelPreview(previewId: string): Promise<void> {
+    this.cancellationFlags.set(previewId, true);
+    this.generationStatuses.delete(previewId);
+    this.previewResults.delete(previewId);
+  }
+
+  private cancellationFlags = new Map<string, boolean>();
+
+  private async generatePreviewQuestions(previewId: string, classId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto) {
+    const setStatus = (update: Partial<GenerationProgress>) => {
+      const current = this.generationStatuses.get(previewId) ?? {
+        status: 'generating', message: '', chunksTotal: 0, chunksDone: 0,
+      };
+      this.generationStatuses.set(previewId, { ...current, ...update });
+    };
+
+    try {
+      if (this.cancellationFlags.get(previewId)) return;
+
+      const lesson = await this.lessonRepo.findById(dto.lessonId, orgId);
+      if (!lesson) throw new NotFoundException('Lesson not found');
+      const lessonDetail = lesson.detail ?? '';
+
+      const blueprints = dto.ranges.map((r) => ({
+        type: r.questionType as QuestionBlueprint['type'],
+        sections: r.conceptSections,
+        numbers: `${r.from}-${r.to}`,
+        count: r.to - r.from + 1,
+      }));
+
+      const ctrl = new AbortController();
+      const cancelWatch = setInterval(() => {
+        if (this.cancellationFlags.get(previewId)) ctrl.abort();
+      }, 500);
+
+      try {
+        const generated = await this.aiService.generateQuestions(
+          lessonDetail, blueprints,
+          (progress) => setStatus(progress),
+          ctrl.signal,
+        );
+
+        if (this.cancellationFlags.get(previewId)) return;
+        if (!generated?.length) throw new Error('AI returned no questions');
+
+        this.previewResults.set(previewId, { questions: generated, orgId, educatorId, dto, classId });
+        setStatus({ status: 'completed', message: `Generated ${generated.length} questions — review and confirm` });
+
+        this.logger.log(`[Preview] ${generated.length} questions ready for review (${previewId})`);
+      } finally {
+        clearInterval(cancelWatch);
+      }
+    } catch (err) {
+      const isCancelled = String(err).includes('cancelled') || String(err).includes('abort');
+      if (isCancelled) {
+        this.logger.log(`[Preview] Generation cancelled (${previewId})`);
+        this.generationStatuses.delete(previewId);
+        this.previewResults.delete(previewId);
+      } else {
+        this.logger.error(`[Preview] Generation failed: ${err}`);
+        setStatus({ status: 'failed', message: `Generation failed: ${err}`, error: String(err) });
+      }
+    } finally {
+      this.cancellationFlags.delete(previewId);
+    }
+  }
+
+async getPreview(previewId: string): Promise<{
+  status: GenerationProgress['status'];
+  message: string;
+  chunksTotal: number;
+  chunksDone: number;
+  questions?: GeneratedQuestion[];
+}> {
+  const gen = this.generationStatuses.get(previewId);
+  if (!gen) return { status: 'failed', message: 'Preview not found or expired', chunksTotal: 0, chunksDone: 0 };
+  const result = this.previewResults.get(previewId);
+  return {
+    status: gen.status,
+    message: gen.message,
+    chunksTotal: gen.chunksTotal,
+    chunksDone: gen.chunksDone,
+    questions: result?.questions,
+  };
+}
+
+async confirmPreview(previewId: string, classId: string, orgId: string, educatorId: string): Promise<any> {
+  const result = this.previewResults.get(previewId);
+  if (!result) throw new BadRequestException('Preview not found or expired. Please generate again.');
+
+  const { questions: generated, dto } = result;
+  if (!generated?.length) throw new BadRequestException('No questions in preview.');
+
+  // Create assessment + save questions atomically
+    const assessment = await this.repo.create({
+      orgId, classId,
+      lessonId: dto.lessonId,
+      termId: dto.termId,
+      type: dto.type,
+      totalItems: dto.totalItems,
+      releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
+      showScoresImmediately: dto.showScoresImmediately,
     });
 
-    await this.auditLog.logActivityEvent({
-      orgId, actorId: educatorId,
-      action: 'assessment_questions_generated',
-      entityType: 'assessment', entityId: assessmentId,
-      metadata: { assessmentId, questionsGenerated: questions.length },
-    });
+  const questions = generated.map((q, idx) => ({
+    orgId,
+    assessmentId: assessment.id,
+    type: q.type,
+    questionText: q.question,
+    correctAnswer: q.answer ?? q.correct_answer ?? (q.type !== 'essay' ? `Answer ${q.number}` : undefined),
+    choices: q.choices?.length ? q.choices : undefined,
+    order: q.number ?? idx + 1,
+  }));
+
+  await this.repo.createQuestions(questions);
+
+  // Clean up preview data
+  this.generationStatuses.delete(previewId);
+  this.previewResults.delete(previewId);
+
+  this.logger.log(`[Assessment] ${questions.length} questions confirmed for ${assessment.id}`);
+  return { ...assessment, questions };
+}
+
+async cancelPreview(previewId: string): Promise<void> {
+  this.cancellationFlags.set(previewId, true);
+  this.generationStatuses.delete(previewId);
+  this.previewResults.delete(previewId);
+}
+
+private cancellationFlags = new Map<string, boolean>();
+
+private async generatePreviewQuestions(previewId: string, classId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto) {
+  const setStatus = (update: Partial<GenerationProgress>) => {
+    const current = this.generationStatuses.get(previewId) ?? {
+      status: 'generating', message: '', chunksTotal: 0, chunksDone: 0,
+    };
+    this.generationStatuses.set(previewId, { ...current, ...update });
+  };
+
+  try {
+    if (this.cancellationFlags.get(previewId)) return;
+
+    const lesson = await this.lessonRepo.findById(dto.lessonId, orgId);
+    if (!lesson) throw new NotFoundException('Lesson not found');
+    const lessonDetail = lesson.detail ?? '';
+
+    // Use concept build to compress lesson sent to AI
+    const conceptRecord = await this.lessonRepo.findConcept(dto.lessonId);
+
+    const blueprints = dto.ranges.map((r) => ({
+      type: r.questionType as QuestionBlueprint['type'],
+      sections: r.conceptSections,
+      numbers: `${r.from}-${r.to}`,
+      count: r.to - r.from + 1,
+    }));
+
+    const ctrl = new AbortController();
+    const cancelWatch = setInterval(() => {
+      if (this.cancellationFlags.get(previewId)) ctrl.abort();
+    }, 500);
+
+    try {
+      const generated = await this.aiService.generateQuestions(
+        lessonDetail, blueprints,
+        (progress) => setStatus(progress),
+        ctrl.signal,
+        conceptRecord?.content as ConceptBuild ?? undefined,
+      );
+
+      if (this.cancellationFlags.get(previewId)) return;
+
+      if (!generated?.length) throw new Error('AI returned no questions');
+
+      this.previewResults.set(previewId, { questions: generated, orgId, educatorId, dto, classId });
+      setStatus({
+        status: 'completed',
+        message: `Generated ${generated.length} questions — review and confirm`,
+      });
+
+      this.logger.log(`[Preview] ${generated.length} questions ready for review (${previewId})`);
+    } finally {
+      clearInterval(cancelWatch);
+    }
+  } catch (err) {
+    const isCancelled = String(err).includes('cancelled') || String(err).includes('abort');
+    if (isCancelled) {
+      this.logger.log(`[Preview] Generation cancelled (${previewId})`);
+      this.generationStatuses.delete(previewId);
+      this.previewResults.delete(previewId);
+    } else {
+      this.logger.error(`[Preview] Generation failed: ${err}`);
+      setStatus({
+        status: 'failed',
+        message: `Generation failed: ${err}`,
+        error: String(err),
+      });
+    }
+  } finally {
+    this.cancellationFlags.delete(previewId);
+  }
+}
+
+ private async generateQuestions(assessmentId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto) {
+    const setStatus = (update: Partial<GenerationProgress>) => {
+      const current = this.generationStatuses.get(assessmentId) ?? {
+        status: 'generating', message: '', chunksTotal: 0, chunksDone: 0,
+      };
+      this.generationStatuses.set(assessmentId, { ...current, ...update });
+    };
+
+    try {
+      // 1. Fetch lesson detail for AI context
+      const lesson = await this.lessonRepo.findById(dto.lessonId, orgId);
+      if (!lesson) throw new NotFoundException('Lesson not found');
+      const lessonDetail = lesson.detail ?? '';
+      const conceptRecord = await this.lessonRepo.findConcept(dto.lessonId);
+
+      const blueprints = dto.ranges.map((r) => ({
+        type: r.questionType as QuestionBlueprint['type'],
+        sections: r.conceptSections,
+        numbers: `${r.from}-${r.to}`,
+        count: r.to - r.from + 1,
+      }));
+
+      const generated = await this.aiService.generateQuestions(
+        lessonDetail,
+        blueprints,
+        (progress) => setStatus(progress),
+        undefined,
+        conceptRecord?.content as ConceptBuild ?? undefined,
+      );
+
+      if (!generated?.length) {
+        throw new Error('AI returned no questions.');
+      }
+
+      // 4. Batch-save all questions atomically
+      const questions = generated.map((q, idx) => ({
+        orgId,
+        assessmentId,
+        type: q.type,
+        questionText: q.question,
+        correctAnswer: q.answer ?? q.correct_answer ?? (q.type !== 'essay' ? `Answer ${q.number}` : undefined),
+        choices: q.choices?.length ? q.choices : undefined,
+        order: q.number ?? idx + 1,
+      }));
+
+      await this.repo.createQuestions(questions);
+
+      this.logger.log(`[Assessment] ${questions.length} questions generated for ${assessmentId}`);
+      setStatus({ status: 'completed', message: `Generated ${questions.length} questions` });
+
+      await this.notificationService.createNotification({
+        orgId, accountId: educatorId,
+        type: 'assessment_generation_completed',
+        payload: { assessmentId },
+      });
+
+      await this.auditLog.logActivityEvent({
+        orgId, actorId: educatorId,
+        action: 'assessment_questions_generated',
+        entityType: 'assessment', entityId: assessmentId,
+        metadata: { assessmentId, questionsGenerated: questions.length },
+      });
+    } catch (err) {
+      this.logger.error(`[Assessment] AI generation failed: ${err}`);
+      setStatus({
+        status: 'failed',
+        message: `Generation failed: ${err}`,
+        error: String(err),
+      });
+
+      // Delete assessment to avoid half-baked state
+      await this.repo.softDelete(assessmentId).catch(() => {});
+    }
   }
 }

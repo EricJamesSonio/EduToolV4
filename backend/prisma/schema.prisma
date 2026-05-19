@@ -699,9 +699,10 @@ model Assessment {
   total_items  Int
   release_date DateTime?
   end_date     DateTime?
-  is_published Boolean   @default(false)
-  created_at   DateTime  @default(now())
-  deleted_at   DateTime?
+  is_published          Boolean   @default(false)
+  show_scores_immediately Boolean  @default(false)
+  created_at            DateTime  @default(now())
+  deleted_at            DateTime?
 
   submissions Submission[]
 }

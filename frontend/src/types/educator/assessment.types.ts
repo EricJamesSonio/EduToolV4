@@ -36,6 +36,15 @@ export interface ItemRange {
 
 export type AssessmentStatus = "upcoming" | "open" | "closed";
 
+export interface GenerationStatus {
+  status: "generating" | "completed" | "failed";
+  message: string;
+  chunksTotal: number;
+  chunksDone: number;
+  currentChunk?: string;
+  error?: string;
+}
+
 export interface Assessment {
   id: string;
   classId: string;
@@ -50,6 +59,7 @@ export interface Assessment {
   endDate: string | null;
   status: AssessmentStatus;
   isPublished: boolean;
+  showScoresImmediately: boolean;
   assignedStudentIds: string[] | null;
   submittedCount: number;
   pendingEssayCount: number;

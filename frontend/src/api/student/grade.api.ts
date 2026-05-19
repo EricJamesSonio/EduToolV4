@@ -1,5 +1,11 @@
 import apiClient from "@/api/client";
 
+function unwrap<T>(data: T | { data: T }): T {
+  return data !== null && typeof data === "object" && "data" in (data as object)
+    ? (data as { data: T }).data
+    : (data as T);
+}
+
 export interface StudentTermGrade {
   termId: string;
   finalScore: number;
@@ -12,6 +18,6 @@ export const studentGradeApi = {
     const { data } = await apiClient.get(
       `/student/classes/${classId}/grades`
     );
-    return data;
+    return unwrap<StudentTermGrade[]>(data);
   },
 };

@@ -1,6 +1,6 @@
 // filepath: frontend/src/api/educator/assessment.api.ts
 import apiClient from "@/api/client";
-import type { Assessment, Question, Choice } from "@/types/educator/assessment.types";
+import type { Assessment, Question, Choice, GenerationStatus } from "@/types/educator/assessment.types";
 import type { Submission } from "@/types/educator/submission.types";
 
 export interface RangeConfig {
@@ -23,12 +23,14 @@ export interface CreateAssessmentRequest {
   ranges: RangeConfig[];
   releaseDate?: string;
   endDate?: string;
+  showScoresImmediately?: boolean;
 }
 
 export interface UpdateAssessmentRequest {
   type?: "quiz" | "activity" | "exam" | "custom";
   releaseDate?: string;
   endDate?: string;
+  showScoresImmediately?: boolean;
 }
 
 export interface UpdateQuestionRequest {
@@ -106,6 +108,7 @@ function mapAssessment(raw: Record<string, unknown>): Assessment {
     pendingEssayCount: (raw.pending_essay_count ?? raw.pendingEssayCount ?? 0) as number,
     questions,
     isPublished: (raw.is_published ?? raw.isPublished ?? false) as boolean,
+    showScoresImmediately: (raw.show_scores_immediately ?? raw.showScoresImmediately ?? false) as boolean,
     createdAt: (raw.created_at ?? raw.createdAt) as string,
     updatedAt: (raw.updated_at ?? raw.updatedAt ?? raw.createdAt) as string,
   };
@@ -225,8 +228,39 @@ export const assessmentApi = {
     return unwrap<{ success: true }>(data);
   },
 
+  reopen: async (classId: string, assessmentId: string, studentIds: string[]): Promise<{ success: true; reopened: number }> => {
+    const { data } = await apiClient.post(`/classes/${classId}/assessments/${assessmentId}/reopen`, { studentIds });
+    return unwrap<{ success: true; reopened: number }>(data);
+  },
+
   assignStudents: async (classId: string, assessmentId: string, studentIds: string[]): Promise<{ success: true; assigned: number }> => {
     const { data } = await apiClient.post(`/classes/${classId}/assessments/${assessmentId}/assign-students`, { studentIds });
     return unwrap<{ success: true; assigned: number }>(data);
+  },
+
+  getGenerationStatus: async (classId: string, assessmentId: string): Promise<GenerationStatus> => {
+    const { data } = await apiClient.get(`/classes/${classId}/assessments/${assessmentId}/generation-status`);
+    return unwrap<GenerationStatus>(data);
+  },
+
+  // ─── Preview flow ───
+
+  generatePreview: async (classId: string, body: CreateAssessmentRequest): Promise<{ previewId: string }> => {
+    const { data } = await apiClient.post(`/classes/${classId}/assessments/generate-preview`, body);
+    return unwrap<{ previewId: string }>(data);
+  },
+
+  getPreview: async (classId: string, previewId: string): Promise<GenerationStatus & { questions?: any[] }> => {
+    const { data } = await apiClient.get(`/classes/${classId}/assessments/preview/${previewId}`);
+    return unwrap<any>(data);
+  },
+
+  confirmPreview: async (classId: string, previewId: string): Promise<Assessment> => {
+    const { data } = await apiClient.post(`/classes/${classId}/assessments/preview/${previewId}/confirm`);
+    return mapAssessment(unwrap<Record<string, unknown>>(data));
+  },
+
+  cancelPreview: async (classId: string, previewId: string): Promise<void> => {
+    await apiClient.delete(`/classes/${classId}/assessments/preview/${previewId}`);
   },
 };

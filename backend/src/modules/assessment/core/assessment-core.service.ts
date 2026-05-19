@@ -44,7 +44,7 @@ export class AssessmentCoreService {
   }
 
   canViewScore(assessment: any, isGradeLocked: boolean): boolean {
-    return assessment.is_published || isGradeLocked;
+    return assessment.is_published || isGradeLocked || assessment.show_scores_immediately;
   }
 
   assertBelongsToClass(assessment: any, classId: string) {
@@ -61,8 +61,31 @@ export class AssessmentCoreService {
       releaseDate: assessment.release_date,
       endDate: assessment.end_date,
       isPublished: assessment.is_published,
+      showScoresImmediately: assessment.show_scores_immediately,
       submissionStatus: submission?.status ?? 'not_started',
       submittedAt: submission?.submitted_at ?? null,
+    };
+  }
+
+  private mapQuestion(raw: any) {
+    return {
+      id: raw.id,
+      questionText: raw.question_text,
+      type: raw.type,
+      choices: raw.choices,
+      order: raw.order,
+    };
+  }
+
+  private mapQuestionWithAnswer(raw: any, studentAnswer: string | null) {
+    return {
+      id: raw.id,
+      questionText: raw.question_text,
+      type: raw.type,
+      correctAnswer: raw.correct_answer,
+      choices: raw.choices,
+      order: raw.order,
+      studentAnswer,
     };
   }
 
@@ -74,19 +97,42 @@ export class AssessmentCoreService {
       releaseDate: assessment.release_date,
       endDate: assessment.end_date,
       isPublished: assessment.is_published,
+      showScoresImmediately: assessment.show_scores_immediately,
       locked,
-      ...(locked ? {} : { questions }),
+      ...(locked ? {} : { questions: questions?.map((q) => this.mapQuestion(q)) }),
     };
   }
 
-  buildResult(submission: any, assessment: any, isGradeLocked: boolean) {
+  buildResult(submission: any, assessment: any, isGradeLocked: boolean, questions: any[] = [], answers: any[] = []) {
+    const canView = this.canViewScore(assessment, isGradeLocked);
+    const answerMap = new Map(answers.map((a: any) => [a.question_id, a]));
+
+    const review = canView
+      ? questions.map((q: any) => {
+          const ans = answerMap.get(q.id);
+          return {
+            id: q.id,
+            questionText: q.question_text,
+            type: q.type,
+            correctAnswer: q.correct_answer,
+            choices: q.choices,
+            order: q.order,
+            studentAnswer: ans?.answer ?? null,
+            isCorrect: ans?.is_correct ?? null,
+          };
+        })
+      : undefined;
+
     return {
       status: submission.status,
       submittedAt: submission.submitted_at,
-      score: this.canViewScore(assessment, isGradeLocked)
+      score: canView
         ? (submission.manual_score ?? submission.score)
         : null,
       isPublished: assessment.is_published,
+      showScoresImmediately: assessment.show_scores_immediately,
+      totalItems: assessment.total_items,
+      questions: review,
     };
   }
 }

@@ -83,6 +83,10 @@ export class CreateAssessmentDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  showScoresImmediately?: boolean;
 }
 
 // ── PATCH /assessments/:id ────────────────────────────────────────────────────
@@ -99,6 +103,10 @@ export class UpdateAssessmentDto {
   @IsOptional()
   @IsIn(ASSESSMENT_TYPES)
   type?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  showScoresImmediately?: boolean;
 }
 
 // ── PATCH /assessments/:id/questions/:questionId ──────────────────────────────
@@ -137,6 +145,15 @@ export class PublishScoresDto {
   @IsArray()
   @IsUUID('4', { each: true })
   studentIds?: string[]; // if empty → publish all
+}
+
+// ── POST /assessments/:id/reopen ─────────────────────────────────────────────
+
+export class ReopenAssessmentDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  studentIds: string[];
 }
 
 // ── POST /assessments/:id/assign-students ────────────────────────────────────

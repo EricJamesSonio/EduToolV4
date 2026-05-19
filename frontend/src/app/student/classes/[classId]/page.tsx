@@ -11,24 +11,14 @@ import { GradeSummaryCard } from "@/components/student/class/overview/GradeSumma
 import { useStudentClass } from "@/hooks/student/useStudentClassess";
 import { useStudentAssessments } from "@/hooks/student/useStudentAssessments";
 import { useStudentGrades } from "@/hooks/student/useStudentGrades";
-import type { StudentAssessmentItem } from "@/api/student/assessment.api";
-import type { StudentTermGrade } from "@/api/student/grade.api";
 
 export default function StudentClassDetailPage(): React.JSX.Element {
   const { classId } = useParams<{ classId: string }>();
   const router = useRouter();
 
   const { data: classData, isLoading: classLoading } = useStudentClass(classId);
-  const { data: assessmentsRaw, isLoading: assessmentsLoading } = useStudentAssessments(classId);
-  const { data: gradesRaw, isLoading: gradesLoading } = useStudentGrades(classId);
-
-    const assessments = Array.isArray(assessmentsRaw)
-    ? assessmentsRaw
-    : (((assessmentsRaw as unknown) as Record<string, unknown>)?.data as StudentAssessmentItem[] ?? []);
-
-    const grades = Array.isArray(gradesRaw)
-    ? gradesRaw
-    : (((gradesRaw as unknown) as Record<string, unknown>)?.data as StudentTermGrade[] ?? []);
+  const { data: assessments = [], isLoading: assessmentsLoading } = useStudentAssessments(classId);
+  const { data: grades = [], isLoading: gradesLoading } = useStudentGrades(classId);
 
   const subjectName = classData?.class?.subjectName ?? "Class";
 

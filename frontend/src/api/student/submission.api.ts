@@ -1,5 +1,11 @@
 import client from "../client";
 
+function unwrap<T>(data: T | { data: T }): T {
+  return data !== null && typeof data === "object" && "data" in (data as object)
+    ? (data as { data: T }).data
+    : (data as T);
+}
+
 export interface AnswerInput {
   questionId: string;
   answer: string;
@@ -34,41 +40,22 @@ export interface FinishSubmissionResponse {
 
 export const studentSubmissionApi = {
   start: async (assessmentId: string): Promise<StartSubmissionResponse> => {
-    const res = await client.post<StartSubmissionResponse>(
-      `/assessments/${assessmentId}/submit`
-    );
-    return res.data;
+    const res = await client.post(`/assessments/${assessmentId}/submit`);
+    return unwrap<StartSubmissionResponse>(res.data);
   },
 
-  saveDraft: async (
-    assessmentId: string,
-    data: SaveDraftRequest
-  ): Promise<SaveDraftResponse> => {
-    const res = await client.patch<SaveDraftResponse>(
-      `/assessments/${assessmentId}/submit/save`,
-      data
-    );
-    return res.data;
+  saveDraft: async (assessmentId: string, data: SaveDraftRequest): Promise<SaveDraftResponse> => {
+    const res = await client.patch(`/assessments/${assessmentId}/submit/save`, data);
+    return unwrap<SaveDraftResponse>(res.data);
   },
 
-  finish: async (
-    assessmentId: string,
-    data: FinishSubmissionRequest
-  ): Promise<FinishSubmissionResponse> => {
-    const res = await client.post<FinishSubmissionResponse>(
-      `/assessments/${assessmentId}/submit/finish`,
-      data
-    );
-    return res.data;
+  finish: async (assessmentId: string, data: FinishSubmissionRequest): Promise<FinishSubmissionResponse> => {
+    const res = await client.post(`/assessments/${assessmentId}/submit/finish`, data);
+    return unwrap<FinishSubmissionResponse>(res.data);
   },
 
-  getOwn: async (
-    assessmentId: string,
-    submissionId: string
-  ): Promise<StartSubmissionResponse> => {
-    const res = await client.get<StartSubmissionResponse>(
-      `/assessments/${assessmentId}/submissions/${submissionId}/answers`
-    );
-    return res.data;
+  getOwn: async (assessmentId: string, submissionId: string): Promise<StartSubmissionResponse> => {
+    const res = await client.get(`/assessments/${assessmentId}/submissions/${submissionId}/answers`);
+    return unwrap<StartSubmissionResponse>(res.data);
   },
 };

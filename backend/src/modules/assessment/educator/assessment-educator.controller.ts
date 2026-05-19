@@ -3,7 +3,8 @@ import { Controller, Post, Get, Patch, Delete, Body, Param, Query, UseGuards, Ht
 import { AssessmentEducatorService } from './assessment-educator.service';
 import {
   CreateAssessmentDto, UpdateAssessmentDto, UpdateQuestionDto,
-  QueryAssessmentDto, PublishScoresDto, GradeEssayDto, UpdateSubmissionStatusDto, AssignStudentsDto,
+  QueryAssessmentDto, PublishScoresDto, GradeEssayDto, UpdateSubmissionStatusDto,
+  AssignStudentsDto, ReopenAssessmentDto,
 } from '../dto/assessment.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -75,5 +76,40 @@ export class AssessmentEducatorController {
   @Post(':id/assign-students')
   assignStudents(@Param('id') assessmentId: string, @CurrentUser('org_id') orgId: string, @CurrentUser('id') educatorId: string, @Body() dto: AssignStudentsDto) {
     return this.service.assignStudents(assessmentId, orgId, educatorId, dto);
+  }
+
+  @Post(':id/reopen')
+  reopen(@Param('id') assessmentId: string, @CurrentUser('org_id') orgId: string, @CurrentUser('id') educatorId: string, @Body() dto: ReopenAssessmentDto) {
+    return this.service.reopen(assessmentId, orgId, educatorId, dto);
+  }
+
+  @Get(':id/generation-status')
+  getGenerationStatus(@Param('id') assessmentId: string) {
+    const status = this.service.getGenerationStatus(assessmentId);
+    if (!status) return { status: 'pending', message: 'Generation not started', chunksTotal: 0, chunksDone: 0 };
+    return status;
+  }
+
+  // ─── Preview flow (no DB save until confirmed) ───
+
+  @Post('generate-preview')
+  generatePreview(@Param('classId') classId: string, @CurrentUser('org_id') orgId: string, @CurrentUser('id') educatorId: string, @Body() dto: CreateAssessmentDto) {
+    return this.service.generatePreview(classId, orgId, educatorId, dto);
+  }
+
+  @Get('preview/:previewId')
+  getPreview(@Param('previewId') previewId: string) {
+    return this.service.getPreview(previewId);
+  }
+
+  @Post('preview/:previewId/confirm')
+  confirmPreview(@Param('classId') classId: string, @Param('previewId') previewId: string, @CurrentUser('org_id') orgId: string, @CurrentUser('id') educatorId: string) {
+    return this.service.confirmPreview(previewId, classId, orgId, educatorId);
+  }
+
+  @Delete('preview/:previewId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  cancelPreview(@Param('previewId') previewId: string) {
+    return this.service.cancelPreview(previewId);
   }
 }
