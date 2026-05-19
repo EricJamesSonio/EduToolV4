@@ -1,12 +1,10 @@
 "use client";
 
-// filepath: frontend/src/app/educator/classes/[classId]/assessments/new/page.tsx
-
 import { useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
-import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { useLessons } from "@/hooks/educator/useLessons";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import {
@@ -19,22 +17,41 @@ import { educatorClassApi } from "@/api/educator/class.api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import type { Lesson, LessonConcept, ConceptSection } from "@/types/educator/lesson.types";
+import type { Lesson, LessonConcept } from "@/types/educator/lesson.types";
 import type { AssessmentType, QuestionType, Question } from "@/types/educator/assessment.types";
-import type { CreateAssessmentRequest, RangeConfig } from "@/api/educator/assessment.api";
+import type { RangeConfig } from "@/api/educator/assessment.api";
 
-interface RangeRow {
+// ─── Concept item from AI ─────────────────────────────────────────────────────
+interface ConceptItemInfo {
+  index: number;
+  name: string;
+  section: string;
+  definition: string;
+  difficulty: string;
+}
+
+// ─── One assessment "section" (maps to a range in the API) ────────────────────
+interface AssessmentSection {
+  id: string;
+  title: string;
   from: number;
   to: number;
   questionType: QuestionType;
-  conceptSections: string[];
+  selectedItemIndices: number[]; // indices into conceptItems[]
+}
+
+interface ConceptContent {
+  sections: string[];
+  keywords: string[];
+  questionCapacity: Record<string, number>;
+  conceptItems: ConceptItemInfo[];
 }
 
 interface BuilderState {
   selectedLesson: Lesson | null;
   type: AssessmentType;
   totalItems: number;
-  ranges: RangeRow[];
+  sections: AssessmentSection[];
   createdAssessmentId: string | null;
   generatedQuestions: Question[];
   releaseDate: string;
@@ -42,9 +59,32 @@ interface BuilderState {
   selectedStudentIds: string[];
 }
 
-const STEPS = ["Select Lesson", "View Concepts", "Basic Config", "Item Ranges", "Generate", "Review Questions", "Set Dates & Assign"];
+const STEPS = ["Select Lesson", "View Concepts", "Configuration", "Generate", "Review Questions", "Set Dates & Assign"];
 
-function StepIndicator({ current }: { current: number }): React.JSX.Element {
+let secIdCounter = 0;
+function makeSection(from: number, to: number): AssessmentSection {
+  return {
+    id: `sec-${++secIdCounter}`,
+    title: "",
+    from,
+    to,
+    questionType: "multiple_choice",
+    selectedItemIndices: [],
+  };
+}
+
+function defaultSectionTitle(type: QuestionType): string {
+  const map: Record<string, string> = {
+    multiple_choice: "Multiple Choice Questions",
+    true_or_false: "True or False Questions",
+    identification: "Identification Questions",
+    enumeration: "Enumeration Questions",
+    essay: "Essay Questions",
+  };
+  return map[type] ?? `${type.replace(/_/g, " ")} Questions`;
+}
+
+function StepIndicator({ current }: { current: number }) {
   return (
     <div className="flex items-center overflow-x-auto pb-1">
       {STEPS.map((label, i) => {
@@ -66,7 +106,8 @@ function StepIndicator({ current }: { current: number }): React.JSX.Element {
   );
 }
 
-function Step1({ classId, selected, onSelect, onNext }: { classId: string; selected: Lesson | null; onSelect: (l: Lesson) => void; onNext: () => void }): React.JSX.Element {
+// ─── Step 1: Select Lesson ────────────────────────────────────────────────────
+function Step1({ classId, selected, onSelect, onNext }: { classId: string; selected: Lesson | null; onSelect: (l: Lesson) => void; onNext: () => void }) {
   const { data: lessons, isLoading } = useLessons(classId);
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading lessons...</p>;
   if (!lessons?.length) return <p className="text-sm text-muted-foreground">No lessons found. Create a lesson first.</p>;
@@ -92,56 +133,52 @@ function Step1({ classId, selected, onSelect, onNext }: { classId: string; selec
   );
 }
 
-interface ConceptContent {
-  sections?: string[];
-  keywords?: string[];
-  questionCapacity?: Record<string, number>;
-}
-
+// ─── Helpers to extract concept content ───────────────────────────────────────
 function getConceptContent(concept: LessonConcept | null): ConceptContent {
-  if (!concept?.content) return {};
+  if (!concept?.content) return { sections: [], keywords: [], questionCapacity: {}, conceptItems: [] };
   const raw = concept.content as any;
+  const items: ConceptItemInfo[] = Array.isArray(raw.concepts)
+    ? raw.concepts.map((c: any, i: number) => ({
+        index: i,
+        name: c.name ?? `Item ${i + 1}`,
+        section: c.section ?? "",
+        definition: c.definition ?? "",
+        difficulty: c.difficulty ?? "medium",
+      }))
+    : [];
   return {
     sections: Array.isArray(raw.sections) ? raw.sections : [],
     keywords: Array.isArray(raw.keywords) ? raw.keywords : [],
     questionCapacity: raw.questionCapacity ?? {},
+    conceptItems: items,
   };
 }
 
-function getConceptSections(concept: LessonConcept | null): ConceptSection[] {
+function getTotalCapacity(concept: LessonConcept | null): number {
   const c = getConceptContent(concept);
-  const capacity = c.questionCapacity ?? {};
-  return (c.sections ?? []).map((name, i) => ({
-    id: `sec-${i}`,
-    name,
-    keywordCount: capacity[name] ?? 0,
-  }));
+  return Object.values(c.questionCapacity).reduce((s, v) => s + v, 0);
 }
 
-function getTotalItems(concept: LessonConcept | null): number {
-  const c = getConceptContent(concept);
-  return Object.values(c.questionCapacity ?? {}).reduce((sum, v) => sum + v, 0);
-}
-
-function Step2({ concept, onNext }: { concept: LessonConcept | null; onNext: () => void }): React.JSX.Element {
-  const c = getConceptContent(concept);
-  if (!c.sections?.length) return <p className="text-sm text-muted-foreground">No concept build available.</p>;
-  const sections = c.sections;
-  const capacity = c.questionCapacity ?? {};
-  const totalItems = getTotalItems(concept);
+// ─── Step 2: View Concepts ────────────────────────────────────────────────────
+function Step2({ concept, onNext }: { concept: LessonConcept | null; onNext: () => void }) {
+  const cc = getConceptContent(concept);
+  if (!cc.sections.length) return <p className="text-sm text-muted-foreground">No concept build available.</p>;
   return (
     <div className="space-y-4 max-w-xl">
       <p className="text-sm text-muted-foreground">Review concept sections used to generate questions.</p>
       <div className="rounded-lg border divide-y">
-        {sections.map((name, i) => (
-          <div key={i} className="px-4 py-3 flex items-center justify-between">
-            <span className="text-sm font-medium">{name}</span>
-            <span className="text-xs text-muted-foreground">cap: {capacity[name] ?? 0}</span>
-          </div>
-        ))}
+        {cc.sections.map((name) => {
+          const count = cc.conceptItems.filter((ci) => ci.section === name).length;
+          return (
+            <div key={name} className="px-4 py-3 flex items-center justify-between">
+              <span className="text-sm font-medium">{name}</span>
+              <span className="text-xs text-muted-foreground">{count} items</span>
+            </div>
+          );
+        })}
         <div className="px-4 py-3 flex items-center justify-between bg-muted/20">
           <span className="text-sm font-semibold">Total</span>
-          <span className="text-sm font-semibold">{totalItems} items</span>
+          <span className="text-sm font-semibold">{cc.conceptItems.length} items</span>
         </div>
       </div>
       <Button onClick={onNext} size="sm">Next</Button>
@@ -149,82 +186,311 @@ function Step2({ concept, onNext }: { concept: LessonConcept | null; onNext: () 
   );
 }
 
-function Step3({ type, totalItems, maxItems, onChange, onNext }: { type: AssessmentType; totalItems: number; maxItems: number; onChange: (u: Partial<Pick<BuilderState, "type" | "totalItems">>) => void; onNext: () => void }): React.JSX.Element {
-  const err = totalItems > maxItems ? `Cannot exceed ${maxItems} items.` : totalItems < 1 ? "Must be at least 1." : null;
-  return (
-    <div className="space-y-5 max-w-sm">
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Type <span className="text-destructive">*</span></label>
-        <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
-          <option value="quiz">Quiz</option><option value="activity">Activity</option><option value="exam">Exam</option><option value="custom">Custom</option>
-        </select>
-      </div>
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Total Items <span className="text-destructive">*</span></label>
-        <input type="number" min={1} max={maxItems} value={totalItems} onChange={(e) => onChange({ totalItems: parseInt(e.target.value, 10) || 1 })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
-        {err ? <p className="text-xs text-destructive">{err}</p> : <p className="text-xs text-muted-foreground">Max {maxItems} from concept build.</p>}
-      </div>
-      <Button onClick={onNext} disabled={!!err} size="sm">Next</Button>
-    </div>
-  );
-}
-
+// ─── Q_TYPES ──────────────────────────────────────────────────────────────────
 const Q_TYPES: { value: QuestionType; label: string }[] = [
-  { value: "multiple_choice", label: "Multiple Choice" }, { value: "true_or_false", label: "True or False" },
-  { value: "identification", label: "Identification" }, { value: "enumeration", label: "Enumeration" }, { value: "essay", label: "Essay" },
+  { value: "multiple_choice", label: "Multiple Choice" },
+  { value: "true_or_false", label: "True or False" },
+  { value: "identification", label: "Identification" },
+  { value: "enumeration", label: "Enumeration" },
+  { value: "essay", label: "Essay" },
 ];
 
-function Step4({ ranges, totalItems, sections, onChange, onNext, isLoading }: { ranges: RangeRow[]; totalItems: number; sections: ConceptSection[]; onChange: (r: RangeRow[]) => void; onNext: () => void; isLoading: boolean }): React.JSX.Element {
-  const covered = ranges.reduce((s, r) => s + Math.max(0, r.to - r.from + 1), 0);
-  const full = covered === totalItems;
-  const addRange = () => { const last = ranges.at(-1)?.to ?? 0; onChange([...ranges, { from: last + 1, to: Math.min(last + 1, totalItems), questionType: "multiple_choice", conceptSections: [] }]); };
-  const upd = (i: number, u: Partial<RangeRow>) => onChange(ranges.map((r, idx) => idx === i ? { ...r, ...u } : r));
+// ─── Step 3: Configuration (merged) ───────────────────────────────────────────
+function Step3({
+  type, totalItems, sections, conceptItems, sectionNames, onChange, onNext, isLoading,
+}: {
+  type: AssessmentType; totalItems: number; sections: AssessmentSection[];
+  conceptItems: ConceptItemInfo[]; sectionNames: string[];
+  onChange: (u: Partial<Pick<BuilderState, "type" | "totalItems" | "sections">>) => void;
+  onNext: () => void; isLoading: boolean;
+}) {
+  const sectionItemCount = sections.reduce((s, sec) => s + (sec.to - sec.from + 1), 0);
+  const itemsMatch = sectionItemCount === totalItems;
+  const itemErrors: string[] = [];
+  for (const sec of sections) {
+    const count = sec.to - sec.from + 1;
+    if (sec.selectedItemIndices.length !== count) {
+      itemErrors.push(`"${sec.title || defaultSectionTitle(sec.questionType)}" needs ${count} items, but ${sec.selectedItemIndices.length} selected.`);
+    }
+  }
+
+  const totalErr = totalItems > conceptItems.length
+    ? `Total items (${totalItems}) exceeds available concept items (${conceptItems.length}).`
+    : totalItems < 1 ? "Must be at least 1." : null;
+
+  const valid = !totalErr && itemsMatch && itemErrors.length === 0;
+
+  function setTotalItems(n: number) {
+    const clamped = Math.max(0, n);
+    // Recalculate section boundaries
+    const newSections = recalcSections(sections, clamped);
+    onChange({ totalItems: clamped, sections: newSections });
+  }
+
+  function recalcSections(existing: AssessmentSection[], newTotal: number): AssessmentSection[] {
+    if (!existing.length) return [];
+    let totalCovered = 0;
+    return existing.map((sec) => {
+      const oldCount = sec.to - sec.from + 1;
+      const newFrom = totalCovered + 1;
+      const newTo = Math.min(totalCovered + oldCount, newTotal);
+      totalCovered = newTo;
+      return { ...sec, from: newFrom, to: newTo };
+    }).filter((sec) => sec.from <= sec.to);
+  }
+
+  function addSection() {
+    const prevEnd = sections.length ? sections[sections.length - 1].to : 0;
+    if (prevEnd >= totalItems) return;
+    const remaining = totalItems - prevEnd;
+    const count = Math.min(remaining, Math.max(1, Math.floor(remaining / (sections.length + 1) * 2)));
+    const from = prevEnd + 1;
+    const to = Math.min(from + count - 1, totalItems);
+    onChange({ sections: [...sections, makeSection(from, to)] });
+  }
+
+  function updateSection(idx: number, u: Partial<AssessmentSection>) {
+    const updated = sections.map((sec, i) => (i === idx ? { ...sec, ...u } : sec));
+    onChange({ sections: updated });
+  }
+
+  function removeSection(idx: number) {
+    const remaining = sections.filter((_, i) => i !== idx);
+    // Recalculate from/to
+    let cursor = 0;
+    const fixed = remaining.map((sec) => {
+      const count = sec.to - sec.from + 1;
+      const from = cursor + 1;
+      const to = cursor + count;
+      cursor = to;
+      return { ...sec, from, to };
+    }).filter((sec) => sec.from <= totalItems && sec.to <= totalItems);
+    onChange({ sections: fixed });
+  }
+
+  // Group concept items by section for display
+  const grouped = sectionNames.map((name) => ({
+    section: name,
+    items: conceptItems.filter((ci) => ci.section === name),
+  }));
+
   return (
-    <div className="space-y-4 max-w-2xl">
-      <p className="text-sm text-muted-foreground">Define item ranges. All {totalItems} items must be covered.</p>
-      <div className="space-y-3">
-        {ranges.map((range, i) => (
-          <div key={i} className="rounded-lg border p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Range {i + 1} ({Math.max(0, range.to - range.from + 1)} items)</span>
-              <button onClick={() => onChange(ranges.filter((_, idx) => idx !== i))} className="text-xs text-destructive hover:underline">Remove</button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><label className="text-xs text-muted-foreground">From</label><input type="number" min={1} max={totalItems} value={range.from} onChange={(e) => upd(i, { from: parseInt(e.target.value, 10) || 1 })} className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" /></div>
-              <div className="space-y-1"><label className="text-xs text-muted-foreground">To</label><input type="number" min={range.from} max={totalItems} value={range.to} onChange={(e) => upd(i, { to: parseInt(e.target.value, 10) || range.from })} className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" /></div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Question Type</label>
-              <select value={range.questionType} onChange={(e) => upd(i, { questionType: e.target.value as QuestionType })} className="w-full rounded-md border bg-background px-3 py-1.5 text-sm">
-                {Q_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Concept Sections</label>
-              {sections.map((s) => (
-                <label key={s.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={range.conceptSections.includes(s.name)} onChange={(e) => upd(i, { conceptSections: e.target.checked ? [...range.conceptSections, s.name] : range.conceptSections.filter((n) => n !== s.name) })} className="rounded" />
-                  <span>{s.name}</span><span className="text-xs text-muted-foreground ml-auto">{s.keywordCount} items</span>
-                </label>
-              ))}
-              {range.conceptSections.length === 0 && <p className="text-xs text-destructive">Select at least one section.</p>}
-            </div>
-          </div>
-        ))}
+    <div className="space-y-6 max-w-3xl">
+      {/* ── Type + Total Items ─────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4 max-w-sm">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Assessment Type <span className="text-destructive">*</span></label>
+          <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+            <option value="quiz">Quiz</option><option value="activity">Activity</option><option value="exam">Exam</option><option value="custom">Custom</option>
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Total Items <span className="text-destructive">*</span></label>
+          <input type="number" min={1} max={conceptItems.length} value={totalItems}
+            onChange={(e) => setTotalItems(parseInt(e.target.value, 10) || 1)}
+            className={cn("w-full rounded-md border bg-background px-3 py-2 text-sm", totalErr && "border-destructive")} />
+          {totalErr ? <p className="text-xs text-destructive">{totalErr}</p> : <p className="text-xs text-muted-foreground">Max {conceptItems.length} from concept build.</p>}
+        </div>
       </div>
-      <Button variant="outline" size="sm" onClick={addRange}>+ Add Range</Button>
+
+      {/* ── Assessment Sections ────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Assessment Sections ({sections.length})</h3>
+          <Button variant="outline" size="sm" onClick={addSection} disabled={sectionItemCount >= totalItems || totalItems === 0}>+ Add Section</Button>
+        </div>
+
+        {sections.length === 0 && (
+          <p className="text-xs text-muted-foreground py-6 text-center border rounded-lg">No sections yet. Click "+ Add Section" to create one.</p>
+        )}
+
+        <div className="space-y-4">
+          {sections.map((sec, si) => {
+            const secCount = sec.to - sec.from + 1;
+            const hasEnoughItems = sec.selectedItemIndices.length >= secCount;
+            const selectedIndicesSet = new Set(sec.selectedItemIndices);
+
+            return (
+              <div key={sec.id} className="rounded-lg border p-4 space-y-3">
+
+                {/* ── Section header ── */}
+                <div className="flex items-center justify-between gap-3">
+                  <input type="text" value={sec.title} placeholder={defaultSectionTitle(sec.questionType)}
+                    onChange={(e) => updateSection(si, { title: e.target.value })}
+                    className="flex-1 rounded border bg-background px-3 py-1.5 text-sm font-medium" />
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button type="button" disabled={si === 0} onClick={() => {
+                      const arr = [...sections];
+                      [arr[si - 1], arr[si]] = [arr[si], arr[si - 1]];
+                      // Recalc boundaries
+                      updateSectionOrder(arr);
+                    }} className="disabled:opacity-20 hover:text-primary"><ChevronUp className="h-4 w-4" /></button>
+                    <button type="button" disabled={si === sections.length - 1} onClick={() => {
+                      const arr = [...sections];
+                      [arr[si], arr[si + 1]] = [arr[si + 1], arr[si]];
+                      updateSectionOrder(arr);
+                    }} className="disabled:opacity-20 hover:text-primary"><ChevronDown className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => removeSection(si)} className="text-xs text-destructive hover:underline">Remove</button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1 w-20">
+                    <label className="text-xs text-muted-foreground">From</label>
+                    <input type="number" value={sec.from} disabled className="w-full rounded-md border bg-muted/30 px-3 py-1.5 text-sm" />
+                  </div>
+                  <div className="space-y-1 w-20">
+                    <label className="text-xs text-muted-foreground">To</label>
+                    <input type="number" value={sec.to}
+                      onChange={(e) => {
+                        const newTo = Math.min(Math.max(parseInt(e.target.value, 10) || sec.from, sec.from), totalItems);
+                        const diff = newTo - sec.from + 1;
+                        // Trim selected items if too many
+                        const trimmed = sec.selectedItemIndices.slice(0, diff);
+                        updateSection(si, { to: newTo, selectedItemIndices: trimmed });
+                      }}
+                      className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" />
+                  </div>
+                  <div className="space-y-1 w-36">
+                    <label className="text-xs text-muted-foreground">Type</label>
+                    <select value={sec.questionType} onChange={(e) => updateSection(si, { questionType: e.target.value as QuestionType })} className="w-full rounded-md border bg-background px-3 py-1.5 text-sm">
+                      {Q_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="text-xs text-muted-foreground">{sec.selectedItemIndices.length} / {secCount} items selected</div>
+                </div>
+
+                {/* ── Concept item picker grouped by section ── */}
+                <div className="rounded-lg border max-h-56 overflow-y-auto divide-y">
+                  {grouped.map((g) => {
+                    if (!g.items.length) return null;
+                    const allSelected = g.items.every((ci) => selectedIndicesSet.has(ci.index));
+                    return (
+                      <div key={g.section} className="px-3 py-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.section} ({g.items.length})</span>
+                          <label className="flex items-center gap-1 text-xs cursor-pointer">
+                            <input type="checkbox"
+                              checked={allSelected}
+                              onChange={() => {
+                                if (allSelected) {
+                                  updateSection(si, { selectedItemIndices: sec.selectedItemIndices.filter((idx) => !g.items.some((ci) => ci.index === idx)) });
+                                } else {
+                                  const toAdd = g.items.filter((ci) => !selectedIndicesSet.has(ci.index)).map((ci) => ci.index);
+                                  updateSection(si, { selectedItemIndices: [...sec.selectedItemIndices, ...toAdd] });
+                                }
+                              }}
+                              className="rounded" />
+                            Select all
+                          </label>
+                        </div>
+                        <div className="space-y-0.5">
+                          {g.items.map((ci) => (
+                            <label key={ci.index} className={cn("flex items-start gap-2 py-0.5 px-1 rounded cursor-pointer text-xs hover:bg-muted/30", selectedIndicesSet.has(ci.index) && "bg-primary/5")}>
+                              <input type="checkbox" className="mt-0.5 rounded"
+                                checked={selectedIndicesSet.has(ci.index)}
+                                onChange={() => {
+                                  updateSection(si, {
+                                    selectedItemIndices: selectedIndicesSet.has(ci.index)
+                                      ? sec.selectedItemIndices.filter((idx) => idx !== ci.index)
+                                      : [...sec.selectedItemIndices, ci.index],
+                                  });
+                                }} />
+                              <div className="flex-1 min-w-0">
+                                <span className="font-medium">{ci.name}</span>
+                                {ci.definition && <span className="text-muted-foreground ml-1">— {ci.definition}</span>}
+                              </div>
+                              <span className={cn("text-[10px] uppercase shrink-0", ci.difficulty === "easy" ? "text-green-600" : ci.difficulty === "hard" ? "text-destructive" : "text-amber-600")}>{ci.difficulty}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {!hasEnoughItems && (
+                  <p className="text-xs text-destructive">Select at least {secCount} item{secCount > 1 ? "s" : ""} from the concept sections above.</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Validation errors ──────────────────────────────── */}
+      {itemErrors.length > 0 && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2 space-y-1">
+          {itemErrors.map((err, i) => <p key={i} className="text-xs text-destructive">{err}</p>)}
+        </div>
+      )}
+
+      {/* ── Summary + Generate ─────────────────────────────── */}
       <div className="flex items-center gap-3 pt-1">
-        <p className={cn("text-sm", full ? "text-green-600" : "text-amber-600")}>{covered} / {totalItems} items covered</p>
-        <Button onClick={onNext} disabled={!full || ranges.some((r) => r.conceptSections.length === 0) || isLoading} size="sm">
+        <p className={cn("text-sm", valid ? "text-green-600" : "text-amber-600")}>
+          {sectionItemCount} / {totalItems} items covered
+        </p>
+        <Button onClick={onNext} disabled={!valid || isLoading} size="sm">
           {isLoading && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
           Generate
         </Button>
       </div>
     </div>
   );
+
+  function updateSectionOrder(arr: AssessmentSection[]) {
+    let cursor = 0;
+    const fixed = arr.map((sec) => {
+      const count = sec.to - sec.from + 1;
+      const from = cursor + 1;
+      const to = cursor + count;
+      cursor = to;
+      return { ...sec, from, to };
+    }).filter((sec) => sec.from <= totalItems && sec.to <= totalItems);
+    onChange({ sections: fixed });
+  }
 }
 
-function Step5({ classId, assessmentId, onQuestionsReady }: { classId: string; assessmentId: string; onQuestionsReady: (q: Question[]) => void }): React.JSX.Element {
+// ─── Helpers to convert sections → ranges for API ─────────────────────────────
+function sectionsToRanges(sections: AssessmentSection[]): RangeRow[] {
+  return sections
+    .filter((sec) => sec.selectedItemIndices.length > 0)
+    .map((sec) => {
+      // Get unique section names from selected concept items
+      // (We don't have conceptItems here, so we keep a placeholder)
+      return {
+        from: sec.from,
+        to: sec.to,
+        questionType: sec.questionType,
+        conceptSections: [] as string[], // filled by caller
+      };
+    });
+}
+
+interface RangeRow {
+  from: number;
+  to: number;
+  questionType: QuestionType;
+  conceptSections: string[];
+}
+
+function getSectionsForRanges(sections: AssessmentSection[], conceptItems: ConceptItemInfo[]): RangeRow[] {
+  return sections
+    .filter((sec) => sec.selectedItemIndices.length >= sec.to - sec.from + 1)
+    .map((sec) => {
+      const selectedConcepts = sec.selectedItemIndices.map((idx) => conceptItems[idx]).filter(Boolean);
+      const uniqueSections = [...new Set(selectedConcepts.map((c) => c.section))];
+      return {
+        from: sec.from,
+        to: sec.to,
+        questionType: sec.questionType,
+        conceptSections: uniqueSections,
+      };
+    });
+}
+
+// ─── Step 4: Generating ───────────────────────────────────────────────────────
+function Step4({ classId, assessmentId, onQuestionsReady }: { classId: string; assessmentId: string; onQuestionsReady: (q: Question[]) => void }) {
   const advancedRef = useRef(false);
   const { data } = useAssessment(classId, assessmentId, {
     refetchInterval: (query) => (query.state.data?.questions?.length ?? 0) > 0 ? false : 3000,
@@ -242,9 +508,10 @@ function Step5({ classId, assessmentId, onQuestionsReady }: { classId: string; a
   );
 }
 
-function Step6({ classId, assessmentId, questions, onNext }: { classId: string; assessmentId: string; questions: Question[]; onNext: () => void }): React.JSX.Element {
+// ─── Step 5: Review Questions ─────────────────────────────────────────────────
+function Step5({ classId, assessmentId, questions, onNext }: { classId: string; assessmentId: string; questions: Question[]; onNext: () => void }) {
   const [edits, setEdits] = useState<Record<string, { text: string; correctAnswer: string }>>(() => Object.fromEntries(questions.map((q) => [q.id, { text: q.text, correctAnswer: q.correctAnswer ?? "" }])));
-  async function saveEdit(qId: string): Promise<void> {
+  async function saveEdit(qId: string) {
     const e = edits[qId]; if (!e) return;
     try { await assessmentApi.updateQuestion(classId, assessmentId, qId, { questionText: e.text, correctAnswer: e.correctAnswer || undefined }); }
     catch { toast.error("Failed to save question edit."); }
@@ -274,7 +541,12 @@ function Step6({ classId, assessmentId, questions, onNext }: { classId: string; 
   );
 }
 
-function Step7({ classId, releaseDate, endDate, selectedStudentIds, onChange, onPublish, isLoading }: { classId: string; releaseDate: string; endDate: string; selectedStudentIds: string[]; onChange: (u: Partial<Pick<BuilderState, "releaseDate" | "endDate" | "selectedStudentIds">>) => void; onPublish: () => void; isLoading: boolean }): React.JSX.Element {
+// ─── Step 6: Set Dates & Assign ───────────────────────────────────────────────
+function Step6({ classId, releaseDate, endDate, selectedStudentIds, onChange, onPublish, isLoading }: {
+  classId: string; releaseDate: string; endDate: string; selectedStudentIds: string[];
+  onChange: (u: Partial<Pick<BuilderState, "releaseDate" | "endDate" | "selectedStudentIds">>) => void;
+  onPublish: () => void; isLoading: boolean;
+}) {
   const invalid = releaseDate && endDate && new Date(endDate) <= new Date(releaseDate);
   const { data: students } = useQuery({
     queryKey: ["class-students", classId],
@@ -323,7 +595,8 @@ function Step7({ classId, releaseDate, endDate, selectedStudentIds, onChange, on
   );
 }
 
-export default function NewAssessmentPage(): React.JSX.Element {
+// ─── Main Page ────────────────────────────────────────────────────────────────
+export default function NewAssessmentPage() {
   const params = useParams();
   const router = useRouter();
   const classId = params.classId as string;
@@ -331,7 +604,8 @@ export default function NewAssessmentPage(): React.JSX.Element {
   const [step, setStep] = useState(0);
   const [state, setState] = useState<BuilderState>({
     selectedLesson: null, type: "quiz", totalItems: 1,
-    ranges: [], createdAssessmentId: null, generatedQuestions: [], releaseDate: "", endDate: "", selectedStudentIds: [],
+    sections: [], createdAssessmentId: null, generatedQuestions: [],
+    releaseDate: "", endDate: "", selectedStudentIds: [],
   });
 
   const { mutateAsync: createAssessment, isPending: isCreating } = useCreateAssessment(classId);
@@ -340,6 +614,7 @@ export default function NewAssessmentPage(): React.JSX.Element {
   const patch = useCallback((u: Partial<BuilderState>) => setState((p) => ({ ...p, ...u })), []);
   const next = () => setStep((s) => s + 1);
   const concept = state.selectedLesson?.concept ?? null;
+  const cc = getConceptContent(concept);
 
   function getTermId(): string {
     if (!state.selectedLesson || !weeks.length) return "";
@@ -347,21 +622,24 @@ export default function NewAssessmentPage(): React.JSX.Element {
     return week?.termId ?? "";
   }
 
-  async function handleGenerate(): Promise<void> {
+  async function handleGenerate() {
     if (!state.selectedLesson) return;
     const termId = getTermId();
     if (!termId) { toast.error("Could not determine term for this lesson's week."); return; }
+    const ranges = getSectionsForRanges(state.sections, cc.conceptItems);
+    if (!ranges.length) { toast.error("No sections configured."); return; }
     try {
       const assessment = await createAssessment({
-        lessonId: state.selectedLesson.id, termId, type: state.type, totalItems: state.totalItems,
-        ranges: state.ranges.map((r) => ({ from: r.from, to: r.to, questionType: r.questionType as RangeConfig["questionType"], conceptSections: r.conceptSections })),
+        lessonId: state.selectedLesson.id, termId, type: state.type,
+        totalItems: state.totalItems,
+        ranges: ranges.map((r) => ({ from: r.from, to: r.to, questionType: r.questionType as RangeConfig["questionType"], conceptSections: r.conceptSections })),
       });
       patch({ createdAssessmentId: assessment.id });
       next();
     } catch { toast.error("Failed to create assessment."); }
   }
 
-  async function handlePublish(): Promise<void> {
+  async function handlePublish() {
     if (!state.createdAssessmentId) return;
     try {
       await updateAssessment({ assessmentId: state.createdAssessmentId, data: { releaseDate: state.releaseDate || undefined, endDate: state.endDate || undefined } });
@@ -383,11 +661,10 @@ export default function NewAssessmentPage(): React.JSX.Element {
       <div className="pt-2">
         {step === 0 && <Step1 classId={classId} selected={state.selectedLesson} onSelect={(l) => patch({ selectedLesson: l })} onNext={next} />}
         {step === 1 && <Step2 concept={concept} onNext={next} />}
-        {step === 2 && <Step3 type={state.type} totalItems={state.totalItems} maxItems={getTotalItems(concept)} onChange={(u) => patch(u)} onNext={next} />}
-        {step === 3 && <Step4 ranges={state.ranges} totalItems={state.totalItems} sections={getConceptSections(concept)} onChange={(ranges) => patch({ ranges })} onNext={handleGenerate} isLoading={isCreating} />}
-        {step === 4 && state.createdAssessmentId && <Step5 classId={classId} assessmentId={state.createdAssessmentId} onQuestionsReady={(q) => { patch({ generatedQuestions: q }); next(); }} />}
-        {step === 5 && state.createdAssessmentId && <Step6 classId={classId} assessmentId={state.createdAssessmentId} questions={state.generatedQuestions} onNext={next} />}
-        {step === 6 && <Step7 classId={classId} releaseDate={state.releaseDate} endDate={state.endDate} selectedStudentIds={state.selectedStudentIds} onChange={(u) => patch(u)} onPublish={handlePublish} isLoading={isUpdating} />}
+        {step === 2 && <Step3 type={state.type} totalItems={state.totalItems} sections={state.sections} conceptItems={cc.conceptItems} sectionNames={cc.sections} onChange={(u) => patch(u)} onNext={handleGenerate} isLoading={isCreating} />}
+        {step === 3 && state.createdAssessmentId && <Step4 classId={classId} assessmentId={state.createdAssessmentId} onQuestionsReady={(q) => { patch({ generatedQuestions: q }); next(); }} />}
+        {step === 4 && state.createdAssessmentId && <Step5 classId={classId} assessmentId={state.createdAssessmentId} questions={state.generatedQuestions} onNext={next} />}
+        {step === 5 && <Step6 classId={classId} releaseDate={state.releaseDate} endDate={state.endDate} selectedStudentIds={state.selectedStudentIds} onChange={(u) => patch(u)} onPublish={handlePublish} isLoading={isUpdating} />}
       </div>
     </div>
   );
