@@ -22,7 +22,7 @@ export default function AssessmentResultPage(): React.JSX.Element {
 
   const isLoading = resultLoading || assessmentLoading;
 
-  const canViewScore = !!(result?.score != null && result?.showScoresImmediately) || result?.isPublished;
+  const canViewScore = result?.isPublished === true;
   const scorePercent = result?.score != null && assessment?.totalItems
     ? Math.round((result.score / assessment.totalItems) * 100)
     : null;
@@ -83,13 +83,13 @@ export default function AssessmentResultPage(): React.JSX.Element {
               </div>
             ) : (
               <div className="flex items-center gap-2 py-4">
-                {result.showScoresImmediately ? (
+                {result.isPublished ? (
                   <Lock className="h-4 w-4 text-muted-foreground/50" />
                 ) : (
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 )}
                 <p className="text-sm text-muted-foreground">
-                  {result.showScoresImmediately
+                  {result.isPublished
                     ? "Score not yet published by your educator"
                     : "Assessment submitted"}
                 </p>

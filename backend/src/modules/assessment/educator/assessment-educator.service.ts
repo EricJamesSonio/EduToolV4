@@ -2,6 +2,7 @@
 import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { AssessmentRepository } from '../core/assessment-core.repository';
 import { AssessmentCoreService } from '../core/assessment-core.service';
+import { DatabaseService } from '@/core/database/database.provider';
 import { LessonRepository } from '@/modules/lesson/lesson.repository';
 import { ClassRepository } from '@/modules/class/class.repository';
 import { AuditLogService } from '@/modules/audit-log/audit-log.service';
@@ -30,6 +31,7 @@ export class AssessmentEducatorService {
   constructor(
     private readonly repo: AssessmentRepository,
     private readonly core: AssessmentCoreService,
+    private readonly db: DatabaseService,
     private readonly lessonRepo: LessonRepository,
     private readonly classRepo: ClassRepository,
     private readonly auditLog: AuditLogService,
@@ -123,7 +125,6 @@ export class AssessmentEducatorService {
       releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
       endDate: dto.endDate ? new Date(dto.endDate) : undefined,
       type: dto.type,
-      showScoresImmediately: dto.showScoresImmediately,
     });
 
     await this.auditLog.logActivityEvent({
@@ -225,16 +226,47 @@ export class AssessmentEducatorService {
     const assessment = await this.core.findAssessmentOrThrow(assessmentId, orgId);
     await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
 
-    const deleted = await this.repo.deleteSubmissionsByStudentIds(assessmentId, dto.studentIds);
+    const reopenedUntil = new Date(dto.reopenedUntil);
+
+    for (const studentId of dto.studentIds) {
+      const existing = await this.repo.findSubmissionByStudent(assessmentId, studentId);
+      if (existing) {
+        // Reset existing submission: delete answers, set status to not_started, set reopened_until
+        await this.db.submissionAnswer.deleteMany({
+          where: { submission_id: existing.id },
+        });
+        await this.db.submission.update({
+          where: { id: existing.id },
+          data: {
+            status: 'not_started',
+            score: null,
+            manual_score: null,
+            submitted_at: null,
+            reopened_until: reopenedUntil,
+          },
+        });
+      } else {
+        // Create new submission with reopened_until
+        await this.db.submission.create({
+          data: {
+            org_id: orgId,
+            assessment_id: assessmentId,
+            student_id: studentId,
+            status: 'not_started',
+            reopened_until: reopenedUntil,
+          },
+        });
+      }
+    }
 
     await this.auditLog.logActivityEvent({
       orgId, actorId: educatorId,
       action: 'assessment_reopened',
       entityType: 'assessment', entityId: assessmentId,
-      metadata: { assessmentId, studentIds: dto.studentIds },
+      metadata: { assessmentId, studentIds: dto.studentIds, reopenedUntil: dto.reopenedUntil },
     });
 
-    return { success: true, reopened: deleted };
+    return { success: true, reopened: dto.studentIds.length };
   }
 
   async assignStudents(assessmentId: string, orgId: string, educatorId: string, dto: AssignStudentsDto) {
@@ -449,7 +481,6 @@ async confirmPreview(previewId: string, classId: string, orgId: string, educator
       type: dto.type,
       totalItems: dto.totalItems,
       releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
-      showScoresImmediately: dto.showScoresImmediately,
     });
 
   const questions = generated.map((q, idx) => ({

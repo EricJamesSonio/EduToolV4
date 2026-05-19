@@ -23,14 +23,12 @@ export interface CreateAssessmentRequest {
   ranges: RangeConfig[];
   releaseDate?: string;
   endDate?: string;
-  showScoresImmediately?: boolean;
 }
 
 export interface UpdateAssessmentRequest {
   type?: "quiz" | "activity" | "exam" | "custom";
   releaseDate?: string;
   endDate?: string;
-  showScoresImmediately?: boolean;
 }
 
 export interface UpdateQuestionRequest {
@@ -108,7 +106,6 @@ function mapAssessment(raw: Record<string, unknown>): Assessment {
     pendingEssayCount: (raw.pending_essay_count ?? raw.pendingEssayCount ?? 0) as number,
     questions,
     isPublished: (raw.is_published ?? raw.isPublished ?? false) as boolean,
-    showScoresImmediately: (raw.show_scores_immediately ?? raw.showScoresImmediately ?? false) as boolean,
     createdAt: (raw.created_at ?? raw.createdAt) as string,
     updatedAt: (raw.updated_at ?? raw.updatedAt ?? raw.createdAt) as string,
   };
@@ -228,8 +225,8 @@ export const assessmentApi = {
     return unwrap<{ success: true }>(data);
   },
 
-  reopen: async (classId: string, assessmentId: string, studentIds: string[]): Promise<{ success: true; reopened: number }> => {
-    const { data } = await apiClient.post(`/classes/${classId}/assessments/${assessmentId}/reopen`, { studentIds });
+  reopen: async (classId: string, assessmentId: string, studentIds: string[], reopenedUntil: string): Promise<{ success: true; reopened: number }> => {
+    const { data } = await apiClient.post(`/classes/${classId}/assessments/${assessmentId}/reopen`, { studentIds, reopenedUntil });
     return unwrap<{ success: true; reopened: number }>(data);
   },
 

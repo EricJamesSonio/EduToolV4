@@ -44,7 +44,7 @@ export class AssessmentCoreService {
   }
 
   canViewScore(assessment: any, isGradeLocked: boolean): boolean {
-    return assessment.is_published || isGradeLocked || assessment.show_scores_immediately;
+    return assessment.is_published || isGradeLocked;
   }
 
   assertBelongsToClass(assessment: any, classId: string) {
@@ -61,7 +61,6 @@ export class AssessmentCoreService {
       releaseDate: assessment.release_date,
       endDate: assessment.end_date,
       isPublished: assessment.is_published,
-      showScoresImmediately: assessment.show_scores_immediately,
       submissionStatus: submission?.status ?? 'not_started',
       submittedAt: submission?.submitted_at ?? null,
     };
@@ -97,7 +96,6 @@ export class AssessmentCoreService {
       releaseDate: assessment.release_date,
       endDate: assessment.end_date,
       isPublished: assessment.is_published,
-      showScoresImmediately: assessment.show_scores_immediately,
       locked,
       ...(locked ? {} : { questions: questions?.map((q) => this.mapQuestion(q)) }),
     };
@@ -130,7 +128,6 @@ export class AssessmentCoreService {
         ? (submission.manual_score ?? submission.score)
         : null,
       isPublished: assessment.is_published,
-      showScoresImmediately: assessment.show_scores_immediately,
       totalItems: assessment.total_items,
       questions: review,
     };

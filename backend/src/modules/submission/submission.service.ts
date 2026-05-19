@@ -20,7 +20,7 @@ export class SubmissionService {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  private async assertAssessmentOpen(assessmentId: string, orgId: string) {
+  private async assertAssessmentOpen(assessmentId: string, orgId: string, studentId?: string) {
     const assessment = await this.assessmentRepo.findById(assessmentId, orgId);
     if (!assessment) throw new NotFoundException('Assessment not found.');
 
@@ -36,8 +36,14 @@ export class SubmissionService {
       throw new ForbiddenException('Assessment has not been released yet.');
     }
 
-    // Must be before end date
+    // Check end date — skip if student has a reopened_until extension
     if (assessment.end_date && now > new Date(assessment.end_date)) {
+      if (studentId) {
+        const submission = await this.submissionRepo.findByStudent(assessmentId, studentId);
+        if (submission?.reopened_until && now < new Date(submission.reopened_until)) {
+          return assessment; // extension is still valid
+        }
+      }
       throw new ForbiddenException('Assessment deadline has passed.');
     }
 
@@ -51,7 +57,7 @@ export class SubmissionService {
     orgId: string,
     studentId: string,
   ) {
-    const assessment = await this.assertAssessmentOpen(assessmentId, orgId);
+    const assessment = await this.assertAssessmentOpen(assessmentId, orgId, studentId);
 
     // Check existing attempt
     const existing = await this.submissionRepo.findByStudent(
@@ -87,7 +93,7 @@ export class SubmissionService {
     studentId: string,
     dto: SaveDraftDto,
   ) {
-    await this.assertAssessmentOpen(assessmentId, orgId);
+    await this.assertAssessmentOpen(assessmentId, orgId, studentId);
 
     const submission = await this.submissionRepo.findByStudent(
       assessmentId,
@@ -131,7 +137,7 @@ export class SubmissionService {
     studentId: string,
     dto: FinishSubmissionDto,
   ) {
-    const assessment = await this.assertAssessmentOpen(assessmentId, orgId);
+    const assessment = await this.assertAssessmentOpen(assessmentId, orgId, studentId);
 
     const submission = await this.submissionRepo.findByStudent(
       assessmentId,
@@ -188,12 +194,17 @@ export class SubmissionService {
     // Score = number of correct non-essay answers
     const score = gradedAnswers.filter((a) => a.isCorrect).length;
 
-    // Mark as submitted
+    // Mark as submitted — also clear reopened_until so extension is consumed
     const updated = await this.submissionRepo.updateStatus(submission.id, {
       status: 'submitted',
       score,
       submittedAt: new Date(),
     });
+
+    // Clear reopened_until if it was set
+    if (submission.reopened_until) {
+      await this.submissionRepo.clearReopenedUntil(submission.id).catch(() => {});
+    }
 
     // ── Fire-and-forget: auto-mark present ───────────────────────────────────
     if (assessment.class_id) {

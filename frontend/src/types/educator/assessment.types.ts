@@ -59,7 +59,6 @@ export interface Assessment {
   endDate: string | null;
   status: AssessmentStatus;
   isPublished: boolean;
-  showScoresImmediately: boolean;
   assignedStudentIds: string[] | null;
   submittedCount: number;
   pendingEssayCount: number;

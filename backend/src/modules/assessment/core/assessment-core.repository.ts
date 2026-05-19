@@ -17,7 +17,6 @@ export class AssessmentRepository {
     totalItems: number;
     releaseDate?: Date;
     endDate?: Date;
-    showScoresImmediately?: boolean;
   }) {
     return this.db.assessment.create({
       data: {
@@ -29,7 +28,6 @@ export class AssessmentRepository {
         total_items: data.totalItems,
         release_date: data.releaseDate ?? null,
         is_published: false,
-        show_scores_immediately: data.showScoresImmediately ?? false,
       },
     });
   }
@@ -50,7 +48,7 @@ export class AssessmentRepository {
     return this.db.assessment.findFirst({ where: { id, org_id: orgId } });
   }
 
-  async update(id: string, data: { releaseDate?: Date | null; endDate?: Date | null; type?: string; isPublished?: boolean; showScoresImmediately?: boolean }) {
+  async update(id: string, data: { releaseDate?: Date | null; endDate?: Date | null; type?: string; isPublished?: boolean }) {
     return this.db.assessment.update({
       where: { id },
       data: {
@@ -58,7 +56,6 @@ export class AssessmentRepository {
         ...(data.endDate !== undefined ? { end_date: data.endDate } : {}),
         ...(data.type !== undefined ? { type: data.type } : {}),
         ...(data.isPublished !== undefined ? { is_published: data.isPublished } : {}),
-        ...(data.showScoresImmediately !== undefined ? { show_scores_immediately: data.showScoresImmediately } : {}),
       },
     });
   }
@@ -158,22 +155,6 @@ export class AssessmentRepository {
 
   async gradeEssay(id: string, score: number) {
     return this.db.submission.update({ where: { id }, data: { manual_score: score } });
-  }
-
-  async deleteSubmissionsByStudentIds(assessmentId: string, studentIds: string[]) {
-    const submissions = await this.db.submission.findMany({
-      where: { assessment_id: assessmentId, student_id: { in: studentIds } },
-    });
-    const submissionIds = submissions.map((s) => s.id);
-    if (submissionIds.length === 0) return 0;
-
-    await this.db.submissionAnswer.deleteMany({
-      where: { submission_id: { in: submissionIds } },
-    });
-    const result = await this.db.submission.deleteMany({
-      where: { id: { in: submissionIds } },
-    });
-    return result.count;
   }
 
   async publishAllByClass(classId: string, orgId: string) {

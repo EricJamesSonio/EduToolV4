@@ -113,6 +113,15 @@ export class SubmissionRepository {
     });
   }
 
+  // ───────── REOPEN ─────────
+
+  async clearReopenedUntil(submissionId: string) {
+    return this.db.submission.update({
+      where: { id: submissionId },
+      data: { reopened_until: null },
+    });
+  }
+
   // ───────── AUTO-CLOSE DRAFTS ─────────
 
   async closeExpiredDrafts(assessmentId: string) {

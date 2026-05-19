@@ -13,7 +13,6 @@ export interface StudentAssessmentItem {
   releaseDate?: string;
   endDate?: string;
   isPublished: boolean;
-  showScoresImmediately: boolean;
   submissionStatus: "not_started" | "draft" | "submitted" | "graded" | "exempted" | string;
   submittedAt: string | null;
 }
@@ -40,7 +39,6 @@ export interface AssessmentResult {
   submittedAt: string;
   score: number | null;
   isPublished: boolean;
-  showScoresImmediately: boolean;
   totalItems: number;
   questions?: Array<{
     id: string;
