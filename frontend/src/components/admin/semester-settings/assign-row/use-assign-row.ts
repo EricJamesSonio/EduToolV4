@@ -62,17 +62,18 @@ export function useAssignRow(
   const calendarStart = calendarInfo?.startDate ?? ""
   const calendarEnd = calendarInfo?.endDate ?? ""
 
-  // Filter templates to only those matching calendar break count
+  // Filter templates to only those matching program type AND break count
   const matchingTemplates = useMemo(() => {
-    if (!calendarBreaks.length) return templates // If no calendar, show all
-    const filtered = templates.filter((t) => t.semesters.length === calendarBreaks.length)
+    const typeFiltered = templates.filter((t) => t.program_type === program.type)
+    if (!calendarBreaks.length) return typeFiltered
+    const filtered = typeFiltered.filter((t) => t.semesters.length === calendarBreaks.length)
     // Always include currently assigned template so dropdown value stays valid
     if (current && !filtered.some((t) => t.id === current.template_id)) {
-      const ct = templates.find((t) => t.id === current.template_id)
+      const ct = typeFiltered.find((t) => t.id === current.template_id)
       if (ct) return [...filtered, ct]
     }
     return filtered
-  }, [templates, calendarBreaks.length, current])
+  }, [templates, calendarBreaks.length, current, program.type])
 
   // Has no calendar = can't assign (regardless of existing assignment)
   const hasNoCalendar = !calendarInfo

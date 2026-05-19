@@ -25,6 +25,8 @@
     "noFallthroughCasesInSwitch": false,
     "skipLibCheck": true,
 
+    "baseUrl": ".",
+
     "paths": {
       "@/*": ["./src/*"]
     }
