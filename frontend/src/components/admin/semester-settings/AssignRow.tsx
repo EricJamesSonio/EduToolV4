@@ -78,7 +78,7 @@ export function AssignRow({
 
         <span className="text-sm font-medium flex-1 truncate">{program.name}</span>
 
-        {hasNoCalendar && !current ? (
+        {hasNoCalendar ? (
           <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 shrink-0 ml-auto">
             <AlertTriangle className="h-3 w-3 mr-1" />
             No Calendar
@@ -97,23 +97,11 @@ export function AssignRow({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">— None —</SelectItem>
-                {templates.map((t) => {
-                  const matches = matchingTemplates.some((mt) => mt.id === t.id)
-                  return (
-                    <SelectItem
-                      key={t.id}
-                      value={t.id}
-                      disabled={!matches}
-                    >
-                      {t.name}
-                      {!matches && (
-                        <span className="text-muted-foreground ml-2">
-                          ({t.semesters.length} sem &ne; {calendarBreaks.length} breaks)
-                        </span>
-                      )}
-                    </SelectItem>
-                  )
-                })}
+                {matchingTemplates.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name} ({t.semesters.length} sem)
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -148,11 +136,11 @@ export function AssignRow({
         </div>
       )}
 
-      {/* Calendar info when selected template differs from break count */}
+      {/* Calendar break info */}
       {!hasNoCalendar && calendarBreaks.length > 0 && (
         <p className="text-[11px] text-muted-foreground px-1">
           Calendar has <strong>{calendarBreaks.length} break point{calendarBreaks.length !== 1 ? "s" : ""}</strong>{" "}
-          ({calendarBreaks.map((b) => b.label).join(", ")}) — only templates with {calendarBreaks.length} semester(s) are available.
+          ({calendarBreaks.map((b) => b.label).join(", ")}) — only templates with {calendarBreaks.length} semester(s) shown.
         </p>
       )}
 

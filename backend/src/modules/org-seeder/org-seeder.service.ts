@@ -1036,7 +1036,8 @@ export class OrgSeederService {
         if (!strandSelections.has(dedupeKey)) {
           strandSelections.set(dedupeKey, new Set());
         }
-        if (s.strandName) {
+        // Only consider strands that are actually in the seed request
+        if (s.strandName && strandMap[s.strandName]) {
           const isExcluded = excludedLevelSubjects[s.strandName]?.includes(s.name);
           if (!isExcluded) {
             strandSelections.get(dedupeKey)!.add(s.strandName);

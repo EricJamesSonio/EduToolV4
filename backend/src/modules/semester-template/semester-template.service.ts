@@ -284,7 +284,9 @@ private async createPlaceholderSemesters(
 
   /**
    * Compute smart default term dates from calendar breaks + template.
-   * Each semester's duration is equally divided among its terms.
+   * Each break IS a semester period (first break start = calendar start,
+   * last break end = calendar end). The gaps between breaks are the actual
+   * no-class periods. Each semester's duration is equally divided among its terms.
    */
   async computeDefaultTermDates(
     orgId: string,
@@ -304,31 +306,15 @@ private async createPlaceholderSemesters(
 
     if (!calendar) return []
 
-    const calStart = new Date(calendar.start_date)
-    const calEnd   = new Date(calendar.end_date)
-    const breaks   = calendar.breaks
+    const breaks = calendar.breaks
 
-    // Build semester periods from calendar breaks
-    // Period 1: calStart → break1.start - 1 day
-    // Period 2: break1.end + 1 day → break2.start - 1 day (or calEnd if last)
+    // Build semester periods from calendar breaks.
+    // Each break IS a semester period. The gaps between breaks are no-class periods.
     const semPeriods: Array<{ start: Date; end: Date }> = []
 
-    for (let i = 0; i <= breaks.length; i++) {
-      const semStart = i === 0
-        ? new Date(calStart)
-        : (() => {
-            const d = new Date(breaks[i - 1].end_date)
-            d.setDate(d.getDate() + 1)
-            return d
-          })()
-
-      const semEnd = i >= breaks.length
-        ? new Date(calEnd)
-        : (() => {
-            const d = new Date(breaks[i].start_date)
-            d.setDate(d.getDate() - 1)
-            return d
-          })()
+    for (let i = 0; i < breaks.length; i++) {
+      const semStart = new Date(breaks[i].start_date)
+      const semEnd   = new Date(breaks[i].end_date)
 
       if (semStart <= semEnd) {
         semPeriods.push({ start: semStart, end: semEnd })

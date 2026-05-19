@@ -12,6 +12,8 @@ import {
   SHS_STRAND_SUBJECTS,
   COLLEGE_GE_SET,
   SHS_MINOR_SET,
+  COLLEGE_GE_LEVEL,
+  SHS_MINOR_LEVEL,
   subjectKey,
   parseSubjectKey,
 } from "./constants/seed-data"
@@ -116,6 +118,11 @@ export function SubjectStep({
                     disabled={isDisabled(key)}
                   />
                   <SubjectTypeTag type={isMinor ? "minor" : "major"} />
+                  {isMinor && (COLLEGE_GE_LEVEL[subjectName] ?? SHS_MINOR_LEVEL[subjectName]) && (
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {COLLEGE_GE_LEVEL[subjectName] ?? SHS_MINOR_LEVEL[subjectName]}
+                    </span>
+                  )}
                 </div>
               )
             })}

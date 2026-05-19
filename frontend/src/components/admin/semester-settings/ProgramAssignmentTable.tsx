@@ -1,15 +1,12 @@
 // ===== File: frontend/src/components/admin/semester-settings/ProgramAssignmentTable.tsx =====
 "use client";
 
-import { useState, useMemo } from "react";
-import { AlertCircle, Layers, CalendarDays } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { AlertCircle, AlertTriangle, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DataTable } from "@/components/shared/DataTable";
-import { TermDatesModal } from "./TermDatesModal";
-import { useAssignRow } from "./assign-row/use-assign-row";
 import {
   Select,
   SelectContent,
@@ -17,6 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DataTable } from "@/components/shared/DataTable";
+import { TermDatesModal } from "./TermDatesModal";
+import { useProgramCalendarQuery } from "./assign-row/use-program-calendar-query";
 import {
   PROGRAM_TYPE_LABELS,
   PROGRAM_TYPE_COLORS,
@@ -40,6 +40,68 @@ interface ProgramAssignmentTableProps {
   isLoading: boolean;
 }
 
+function ProgramTableRowActions({
+  program,
+  templates,
+  onAssign,
+}: {
+  program: Program;
+  templates: SemesterTemplate[];
+  onAssign: (program: Program, templateId: string) => void;
+}) {
+  const { hasNoCalendar, matchingTemplates } = useProgramCalendarQuery(program, templates);
+  const [selectedId, setSelectedId] = useState(program.semesterAssignment?.template_id ?? "none")
+
+  if (hasNoCalendar) {
+    return (
+      <div className="flex items-center gap-2">
+        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 shrink-0">
+          <AlertTriangle className="h-3 w-3 mr-1" />
+          No Calendar
+        </Badge>
+        <span className="text-[10px] text-muted-foreground">Set up calendar first</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Select
+        value={selectedId}
+        onValueChange={(value) => {
+          setSelectedId(value)
+          if (value !== "none") {
+            onAssign(program, value)
+          }
+        }}
+      >
+        <SelectTrigger className="h-8 w-44 text-xs">
+          <SelectValue placeholder="Assign template…" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">— None —</SelectItem>
+          {matchingTemplates.map((t) => (
+            <SelectItem key={t.id} value={t.id} className="text-xs">
+              {t.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {program.semesterAssignment && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 text-xs gap-1 shrink-0"
+          onClick={() => onAssign(program, program.semesterAssignment!.template_id)}
+        >
+          <CalendarDays className="h-3.5 w-3.5" />
+          Dates
+        </Button>
+      )}
+    </div>
+  )
+}
+
 export function ProgramAssignmentTable({
   programs,
   templates,
@@ -48,9 +110,9 @@ export function ProgramAssignmentTable({
   isLoading,
 }: ProgramAssignmentTableProps): React.JSX.Element {
   // ================= STATE =================
-  const [datesModalOpen, setDatesModalOpen] = useState(false);
-  const [selectedProgramForDates, setSelectedProgramForDates] =
-    useState<Program | null>(null);
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalProgram, setModalProgram] = useState<Program | null>(null)
+  const [preselectedTemplateId, setPreselectedTemplateId] = useState<string | null>(null)
 
   // ================= COMPUTED =================
   const programsByType = useMemo(() => {
@@ -63,26 +125,25 @@ export function ProgramAssignmentTable({
     return map;
   }, [programs]);
 
-  const templatesByType = useMemo(() => {
-    const map = new Map<string, SemesterTemplate[]>();
-    for (const t of templates) {
-      const arr = map.get(t.program_type) ?? [];
-      arr.push(t);
-      map.set(t.program_type, arr);
-    }
-    return map;
-  }, [templates]);
-
   const programTypes = useMemo(
     () => Array.from(programsByType.keys()).sort(),
     [programsByType]
   );
 
   // ================= HANDLERS =================
-  const handleEditDates = (program: Program) => {
-    setSelectedProgramForDates(program);
-    setDatesModalOpen(true);
-  };
+  const handleAssign = useCallback((program: Program, templateId?: string) => {
+    setPreselectedTemplateId(templateId ?? null)
+    setModalProgram(program)
+    setModalOpen(true)
+  }, [])
+
+  const handleCloseModal = useCallback((open: boolean) => {
+    setModalOpen(open)
+    if (!open) {
+      // Reset on close so next open re-initializes
+      setPreselectedTemplateId(null)
+    }
+  }, [])
 
   // ================= RENDER =================
   if (isLoading) {
@@ -111,19 +172,16 @@ export function ProgramAssignmentTable({
       <div className="space-y-6">
         {programTypes.map((type) => {
           const typePrograms = programsByType.get(type) ?? [];
-          const compatibleTemplates = templatesByType.get(type) ?? [];
           const typeColor =
             PROGRAM_TYPE_COLORS[type as ProgramType] ??
             "bg-gray-100 text-gray-600 border-gray-200";
 
-          // Build table data
           const tableData = typePrograms.map((p) => ({
             id: p.id,
             name: p.name,
             hasAssignment: !!p.semesterAssignment,
           }));
 
-          // Define columns with AssignRow logic
           const columns = [
             {
               accessorKey: "name",
@@ -146,61 +204,17 @@ export function ProgramAssignmentTable({
             },
             {
               id: "template",
-              header: "Semester Template",
+              header: "Template",
               cell: ({ row }: any) => {
                 const prog = programs.find((p) => p.id === row.original.id);
                 if (!prog) return null;
 
-                // Use the same hook logic as AssignRow
-                const assignRowHook = useAssignRow(prog, templates);
-
                 return (
-                  <Select
-                    value={assignRowHook.current?.template_id ?? "none"}
-                    onValueChange={(value) => {
-                      if (value && value !== "none") {
-                        assignRowHook.requestTemplateChange(value);
-                      }
-                    }}
-                    disabled={assignRowHook.isPending}
-                  >
-                    <SelectTrigger className="h-8 w-56 text-xs">
-                      <SelectValue placeholder="Assign template…">
-                        {assignRowHook.assignedTemplate?.name ||
-                        assignRowHook.current
-                          ? "Assigned template"
-                          : "Assign template…"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">— None —</SelectItem>
-                      {compatibleTemplates.map((t) => (
-                        <SelectItem key={t.id} value={t.id} className="text-xs">
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                );
-              },
-            },
-            {
-              id: "dates",
-              header: "Term Dates",
-              cell: ({ row }: any) => {
-                const prog = programs.find((p) => p.id === row.original.id);
-                if (!prog || !prog.semesterAssignment) return null;
-
-                return (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 text-xs gap-1.5"
-                    onClick={() => handleEditDates(prog)}
-                  >
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    Configure Dates
-                  </Button>
+                  <ProgramTableRowActions
+                    program={prog}
+                    templates={templates}
+                    onAssign={handleAssign}
+                  />
                 );
               },
             },
@@ -218,7 +232,6 @@ export function ProgramAssignmentTable({
                 <div className="flex-1 h-px bg-border" />
               </div>
 
-              {/* Table */}
               <div className="rounded-lg border overflow-hidden">
                 <DataTable
                   columns={columns}
@@ -229,7 +242,6 @@ export function ProgramAssignmentTable({
                 />
               </div>
 
-              {/* Warning for unassigned */}
               {typePrograms.some((p) => !p.semesterAssignment) && (
                 <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
                   <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
@@ -244,14 +256,15 @@ export function ProgramAssignmentTable({
       </div>
 
       {/* Term Dates Modal */}
-      {selectedProgramForDates && (
+      {modalProgram && (
         <TermDatesModal
-          open={datesModalOpen}
-          onOpenChange={setDatesModalOpen}
-          program={selectedProgramForDates}
+          open={modalOpen}
+          onOpenChange={handleCloseModal}
+          program={modalProgram}
           templates={templates}
           schoolYearStart={schoolYearStart}
           schoolYearEnd={schoolYearEnd}
+          preselectedTemplateId={preselectedTemplateId}
         />
       )}
     </>

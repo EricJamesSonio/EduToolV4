@@ -1,14 +1,13 @@
 // ===== File: frontend/src/components/admin/semester-settings/TermDatesModal.tsx =====
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TermDatesPanel } from "./assign-row/term-dates-panel";
@@ -30,6 +29,7 @@ interface TermDatesModalProps {
   templates: SemesterTemplate[];
   schoolYearStart: string | null;
   schoolYearEnd: string | null;
+  preselectedTemplateId?: string | null;
 }
 
 export function TermDatesModal({
@@ -39,16 +39,19 @@ export function TermDatesModal({
   templates,
   schoolYearStart,
   schoolYearEnd,
+  preselectedTemplateId,
 }: TermDatesModalProps): React.JSX.Element {
   // ================= HOOKS =================
   const {
     current,
+    selectedTemplateId,
     assignedTemplate,
     allTerms,
     termDates,
     panelMode,
     setPanelMode,
     savingDates,
+    hasNoCalendar,
     validation,
     handleDateChange,
     handleRequestSave,
@@ -56,21 +59,33 @@ export function TermDatesModal({
     handleCancelEdit,
     confirmSaveOpen,
     setConfirmSaveOpen,
+    requestTemplateChange,
   } = useAssignRow(program, templates);
 
   const syMin = schoolYearStart ? toDateInput(schoolYearStart) : "";
   const syMax = schoolYearEnd ? toDateInput(schoolYearEnd) : "";
 
-  // Only show modal if there's a template assigned and has terms
-  const hasTemplate = !!current && allTerms.length > 0;
+  // Trigger template selection if a preselected template was passed (new assignment)
+  useEffect(() => {
+    if (
+      preselectedTemplateId &&
+      preselectedTemplateId !== "none" &&
+      preselectedTemplateId !== current?.template_id &&
+      preselectedTemplateId !== selectedTemplateId
+    ) {
+      requestTemplateChange(preselectedTemplateId)
+    }
+  }, [preselectedTemplateId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!hasTemplate) {
-    return <></>;
+  const hasContent = (!!current || (!!selectedTemplateId && selectedTemplateId !== "none")) && allTerms.length > 0
+
+  if (!hasContent) {
+    return null
   }
 
   return (
     <>
-      <Dialog open={open && hasTemplate} onOpenChange={onOpenChange}>
+      <Dialog open={open && hasContent} onOpenChange={onOpenChange}>
         <DialogContent className="!w-[95vw] !h-[95vh] !max-w-none !max-h-none !p-0 !gap-0 !flex !flex-col">
           <DialogHeader className="px-8 py-6 pb-3 border-b shrink-0">
             <DialogTitle className="text-2xl font-bold">
@@ -78,7 +93,7 @@ export function TermDatesModal({
             </DialogTitle>
             <DialogDescription className="text-sm mt-1">
               Set term dates for <strong>{program.name}</strong> using the{" "}
-              <strong>{assignedTemplate?.name ?? current.template.name}</strong>{" "}
+              <strong>{assignedTemplate?.name ?? current?.template.name ?? ""}</strong>{" "}
               template.
             </DialogDescription>
             {schoolYearStart && schoolYearEnd && (
@@ -98,7 +113,7 @@ export function TermDatesModal({
           {/* Term Dates Panel - SPREADS FULL WIDTH */}
           <div className="flex-1 overflow-y-auto px-8 py-6">
             <TermDatesPanel
-              templateName={assignedTemplate?.name ?? current.template.name}
+              templateName={assignedTemplate?.name ?? current?.template.name ?? ""}
               allTerms={allTerms}
               termDates={termDates}
               isValid={validation.isValid}

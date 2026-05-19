@@ -33,9 +33,9 @@ export function useAssignRow(
   const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null)
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
 
-  // Use the selected template (either from existing assignment or newly selected)
+  // Use the selected template (local selection takes priority over existing assignment)
   const assignedTemplate = useMemo(() => {
-    const id = current?.template_id ?? selectedTemplateId
+    const id = selectedTemplateId ?? current?.template_id
     if (!id || id === "none") return null
     return templates.find((t) => t.id === id) ?? null
   }, [current, selectedTemplateId, templates])
@@ -64,12 +64,18 @@ export function useAssignRow(
 
   // Filter templates to only those matching calendar break count
   const matchingTemplates = useMemo(() => {
-    if (!calendarBreaks.length) return templates // If no calendar, show all (with disabled state handled in UI)
-    return templates.filter((t) => t.semesters.length === calendarBreaks.length)
-  }, [templates, calendarBreaks.length])
+    if (!calendarBreaks.length) return templates // If no calendar, show all
+    const filtered = templates.filter((t) => t.semesters.length === calendarBreaks.length)
+    // Always include currently assigned template so dropdown value stays valid
+    if (current && !filtered.some((t) => t.id === current.template_id)) {
+      const ct = templates.find((t) => t.id === current.template_id)
+      if (ct) return [...filtered, ct]
+    }
+    return filtered
+  }, [templates, calendarBreaks.length, current])
 
-  // Has no calendar = can't assign
-  const hasNoCalendar = !calendarInfo && !current
+  // Has no calendar = can't assign (regardless of existing assignment)
+  const hasNoCalendar = !calendarInfo
 
   // Init term dates from existing assignment
   useEffect(() => {
@@ -296,7 +302,7 @@ export function useAssignRow(
   return {
     // State
     current,
-    selectedTemplateId: current?.template_id ?? selectedTemplateId,
+    selectedTemplateId: selectedTemplateId ?? current?.template_id ?? null,
     assignedTemplate,
     allTerms,
     termDates,
