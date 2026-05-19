@@ -184,16 +184,9 @@ export default function AssessmentsPage(): React.JSX.Element {
                           </Button>
                         </Link>
                         <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="gap-1.5 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Delete
-                            </Button>
-                          </AlertDialogTrigger>
+<AlertDialogTrigger>
+  Delete
+</AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete this assessment?</AlertDialogTitle>

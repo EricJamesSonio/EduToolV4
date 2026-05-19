@@ -59,6 +59,12 @@ enum SchoolYearEnrollmentStatus {
   unenrolled
 }
 
+enum GradingMode {
+  system
+  manual
+  hybrid
+}
+
 //////////////////////
 // CORE TABLES
 //////////////////////
@@ -460,7 +466,7 @@ model Enrollment {
 }
 
 //////////////////////
-// ACADEMIC CALENDAR (existing — events/holidays for CalendarTab)
+// ACADEMIC CALENDAR
 //////////////////////
 
 model AcademicCalendar {
@@ -468,7 +474,7 @@ model AcademicCalendar {
   org_id         String
   school_year_id String
   title          String
-  type           String // 'holiday' | 'no_class_day' | 'exam_week' | 'special_event'
+  type           String
   start_date     DateTime
   end_date       DateTime
   description    String?
@@ -478,7 +484,7 @@ model AcademicCalendar {
 }
 
 //////////////////////
-// PROGRAM ACADEMIC CALENDAR (new — break/term structure for semester planning)
+// PROGRAM ACADEMIC CALENDAR
 //////////////////////
 
 model ProgramCalendar {
@@ -505,10 +511,10 @@ model ProgramCalendarBreak {
   id          String   @id @default(uuid())
   org_id      String
   calendar_id String
-  label       String // e.g. "Semestral Break", "Christmas Break"
+  label       String
   start_date  DateTime
   end_date    DateTime
-  order_index Int // auto-sorted chronologically by service
+  order_index Int
   created_at  DateTime @default(now())
 
   calendar ProgramCalendar @relation(fields: [calendar_id], references: [id], onDelete: Cascade)
@@ -518,7 +524,7 @@ model ProgramCalendarTerm {
   id          String   @id @default(uuid())
   org_id      String
   calendar_id String
-  label       String // e.g. "Term 1", "Term 2"
+  label       String
   order_index Int
   start_date  DateTime
   end_date    DateTime
@@ -531,12 +537,10 @@ model ProgramCalendarHoliday {
   id          String   @id @default(uuid())
   org_id      String
   calendar_id String
-  /// null for system holidays (sourced from PHILIPPINE_HOLIDAYS by holiday_key)
   holiday_key String?
   title       String
   date        DateTime
   description String?
-  /// 'system' = from PHILIPPINE_HOLIDAYS, 'custom' = admin-added
   type        String
   created_at  DateTime @default(now())
 
@@ -544,14 +548,13 @@ model ProgramCalendarHoliday {
 }
 
 //////////////////////
-// HOLIDAY CONFIG (per org — org-global, not scoped to a school year)
+// HOLIDAY CONFIG
+//////////////////////
 
 model OrgHolidayConfig {
   id              String   @id @default(uuid())
   org_id          String   @unique
-  /// Keys from the hardcoded PHILIPPINE_HOLIDAYS seed list that are enabled
   enabled_keys    String[]
-  /// Admin-added custom holidays: [{title, date, description?}]
   custom_holidays Json     @default("[]")
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
@@ -580,7 +583,7 @@ model GradingScale {
 }
 
 //////////////////////
-// GRADING SCHEME TEMPLATES (admin-level, reusable)
+// GRADING SCHEME TEMPLATES
 //////////////////////
 
 model GradingSchemeTemplate {
@@ -607,7 +610,7 @@ model GradingSchemeTemplateComponent {
 }
 
 //////////////////////
-// GRADING SCHEME (class-level, concrete)
+// GRADING SCHEME
 //////////////////////
 
 model GradingScheme {
@@ -690,18 +693,23 @@ model ManualScore {
 }
 
 model Assessment {
-  id           String    @id @default(uuid())
-  org_id       String
-  class_id     String
-  lesson_id    String?
-  term_id      String
-  type         String
-  total_items  Int
-  release_date DateTime?
-  end_date     DateTime?
-  is_published Boolean   @default(false)
-  created_at   DateTime  @default(now())
-  deleted_at   DateTime?
+  id             String      @id @default(uuid())
+  org_id         String
+  class_id       String
+  lesson_id      String?
+  term_id        String
+  type           String
+  total_items    Int
+  release_date   DateTime?
+  end_date       DateTime?
+  is_published   Boolean     @default(false)
+  created_at     DateTime    @default(now())
+  deleted_at     DateTime?
+
+  // Phase 1: Hybrid grading additions
+  grading_mode     GradingMode @default(system)
+  manual_max_score Float?
+  show_breakdown   Boolean     @default(false)
 
   submissions Submission[]
 }
@@ -715,6 +723,10 @@ model Question {
   correct_answer String?
   choices        Json?
   order          Int      @default(0)
+
+  // Phase 1: Hybrid grading additions
+  is_manual    Boolean @default(false)
+  section_type String?
 }
 
 model Submission {
@@ -727,6 +739,12 @@ model Submission {
   manual_score   Float?
   submitted_at   DateTime?
   reopened_until DateTime?
+
+  // Phase 1: Hybrid grading additions
+  manual_section_score Float?
+  system_section_score Float?
+  is_missed            Boolean @default(false)
+  is_exempted          Boolean @default(false)
 
   assessment Assessment @relation(fields: [assessment_id], references: [id])
 }
@@ -778,7 +796,7 @@ model GradeLockEvent {
   id         String   @id @default(uuid())
   org_id     String
   class_id   String
-  type       String // "lock" | "unlock" | "override" | "request"
+  type       String
   reason     String?
   actor_id   String
   metadata   Json?
@@ -792,7 +810,7 @@ model GradeLockSetting {
   org_id        String
   name          String    @default("Default Setting")
   description   String?
-  lockType      String? // "hard" | "soft" | "flexible"
+  lockType      String?
   lock_deadline DateTime?
   deadlineDays  Int?
   allowOverride Boolean   @default(false)

@@ -14,9 +14,6 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 const PORTALS: { value: GuidePortal | "all"; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "admin", label: "Admin" },
-  { value: "student", label: "Student" },
-  { value: "educator", label: "Educator" },
 ];
 
 export default function GuidesPage() {

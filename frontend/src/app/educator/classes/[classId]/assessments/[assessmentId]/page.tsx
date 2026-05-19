@@ -140,12 +140,11 @@ export default function AssessmentDetailPage(): React.JSX.Element {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          {/* Assign Students Dialog */}
           <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <UserPlus className="h-3.5 w-3.5" />Assign Students
-              </Button>
+            <DialogTrigger className="inline-flex items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+              <UserPlus className="h-3.5 w-3.5" />Assign Students
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -171,11 +170,11 @@ export default function AssessmentDetailPage(): React.JSX.Element {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Reopen Dialog */}
           <Dialog open={reopenOpen} onOpenChange={(open) => { setReopenOpen(open); if (!open) { setSelectedIds([]); setReopenUntil(""); } }}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5">
-                <RotateCcw className="h-3.5 w-3.5" />Reopen
-              </Button>
+            <DialogTrigger className="inline-flex items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+              <RotateCcw className="h-3.5 w-3.5" />Reopen
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -207,13 +206,13 @@ export default function AssessmentDetailPage(): React.JSX.Element {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Publish/Unpublish Alert Dialog */}
           {assessment.isPublished ? (
             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5" disabled={isUnpublishing}>
-                  {isUnpublishing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  <XCircle className="h-3.5 w-3.5" />Unpublish Scores
-                </Button>
+              <AlertDialogTrigger className="inline-flex items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed" disabled={isUnpublishing}>
+                {isUnpublishing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                <XCircle className="h-3.5 w-3.5" />Unpublish Scores
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -232,11 +231,9 @@ export default function AssessmentDetailPage(): React.JSX.Element {
             </AlertDialog>
           ) : (
             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5" disabled={isPublishing}>
-                  {isPublishing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />Publish Scores
-                </Button>
+              <AlertDialogTrigger className="inline-flex items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed" disabled={isPublishing}>
+                {isPublishing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />Publish Scores
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -254,16 +251,16 @@ export default function AssessmentDetailPage(): React.JSX.Element {
               </AlertDialogContent>
             </AlertDialog>
           )}
-          <Link href={`/educator/classes/${classId}/assessments/${assessmentId}/submissions`}>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Users className="h-3.5 w-3.5" />View Submissions
-            </Button>
+
+          {/* View Submissions Button */}
+          <Link href={`/educator/classes/${classId}/assessments/${assessmentId}/submissions`} className="inline-flex items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+            <Users className="h-3.5 w-3.5" />View Submissions
           </Link>
+
+          {/* Delete Alert Dialog */}
           <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <span className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-destructive/30 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/5 cursor-pointer">
-                <Trash2 className="h-3.5 w-3.5" />Delete
-              </span>
+            <AlertDialogTrigger className="inline-flex items-center justify-center gap-1.5 rounded-md border border-destructive/30 bg-background px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/5">
+              <Trash2 className="h-3.5 w-3.5" />Delete
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
