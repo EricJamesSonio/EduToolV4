@@ -1,5 +1,5 @@
 // @/modules/assessment/educator/assessment-educator.service.ts
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { AssessmentRepository } from '../core/assessment-core.repository';
 import { AssessmentCoreService } from '../core/assessment-core.service';
 import { LessonRepository } from '@/modules/lesson/lesson.repository';
@@ -7,6 +7,7 @@ import { ClassRepository } from '@/modules/class/class.repository';
 import { AuditLogService } from '@/modules/audit-log/audit-log.service';
 import { NotificationService } from '@/modules/notification/notification.service';
 import { AttendanceService } from '@/modules/attendance/attendance.service';
+import { AiService, QuestionBlueprint, GeneratedQuestion } from '@/core/ai/ai.service';
 import {
   CreateAssessmentDto,
   UpdateAssessmentDto,
@@ -15,10 +16,13 @@ import {
   PublishScoresDto,
   GradeEssayDto,
   UpdateSubmissionStatusDto,
+  AssignStudentsDto,
 } from '../dto/assessment.dto';
 
 @Injectable()
 export class AssessmentEducatorService {
+  private readonly logger = new Logger(AssessmentEducatorService.name);
+
   constructor(
     private readonly repo: AssessmentRepository,
     private readonly core: AssessmentCoreService,
@@ -27,6 +31,7 @@ export class AssessmentEducatorService {
     private readonly auditLog: AuditLogService,
     private readonly notificationService: NotificationService,
     private readonly attendanceService: AttendanceService,
+    private readonly aiService: AiService,
   ) {}
 
   // ───────── GUARDS ─────────
@@ -99,6 +104,7 @@ export class AssessmentEducatorService {
 
     const updated = await this.repo.update(id, {
       releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
+      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
       type: dto.type,
     });
 
@@ -197,6 +203,30 @@ export class AssessmentEducatorService {
     return { success: true };
   }
 
+  async assignStudents(assessmentId: string, orgId: string, educatorId: string, dto: AssignStudentsDto) {
+    const assessment = await this.core.findAssessmentOrThrow(assessmentId, orgId);
+    await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
+
+    // Create a submission for each student (if none exists yet) — encourages them to start
+    for (const studentId of dto.studentIds) {
+      await this.repo.upsertSubmission({
+        orgId,
+        assessmentId,
+        studentId,
+        status: 'not_started',
+      }).catch(() => {});
+    }
+
+    await this.auditLog.logActivityEvent({
+      orgId, actorId: educatorId,
+      action: 'students_assigned_to_assessment',
+      entityType: 'assessment', entityId: assessmentId,
+      metadata: { assessmentId, studentIds: dto.studentIds },
+    });
+
+    return { success: true, assigned: dto.studentIds.length };
+  }
+
   async onSubmissionFinished(data: { orgId: string; classId: string; studentId: string; submittedAt: Date }) {
     this.attendanceService.markPresentFromSubmission(data).catch((err) => {
       console.error(`[AttendanceService] Failed to auto-mark present for student ${data.studentId}:`, err);
@@ -206,23 +236,46 @@ export class AssessmentEducatorService {
   // ───────── PRIVATE ─────────
 
   private async generateQuestions(assessmentId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto) {
-    const questions: Array<{ orgId: string; assessmentId: string; type: string; questionText: string; correctAnswer?: string }> = [];
-    let itemNumber = 1;
+    // 1. Fetch lesson detail for AI context
+    const lesson = await this.lessonRepo.findById(dto.lessonId, orgId);
+    if (!lesson) throw new NotFoundException('Lesson not found');
+    const lessonDetail = lesson.detail ?? '';
 
-    for (const range of dto.ranges) {
-      const count = range.to - range.from + 1;
-      for (let i = 0; i < count; i++) {
-        questions.push({
-          orgId, assessmentId,
-          type: range.questionType,
-          questionText: `[AI Generated] Item ${itemNumber} — ${range.questionType} from ${range.conceptSections.join(', ')}`,
-          correctAnswer: range.questionType !== 'essay' ? `Answer ${itemNumber}` : undefined,
-        });
-        itemNumber++;
-      }
+    // 2. Convert ranges to AI QuestionBlueprints
+    const blueprints = dto.ranges.map((r) => ({
+      type: r.questionType as QuestionBlueprint['type'],
+      sections: r.conceptSections,
+      numbers: `${r.from}-${r.to}`,
+      count: r.to - r.from + 1,
+    }));
+
+    // 3. Call AI to generate real questions
+    let generated: GeneratedQuestion[];
+    try {
+      generated = await this.aiService.generateQuestions(lessonDetail, blueprints);
+    } catch (err) {
+      this.logger.error(`[Assessment] AI generation failed: ${err}`);
+      throw new BadRequestException('Question generation via AI failed. Please try again.');
     }
 
+    if (!generated?.length) {
+      throw new BadRequestException('AI returned no questions.');
+    }
+
+    // 4. Map to DB format with correct order
+    const questions = generated.map((q, idx) => ({
+      orgId,
+      assessmentId,
+      type: q.type,
+      questionText: q.question,
+      correctAnswer: q.answer ?? q.correct_answer ?? (q.type !== 'essay' ? `Answer ${q.number}` : undefined),
+      choices: q.choices?.length ? q.choices : undefined,
+      order: q.number ?? idx + 1,
+    }));
+
     await this.repo.createQuestions(questions);
+
+    this.logger.log(`[Assessment] ${questions.length} questions generated for ${assessmentId}`);
 
     await this.notificationService.createNotification({
       orgId, accountId: educatorId,

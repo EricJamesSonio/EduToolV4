@@ -1,7 +1,6 @@
 "use client";
 
-// filepath: frontend/src/app/educator/classes/[classId]/assessments/[assessmentId]/page.tsx
-
+import { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -13,8 +12,14 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Trash2, Users, Pencil } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger,
+} from "@/components/ui/dialog";
+import { assessmentApi } from "@/api/educator/assessment.api";
+import { educatorClassApi } from "@/api/educator/class.api";
+import { Loader2, Trash2, Users, Pencil, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import type { AssessmentType } from "@/types/educator/assessment.types";
 
 const STATUS_COLORS = {
@@ -35,6 +40,34 @@ export default function AssessmentDetailPage(): React.JSX.Element {
 
   const { data: assessment, isLoading } = useAssessment(classId, assessmentId);
   const { mutateAsync: deleteAssessment, isPending: isDeleting } = useDeleteAssessment(classId);
+
+  const [assignOpen, setAssignOpen] = useState(false);
+  const { data: students } = useQuery({
+    queryKey: ["class-students", classId],
+    queryFn: () => educatorClassApi.getStudents(classId),
+    enabled: assignOpen,
+  });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [assigning, setAssigning] = useState(false);
+
+  const handleAssignOpen = useCallback(() => {
+    setSelectedIds([]);
+    setAssignOpen(true);
+  }, []);
+
+  async function handleAssign() {
+    if (!selectedIds.length) return;
+    setAssigning(true);
+    try {
+      await assessmentApi.assignStudents(classId, assessmentId, selectedIds);
+      toast.success(`Assigned to ${selectedIds.length} student${selectedIds.length > 1 ? "s" : ""}.`);
+      setAssignOpen(false);
+    } catch {
+      toast.error("Failed to assign students.");
+    } finally {
+      setAssigning(false);
+    }
+  }
 
   async function handleDelete(): Promise<void> {
     await deleteAssessment(assessmentId);
@@ -75,23 +108,46 @@ export default function AssessmentDetailPage(): React.JSX.Element {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {isBeforeRelease && (
-            <Link href={`/educator/classes/${classId}/assessments/new?edit=${assessmentId}`}>
+          <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+            <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5">
-                <Pencil className="h-3.5 w-3.5" />Edit Questions
+                <UserPlus className="h-3.5 w-3.5" />Assign Students
               </Button>
-            </Link>
-          )}
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Assign to Students</DialogTitle>
+                <DialogDescription>Select students to give access to this assessment.</DialogDescription>
+              </DialogHeader>
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {students?.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No enrolled students.</p>}
+                {students?.map((s) => (
+                  <label key={s.id} className="flex items-center gap-2 px-3 py-2 text-sm rounded cursor-pointer hover:bg-muted/30">
+                    <input type="checkbox" checked={selectedIds.includes(s.id)} onChange={(e) => setSelectedIds(e.target.checked ? [...selectedIds, s.id] : selectedIds.filter((id) => id !== s.id))} className="rounded" />
+                    <span>{s.fullName}</span>
+                    {s.email && <span className="text-xs text-muted-foreground ml-auto">{s.email}</span>}
+                  </label>
+                ))}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => setAssignOpen(false)}>Cancel</Button>
+                <Button size="sm" onClick={handleAssign} disabled={!selectedIds.length || assigning}>
+                  {assigning && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                  Assign ({selectedIds.length})
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Link href={`/educator/classes/${classId}/assessments/${assessmentId}/submissions`}>
             <Button variant="outline" size="sm" className="gap-1.5">
               <Users className="h-3.5 w-3.5" />View Submissions
             </Button>
           </Link>
           <AlertDialog>
-            <AlertDialogTrigger>
-              <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5">
+            <AlertDialogTrigger asChild>
+              <span className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-destructive/30 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/5 cursor-pointer">
                 <Trash2 className="h-3.5 w-3.5" />Delete
-              </Button>
+              </span>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -137,12 +193,23 @@ export default function AssessmentDetailPage(): React.JSX.Element {
         ) : (
           <div className="space-y-2">
             {assessment.questions.map((q, i) => (
-              <div key={q.id} className="rounded-lg border px-4 py-3 space-y-1">
+              <div key={q.id} className="rounded-lg border px-4 py-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground uppercase tracking-wide">{`Item ${i + 1} — ${q.type.replace(/_/g, " ")}`}</span>
                 </div>
                 <p className="text-sm">{q.text}</p>
-                {q.correctAnswer && (
+                {q.choices && q.choices.length > 0 && (
+                  <div className="space-y-1 pt-1">
+                    {q.choices.map((c) => (
+                      <div key={c.label} className={cn("flex items-center gap-2 px-3 py-1.5 rounded text-sm border", q.correctAnswer === c.text ? "border-green-300 bg-green-50" : "border-border")}>
+                        <span className="font-mono text-xs font-bold w-5">{c.label}.</span>
+                        <span>{c.text}</span>
+                        {q.correctAnswer === c.text && <span className="text-xs text-green-600 ml-auto font-medium">Correct</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {q.correctAnswer && q.type !== "multiple_choice" && (
                   <p className="text-xs text-muted-foreground">Answer: <span className="text-foreground">{q.correctAnswer}</span></p>
                 )}
               </div>

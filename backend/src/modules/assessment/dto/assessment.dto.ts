@@ -139,6 +139,15 @@ export class PublishScoresDto {
   studentIds?: string[]; // if empty → publish all
 }
 
+// ── POST /assessments/:id/assign-students ────────────────────────────────────
+
+export class AssignStudentsDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  studentIds: string[];
+}
+
 // ── PATCH /assessments/:id/submissions/:submissionId/grade ───────────────────
 
 export class GradeEssayDto {

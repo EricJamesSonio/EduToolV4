@@ -3,7 +3,7 @@ import { Controller, Post, Get, Patch, Delete, Body, Param, Query, UseGuards, Ht
 import { AssessmentEducatorService } from './assessment-educator.service';
 import {
   CreateAssessmentDto, UpdateAssessmentDto, UpdateQuestionDto,
-  QueryAssessmentDto, PublishScoresDto, GradeEssayDto, UpdateSubmissionStatusDto,
+  QueryAssessmentDto, PublishScoresDto, GradeEssayDto, UpdateSubmissionStatusDto, AssignStudentsDto,
 } from '../dto/assessment.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -70,5 +70,10 @@ export class AssessmentEducatorController {
   @Post(':id/unpublish')
   unpublishScores(@Param('id') assessmentId: string, @CurrentUser('org_id') orgId: string, @CurrentUser('id') educatorId: string) {
     return this.service.unpublishScores(assessmentId, orgId, educatorId);
+  }
+
+  @Post(':id/assign-students')
+  assignStudents(@Param('id') assessmentId: string, @CurrentUser('org_id') orgId: string, @CurrentUser('id') educatorId: string, @Body() dto: AssignStudentsDto) {
+    return this.service.assignStudents(assessmentId, orgId, educatorId, dto);
   }
 }

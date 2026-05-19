@@ -204,71 +204,89 @@ function Step3({
   onChange: (u: Partial<Pick<BuilderState, "type" | "totalItems" | "sections">>) => void;
   onNext: () => void; isLoading: boolean;
 }) {
-  const sectionItemCount = sections.reduce((s, sec) => s + (sec.to - sec.from + 1), 0);
-  const itemsMatch = sectionItemCount === totalItems;
+  const totalCovered = sections.reduce((s, sec) => s + (sec.to - sec.from + 1), 0);
+  const gap = totalCovered < totalItems;
+  const overflow = totalCovered > totalItems;
+
+  // Validate each section has enough concept items, and check overlap/gaps
   const itemErrors: string[] = [];
-  for (const sec of sections) {
+  let expectedFrom = 1;
+  for (let i = 0; i < sections.length; i++) {
+    const sec = sections[i];
     const count = sec.to - sec.from + 1;
-    if (sec.selectedItemIndices.length !== count) {
-      itemErrors.push(`"${sec.title || defaultSectionTitle(sec.questionType)}" needs ${count} items, but ${sec.selectedItemIndices.length} selected.`);
+    if (sec.from !== expectedFrom) {
+      itemErrors.push(`Section "${sec.title || defaultSectionTitle(sec.questionType)}" starts at ${sec.from} but expected ${expectedFrom}.`);
     }
+    if (sec.to > totalItems) {
+      itemErrors.push(`Section "${sec.title || defaultSectionTitle(sec.questionType)}" ends at ${sec.to} but total items is ${totalItems}.`);
+    }
+    if (sec.selectedItemIndices.length < count) {
+      itemErrors.push(`"${sec.title || defaultSectionTitle(sec.questionType)}" needs ${count} items, but only ${sec.selectedItemIndices.length} selected.`);
+    }
+    expectedFrom = sec.to + 1;
   }
 
   const totalErr = totalItems > conceptItems.length
     ? `Total items (${totalItems}) exceeds available concept items (${conceptItems.length}).`
     : totalItems < 1 ? "Must be at least 1." : null;
 
-  const valid = !totalErr && itemsMatch && itemErrors.length === 0;
+  const valid = !totalErr && !overflow && !gap && itemErrors.length === 0;
 
-  function setTotalItems(n: number) {
-    const clamped = Math.max(0, n);
-    // Recalculate section boundaries
-    const newSections = recalcSections(sections, clamped);
-    onChange({ totalItems: clamped, sections: newSections });
-  }
-
-  function recalcSections(existing: AssessmentSection[], newTotal: number): AssessmentSection[] {
-    if (!existing.length) return [];
-    let totalCovered = 0;
-    return existing.map((sec) => {
-      const oldCount = sec.to - sec.from + 1;
-      const newFrom = totalCovered + 1;
-      const newTo = Math.min(totalCovered + oldCount, newTotal);
-      totalCovered = newTo;
-      return { ...sec, from: newFrom, to: newTo };
-    }).filter((sec) => sec.from <= sec.to);
-  }
-
-  function addSection() {
-    const prevEnd = sections.length ? sections[sections.length - 1].to : 0;
-    if (prevEnd >= totalItems) return;
-    const remaining = totalItems - prevEnd;
-    const count = Math.min(remaining, Math.max(1, Math.floor(remaining / (sections.length + 1) * 2)));
-    const from = prevEnd + 1;
-    const to = Math.min(from + count - 1, totalItems);
-    onChange({ sections: [...sections, makeSection(from, to)] });
-  }
-
-  function updateSection(idx: number, u: Partial<AssessmentSection>) {
-    const updated = sections.map((sec, i) => (i === idx ? { ...sec, ...u } : sec));
-    onChange({ sections: updated });
-  }
-
-  function removeSection(idx: number) {
-    const remaining = sections.filter((_, i) => i !== idx);
-    // Recalculate from/to
+  function recalcAll(arr: AssessmentSection[]): AssessmentSection[] {
     let cursor = 0;
-    const fixed = remaining.map((sec) => {
+    return arr.map((sec) => {
       const count = sec.to - sec.from + 1;
       const from = cursor + 1;
       const to = cursor + count;
       cursor = to;
       return { ...sec, from, to };
-    }).filter((sec) => sec.from <= totalItems && sec.to <= totalItems);
-    onChange({ sections: fixed });
+    });
   }
 
-  // Group concept items by section for display
+  function setSectionCount(idx: number, newCount: number) {
+    const clamped = Math.max(1, newCount);
+    let arr = sections.map((sec, i) => {
+      if (i === idx) {
+        const from = sec.from;
+        const to = from + clamped - 1;
+        const trimmed = sec.selectedItemIndices.slice(0, clamped);
+        return { ...sec, from, to, selectedItemIndices: trimmed };
+      }
+      return sec;
+    });
+    // Recalc all boundaries from this point forward
+    for (let i = idx + 1; i < arr.length; i++) {
+      const prev = arr[i - 1];
+      const prevCount = prev.to - prev.from + 1;
+      const from = prev.from + prevCount;
+      const curCount = arr[i].to - arr[i].from + 1;
+      arr[i] = { ...arr[i], from, to: from + curCount - 1 };
+    }
+    onChange({ sections: arr });
+  }
+
+  function addSection() {
+    const nextFrom = sections.length ? sections[sections.length - 1].to + 1 : 1;
+    if (nextFrom > totalItems) return;
+    const to = Math.min(nextFrom + 4, totalItems);
+    onChange({ sections: [...sections, makeSection(nextFrom, to)] });
+  }
+
+  function updateSection(idx: number, u: Partial<AssessmentSection>) {
+    onChange({ sections: sections.map((sec, i) => (i === idx ? { ...sec, ...u } : sec)) });
+  }
+
+  function removeSection(idx: number) {
+    const remaining = sections.filter((_, i) => i !== idx);
+    onChange({ sections: recalcAll(remaining) });
+  }
+
+  function moveSection(fromIdx: number, toIdx: number) {
+    const arr = [...sections];
+    [arr[fromIdx], arr[toIdx]] = [arr[toIdx], arr[fromIdx]];
+    onChange({ sections: recalcAll(arr) });
+  }
+
   const grouped = sectionNames.map((name) => ({
     section: name,
     items: conceptItems.filter((ci) => ci.section === name),
@@ -276,7 +294,6 @@ function Step3({
 
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* ── Type + Total Items ─────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4 max-w-sm">
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Assessment Type <span className="text-destructive">*</span></label>
@@ -287,17 +304,16 @@ function Step3({
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Total Items <span className="text-destructive">*</span></label>
           <input type="number" min={1} max={conceptItems.length} value={totalItems}
-            onChange={(e) => setTotalItems(parseInt(e.target.value, 10) || 1)}
+            onChange={(e) => onChange({ totalItems: Math.max(1, parseInt(e.target.value, 10) || 1) })}
             className={cn("w-full rounded-md border bg-background px-3 py-2 text-sm", totalErr && "border-destructive")} />
           {totalErr ? <p className="text-xs text-destructive">{totalErr}</p> : <p className="text-xs text-muted-foreground">Max {conceptItems.length} from concept build.</p>}
         </div>
       </div>
 
-      {/* ── Assessment Sections ────────────────────────────── */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Assessment Sections ({sections.length})</h3>
-          <Button variant="outline" size="sm" onClick={addSection} disabled={sectionItemCount >= totalItems || totalItems === 0}>+ Add Section</Button>
+          <Button variant="outline" size="sm" onClick={addSection} disabled={totalCovered >= totalItems || totalItems === 0}>+ Add Section</Button>
         </div>
 
         {sections.length === 0 && (
@@ -313,42 +329,26 @@ function Step3({
             return (
               <div key={sec.id} className="rounded-lg border p-4 space-y-3">
 
-                {/* ── Section header ── */}
                 <div className="flex items-center justify-between gap-3">
                   <input type="text" value={sec.title} placeholder={defaultSectionTitle(sec.questionType)}
                     onChange={(e) => updateSection(si, { title: e.target.value })}
                     className="flex-1 rounded border bg-background px-3 py-1.5 text-sm font-medium" />
                   <div className="flex items-center gap-2 shrink-0">
-                    <button type="button" disabled={si === 0} onClick={() => {
-                      const arr = [...sections];
-                      [arr[si - 1], arr[si]] = [arr[si], arr[si - 1]];
-                      // Recalc boundaries
-                      updateSectionOrder(arr);
-                    }} className="disabled:opacity-20 hover:text-primary"><ChevronUp className="h-4 w-4" /></button>
-                    <button type="button" disabled={si === sections.length - 1} onClick={() => {
-                      const arr = [...sections];
-                      [arr[si], arr[si + 1]] = [arr[si + 1], arr[si]];
-                      updateSectionOrder(arr);
-                    }} className="disabled:opacity-20 hover:text-primary"><ChevronDown className="h-4 w-4" /></button>
+                    <button type="button" disabled={si === 0} onClick={() => moveSection(si, si - 1)} className="disabled:opacity-20 hover:text-primary"><ChevronUp className="h-4 w-4" /></button>
+                    <button type="button" disabled={si === sections.length - 1} onClick={() => moveSection(si, si + 1)} className="disabled:opacity-20 hover:text-primary"><ChevronDown className="h-4 w-4" /></button>
                     <button type="button" onClick={() => removeSection(si)} className="text-xs text-destructive hover:underline">Remove</button>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="space-y-1 w-20">
-                    <label className="text-xs text-muted-foreground">From</label>
+                    <label className="text-xs text-muted-foreground">From (Items)</label>
                     <input type="number" value={sec.from} disabled className="w-full rounded-md border bg-muted/30 px-3 py-1.5 text-sm" />
                   </div>
                   <div className="space-y-1 w-20">
-                    <label className="text-xs text-muted-foreground">To</label>
-                    <input type="number" value={sec.to}
-                      onChange={(e) => {
-                        const newTo = Math.min(Math.max(parseInt(e.target.value, 10) || sec.from, sec.from), totalItems);
-                        const diff = newTo - sec.from + 1;
-                        // Trim selected items if too many
-                        const trimmed = sec.selectedItemIndices.slice(0, diff);
-                        updateSection(si, { to: newTo, selectedItemIndices: trimmed });
-                      }}
+                    <label className="text-xs text-muted-foreground">Count</label>
+                    <input type="number" min={1} max={totalItems - sec.from + 1} value={secCount}
+                      onChange={(e) => setSectionCount(si, parseInt(e.target.value, 10) || 1)}
                       className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" />
                   </div>
                   <div className="space-y-1 w-36">
@@ -357,10 +357,9 @@ function Step3({
                       {Q_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
-                  <div className="text-xs text-muted-foreground">{sec.selectedItemIndices.length} / {secCount} items selected</div>
+                  <div className={cn("text-xs", hasEnoughItems ? "text-green-600" : "text-destructive")}>{sec.selectedItemIndices.length} / {secCount} items</div>
                 </div>
 
-                {/* ── Concept item picker grouped by section ── */}
                 <div className="rounded-lg border max-h-56 overflow-y-auto divide-y">
                   {grouped.map((g) => {
                     if (!g.items.length) return null;
@@ -418,17 +417,17 @@ function Step3({
         </div>
       </div>
 
-      {/* ── Validation errors ──────────────────────────────── */}
       {itemErrors.length > 0 && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2 space-y-1">
           {itemErrors.map((err, i) => <p key={i} className="text-xs text-destructive">{err}</p>)}
         </div>
       )}
 
-      {/* ── Summary + Generate ─────────────────────────────── */}
       <div className="flex items-center gap-3 pt-1">
-        <p className={cn("text-sm", valid ? "text-green-600" : "text-amber-600")}>
-          {sectionItemCount} / {totalItems} items covered
+        <p className={cn("text-sm", valid ? "text-green-600" : gap ? "text-amber-600" : overflow ? "text-destructive" : "text-amber-600")}>
+          {totalCovered} / {totalItems} items covered
+          {gap && " — add more sections"}
+          {overflow && " — exceeds total"}
         </p>
         <Button onClick={onNext} disabled={!valid || isLoading} size="sm">
           {isLoading && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
@@ -437,18 +436,6 @@ function Step3({
       </div>
     </div>
   );
-
-  function updateSectionOrder(arr: AssessmentSection[]) {
-    let cursor = 0;
-    const fixed = arr.map((sec) => {
-      const count = sec.to - sec.from + 1;
-      const from = cursor + 1;
-      const to = cursor + count;
-      cursor = to;
-      return { ...sec, from, to };
-    }).filter((sec) => sec.from <= totalItems && sec.to <= totalItems);
-    onChange({ sections: fixed });
-  }
 }
 
 // ─── Helpers to convert sections → ranges for API ─────────────────────────────
@@ -527,9 +514,23 @@ function Step5({ classId, assessmentId, questions, onNext }: { classId: string; 
               <label className="text-xs text-muted-foreground">Question</label>
               <textarea value={edits[q.id]?.text ?? q.text} onChange={(e) => setEdits((p) => ({ ...p, [q.id]: { ...p[q.id], text: e.target.value } }))} onBlur={() => saveEdit(q.id)} rows={2} className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none" />
             </div>
+            {q.choices && q.choices.length > 0 && (
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Choices</label>
+                <div className="space-y-1">
+                  {q.choices.map((c) => (
+                    <div key={c.label} className={cn("flex items-center gap-2 px-3 py-1.5 rounded text-sm border", q.correctAnswer === c.text ? "border-green-300 bg-green-50" : "border-border")}>
+                      <span className="font-mono text-xs font-bold w-5">{c.label}.</span>
+                      <span>{c.text}</span>
+                      {q.correctAnswer === c.text && <span className="text-xs text-green-600 ml-auto font-medium">Correct</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {q.type !== "essay" && (
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Correct Answer</label>
+                <label className="text-xs text-muted-foreground">Answer</label>
                 <input type="text" value={edits[q.id]?.correctAnswer ?? ""} onChange={(e) => setEdits((p) => ({ ...p, [q.id]: { ...p[q.id], correctAnswer: e.target.value } }))} onBlur={() => saveEdit(q.id)} className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" />
               </div>
             )}

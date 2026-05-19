@@ -707,12 +707,14 @@ model Assessment {
 }
 
 model Question {
-  id             String  @id @default(uuid())
+  id             String   @id @default(uuid())
   org_id         String
   assessment_id  String
   type           String
   question_text  String
   correct_answer String?
+  choices        Json?
+  order          Int      @default(0)
 }
 
 model Submission {

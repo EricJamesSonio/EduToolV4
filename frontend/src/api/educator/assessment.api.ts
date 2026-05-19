@@ -1,6 +1,6 @@
 // filepath: frontend/src/api/educator/assessment.api.ts
 import apiClient from "@/api/client";
-import type { Assessment, Question } from "@/types/educator/assessment.types";
+import type { Assessment, Question, Choice } from "@/types/educator/assessment.types";
 import type { Submission } from "@/types/educator/submission.types";
 
 export interface RangeConfig {
@@ -58,6 +58,12 @@ function unwrap<T>(data: T | { data: T }): T {
     : (data as T);
 }
 
+function toChoices(raw: unknown): Choice[] | null {
+  if (!Array.isArray(raw)) return null;
+  const labels = ["A", "B", "C", "D"] as const;
+  return raw.slice(0, 4).map((text, i) => ({ label: labels[i], text: String(text) }));
+}
+
 function mapQuestion(raw: Record<string, unknown>): Question {
   return {
     id: raw.id as string,
@@ -65,7 +71,7 @@ function mapQuestion(raw: Record<string, unknown>): Question {
     order: (raw.order ?? 0) as number,
     type: (raw.type) as Question["type"],
     text: (raw.question_text ?? raw.text) as string,
-    choices: (raw.choices ?? null) as Question["choices"],
+    choices: toChoices(raw.choices),
     correctAnswer: (raw.correct_answer ?? raw.correctAnswer ?? null) as string | null,
     points: (raw.points ?? 1) as number,
     isLocked: (raw.is_locked ?? raw.isLocked ?? false) as boolean,
@@ -217,5 +223,10 @@ export const assessmentApi = {
   unpublish: async (classId: string, assessmentId: string): Promise<{ success: true }> => {
     const { data } = await apiClient.post(`/classes/${classId}/assessments/${assessmentId}/unpublish`);
     return unwrap<{ success: true }>(data);
+  },
+
+  assignStudents: async (classId: string, assessmentId: string, studentIds: string[]): Promise<{ success: true; assigned: number }> => {
+    const { data } = await apiClient.post(`/classes/${classId}/assessments/${assessmentId}/assign-students`, { studentIds });
+    return unwrap<{ success: true; assigned: number }>(data);
   },
 };

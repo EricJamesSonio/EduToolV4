@@ -53,6 +53,7 @@ export class AssessmentRepository {
       where: { id },
       data: {
         ...(data.releaseDate !== undefined ? { release_date: data.releaseDate } : {}),
+        ...(data.endDate !== undefined ? { end_date: data.endDate } : {}),
         ...(data.type !== undefined ? { type: data.type } : {}),
         ...(data.isPublished !== undefined ? { is_published: data.isPublished } : {}),
       },
@@ -65,7 +66,7 @@ export class AssessmentRepository {
 
   // ───────── QUESTIONS ─────────
 
-  async createQuestions(questions: Array<{ orgId: string; assessmentId: string; type: string; questionText: string; correctAnswer?: string }>) {
+  async createQuestions(questions: Array<{ orgId: string; assessmentId: string; type: string; questionText: string; correctAnswer?: string; choices?: string[]; order: number }>) {
     return this.db.question.createMany({
       data: questions.map(q => ({
         org_id: q.orgId,
@@ -73,6 +74,8 @@ export class AssessmentRepository {
         type: q.type,
         question_text: q.questionText,
         correct_answer: q.correctAnswer ?? null,
+        choices: q.choices ? JSON.stringify(q.choices) : null,
+        order: q.order,
       })),
     });
   }
@@ -80,7 +83,7 @@ export class AssessmentRepository {
   async findQuestions(assessmentId: string) {
     return this.db.question.findMany({
       where: { assessment_id: assessmentId },
-      orderBy: { id: 'asc' },
+      orderBy: { order: 'asc' },
     });
   }
 
