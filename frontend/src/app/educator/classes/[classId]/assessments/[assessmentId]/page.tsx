@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { assessmentApi } from "@/api/educator/assessment.api";
 import { educatorClassApi } from "@/api/educator/class.api";
-import { Loader2, Trash2, Users, Pencil, UserPlus, RotateCcw } from "lucide-react";
+import { Loader2, Trash2, Users, Pencil, UserPlus, RotateCcw, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import type { AssessmentType } from "@/types/educator/assessment.types";
@@ -109,6 +109,17 @@ export default function AssessmentDetailPage(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
+      {/* Back button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="gap-1.5 text-muted-foreground hover:text-foreground -ml-1"
+        onClick={() => router.push(`/educator/classes/${classId}/assessments`)}
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to Assessments
+      </Button>
+
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1 min-w-0">
@@ -197,15 +208,51 @@ export default function AssessmentDetailPage(): React.JSX.Element {
             </DialogContent>
           </Dialog>
           {assessment.isPublished ? (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => unpublish(assessmentId)} disabled={isUnpublishing}>
-              {isUnpublishing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              Unpublish Scores
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5" disabled={isUnpublishing}>
+                  {isUnpublishing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  <XCircle className="h-3.5 w-3.5" />Unpublish Scores
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Unpublish scores?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Students will no longer see their scores or the question review. This can be reverted by publishing again.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => unpublish(assessmentId)}>
+                    Unpublish
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           ) : (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => publish(assessmentId)} disabled={isPublishing}>
-              {isPublishing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              Publish Scores
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5" disabled={isPublishing}>
+                  {isPublishing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />Publish Scores
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Publish scores?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    All students will immediately see their scores and the full question review. This cannot be undone, but you can unpublish later.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => publish(assessmentId)}>
+                    Publish
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
           <Link href={`/educator/classes/${classId}/assessments/${assessmentId}/submissions`}>
             <Button variant="outline" size="sm" className="gap-1.5">
