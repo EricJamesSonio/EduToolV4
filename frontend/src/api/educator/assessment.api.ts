@@ -1,18 +1,14 @@
 // filepath: frontend/src/api/educator/assessment.api.ts
 import apiClient from "@/api/client";
-import type { Assessment, Question, Choice, GenerationStatus, GradingMode } from "@/types/educator/assessment.types";
+import type { Assessment, Question, Choice, GenerationStatus, GradingMode, QuestionType } from "@/types/educator/assessment.types";
 import type { Submission } from "@/types/educator/submission.types";
 
 export interface RangeConfig {
   from: number;
   to: number;
-  questionType:
-    | "multiple_choice"
-    | "true_or_false"
-    | "identification"
-    | "enumeration"
-    | "essay";
+  questionType: QuestionType;
   conceptSections: string[];
+  manualQuestionText?: string;
 }
 
 export interface CreateAssessmentRequest {

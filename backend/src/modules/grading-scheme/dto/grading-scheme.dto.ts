@@ -10,12 +10,14 @@ export enum ComponentType {
   QUARTERLY_ASSESSMENT = 'quarterly_assessment',
   EXAM                 = 'exam',
   QUIZ                 = 'quiz',
+  ASSIGNMENT           = 'assignment',
   PROJECT              = 'project',
   RECITATION           = 'recitation',
+  PARTICIPATION        = 'participation',
+  BEHAVIOR             = 'behavior',
   ATTENDANCE           = 'attendance',
   ACTIVITY             = 'activity',
   CUSTOM               = 'custom',
-  MANUAL               = 'manual',
   OTHER                = 'other',
 }
 

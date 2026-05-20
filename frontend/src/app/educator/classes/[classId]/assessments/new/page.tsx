@@ -39,6 +39,7 @@ interface AssessmentSection {
   to: number;
   questionType: QuestionType;
   selectedItemIndices: number[]; // indices into conceptItems[]
+  manualQuestionText?: string; // educator-written question for manual sections
 }
 
 interface ConceptContent {
@@ -68,14 +69,14 @@ interface BuilderState {
 const GRADING_MODE_LABELS: Record<string, string> = {
   system: "System-Graded",
   manual: "Manual-Graded",
-  hybrid: "Hybrid (System + Manual)",
 };
 
 const TYPE_LABELS: Record<string, string> = {
   written_work: "Written Work", performance_task: "Performance Task",
   quarterly_assessment: "Quarterly Assessment", exam: "Exam", quiz: "Quiz",
-  project: "Project", recitation: "Recitation", attendance: "Attendance",
-  activity: "Activity", custom: "Custom", other: "Other", behavior: "Behavior",
+  assignment: "Assignment", project: "Project", recitation: "Recitation",
+  participation: "Participation", behavior: "Behavior",
+  attendance: "Attendance", activity: "Activity", custom: "Custom", other: "Other",
 };
 
 let secIdCounter = 0;
@@ -96,7 +97,7 @@ function defaultSectionTitle(type: QuestionType): string {
     true_or_false: "True or False Questions",
     identification: "Identification Questions",
     enumeration: "Enumeration Questions",
-    essay: "Essay Questions",
+    manual: "Manual Questions",
   };
   return map[type] ?? `${type.replace(/_/g, " ")} Questions`;
 }
@@ -124,34 +125,26 @@ function StepIndicator({ steps, current }: { steps: string[]; current: number })
 }
 
 // ─── Step 0: Grading Mode ─────────────────────────────────────────────────────
-function Step0({ gradingMode, showBreakdown, manualMaxScore, onChange, onNext }: {
-  gradingMode: GradingMode; showBreakdown: boolean; manualMaxScore: number;
+function Step0({ gradingMode, showBreakdown, onChange, onNext }: {
+  gradingMode: GradingMode; showBreakdown: boolean;
   onChange: (u: Partial<BuilderState>) => void; onNext: () => void;
 }) {
   return (
     <div className="space-y-6 max-w-xl">
       <p className="text-sm text-muted-foreground">Choose how this assessment will be graded.</p>
       <div className="space-y-3">
-        {(["system", "manual", "hybrid"] as const).map((mode) => (
+        {(["system", "manual"] as const).map((mode) => (
           <button key={mode} type="button" onClick={() => onChange({ gradingMode: mode })}
             className={cn("w-full text-left px-4 py-4 rounded-lg border text-sm transition-colors", gradingMode === mode ? "border-primary bg-primary/5" : "hover:bg-muted/40 border-border")}>
             <div className="font-medium">{GRADING_MODE_LABELS[mode]}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {mode === "system" ? "Questions are auto-generated from lesson concepts and auto-graded. Best for quizzes, exams, and activities." :
-               mode === "manual" ? "Educator creates an assessment with free-form instructions. No auto-grading — scores are set manually. Best for projects, recitation, and behavior." :
-               "Mix of auto-graded questions (MCQ, T/F, etc.) and manually graded sections (essays, projects). Best for comprehensive assessments."}
+              {mode === "system"
+                ? "Questions are auto-generated from lesson concepts and auto-graded. Add Manual (Educator-Written) sections to include manually graded components — the system automatically treats it as hybrid."
+                : "Educator creates an assessment with free-form instructions. No auto-grading — scores are set manually. Best for projects, recitation, and behavior."}
             </p>
           </button>
         ))}
       </div>
-      {gradingMode === "hybrid" && (
-        <div className="rounded-lg border p-4 space-y-3">
-          <label className="text-sm font-medium">Manual Section Max Score</label>
-          <input type="number" min={0} value={manualMaxScore}
-            onChange={(e) => onChange({ manualMaxScore: parseInt(e.target.value, 10) || 0 })}
-            className="w-24 rounded-md border bg-background px-3 py-1.5 text-sm" />
-        </div>
-      )}
       <label className="flex items-center gap-2 text-sm cursor-pointer">
         <input type="checkbox" checked={showBreakdown} onChange={(e) => onChange({ showBreakdown: e.target.checked })} className="rounded" />
         Show breakdown to students
@@ -242,7 +235,7 @@ const Q_TYPES: { value: QuestionType; label: string }[] = [
   { value: "true_or_false", label: "True or False" },
   { value: "identification", label: "Identification" },
   { value: "enumeration", label: "Enumeration" },
-  { value: "essay", label: "Essay" },
+  { value: "manual", label: "Manual (Educator-Written)" },
 ];
 
 // ─── Step 3: Configuration (system/hybrid) ────────────────────────────────────
@@ -271,8 +264,12 @@ function Step3({
     if (sec.to > totalItems) {
       itemErrors.push(`Section "${sec.title || defaultSectionTitle(sec.questionType)}" ends at ${sec.to} but total items is ${totalItems}.`);
     }
-    if (sec.selectedItemIndices.length < count) {
-      itemErrors.push(`"${sec.title || defaultSectionTitle(sec.questionType)}" needs ${count} items, but only ${sec.selectedItemIndices.length} selected.`);
+    if (sec.questionType !== 'manual') {
+      if (sec.selectedItemIndices.length < count) {
+        itemErrors.push(`"${sec.title || defaultSectionTitle(sec.questionType)}" needs ${count} items, but only ${sec.selectedItemIndices.length} selected.`);
+      }
+    } else if (!sec.manualQuestionText?.trim()) {
+      itemErrors.push(`"${sec.title || defaultSectionTitle(sec.questionType)}" requires question text.`);
     }
     expectedFrom = sec.to + 1;
   }
@@ -415,54 +412,67 @@ function Step3({
                   <div className={cn("text-xs", hasEnoughItems ? "text-green-600" : "text-destructive")}>{sec.selectedItemIndices.length} / {secCount} items</div>
                 </div>
 
-                <div className="rounded-lg border max-h-56 overflow-y-auto divide-y">
-                  {grouped.map((g) => {
-                    if (!g.items.length) return null;
-                    const allSelected = g.items.every((ci) => selectedIndicesSet.has(ci.index));
-                    return (
-                      <div key={g.section} className="px-3 py-2">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.section} ({g.items.length})</span>
-                          <label className="flex items-center gap-1 text-xs cursor-pointer">
-                            <input type="checkbox" checked={allSelected}
-                              onChange={() => {
-                                if (allSelected) {
-                                  updateSection(si, { selectedItemIndices: sec.selectedItemIndices.filter((idx) => !g.items.some((ci) => ci.index === idx)) });
-                                } else {
-                                  const toAdd = g.items.filter((ci) => !selectedIndicesSet.has(ci.index)).map((ci) => ci.index);
-                                  updateSection(si, { selectedItemIndices: [...sec.selectedItemIndices, ...toAdd] });
-                                }
-                              }} className="rounded" />
-                            Select all
-                          </label>
-                        </div>
-                        <div className="space-y-0.5">
-                          {g.items.map((ci) => (
-                            <label key={ci.index} className={cn("flex items-start gap-2 py-0.5 px-1 rounded cursor-pointer text-xs hover:bg-muted/30", selectedIndicesSet.has(ci.index) && "bg-primary/5")}>
-                              <input type="checkbox" className="mt-0.5 rounded"
-                                checked={selectedIndicesSet.has(ci.index)}
-                                onChange={() => {
-                                  updateSection(si, {
-                                    selectedItemIndices: selectedIndicesSet.has(ci.index)
-                                      ? sec.selectedItemIndices.filter((idx) => idx !== ci.index)
-                                      : [...sec.selectedItemIndices, ci.index],
-                                  });
-                                }} />
-                              <div className="flex-1 min-w-0">
-                                <span className="font-medium">{ci.name}</span>
-                                {ci.definition && <span className="text-muted-foreground ml-1">— {ci.definition}</span>}
-                              </div>
-                              <span className={cn("text-[10px] uppercase shrink-0", ci.difficulty === "easy" ? "text-green-600" : ci.difficulty === "hard" ? "text-destructive" : "text-amber-600")}>{ci.difficulty}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                  {sec.questionType === 'manual' ? (
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Question / Prompt <span className="text-destructive">*</span></label>
+                    <textarea value={sec.manualQuestionText ?? ''}
+                      onChange={(e) => updateSection(si, { manualQuestionText: e.target.value })}
+                      placeholder="Write the question or prompt students will respond to. This will be manually graded."
+                      rows={4}
+                      className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded-lg border max-h-56 overflow-y-auto divide-y">
+                      {grouped.map((g) => {
+                        if (!g.items.length) return null;
+                        const allSelected = g.items.every((ci) => selectedIndicesSet.has(ci.index));
+                        return (
+                          <div key={g.section} className="px-3 py-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.section} ({g.items.length})</span>
+                              <label className="flex items-center gap-1 text-xs cursor-pointer">
+                                <input type="checkbox" checked={allSelected}
+                                  onChange={() => {
+                                    if (allSelected) {
+                                      updateSection(si, { selectedItemIndices: sec.selectedItemIndices.filter((idx) => !g.items.some((ci) => ci.index === idx)) });
+                                    } else {
+                                      const toAdd = g.items.filter((ci) => !selectedIndicesSet.has(ci.index)).map((ci) => ci.index);
+                                      updateSection(si, { selectedItemIndices: [...sec.selectedItemIndices, ...toAdd] });
+                                    }
+                                  }} className="rounded" />
+                                Select all
+                              </label>
+                            </div>
+                            <div className="space-y-0.5">
+                              {g.items.map((ci) => (
+                                <label key={ci.index} className={cn("flex items-start gap-2 py-0.5 px-1 rounded cursor-pointer text-xs hover:bg-muted/30", selectedIndicesSet.has(ci.index) && "bg-primary/5")}>
+                                  <input type="checkbox" className="mt-0.5 rounded"
+                                    checked={selectedIndicesSet.has(ci.index)}
+                                    onChange={() => {
+                                      updateSection(si, {
+                                        selectedItemIndices: selectedIndicesSet.has(ci.index)
+                                          ? sec.selectedItemIndices.filter((idx) => idx !== ci.index)
+                                          : [...sec.selectedItemIndices, ci.index],
+                                      });
+                                    }} />
+                                  <div className="flex-1 min-w-0">
+                                    <span className="font-medium">{ci.name}</span>
+                                    {ci.definition && <span className="text-muted-foreground ml-1">— {ci.definition}</span>}
+                                  </div>
+                                  <span className={cn("text-[10px] uppercase shrink-0", ci.difficulty === "easy" ? "text-green-600" : ci.difficulty === "hard" ? "text-destructive" : "text-amber-600")}>{ci.difficulty}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
 
-                {!hasEnoughItems && (
-                  <p className="text-xs text-destructive">Select at least {secCount} item{secCount > 1 ? "s" : ""} from the concept sections above.</p>
+                    {!hasEnoughItems && (
+                      <p className="text-xs text-destructive">Select at least {secCount} item{secCount > 1 ? "s" : ""} from the concept sections above.</p>
+                    )}
+                  </>
                 )}
               </div>
             );
@@ -497,11 +507,12 @@ interface RangeRow {
   to: number;
   questionType: QuestionType;
   conceptSections: string[];
+  manualQuestionText?: string;
 }
 
 function getSectionsForRanges(sections: AssessmentSection[], conceptItems: ConceptItemInfo[]): RangeRow[] {
   return sections
-    .filter((sec) => sec.selectedItemIndices.length >= sec.to - sec.from + 1)
+    .filter((sec) => sec.selectedItemIndices.length >= sec.to - sec.from + 1 || sec.questionType === 'manual')
     .map((sec) => {
       const selectedConcepts = sec.selectedItemIndices.map((idx) => conceptItems[idx]).filter(Boolean);
       const uniqueSections = [...new Set(selectedConcepts.map((c) => c.section))];
@@ -510,6 +521,7 @@ function getSectionsForRanges(sections: AssessmentSection[], conceptItems: Conce
         to: sec.to,
         questionType: sec.questionType,
         conceptSections: uniqueSections,
+        manualQuestionText: sec.questionType === 'manual' ? sec.manualQuestionText : undefined,
       };
     });
 }
@@ -545,6 +557,7 @@ function Step4({ classId, previewId, onQuestionsReady }: { classId: string; prev
           : null,
         correctAnswer: q.answer ?? q.correct_answer ?? null,
         points: 1, isLocked: false,
+        isManual: q.type === 'manual',
       }));
       onQuestionsReady(mapped);
     }, 300);
@@ -627,7 +640,10 @@ function Step5({ classId, previewId, questions, onConfirm }: { classId: string; 
       <div className="space-y-3">
         {questions.map((q, i) => (
           <div key={q.id} className="rounded-lg border p-4 space-y-3">
-            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Item {i + 1} — {q.type.replace(/_/g, " ")}</span>
+            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+              Item {i + 1} — {q.type.replace(/_/g, " ")}
+              {q.type === 'manual' && <span className="ml-2 text-amber-600">(Manually graded)</span>}
+            </span>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Question</label>
               <textarea value={edits[q.id]?.text ?? q.text} onChange={(e) => setEdits((p) => ({ ...p, [q.id]: { ...p[q.id], text: e.target.value } }))} rows={2} className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none" />
@@ -645,7 +661,7 @@ function Step5({ classId, previewId, questions, onConfirm }: { classId: string; 
                 </div>
               </div>
             )}
-            {q.type !== "essay" && (
+            {q.type !== "essay" && q.type !== "manual" && (
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Answer</label>
                 <input type="text" value={edits[q.id]?.correctAnswer ?? ""} onChange={(e) => setEdits((p) => ({ ...p, [q.id]: { ...p[q.id], correctAnswer: e.target.value } }))} className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" />
@@ -840,7 +856,7 @@ export default function NewAssessmentPage() {
   const cc = getConceptContent(concept);
 
   const isManual = state.gradingMode === "manual";
-  const isSystemHybrid = state.gradingMode === "system" || state.gradingMode === "hybrid";
+  const isSystem = state.gradingMode === "system";
 
   const systemSteps = ["Select Lesson", "View Concepts", "Configuration", "Generate", "Review Questions", "Set Dates & Assign"];
   const manualSteps = ["Type & Instructions", "Items & Dates"];
@@ -858,16 +874,27 @@ export default function NewAssessmentPage() {
     if (!termId) { toast.error("Could not determine term for this lesson's week."); return; }
     const ranges = getSectionsForRanges(state.sections, cc.conceptItems);
     if (!ranges.length) { toast.error("No sections configured."); return; }
+
+    // Auto-detect hybrid: if system mode has manual sections, treat as hybrid
+    const hasManualSections = ranges.some((r) => r.questionType === 'manual');
+    const effectiveGradingMode = state.gradingMode === 'system' && hasManualSections ? 'hybrid' : state.gradingMode;
+
+    // Derive manualMaxScore from the count of manual section items
+    const manualItemCount = ranges
+      .filter((r) => r.questionType === 'manual')
+      .reduce((sum, r) => sum + (r.to - r.from + 1), 0);
+    const derivedManualMaxScore = effectiveGradingMode === 'hybrid' ? manualItemCount : undefined;
+
     try {
       const { previewId } = await assessmentApi.generatePreview(classId, {
         lessonId: state.selectedLesson.id, termId, type: state.type,
         totalItems: state.totalItems,
-        gradingMode: state.gradingMode,
+        gradingMode: effectiveGradingMode as GradingMode,
         showBreakdown: state.showBreakdown,
-        manualMaxScore: state.gradingMode === "hybrid" ? state.manualMaxScore : undefined,
-        ranges: ranges.map((r) => ({ from: r.from, to: r.to, questionType: r.questionType as RangeConfig["questionType"], conceptSections: r.conceptSections })),
+        manualMaxScore: derivedManualMaxScore,
+        ranges: ranges.map((r) => ({ from: r.from, to: r.to, questionType: r.questionType as RangeConfig["questionType"], conceptSections: r.conceptSections, manualQuestionText: r.manualQuestionText })),
       });
-      patch({ previewId });
+      patch({ previewId, gradingMode: effectiveGradingMode as GradingMode });
       next();
     } catch { toast.error("Failed to start question generation."); }
   }
@@ -914,23 +941,23 @@ export default function NewAssessmentPage() {
       <StepIndicator steps={allSteps} current={step} />
       <div className="pt-2">
         {step === 0 && (
-          <Step0 gradingMode={state.gradingMode} showBreakdown={state.showBreakdown} manualMaxScore={state.manualMaxScore}
+          <Step0 gradingMode={state.gradingMode} showBreakdown={state.showBreakdown}
             onChange={(u) => patch(u)} onNext={() => { if (state.gradingMode) next(); else toast.error("Please select a grading mode."); }} />
         )}
 
-        {isSystemHybrid && step === 1 && (
+        {isSystem && step === 1 && (
           <div className="space-y-6">
             <Step1 classId={classId} selected={state.selectedLesson} onSelect={(l) => patch({ selectedLesson: l })} onNext={next} />
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to grading mode</Button>
           </div>
         )}
-        {isSystemHybrid && step === 2 && (
+        {isSystem && step === 2 && (
           <div className="space-y-6">
             <Step2 concept={concept} onNext={next} />
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to lesson selection</Button>
           </div>
         )}
-        {isSystemHybrid && step === 3 && (
+        {isSystem && step === 3 && (
           <div className="space-y-6">
             <Step3 type={state.type} totalItems={state.totalItems} sections={state.sections}
               conceptItems={cc.conceptItems} sectionNames={cc.sections} schemeTypes={schemeTypes}
@@ -939,14 +966,14 @@ export default function NewAssessmentPage() {
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to concepts</Button>
           </div>
         )}
-        {isSystemHybrid && step === 4 && state.previewId && <Step4 classId={classId} previewId={state.previewId} onQuestionsReady={(q) => { patch({ generatedQuestions: q }); next(); }} />}
-        {isSystemHybrid && step === 5 && state.previewId && (
+        {isSystem && step === 4 && state.previewId && <Step4 classId={classId} previewId={state.previewId} onQuestionsReady={(q) => { patch({ generatedQuestions: q }); next(); }} />}
+        {isSystem && step === 5 && state.previewId && (
           <div className="space-y-6">
             <Step5 classId={classId} previewId={state.previewId} questions={state.generatedQuestions} onConfirm={(assessmentId) => { patch({ createdAssessmentId: assessmentId }); next(); }} />
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to review</Button>
           </div>
         )}
-        {isSystemHybrid && step === 6 && (
+        {isSystem && step === 6 && (
           <div className="space-y-6">
             <Step6 classId={classId} releaseDate={state.releaseDate} endDate={state.endDate} selectedStudentIds={state.selectedStudentIds} onChange={(u) => patch(u)} onPublish={handlePublish} isLoading={isUpdating} />
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to question review</Button>

@@ -72,6 +72,13 @@ export class AssessmentEducatorService {
     const gradingMode = dto.gradingMode ?? GradingMode.SYSTEM;
     const isManual = gradingMode === GradingMode.MANUAL;
 
+    // Auto-detect hybrid: if system mode has manual-type sections, upgrade to hybrid
+    let effectiveGradingMode = gradingMode;
+    const hasManualSections = dto.ranges?.some((r) => r.questionType === 'manual') ?? false;
+    if (gradingMode === GradingMode.SYSTEM && hasManualSections) {
+      effectiveGradingMode = GradingMode.HYBRID;
+    }
+
     await this.assertTypeMatchesScheme(classId, orgId, dto.type);
 
     if (!isManual) {
@@ -93,40 +100,74 @@ export class AssessmentEducatorService {
       type: dto.type,
       totalItems: dto.totalItems,
       releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
-      gradingMode,
+      gradingMode: effectiveGradingMode,
       manualMaxScore: dto.manualMaxScore,
       showBreakdown: dto.showBreakdown,
     });
 
-    if (!isManual) {
-      this.generationStatuses.set(assessment.id, {
-        status: 'generating',
-        message: 'Starting generation...',
-        chunksTotal: 0,
-        chunksDone: 0,
-      });
+    if (isManual) {
+      // Manual mode: create 1 essay question with instructions
+      if (dto.manualInstructions?.trim()) {
+        await this.repo.createQuestions([{
+          orgId,
+          assessmentId: assessment.id,
+          type: 'essay',
+          questionText: dto.manualInstructions.trim(),
+          order: 1,
+          isManual: true,
+        }]);
+      }
+    } else {
+      // System or hybrid mode
+      const manualRanges = (dto.ranges ?? []).filter((r) => r.questionType === 'manual');
+      const aiRanges = (dto.ranges ?? []).filter((r) => r.questionType !== 'manual');
 
-      // Fire generation asynchronously — frontend polls status endpoint
-      this.generateQuestions(assessment.id, orgId, educatorId, dto);
-    } else if (dto.manualInstructions?.trim()) {
-      // Create 1 essay question holding the educator's free-form instructions.
-      // Students see the instructions as the question text and respond via a text area.
-      // No auto-grading is performed (essay type + isManual flag).
-      await this.repo.createQuestions([{
-        orgId,
-        assessmentId: assessment.id,
-        type: 'essay',
-        questionText: dto.manualInstructions.trim(),
-        order: 1,
-        isManual: true,
-      }]);
+      // Create manual questions directly (no AI needed)
+      if (manualRanges.length > 0) {
+        const manualQuestions = manualRanges.flatMap((r) => {
+          const text = r.manualQuestionText?.trim();
+          if (!text) return [];
+          const items: Array<{
+            orgId: string; assessmentId: string; type: string; questionText: string;
+            order: number; isManual: boolean;
+          }> = [];
+          for (let idx = r.from; idx <= r.to; idx++) {
+            items.push({
+              orgId,
+              assessmentId: assessment.id,
+              type: 'manual',
+              questionText: text,
+              order: idx,
+              isManual: true,
+            });
+          }
+          return items;
+        });
+        if (manualQuestions.length > 0) {
+          await this.repo.createQuestions(manualQuestions);
+        }
+      }
+
+      // Start AI generation for remaining sections
+      if (aiRanges.length > 0) {
+        this.generationStatuses.set(assessment.id, {
+          status: 'generating',
+          message: 'Starting generation...',
+          chunksTotal: 0,
+          chunksDone: 0,
+        });
+
+        // Create a filtered DTO that only contains AI ranges for the generation process
+        const aiDto = { ...dto, ranges: aiRanges };
+        this.generateQuestions(assessment.id, orgId, educatorId, aiDto);
+      }
     }
 
     await this.auditLog.logActivityEvent({
       orgId, actorId: educatorId,
       action: 'assessment_created',
       entityType: 'class', entityId: classId,
-      metadata: { assessmentId: assessment.id, type: dto.type, gradingMode },
+      metadata: { assessmentId: assessment.id, type: dto.type, gradingMode: effectiveGradingMode },
     });
 
     return assessment;
@@ -580,9 +621,10 @@ export class AssessmentEducatorService {
       assessmentId: assessment.id,
       type: q.type,
       questionText: q.question,
-      correctAnswer: q.answer ?? q.correct_answer ?? (q.type !== 'essay' ? `Answer ${q.number}` : undefined),
+      correctAnswer: q.answer ?? q.correct_answer ?? (q.type !== 'essay' && q.type !== 'manual' ? `Answer ${q.number}` : undefined),
       choices: q.choices?.length ? q.choices : undefined,
       order: q.number ?? idx + 1,
+      isManual: q.type === 'manual',
     }));
 
     await this.repo.createQuestions(questions);
@@ -618,39 +660,67 @@ export class AssessmentEducatorService {
       if (!lesson) throw new NotFoundException('Lesson not found');
       const lessonDetail = lesson.detail ?? '';
 
-      const blueprints = (dto.ranges ?? []).map((r) => ({
+      // Separate manual ranges — they don't need AI generation
+      const manualRanges = (dto.ranges ?? []).filter((r) => r.questionType === 'manual');
+      const aiRanges = (dto.ranges ?? []).filter((r) => r.questionType !== 'manual');
+
+      // Build manual questions from educator-provided text
+      const manualQuestions: GeneratedQuestion[] = [];
+      for (const r of manualRanges) {
+        for (let idx = r.from; idx <= r.to; idx++) {
+          if (r.manualQuestionText?.trim()) {
+            manualQuestions.push({
+              number: idx,
+              type: 'manual',
+              section: '',
+              question: r.manualQuestionText.trim(),
+            });
+          }
+        }
+      }
+
+      const blueprints = aiRanges.map((r) => ({
         type: r.questionType as QuestionBlueprint['type'],
-        sections: r.conceptSections,
+        sections: r.conceptSections ?? [],
         numbers: `${r.from}-${r.to}`,
         count: r.to - r.from + 1,
       }));
 
-      const ctrl = new AbortController();
-      const cancelWatch = setInterval(() => {
-        if (this.cancellationFlags.get(previewId)) ctrl.abort();
-      }, 500);
+      let aiQuestions: GeneratedQuestion[] = [];
 
-      try {
-        const generated = await this.aiService.generateQuestions(
-          lessonDetail, blueprints,
-          (progress) => setStatus(progress),
-          ctrl.signal,
-        );
+      if (blueprints.length > 0) {
+        const ctrl = new AbortController();
+        const cancelWatch = setInterval(() => {
+          if (this.cancellationFlags.get(previewId)) ctrl.abort();
+        }, 500);
 
-        if (this.cancellationFlags.get(previewId)) return;
+        try {
+          const generated = await this.aiService.generateQuestions(
+            lessonDetail, blueprints,
+            (progress) => setStatus(progress),
+            ctrl.signal,
+          );
 
-        if (!generated?.length) throw new Error('AI returned no questions');
+          if (this.cancellationFlags.get(previewId)) return;
 
-        this.previewResults.set(previewId, { questions: generated, orgId, educatorId, dto, classId });
-        setStatus({
-          status: 'completed',
-          message: `Generated ${generated.length} questions — review and confirm`,
-        });
-
-        this.logger.log(`[Preview] ${generated.length} questions ready for review (${previewId})`);
-      } finally {
-        clearInterval(cancelWatch);
+          if (!generated?.length) throw new Error('AI returned no questions');
+          aiQuestions = generated;
+        } finally {
+          clearInterval(cancelWatch);
+        }
       }
+
+      const allQuestions = [...aiQuestions, ...manualQuestions];
+
+      if (!allQuestions.length) throw new Error('No questions to preview');
+
+      this.previewResults.set(previewId, { questions: allQuestions, orgId, educatorId, dto, classId });
+      setStatus({
+        status: 'completed',
+        message: `Generated ${allQuestions.length} questions — review and confirm`,
+      });
+
+      this.logger.log(`[Preview] ${allQuestions.length} questions ready for review (${previewId}) (${aiQuestions.length} AI, ${manualQuestions.length} manual)`);
     } catch (err) {
       const isCancelled = String(err).includes('cancelled') || String(err).includes('abort');
       if (isCancelled) {

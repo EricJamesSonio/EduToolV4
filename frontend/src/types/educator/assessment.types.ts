@@ -12,7 +12,8 @@ export type QuestionType =
   | "true_or_false"
   | "identification"
   | "enumeration"
-  | "essay";
+  | "essay"
+  | "manual";
 
 export interface Choice {
   label: "A" | "B" | "C" | "D";

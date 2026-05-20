@@ -32,14 +32,16 @@ export const QUESTION_TYPES = [
   'identification',
   'enumeration',
   'essay',
+  'manual',
 ] as const;
 
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
 export const ASSESSMENT_TYPES = [
   'written_work', 'performance_task', 'quarterly_assessment',
-  'exam', 'quiz', 'project', 'recitation', 'behavior',
-  'attendance', 'activity', 'custom', 'other',
+  'exam', 'quiz', 'assignment', 'project', 'recitation',
+  'participation', 'behavior', 'attendance', 'activity',
+  'custom', 'other',
 ] as const;
 
 // ── Item range for generation config ─────────────────────────────────────────
@@ -56,10 +58,14 @@ export class ItemRangeDto {
   @IsIn(QUESTION_TYPES)
   questionType: QuestionType;
 
+  @IsOptional()
   @IsArray()
-  @ArrayNotEmpty()
   @IsString({ each: true })
-  conceptSections: string[]; // section names from concept build
+  conceptSections: string[]; // section names from concept build — empty for manual sections
+
+  @IsOptional()
+  @IsString()
+  manualQuestionText?: string; // educator-written question text for manual sections
 }
 
 // ── POST /classes/:classId/assessments ───────────────────────────────────────

@@ -185,7 +185,7 @@ export class SubmissionService {
       const autoGradable = savedAnswers.filter((a) => {
         const q = questionMap.get(a.question_id);
         if (!q) return false;
-        if (q.type === 'essay') return false;
+        if (q.type === 'essay' || q.type === 'manual') return false;
         if (q.is_manual) return false;
         return true;
       });

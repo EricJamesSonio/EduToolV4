@@ -371,7 +371,7 @@ export default function AssessmentTakerPage(): React.JSX.Element {
                   </div>
                 )}
 
-                {!isManual && q.type === "essay" && (
+                {!isManual && (q.type === "essay" || q.type === "manual") && (
                   <Textarea
                     value={answers[q.id] ?? ""}
                     onChange={(e) => setAnswer(q.id, e.target.value)}

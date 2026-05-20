@@ -4,12 +4,14 @@ export type ComponentType =
   | 'quarterly_assessment'
   | 'exam'
   | 'quiz'
+  | 'assignment'
   | 'project'
   | 'recitation'
+  | 'participation'
+  | 'behavior'
   | 'attendance'
   | 'activity'
   | 'custom'
-  | 'manual'
   | 'other'
 
 export interface GradingSchemeComponent {
