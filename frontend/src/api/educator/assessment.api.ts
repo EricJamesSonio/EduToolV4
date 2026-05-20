@@ -1,6 +1,6 @@
 // filepath: frontend/src/api/educator/assessment.api.ts
 import apiClient from "@/api/client";
-import type { Assessment, Question, Choice, GenerationStatus } from "@/types/educator/assessment.types";
+import type { Assessment, Question, Choice, GenerationStatus, GradingMode } from "@/types/educator/assessment.types";
 import type { Submission } from "@/types/educator/submission.types";
 
 export interface RangeConfig {
@@ -16,17 +16,24 @@ export interface RangeConfig {
 }
 
 export interface CreateAssessmentRequest {
-  lessonId: string;
+  lessonId?: string;
   termId: string;
-  type: "quiz" | "activity" | "exam" | "custom";
+  type: string;
   totalItems: number;
   ranges: RangeConfig[];
+  gradingMode?: GradingMode;
+  manualMaxScore?: number;
+  showBreakdown?: boolean;
+  manualInstructions?: string;
   releaseDate?: string;
   endDate?: string;
 }
 
 export interface UpdateAssessmentRequest {
   type?: "quiz" | "activity" | "exam" | "custom";
+  gradingMode?: GradingMode;
+  showBreakdown?: boolean;
+  manualMaxScore?: number;
   releaseDate?: string;
   endDate?: string;
 }
@@ -38,7 +45,7 @@ export interface UpdateQuestionRequest {
 }
 
 export interface UpdateSubmissionStatusRequest {
-  status: "exempted" | "custom";
+  status: "exempted" | "custom" | "missed";
   manualScore?: number;
 }
 
@@ -75,6 +82,8 @@ function mapQuestion(raw: Record<string, unknown>): Question {
     correctAnswer: (raw.correct_answer ?? raw.correctAnswer ?? null) as string | null,
     points: (raw.points ?? 1) as number,
     isLocked: (raw.is_locked ?? raw.isLocked ?? false) as boolean,
+    isManual: (raw.is_manual ?? raw.isManual ?? false) as boolean,
+    sectionType: (raw.section_type ?? raw.sectionType ?? null) as string | null,
   };
 }
 
@@ -101,6 +110,9 @@ function mapAssessment(raw: Record<string, unknown>): Assessment {
     releaseDate: (raw.release_date ?? raw.releaseDate ?? null) as string,
     endDate: (raw.end_date ?? raw.endDate ?? null) as string,
     status: deriveStatus(raw),
+    gradingMode: (raw.grading_mode ?? raw.gradingMode ?? "system") as any,
+    showBreakdown: (raw.show_breakdown ?? raw.showBreakdown ?? false) as boolean,
+    manualMaxScore: (raw.manual_max_score ?? raw.manualMaxScore ?? null) as number | null,
     assignedStudentIds: (raw.assigned_student_ids ?? raw.assignedStudentIds ?? null) as string[] | null,
     submittedCount: (raw.submitted_count ?? raw.submittedCount ?? 0) as number,
     pendingEssayCount: (raw.pending_essay_count ?? raw.pendingEssayCount ?? 0) as number,
@@ -136,6 +148,10 @@ function mapSubmission(raw: Record<string, unknown>): Submission {
     startedAt: (raw.started_at ?? raw.startedAt ?? null) as string | null,
     submittedAt: (raw.submitted_at ?? raw.submittedAt ?? null) as string | null,
     updatedAt: (raw.updated_at ?? raw.updatedAt ?? "") as string,
+    systemSectionScore: (raw.system_section_score ?? raw.systemSectionScore ?? null) as number | null,
+    manualSectionScore: (raw.manual_section_score ?? raw.manualSectionScore ?? null) as number | null,
+    isMissed: (raw.is_missed ?? raw.isMissed ?? false) as boolean,
+    isExempted: (raw.is_exempted ?? raw.isExempted ?? false) as boolean,
   };
 }
 
@@ -238,6 +254,11 @@ export const assessmentApi = {
   getGenerationStatus: async (classId: string, assessmentId: string): Promise<GenerationStatus> => {
     const { data } = await apiClient.get(`/classes/${classId}/assessments/${assessmentId}/generation-status`);
     return unwrap<GenerationStatus>(data);
+  },
+
+  setGradeVisibility: async (classId: string, assessmentId: string, showBreakdown: boolean): Promise<{ success: true }> => {
+    const { data } = await apiClient.put(`/classes/${classId}/assessments/${assessmentId}/grade-visibility`, { showBreakdown });
+    return unwrap<{ success: true }>(data);
   },
 
   // ─── Preview flow ───

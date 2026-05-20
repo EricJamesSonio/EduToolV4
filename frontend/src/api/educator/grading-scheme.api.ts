@@ -52,4 +52,9 @@ export const educatorGradingSchemeApi = {
     const res = await client.post(`/grading-schemes/apply-to-program`, data)
     return unwrap(res)
   },
+
+  getAllowedTypes: async (classId: string): Promise<string[]> => {
+    const res = await client.get(`/grading-schemes/class/${classId}/allowed-types`)
+    return unwrap<string[]>(res)
+  },
 }

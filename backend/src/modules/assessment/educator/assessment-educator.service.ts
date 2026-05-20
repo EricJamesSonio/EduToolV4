@@ -19,6 +19,8 @@ import {
   UpdateSubmissionStatusDto,
   AssignStudentsDto,
   ReopenAssessmentDto,
+  SetGradeVisibilityDto,
+  GradingMode,
 } from '../dto/assessment.dto';
 
 @Injectable()
@@ -66,40 +68,65 @@ export class AssessmentEducatorService {
 
   async create(classId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+
+    const gradingMode = dto.gradingMode ?? GradingMode.SYSTEM;
+    const isManual = gradingMode === GradingMode.MANUAL;
+
     await this.assertTypeMatchesScheme(classId, orgId, dto.type);
 
-    const concept = await this.lessonRepo.findConcept(dto.lessonId);
-    if (!concept) throw new BadRequestException('No concept build found for this lesson. Run concept extraction first.');
+    if (!isManual) {
+      if (!dto.lessonId) throw new BadRequestException('lessonId is required for system/hybrid assessments.');
+      const concept = await this.lessonRepo.findConcept(dto.lessonId);
+      if (!concept) throw new BadRequestException('No concept build found for this lesson. Run concept extraction first.');
 
-    const rangeTotal = dto.ranges.reduce((sum, r) => sum + (r.to - r.from + 1), 0);
-    if (rangeTotal !== dto.totalItems) {
-      throw new BadRequestException(`Item ranges total ${rangeTotal} but totalItems is ${dto.totalItems}. They must match.`);
+      if (!dto.ranges?.length) throw new BadRequestException('At least one range is required for system/hybrid assessments.');
+      const rangeTotal = dto.ranges.reduce((sum, r) => sum + (r.to - r.from + 1), 0);
+      if (rangeTotal !== dto.totalItems) {
+        throw new BadRequestException(`Item ranges total ${rangeTotal} but totalItems is ${dto.totalItems}. They must match.`);
+      }
     }
 
     const assessment = await this.repo.create({
       orgId, classId,
-      lessonId: dto.lessonId,
+      lessonId: dto.lessonId || undefined,
       termId: dto.termId,
       type: dto.type,
       totalItems: dto.totalItems,
       releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
+      gradingMode,
+      manualMaxScore: dto.manualMaxScore,
+      showBreakdown: dto.showBreakdown,
     });
 
-    this.generationStatuses.set(assessment.id, {
-      status: 'generating',
-      message: 'Starting generation...',
-      chunksTotal: 0,
-      chunksDone: 0,
-    });
+    if (!isManual) {
+      this.generationStatuses.set(assessment.id, {
+        status: 'generating',
+        message: 'Starting generation...',
+        chunksTotal: 0,
+        chunksDone: 0,
+      });
 
-    // Fire generation asynchronously — frontend polls status endpoint
-    this.generateQuestions(assessment.id, orgId, educatorId, dto);
+      // Fire generation asynchronously — frontend polls status endpoint
+      this.generateQuestions(assessment.id, orgId, educatorId, dto);
+    } else if (dto.manualInstructions?.trim()) {
+      // Create 1 essay question holding the educator's free-form instructions.
+      // Students see the instructions as the question text and respond via a text area.
+      // No auto-grading is performed (essay type + isManual flag).
+      await this.repo.createQuestions([{
+        orgId,
+        assessmentId: assessment.id,
+        type: 'essay',
+        questionText: dto.manualInstructions.trim(),
+        order: 1,
+        isManual: true,
+      }]);
+    }
 
     await this.auditLog.logActivityEvent({
       orgId, actorId: educatorId,
       action: 'assessment_created',
       entityType: 'class', entityId: classId,
-      metadata: { assessmentId: assessment.id, type: dto.type },
+      metadata: { assessmentId: assessment.id, type: dto.type, gradingMode },
     });
 
     return assessment;
@@ -107,7 +134,69 @@ export class AssessmentEducatorService {
 
   async findAll(classId: string, orgId: string, educatorId: string, query: QueryAssessmentDto) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-    return this.repo.findAll(classId, orgId, { termId: query.termId, type: query.type });
+
+    const assessments = await this.repo.findAll(classId, orgId, { termId: query.termId, type: query.type });
+    if (!assessments.length) return [];
+
+    const ids = assessments.map((a) => a.id);
+
+    // Batch-count submitted submissions per assessment
+    const submissionCounts = await this.db.submission.groupBy({
+      by: ['assessment_id', 'status'],
+      where: { assessment_id: { in: ids } },
+      _count: { id: true },
+    });
+
+    // Get submitted submission IDs mapped to their assessment
+    const submittedSubs = await this.db.submission.findMany({
+      where: { assessment_id: { in: ids }, status: 'submitted' },
+      select: { id: true, assessment_id: true },
+    });
+
+    const subToAssessment = new Map(submittedSubs.map((s) => [s.id, s.assessment_id]));
+
+    // Get essay question IDs for each assessment
+    const essayQuestions = await this.db.question.findMany({
+      where: { assessment_id: { in: ids }, type: 'essay' },
+      select: { id: true, assessment_id: true },
+    });
+
+    const essayQIds = essayQuestions.map((q) => q.id);
+
+    // Count ungraded essay answers among submitted submissions
+    const pendingEssaySubIds = submittedSubs.length && essayQIds.length
+      ? await this.db.submissionAnswer.groupBy({
+          by: ['submission_id'],
+          where: {
+            submission_id: { in: submittedSubs.map((s) => s.id) },
+            question_id: { in: essayQIds },
+            is_correct: null,
+          },
+          _count: { id: true },
+        })
+      : [];
+
+    const pendingByAssessment = new Map<string, number>();
+    for (const r of pendingEssaySubIds) {
+      const assId = subToAssessment.get(r.submission_id);
+      if (assId) {
+        pendingByAssessment.set(assId, (pendingByAssessment.get(assId) ?? 0) + 1);
+      }
+    }
+
+    // Build a map: assessment_id -> submitted count
+    const submittedMap = new Map<string, number>();
+    for (const s of submissionCounts) {
+      if (s.status === 'submitted') {
+        submittedMap.set(s.assessment_id, s._count.id);
+      }
+    }
+
+    return assessments.map((a) => ({
+      ...a,
+      submittedCount: submittedMap.get(a.id) ?? 0,
+      pendingEssayCount: pendingByAssessment.get(a.id) ?? 0,
+    }));
   }
 
   async findOne(id: string, orgId: string, educatorId: string) {
@@ -126,6 +215,9 @@ export class AssessmentEducatorService {
       releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
       endDate: dto.endDate ? new Date(dto.endDate) : undefined,
       type: dto.type,
+      showBreakdown: dto.showBreakdown,
+      gradingMode: dto.gradingMode,
+      manualMaxScore: dto.manualMaxScore,
     });
 
     await this.auditLog.logActivityEvent({
@@ -169,7 +261,82 @@ export class AssessmentEducatorService {
   async getSubmissions(assessmentId: string, orgId: string, educatorId: string) {
     const assessment = await this.core.findAssessmentOrThrow(assessmentId, orgId);
     await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
-    return this.repo.findSubmissions(assessmentId, orgId);
+
+    // Get all enrolled students with their profile info
+    const enrollments = await this.db.enrollment.findMany({
+      where: { class_id: assessment.class_id, org_id: orgId, status: { not: 'removed' } },
+      select: { student_id: true },
+    });
+
+    const studentIds = enrollments.map((e) => e.student_id);
+    if (!studentIds.length) return [];
+
+    const profiles = await this.db.profile.findMany({
+      where: { account_id: { in: studentIds } },
+      select: {
+        account_id: true,
+        full_name: true,
+        account: { select: { email: true } },
+      },
+    });
+
+    const profileMap = new Map(profiles.map((p) => [p.account_id, { name: p.full_name, email: p.account?.email ?? null }]));
+
+    // Get all submissions for this assessment
+    const submissions = await this.repo.findSubmissions(assessmentId, orgId);
+
+    // For each submission, load answers (limit to first N chars for list view)
+    const submissionIds = submissions.map((s) => s.id);
+    const answers = submissionIds.length
+      ? await this.db.submissionAnswer.findMany({
+          where: { submission_id: { in: submissionIds } },
+          select: { id: true, submission_id: true, question_id: true, answer: true, is_correct: true },
+        })
+      : [];
+
+    const answerMap = new Map<string, typeof answers>();
+    for (const a of answers) {
+      const list = answerMap.get(a.submission_id) ?? [];
+      list.push(a);
+      answerMap.set(a.submission_id, list);
+    }
+
+    const subMap = new Map(submissions.map((s) => [s.student_id, s]));
+
+    // Build full roster: every enrolled student gets a row
+    return studentIds.map((studentId) => {
+      const profile = profileMap.get(studentId);
+      const sub = subMap.get(studentId);
+      const subAnswers = sub ? answerMap.get(sub.id) ?? [] : [];
+
+      const isNotStarted = !sub;
+      return {
+        id: sub?.id ?? `not_started_${studentId}`,
+        assessment_id: assessmentId,
+        student_id: studentId,
+        student_name: profile?.name ?? 'Unknown',
+        student_code: profile?.email ?? '',
+        status: isNotStarted ? 'not_started' : (sub.status as string),
+        score: sub?.score ?? null,
+        manual_score: sub?.manual_score ?? null,
+        total_points: assessment.total_items,
+        is_published: assessment.is_published,
+        essay_graded: false, // simplified; could check if all essay answers are graded
+        answers: subAnswers.map((a) => ({
+          id: a.id,
+          questionId: a.question_id,
+          answer: a.answer,
+          isCorrect: a.is_correct,
+        })),
+        started_at: null, // no creation timestamp on submission
+        submitted_at: sub?.submitted_at ?? null,
+        updated_at: sub?.submitted_at ?? null,
+        system_section_score: sub?.system_section_score ?? null,
+        manual_section_score: sub?.manual_section_score ?? null,
+        is_missed: sub?.is_missed ?? false,
+        is_exempted: sub?.is_exempted ?? false,
+      };
+    });
   }
 
   async updateSubmissionStatus(assessmentId: string, submissionId: string, orgId: string, educatorId: string, dto: UpdateSubmissionStatusDto) {
@@ -180,7 +347,19 @@ export class AssessmentEducatorService {
     if (!submission || submission.assessment_id !== assessmentId) throw new NotFoundException('Submission not found.');
     if (dto.status === 'custom' && dto.manualScore === undefined) throw new BadRequestException('manualScore is required for custom status.');
 
-    return this.repo.updateSubmissionStatus(submissionId, { status: dto.status, manualScore: dto.manualScore });
+    const updateData: any = { status: dto.status, manualScore: dto.manualScore };
+
+    if (dto.status === 'exempted') {
+      updateData.isExempted = true;
+      updateData.score = 0;
+    }
+
+    if (dto.status === 'missed') {
+      updateData.isMissed = true;
+      updateData.score = 0;
+    }
+
+    return this.repo.updateSubmissionStatus(submissionId, updateData);
   }
 
   async gradeEssay(assessmentId: string, submissionId: string, orgId: string, educatorId: string, dto: GradeEssayDto) {
@@ -189,6 +368,11 @@ export class AssessmentEducatorService {
 
     const submission = await this.repo.findSubmissionById(submissionId);
     if (!submission || submission.assessment_id !== assessmentId) throw new NotFoundException('Submission not found.');
+
+    const isHybrid = this.core.isHybridAssessment(assessment);
+    if (isHybrid) {
+      return this.repo.gradeEssay(submissionId, dto.score, dto.score);
+    }
 
     return this.repo.gradeEssay(submissionId, dto.score);
   }
@@ -294,6 +478,12 @@ export class AssessmentEducatorService {
     return { success: true, assigned: dto.studentIds.length };
   }
 
+  async setGradeVisibility(classId: string, assessmentId: string, orgId: string, educatorId: string, dto: SetGradeVisibilityDto) {
+    const assessment = await this.core.findAssessmentOrThrow(assessmentId, orgId);
+    await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
+    return this.repo.update(assessmentId, { showBreakdown: dto.showBreakdown });
+  }
+
   async onSubmissionFinished(data: { orgId: string; classId: string; studentId: string; submittedAt: Date }) {
     this.attendanceService.markPresentFromSubmission(data).catch((err) => {
       console.error(`[AttendanceService] Failed to auto-mark present for student ${data.studentId}:`, err);
@@ -308,9 +498,7 @@ export class AssessmentEducatorService {
       include: { components: { select: { type: true } } },
     });
     if (!scheme) return; // no scheme = no restriction
-    const validTypes = scheme.components
-      .map((c) => c.type)
-      .filter((t) => t !== 'manual');
+    const validTypes = scheme.components.map((c) => c.type);
     if (!validTypes.includes(type)) {
       throw new BadRequestException(
         `Assessment type "${type}" is not in the class's grading scheme. Allowed: ${validTypes.join(', ')}`,
@@ -333,8 +521,10 @@ export class AssessmentEducatorService {
   async generatePreview(classId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto): Promise<{ previewId: string }> {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
     await this.assertTypeMatchesScheme(classId, orgId, dto.type);
+    if (!dto.lessonId) throw new BadRequestException('lessonId is required.');
     const concept = await this.lessonRepo.findConcept(dto.lessonId);
     if (!concept) throw new BadRequestException('No concept build found.');
+    if (!dto.ranges?.length) throw new BadRequestException('At least one range is required.');
     const rangeTotal = dto.ranges.reduce((sum, r) => sum + (r.to - r.from + 1), 0);
     if (rangeTotal !== dto.totalItems) throw new BadRequestException('Range total mismatch.');
 
@@ -371,6 +561,7 @@ export class AssessmentEducatorService {
 
     const { questions: generated, dto } = result;
     if (!generated?.length) throw new BadRequestException('No questions in preview.');
+    if (!dto.lessonId) throw new BadRequestException('lessonId is required.');
 
     const assessment = await this.repo.create({
       orgId, classId,
@@ -379,6 +570,9 @@ export class AssessmentEducatorService {
       type: dto.type,
       totalItems: dto.totalItems,
       releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
+      gradingMode: dto.gradingMode,
+      manualMaxScore: dto.manualMaxScore,
+      showBreakdown: dto.showBreakdown,
     });
 
     const questions = generated.map((q, idx) => ({
@@ -418,12 +612,13 @@ export class AssessmentEducatorService {
 
     try {
       if (this.cancellationFlags.get(previewId)) return;
+      if (!dto.lessonId) throw new BadRequestException('lessonId is required.');
 
       const lesson = await this.lessonRepo.findById(dto.lessonId, orgId);
       if (!lesson) throw new NotFoundException('Lesson not found');
       const lessonDetail = lesson.detail ?? '';
 
-      const blueprints = dto.ranges.map((r) => ({
+      const blueprints = (dto.ranges ?? []).map((r) => ({
         type: r.questionType as QuestionBlueprint['type'],
         sections: r.conceptSections,
         numbers: `${r.from}-${r.to}`,
@@ -443,10 +638,14 @@ export class AssessmentEducatorService {
         );
 
         if (this.cancellationFlags.get(previewId)) return;
+
         if (!generated?.length) throw new Error('AI returned no questions');
 
         this.previewResults.set(previewId, { questions: generated, orgId, educatorId, dto, classId });
-        setStatus({ status: 'completed', message: `Generated ${generated.length} questions — review and confirm` });
+        setStatus({
+          status: 'completed',
+          message: `Generated ${generated.length} questions — review and confirm`,
+        });
 
         this.logger.log(`[Preview] ${generated.length} questions ready for review (${previewId})`);
       } finally {
@@ -460,149 +659,18 @@ export class AssessmentEducatorService {
         this.previewResults.delete(previewId);
       } else {
         this.logger.error(`[Preview] Generation failed: ${err}`);
-        setStatus({ status: 'failed', message: `Generation failed: ${err}`, error: String(err) });
+        setStatus({
+          status: 'failed',
+          message: `Generation failed: ${err}`,
+          error: String(err),
+        });
       }
     } finally {
       this.cancellationFlags.delete(previewId);
     }
   }
 
-async getPreview(previewId: string): Promise<{
-  status: GenerationProgress['status'];
-  message: string;
-  chunksTotal: number;
-  chunksDone: number;
-  questions?: GeneratedQuestion[];
-}> {
-  const gen = this.generationStatuses.get(previewId);
-  if (!gen) return { status: 'failed', message: 'Preview not found or expired', chunksTotal: 0, chunksDone: 0 };
-  const result = this.previewResults.get(previewId);
-  return {
-    status: gen.status,
-    message: gen.message,
-    chunksTotal: gen.chunksTotal,
-    chunksDone: gen.chunksDone,
-    questions: result?.questions,
-  };
-}
-
-async confirmPreview(previewId: string, classId: string, orgId: string, educatorId: string): Promise<any> {
-  const result = this.previewResults.get(previewId);
-  if (!result) throw new BadRequestException('Preview not found or expired. Please generate again.');
-
-  const { questions: generated, dto } = result;
-  if (!generated?.length) throw new BadRequestException('No questions in preview.');
-
-  // Create assessment + save questions atomically
-    const assessment = await this.repo.create({
-      orgId, classId,
-      lessonId: dto.lessonId,
-      termId: dto.termId,
-      type: dto.type,
-      totalItems: dto.totalItems,
-      releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
-    });
-
-  const questions = generated.map((q, idx) => ({
-    orgId,
-    assessmentId: assessment.id,
-    type: q.type,
-    questionText: q.question,
-    correctAnswer: q.answer ?? q.correct_answer ?? (q.type !== 'essay' ? `Answer ${q.number}` : undefined),
-    choices: q.choices?.length ? q.choices : undefined,
-    order: q.number ?? idx + 1,
-  }));
-
-  await this.repo.createQuestions(questions);
-
-  // Clean up preview data
-  this.generationStatuses.delete(previewId);
-  this.previewResults.delete(previewId);
-
-  this.logger.log(`[Assessment] ${questions.length} questions confirmed for ${assessment.id}`);
-  return { ...assessment, questions };
-}
-
-async cancelPreview(previewId: string): Promise<void> {
-  this.cancellationFlags.set(previewId, true);
-  this.generationStatuses.delete(previewId);
-  this.previewResults.delete(previewId);
-}
-
-private cancellationFlags = new Map<string, boolean>();
-
-private async generatePreviewQuestions(previewId: string, classId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto) {
-  const setStatus = (update: Partial<GenerationProgress>) => {
-    const current = this.generationStatuses.get(previewId) ?? {
-      status: 'generating', message: '', chunksTotal: 0, chunksDone: 0,
-    };
-    this.generationStatuses.set(previewId, { ...current, ...update });
-  };
-
-  try {
-    if (this.cancellationFlags.get(previewId)) return;
-
-    const lesson = await this.lessonRepo.findById(dto.lessonId, orgId);
-    if (!lesson) throw new NotFoundException('Lesson not found');
-    const lessonDetail = lesson.detail ?? '';
-
-    // Use concept build to compress lesson sent to AI
-    const conceptRecord = await this.lessonRepo.findConcept(dto.lessonId);
-
-    const blueprints = dto.ranges.map((r) => ({
-      type: r.questionType as QuestionBlueprint['type'],
-      sections: r.conceptSections,
-      numbers: `${r.from}-${r.to}`,
-      count: r.to - r.from + 1,
-    }));
-
-    const ctrl = new AbortController();
-    const cancelWatch = setInterval(() => {
-      if (this.cancellationFlags.get(previewId)) ctrl.abort();
-    }, 500);
-
-    try {
-      const generated = await this.aiService.generateQuestions(
-        lessonDetail, blueprints,
-        (progress) => setStatus(progress),
-        ctrl.signal,
-        conceptRecord?.content as ConceptBuild ?? undefined,
-      );
-
-      if (this.cancellationFlags.get(previewId)) return;
-
-      if (!generated?.length) throw new Error('AI returned no questions');
-
-      this.previewResults.set(previewId, { questions: generated, orgId, educatorId, dto, classId });
-      setStatus({
-        status: 'completed',
-        message: `Generated ${generated.length} questions — review and confirm`,
-      });
-
-      this.logger.log(`[Preview] ${generated.length} questions ready for review (${previewId})`);
-    } finally {
-      clearInterval(cancelWatch);
-    }
-  } catch (err) {
-    const isCancelled = String(err).includes('cancelled') || String(err).includes('abort');
-    if (isCancelled) {
-      this.logger.log(`[Preview] Generation cancelled (${previewId})`);
-      this.generationStatuses.delete(previewId);
-      this.previewResults.delete(previewId);
-    } else {
-      this.logger.error(`[Preview] Generation failed: ${err}`);
-      setStatus({
-        status: 'failed',
-        message: `Generation failed: ${err}`,
-        error: String(err),
-      });
-    }
-  } finally {
-    this.cancellationFlags.delete(previewId);
-  }
-}
-
- private async generateQuestions(assessmentId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto) {
+  private async generateQuestions(assessmentId: string, orgId: string, educatorId: string, dto: CreateAssessmentDto) {
     const setStatus = (update: Partial<GenerationProgress>) => {
       const current = this.generationStatuses.get(assessmentId) ?? {
         status: 'generating', message: '', chunksTotal: 0, chunksDone: 0,
@@ -611,13 +679,14 @@ private async generatePreviewQuestions(previewId: string, classId: string, orgId
     };
 
     try {
+      if (!dto.lessonId) throw new BadRequestException('lessonId is required.');
       // 1. Fetch lesson detail for AI context
       const lesson = await this.lessonRepo.findById(dto.lessonId, orgId);
       if (!lesson) throw new NotFoundException('Lesson not found');
       const lessonDetail = lesson.detail ?? '';
       const conceptRecord = await this.lessonRepo.findConcept(dto.lessonId);
 
-      const blueprints = dto.ranges.map((r) => ({
+      const blueprints = (dto.ranges ?? []).map((r) => ({
         type: r.questionType as QuestionBlueprint['type'],
         sections: r.conceptSections,
         numbers: `${r.from}-${r.to}`,

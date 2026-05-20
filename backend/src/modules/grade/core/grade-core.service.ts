@@ -22,6 +22,7 @@ export class GradeCoreService {
    * Compute weighted score for a student considering ALL assessments in the term.
    * Missing assessments (no submission or draft) count as 0.
    * Exempted submissions are skipped entirely.
+   * Hybrid assessments use system_section_score + manual_section_score.
    */
   computeWeightedScore(
     studentSubmissions: any[],
@@ -56,11 +57,12 @@ export class GradeCoreService {
           );
           if (!sub || sub.status === 'draft') {
             percentages.push(0);
-          } else if (sub.status === 'exempted') {
-            // skip — don't count in average
+          } else if (sub.status === 'exempted' || sub.is_exempted) {
             continue;
+          } else if (sub.is_missed) {
+            percentages.push(0);
           } else {
-            const rawScore = sub.manual_score ?? sub.score ?? 0;
+            const rawScore = this.mergeHybridScores(sub);
             const pct =
               assessment.total_items > 0
                 ? (rawScore / assessment.total_items) * 100
@@ -80,6 +82,17 @@ export class GradeCoreService {
 
     if (totalWeight === 0) return 0;
     return Math.round((totalWeightedScore / totalWeight) * 100) / 100;
+  }
+
+  /**
+   * Merge hybrid scores: for hybrid grading, use system + manual section scores.
+   * Otherwise use manual_score ?? score.
+   */
+  mergeHybridScores(submission: any): number {
+    if (submission.assessment?.grading_mode === 'hybrid' || submission.manual_section_score != null) {
+      return (submission.system_section_score ?? 0) + (submission.manual_section_score ?? 0);
+    }
+    return submission.manual_score ?? submission.score ?? 0;
   }
 
   buildCategoryBreakdown(
@@ -110,10 +123,12 @@ export class GradeCoreService {
             );
             if (!sub || sub.status === 'draft') {
               percentages.push(0);
-            } else if (sub.status === 'exempted') {
+            } else if (sub.status === 'exempted' || sub.is_exempted) {
               continue;
+            } else if (sub.is_missed) {
+              percentages.push(0);
             } else {
-              const rawScore = sub.manual_score ?? sub.score ?? 0;
+              const rawScore = this.mergeHybridScores(sub);
               const pct =
                 assessment.total_items > 0
                   ? (rawScore / assessment.total_items) * 100

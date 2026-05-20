@@ -259,7 +259,9 @@ export default function SubmissionsPage(): React.JSX.Element {
                       {hasEssayQuestions && !sub.essayGraded && sub.status === "submitted" && (
                         <Button variant="ghost" size="sm" onClick={() => setEssayTarget(sub)}>Grade Essay</Button>
                       )}
-                      <Button variant="ghost" size="sm" onClick={() => setStatusTarget(sub)}>Set Status</Button>
+                      {sub.status !== "not_started" && (
+                        <Button variant="ghost" size="sm" onClick={() => setStatusTarget(sub)}>Set Status</Button>
+                      )}
                     </div>
                   </td>
                 </tr>

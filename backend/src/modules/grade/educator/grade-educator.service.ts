@@ -6,7 +6,7 @@ import {
 import { GradeRepository } from '../grade.repository';
 import { GradeCoreService, GradeRange } from '../core/grade-core.service';
 import { AuditLogService } from 'src/modules/audit-log/audit-log.service';
-import { SetManualScoreDto } from './dto/grade-educator.dto';
+import { SetManualScoreDto, SetGradeVisibilityDto } from './dto/grade-educator.dto';
 
 function componentsToCategories(components: any[]) {
   return components.map((c) => ({
@@ -23,6 +23,28 @@ export class GradeEducatorService {
     private readonly core: GradeCoreService,
     private readonly auditLog: AuditLogService,
   ) {}
+
+  async setGradeVisibility(
+    classId: string,
+    assessmentId: string,
+    orgId: string,
+    educatorId: string,
+    dto: SetGradeVisibilityDto,
+  ) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    const updated = await this.repo.setAssessmentVisibility(assessmentId, dto.showBreakdown);
+
+    await this.auditLog.logActivityEvent({
+      orgId,
+      actorId: educatorId,
+      action: 'grade_visibility_set',
+      entityType: 'class',
+      entityId: classId,
+      metadata: { assessmentId, showBreakdown: dto.showBreakdown },
+    });
+
+    return updated;
+  }
 
   async publishAllByClass(classId: string, orgId: string) {
     return this.repo.publishByClass(classId, orgId);
@@ -247,6 +269,11 @@ export class GradeEducatorService {
         manualScore: s.manual_score,
         totalItems: s.assessment.total_items,
         status: s.status,
+        gradingMode: s.assessment?.grading_mode ?? 'system',
+        systemSectionScore: s.system_section_score ?? null,
+        manualSectionScore: s.manual_section_score ?? null,
+        isMissed: s.is_missed ?? false,
+        isExempted: s.is_exempted ?? false,
       }));
 
       const categoryBreakdown = this.core.buildCategoryBreakdown(

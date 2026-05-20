@@ -295,13 +295,31 @@ export default function AssessmentDetailPage(): React.JSX.Element {
         ))}
       </div>
 
-      {/* Questions */}
+      {/* Questions / Instructions */}
       <div className="space-y-3">
         <h2 className="text-sm font-semibold">
-          Questions
-          {!isBeforeRelease && <span className="ml-2 text-xs font-normal text-muted-foreground">(locked after release)</span>}
+          {assessment.gradingMode === 'manual' ? 'Instructions for Students' : 'Questions'}
+          {assessment.gradingMode !== 'manual' && !isBeforeRelease && (
+            <span className="ml-2 text-xs font-normal text-muted-foreground">(locked after release)</span>
+          )}
         </h2>
-        {assessment.questions.length === 0 ? (
+
+        {assessment.gradingMode === 'manual' ? (
+          assessment.questions.length > 0 ? (
+            <div className="space-y-3">
+              {assessment.questions.map((q) => (
+                <div key={q.id} className="rounded-lg border-l-4 border-l-blue-400 bg-blue-50/30 px-4 py-4 space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-blue-700 font-medium uppercase tracking-wide">
+                    <span>✏️ Instructions</span>
+                  </div>
+                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{q.text}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No instructions provided.</p>
+          )
+        ) : assessment.questions.length === 0 ? (
           <p className="text-sm text-muted-foreground">Questions are being generated...</p>
         ) : (
           <div className="space-y-2">

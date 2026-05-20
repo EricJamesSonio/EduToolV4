@@ -1,10 +1,10 @@
 // @/modules/assessment/educator/assessment-educator.controller.ts
-import { Controller, Post, Get, Patch, Delete, Body, Param, Query, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Put, Delete, Body, Param, Query, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { AssessmentEducatorService } from './assessment-educator.service';
 import {
   CreateAssessmentDto, UpdateAssessmentDto, UpdateQuestionDto,
   QueryAssessmentDto, PublishScoresDto, GradeEssayDto, UpdateSubmissionStatusDto,
-  AssignStudentsDto, ReopenAssessmentDto,
+  AssignStudentsDto, ReopenAssessmentDto, SetGradeVisibilityDto,
 } from '../dto/assessment.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -69,8 +69,22 @@ export class AssessmentEducatorController {
   }
 
   @Post(':id/unpublish')
+  @Roles('educator')
+  @HttpCode(HttpStatus.OK)
   unpublishScores(@Param('id') assessmentId: string, @CurrentUser('org_id') orgId: string, @CurrentUser('id') educatorId: string) {
     return this.service.unpublishScores(assessmentId, orgId, educatorId);
+  }
+
+  @Put(':id/grade-visibility')
+  @Roles('educator')
+  async setGradeVisibility(
+    @Param('classId') classId: string,
+    @Param('id') assessmentId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') educatorId: string,
+    @Body() dto: SetGradeVisibilityDto,
+  ) {
+    return this.service.setGradeVisibility(classId, assessmentId, orgId, educatorId, dto);
   }
 
   @Post(':id/assign-students')

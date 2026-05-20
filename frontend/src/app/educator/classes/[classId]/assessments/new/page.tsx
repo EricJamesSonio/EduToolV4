@@ -19,8 +19,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import type { Lesson, LessonConcept } from "@/types/educator/lesson.types";
-import type { AssessmentType, QuestionType, Question } from "@/types/educator/assessment.types";
-import type { RangeConfig } from "@/api/educator/assessment.api";
+import type { AssessmentType, QuestionType, Question, GradingMode } from "@/types/educator/assessment.types";
+import type { RangeConfig, CreateAssessmentRequest } from "@/api/educator/assessment.api";
 
 // ─── Concept item from AI ─────────────────────────────────────────────────────
 interface ConceptItemInfo {
@@ -51,17 +51,32 @@ interface ConceptContent {
 interface BuilderState {
   selectedLesson: Lesson | null;
   type: AssessmentType;
+  gradingMode: GradingMode;
+  showBreakdown: boolean;
+  manualMaxScore: number;
   totalItems: number;
   sections: AssessmentSection[];
   createdAssessmentId: string | null;
   previewId: string | null;
   generatedQuestions: Question[];
+  manualInstructions: string;
   releaseDate: string;
   endDate: string;
   selectedStudentIds: string[];
 }
 
-const STEPS = ["Select Lesson", "View Concepts", "Configuration", "Generate", "Review Questions", "Set Dates & Assign"];
+const GRADING_MODE_LABELS: Record<string, string> = {
+  system: "System-Graded",
+  manual: "Manual-Graded",
+  hybrid: "Hybrid (System + Manual)",
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  written_work: "Written Work", performance_task: "Performance Task",
+  quarterly_assessment: "Quarterly Assessment", exam: "Exam", quiz: "Quiz",
+  project: "Project", recitation: "Recitation", attendance: "Attendance",
+  activity: "Activity", custom: "Custom", other: "Other", behavior: "Behavior",
+};
 
 let secIdCounter = 0;
 function makeSection(from: number, to: number): AssessmentSection {
@@ -86,10 +101,10 @@ function defaultSectionTitle(type: QuestionType): string {
   return map[type] ?? `${type.replace(/_/g, " ")} Questions`;
 }
 
-function StepIndicator({ current }: { current: number }) {
+function StepIndicator({ steps, current }: { steps: string[]; current: number }) {
   return (
     <div className="flex items-center overflow-x-auto pb-1">
-      {STEPS.map((label, i) => {
+      {steps.map((label, i) => {
         const done = i < current;
         const active = i === current;
         return (
@@ -100,7 +115,7 @@ function StepIndicator({ current }: { current: number }) {
               </div>
               <span className={cn("text-[10px] whitespace-nowrap", active ? "text-primary font-medium" : "text-muted-foreground/50")}>{label}</span>
             </div>
-            {i < STEPS.length - 1 && <div className={cn("h-0.5 w-6 mx-1 mb-4 shrink-0", i < current ? "bg-primary" : "bg-muted")} />}
+            {i < steps.length - 1 && <div className={cn("h-0.5 w-6 mx-1 mb-4 shrink-0", i < current ? "bg-primary" : "bg-muted")} />}
           </div>
         );
       })}
@@ -108,14 +123,52 @@ function StepIndicator({ current }: { current: number }) {
   );
 }
 
-// ─── Step 1: Select Lesson ────────────────────────────────────────────────────
+// ─── Step 0: Grading Mode ─────────────────────────────────────────────────────
+function Step0({ gradingMode, showBreakdown, manualMaxScore, onChange, onNext }: {
+  gradingMode: GradingMode; showBreakdown: boolean; manualMaxScore: number;
+  onChange: (u: Partial<BuilderState>) => void; onNext: () => void;
+}) {
+  return (
+    <div className="space-y-6 max-w-xl">
+      <p className="text-sm text-muted-foreground">Choose how this assessment will be graded.</p>
+      <div className="space-y-3">
+        {(["system", "manual", "hybrid"] as const).map((mode) => (
+          <button key={mode} type="button" onClick={() => onChange({ gradingMode: mode })}
+            className={cn("w-full text-left px-4 py-4 rounded-lg border text-sm transition-colors", gradingMode === mode ? "border-primary bg-primary/5" : "hover:bg-muted/40 border-border")}>
+            <div className="font-medium">{GRADING_MODE_LABELS[mode]}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {mode === "system" ? "Questions are auto-generated from lesson concepts and auto-graded. Best for quizzes, exams, and activities." :
+               mode === "manual" ? "Educator creates an assessment with free-form instructions. No auto-grading — scores are set manually. Best for projects, recitation, and behavior." :
+               "Mix of auto-graded questions (MCQ, T/F, etc.) and manually graded sections (essays, projects). Best for comprehensive assessments."}
+            </p>
+          </button>
+        ))}
+      </div>
+      {gradingMode === "hybrid" && (
+        <div className="rounded-lg border p-4 space-y-3">
+          <label className="text-sm font-medium">Manual Section Max Score</label>
+          <input type="number" min={0} value={manualMaxScore}
+            onChange={(e) => onChange({ manualMaxScore: parseInt(e.target.value, 10) || 0 })}
+            className="w-24 rounded-md border bg-background px-3 py-1.5 text-sm" />
+        </div>
+      )}
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" checked={showBreakdown} onChange={(e) => onChange({ showBreakdown: e.target.checked })} className="rounded" />
+        Show breakdown to students
+      </label>
+      <Button onClick={onNext} size="sm">Next</Button>
+    </div>
+  );
+}
+
+// ─── Step 1: Select Lesson (system/hybrid) ────────────────────────────────────
 function Step1({ classId, selected, onSelect, onNext }: { classId: string; selected: Lesson | null; onSelect: (l: Lesson) => void; onNext: () => void }) {
   const { data: lessons, isLoading } = useLessons(classId);
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading lessons...</p>;
   if (!lessons?.length) return <p className="text-sm text-muted-foreground">No lessons found. Create a lesson first.</p>;
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Select a lesson with a completed concept build.</p>
+      <p className="text-sm text-muted-foreground">Select a lesson with a completed concept build to generate questions from.</p>
       <div className="space-y-2 max-w-xl">
         {lessons.map((lesson) => {
           const hasConcept = !!lesson.concept;
@@ -156,12 +209,7 @@ function getConceptContent(concept: LessonConcept | null): ConceptContent {
   };
 }
 
-function getTotalCapacity(concept: LessonConcept | null): number {
-  const c = getConceptContent(concept);
-  return Object.values(c.questionCapacity).reduce((s, v) => s + v, 0);
-}
-
-// ─── Step 2: View Concepts ────────────────────────────────────────────────────
+// ─── Step 2: View Concepts (system/hybrid) ────────────────────────────────────
 function Step2({ concept, onNext }: { concept: LessonConcept | null; onNext: () => void }) {
   const cc = getConceptContent(concept);
   if (!cc.sections.length) return <p className="text-sm text-muted-foreground">No concept build available.</p>;
@@ -197,28 +245,21 @@ const Q_TYPES: { value: QuestionType; label: string }[] = [
   { value: "essay", label: "Essay" },
 ];
 
-// ─── Step 3: Configuration (merged) ───────────────────────────────────────────
-const TYPE_LABELS: Record<string, string> = {
-  written_work: "Written Work", performance_task: "Performance Task",
-  quarterly_assessment: "Quarterly Assessment", exam: "Exam", quiz: "Quiz",
-  project: "Project", recitation: "Recitation", attendance: "Attendance",
-  activity: "Activity", custom: "Custom", other: "Other",
-};
-
+// ─── Step 3: Configuration (system/hybrid) ────────────────────────────────────
 function Step3({
-  type, totalItems, sections, conceptItems, sectionNames, schemeTypes, onChange, onNext, isLoading,
+  type, totalItems, sections, conceptItems, sectionNames, schemeTypes, gradingMode, showBreakdown, manualMaxScore, onChange, onNext, isLoading,
 }: {
-  type: AssessmentType; totalItems: number; sections: AssessmentSection[];
+  type: string; totalItems: number; sections: AssessmentSection[];
   conceptItems: ConceptItemInfo[]; sectionNames: string[];
   schemeTypes: string[];
-  onChange: (u: Partial<Pick<BuilderState, "type" | "totalItems" | "sections">>) => void;
+  gradingMode: GradingMode; showBreakdown: boolean; manualMaxScore: number;
+  onChange: (u: Partial<Pick<BuilderState, "type" | "totalItems" | "sections" | "gradingMode" | "showBreakdown" | "manualMaxScore">>) => void;
   onNext: () => void; isLoading: boolean;
 }) {
   const totalCovered = sections.reduce((s, sec) => s + (sec.to - sec.from + 1), 0);
   const gap = totalCovered < totalItems;
   const overflow = totalCovered > totalItems;
 
-  // Validate each section has enough concept items, and check overlap/gaps
   const itemErrors: string[] = [];
   let expectedFrom = 1;
   for (let i = 0; i < sections.length; i++) {
@@ -264,7 +305,6 @@ function Step3({
       }
       return sec;
     });
-    // Recalc all boundaries from this point forward
     for (let i = idx + 1; i < arr.length; i++) {
       const prev = arr[i - 1];
       const prevCount = prev.to - prev.from + 1;
@@ -344,7 +384,6 @@ function Step3({
 
             return (
               <div key={sec.id} className="rounded-lg border p-4 space-y-3">
-
                 <div className="flex items-center justify-between gap-3">
                   <input type="text" value={sec.title} placeholder={defaultSectionTitle(sec.questionType)}
                     onChange={(e) => updateSection(si, { title: e.target.value })}
@@ -385,8 +424,7 @@ function Step3({
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.section} ({g.items.length})</span>
                           <label className="flex items-center gap-1 text-xs cursor-pointer">
-                            <input type="checkbox"
-                              checked={allSelected}
+                            <input type="checkbox" checked={allSelected}
                               onChange={() => {
                                 if (allSelected) {
                                   updateSection(si, { selectedItemIndices: sec.selectedItemIndices.filter((idx) => !g.items.some((ci) => ci.index === idx)) });
@@ -394,8 +432,7 @@ function Step3({
                                   const toAdd = g.items.filter((ci) => !selectedIndicesSet.has(ci.index)).map((ci) => ci.index);
                                   updateSection(si, { selectedItemIndices: [...sec.selectedItemIndices, ...toAdd] });
                                 }
-                              }}
-                              className="rounded" />
+                              }} className="rounded" />
                             Select all
                           </label>
                         </div>
@@ -455,21 +492,6 @@ function Step3({
 }
 
 // ─── Helpers to convert sections → ranges for API ─────────────────────────────
-function sectionsToRanges(sections: AssessmentSection[]): RangeRow[] {
-  return sections
-    .filter((sec) => sec.selectedItemIndices.length > 0)
-    .map((sec) => {
-      // Get unique section names from selected concept items
-      // (We don't have conceptItems here, so we keep a placeholder)
-      return {
-        from: sec.from,
-        to: sec.to,
-        questionType: sec.questionType,
-        conceptSections: [] as string[], // filled by caller
-      };
-    });
-}
-
 interface RangeRow {
   from: number;
   to: number;
@@ -492,7 +514,7 @@ function getSectionsForRanges(sections: AssessmentSection[], conceptItems: Conce
     });
 }
 
-// ─── Step 4: Generating Preview (no DB save yet) ─────────────────────────────
+// ─── Step 4: Generating Preview (system/hybrid) ─────────────────────────────
 function Step4({ classId, previewId, onQuestionsReady }: { classId: string; previewId: string; onQuestionsReady: (q: Question[]) => void }) {
   const advancedRef = useRef(false);
   const router = useRouter();
@@ -552,9 +574,7 @@ function Step4({ classId, previewId, onQuestionsReady }: { classId: string; prev
           </div>
           <p className="text-sm font-medium text-red-600">Generation failed</p>
           <p className="text-xs text-muted-foreground">{preview?.message ?? "Unknown error"}</p>
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            Go back and try again
-          </Button>
+          <Button variant="outline" size="sm" onClick={() => router.back()}>Go back and try again</Button>
         </>
       ) : (
         <>
@@ -574,8 +594,7 @@ function Step4({ classId, previewId, onQuestionsReady }: { classId: string; prev
             <p className="text-xs text-muted-foreground">{preview?.message ?? "Starting generation..."}</p>
           )}
           <Button variant="outline" size="sm" onClick={handleCancel} disabled={cancelling} className="mt-4">
-            {cancelling ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-            Cancel
+            {cancelling ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}Cancel
           </Button>
         </>
       )}
@@ -583,7 +602,7 @@ function Step4({ classId, previewId, onQuestionsReady }: { classId: string; prev
   );
 }
 
-// ─── Step 5: Review Questions & Confirm ──────────────────────────────────────
+// ─── Step 5: Review Questions & Confirm (system/hybrid) ──────────────────────
 function Step5({ classId, previewId, questions, onConfirm }: { classId: string; previewId: string; questions: Question[]; onConfirm: (assessmentId: string) => void }) {
   const [confirming, setConfirming] = useState(false);
   const [edits, setEdits] = useState<Record<string, { text: string; correctAnswer: string }>>(() => Object.fromEntries(questions.map((q) => [q.id, { text: q.text, correctAnswer: q.correctAnswer ?? "" }])));
@@ -619,8 +638,7 @@ function Step5({ classId, previewId, questions, onConfirm }: { classId: string; 
                 <div className="space-y-1">
                   {q.choices.map((c) => (
                     <div key={c.label} className={cn("flex items-center gap-2 px-3 py-1.5 rounded text-sm border", q.correctAnswer === c.text ? "border-green-300 bg-green-50" : "border-border")}>
-                      <span className="font-mono text-xs font-bold w-5">{c.label}.</span>
-                      <span>{c.text}</span>
+                      <span className="font-mono text-xs font-bold w-5">{c.label}.</span><span>{c.text}</span>
                       {q.correctAnswer === c.text && <span className="text-xs text-green-600 ml-auto font-medium">Correct</span>}
                     </div>
                   ))}
@@ -638,15 +656,109 @@ function Step5({ classId, previewId, questions, onConfirm }: { classId: string; 
       </div>
       <div className="flex gap-2">
         <Button onClick={handleConfirm} disabled={confirming} size="sm">
-          {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Create Assessment
+          {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create Assessment
         </Button>
       </div>
     </div>
   );
 }
 
-// ─── Step 6: Set Dates & Assign ───────────────────────────────────────────────
+// ─── ManualStep1: Type + Instructions (manual mode) ────────────────────────────
+function ManualStep1({ type, manualInstructions, schemeTypes, onChange, onNext }: {
+  type: string; manualInstructions: string; schemeTypes: string[];
+  onChange: (u: Partial<BuilderState>) => void; onNext: () => void;
+}) {
+  const valid = !!type && !!manualInstructions.trim();
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Assessment Type <span className="text-destructive">*</span></label>
+        <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })}
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm max-w-xs">
+          <option value="">Select type...</option>
+          {schemeTypes.map((t) => <option key={t} value={t}>{TYPE_LABELS[t] ?? t.replace(/_/g, " ")}</option>)}
+        </select>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Instructions <span className="text-destructive">*</span></label>
+        <p className="text-xs text-muted-foreground">Describe the task, project, or criteria for this manual assessment.</p>
+        <textarea value={manualInstructions}
+          onChange={(e) => onChange({ manualInstructions: e.target.value })}
+          placeholder={`e.g., "This is the score based on your behavior as a student."\n\ne.g., "Create a website and submit the GitHub link."`}
+          rows={8}
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none" />
+      </div>
+
+      <Button onClick={onNext} disabled={!valid} size="sm">Next</Button>
+    </div>
+  );
+}
+
+// ─── ManualStep2: Items + Dates + Assign (manual mode) ────────────────────────
+function ManualStep2({ classId, totalItems, releaseDate, endDate, selectedStudentIds, onChange, onCreate, isLoading }: {
+  classId: string; totalItems: number; releaseDate: string; endDate: string; selectedStudentIds: string[];
+  onChange: (u: Partial<BuilderState>) => void; onCreate: () => void; isLoading: boolean;
+}) {
+  const invalid = releaseDate && endDate && new Date(endDate) <= new Date(releaseDate);
+  const { data: students } = useQuery({
+    queryKey: ["class-students", classId],
+    queryFn: () => educatorClassApi.getStudents(classId),
+    enabled: !!classId,
+  });
+  return (
+    <div className="space-y-6 max-w-md">
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Total Items / Max Score <span className="text-destructive">*</span></label>
+        <input type="number" min={1} value={totalItems}
+          onChange={(e) => onChange({ totalItems: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+          className="w-24 rounded-md border bg-background px-3 py-2 text-sm" />
+        <p className="text-xs text-muted-foreground">Maximum possible score for this manual assessment.</p>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Release Date</label>
+        <input type="datetime-local" value={releaseDate} onChange={(e) => onChange({ releaseDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+      </div>
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">End Date</label>
+        <input type="datetime-local" value={endDate} onChange={(e) => onChange({ endDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+        {invalid && <p className="text-xs text-destructive">End date must be after release date.</p>}
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Assign to Students</label>
+        <p className="text-xs text-muted-foreground">Leave empty to assign to all enrolled students.</p>
+        <div className="max-h-48 overflow-y-auto rounded-lg border divide-y">
+          {students?.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">No enrolled students.</p>}
+          {students?.map((s) => (
+            <label key={s.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/30">
+              <input type="checkbox" checked={selectedStudentIds.includes(s.id)} onChange={(e) => onChange({ selectedStudentIds: e.target.checked ? [...selectedStudentIds, s.id] : selectedStudentIds.filter((id) => id !== s.id) })} className="rounded" />
+              <span>{s.fullName}</span>
+              {s.email && <span className="text-xs text-muted-foreground ml-auto">{s.email}</span>}
+            </label>
+          ))}
+        </div>
+        {students && students.length > 0 && (
+          <div className="flex gap-2">
+            <button type="button" onClick={() => onChange({ selectedStudentIds: students.map((s) => s.id) })} className="text-xs text-primary hover:underline">Select all</button>
+            <button type="button" onClick={() => onChange({ selectedStudentIds: [] })} className="text-xs text-muted-foreground hover:underline">Clear</button>
+          </div>
+        )}
+      </div>
+
+      <div className="pt-1 space-y-2">
+        <Button onClick={onCreate} disabled={isLoading || !!invalid} size="sm">
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Create Manual Assessment
+        </Button>
+        <p className="text-xs text-muted-foreground">Leave dates blank to make it available immediately.</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step6: Set Dates & Assign (system/hybrid) ───────────────────────────────
 function Step6({ classId, releaseDate, endDate, selectedStudentIds, onChange, onPublish, isLoading }: {
   classId: string; releaseDate: string; endDate: string; selectedStudentIds: string[];
   onChange: (u: Partial<Pick<BuilderState, "releaseDate" | "endDate" | "selectedStudentIds">>) => void;
@@ -708,9 +820,9 @@ export default function NewAssessmentPage() {
 
   const [step, setStep] = useState(0);
   const [state, setState] = useState<BuilderState>({
-    selectedLesson: null, type: "quiz", totalItems: 1,
-    sections: [], createdAssessmentId: null, previewId: null, generatedQuestions: [],
-    releaseDate: "", endDate: "", selectedStudentIds: [],
+    selectedLesson: null, type: "quiz", gradingMode: "system", showBreakdown: false, manualMaxScore: 0,
+    totalItems: 1, sections: [], createdAssessmentId: null, previewId: null, generatedQuestions: [],
+    manualInstructions: "", releaseDate: "", endDate: "", selectedStudentIds: [],
   });
 
   const { mutateAsync: updateAssessment, isPending: isUpdating } = useUpdateAssessment(classId);
@@ -720,12 +832,19 @@ export default function NewAssessmentPage() {
     queryFn: () => educatorGradingSchemeApi.getForClass(classId),
   });
   const schemeTypes = gradingScheme?.components
-    ?.filter((c) => c.type !== "manual")
     ?.map((c) => c.type) ?? [];
   const patch = useCallback((u: Partial<BuilderState>) => setState((p) => ({ ...p, ...u })), []);
   const next = () => setStep((s) => s + 1);
+  const prev = () => setStep((s) => s - 1);
   const concept = state.selectedLesson?.concept ?? null;
   const cc = getConceptContent(concept);
+
+  const isManual = state.gradingMode === "manual";
+  const isSystemHybrid = state.gradingMode === "system" || state.gradingMode === "hybrid";
+
+  const systemSteps = ["Select Lesson", "View Concepts", "Configuration", "Generate", "Review Questions", "Set Dates & Assign"];
+  const manualSteps = ["Type & Instructions", "Items & Dates"];
+  const allSteps = ["Grading Mode", ...(isManual ? manualSteps : systemSteps)];
 
   function getTermId(): string {
     if (!state.selectedLesson || !weeks.length) return "";
@@ -743,6 +862,9 @@ export default function NewAssessmentPage() {
       const { previewId } = await assessmentApi.generatePreview(classId, {
         lessonId: state.selectedLesson.id, termId, type: state.type,
         totalItems: state.totalItems,
+        gradingMode: state.gradingMode,
+        showBreakdown: state.showBreakdown,
+        manualMaxScore: state.gradingMode === "hybrid" ? state.manualMaxScore : undefined,
         ranges: ranges.map((r) => ({ from: r.from, to: r.to, questionType: r.questionType as RangeConfig["questionType"], conceptSections: r.conceptSections })),
       });
       patch({ previewId });
@@ -753,7 +875,7 @@ export default function NewAssessmentPage() {
   async function handlePublish() {
     if (!state.createdAssessmentId) return;
     try {
-      await updateAssessment({ assessmentId: state.createdAssessmentId, data: { releaseDate: state.releaseDate || undefined, endDate: state.endDate || undefined } });
+      await updateAssessment({ assessmentId: state.createdAssessmentId, data: { releaseDate: state.releaseDate || undefined, endDate: state.endDate || undefined, showBreakdown: state.showBreakdown } });
       if (state.selectedStudentIds.length > 0) {
         await assessmentApi.publish(classId, state.createdAssessmentId, { studentIds: state.selectedStudentIds });
       }
@@ -762,20 +884,89 @@ export default function NewAssessmentPage() {
     } catch { toast.error("Failed to publish."); }
   }
 
+  async function handleCreateManual() {
+    const termId = weeks?.length ? weeks[0].termId : "";
+    if (!termId) { toast.error("Could not determine term."); return; }
+    try {
+      const assessment = await assessmentApi.create(classId, {
+        termId, type: state.type,
+        totalItems: state.totalItems,
+        gradingMode: "manual",
+        showBreakdown: state.showBreakdown,
+        manualInstructions: state.manualInstructions,
+        releaseDate: state.releaseDate || undefined,
+        endDate: state.endDate || undefined,
+        ranges: [],
+      });
+      toast.success("Manual assessment created!");
+      router.push(`/educator/classes/${classId}/assessments/${assessment.id}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to create assessment.");
+    }
+  }
+
   return (
     <div className="space-y-8 max-w-3xl">
       <div className="flex items-center gap-3">
         <Link href={`/educator/classes/${classId}/assessments`} className="text-muted-foreground hover:text-foreground transition-colors"><ArrowLeft className="h-4 w-4" /></Link>
         <h1 className="text-xl font-semibold">New Assessment</h1>
       </div>
-      <StepIndicator current={step} />
+      <StepIndicator steps={allSteps} current={step} />
       <div className="pt-2">
-        {step === 0 && <Step1 classId={classId} selected={state.selectedLesson} onSelect={(l) => patch({ selectedLesson: l })} onNext={next} />}
-        {step === 1 && <Step2 concept={concept} onNext={next} />}
-        {step === 2 && <Step3 type={state.type} totalItems={state.totalItems} sections={state.sections} conceptItems={cc.conceptItems} sectionNames={cc.sections} schemeTypes={schemeTypes} onChange={(u) => patch(u)} onNext={handleGenerate} isLoading={false} />}
-        {step === 3 && state.previewId && <Step4 classId={classId} previewId={state.previewId} onQuestionsReady={(q) => { patch({ generatedQuestions: q }); next(); }} />}
-        {step === 4 && state.previewId && <Step5 classId={classId} previewId={state.previewId} questions={state.generatedQuestions} onConfirm={(assessmentId) => { patch({ createdAssessmentId: assessmentId }); next(); }} />}
-        {step === 5 && <Step6 classId={classId} releaseDate={state.releaseDate} endDate={state.endDate} selectedStudentIds={state.selectedStudentIds} onChange={(u) => patch(u)} onPublish={handlePublish} isLoading={isUpdating} />}
+        {step === 0 && (
+          <Step0 gradingMode={state.gradingMode} showBreakdown={state.showBreakdown} manualMaxScore={state.manualMaxScore}
+            onChange={(u) => patch(u)} onNext={() => { if (state.gradingMode) next(); else toast.error("Please select a grading mode."); }} />
+        )}
+
+        {isSystemHybrid && step === 1 && (
+          <div className="space-y-6">
+            <Step1 classId={classId} selected={state.selectedLesson} onSelect={(l) => patch({ selectedLesson: l })} onNext={next} />
+            <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to grading mode</Button>
+          </div>
+        )}
+        {isSystemHybrid && step === 2 && (
+          <div className="space-y-6">
+            <Step2 concept={concept} onNext={next} />
+            <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to lesson selection</Button>
+          </div>
+        )}
+        {isSystemHybrid && step === 3 && (
+          <div className="space-y-6">
+            <Step3 type={state.type} totalItems={state.totalItems} sections={state.sections}
+              conceptItems={cc.conceptItems} sectionNames={cc.sections} schemeTypes={schemeTypes}
+              gradingMode={state.gradingMode} showBreakdown={state.showBreakdown} manualMaxScore={state.manualMaxScore}
+              onChange={(u) => patch(u)} onNext={handleGenerate} isLoading={false} />
+            <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to concepts</Button>
+          </div>
+        )}
+        {isSystemHybrid && step === 4 && state.previewId && <Step4 classId={classId} previewId={state.previewId} onQuestionsReady={(q) => { patch({ generatedQuestions: q }); next(); }} />}
+        {isSystemHybrid && step === 5 && state.previewId && (
+          <div className="space-y-6">
+            <Step5 classId={classId} previewId={state.previewId} questions={state.generatedQuestions} onConfirm={(assessmentId) => { patch({ createdAssessmentId: assessmentId }); next(); }} />
+            <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to review</Button>
+          </div>
+        )}
+        {isSystemHybrid && step === 6 && (
+          <div className="space-y-6">
+            <Step6 classId={classId} releaseDate={state.releaseDate} endDate={state.endDate} selectedStudentIds={state.selectedStudentIds} onChange={(u) => patch(u)} onPublish={handlePublish} isLoading={isUpdating} />
+            <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to question review</Button>
+          </div>
+        )}
+
+        {isManual && step === 1 && (
+          <div className="space-y-6">
+            <ManualStep1 type={state.type} manualInstructions={state.manualInstructions} schemeTypes={schemeTypes} onChange={(u) => patch(u)} onNext={next} />
+            <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to grading mode</Button>
+          </div>
+        )}
+        {isManual && step === 2 && (
+          <div className="space-y-6">
+            <ManualStep2 classId={classId} totalItems={state.totalItems} releaseDate={state.releaseDate}
+              endDate={state.endDate} selectedStudentIds={state.selectedStudentIds}
+              onChange={(u) => patch(u)} onCreate={handleCreateManual} isLoading={isUpdating} />
+            <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to instructions</Button>
+          </div>
+        )}
       </div>
     </div>
   );

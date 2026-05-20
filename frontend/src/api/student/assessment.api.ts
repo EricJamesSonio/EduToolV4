@@ -24,6 +24,7 @@ export interface StudentAssessmentDetail {
   releaseDate?: string;
   endDate?: string;
   isPublished: boolean;
+  gradingMode: string;
   locked: boolean;
   questions?: Array<{
     id: string;
@@ -39,6 +40,7 @@ export interface AssessmentResult {
   submittedAt: string;
   score: number | null;
   isPublished: boolean;
+  gradingMode: string;
   totalItems: number;
   questions?: Array<{
     id: string;

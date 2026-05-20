@@ -5,6 +5,8 @@ export type AssessmentType =
   | "exam" | "quiz" | "project" | "recitation"
   | "attendance" | "activity" | "custom" | "other";
 
+export type GradingMode = "system" | "manual" | "hybrid";
+
 export type QuestionType =
   | "multiple_choice"
   | "true_or_false"
@@ -27,6 +29,8 @@ export interface Question {
   correctAnswer: string | null;
   points: number;
   isLocked: boolean;
+  isManual?: boolean;
+  sectionType?: string | null;
 }
 
 export interface ItemRange {
@@ -62,6 +66,9 @@ export interface Assessment {
   endDate: string | null;
   status: AssessmentStatus;
   isPublished: boolean;
+  gradingMode?: GradingMode;
+  showBreakdown?: boolean;
+  manualMaxScore?: number | null;
   assignedStudentIds: string[] | null;
   submittedCount: number;
   pendingEssayCount: number;

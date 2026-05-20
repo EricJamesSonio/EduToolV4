@@ -1,5 +1,5 @@
 // src/modules/grade/educator/dto/grade-educator.dto.ts
-import { IsString, IsNumber, Min, Max } from 'class-validator';
+import { IsString, IsNumber, IsBoolean, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 // PATCH /classes/:classId/grades/:termId/students/:studentId/manual
@@ -12,4 +12,10 @@ export class SetManualScoreDto {
   @Max(100)
   @Type(() => Number)
   score: number;
+}
+
+// PUT /classes/:classId/assessments/:assessmentId/grade-visibility
+export class SetGradeVisibilityDto {
+  @IsBoolean()
+  showBreakdown: boolean;
 }

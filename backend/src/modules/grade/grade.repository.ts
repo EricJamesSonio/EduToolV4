@@ -111,6 +111,8 @@ export class GradeRepository {
         id: true,
         type: true,
         total_items: true,
+        grading_mode: true,
+        show_breakdown: true,
       },
     });
   }
@@ -133,6 +135,7 @@ export class GradeRepository {
             type: true,
             total_items: true,
             term_id: true,
+            grading_mode: true,
           },
         },
       },
@@ -246,6 +249,13 @@ export class GradeRepository {
       include: { terms: { orderBy: { order_index: 'asc' } } },
     });
     return semester?.terms ?? [];
+  }
+
+  async setAssessmentVisibility(assessmentId: string, showBreakdown: boolean) {
+    return this.db.assessment.update({
+      where: { id: assessmentId },
+      data: { show_breakdown: showBreakdown },
+    });
   }
 
   async findStudentProfiles(studentIds: string[]): Promise<Map<string, { name: string; code: string }>> {

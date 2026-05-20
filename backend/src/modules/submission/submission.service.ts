@@ -28,11 +28,6 @@ export class SubmissionService {
 
     const now = new Date();
 
-    // Must be published
-    if (!assessment.is_published) {
-      throw new ForbiddenException('Assessment is not published.');
-    }
-
     // Must be past release date
     if (!assessment.release_date || now < new Date(assessment.release_date)) {
       throw new ForbiddenException('Assessment has not been released yet.');
@@ -172,34 +167,52 @@ export class SubmissionService {
       dto.answers,
     );
 
-    // ── Auto-grade non-essay questions ───────────────────────────────────────
+    // ── Auto-grade (skip entirely for manual mode) ───────────────────────────
 
-    const questionMap = new Map(questions.map((q) => [q.id, q]));
+    const isManual = assessment.grading_mode === 'manual';
+    const isHybrid = assessment.grading_mode === 'hybrid';
 
-    const gradedAnswers = savedAnswers
-      .filter((a) => {
+    let gradedAnswers: Array<{ id: string; isCorrect: boolean }> = [];
+    let score: number | null = null;
+    let systemSectionScore: number | undefined;
+    let essayPending = false;
+
+    if (!isManual) {
+      const questionMap = new Map(questions.map((q) => [q.id, q]));
+
+      // For hybrid: only auto-grade system (non-manual) questions
+      // For system: auto-grade all non-essay questions
+      const autoGradable = savedAnswers.filter((a) => {
         const q = questionMap.get(a.question_id);
-        return q && q.type !== 'essay'; // essays graded manually
-      })
-      .map((a) => {
-        const q = questionMap.get(a.question_id)!;
-        return {
-          id: a.id,
-          isCorrect:
-            a.answer.trim().toLowerCase() ===
-            (q.correct_answer ?? '').trim().toLowerCase(),
-        };
+        if (!q) return false;
+        if (q.type === 'essay') return false;
+        if (q.is_manual) return false;
+        return true;
       });
 
-    await this.submissionRepo.gradeAnswers(submission.id, gradedAnswers);
+      gradedAnswers = autoGradable
+        .map((a) => {
+          const q = questionMap.get(a.question_id)!;
+          return {
+            id: a.id,
+            isCorrect:
+              a.answer.trim().toLowerCase() ===
+              (q.correct_answer ?? '').trim().toLowerCase(),
+          };
+        });
 
-    // Score = number of correct non-essay answers
-    const score = gradedAnswers.filter((a) => a.isCorrect).length;
+      await this.submissionRepo.gradeAnswers(submission.id, gradedAnswers);
+
+      score = gradedAnswers.filter((a) => a.isCorrect).length;
+      systemSectionScore = isHybrid ? score : undefined;
+      essayPending = savedAnswers.length - gradedAnswers.length > 0;
+    }
 
     // Mark as submitted — also clear reopened_until so extension is consumed
     const updated = await this.submissionRepo.updateStatus(submission.id, {
       status: 'submitted',
-      score,
+      ...(score !== null ? { score } : {}),
+      ...(systemSectionScore !== undefined ? { systemSectionScore } : {}),
       submittedAt: new Date(),
     });
 
@@ -232,8 +245,8 @@ export class SubmissionService {
     return {
       submissionId: submission.id,
       score,
-      totalGraded: gradedAnswers.length,
-      essayPending: savedAnswers.length - gradedAnswers.length > 0,
+      totalGraded: isManual ? 0 : gradedAnswers.length,
+      essayPending,
       submittedAt: updated.submitted_at,
     };
   }

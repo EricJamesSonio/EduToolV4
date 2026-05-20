@@ -7,6 +7,11 @@ export interface AssessmentScore {
   manualScore: number | null;
   totalItems: number;
   status: string;
+  gradingMode?: string;
+  systemSectionScore?: number | null;
+  manualSectionScore?: number | null;
+  isMissed?: boolean;
+  isExempted?: boolean;
 }
 
 export interface CategoryBreakdown {

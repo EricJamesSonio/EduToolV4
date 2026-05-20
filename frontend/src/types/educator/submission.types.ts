@@ -27,4 +27,8 @@ export interface Submission {
   startedAt: string | null;
   submittedAt: string | null;
   updatedAt: string;
+  systemSectionScore?: number | null;
+  manualSectionScore?: number | null;
+  isMissed?: boolean;
+  isExempted?: boolean;
 }
