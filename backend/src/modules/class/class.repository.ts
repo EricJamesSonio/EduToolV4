@@ -157,6 +157,12 @@ export class ClassRepository {
     });
   }
 
+  async findSchedulesByClass(classId: string) {
+    return this.db.classSchedule.findMany({
+      where: { class_id: classId },
+    });
+  }
+
   async findSectionSchedules(sectionId: string, orgId: string) {
     return this.db.classSchedule.findMany({
       where: {
