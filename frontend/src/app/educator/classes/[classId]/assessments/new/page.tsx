@@ -256,10 +256,15 @@ function Step3({
   onNext: () => void; isLoading: boolean;
 }) {
   const [showTypePicker, setShowTypePicker] = useState(false);
-  const totalCovered = sections.reduce((s, sec) => {
-    if (sec.questionType === 'manual') return s + (sec.manualMaxScore ?? 1);
-    return s + (sec.to - sec.from + 1);
-  }, 0);
+  const aiItemCount = sections
+    .filter((sec) => sec.questionType !== 'manual')
+    .reduce((s, sec) => s + (sec.to - sec.from + 1), 0);
+  const manualScoreTotal = sections
+    .filter((sec) => sec.questionType === 'manual')
+    .reduce((s, sec) => s + (sec.manualMaxScore ?? 1), 0);
+  const hasManualSections = sections.some((sec) => sec.questionType === 'manual');
+  const overallTotal = totalItems + manualScoreTotal;
+  const totalCovered = aiItemCount;
   const gap = totalCovered < totalItems;
   const overflow = totalCovered > totalItems;
 
@@ -286,10 +291,6 @@ function Step3({
     expectedFrom = sec.to + 1;
   }
 
-  // Only non-manual sections are limited by concept build items
-  const aiItemCount = sections
-    .filter((sec) => sec.questionType !== 'manual')
-    .reduce((s, sec) => s + (sec.to - sec.from + 1), 0);
   const aiItemErr = aiItemCount > conceptItems.length
     ? `AI sections total ${aiItemCount} items but concept build only has ${conceptItems.length}.`
     : null;
@@ -395,9 +396,17 @@ function Step3({
           <input type="number" min={1} value={totalItems}
             onChange={(e) => onChange({ totalItems: Math.max(1, parseInt(e.target.value, 10) || 1) })}
             className={cn("w-full rounded-md border bg-background px-3 py-2 text-sm", totalErr && "border-destructive")} />
-          {totalErr ? <p className="text-xs text-destructive">{totalErr}</p> : <p className="text-xs text-muted-foreground">Total assessment items (AI + manual sections). Concept build limit ({conceptItems.length}) only applies to AI sections.</p>}
+          {totalErr ? <p className="text-xs text-destructive">{totalErr}</p> : <p className="text-xs text-muted-foreground">System-generated items count. Concept build limit ({conceptItems.length}) only applies to AI sections.</p>}
         </div>
       </div>
+
+      {hasManualSections && (
+        <div className="rounded-lg border bg-blue-50/40 border-blue-200 px-4 py-3 flex items-center gap-3 text-sm">
+          <span className="text-muted-foreground">Overall Total (AI + Manual):</span>
+          <span className="font-semibold text-lg">{overallTotal}</span>
+          <span className="text-xs text-muted-foreground">({aiItemCount} AI + {manualScoreTotal} Manual)</span>
+        </div>
+      )}
 
       <div className="space-y-4">
         <div className="flex items-center justify-between relative">
@@ -410,7 +419,10 @@ function Step3({
                 <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg border bg-popover p-1 shadow-lg">
                   {Q_TYPES.map((opt) => {
                     const isAi = opt.value !== 'manual';
-                    const aiFull = isAi && aiItemCount >= conceptItems.length;
+                    const aiSlotsFull = aiItemCount >= totalItems;
+                    const conceptFull = aiItemCount >= conceptItems.length;
+                    const aiFull = isAi && (aiSlotsFull || conceptFull);
+                    const aiReason = conceptFull ? "concept build full" : aiSlotsFull ? "all slots filled" : "";
                     return (
                       <button key={opt.value} type="button" disabled={aiFull}
                         onClick={() => !aiFull && addSectionWithType(opt.value)}
@@ -419,7 +431,7 @@ function Step3({
                           aiFull ? "opacity-40 cursor-not-allowed text-muted-foreground" : "hover:bg-muted"
                         )}>
                         <span className="font-medium">{opt.label}</span>
-                        {aiFull && <span className="text-[10px] text-muted-foreground ml-2">(concept build full)</span>}
+                        {aiFull && <span className="text-[10px] text-muted-foreground ml-2">({aiReason})</span>}
                       </button>
                     );
                   })}
@@ -564,7 +576,8 @@ function Step3({
 
       <div className="flex items-center gap-3 pt-1">
         <p className={cn("text-sm", valid ? "text-green-600" : gap ? "text-amber-600" : overflow ? "text-destructive" : "text-amber-600")}>
-          {totalCovered} / {totalItems} items covered
+          {totalCovered} / {totalItems} AI items covered
+          {hasManualSections && <span className="text-muted-foreground ml-2">· Overall: {overallTotal}</span>}
           {gap && " — add more sections"}
           {overflow && " — exceeds total"}
         </p>
@@ -1138,9 +1151,11 @@ export default function NewAssessmentPage() {
     const derivedManualMaxScore = effectiveGradingMode === 'hybrid' ? manualScoreTotal : undefined;
 
     try {
+      // Send combined total (AI + manual) to API for scoring denominator
+      const combinedTotal = hasManualSections ? state.totalItems + manualScoreTotal : state.totalItems;
       const { previewId } = await assessmentApi.generatePreview(classId, {
         lessonId: state.selectedLesson.id, termId, type: state.type,
-        totalItems: state.totalItems,
+        totalItems: combinedTotal,
         gradingMode: effectiveGradingMode as GradingMode,
         showBreakdown: state.showBreakdown,
         manualMaxScore: derivedManualMaxScore,
