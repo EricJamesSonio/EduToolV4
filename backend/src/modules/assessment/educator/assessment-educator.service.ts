@@ -560,7 +560,10 @@ export class AssessmentEducatorService {
     const concept = await this.lessonRepo.findConcept(dto.lessonId);
     if (!concept) throw new BadRequestException('No concept build found.');
     if (!dto.ranges?.length) throw new BadRequestException('At least one range is required.');
-    const rangeTotal = dto.ranges.reduce((sum, r) => sum + (r.to - r.from + 1), 0);
+    const rangeTotal = dto.ranges.reduce((sum, r) => {
+      if (r.questionType === 'manual' && r.manualMaxScore != null) return sum + r.manualMaxScore;
+      return sum + (r.to - r.from + 1);
+    }, 0);
     if (rangeTotal !== dto.totalItems) throw new BadRequestException('Range total mismatch.');
 
     const previewId = crypto.randomUUID();
