@@ -9,6 +9,7 @@ export interface RangeConfig {
   questionType: QuestionType;
   conceptSections: string[];
   manualQuestionText?: string;
+  manualMaxScore?: number;
 }
 
 export interface CreateAssessmentRequest {

@@ -40,6 +40,7 @@ interface AssessmentSection {
   questionType: QuestionType;
   selectedItemIndices: number[]; // indices into conceptItems[]
   manualQuestionText?: string; // educator-written question for manual sections
+  manualMaxScore?: number; // max score for this manual section (1 block = N points)
 }
 
 interface ConceptContent {
@@ -80,15 +81,20 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 let secIdCounter = 0;
-function makeSection(from: number, to: number): AssessmentSection {
-  return {
+function makeSection(from: number, to: number, questionType?: QuestionType): AssessmentSection {
+  const base: AssessmentSection = {
     id: `sec-${++secIdCounter}`,
     title: "",
     from,
     to,
-    questionType: "multiple_choice",
+    questionType: questionType ?? "multiple_choice",
     selectedItemIndices: [],
   };
+  if (questionType === 'manual') {
+    base.manualMaxScore = 1;
+    base.manualQuestionText = '';
+  }
+  return base;
 }
 
 function defaultSectionTitle(type: QuestionType): string {
@@ -249,7 +255,11 @@ function Step3({
   onChange: (u: Partial<Pick<BuilderState, "type" | "totalItems" | "sections" | "gradingMode" | "showBreakdown" | "manualMaxScore">>) => void;
   onNext: () => void; isLoading: boolean;
 }) {
-  const totalCovered = sections.reduce((s, sec) => s + (sec.to - sec.from + 1), 0);
+  const [showTypePicker, setShowTypePicker] = useState(false);
+  const totalCovered = sections.reduce((s, sec) => {
+    if (sec.questionType === 'manual') return s + (sec.manualMaxScore ?? 1);
+    return s + (sec.to - sec.from + 1);
+  }, 0);
   const gap = totalCovered < totalItems;
   const overflow = totalCovered > totalItems;
 
@@ -257,6 +267,12 @@ function Step3({
   let expectedFrom = 1;
   for (let i = 0; i < sections.length; i++) {
     const sec = sections[i];
+    if (sec.questionType === 'manual') {
+      if (!sec.manualQuestionText?.trim()) {
+        itemErrors.push(`"${sec.title || defaultSectionTitle(sec.questionType)}" requires question text.`);
+      }
+      continue;
+    }
     const count = sec.to - sec.from + 1;
     if (sec.from !== expectedFrom) {
       itemErrors.push(`Section "${sec.title || defaultSectionTitle(sec.questionType)}" starts at ${sec.from} but expected ${expectedFrom}.`);
@@ -264,25 +280,27 @@ function Step3({
     if (sec.to > totalItems) {
       itemErrors.push(`Section "${sec.title || defaultSectionTitle(sec.questionType)}" ends at ${sec.to} but total items is ${totalItems}.`);
     }
-    if (sec.questionType !== 'manual') {
-      if (sec.selectedItemIndices.length < count) {
-        itemErrors.push(`"${sec.title || defaultSectionTitle(sec.questionType)}" needs ${count} items, but only ${sec.selectedItemIndices.length} selected.`);
-      }
-    } else if (!sec.manualQuestionText?.trim()) {
-      itemErrors.push(`"${sec.title || defaultSectionTitle(sec.questionType)}" requires question text.`);
+    if (sec.selectedItemIndices.length < count) {
+      itemErrors.push(`"${sec.title || defaultSectionTitle(sec.questionType)}" needs ${count} items, but only ${sec.selectedItemIndices.length} selected.`);
     }
     expectedFrom = sec.to + 1;
   }
 
-  const totalErr = totalItems > conceptItems.length
-    ? `Total items (${totalItems}) exceeds available concept items (${conceptItems.length}).`
-    : totalItems < 1 ? "Must be at least 1." : null;
+  // Only non-manual sections are limited by concept build items
+  const aiItemCount = sections
+    .filter((sec) => sec.questionType !== 'manual')
+    .reduce((s, sec) => s + (sec.to - sec.from + 1), 0);
+  const aiItemErr = aiItemCount > conceptItems.length
+    ? `AI sections total ${aiItemCount} items but concept build only has ${conceptItems.length}.`
+    : null;
+  const totalErr = totalItems < 1 ? "Must be at least 1." : null;
 
-  const valid = !totalErr && !overflow && !gap && itemErrors.length === 0;
+  const valid = !totalErr && !aiItemErr && !overflow && !gap && itemErrors.length === 0;
 
   function recalcAll(arr: AssessmentSection[]): AssessmentSection[] {
     let cursor = 0;
     return arr.map((sec) => {
+      if (sec.questionType === 'manual') return { ...sec, from: 1, to: 1 };
       const count = sec.to - sec.from + 1;
       const from = cursor + 1;
       const to = cursor + count;
@@ -303,24 +321,42 @@ function Step3({
       return sec;
     });
     for (let i = idx + 1; i < arr.length; i++) {
-      const prev = arr[i - 1];
-      const prevCount = prev.to - prev.from + 1;
-      const from = prev.from + prevCount;
+      if (arr[i].questionType === 'manual') continue;
+      const prevAI = [...arr.slice(0, i)].reverse().find((s) => s.questionType !== 'manual');
+      const from = prevAI ? prevAI.to + 1 : 1;
       const curCount = arr[i].to - arr[i].from + 1;
       arr[i] = { ...arr[i], from, to: from + curCount - 1 };
     }
     onChange({ sections: arr });
   }
 
-  function addSection() {
-    const nextFrom = sections.length ? sections[sections.length - 1].to + 1 : 1;
-    if (nextFrom > totalItems) return;
-    const to = Math.min(nextFrom + 4, totalItems);
-    onChange({ sections: [...sections, makeSection(nextFrom, to)] });
+  function addSectionWithType(qType: QuestionType) {
+    setShowTypePicker(false);
+    if (qType === 'manual') {
+      onChange({ sections: [...sections, makeSection(1, 1, 'manual')] });
+    } else {
+      const lastAI = [...sections].reverse().find((s) => s.questionType !== 'manual');
+      const nextFrom = lastAI ? lastAI.to + 1 : 1;
+      if (nextFrom > totalItems) return;
+      const to = Math.min(nextFrom + 4, totalItems);
+      onChange({ sections: [...sections, makeSection(nextFrom, to, qType)] });
+    }
   }
 
   function updateSection(idx: number, u: Partial<AssessmentSection>) {
-    onChange({ sections: sections.map((sec, i) => (i === idx ? { ...sec, ...u } : sec)) });
+    const updated = sections.map((sec, i) => {
+      if (i !== idx) return sec;
+      const next = { ...sec, ...u };
+      // When switching to manual, reset range and set default max score
+      if (u.questionType === 'manual' && sec.questionType !== 'manual') {
+        next.from = 1;
+        next.to = 1;
+        next.manualMaxScore = next.manualMaxScore ?? 1;
+        next.manualQuestionText = next.manualQuestionText ?? '';
+      }
+      return next;
+    });
+    onChange({ sections: updated });
   }
 
   function removeSection(idx: number) {
@@ -356,17 +392,41 @@ function Step3({
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Total Items <span className="text-destructive">*</span></label>
-          <input type="number" min={1} max={conceptItems.length} value={totalItems}
+          <input type="number" min={1} value={totalItems}
             onChange={(e) => onChange({ totalItems: Math.max(1, parseInt(e.target.value, 10) || 1) })}
             className={cn("w-full rounded-md border bg-background px-3 py-2 text-sm", totalErr && "border-destructive")} />
-          {totalErr ? <p className="text-xs text-destructive">{totalErr}</p> : <p className="text-xs text-muted-foreground">Max {conceptItems.length} from concept build.</p>}
+          {totalErr ? <p className="text-xs text-destructive">{totalErr}</p> : <p className="text-xs text-muted-foreground">Total assessment items (AI + manual sections). Concept build limit ({conceptItems.length}) only applies to AI sections.</p>}
         </div>
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between relative">
           <h3 className="text-sm font-semibold">Assessment Sections ({sections.length})</h3>
-          <Button variant="outline" size="sm" onClick={addSection} disabled={totalCovered >= totalItems || totalItems === 0}>+ Add Section</Button>
+          <div className="relative">
+            <Button variant="outline" size="sm" onClick={() => setShowTypePicker(!showTypePicker)}>+ Add Section</Button>
+            {showTypePicker && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowTypePicker(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg border bg-popover p-1 shadow-lg">
+                  {Q_TYPES.map((opt) => {
+                    const isAi = opt.value !== 'manual';
+                    const aiFull = isAi && aiItemCount >= conceptItems.length;
+                    return (
+                      <button key={opt.value} type="button" disabled={aiFull}
+                        onClick={() => !aiFull && addSectionWithType(opt.value)}
+                        className={cn(
+                          "w-full text-left px-3 py-2 rounded text-sm transition-colors",
+                          aiFull ? "opacity-40 cursor-not-allowed text-muted-foreground" : "hover:bg-muted"
+                        )}>
+                        <span className="font-medium">{opt.label}</span>
+                        {aiFull && <span className="text-[10px] text-muted-foreground ml-2">(concept build full)</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {sections.length === 0 && (
@@ -393,23 +453,36 @@ function Step3({
                 </div>
 
                 <div className="flex flex-wrap items-end gap-3">
-                  <div className="space-y-1 w-20">
-                    <label className="text-xs text-muted-foreground">From (Items)</label>
-                    <input type="number" value={sec.from} disabled className="w-full rounded-md border bg-muted/30 px-3 py-1.5 text-sm" />
-                  </div>
-                  <div className="space-y-1 w-20">
-                    <label className="text-xs text-muted-foreground">Count</label>
-                    <input type="number" min={1} max={totalItems - sec.from + 1} value={secCount}
-                      onChange={(e) => setSectionCount(si, parseInt(e.target.value, 10) || 1)}
-                      className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" />
-                  </div>
+                  {sec.questionType === 'manual' ? (
+                    <div className="space-y-1 w-24">
+                      <label className="text-xs text-muted-foreground">Max Score</label>
+                      <input type="number" min={1} value={sec.manualMaxScore ?? 1}
+                        onChange={(e) => updateSection(si, { manualMaxScore: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                        className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-1 w-20">
+                        <label className="text-xs text-muted-foreground">From (Items)</label>
+                        <input type="number" value={sec.from} disabled className="w-full rounded-md border bg-muted/30 px-3 py-1.5 text-sm" />
+                      </div>
+                      <div className="space-y-1 w-20">
+                        <label className="text-xs text-muted-foreground">Count</label>
+                        <input type="number" min={1} max={totalItems - sec.from + 1} value={secCount}
+                          onChange={(e) => setSectionCount(si, parseInt(e.target.value, 10) || 1)}
+                          className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" />
+                      </div>
+                    </>
+                  )}
                   <div className="space-y-1 w-36">
                     <label className="text-xs text-muted-foreground">Type</label>
                     <select value={sec.questionType} onChange={(e) => updateSection(si, { questionType: e.target.value as QuestionType })} className="w-full rounded-md border bg-background px-3 py-1.5 text-sm">
                       {Q_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
-                  <div className={cn("text-xs", hasEnoughItems ? "text-green-600" : "text-destructive")}>{sec.selectedItemIndices.length} / {secCount} items</div>
+                  {sec.questionType !== 'manual' && (
+                    <div className={cn("text-xs", hasEnoughItems ? "text-green-600" : "text-destructive")}>{sec.selectedItemIndices.length} / {secCount} items</div>
+                  )}
                 </div>
 
                   {sec.questionType === 'manual' ? (
@@ -485,6 +558,9 @@ function Step3({
           {itemErrors.map((err, i) => <p key={i} className="text-xs text-destructive">{err}</p>)}
         </div>
       )}
+      {aiItemErr && (
+        <p className="text-xs text-destructive">{aiItemErr}</p>
+      )}
 
       <div className="flex items-center gap-3 pt-1">
         <p className={cn("text-sm", valid ? "text-green-600" : gap ? "text-amber-600" : overflow ? "text-destructive" : "text-amber-600")}>
@@ -508,6 +584,7 @@ interface RangeRow {
   questionType: QuestionType;
   conceptSections: string[];
   manualQuestionText?: string;
+  manualMaxScore?: number;
 }
 
 function getSectionsForRanges(sections: AssessmentSection[], conceptItems: ConceptItemInfo[]): RangeRow[] {
@@ -522,6 +599,7 @@ function getSectionsForRanges(sections: AssessmentSection[], conceptItems: Conce
         questionType: sec.questionType,
         conceptSections: uniqueSections,
         manualQuestionText: sec.questionType === 'manual' ? sec.manualQuestionText : undefined,
+        manualMaxScore: sec.questionType === 'manual' ? sec.manualMaxScore : undefined,
       };
     });
 }
@@ -615,10 +693,40 @@ function Step4({ classId, previewId, onQuestionsReady }: { classId: string; prev
   );
 }
 
-// ─── Step 5: Review Questions & Confirm (system/hybrid) ──────────────────────
-function Step5({ classId, previewId, questions, onConfirm }: { classId: string; previewId: string; questions: Question[]; onConfirm: (assessmentId: string) => void }) {
+// ─── Step 5: Final Review — full-page assessment summary ─────────────────────
+function Step5({
+  classId, previewId, questions, state, conceptItems, sectionNames, onConfirm
+}: {
+  classId: string; previewId: string; questions: Question[];
+  state: BuilderState; conceptItems: ConceptItemInfo[]; sectionNames: string[];
+  onConfirm: (assessmentId: string) => void;
+}) {
   const [confirming, setConfirming] = useState(false);
-  const [edits, setEdits] = useState<Record<string, { text: string; correctAnswer: string }>>(() => Object.fromEntries(questions.map((q) => [q.id, { text: q.text, correctAnswer: q.correctAnswer ?? "" }])));
+  const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({});
+  const [edits, setEdits] = useState<Record<string, { text: string; correctAnswer: string }>>(() =>
+    Object.fromEntries(questions.map((q) => [q.id, { text: q.text, correctAnswer: q.correctAnswer ?? "" }]))
+  );
+
+  // Group questions by section
+  let qCursor = 0;
+  const groups = state.sections.map((sec, si) => {
+    if (sec.questionType === 'manual') {
+      const q = questions.find((qq) => qq.isManual);
+      if (q) qCursor++;
+      return { section: sec, questions: q ? [q] : [] };
+    }
+    const count = sec.to - sec.from + 1;
+    const secQs = questions.slice(qCursor, qCursor + count).filter((qq) => !qq.isManual);
+    qCursor += count;
+    return { section: sec, questions: secQs };
+  });
+
+  const aiSections = state.sections.filter((s) => s.questionType !== 'manual');
+  const manualSections = state.sections.filter((s) => s.questionType === 'manual');
+  const aiItemCount = aiSections.reduce((s, sec) => s + (sec.to - sec.from + 1), 0);
+  const manualScoreTotal = manualSections.reduce((s, sec) => s + (sec.manualMaxScore ?? 1), 0);
+
+  const toggleSection = (idx: number) => setExpandedSections((p) => ({ ...p, [idx]: !p[idx] }));
 
   async function handleConfirm() {
     setConfirming(true);
@@ -633,48 +741,192 @@ function Step5({ classId, previewId, questions, onConfirm }: { classId: string; 
   }
 
   return (
-    <div className="space-y-4 max-w-2xl">
-      <div className="rounded-lg border bg-blue-50 border-blue-200 px-4 py-3 text-sm text-blue-800">
-        Review the generated questions below. Click "Create Assessment" to save them.
-      </div>
-      <div className="space-y-3">
-        {questions.map((q, i) => (
-          <div key={q.id} className="rounded-lg border p-4 space-y-3">
-            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-              Item {i + 1} — {q.type.replace(/_/g, " ")}
-              {q.type === 'manual' && <span className="ml-2 text-amber-600">(Manually graded)</span>}
-            </span>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Question</label>
-              <textarea value={edits[q.id]?.text ?? q.text} onChange={(e) => setEdits((p) => ({ ...p, [q.id]: { ...p[q.id], text: e.target.value } }))} rows={2} className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none" />
-            </div>
-            {q.choices && q.choices.length > 0 && (
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Choices</label>
-                <div className="space-y-1">
-                  {q.choices.map((c) => (
-                    <div key={c.label} className={cn("flex items-center gap-2 px-3 py-1.5 rounded text-sm border", q.correctAnswer === c.text ? "border-green-300 bg-green-50" : "border-border")}>
-                      <span className="font-mono text-xs font-bold w-5">{c.label}.</span><span>{c.text}</span>
-                      {q.correctAnswer === c.text && <span className="text-xs text-green-600 ml-auto font-medium">Correct</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {q.type !== "essay" && q.type !== "manual" && (
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Answer</label>
-                <input type="text" value={edits[q.id]?.correctAnswer ?? ""} onChange={(e) => setEdits((p) => ({ ...p, [q.id]: { ...p[q.id], correctAnswer: e.target.value } }))} className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" />
-              </div>
-            )}
+    <div className="space-y-8 max-w-4xl">
+      {/* ── Assessment Summary Card ── */}
+      <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Check className="h-5 w-5 text-green-600" />
+          Assessment Summary
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Type</p>
+            <p className="text-sm font-medium mt-0.5">{TYPE_LABELS[state.type] ?? state.type}</p>
           </div>
-        ))}
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Grading Mode</p>
+            <p className="text-sm font-medium mt-0.5 capitalize">{state.gradingMode === 'hybrid' ? 'Hybrid' : state.gradingMode === 'system' ? 'System-Graded' : 'Manual-Graded'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Items</p>
+            <p className="text-sm font-medium mt-0.5">{state.totalItems}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Breakdown Visible</p>
+            <p className="text-sm font-medium mt-0.5">{state.showBreakdown ? "Yes" : "No"}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-6 text-xs text-muted-foreground">
+          <span><strong className="text-foreground">{aiItemCount}</strong> AI-generated items</span>
+          <span><strong className="text-foreground">{manualScoreTotal}</strong> manual max score</span>
+          <span><strong className="text-foreground">{conceptItems.length}</strong> concept build items available</span>
+          {state.selectedLesson && <span>Lesson: {state.selectedLesson.title}</span>}
+          <span>{sectionNames.length} concept section{sectionNames.length !== 1 ? "s" : ""}</span>
+        </div>
+        {questions.length > 0 && (
+          <div className="pt-2 border-t flex items-center gap-4 text-sm">
+            <span className="text-muted-foreground">{questions.length} question{questions.length !== 1 ? "s" : ""}</span>
+            {questions.filter((q) => q.isManual).length > 0 && (
+              <span className="text-amber-600">{questions.filter((q) => q.isManual).length} manually graded</span>
+            )}
+            <span className="text-green-600">{questions.filter((q) => !q.isManual).length} auto-graded</span>
+          </div>
+        )}
       </div>
-      <div className="flex gap-2">
-        <Button onClick={handleConfirm} disabled={confirming} size="sm">
-          {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create Assessment
+
+      {/* ── Sections Overview ── */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Sections</h3>
+        <div className="space-y-2">
+          {state.sections.length === 0 && (
+            <p className="text-sm text-muted-foreground py-4 text-center border rounded-lg">No sections configured.</p>
+          )}
+          {state.sections.map((sec, si) => {
+            const group = groups[si];
+            const isExpanded = expandedSections[si] ?? false;
+            const secQs = group?.questions ?? [];
+
+            if (sec.questionType === 'manual') {
+              return (
+                <div key={sec.id} className="rounded-lg border bg-amber-50/40 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Section {si + 1}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full border border-amber-200 bg-amber-100 text-amber-700">Manual (Educator-Written)</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span>Max Score: <strong>{sec.manualMaxScore ?? 1}</strong></span>
+                    </div>
+                  </div>
+                  {sec.manualQuestionText && (
+                    <p className="text-sm bg-white rounded border px-3 py-2 italic text-muted-foreground">
+                      &ldquo;{sec.manualQuestionText}&rdquo;
+                    </p>
+                  )}
+                  {secQs.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-amber-600">1 manual question</span>
+                      {secQs[0]?.text && (
+                        <button onClick={() => toggleSection(si)} className="text-xs text-primary hover:underline ml-auto">
+                          {isExpanded ? "Hide question" : "Preview question"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {isExpanded && secQs.length > 0 && (
+                    <QuestionCard question={secQs[0]} index={-1} edits={edits} />
+                  )}
+                </div>
+              );
+            }
+
+            const count = sec.to - sec.from + 1;
+            const selectedConceptNames = [...new Set(
+              sec.selectedItemIndices.map((idx) => conceptItems[idx]?.section).filter(Boolean)
+            )];
+
+            return (
+              <div key={sec.id} className="rounded-lg border p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Section {si + 1}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full border bg-blue-50 border-blue-200 text-blue-700">{sec.questionType.replace(/_/g, " ")}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>Items <strong>{sec.from}–{sec.to}</strong></span>
+                    <span>Count: <strong>{count}</strong></span>
+                    {secQs.length > 0 && (
+                      <button onClick={() => toggleSection(si)} className="text-primary hover:underline">
+                        {isExpanded ? "Collapse" : `${secQs.length} question${secQs.length !== 1 ? "s" : ""}`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {selectedConceptNames.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedConceptNames.map((name) => (
+                      <span key={name} className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{name}</span>
+                    ))}
+                  </div>
+                )}
+                {isExpanded && (
+                  <div className="space-y-2 pt-2 border-t">
+                    {secQs.map((q, qi) => (
+                      <QuestionCard key={q.id} question={q} index={qi + 1} edits={edits} />
+                    ))}
+                    {secQs.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic">No questions generated for this section.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Create Button ── */}
+      <div className="flex items-center gap-4 pt-2 border-t">
+        <Button onClick={handleConfirm} disabled={confirming || questions.length === 0} size="default">
+          {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {confirming ? "Creating..." : "Create Assessment"}
         </Button>
+        {questions.length === 0 && <p className="text-xs text-destructive">No questions to create.</p>}
+        <p className="text-xs text-muted-foreground">This will save the assessment and make it ready for publishing.</p>
       </div>
+    </div>
+  );
+}
+
+// ─── Inline question card for Step5 ──────────────────────────────────────────
+function QuestionCard({
+  question, index, edits,
+}: {
+  question: Question; index: number;
+  edits: Record<string, { text: string; correctAnswer: string }>;
+}) {
+  const isManualQ = question.type === 'manual' || (question as any).isManual;
+  return (
+    <div className="rounded-lg border bg-card p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+          {index > 0 && <>Item {index}</>}
+          {isManualQ && <span className="ml-2 text-amber-600">(Manually graded)</span>}
+        </span>
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground">Question</label>
+        <p className="text-sm bg-muted/30 rounded border px-3 py-2">{question.text}</p>
+      </div>
+      {question.choices && question.choices.length > 0 && (
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Choices</label>
+          <div className="space-y-1">
+            {question.choices.map((c) => (
+              <div key={c.label} className={cn("flex items-center gap-2 px-3 py-1.5 rounded text-sm border", question.correctAnswer === c.text ? "border-green-300 bg-green-50" : "border-border")}>
+                <span className="font-mono text-xs font-bold w-5">{c.label}.</span><span>{c.text}</span>
+                {question.correctAnswer === c.text && <span className="text-xs text-green-600 ml-auto font-medium">Correct</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {!isManualQ && question.type !== "essay" && (
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Answer</label>
+          <p className="text-sm bg-muted/30 rounded border px-3 py-2">{question.correctAnswer ?? "(not set)"}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -879,11 +1131,11 @@ export default function NewAssessmentPage() {
     const hasManualSections = ranges.some((r) => r.questionType === 'manual');
     const effectiveGradingMode = state.gradingMode === 'system' && hasManualSections ? 'hybrid' : state.gradingMode;
 
-    // Derive manualMaxScore from the count of manual section items
-    const manualItemCount = ranges
+    // Derive manualMaxScore from section-level values
+    const manualScoreTotal = ranges
       .filter((r) => r.questionType === 'manual')
-      .reduce((sum, r) => sum + (r.to - r.from + 1), 0);
-    const derivedManualMaxScore = effectiveGradingMode === 'hybrid' ? manualItemCount : undefined;
+      .reduce((sum, r) => sum + (r.manualMaxScore ?? 1), 0);
+    const derivedManualMaxScore = effectiveGradingMode === 'hybrid' ? manualScoreTotal : undefined;
 
     try {
       const { previewId } = await assessmentApi.generatePreview(classId, {
@@ -892,7 +1144,7 @@ export default function NewAssessmentPage() {
         gradingMode: effectiveGradingMode as GradingMode,
         showBreakdown: state.showBreakdown,
         manualMaxScore: derivedManualMaxScore,
-        ranges: ranges.map((r) => ({ from: r.from, to: r.to, questionType: r.questionType as RangeConfig["questionType"], conceptSections: r.conceptSections, manualQuestionText: r.manualQuestionText })),
+        ranges: ranges.map((r) => ({ from: r.from, to: r.to, questionType: r.questionType as RangeConfig["questionType"], conceptSections: r.conceptSections, manualQuestionText: r.manualQuestionText, manualMaxScore: r.manualMaxScore })),
       });
       patch({ previewId, gradingMode: effectiveGradingMode as GradingMode });
       next();
@@ -969,8 +1221,10 @@ export default function NewAssessmentPage() {
         {isSystem && step === 4 && state.previewId && <Step4 classId={classId} previewId={state.previewId} onQuestionsReady={(q) => { patch({ generatedQuestions: q }); next(); }} />}
         {isSystem && step === 5 && state.previewId && (
           <div className="space-y-6">
-            <Step5 classId={classId} previewId={state.previewId} questions={state.generatedQuestions} onConfirm={(assessmentId) => { patch({ createdAssessmentId: assessmentId }); next(); }} />
-            <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to review</Button>
+            <Step5 classId={classId} previewId={state.previewId} questions={state.generatedQuestions}
+              state={state} conceptItems={cc.conceptItems} sectionNames={cc.sections}
+              onConfirm={(assessmentId) => { patch({ createdAssessmentId: assessmentId }); next(); }} />
+            <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to generation</Button>
           </div>
         )}
         {isSystem && step === 6 && (

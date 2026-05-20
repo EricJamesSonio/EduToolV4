@@ -125,27 +125,18 @@ export class AssessmentEducatorService {
       const manualRanges = (dto.ranges ?? []).filter((r) => r.questionType === 'manual');
       const aiRanges = (dto.ranges ?? []).filter((r) => r.questionType !== 'manual');
 
-      // Create manual questions directly (no AI needed)
+      // Create manual questions directly — 1 block per section (not per item)
       if (manualRanges.length > 0) {
-        const manualQuestions = manualRanges.flatMap((r) => {
-          const text = r.manualQuestionText?.trim();
-          if (!text) return [];
-          const items: Array<{
-            orgId: string; assessmentId: string; type: string; questionText: string;
-            order: number; isManual: boolean;
-          }> = [];
-          for (let idx = r.from; idx <= r.to; idx++) {
-            items.push({
-              orgId,
-              assessmentId: assessment.id,
-              type: 'manual',
-              questionText: text,
-              order: idx,
-              isManual: true,
-            });
-          }
-          return items;
-        });
+        const manualQuestions = manualRanges
+          .filter((r) => r.manualQuestionText?.trim())
+          .map((r, idx) => ({
+            orgId,
+            assessmentId: assessment.id,
+            type: 'manual',
+            questionText: r.manualQuestionText!.trim(),
+            order: idx + 1,
+            isManual: true,
+          }));
         if (manualQuestions.length > 0) {
           await this.repo.createQuestions(manualQuestions);
         }
@@ -667,18 +658,16 @@ export class AssessmentEducatorService {
       const manualRanges = (dto.ranges ?? []).filter((r) => r.questionType === 'manual');
       const aiRanges = (dto.ranges ?? []).filter((r) => r.questionType !== 'manual');
 
-      // Build manual questions from educator-provided text
+      // Build manual questions — 1 block per section (not per item)
       const manualQuestions: GeneratedQuestion[] = [];
       for (const r of manualRanges) {
-        for (let idx = r.from; idx <= r.to; idx++) {
-          if (r.manualQuestionText?.trim()) {
-            manualQuestions.push({
-              number: idx,
-              type: 'manual',
-              section: '',
-              question: r.manualQuestionText.trim(),
-            });
-          }
+        if (r.manualQuestionText?.trim()) {
+          manualQuestions.push({
+            number: manualQuestions.length + 1,
+            type: 'manual',
+            section: '',
+            question: r.manualQuestionText.trim(),
+          });
         }
       }
 
