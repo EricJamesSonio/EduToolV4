@@ -66,6 +66,11 @@ export class ItemRangeDto {
   @IsOptional()
   @IsString()
   manualQuestionText?: string; // educator-written question text for manual sections
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  manualMaxScore?: number; // max score for this manual section (1 question = N points)
 }
 
 // ── POST /classes/:classId/assessments ───────────────────────────────────────

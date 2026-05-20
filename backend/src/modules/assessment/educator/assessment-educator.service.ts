@@ -87,7 +87,10 @@ export class AssessmentEducatorService {
       if (!concept) throw new BadRequestException('No concept build found for this lesson. Run concept extraction first.');
 
       if (!dto.ranges?.length) throw new BadRequestException('At least one range is required for system/hybrid assessments.');
-      const rangeTotal = dto.ranges.reduce((sum, r) => sum + (r.to - r.from + 1), 0);
+      const rangeTotal = dto.ranges.reduce((sum, r) => {
+        if (r.questionType === 'manual') return sum + (r.manualMaxScore ?? (r.to - r.from + 1));
+        return sum + (r.to - r.from + 1);
+      }, 0);
       if (rangeTotal !== dto.totalItems) {
         throw new BadRequestException(`Item ranges total ${rangeTotal} but totalItems is ${dto.totalItems}. They must match.`);
       }
