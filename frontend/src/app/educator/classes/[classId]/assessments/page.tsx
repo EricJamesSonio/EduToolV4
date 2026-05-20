@@ -35,11 +35,12 @@ import {
 import { Plus, Loader2, Eye, Users, Trash2 } from "lucide-react";
 import type { AssessmentType } from "@/types/educator/assessment.types";
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
+  draft: "bg-amber-50 text-amber-700 border-amber-200",
   upcoming: "bg-blue-50 text-blue-700 border-blue-200",
   open: "bg-green-50 text-green-700 border-green-200",
   closed: "bg-zinc-100 text-zinc-600 border-zinc-200",
-} as const;
+};
 
 const TYPE_LABELS: Record<AssessmentType, string> = {
   quiz: "Quiz",

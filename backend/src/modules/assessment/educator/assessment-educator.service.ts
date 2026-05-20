@@ -116,7 +116,7 @@ export class AssessmentEducatorService {
         await this.repo.createQuestions([{
           orgId,
           assessmentId: assessment.id,
-          type: 'essay',
+          type: 'manual',
           questionText: dto.manualInstructions.trim(),
           order: 1,
           isManual: true,
@@ -415,12 +415,7 @@ export class AssessmentEducatorService {
     const submission = await this.repo.findSubmissionById(submissionId);
     if (!submission || submission.assessment_id !== assessmentId) throw new NotFoundException('Submission not found.');
 
-    const isHybrid = this.core.isHybridAssessment(assessment);
-    if (isHybrid) {
-      return this.repo.gradeEssay(submissionId, dto.score, dto.score);
-    }
-
-    return this.repo.gradeEssay(submissionId, dto.score);
+    return this.repo.gradeEssay(submissionId, dto.score, dto.score);
   }
 
   async publishScores(assessmentId: string, orgId: string, educatorId: string, dto: PublishScoresDto) {

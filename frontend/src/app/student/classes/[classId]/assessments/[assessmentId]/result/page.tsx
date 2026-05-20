@@ -63,7 +63,7 @@ export default function AssessmentResultPage(): React.JSX.Element {
               </h2>
             </div>
 
-            {canViewScore && result.score != null && !isManual ? (
+            {canViewScore && result.score != null ? (
               <div className="space-y-3">
                 <div className="flex items-end gap-2">
                   <span className={cn("text-4xl font-bold tabular-nums", gradeColor)}>

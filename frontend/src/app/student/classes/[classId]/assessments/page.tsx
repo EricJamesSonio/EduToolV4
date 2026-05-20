@@ -19,7 +19,6 @@ function deriveStatus(a: StudentAssessmentItem): string {
   if (a.submissionStatus === "submitted") return "submitted";
   if (a.submissionStatus === "graded")    return "graded";
   if (a.submissionStatus === "exempted")  return "exempted";
-  if (!a.isPublished)                     return "draft";
   if (a.releaseDate && new Date(a.releaseDate) > now) return "not_yet_open";
   if (a.endDate && new Date(a.endDate) < now)         return "missed";
   return "open";
@@ -42,8 +41,7 @@ function getAction(
   classId: string,
   router: ReturnType<typeof useRouter>
 ): React.ReactNode {
-  if (status === "open" || status === "draft") {
-    const label = status === "draft" ? "Resume" : "Take Assessment";
+  if (status === "open") {
     return (
       <Button
         size="sm"
@@ -51,7 +49,7 @@ function getAction(
           router.push(`/student/classes/${classId}/assessments/${a.id}`)
         }
       >
-        {label}
+        Take Assessment
       </Button>
     );
   }

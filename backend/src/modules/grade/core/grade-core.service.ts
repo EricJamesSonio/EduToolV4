@@ -46,7 +46,7 @@ export class GradeCoreService {
         }
       } else {
         const categoryAssessments = allAssessments.filter(
-          (a) => a.type === category.type,
+          (a) => a.type === category.type && a.is_published,
         );
         if (categoryAssessments.length === 0) continue;
 
@@ -63,9 +63,13 @@ export class GradeCoreService {
             percentages.push(0);
           } else {
             const rawScore = this.mergeHybridScores(sub);
+            const effectiveTotal =
+              assessment.grading_mode === 'manual'
+                ? (assessment.manual_max_score ?? 1)
+                : assessment.total_items;
             const pct =
-              assessment.total_items > 0
-                ? (rawScore / assessment.total_items) * 100
+              effectiveTotal > 0
+                ? (rawScore / effectiveTotal) * 100
                 : 0;
             percentages.push(pct);
           }
@@ -113,7 +117,7 @@ export class GradeCoreService {
         rawAverage = manualScore ?? 0;
       } else {
         const categoryAssessments = allAssessments.filter(
-          (a) => a.type === category.type,
+          (a) => a.type === category.type && a.is_published,
         );
         if (categoryAssessments.length > 0) {
           const percentages: number[] = [];
@@ -129,9 +133,13 @@ export class GradeCoreService {
               percentages.push(0);
             } else {
               const rawScore = this.mergeHybridScores(sub);
+              const effectiveTotal =
+                assessment.grading_mode === 'manual'
+                  ? (assessment.manual_max_score ?? 1)
+                  : assessment.total_items;
               const pct =
-                assessment.total_items > 0
-                  ? (rawScore / assessment.total_items) * 100
+                effectiveTotal > 0
+                  ? (rawScore / effectiveTotal) * 100
                   : 0;
               percentages.push(pct);
             }

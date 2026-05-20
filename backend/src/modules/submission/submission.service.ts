@@ -29,7 +29,7 @@ export class SubmissionService {
     const now = new Date();
 
     // Must be past release date
-    if (!assessment.release_date || now < new Date(assessment.release_date)) {
+    if (assessment.release_date && now < new Date(assessment.release_date)) {
       throw new ForbiddenException('Assessment has not been released yet.');
     }
 

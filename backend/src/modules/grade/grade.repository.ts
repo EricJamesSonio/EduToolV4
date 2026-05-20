@@ -114,6 +114,7 @@ export class GradeRepository {
         grading_mode: true,
         show_breakdown: true,
         is_published: true,
+        manual_max_score: true,
       },
     });
   }
