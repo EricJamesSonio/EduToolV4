@@ -17,7 +17,7 @@ export class GradeStudentController {
   getMyGrades(
     @Param('classId') classId: string,
     @CurrentUser('id') studentId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.service.getMyGrades(classId, studentId, orgId);
   }

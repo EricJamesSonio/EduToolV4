@@ -8,9 +8,10 @@ import { ClassModule } from '@/modules/class/class.module';
 import { AuditLogModule } from '@/modules/audit-log/audit-log.module';
 import { NotificationModule } from '@/modules/notification/notification.module';
 import { AttendanceModule } from '@/modules/attendance/attendance.module';
+import { GradeEducatorModule } from '@/modules/grade/educator/grade-educator.module';
 
 @Module({
-  imports: [AssessmentCoreModule, LessonModule, ClassModule, AuditLogModule, NotificationModule, AttendanceModule],
+  imports: [AssessmentCoreModule, LessonModule, ClassModule, AuditLogModule, NotificationModule, AttendanceModule, GradeEducatorModule],
   controllers: [AssessmentEducatorController],
   providers: [AssessmentEducatorService],
   exports: [AssessmentEducatorService],

@@ -8,6 +8,7 @@ import { ClassRepository } from '@/modules/class/class.repository';
 import { AuditLogService } from '@/modules/audit-log/audit-log.service';
 import { NotificationService } from '@/modules/notification/notification.service';
 import { AttendanceService } from '@/modules/attendance/attendance.service';
+import { GradeEducatorService } from '@/modules/grade/educator/grade-educator.service';
 import { AiService, QuestionBlueprint, GeneratedQuestion, GenerationProgress, ConceptBuild } from '@/core/ai/ai.service';
 import {
   CreateAssessmentDto,
@@ -39,6 +40,7 @@ export class AssessmentEducatorService {
     private readonly auditLog: AuditLogService,
     private readonly notificationService: NotificationService,
     private readonly attendanceService: AttendanceService,
+    private readonly gradeService: GradeEducatorService,
     private readonly aiService: AiService,
   ) {}
 
@@ -277,6 +279,15 @@ export class AssessmentEducatorService {
       metadata: { assessmentId: id },
     });
 
+    // Async grade recompute after deletion
+    if (assessment.term_id) {
+      this.gradeService
+        .computeGrades(assessment.class_id, assessment.term_id, orgId, educatorId)
+        .catch((err: Error) =>
+          this.logger.error(`[Grade] Recompute failed after delete ${id}: ${err.message}`),
+        );
+    }
+
     return { success: true };
   }
 
@@ -424,6 +435,15 @@ export class AssessmentEducatorService {
       metadata: { assessmentId, studentIds: dto.studentIds ?? 'all' },
     });
 
+    // Async grade recompute after publish
+    if (assessment.term_id) {
+      this.gradeService
+        .computeGrades(assessment.class_id, assessment.term_id, orgId, educatorId)
+        .catch((err: Error) =>
+          this.logger.error(`[Grade] Recompute failed after publish ${assessmentId}: ${err.message}`),
+        );
+    }
+
     return { success: true };
   }
 
@@ -438,6 +458,15 @@ export class AssessmentEducatorService {
       entityType: 'class', entityId: assessment.class_id,
       metadata: { assessmentId },
     });
+
+    // Async grade recompute after unpublish
+    if (assessment.term_id) {
+      this.gradeService
+        .computeGrades(assessment.class_id, assessment.term_id, orgId, educatorId)
+        .catch((err: Error) =>
+          this.logger.error(`[Grade] Recompute failed after unpublish ${assessmentId}: ${err.message}`),
+        );
+    }
 
     return { success: true };
   }

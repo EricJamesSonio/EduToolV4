@@ -113,6 +113,7 @@ export class GradeRepository {
         total_items: true,
         grading_mode: true,
         show_breakdown: true,
+        is_published: true,
       },
     });
   }
@@ -189,7 +190,14 @@ export class GradeRepository {
   async findSubjectLevel(subjectId: string, orgId: string) {
     return this.db.subject.findFirst({
       where: { id: subjectId, org_id: orgId },
-      select: { level_id: true },
+      select: { level_id: true, program_id: true },
+    });
+  }
+
+  async findSemestersBySchoolYear(schoolYearId: string) {
+    return this.db.semester.findMany({
+      where: { school_year_id: schoolYearId },
+      orderBy: { start_date: 'asc' },
     });
   }
 

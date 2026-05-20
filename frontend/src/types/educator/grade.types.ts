@@ -39,5 +39,7 @@ export interface StudentGrade {
 export interface TermGrades {
   termId: string;
   termName: string;
+  semesterId?: string;
+  semesterName?: string;
   students: StudentGrade[];
 }
