@@ -856,7 +856,7 @@ export default function NewAssessmentPage() {
   const cc = getConceptContent(concept);
 
   const isManual = state.gradingMode === "manual";
-  const isSystem = state.gradingMode === "system";
+  const isSystem = state.gradingMode === "system" || state.gradingMode === "hybrid";
 
   const systemSteps = ["Select Lesson", "View Concepts", "Configuration", "Generate", "Review Questions", "Set Dates & Assign"];
   const manualSteps = ["Type & Instructions", "Items & Dates"];
