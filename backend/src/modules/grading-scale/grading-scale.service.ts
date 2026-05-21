@@ -316,4 +316,14 @@ export class GradingScaleService {
 
     return this.mapToEntity(updated as Record<string, unknown>);
   }
+
+async findByClassId(
+  classId: string,
+  orgId:   string,
+): Promise<GradingScaleEntity | null> {
+  const scale = await this.gradingScaleRepository.findByClassId(classId, orgId);
+  if (!scale) return null;
+  return this.mapToEntity(scale as Record<string, unknown>);
+}
+ 
 }

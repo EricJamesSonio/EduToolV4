@@ -401,11 +401,23 @@ export class AssessmentEducatorService {
     }
 
     if (dto.status === 'missed') {
+      updateData.status = 'custom';
       updateData.isMissed = true;
       updateData.score = 0;
     }
 
-    return this.repo.updateSubmissionStatus(submissionId, updateData);
+    const updated = await this.repo.updateSubmissionStatus(submissionId, updateData);
+
+    // Async grade recompute after status change
+    if (assessment.term_id) {
+      this.gradeService
+        .computeGrades(assessment.class_id, assessment.term_id, orgId, educatorId)
+        .catch((err: Error) =>
+          this.logger.error(`[Grade] Recompute failed after status change ${assessmentId}: ${err.message}`),
+        );
+    }
+
+    return updated;
   }
 
   async gradeEssay(assessmentId: string, submissionId: string, orgId: string, educatorId: string, dto: GradeEssayDto) {
@@ -429,6 +441,9 @@ export class AssessmentEducatorService {
       entityType: 'class', entityId: assessment.class_id,
       metadata: { assessmentId, studentIds: dto.studentIds ?? 'all' },
     });
+
+    // Register not_started submissions for all enrolled students
+    await this.gradeService.registerAssessmentForAllStudents(assessmentId, assessment.class_id, orgId);
 
     // Async grade recompute after publish
     if (assessment.term_id) {

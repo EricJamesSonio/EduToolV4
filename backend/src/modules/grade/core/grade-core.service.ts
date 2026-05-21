@@ -55,7 +55,7 @@ export class GradeCoreService {
           const sub = studentSubmissions.find(
             (s) => s.assessment_id === assessment.id,
           );
-          if (!sub || sub.status === 'draft') {
+          if (!sub) {
             percentages.push(0);
           } else if (sub.status === 'exempted' || sub.is_exempted) {
             continue;
@@ -125,7 +125,7 @@ export class GradeCoreService {
             const sub = studentSubmissions.find(
               (s) => s.assessment_id === assessment.id,
             );
-            if (!sub || sub.status === 'draft') {
+            if (!sub) {
               percentages.push(0);
             } else if (sub.status === 'exempted' || sub.is_exempted) {
               continue;

@@ -31,6 +31,17 @@ export class GradeEducatorController {
     return this.service.getGradesByClass(classId, orgId, educatorId);
   }
 
+  // GET /classes/:classId/grades/term-options  (must come before :termId)
+  @Get('term-options')
+  @Roles('educator', 'admin')
+  getTermOptions(
+    @Param('classId') classId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.service.getTermOptions(classId, orgId, educatorId);
+  }
+
   // GET /classes/:classId/grades/:termId
   @Get(':termId')
   @Roles('educator', 'admin')

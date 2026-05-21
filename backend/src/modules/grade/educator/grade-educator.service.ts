@@ -54,6 +54,10 @@ export class GradeEducatorService {
     return this.repo.unlockByClass(classId, orgId);
   }
 
+  async registerAssessmentForAllStudents(assessmentId: string, classId: string, orgId: string) {
+    return this.repo.registerAssessmentForAllStudents(assessmentId, classId, orgId);
+  }
+
   async computeAndSaveGrade(data: {
     orgId: string;
     studentId: string;
@@ -87,6 +91,21 @@ export class GradeEducatorService {
       }
     }
     return results;
+  }
+
+  async getTermOptions(classId: string, orgId: string, educatorId: string) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    const cls = await this.repo.findClassWithSubject(classId, orgId);
+    if (!cls) return [];
+    const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
+    const options: { termId: string; termName: string; semesterName: string }[] = [];
+    for (const semester of semesters) {
+      const terms = await this.repo.findTermsBySemester(semester.id);
+      for (const term of terms) {
+        options.push({ termId: term.id, termName: term.name, semesterName: semester.name });
+      }
+    }
+    return options;
   }
 
   async getGradesByTerm(
@@ -286,6 +305,7 @@ export class GradeEducatorService {
 
       const assessmentScores = studentSubs.map((s: any) => ({
         assessmentId: s.assessment_id,
+        submissionId: s.id,
         type: s.assessment.type,
         score: s.score,
         manualScore: s.manual_score,
@@ -296,13 +316,15 @@ export class GradeEducatorService {
         manualSectionScore: s.manual_section_score ?? null,
         isMissed: s.is_missed ?? false,
         isExempted: s.is_exempted ?? false,
+        created_at: s.assessment.created_at ?? null,
       }));
 
-      // Include published assessments the student hasn't submitted to
+      // Include all non-deleted assessments the student hasn't submitted to
       for (const assessment of allAssessments) {
-        if (!submittedAssessmentIds.has(assessment.id) && assessment.is_published) {
+        if (!submittedAssessmentIds.has(assessment.id)) {
           assessmentScores.push({
             assessmentId: assessment.id,
+            submissionId: null,
             type: assessment.type,
             score: null,
             manualScore: null,
@@ -313,6 +335,7 @@ export class GradeEducatorService {
             manualSectionScore: null,
             isMissed: false,
             isExempted: false,
+            created_at: assessment.created_at ?? null,
           });
         }
       }

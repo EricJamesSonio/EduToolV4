@@ -142,4 +142,30 @@ export class GradingScaleRepository {
     });
     return scale;
   }
+
+async findByClassId(classId: string, orgId: string) {
+  const cls = await this.db.class.findFirst({
+    where:  { id: classId, org_id: orgId, deleted_at: null },
+    select: {
+      school_year_id: true,
+      subject: { select: { program_id: true } },
+    },
+  });
+
+  console.log('[findByClassId] cls:', JSON.stringify(cls));  // ← add this
+
+  if (!cls || !cls.subject?.program_id) return null;
+
+  const scale = await this.db.gradingScale.findFirst({
+    where: {
+      org_id:         orgId,
+      program_id:     cls.subject.program_id,
+      school_year_id: cls.school_year_id,
+    },
+  });
+
+  console.log('[findByClassId] scale:', JSON.stringify(scale));  // ← add this
+
+  return scale;
+}
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -15,6 +15,7 @@ import {
 import { assessmentApi } from "@/api/educator/assessment.api";
 import { educatorClassApi } from "@/api/educator/class.api";
 import { educatorGradingSchemeApi } from "@/api/educator/grading-scheme.api";
+import { gradeApi } from "@/api/educator/grade.api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -65,6 +66,13 @@ interface BuilderState {
   releaseDate: string;
   endDate: string;
   selectedStudentIds: string[];
+  selectedTermId: string;
+}
+
+interface TermOption {
+  termId: string;
+  termName: string;
+  semesterName: string;
 }
 
 const GRADING_MODE_LABELS: Record<string, string> = {
@@ -708,10 +716,11 @@ function Step4({ classId, previewId, onQuestionsReady }: { classId: string; prev
 
 // ─── Step 5: Final Review — full-page assessment summary ─────────────────────
 function Step5({
-  classId, previewId, questions, state, conceptItems, sectionNames, onConfirm
+  classId, previewId, questions, state, conceptItems, sectionNames, termInfo, onConfirm
 }: {
   classId: string; previewId: string; questions: Question[];
   state: BuilderState; conceptItems: ConceptItemInfo[]; sectionNames: string[];
+  termInfo: { termId: string; termName: string; semesterName: string } | null;
   onConfirm: (assessmentId: string) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
@@ -785,6 +794,7 @@ function Step5({
           <span><strong className="text-foreground">{conceptItems.length}</strong> concept build items available</span>
           {state.selectedLesson && <span>Lesson: {state.selectedLesson.title}</span>}
           <span>{sectionNames.length} concept section{sectionNames.length !== 1 ? "s" : ""}</span>
+          {termInfo && <span>Term: <strong>{termInfo.termName}</strong> ({termInfo.semesterName})</span>}
         </div>
         {questions.length > 0 && (
           <div className="pt-2 border-t flex items-center gap-4 text-sm">
@@ -977,8 +987,9 @@ function ManualStep1({ type, manualInstructions, schemeTypes, onChange, onNext }
 }
 
 // ─── ManualStep2: Items + Dates + Assign (manual mode) ────────────────────────
-function ManualStep2({ classId, totalItems, releaseDate, endDate, selectedStudentIds, onChange, onCreate, isLoading }: {
+function ManualStep2({ classId, totalItems, releaseDate, endDate, selectedStudentIds, selectedTermId, termOptions, onChange, onCreate, isLoading }: {
   classId: string; totalItems: number; releaseDate: string; endDate: string; selectedStudentIds: string[];
+  selectedTermId: string; termOptions: TermOption[];
   onChange: (u: Partial<BuilderState>) => void; onCreate: () => void; isLoading: boolean;
 }) {
   const invalid = releaseDate && endDate && new Date(endDate) <= new Date(releaseDate);
@@ -996,6 +1007,19 @@ function ManualStep2({ classId, totalItems, releaseDate, endDate, selectedStuden
           className="w-24 rounded-md border bg-background px-3 py-2 text-sm" />
         <p className="text-xs text-muted-foreground">Maximum possible score for this manual assessment.</p>
       </div>
+
+      {termOptions.length > 0 && (
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Term <span className="text-destructive">*</span></label>
+          <select value={selectedTermId} onChange={(e) => onChange({ selectedTermId: e.target.value })}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+            <option value="">Select term...</option>
+            {termOptions.map((t) => (
+              <option key={t.termId} value={t.termId}>{t.termName} ({t.semesterName})</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <label className="text-sm font-medium">Release Date</label>
@@ -1040,8 +1064,9 @@ function ManualStep2({ classId, totalItems, releaseDate, endDate, selectedStuden
 }
 
 // ─── Step6: Set Dates & Assign (system/hybrid) ───────────────────────────────
-function Step6({ classId, releaseDate, endDate, selectedStudentIds, onChange, onPublish, isLoading }: {
+function Step6({ classId, releaseDate, endDate, selectedStudentIds, termInfo, onChange, onPublish, isLoading }: {
   classId: string; releaseDate: string; endDate: string; selectedStudentIds: string[];
+  termInfo: { termName: string; semesterName: string } | null;
   onChange: (u: Partial<Pick<BuilderState, "releaseDate" | "endDate" | "selectedStudentIds">>) => void;
   onPublish: () => void; isLoading: boolean;
 }) {
@@ -1053,6 +1078,12 @@ function Step6({ classId, releaseDate, endDate, selectedStudentIds, onChange, on
   });
   return (
     <div className="space-y-6 max-w-md">
+      {termInfo && (
+        <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+          <span className="text-muted-foreground">Assessment will be registered in: </span>
+          <span className="font-semibold">{termInfo.termName} ({termInfo.semesterName})</span>
+        </div>
+      )}
       <div className="space-y-1.5">
         <label className="text-sm font-medium">Release Date</label>
         <input type="datetime-local" value={releaseDate} onChange={(e) => onChange({ releaseDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
@@ -1103,7 +1134,7 @@ export default function NewAssessmentPage() {
   const [state, setState] = useState<BuilderState>({
     selectedLesson: null, type: "quiz", gradingMode: "system", showBreakdown: false, manualMaxScore: 0,
     totalItems: 1, sections: [], createdAssessmentId: null, previewId: null, generatedQuestions: [],
-    manualInstructions: "", releaseDate: "", endDate: "", selectedStudentIds: [],
+    manualInstructions: "", releaseDate: "", endDate: "", selectedStudentIds: [], selectedTermId: "",
   });
 
   const { mutateAsync: updateAssessment, isPending: isUpdating } = useUpdateAssessment(classId);
@@ -1127,11 +1158,29 @@ export default function NewAssessmentPage() {
   const manualSteps = ["Type & Instructions", "Items & Dates"];
   const allSteps = ["Grading Mode", ...(isManual ? manualSteps : systemSteps)];
 
-  function getTermId(): string {
-    if (!state.selectedLesson || !weeks.length) return "";
+  const { data: termOptions = [] } = useQuery({
+    queryKey: ["grade-term-options", classId],
+    queryFn: () => gradeApi.getTermOptions(classId),
+    enabled: !!classId,
+  });
+
+  function getLessonTermInfo(): { termId: string; termName: string; semesterName: string } | null {
+    if (!state.selectedLesson || !weeks.length) return null;
     const week = weeks.find((w) => w.value === state.selectedLesson!.weekNumber);
-    return week?.termId ?? "";
+    if (!week) return null;
+    return { termId: week.termId, termName: week.termName, semesterName: week.semesterName };
   }
+
+  function getTermId(): string {
+    return getLessonTermInfo()?.termId ?? "";
+  }
+
+  // Auto-set a default term for manual mode when entering step 2
+  useEffect(() => {
+    if (isManual && step === 2 && !state.selectedTermId && termOptions.length > 0) {
+      patch({ selectedTermId: termOptions[0].termId });
+    }
+  }, [isManual, step, state.selectedTermId, termOptions.length]);
 
   async function handleGenerate() {
     if (!state.selectedLesson) return;
@@ -1170,17 +1219,15 @@ export default function NewAssessmentPage() {
     if (!state.createdAssessmentId) return;
     try {
       await updateAssessment({ assessmentId: state.createdAssessmentId, data: { releaseDate: state.releaseDate || undefined, endDate: state.endDate || undefined, showBreakdown: state.showBreakdown } });
-      if (state.selectedStudentIds.length > 0) {
-        await assessmentApi.publish(classId, state.createdAssessmentId, { studentIds: state.selectedStudentIds });
-      }
+      await assessmentApi.publish(classId, state.createdAssessmentId, state.selectedStudentIds.length > 0 ? { studentIds: state.selectedStudentIds } : undefined);
       toast.success("Assessment published!");
       router.push(`/educator/classes/${classId}/assessments/${state.createdAssessmentId}`);
     } catch { toast.error("Failed to publish."); }
   }
 
   async function handleCreateManual() {
-    const termId = weeks?.length ? weeks[0].termId : "";
-    if (!termId) { toast.error("Could not determine term."); return; }
+    const termId = state.selectedTermId;
+    if (!termId) { toast.error("Please select a term."); return; }
     try {
       const assessment = await assessmentApi.create(classId, {
         termId, type: state.type,
@@ -1238,13 +1285,14 @@ export default function NewAssessmentPage() {
           <div className="space-y-6">
             <Step5 classId={classId} previewId={state.previewId} questions={state.generatedQuestions}
               state={state} conceptItems={cc.conceptItems} sectionNames={cc.sections}
+              termInfo={getLessonTermInfo()}
               onConfirm={(assessmentId) => { patch({ createdAssessmentId: assessmentId }); next(); }} />
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to generation</Button>
           </div>
         )}
         {isSystem && step === 6 && (
           <div className="space-y-6">
-            <Step6 classId={classId} releaseDate={state.releaseDate} endDate={state.endDate} selectedStudentIds={state.selectedStudentIds} onChange={(u) => patch(u)} onPublish={handlePublish} isLoading={isUpdating} />
+            <Step6 classId={classId} releaseDate={state.releaseDate} endDate={state.endDate} selectedStudentIds={state.selectedStudentIds} termInfo={getLessonTermInfo()} onChange={(u) => patch(u)} onPublish={handlePublish} isLoading={isUpdating} />
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to question review</Button>
           </div>
         )}
@@ -1259,6 +1307,7 @@ export default function NewAssessmentPage() {
           <div className="space-y-6">
             <ManualStep2 classId={classId} totalItems={state.totalItems} releaseDate={state.releaseDate}
               endDate={state.endDate} selectedStudentIds={state.selectedStudentIds}
+              selectedTermId={state.selectedTermId} termOptions={termOptions}
               onChange={(u) => patch(u)} onCreate={handleCreateManual} isLoading={isUpdating} />
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to instructions</Button>
           </div>

@@ -2,6 +2,7 @@ export type AssessmentType = "quiz" | "exam" | "activity" | "custom";
 
 export interface AssessmentScore {
   assessmentId: string;
+  submissionId?: string;
   type: AssessmentType;
   score: number | null;
   manualScore: number | null;
@@ -12,6 +13,7 @@ export interface AssessmentScore {
   manualSectionScore?: number | null;
   isMissed?: boolean;
   isExempted?: boolean;
+  created_at?: string | null;
 }
 
 export interface CategoryBreakdown {

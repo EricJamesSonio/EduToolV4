@@ -60,6 +60,7 @@ export function EducatorSidebar() {
             { label: "Attendance", href: `/educator/classes/${classId}/attendance`, icon: CalendarCheck },
             { label: "Grades", href: `/educator/classes/${classId}/grades`, icon: BarChart2 },
             { label: "Grading Scheme", href: `/educator/classes/${classId}/grading-scheme`, icon: ClipboardList },
+            { label: "Grading Scale", href: `/educator/classes/${classId}/grading-scale`, icon: ClipboardList },
             { label: "Meetings", href: `/educator/classes/${classId}/meetings`, icon: Video },
           ],
         },
