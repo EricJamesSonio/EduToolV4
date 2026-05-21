@@ -290,7 +290,7 @@ function DefaultGradeTable({
     new Set(
       students.flatMap((s) =>
         s.categoryBreakdown
-          .filter((c) => c.manualScore !== null || c.category.toLowerCase().match(/attendance|behavior|recitation|participation/))
+          .filter((c) => c.manualScore !== null)
           .map((c) => c.category)
       )
     )
@@ -506,10 +506,15 @@ function CleanGradeTable({
   const [drillDown, setDrillDown] = useState<{ student: StudentGrade; category: string } | null>(null);
   if (students.length === 0) return <EmptyState />;
 
-  // Collect all category names from breakdowns
+  // Collect all category names from breakdowns, excluding empty manual categories
   const allCategories = Array.from(
     new Set(students.flatMap((s) => s.categoryBreakdown.map((c) => c.category)))
-  );
+  ).filter((cat) => {
+    return students.some((s) => {
+      const bd = s.categoryBreakdown.find((c) => c.category === cat);
+      return bd?.type !== 'manual' || bd?.manualScore != null;
+    });
+  });
 
   return (
     <>

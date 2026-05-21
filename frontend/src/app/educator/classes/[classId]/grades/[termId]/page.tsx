@@ -148,7 +148,11 @@ export default function TermGradesPage() {
   const allAssessmentIds = Array.from(
     new Map(students.flatMap((s) => s.assessmentScores.map((a) => [a.assessmentId, { id: a.assessmentId, type: a.type }]))).values()
   );
-  const allCategories = Array.from(new Set(students.flatMap((s) => s.categoryBreakdown.map((c) => c.category))));
+  const allCategories = Array.from(new Set(students.flatMap((s) => s.categoryBreakdown.map((c) => c.category))))
+    .filter((cat) => students.some((s) => {
+      const bd = s.categoryBreakdown.find((c) => c.category === cat);
+      return bd?.type !== 'manual' || bd?.manualScore != null;
+    }));
 
   return (
     <div className="space-y-6">
