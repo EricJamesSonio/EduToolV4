@@ -18,6 +18,7 @@ export interface AssessmentScore {
 
 export interface CategoryBreakdown {
   category: string;
+  type?: string;
   weight: number;
   rawAverage: number;
   manualScore: number | null;

@@ -426,18 +426,19 @@ function StudentCategoryDrillDown({
 }) {
   if (!student || !category) return null;
 
+  const bd = student.categoryBreakdown.find(
+    (c) => c.category.toLowerCase() === category.toLowerCase()
+  );
+  const categoryType = bd?.type;
+
   const assessments = student.assessmentScores
-    .filter((a) => a.type.toLowerCase() === category.toLowerCase())
+    .filter((a) => categoryType ? a.type.toLowerCase() === categoryType.toLowerCase() : a.type.toLowerCase() === category.toLowerCase())
     .sort((a, b) => {
       if (!a.created_at && !b.created_at) return 0;
       if (!a.created_at) return 1;
       if (!b.created_at) return -1;
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     });
-
-  const bd = student.categoryBreakdown.find(
-    (c) => c.category.toLowerCase() === category.toLowerCase()
-  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

@@ -46,7 +46,7 @@ export class GradeCoreService {
         }
       } else {
         const categoryAssessments = allAssessments.filter(
-          (a) => a.type === category.type && a.is_published,
+          (a) => a.type === category.type,
         );
         if (categoryAssessments.length === 0) continue;
 
@@ -117,7 +117,7 @@ export class GradeCoreService {
         rawAverage = manualScore ?? 0;
       } else {
         const categoryAssessments = allAssessments.filter(
-          (a) => a.type === category.type && a.is_published,
+          (a) => a.type === category.type,
         );
         if (categoryAssessments.length > 0) {
           const percentages: number[] = [];
@@ -153,6 +153,7 @@ export class GradeCoreService {
 
       return {
         category: category.name,
+        type: category.type,
         weight: category.weight,
         rawAverage: Math.round(rawAverage * 100) / 100,
         manualScore,
