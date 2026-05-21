@@ -28,12 +28,20 @@ const STATUS_STYLES: Record<SubmissionStatus, string> = {
   draft: "bg-blue-50 text-blue-600 border-blue-200",
   submitted: "bg-green-50 text-green-700 border-green-200",
   exempted: "bg-purple-50 text-purple-700 border-purple-200",
+  custom: "bg-amber-50 text-amber-700 border-amber-200",
   custom_score: "bg-amber-50 text-amber-700 border-amber-200",
 };
 
+function getStatusLabel(sub: Submission): string {
+  if (sub.isMissed) return "Missed";
+  if (sub.isExempted) return "Exempted";
+  if (sub.status === "custom" || sub.status === "custom_score") return "Custom Score";
+  return STATUS_LABELS[sub.status] ?? sub.status;
+}
+
 const STATUS_LABELS: Record<SubmissionStatus, string> = {
   not_started: "Not Started", draft: "Draft", submitted: "Submitted",
-  exempted: "Exempted", custom_score: "Custom Score",
+  exempted: "Exempted", custom: "Custom Score", custom_score: "Custom Score",
 };
 
 // ─── Set Status dialog ────────────────────────────────────────────────────────
@@ -212,8 +220,8 @@ export default function SubmissionsPage(): React.JSX.Element {
                     <p className="text-xs text-muted-foreground">{sub.studentCode}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_STYLES[sub.status])}>
-                      {STATUS_LABELS[sub.status]}
+                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_STYLES[sub.status] || STATUS_STYLES.custom)}>
+                      {getStatusLabel(sub)}
                     </span>
                   </td>
                   <td className="px-4 py-3">

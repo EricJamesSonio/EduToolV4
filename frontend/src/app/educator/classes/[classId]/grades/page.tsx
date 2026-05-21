@@ -124,6 +124,7 @@ function ManualCell({
 
 const STATUS_ACTIONS = [
   { label: "Missed", status: "missed" as const },
+  { label: "Custom Score", status: "custom" as const },
   { label: "Exempted", status: "exempted" as const },
 ];
 
@@ -165,11 +166,19 @@ function StatusCell({
   const handleAction = async (newStatus: string) => {
     const effectiveId = submissionId || (studentId ? `not_started_${studentId}` : null);
     if (!effectiveId) return;
+    let body: any = { status: newStatus };
+    if (newStatus === "custom") {
+      const raw = window.prompt("Enter custom score:");
+      if (raw === null) return;
+      const val = parseInt(raw, 10);
+      if (isNaN(val) || val < 0) { toast.error("Invalid score."); return; }
+      body = { status: "custom", manualScore: val };
+    }
     setPending(true);
     try {
       await apiClient.patch(
         `/classes/${classId}/assessments/${assessmentId}/submissions/${effectiveId}/status`,
-        { status: newStatus },
+        body,
       );
       onStatusChange();
     } catch {
@@ -190,8 +199,8 @@ function StatusCell({
           —
         </button>
         {open && (
-          <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-28 rounded-md border bg-popover shadow-md py-1">
-            {STATUS_ACTIONS.slice(0, 2).map((action) => (
+          <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-32 rounded-md border bg-popover shadow-md py-1">
+            {STATUS_ACTIONS.map((action) => (
               <button
                 key={action.status}
                 onClick={() => handleAction(action.status)}
@@ -207,13 +216,18 @@ function StatusCell({
     );
   }
 
-  const isMissedOrExempted = isMissed || isExempted;
-  const badgeLabel = isMissed ? "M" : isExempted ? "E" : null;
+  const isCustom = status === 'custom' && !isMissed && !isExempted;
+  const isMissedOrExempted = isMissed || isExempted || isCustom;
+  const badgeLabel = isMissed ? "M" : isExempted ? "E" : isCustom ? "C" : null;
   const badgeClass = isMissed
     ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
     : isExempted
       ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-      : "";
+      : isCustom
+        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+        : "";
+
+  const currentLabel = isMissed ? "missed" : isExempted ? "exempted" : isCustom ? "custom" : null;
 
   return (
     <div className="relative" ref={ref}>
@@ -221,7 +235,14 @@ function StatusCell({
         onClick={() => setOpen(!open)}
         className="text-xs tabular-nums text-muted-foreground hover:text-foreground transition-colors"
       >
-        {isMissedOrExempted ? (
+        {isCustom ? (
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              C
+            </span>
+            <span className="text-xs">{fmt(score, 0)}/{totalItems}</span>
+          </span>
+        ) : isMissed || isExempted ? (
           <span className={`inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold ${badgeClass}`}>
             {badgeLabel}
           </span>
@@ -232,9 +253,9 @@ function StatusCell({
         )}
       </button>
       {open && (
-        <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-28 rounded-md border bg-popover shadow-md py-1">
+        <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-32 rounded-md border bg-popover shadow-md py-1">
           {STATUS_ACTIONS.filter(
-            (a) => a.status !== (isExempted ? "exempted" : isMissed ? "missed" : null),
+            (a) => a.status !== currentLabel,
           ).map((action) => (
             <button
               key={action.status}
@@ -477,6 +498,8 @@ function StudentCategoryDrillDown({
                         <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-bold">M</span>
                       ) : a.isExempted ? (
                         <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold">E</span>
+                      ) : a.status === 'custom' ? (
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold">C</span>
                       ) : (
                         <span className="text-muted-foreground/50">&mdash;</span>
                       )}
