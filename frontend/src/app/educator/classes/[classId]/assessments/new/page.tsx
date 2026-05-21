@@ -54,6 +54,7 @@ interface ConceptContent {
 interface BuilderState {
   selectedLesson: Lesson | null;
   type: AssessmentType;
+  title: string;
   gradingMode: GradingMode;
   showBreakdown: boolean;
   manualMaxScore: number;
@@ -254,13 +255,13 @@ const Q_TYPES: { value: QuestionType; label: string }[] = [
 
 // ─── Step 3: Configuration (system/hybrid) ────────────────────────────────────
 function Step3({
-  type, totalItems, sections, conceptItems, sectionNames, schemeTypes, gradingMode, showBreakdown, manualMaxScore, onChange, onNext, isLoading,
+  type, title, totalItems, sections, conceptItems, sectionNames, schemeTypes, gradingMode, showBreakdown, manualMaxScore, onChange, onNext, isLoading,
 }: {
-  type: string; totalItems: number; sections: AssessmentSection[];
+  type: string; title: string; totalItems: number; sections: AssessmentSection[];
   conceptItems: ConceptItemInfo[]; sectionNames: string[];
   schemeTypes: string[];
   gradingMode: GradingMode; showBreakdown: boolean; manualMaxScore: number;
-  onChange: (u: Partial<Pick<BuilderState, "type" | "totalItems" | "sections" | "gradingMode" | "showBreakdown" | "manualMaxScore">>) => void;
+  onChange: (u: Partial<Pick<BuilderState, "type" | "title" | "totalItems" | "sections" | "gradingMode" | "showBreakdown" | "manualMaxScore">>) => void;
   onNext: () => void; isLoading: boolean;
 }) {
   const [showTypePicker, setShowTypePicker] = useState(false);
@@ -386,7 +387,7 @@ function Step3({
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="grid grid-cols-2 gap-4 max-w-sm">
+      <div className="grid grid-cols-3 gap-4 max-w-lg">
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Assessment Type <span className="text-destructive">*</span></label>
           <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
@@ -398,6 +399,13 @@ function Step3({
               </>
             )}
           </select>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Title</label>
+          <input type="text" value={title}
+            onChange={(e) => onChange({ title: e.target.value })}
+            placeholder="e.g. Quiz 2"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Total Items <span className="text-destructive">*</span></label>
@@ -775,6 +783,12 @@ function Step5({
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Type</p>
             <p className="text-sm font-medium mt-0.5">{TYPE_LABELS[state.type] ?? state.type}</p>
           </div>
+          {state.title && (
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Title</p>
+              <p className="text-sm font-medium mt-0.5">{state.title}</p>
+            </div>
+          )}
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Grading Mode</p>
             <p className="text-sm font-medium mt-0.5 capitalize">{state.gradingMode === 'hybrid' ? 'Hybrid' : state.gradingMode === 'system' ? 'System-Graded' : 'Manual-Graded'}</p>
@@ -955,20 +969,29 @@ function QuestionCard({
 }
 
 // ─── ManualStep1: Type + Instructions (manual mode) ────────────────────────────
-function ManualStep1({ type, manualInstructions, schemeTypes, onChange, onNext }: {
-  type: string; manualInstructions: string; schemeTypes: string[];
+function ManualStep1({ type, title, manualInstructions, schemeTypes, onChange, onNext }: {
+  type: string; title: string; manualInstructions: string; schemeTypes: string[];
   onChange: (u: Partial<BuilderState>) => void; onNext: () => void;
 }) {
   const valid = !!type && !!manualInstructions.trim();
   return (
     <div className="space-y-6 max-w-2xl">
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Assessment Type <span className="text-destructive">*</span></label>
-        <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })}
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm max-w-xs">
-          <option value="">Select type...</option>
-          {schemeTypes.map((t) => <option key={t} value={t}>{TYPE_LABELS[t] ?? t.replace(/_/g, " ")}</option>)}
-        </select>
+      <div className="grid grid-cols-2 gap-4 max-w-md">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Assessment Type <span className="text-destructive">*</span></label>
+          <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+            <option value="">Select type...</option>
+            {schemeTypes.map((t) => <option key={t} value={t}>{TYPE_LABELS[t] ?? t.replace(/_/g, " ")}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Title</label>
+          <input type="text" value={title}
+            onChange={(e) => onChange({ title: e.target.value })}
+            placeholder="e.g. Quiz 2"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+        </div>
       </div>
 
       <div className="space-y-1.5">
@@ -1132,7 +1155,7 @@ export default function NewAssessmentPage() {
 
   const [step, setStep] = useState(0);
   const [state, setState] = useState<BuilderState>({
-    selectedLesson: null, type: "quiz", gradingMode: "system", showBreakdown: false, manualMaxScore: 0,
+    selectedLesson: null, type: "quiz", title: "", gradingMode: "system", showBreakdown: false, manualMaxScore: 0,
     totalItems: 1, sections: [], createdAssessmentId: null, previewId: null, generatedQuestions: [],
     manualInstructions: "", releaseDate: "", endDate: "", selectedStudentIds: [], selectedTermId: "",
   });
@@ -1204,6 +1227,7 @@ export default function NewAssessmentPage() {
       const combinedTotal = hasManualSections ? state.totalItems + manualScoreTotal : state.totalItems;
       const { previewId } = await assessmentApi.generatePreview(classId, {
         lessonId: state.selectedLesson.id, termId, type: state.type,
+        title: state.title || undefined,
         totalItems: combinedTotal,
         gradingMode: effectiveGradingMode as GradingMode,
         showBreakdown: state.showBreakdown,
@@ -1231,6 +1255,7 @@ export default function NewAssessmentPage() {
     try {
       const assessment = await assessmentApi.create(classId, {
         termId, type: state.type,
+        title: state.title || undefined,
         totalItems: state.totalItems,
         gradingMode: "manual",
         showBreakdown: state.showBreakdown,
@@ -1273,7 +1298,7 @@ export default function NewAssessmentPage() {
         )}
         {isSystem && step === 3 && (
           <div className="space-y-6">
-            <Step3 type={state.type} totalItems={state.totalItems} sections={state.sections}
+            <Step3 type={state.type} title={state.title} totalItems={state.totalItems} sections={state.sections}
               conceptItems={cc.conceptItems} sectionNames={cc.sections} schemeTypes={schemeTypes}
               gradingMode={state.gradingMode} showBreakdown={state.showBreakdown} manualMaxScore={state.manualMaxScore}
               onChange={(u) => patch(u)} onNext={handleGenerate} isLoading={false} />
@@ -1299,7 +1324,7 @@ export default function NewAssessmentPage() {
 
         {isManual && step === 1 && (
           <div className="space-y-6">
-            <ManualStep1 type={state.type} manualInstructions={state.manualInstructions} schemeTypes={schemeTypes} onChange={(u) => patch(u)} onNext={next} />
+            <ManualStep1 type={state.type} title={state.title} manualInstructions={state.manualInstructions} schemeTypes={schemeTypes} onChange={(u) => patch(u)} onNext={next} />
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to grading mode</Button>
           </div>
         )}

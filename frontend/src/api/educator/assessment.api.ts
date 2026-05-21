@@ -16,6 +16,7 @@ export interface CreateAssessmentRequest {
   lessonId?: string;
   termId: string;
   type: string;
+  title?: string;
   totalItems: number;
   ranges: RangeConfig[];
   gradingMode?: GradingMode;
@@ -97,9 +98,10 @@ function mapAssessment(raw: Record<string, unknown>): Assessment {
     classId: (raw.class_id ?? raw.classId) as string,
     lessonId: (raw.lesson_id ?? raw.lessonId) as string,
     lessonTitle,
-    title: lessonTitle
-      ? `${type.charAt(0).toUpperCase() + type.slice(1)} — ${lessonTitle}`
-      : type.charAt(0).toUpperCase() + type.slice(1),
+    title: (raw.title as string)
+      ?? (lessonTitle
+        ? `${type.charAt(0).toUpperCase() + type.slice(1)} — ${lessonTitle}`
+        : type.charAt(0).toUpperCase() + type.slice(1)),
     type,
     termId: (raw.term_id ?? raw.termId) as string,
     termName: (raw.term_name ?? raw.termName ?? "") as string,
