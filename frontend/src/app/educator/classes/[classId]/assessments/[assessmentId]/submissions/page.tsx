@@ -220,12 +220,17 @@ export default function SubmissionsPage(): React.JSX.Element {
                     <p className="text-xs text-muted-foreground">{sub.studentCode}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_STYLES[sub.status] || STATUS_STYLES.custom)}>
+                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_STYLES[sub.status] ?? STATUS_STYLES.custom)}>
                       {getStatusLabel(sub)}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {sub.score !== null ? `${sub.score} / ${sub.totalPoints}` : "—"}
+                    {(() => {
+                      if (sub.isExempted) return <span className="text-muted-foreground">&mdash;</span>;
+                      const earned = sub.manualScore ?? sub.manualSectionScore ?? sub.score;
+                      if (earned !== null) return `${earned} / ${sub.totalPoints}`;
+                      return <span className="text-muted-foreground">&mdash;</span>;
+                    })()}
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn("text-xs font-medium", sub.isPublished ? "text-green-600" : "text-muted-foreground")}>

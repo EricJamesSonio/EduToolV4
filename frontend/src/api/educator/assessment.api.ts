@@ -149,6 +149,7 @@ function mapSubmission(raw: Record<string, unknown>): Submission {
     updatedAt: (raw.updated_at ?? raw.updatedAt ?? "") as string,
     systemSectionScore: (raw.system_section_score ?? raw.systemSectionScore ?? null) as number | null,
     manualSectionScore: (raw.manual_section_score ?? raw.manualSectionScore ?? null) as number | null,
+    manualScore: (raw.manual_score ?? raw.manualScore ?? null) as number | null,
     isMissed: (raw.is_missed ?? raw.isMissed ?? false) as boolean,
     isExempted: (raw.is_exempted ?? raw.isExempted ?? false) as boolean,
   };
