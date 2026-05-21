@@ -41,9 +41,14 @@ export interface GetStudentsQuery {
 }
 
 export interface StudentEnrollment {
-  id:      string;
-  classId: string;
-  status:  string;
+  id:       string;
+  class_id: string;
+  status:   string;
+  class?: {
+    id:         string;
+    subject_id: string;
+    subject?:   { id: string; name: string };
+  };
 }
 
 export interface AddEnrollmentResponse {

@@ -96,7 +96,10 @@ export class EnrollmentRepository {
       },
       include: {
         class: {
-          include: { schedules: true },
+          include: {
+            schedules: true,
+            subject: { select: { id: true, name: true } },
+          },
         },
       },
       orderBy: { created_at: 'asc' },
