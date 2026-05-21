@@ -4,6 +4,7 @@ export interface AssessmentScore {
   assessmentId: string;
   submissionId?: string;
   type: AssessmentType;
+  title?: string | null;
   score: number | null;
   manualScore: number | null;
   totalItems: number;

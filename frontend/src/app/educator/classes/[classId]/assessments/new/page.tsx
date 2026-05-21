@@ -1155,7 +1155,7 @@ export default function NewAssessmentPage() {
 
   const [step, setStep] = useState(0);
   const [state, setState] = useState<BuilderState>({
-    selectedLesson: null, type: "quiz", title: "", gradingMode: "system", showBreakdown: false, manualMaxScore: 0,
+    selectedLesson: null, type: "quiz", title: "Quiz", gradingMode: "system", showBreakdown: false, manualMaxScore: 0,
     totalItems: 1, sections: [], createdAssessmentId: null, previewId: null, generatedQuestions: [],
     manualInstructions: "", releaseDate: "", endDate: "", selectedStudentIds: [], selectedTermId: "",
   });
@@ -1170,6 +1170,19 @@ export default function NewAssessmentPage() {
     ?.map((c) => c.type) ?? [];
   const patch = useCallback((u: Partial<BuilderState>) => setState((p) => ({ ...p, ...u })), []);
   const next = () => setStep((s) => s + 1);
+
+  const prevTypeRef = useRef(state.type);
+  useEffect(() => {
+    if (state.type !== prevTypeRef.current) {
+      const oldType = prevTypeRef.current;
+      prevTypeRef.current = state.type;
+      const oldDefault = TYPE_LABELS[oldType] ?? oldType.charAt(0).toUpperCase() + oldType.slice(1);
+      const newDefault = TYPE_LABELS[state.type] ?? state.type.charAt(0).toUpperCase() + state.type.slice(1);
+      if (!state.title || state.title === oldDefault) {
+        patch({ title: newDefault });
+      }
+    }
+  }, [state.type]);
   const prev = () => setStep((s) => s - 1);
   const concept = state.selectedLesson?.concept ?? null;
   const cc = getConceptContent(concept);

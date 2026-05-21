@@ -36,7 +36,7 @@ export const submissionApi = {
     classId: string,
     assessmentId: string,
     submissionId: string,
-    status: "exempted" | "custom",
+    status: "exempted" | "custom" | "missed",
     manualScore?: number
   ): Promise<Submission> => {
     const res = await client.patch<Submission>(

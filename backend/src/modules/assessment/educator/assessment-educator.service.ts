@@ -390,8 +390,34 @@ export class AssessmentEducatorService {
     const assessment = await this.core.findAssessmentOrThrow(assessmentId, orgId);
     await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
 
-    const submission = await this.repo.findSubmissionById(submissionId);
-    if (!submission || submission.assessment_id !== assessmentId) throw new NotFoundException('Submission not found.');
+    let submission = await this.repo.findSubmissionById(submissionId);
+
+    // If no submission found (e.g. student was never assigned), create one on the fly
+    if (!submission || submission.assessment_id !== assessmentId) {
+      const notStartedPrefix = 'not_started_';
+      let studentId: string | null = null;
+
+      if (submissionId.startsWith(notStartedPrefix)) {
+        studentId = submissionId.slice(notStartedPrefix.length);
+      }
+
+      if (!studentId) throw new NotFoundException('Submission not found.');
+
+      const enrollment = await this.db.enrollment.findFirst({
+        where: { class_id: assessment.class_id, org_id: orgId, student_id: studentId, status: { not: 'removed' } },
+      });
+      if (!enrollment) throw new NotFoundException('Student not enrolled in this class.');
+
+      submission = await this.db.submission.create({
+        data: {
+          org_id: orgId,
+          assessment_id: assessmentId,
+          student_id: studentId,
+          status: 'draft',
+        },
+      });
+    }
+
     if (dto.status === 'custom' && dto.manualScore === undefined) throw new BadRequestException('manualScore is required for custom status.');
 
     const updateData: any = { status: dto.status, manualScore: dto.manualScore };
@@ -407,7 +433,7 @@ export class AssessmentEducatorService {
       updateData.score = 0;
     }
 
-    const updated = await this.repo.updateSubmissionStatus(submissionId, updateData);
+    const updated = await this.repo.updateSubmissionStatus(submission.id, updateData);
 
     // Async grade recompute after status change
     if (assessment.term_id) {

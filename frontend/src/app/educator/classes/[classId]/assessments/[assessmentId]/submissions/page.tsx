@@ -49,7 +49,7 @@ function SetStatusDialog({
   classId: string;
   onClose: () => void;
 }): React.JSX.Element {
-  const [status, setStatus] = useState<"exempted" | "custom">("exempted");
+  const [status, setStatus] = useState<"exempted" | "custom" | "missed">("exempted");
   const [manualScore, setManualScore] = useState(submission.score ?? 0);
   const { mutateAsync: updateStatus, isPending } = useUpdateSubmissionStatus(classId, assessmentId);
 
@@ -67,8 +67,9 @@ function SetStatusDialog({
       <div className="space-y-4 pt-2">
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Status</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value as "exempted" | "custom")} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+          <select value={status} onChange={(e) => setStatus(e.target.value as "exempted" | "custom" | "missed")} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
             <option value="exempted">Exempted</option>
+            <option value="missed">Missed</option>
             <option value="custom">Custom Score</option>
           </select>
         </div>
@@ -247,7 +248,7 @@ export default function SubmissionsPage(): React.JSX.Element {
                           </Button>
                         </Link>
                       )}
-                      {sub.status !== "not_started" && (
+                      {sub.status === "not_started" && (
                         <Button variant="ghost" size="sm" onClick={() => setStatusTarget(sub)}>Set Status</Button>
                       )}
                     </div>

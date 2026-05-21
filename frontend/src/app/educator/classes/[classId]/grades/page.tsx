@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useQueryClient } from "@tanstack/react-query";
 import { useClassGrades, useComputeGrades, useSetManualScore } from "@/hooks/educator/useGrades";
 import type { TermGrades, StudentGrade, CategoryBreakdown } from "@/types/educator/grade.types";
 import { cn } from "@/lib/utils";
@@ -122,7 +123,6 @@ function ManualCell({
 // ─── Status Cell ───────────────────────────────────────────────────────────────
 
 const STATUS_ACTIONS = [
-  { label: "Completed", status: "submitted" as const },
   { label: "Missed", status: "missed" as const },
   { label: "Exempted", status: "exempted" as const },
 ];
@@ -132,6 +132,7 @@ function StatusCell({
   classId,
   assessmentId,
   submissionId,
+  studentId,
   isMissed,
   isExempted,
   status,
@@ -142,6 +143,7 @@ function StatusCell({
   classId: string;
   assessmentId: string;
   submissionId?: string;
+  studentId?: string;
   isMissed?: boolean;
   isExempted?: boolean;
   status: string;
@@ -161,11 +163,12 @@ function StatusCell({
   }, []);
 
   const handleAction = async (newStatus: string) => {
-    if (!submissionId) return;
+    const effectiveId = submissionId || (studentId ? `not_started_${studentId}` : null);
+    if (!effectiveId) return;
     setPending(true);
     try {
       await apiClient.patch(
-        `/classes/${classId}/assessments/${assessmentId}/submissions/${submissionId}/status`,
+        `/classes/${classId}/assessments/${assessmentId}/submissions/${effectiveId}/status`,
         { status: newStatus },
       );
       onStatusChange();
@@ -274,7 +277,7 @@ function DefaultGradeTable({
       students.flatMap((s) =>
         s.assessmentScores.map((a) => [
           a.assessmentId,
-          { id: a.assessmentId, type: a.type, created_at: a.created_at ?? null },
+          { id: a.assessmentId, type: a.type, title: a.title, created_at: a.created_at ?? null },
         ])
       )
     ).values()
@@ -306,8 +309,9 @@ function DefaultGradeTable({
                 Student
               </th>
               {allAssessments.map((a) => (
-                <th key={a.id} className="text-center px-3 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-                  <span className="capitalize">{a.type}</span>
+                <th key={a.id} className="text-center px-3 py-3 font-semibold text-xs whitespace-nowrap">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">{a.title ?? a.type}</div>
+                  <div className="text-[10px] text-muted-foreground/60 font-normal capitalize">{a.type}</div>
                 </th>
               ))}
               {manualCats.map((cat) => (
@@ -359,6 +363,7 @@ function DefaultGradeTable({
                             classId={classId}
                             assessmentId={a.id}
                             submissionId={score?.submissionId}
+                            studentId={student.studentId}
                             isMissed={score?.isMissed}
                             isExempted={score?.isExempted}
                             status={score?.status ?? 'not_started'}
@@ -672,6 +677,7 @@ export default function GradesPage() {
   const [locking, setLocking] = useState(false);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
+  const qc = useQueryClient();
 
   // Derive unique semesters from term data
   const semesters = allTerms
@@ -889,7 +895,7 @@ export default function GradesPage() {
               onManualCommit={handleManualCommit}
               saving={saving}
               refreshKey={refreshKey}
-              onRefresh={() => setRefreshKey((k) => k + 1)}
+              onRefresh={() => { setRefreshKey((k) => k + 1); qc.invalidateQueries({ queryKey: ["grades", classId] }); }}
             />
           ) : (
             <CleanGradeTable

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { gradeApi, ManualScoreDto,  } from "@/api/educator/grade.api";
 import type { TermGrades } from "@/types/educator/grade.types";
 
-const GRADES_KEY = "grades";
+export const GRADES_KEY = "grades";
 
 // Fetch all terms grades for a class
 export const useClassGrades = (classId: string) => {
@@ -30,7 +30,7 @@ export const useComputeGrades = (classId: string, termId: string) => {
   return useMutation({
     mutationFn: () => gradeApi.compute(classId, termId),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [GRADES_KEY, classId, termId] });
+      qc.invalidateQueries({ queryKey: [GRADES_KEY, classId] });
     },
   });
 };
