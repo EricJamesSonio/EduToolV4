@@ -52,6 +52,18 @@ export function StudentListPanel({
   const [unenrollTarget, setUnenrollTarget] = useState<StudentSchoolYearEnrollment | null>(null);
   const [sectionFilter,  setSectionFilter]  = useState<string>("all");
 
+  // Students who already have a program enrollment (any program) should not appear for re-enrollment
+  const programEnrolledStudentIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const e of allEnrollments) {
+      const hasActiveProgram = e.programEnrollments.some(
+        (pe) => pe.status === "active" || pe.status === "pending",
+      );
+      if (hasActiveProgram) ids.add(e.student_id);
+    }
+    return ids;
+  }, [allEnrollments]);
+
   const bulkEnroll       = useBulkEnrollStudents(schoolYearId);
   const enrollInProgram  = useEnrollInProgram(schoolYearId);
   const unenrollMutation = useUnenrollStudent(schoolYearId);
@@ -200,6 +212,7 @@ export function StudentListPanel({
           open
           onClose={() => setEnrollOpen(false)}
           alreadyEnrolled={allEnrollments}
+          programEnrolledStudentIds={programEnrolledStudentIds}
           onConfirm={handleEnroll}
           isLoading={bulkEnroll.isPending || enrollInProgram.isPending}
         />

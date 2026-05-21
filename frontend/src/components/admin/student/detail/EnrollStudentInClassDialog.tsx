@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { studentApi } from "@/api/admin/student.api";
 import { classApi } from "@/api/admin/class.api";
+import type { Class } from "@/types/admin/class.types";
 import { toArray } from "@/utils/classes.utils";
 import {
   Dialog,
@@ -27,12 +28,14 @@ import {
 interface Props {
   open: boolean;
   studentId: string;
+  programIds: string[];
   onClose: () => void;
 }
 
 export function EnrollStudentInClassDialog({
   open,
   studentId,
+  programIds,
   onClose,
 }: Props): React.JSX.Element {
   const queryClient = useQueryClient();
@@ -44,9 +47,11 @@ export function EnrollStudentInClassDialog({
     enabled: open,
   });
 
-  const classes = toArray<{ id: string; subjectName?: string; subjectId: string; status: string }>(
-    classesRaw,
-  ).filter((c) => c.status !== "archived");
+  const programSet = new Set(programIds);
+
+  const classes = toArray<Class>(classesRaw).filter(
+    (c) => c.status !== "archived" && c.programId && programSet.has(c.programId),
+  );
 
   const mutation = useMutation({
     mutationFn: () => studentApi.addEnrollment(studentId, selectedClassId),
@@ -84,11 +89,17 @@ export function EnrollStudentInClassDialog({
             <Select
               value={selectedClassId}
               onValueChange={(value) => setSelectedClassId(value ?? "")}
-              disabled={classesLoading}
+              disabled={classesLoading || classes.length === 0}
             >
               <SelectTrigger>
                 <SelectValue
-                  placeholder={classesLoading ? "Loading classes..." : "Select a class"}
+                  placeholder={
+                    classesLoading
+                      ? "Loading classes..."
+                      : classes.length === 0
+                        ? "No classes available for this program"
+                        : "Select a class"
+                  }
                 />
               </SelectTrigger>
               <SelectContent>
@@ -99,6 +110,11 @@ export function EnrollStudentInClassDialog({
                 ))}
               </SelectContent>
             </Select>
+            {classes.length === 0 && !classesLoading && (
+              <p className="text-xs text-muted-foreground">
+                No classes match the student&apos;s program. Ensure the subject&apos;s program is set.
+              </p>
+            )}
           </div>
         </div>
 
