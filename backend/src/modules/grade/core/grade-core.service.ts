@@ -4,6 +4,7 @@ export interface SchemeCategory {
   name: string;
   type: string;
   weight: number;
+  maxScore?: number | null;
 }
 
 export type RubricCategory = SchemeCategory;
@@ -50,36 +51,51 @@ export class GradeCoreService {
         );
         if (categoryAssessments.length === 0) continue;
 
-        const percentages: number[] = [];
-        for (const assessment of categoryAssessments) {
-          const sub = studentSubmissions.find(
-            (s) => s.assessment_id === assessment.id,
-          );
-          if (!sub) {
-            percentages.push(0);
-          } else if (sub.status === 'exempted' || sub.is_exempted) {
-            continue;
-          } else if (sub.is_missed) {
-            percentages.push(0);
-          } else {
-            const rawScore = this.mergeHybridScores(sub);
-            const effectiveTotal =
-              assessment.grading_mode === 'manual'
-                ? (assessment.manual_max_score ?? 1)
-                : assessment.total_items;
-            const pct =
-              effectiveTotal > 0
-                ? (rawScore / effectiveTotal) * 100
-                : 0;
-            percentages.push(pct);
+        if (category.maxScore != null && category.maxScore > 0) {
+          let totalRawScore = 0;
+          for (const assessment of categoryAssessments) {
+            const sub = studentSubmissions.find(
+              (s) => s.assessment_id === assessment.id,
+            );
+            if (!sub) continue;
+            if (sub.status === 'exempted' || sub.is_exempted) continue;
+            if (sub.is_missed) continue;
+            totalRawScore += this.mergeHybridScores(sub);
           }
-        }
-
-        if (percentages.length > 0) {
-          const average =
-            percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+          const average = (totalRawScore / category.maxScore) * 100;
           totalWeightedScore += average * weight;
           totalWeight += weight;
+        } else {
+          const percentages: number[] = [];
+          for (const assessment of categoryAssessments) {
+            const sub = studentSubmissions.find(
+              (s) => s.assessment_id === assessment.id,
+            );
+            if (!sub) {
+              percentages.push(0);
+            } else if (sub.status === 'exempted' || sub.is_exempted) {
+              continue;
+            } else if (sub.is_missed) {
+              percentages.push(0);
+            } else {
+              const rawScore = this.mergeHybridScores(sub);
+              const effectiveTotal =
+                assessment.grading_mode === 'manual'
+                  ? (assessment.manual_max_score ?? assessment.total_items ?? 1)
+                  : assessment.total_items;
+              const pct =
+                effectiveTotal > 0
+                  ? (rawScore / effectiveTotal) * 100
+                  : 0;
+              percentages.push(pct);
+            }
+          }
+          if (percentages.length > 0) {
+            const average =
+              percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+            totalWeightedScore += average * weight;
+            totalWeight += weight;
+          }
         }
       }
     }
@@ -120,33 +136,47 @@ export class GradeCoreService {
           (a) => a.type === category.type,
         );
         if (categoryAssessments.length > 0) {
-          const percentages: number[] = [];
-          for (const assessment of categoryAssessments) {
-            const sub = studentSubmissions.find(
-              (s) => s.assessment_id === assessment.id,
-            );
-            if (!sub) {
-              percentages.push(0);
-            } else if (sub.status === 'exempted' || sub.is_exempted) {
-              continue;
-            } else if (sub.is_missed) {
-              percentages.push(0);
-            } else {
-              const rawScore = this.mergeHybridScores(sub);
-              const effectiveTotal =
-                assessment.grading_mode === 'manual'
-                  ? (assessment.manual_max_score ?? 1)
-                  : assessment.total_items;
-              const pct =
-                effectiveTotal > 0
-                  ? (rawScore / effectiveTotal) * 100
-                  : 0;
-              percentages.push(pct);
+          if (category.maxScore != null && category.maxScore > 0) {
+            let totalRawScore = 0;
+            for (const assessment of categoryAssessments) {
+              const sub = studentSubmissions.find(
+                (s) => s.assessment_id === assessment.id,
+              );
+              if (!sub) continue;
+              if (sub.status === 'exempted' || sub.is_exempted) continue;
+              if (sub.is_missed) continue;
+              totalRawScore += this.mergeHybridScores(sub);
             }
-          }
-          if (percentages.length > 0) {
-            rawAverage =
-              percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+            rawAverage = (totalRawScore / category.maxScore) * 100;
+          } else {
+            const percentages: number[] = [];
+            for (const assessment of categoryAssessments) {
+              const sub = studentSubmissions.find(
+                (s) => s.assessment_id === assessment.id,
+              );
+              if (!sub) {
+                percentages.push(0);
+              } else if (sub.status === 'exempted' || sub.is_exempted) {
+                continue;
+              } else if (sub.is_missed) {
+                percentages.push(0);
+              } else {
+                const rawScore = this.mergeHybridScores(sub);
+                const effectiveTotal =
+                  assessment.grading_mode === 'manual'
+                    ? (assessment.manual_max_score ?? assessment.total_items ?? 1)
+                    : assessment.total_items;
+                const pct =
+                  effectiveTotal > 0
+                    ? (rawScore / effectiveTotal) * 100
+                    : 0;
+                percentages.push(pct);
+              }
+            }
+            if (percentages.length > 0) {
+              rawAverage =
+                percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+            }
           }
         }
       }

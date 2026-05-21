@@ -14,6 +14,7 @@ interface SchemeCategory {
   name: string;    // e.g. "Quiz", "Exam", "Activity"
   type: string;    // maps to assessment.type: quiz | exam | activity | manual
   weight: number;  // e.g. 0.3 = 30%
+  maxScore?: number | null;
   is_optional: boolean;
 }
 
@@ -30,6 +31,7 @@ function componentsToCategories(components: any[]): SchemeCategory[] {
     name: c.name,
     type: c.type ?? c.name.toLowerCase(), // use explicit type if present, else derive from name
     weight: c.weight,
+    maxScore: c.max_score ?? c.maxScore ?? null,
     is_optional: c.is_optional,
   }));
 }

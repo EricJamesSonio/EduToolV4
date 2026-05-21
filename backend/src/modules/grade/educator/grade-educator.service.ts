@@ -13,6 +13,7 @@ function componentsToCategories(components: any[]) {
     name: c.name,
     type: c.type ?? c.name.toLowerCase(),
     weight: c.weight,
+    maxScore: c.max_score ?? c.maxScore ?? null,
   }));
 }
 
