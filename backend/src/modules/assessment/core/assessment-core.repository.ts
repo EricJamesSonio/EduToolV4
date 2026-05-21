@@ -14,6 +14,7 @@ export class AssessmentRepository {
     lessonId?: string;
     termId: string;
     type: string;
+    title?: string;
     totalItems: number;
     releaseDate?: Date;
     endDate?: Date;
@@ -28,6 +29,7 @@ export class AssessmentRepository {
         lesson_id: data.lessonId ?? null,
         term_id: data.termId,
         type: data.type,
+        title: data.title ?? null,
         total_items: data.totalItems,
         release_date: data.releaseDate ?? null,
         is_published: false,
@@ -54,13 +56,14 @@ export class AssessmentRepository {
     return this.db.assessment.findFirst({ where: { id, org_id: orgId } });
   }
 
-  async update(id: string, data: { releaseDate?: Date | null; endDate?: Date | null; type?: string; isPublished?: boolean; showBreakdown?: boolean; gradingMode?: string; manualMaxScore?: number | null }) {
+  async update(id: string, data: { releaseDate?: Date | null; endDate?: Date | null; type?: string; title?: string; isPublished?: boolean; showBreakdown?: boolean; gradingMode?: string; manualMaxScore?: number | null }) {
     return this.db.assessment.update({
       where: { id },
       data: {
         ...(data.releaseDate !== undefined ? { release_date: data.releaseDate } : {}),
         ...(data.endDate !== undefined ? { end_date: data.endDate } : {}),
         ...(data.type !== undefined ? { type: data.type } : {}),
+        ...(data.title !== undefined ? { title: data.title } : {}),
         ...(data.isPublished !== undefined ? { is_published: data.isPublished } : {}),
         ...(data.showBreakdown !== undefined ? { show_breakdown: data.showBreakdown } : {}),
         ...(data.gradingMode !== undefined ? { grading_mode: data.gradingMode as any } : {}),

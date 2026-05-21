@@ -699,6 +699,7 @@ model Assessment {
   lesson_id      String?
   term_id        String
   type           String
+  title          String?
   total_items    Int
   release_date   DateTime?
   end_date       DateTime?

@@ -110,6 +110,7 @@ export class GradeRepository {
       select: {
         id: true,
         type: true,
+        title: true,
         total_items: true,
         grading_mode: true,
         show_breakdown: true,

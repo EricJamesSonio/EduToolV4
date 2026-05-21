@@ -86,6 +86,10 @@ export class CreateAssessmentDto {
   @IsString()
   type: string;
 
+  @IsOptional()
+  @IsString()
+  title?: string;
+
   @IsInt()
   @Min(1)
   totalItems: number;
@@ -136,6 +140,10 @@ export class UpdateAssessmentDto {
   @IsOptional()
   @IsString()
   type?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
 
   @IsOptional()
   @IsEnum(GradingMode)
