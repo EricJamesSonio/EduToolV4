@@ -52,7 +52,7 @@ export function SchoolYearSelector({
 
   return (
     <div className="flex w-full items-center gap-2">
-      <CalendarDays className="h-5 w-5 shrink-0 text-muted-foreground" />
+      <CalendarDays className="h-5 w-5 shrink-0 text-primary" />
 
       <Select
         value={selectedId ?? ""}
@@ -66,7 +66,7 @@ export function SchoolYearSelector({
           </span>
         </SelectTrigger>
 
-        <SelectContent className="sm:min-w-[16rem]">
+        <SelectContent side="bottom" sideOffset={8} align="start" alignItemWithTrigger={false} className="sm:min-w-[16rem]">
           {schoolYears.map((sy) => (
             <SelectItem
               key={sy.id}

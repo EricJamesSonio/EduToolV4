@@ -1,0 +1,40 @@
+/* ────────────────────────────────────────────
+   PORTAL COMPONENT STYLES
+   Shared UI components used across portal pages.
+   Font sizes, spacing — centralized for tuning.
+──────────────────────────────────────────── */
+
+/* ── Page Header ── */
+[data-slot="page-header"] h1 {
+  font-size: clamp(2.25rem, 4vw, 3rem);
+  font-weight: 700;
+}
+
+/* ── Card typography (shadcn Card) ── */
+[data-slot="card-title"] {
+  font-size: 1.125rem;
+  line-height: 1.375;
+  font-weight: 600;
+}
+
+[data-slot="card-description"] {
+  font-size: 1rem;
+  color: var(--muted-foreground);
+}
+
+/* ── Table (shadcn Table) ── */
+table[data-slot="table"] {
+  font-size: 1rem;
+}
+
+[data-slot="table-head"] {
+  height: 3rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  color: var(--primary-foreground);
+}
+
+[data-slot="table-cell"] {
+  padding: 1rem;
+  color: var(--foreground);
+}

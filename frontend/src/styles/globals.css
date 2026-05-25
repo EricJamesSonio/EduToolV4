@@ -24,3 +24,6 @@
 
 /* Error display in login forms */
 @import "./error-login.css";
+
+/* Portal-specific component sizing (cards, tables, page headers) */
+@import "./portal.css";

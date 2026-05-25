@@ -26,7 +26,7 @@ export function SemesterCard({ semester, onEdit, onDelete }: SemesterCardProps) 
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-xl border bg-card">
       {/* Header row */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -42,8 +42,8 @@ export function SemesterCard({ semester, onEdit, onDelete }: SemesterCardProps) 
             )}
           </button>
           <div className="min-w-0">
-            <p className="font-medium text-sm truncate">{semester.name}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="font-medium text-base truncate">{semester.name}</p>
+            <p className="text-sm text-muted-foreground">
               {formatDate(semester.startDate)} → {formatDate(semester.endDate)}
             </p>
           </div>

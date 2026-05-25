@@ -163,7 +163,7 @@ export default function GradingScalePage({ params }: Props) {
       ) : (
         <>
           {/* ── Scale header card ── */}
-          <div className="rounded-lg border bg-card p-5 space-y-4">
+          <div className="rounded-xl border bg-card p-6 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-base font-semibold">{scale.name}</p>

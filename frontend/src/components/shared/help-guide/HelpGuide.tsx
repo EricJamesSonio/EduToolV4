@@ -29,7 +29,7 @@ export function HelpGuide({ slug }: HelpGuideProps) {
     <Sheet>
       <SheetTrigger
         render={
-          <Button size="icon-sm" variant="outline" className="rounded-full">
+          <Button size="icon-sm" className="rounded-full">
             <HelpCircle className="h-4 w-4" />
           </Button>
         }
