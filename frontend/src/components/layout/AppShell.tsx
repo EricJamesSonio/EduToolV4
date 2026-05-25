@@ -1,6 +1,6 @@
 "use client";
 
-import { TopBar } from "./TopBar";
+import { PortalNavbar } from "./PortalNavbar";
 import { useSidebar } from "@/context/SidebarContext";
 import { cn } from "@/lib/utils";
 
@@ -14,13 +14,13 @@ export function AppShell({ sidebar, children }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <TopBar />
+      <PortalNavbar />
 
       {sidebar}
 
       <main
         className={cn(
-          "pt-14 transition-all duration-200 bg-background text-foreground",
+          "pt-[76px] transition-all duration-200 bg-background text-foreground",
           collapsed ? "ml-14" : "ml-56"
         )}
       >

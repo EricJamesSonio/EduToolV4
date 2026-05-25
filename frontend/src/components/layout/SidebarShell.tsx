@@ -98,7 +98,7 @@ export function SidebarShell({
     <TooltipProvider delayDuration={200}>
       <aside
         className={cn(
-          "fixed left-0 top-14 bottom-0 z-40 flex flex-col border-r",
+          "fixed left-0 top-[76px] bottom-0 z-40 flex flex-col border-r",
           "bg-card text-foreground border-border",
           "transition-all duration-200",
           collapsed ? "w-14" : "w-56",

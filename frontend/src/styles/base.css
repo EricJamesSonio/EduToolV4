@@ -197,13 +197,14 @@ tbody tr:hover td {
   /* ── Card/Container baseline ── */
   [data-slot="card"] {
     border: 1px solid var(--border);
-    box-shadow: var(--shadow-xs);
-    transition: box-shadow 200ms ease, border-color 200ms ease;
+    box-shadow: var(--shadow-sm);
+    transition: transform 250ms ease, box-shadow 250ms ease, border-color 250ms ease;
   }
 
   [data-slot="card"]:hover {
+    transform: translateY(-3px);
     border-color: color-mix(in oklch, var(--border) 70%, var(--primary));
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lg);
   }
 }
 

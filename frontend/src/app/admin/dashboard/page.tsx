@@ -50,7 +50,7 @@ interface StatCardProps {
 function StatCard({ label, value, icon: Icon, iconColor, isLoading, warning, action }: StatCardProps) {
   return (
     <div className={cn(
-      "rounded-lg border bg-card p-5 flex items-start justify-between gap-4",
+      "rounded-xl border bg-card p-6 flex items-start justify-between gap-4",
       warning && value && value > 0 && "border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20"
     )}>
       <div className="space-y-1">
