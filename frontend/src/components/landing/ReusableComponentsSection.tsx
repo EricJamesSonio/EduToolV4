@@ -3,34 +3,21 @@
 import { Calendar, BarChart3, Sliders, Zap } from "lucide-react";
 
 const components = [
-  {
-    icon: Calendar,
-    title: "Calendar Templates",
-    description: "Reuse school calendar configurations.",
-  },
-  {
-    icon: BarChart3,
-    title: "Grading Schemes",
-    description: "Apply standardized grading systems.",
-  },
-  {
-    icon: Sliders,
-    title: "Grading Scales",
-    description: "Use customizable score mappings.",
-  },
-  {
-    icon: Zap,
-    title: "Organization Seeder",
-    description: "Quickly generate organizational setup.",
-  },
+  { icon: Calendar, title: "Calendar Templates", description: "Reuse school calendar configurations.", color: "bg-purple-500/10 text-purple-500" },
+  { icon: BarChart3, title: "Grading Schemes", description: "Apply standardized grading systems.", color: "bg-blue-500/10 text-blue-500" },
+  { icon: Sliders, title: "Grading Scales", description: "Use customizable score mappings.", color: "bg-orange-500/10 text-orange-500" },
+  { icon: Zap, title: "Organization Seeder", description: "Quickly generate organizational setup.", color: "bg-amber-500/10 text-amber-500" },
 ];
 
 export function ReusableComponentsSection() {
   return (
-    <section id="resources" className="page-container py-16 md:py-24 space-y-12">
+    <section id="resources" className="page-container py-20 md:py-28 space-y-14">
       {/* Header */}
-      <div className="text-center space-y-4 max-w-2xl mx-auto">
-        <h2 className="text-3xl md:text-4xl font-heading font-bold">
+      <div className="text-center space-y-5 max-w-2xl mx-auto">
+        <div className="flex justify-center">
+          <div className="section-accent"></div>
+        </div>
+        <h2 className="font-bold">
           Reusable System Components
         </h2>
         <p className="text-lg text-muted-foreground">
@@ -45,15 +32,15 @@ export function ReusableComponentsSection() {
           return (
             <div
               key={index}
-              className="bg-card border-2 border-border rounded-lg p-6 text-center space-y-4 hover:border-primary transition-colors"
+              className="card-landing p-6 text-center space-y-4"
             >
               <div className="flex justify-center">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Icon className="h-6 w-6 text-primary" />
+                <div className={`icon-container ${component.color}`}>
+                  <Icon className="h-5 w-5" />
                 </div>
               </div>
-              <h3 className="font-heading font-semibold">{component.title}</h3>
-              <p className="text-sm text-muted-foreground">{component.description}</p>
+              <h3 className="font-heading font-semibold text-xl">{component.title}</h3>
+              <p className="text-base text-muted-foreground">{component.description}</p>
             </div>
           );
         })}
