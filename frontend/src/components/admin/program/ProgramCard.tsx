@@ -26,8 +26,8 @@ export function ProgramCard({ program, onDelete }: ProgramCardProps): React.JSX.
   return (
     <div className="rounded-lg border bg-card p-5 space-y-4">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 shrink-0 mt-0.5">
-          <GraduationCap className="h-4.5 w-4.5 text-primary" />
+        <div className="icon-container icon-edu shrink-0 mt-0.5">
+          <GraduationCap className="h-4.5 w-4.5" />
         </div>
         <div className="space-y-1">
           <h3 className="font-semibold text-sm leading-tight">{program.name}</h3>

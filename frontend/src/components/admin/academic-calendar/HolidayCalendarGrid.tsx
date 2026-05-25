@@ -109,8 +109,10 @@ function DayPopover({
   }
 
   return (
-    <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1.5 w-64
-                    rounded-lg border bg-popover shadow-lg p-3 space-y-3 text-sm">
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1.5 w-64
+                 rounded-lg border bg-popover shadow-lg p-3 space-y-3 text-sm">
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <p className="font-semibold text-xs leading-tight">{dateStr}</p>
@@ -280,10 +282,10 @@ export function HolidayCalendarGrid({
   return (
     <div className="rounded-xl border bg-card select-none">
       {/* Month nav */}
-      <div className="flex items-center justify-between px-5 py-4 border-b bg-muted/30">
+      <div className="flex items-center justify-between px-5 py-4 bg-primary text-primary-foreground rounded-t-xl">
         <button
           onClick={prevMonth}
-          className="p-1.5 rounded-md hover:bg-muted transition-colors"
+          className="p-1.5 rounded-md hover:bg-white/15 transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -292,7 +294,7 @@ export function HolidayCalendarGrid({
         </p>
         <button
           onClick={nextMonth}
-          className="p-1.5 rounded-md hover:bg-muted transition-colors"
+          className="p-1.5 rounded-md hover:bg-white/15 transition-colors"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -312,11 +314,11 @@ export function HolidayCalendarGrid({
       </div>
 
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 border-b">
+      <div className="grid grid-cols-7 bg-primary/10">
         {WEEKDAY_HEADERS.map((d) => (
           <div
             key={d}
-            className="py-2 text-center text-xs font-semibold text-muted-foreground"
+            className="py-2 text-center text-xs font-semibold text-primary"
           >
             {d}
           </div>
