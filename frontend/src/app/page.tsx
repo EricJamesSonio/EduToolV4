@@ -8,9 +8,9 @@ import { getRoleHomePath } from "@/utils/role.util";
 
 import { Navbar } from "@/components/landing/Navbar";
 import { HeroSection } from "@/components/landing/HeroSection";
-import { ArchitectureSection } from "@/components/landing/ArchitectureSection";
+
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
-import { AcademicFlexibilitySection } from "@/components/landing/AcademicFlexibilitySection";
+import { SolutionSection } from "@/components/landing/SolutionSection";
 import { ReusableComponentsSection } from "@/components/landing/ReusableComponentsSection";
 import { WorkflowSection } from "@/components/landing/WorkflowSection";
 import { AnalyticsPreviewSection } from "@/components/landing/AnalyticsPreviewSection";
@@ -45,9 +45,8 @@ export default function RootPage(): React.ReactNode {
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
       <HeroSection />
-      <ArchitectureSection />
       <FeaturesSection />
-      <AcademicFlexibilitySection />
+      <SolutionSection />
       <ReusableComponentsSection />
       <WorkflowSection />
       <AnalyticsPreviewSection />

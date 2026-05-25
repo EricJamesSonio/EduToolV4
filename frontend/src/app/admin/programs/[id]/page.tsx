@@ -7,6 +7,7 @@ import { useProgramDetail } from "@/hooks/admin/useProgram";
 import { EditProgramDialog } from "@/components/admin/program/EditProgramDialog";
 import { CoursesSection } from "@/components/admin/program/CoursesSection";
 import { StrandsSection } from "@/components/admin/program/StrandsSection";
+import { ProgramLevelsSection } from "@/components/admin/program/ProgramLevelsSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,15 +22,6 @@ const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
   college: "College",
   custom: "Custom",
 };
-
-const ACTION_BTN =
-  "border-[3px] border-black bg-white text-black hover:bg-black hover:text-white transition-colors";
-
-const ICON_BOX =
-  "flex h-10 w-10 items-center justify-center border-[3px] border-black bg-white shrink-0 mt-0.5";
-
-const CARD =
-  "border-[3px] border-black bg-white";
 
 export default function ProgramDetailPage({
   params,
@@ -68,7 +60,7 @@ export default function ProgramDetailPage({
       {/* BACK LINK */}
       <Link
         href="/admin/programs"
-        className="inline-flex items-center gap-1.5 text-sm text-black hover:underline"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ChevronLeft className="h-4 w-4" />
         Programs
@@ -77,8 +69,8 @@ export default function ProgramDetailPage({
       {/* HEADER */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <div className={ICON_BOX}>
-            <GraduationCap className="h-5 w-5 text-black" />
+          <div className="icon-container bg-primary/10 text-primary mt-0.5">
+            <GraduationCap className="h-5 w-5" />
           </div>
 
           <div className="space-y-1">
@@ -86,36 +78,36 @@ export default function ProgramDetailPage({
               {program.name}
             </h1>
 
-            <Badge className="border-[2px] border-black bg-white text-black">
+            <Badge variant="outline" className="border-border text-muted-foreground">
               {PROGRAM_TYPE_LABELS[program.type] ?? program.type}
             </Badge>
           </div>
         </div>
 
-        <Button size="sm" className={ACTION_BTN} onClick={() => setEditOpen(true)}>
+        <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
           <Pencil className="mr-2 h-4 w-4" />
           Edit
         </Button>
       </div>
 
       {/* INFO CARD */}
-      <div className={CARD}>
-        <div className="flex items-center gap-4 px-4 py-3 border-b border-black">
-          <span className="w-32 text-sm text-black/60">Name</span>
-          <span className="text-sm font-medium text-black">{program.name}</span>
+      <div className="card-landing">
+        <div className="flex items-center gap-4 px-4 py-3 border-b border-border">
+          <span className="w-32 text-sm text-muted-foreground">Name</span>
+          <span className="text-sm font-medium text-foreground">{program.name}</span>
         </div>
 
-        <div className="flex items-center gap-4 px-4 py-3 border-b border-black">
-          <span className="w-32 text-sm text-black/60">Type</span>
-          <Badge className="border-[2px] border-black bg-white text-black">
+        <div className="flex items-center gap-4 px-4 py-3 border-b border-border">
+          <span className="w-32 text-sm text-muted-foreground">Type</span>
+          <Badge variant="outline" className="border-border text-muted-foreground">
             {PROGRAM_TYPE_LABELS[program.type] ?? program.type}
           </Badge>
         </div>
 
         {showCourses && (
-          <div className="flex items-center gap-4 px-4 py-3 border-b border-black">
-            <span className="w-32 text-sm text-black/60">Courses</span>
-            <span className="text-sm text-black">
+          <div className="flex items-center gap-4 px-4 py-3 border-b border-border">
+            <span className="w-32 text-sm text-muted-foreground">Courses</span>
+            <span className="text-sm text-foreground">
               {program.courses?.length ?? 0}
             </span>
           </div>
@@ -123,13 +115,22 @@ export default function ProgramDetailPage({
 
         {showStrands && (
           <div className="flex items-center gap-4 px-4 py-3">
-            <span className="w-32 text-sm text-black/60">Strands</span>
-            <span className="text-sm text-black">
+            <span className="w-32 text-sm text-muted-foreground">Strands</span>
+            <span className="text-sm text-foreground">
               {program.strands?.length ?? 0}
             </span>
           </div>
         )}
       </div>
+
+      {/* LEVELS */}
+      {schoolYearId && (
+        <ProgramLevelsSection
+          programId={id}
+          schoolYearId={schoolYearId}
+          programType={program.type}
+        />
+      )}
 
       {/* SECTIONS */}
       {showCourses && (
@@ -151,9 +152,9 @@ export default function ProgramDetailPage({
       )}
 
       {!showCourses && !showStrands && (
-        <div className={CARD + " px-6 py-8 text-center"}>
-          <p className="text-sm text-black/60">
-            This program type doesn’t use courses or strands.
+        <div className="card-landing px-6 py-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            This program type doesn&rsquo;t use courses or strands.
           </p>
         </div>
       )}
