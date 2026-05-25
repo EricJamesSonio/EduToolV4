@@ -85,8 +85,8 @@ export function ProgramDetailView({
 
       {/* Program header */}
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 shrink-0 mt-0.5">
-          <GraduationCap className="h-4 w-4 text-primary" />
+        <div className="icon-container icon-edu shrink-0 mt-0.5">
+          <GraduationCap className="h-4 w-4" />
         </div>
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">{activeProgram.name}</h2>

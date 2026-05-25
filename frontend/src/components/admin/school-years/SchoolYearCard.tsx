@@ -110,7 +110,7 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
       >
         {/* Header with Icon and Info */}
         <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 shrink-0 mt-0.5">
+          <div className="icon-container shrink-0 mt-0.5">
             {getStatusIcon()}
           </div>
           <div className="flex-1 space-y-1">
