@@ -20,14 +20,20 @@ export interface GetActivityLogQuery {
 
 export const auditLogApi = {
   getAll: async (query?: GetAuditLogQuery): Promise<AuditLog[]> => {
-    const res = await client.get<AuditLog[]>("/audit-log", { params: query });
-    return res.data;
+    const res = await client.get<{ success: boolean; data: AuditLog[] }>(
+      "/audit-log",
+      { params: query }
+    );
+    return res.data.data;  // ← Extract nested 'data' array
   },
 };
 
 export const activityLogApi = {
   getAll: async (query?: GetActivityLogQuery): Promise<ActivityLog[]> => {
-    const res = await client.get<ActivityLog[]>("/activity-log", { params: query });
-    return res.data;
+    const res = await client.get<{ success: boolean; data: ActivityLog[] }>(
+      "/activity-log",
+      { params: query }
+    );
+    return res.data.data;  // ← Extract nested 'data' array
   },
 };

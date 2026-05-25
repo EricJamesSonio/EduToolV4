@@ -26,16 +26,17 @@ export const submissionApi = {
     assessmentId: string,
     submissionId: string
   ): Promise<SubmissionAnswerDetail[]> => {
-    const res = await client.get<SubmissionAnswerDetail[]>(
+    const res = await client.get(
       `/assessments/${assessmentId}/submissions/${submissionId}/answers`
     );
-    return res.data;
+    // ResponseInterceptor wraps in { success, data }
+    return (res.data as any)?.data ?? (res.data as SubmissionAnswerDetail[]);
   },
   updateStatus: async (
     classId: string,
     assessmentId: string,
     submissionId: string,
-    status: "exempted" | "custom",
+    status: "exempted" | "custom" | "missed",
     manualScore?: number
   ): Promise<Submission> => {
     const res = await client.patch<Submission>(

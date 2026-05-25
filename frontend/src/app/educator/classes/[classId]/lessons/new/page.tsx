@@ -18,10 +18,11 @@ export default function NewLessonPage(): React.JSX.Element {
   const { mutateAsync: createLesson, isPending } = useCreateLesson(classId);
 
   async function handleSubmit(data: CreateLessonRequest): Promise<void> {
-    await createLesson(data);
+    const lesson = await createLesson(data);
     toast.success("Lesson saved. Concept extraction running...");
-    // No need to call triggerExtraction manually — backend fires it on create
-    router.push(`/educator/classes/${classId}/lessons`);
+    router.push(
+      `/educator/classes/${classId}/lessons/${lesson.id}?extracting=true`,
+    );
   }
 
   if (weeksLoading) {

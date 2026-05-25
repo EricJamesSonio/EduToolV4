@@ -34,9 +34,8 @@ export interface GetClassesQuery {
 export interface EnrollmentResponse {
   id:           string;
   class_id:     string;
-  student_id:   string;     // UUID — do not display directly
-  studentName?: string;     // e.g. "Juan dela Cruz" — prefer this
-  studentCode?: string;     // e.g. "2024-00123" — show as subtitle
+  student_id:   string;
+  student_name?: string;
   status:       "active" | "pending" | "removed";
 }
 
@@ -77,8 +76,8 @@ interface RawClass {
   schedules:         RawSchedule[];
   created_at:        string;
   updated_at?:       string;
-  program_id?:    string | null;
-  
+  program_id?:       string | null;
+  _count?:           { enrollments: number };
 }
 
 interface ApiResponse<T> {
@@ -121,7 +120,7 @@ function mapClass(raw: RawClass): Class {
     schoolYearId:    raw.school_year_id,
     schoolYearTitle: raw.school_year_title,
     capacity:        raw.capacity,
-    enrolledCount:   raw.enrolled_count ?? 0,
+    enrolledCount:   raw._count?.enrollments ?? raw.enrolled_count ?? 0,
     status:          (raw.status as Class["status"]) ?? (raw.deleted_at ? "archived" : "active"),
     isArchived:      raw.deleted_at !== null,                    // ← ADD
     title:           raw.subject_name ?? raw.subject_id,        // ← ADD (fallback to ID until enriched)

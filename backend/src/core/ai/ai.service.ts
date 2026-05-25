@@ -24,6 +24,13 @@ export interface ConceptBuild {
   concepts: ConceptItem[];
 }
 
+export interface ConceptExtractResult {
+  conceptBuild: ConceptBuild;
+  rawResponse: string;
+  rawRequest: string;
+  promptVersion: string;
+}
+
 export interface QuestionBlueprint {
   type: 'identification' | 'true_false' | 'multiple_choice' | 'essay' | 'enumeration';
   sections: string[];
@@ -41,6 +48,15 @@ export interface GeneratedQuestion {
   correct_answer?: string;
 }
 
+export interface GenerationProgress {
+  status: 'generating' | 'completed' | 'failed';
+  message: string;
+  chunksTotal: number;
+  chunksDone: number;
+  currentChunk?: string;
+  error?: string;
+}
+
 // ── Token budget constants (matching Python pipeline) ─────────────────────────
 
 const TOKEN_COST: Record<string, number> = {
@@ -50,14 +66,21 @@ const TOKEN_COST: Record<string, number> = {
   enumeration: 150,
   essay: 100,
 };
-const SAFE_OUTPUT_BUDGET = 1400;
+const SAFE_OUTPUT_BUDGET = 1000;
 const ENVELOPE_OVERHEAD = 20;
+
+// ── Prompt versions ───────────────────────────────────────────────────────────
+
+const CONCEPT_EXTRACT_PROMPT_VERSION = 'concept-extract-v1';
+const CONCEPT_BUILD_PROMPT_VERSION = 'concept-build-v1';
 
 // ── System prompts ────────────────────────────────────────────────────────────
 
-const CONCEPT_SYSTEM = `You are an educational content analyzer. Extract structured learning concepts from lesson text. Return ONLY valid JSON. No markdown. No explanation. Start with { end with }`;
+const CONCEPT_SYSTEM = `You are an educational content analyzer. Return ONLY valid JSON exactly matching the requested schema. No markdown.`;
 
-const QUESTION_SYSTEM = `You are an assessment question generator. Generate questions ONLY from the provided lesson content. Return ONLY valid JSON. No markdown. No explanation. Start with { end with }`;
+const CONCEPT_BUILD_SYSTEM = `You are a curriculum design expert. Return ONLY valid JSON exactly matching the requested schema. No markdown.`;
+
+const QUESTION_SYSTEM = `You are an assessment question generator. Return ONLY valid JSON. All strings must be properly closed. No markdown. No explanation. No trailing commas.`;
 
 @Injectable()
 export class AiService {
@@ -68,7 +91,7 @@ export class AiService {
 
   constructor(private readonly config: ConfigService) {
     this.apiKey = this.config.get<string>('OPENROUTER_API_KEY') ?? '';
-    this.model = this.config.get<string>('AI_MODEL') ?? 'meta-llama/llama-3.3-70b-instruct:free';
+    this.model = this.config.get<string>('AI_MODEL') ?? 'qwen/qwen3-235b-a22b:free';
   }
 
   // ── Core caller ─────────────────────────────────────────────────────────────
@@ -77,10 +100,13 @@ export class AiService {
     systemPrompt: string,
     userPrompt: string,
     maxTokens = 2000,
+    temperature = 0.3,
+    signal?: AbortSignal,
   ): Promise<string> {
-    this.logger.log(`[AI] Calling model: ${this.model} | max_tokens: ${maxTokens}`);
+    this.logger.log(`[AI] Calling model: ${this.model} | max_tokens: ${maxTokens} | temp: ${temperature}`);
 
     const response = await fetch(this.apiUrl, {
+      signal,
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
@@ -91,7 +117,7 @@ export class AiService {
       body: JSON.stringify({
         model: this.model,
         max_tokens: maxTokens,
-        temperature: 0.3,
+        temperature,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -115,7 +141,7 @@ export class AiService {
     return content;
   }
 
-  // ── JSON parser (handles markdown fences + fallback extraction) ──────────────
+  // ── JSON parser (handles markdown fences + truncated JSON repair) ──────────
 
   parseJson<T = any>(raw: string): T {
     let text = raw.trim();
@@ -137,16 +163,94 @@ export class AiService {
         try {
           return JSON.parse(text.slice(start, end)) as T;
         } catch {
-          // fall through
+          // try repairing truncated JSON
         }
       }
-      throw new Error(`Could not parse AI response as JSON. Raw: ${text.slice(0, 200)}`);
+
+      // Last resort: repair truncated JSON by closing unclosed brackets/strings
+      if (start !== -1) {
+        const repaired = this.repairTruncatedJson(text.slice(start));
+        try {
+          const result = JSON.parse(repaired) as T;
+          this.logger.warn(`[Parse] Repaired truncated JSON successfully (${text.length} → ${repaired.length} chars)`);
+          return result;
+        } catch {
+          // fall through to error
+        }
+      }
+
+      throw new Error(`Could not parse AI response as JSON. Raw (first 500): ${text.slice(0, 500)}`);
     }
   }
 
-  // ── Concept extraction ───────────────────────────────────────────────────────
+  private repairTruncatedJson(s: string): string {
+    // Close unclosed strings
+    let result = s;
+    const stack: string[] = [];
+    let inString = false;
+    let escape = false;
+    for (let i = 0; i < result.length; i++) {
+      const ch = result[i];
+      if (escape) { escape = false; continue; }
+      if (ch === '\\' && inString) { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === '{' || ch === '[') stack.push(ch);
+      else if (ch === '}') { if (stack.length && stack[stack.length - 1] === '{') stack.pop(); }
+      else if (ch === ']') { if (stack.length && stack[stack.length - 1] === '[') stack.pop(); }
+    }
+    // Close unclosed string
+    if (inString) result += '"';
+    // Close unclosed brackets in reverse order
+    for (let i = stack.length - 1; i >= 0; i--) {
+      result += stack[i] === '{' ? '}' : ']';
+    }
+    return result;
+  }
 
-  async extractConcepts(lessonDetail: string): Promise<ConceptBuild> {
+  // ── Validation ───────────────────────────────────────────────────────────────
+
+  private validateConceptBuild(build: ConceptBuild): void {
+    if (!build.sections.length) {
+      throw new Error('Validation failed: at least one section is required');
+    }
+    if (!build.concepts.length) {
+      throw new Error('Validation failed: at least one concept is required');
+    }
+
+    for (const sec of build.sections) {
+      if (!sec.trim()) {
+        throw new Error('Validation failed: section name cannot be empty');
+      }
+    }
+
+    for (const cap of Object.values(build.questionCapacity)) {
+      if (typeof cap !== 'number' || cap <= 0) {
+        throw new Error('Validation failed: question capacities must be positive numbers');
+      }
+    }
+
+    const seenNames = new Set<string>();
+    for (const c of build.concepts) {
+      if (!c.name.trim()) {
+        throw new Error('Validation failed: concept name cannot be empty');
+      }
+      if (seenNames.has(c.name)) {
+        throw new Error(`Validation failed: duplicate concept "${c.name}"`);
+      }
+      seenNames.add(c.name);
+
+      if (!build.sections.includes(c.section)) {
+        throw new Error(
+          `Validation failed: concept "${c.name}" references unknown section "${c.section}"`,
+        );
+      }
+    }
+  }
+
+  // ── Concept extraction (lightweight, called on lesson create/update) ────────
+
+  async extractConcepts(lessonDetail: string): Promise<ConceptExtractResult> {
     const prompt = `Analyze this lesson and extract teachable concepts.
 
 Lesson: ${lessonDetail}
@@ -169,11 +273,12 @@ Return ONLY this JSON (no markdown, no explanation):
 
 Rules:
 - sections = main topic headings in the lesson
-- question_capacity = how many questions each section can support
+- question_capacity = how many questions each section can support (must be positive integers)
 - difficulty = easy, medium, or hard
+- Do NOT create duplicate concept names
 - Return JSON ONLY. Start with { end with }`;
 
-    const raw = await this.callAi(CONCEPT_SYSTEM, prompt, 2000);
+    const raw = await this.callAi(CONCEPT_SYSTEM, prompt, 2000, 0.2);
     const parsed = this.parseJson<any>(raw);
 
     // Normalise + apply defaults (mirrors parse_concept_response)
@@ -196,11 +301,94 @@ Rules:
       }
     }
 
+    const conceptBuild: ConceptBuild = { sections, keywords, questionCapacity, concepts };
+
+    this.validateConceptBuild(conceptBuild);
+
     this.logger.log(
       `[Concept] Extracted ${sections.length} sections, ${concepts.length} concepts`,
     );
 
-    return { sections, keywords, questionCapacity, concepts };
+    return {
+      conceptBuild,
+      rawResponse: raw,
+      rawRequest: prompt,
+      promptVersion: CONCEPT_EXTRACT_PROMPT_VERSION,
+    };
+  }
+
+  // ── Concept build (full pipeline: concept intelligence) ─────────────────────
+
+  async buildConcepts(lessonDetail: string): Promise<ConceptExtractResult> {
+    const prompt = `You are a curriculum design expert. Analyze this lesson and produce a structured concept intelligence model.
+
+Lesson:
+${lessonDetail}
+
+Organize the content into logical sections. For each section, identify:
+- The key concepts that must be taught
+- How many assessment questions each section can support
+
+Return ONLY this JSON (no markdown, no explanation):
+{
+  "sections": ["Section Name 1", "Section Name 2"],
+  "keywords": ["keyword1", "keyword2"],
+  "question_capacity": {"Section Name 1": 10, "Section Name 2": 8},
+  "concepts": [
+    {
+      "name": "Concept Name",
+      "section": "Section Name",
+      "definition": "One-sentence definition",
+      "properties": ["property1", "property2"],
+      "difficulty": "easy"
+    }
+  ]
+}
+
+Rules:
+- sections = logical topic groupings taken from the lesson
+- Each section MUST have at least one concept
+- question_capacity values MUST be positive integers (total questions that section can support)
+- difficulty must be exactly "easy", "medium", or "hard"
+- concept names must be unique — no duplicates
+- Return JSON ONLY. Start with { end with }`;
+
+    const raw = await this.callAi(CONCEPT_BUILD_SYSTEM, prompt, 2500, 0.2);
+    const parsed = this.parseJson<any>(raw);
+
+    const sections: string[] = parsed.sections ?? [];
+    const keywords: string[] = parsed.keywords ?? [];
+    const concepts: ConceptItem[] = (parsed.concepts ?? []).map((c: any, i: number) => ({
+      name: c.name ?? `Concept ${i + 1}`,
+      section: c.section ?? sections[0] ?? 'General',
+      definition: c.definition ?? '',
+      properties: c.properties ?? [],
+      difficulty: ['easy', 'medium', 'hard'].includes(c.difficulty) ? c.difficulty : 'medium',
+    }));
+
+    let questionCapacity: Record<string, number> = parsed.question_capacity ?? {};
+    if (!Object.keys(questionCapacity).length) {
+      questionCapacity = Object.fromEntries(sections.map((s) => [s, 10]));
+    } else {
+      for (const s of sections) {
+        questionCapacity[s] ??= 10;
+      }
+    }
+
+    const conceptBuild: ConceptBuild = { sections, keywords, questionCapacity, concepts };
+
+    this.validateConceptBuild(conceptBuild);
+
+    this.logger.log(
+      `[ConceptBuild] Built ${sections.length} sections, ${concepts.length} concepts`,
+    );
+
+    return {
+      conceptBuild,
+      rawResponse: raw,
+      rawRequest: prompt,
+      promptVersion: CONCEPT_BUILD_PROMPT_VERSION,
+    };
   }
 
   // ── Question generation ──────────────────────────────────────────────────────
@@ -208,6 +396,9 @@ Rules:
   async generateQuestions(
     lessonDetail: string,
     blueprints: QuestionBlueprint[],
+    onProgress?: (progress: GenerationProgress) => void,
+    signal?: AbortSignal,
+    conceptBuild?: ConceptBuild,
   ): Promise<GeneratedQuestion[]> {
     // 1. Expand each blueprint into token-safe chunks
     const allChunks: QuestionBlueprint[] = [];
@@ -215,47 +406,86 @@ Rules:
       allChunks.push(...this.splitByTokenBudget(bp));
     }
 
-    this.logger.log(`[Generate] ${blueprints.length} blueprints → ${allChunks.length} chunks`);
+    const total = allChunks.length;
+    this.logger.log(`[Generate] ${blueprints.length} blueprints → ${total} chunks`);
 
-    // 2. Fire in batches of 15 (free tier: 20 req/min, leave headroom)
-    const BATCH_SIZE = 15;
-    const BATCH_DELAY_MS = 5000;
+    // Compress lesson to concept summary if available (avoids sending full lesson per chunk)
+    const compressedLesson = conceptBuild
+      ? this.compressLesson(lessonDetail, conceptBuild)
+      : lessonDetail;
+
+    // 2. Process chunks sequentially (free model can't handle concurrent requests)
+    const CHUNK_DELAY_MS = 1000;
     const allQuestions: GeneratedQuestion[] = [];
 
-    for (let i = 0; i < allChunks.length; i += BATCH_SIZE) {
-      const batch = allChunks.slice(i, i + BATCH_SIZE);
-      this.logger.log(
-        `[Generate] Batch ${Math.floor(i / BATCH_SIZE) + 1} — ${batch.length} chunks`,
-      );
-
-      const results = await Promise.allSettled(
-        batch.map((chunk) => this.generateChunk(lessonDetail, chunk)),
-      );
-
-      const failed: string[] = [];
-      for (let j = 0; j < results.length; j++) {
-        const r = results[j];
-        if (r.status === 'fulfilled') {
-          allQuestions.push(...r.value);
-        } else {
-          failed.push(`Chunk ${batch[j].numbers}: ${r.reason}`);
-          this.logger.error(`[Generate] Chunk ${batch[j].numbers} failed: ${r.reason}`);
-        }
+    for (let i = 0; i < total; i++) {
+      if (signal?.aborted) {
+        this.logger.warn(`[Generate] Cancelled by user`);
+        throw new Error('Generation cancelled by user');
       }
 
-      if (failed.length) {
-        throw new Error(`Question generation failed:\n${failed.join('\n')}`);
+      const chunk = allChunks[i];
+      onProgress?.({
+        status: 'generating',
+        message: `Generating questions ${chunk.numbers}... (${i + 1}/${total})`,
+        chunksTotal: total,
+        chunksDone: i,
+        currentChunk: chunk.numbers,
+      });
+
+      try {
+        const result = await this.generateChunk(compressedLesson, chunk);
+        allQuestions.push(...result);
+      } catch (err) {
+        this.logger.error(`[Generate] Chunk ${chunk.numbers} failed: ${err}`);
+        onProgress?.({
+          status: 'failed',
+          message: `Failed: chunk ${chunk.numbers} — ${err}`,
+          chunksTotal: total,
+          chunksDone: i,
+          currentChunk: chunk.numbers,
+          error: String(err),
+        });
+        throw new Error(`Question generation failed:\nChunk ${chunk.numbers}: ${err}`);
       }
 
-      // Pause between batches (not after the last one)
-      if (i + BATCH_SIZE < allChunks.length) {
-        await new Promise((res) => setTimeout(res, BATCH_DELAY_MS));
+      // Pause between chunks (not after the last one)
+      if (i < total - 1) {
+        await new Promise((res) => setTimeout(res, CHUNK_DELAY_MS));
       }
     }
 
     allQuestions.sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
     this.logger.log(`[Generate] Complete — ${allQuestions.length} questions`);
+    onProgress?.({
+      status: 'completed',
+      message: `Generated ${allQuestions.length} questions`,
+      chunksTotal: total,
+      chunksDone: total,
+    });
     return allQuestions;
+  }
+
+  // ── Private: compress lesson using concept data ───────────────────────────────
+
+  private compressLesson(fullLesson: string, conceptBuild: ConceptBuild): string {
+    const sections = conceptBuild.sections
+      .map((s) => {
+        const concepts = conceptBuild.concepts
+          .filter((c) => c.section === s)
+          .map((c) => `- ${c.name}: ${c.definition}`)
+          .join('\n');
+        return `[${s}]\n${concepts || '  (no concepts)'}`;
+      })
+      .join('\n\n');
+
+    const keywords = conceptBuild.keywords.join(', ');
+
+    return `=== CONCEPT SUMMARY ===
+Keywords: ${keywords}
+
+${sections}
+=== END SUMMARY ===`;
   }
 
   // ── Private: token-budget splitter ───────────────────────────────────────────
@@ -295,6 +525,8 @@ Rules:
     lessonDetail: string,
     chunk: QuestionBlueprint,
     maxRetries = 4,
+    onRetry?: (attempt: number, maxRetries: number, err: string) => void,
+    signal?: AbortSignal,
   ): Promise<GeneratedQuestion[]> {
     const { type, sections, numbers, count } = chunk;
     const [startStr] = numbers.split('-');
@@ -303,18 +535,25 @@ Rules:
 
     const maxTokens = Math.min(
       (TOKEN_COST[type] ?? 150) * count + ENVELOPE_OVERHEAD + 50,
-      2000,
+      1200,
     );
 
     const prompt = this.buildChunkPrompt(lessonDetail, type, sections, numbers, count, numList);
 
     let lastError: unknown;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      if (signal?.aborted) throw new Error('Generation cancelled by user');
       try {
-        const raw = await this.callAi(QUESTION_SYSTEM, prompt, maxTokens);
+        const raw = await this.callAi(QUESTION_SYSTEM, prompt, maxTokens, 0.5, signal);
         if (!raw?.trim()) throw new Error('Empty response from AI');
 
-        const data = this.parseJson<{ questions: any[] }>(raw);
+        let data: { questions: any[] } | null = null;
+        try {
+          data = this.parseJson<{ questions: any[] }>(raw);
+        } catch (parseErr) {
+          this.logger.warn(`[Chunk ${numbers}] Attempt ${attempt}/${maxRetries} parse failed. Full raw (${raw.length} chars): ${raw}`);
+          throw parseErr;
+        }
         const questions: any[] = data?.questions;
 
         if (!Array.isArray(questions) || questions.length === 0) {
@@ -328,11 +567,13 @@ Rules:
         return questions as GeneratedQuestion[];
       } catch (err) {
         lastError = err;
-        this.logger.warn(`[Chunk ${numbers}] Attempt ${attempt}/${maxRetries} failed: ${err}`);
+        this.logger.warn(`[Chunk ${numbers}] Attempt ${attempt}/${maxRetries} failed`);
+        onRetry?.(attempt, maxRetries, String(err));
 
         if (attempt < maxRetries) {
           const isRateLimit = String(err).includes('429');
-          await new Promise((res) => setTimeout(res, isRateLimit ? 65_000 : 2_000));
+          const delay = isRateLimit ? 65_000 : 4_000 + Math.random() * 3_000;
+          await new Promise((res) => setTimeout(res, delay));
         }
       }
     }

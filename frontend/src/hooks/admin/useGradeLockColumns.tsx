@@ -36,15 +36,20 @@ function lockStatusLabel(status: GradeLockStatus): string {
 
 function calculateLockStatus(lock: GradeLock): GradeLockStatus {
   if (lock.lockStatus) return lock.lockStatus
+
   if (lock.is_locked) {
-    return lock.locked_by === "system" ? "auto_locked" : "locked"
+    return lock.locked_by === "system"
+      ? "auto_locked"
+      : "locked"
   }
+
   return "unlocked"
 }
 
 export function useGradeLockColumns(
   onOverride: (lock: GradeLock) => void,
-  onApplyTemplate: (lock: GradeLock) => void
+  onApplyTemplate: (lock: GradeLock) => void,
+  settingMap: Map<string, string>
 ): ColumnDef<GradeLock>[] {
   return useMemo(
     () => [
@@ -57,15 +62,41 @@ export function useGradeLockColumns(
           </span>
         ),
       },
+
       {
         accessorKey: "educatorName",
         header: "Educator",
       },
+
+      // ✅ TEMPLATE NAME COLUMN
+      {
+        id: "template",
+        header: "Template",
+        cell: ({ row }) => {
+          const templateId = row.original.setting_id
+
+          if (!templateId) {
+            return (
+              <span className="text-muted-foreground">
+                —
+              </span>
+            )
+          }
+
+          return (
+            <span className="text-sm">
+              {settingMap.get(templateId) ?? "Unknown Template"}
+            </span>
+          )
+        },
+      },
+
       {
         id: "lockStatus",
         header: "Lock Status",
         cell: ({ row }) => {
           const status = calculateLockStatus(row.original)
+
           return (
             <Badge variant={lockStatusVariant(status)}>
               {lockStatusLabel(status)}
@@ -73,12 +104,20 @@ export function useGradeLockColumns(
           )
         },
       },
+
       {
         accessorKey: "deadline",
         header: "Deadline",
         cell: ({ row }) => {
           const deadline = row.original.deadline
-          if (!deadline) return <span className="text-muted-foreground">—</span>
+
+          if (!deadline) {
+            return (
+              <span className="text-muted-foreground">
+                —
+              </span>
+            )
+          }
 
           return (
             <span className="tabular-nums text-sm">
@@ -87,32 +126,33 @@ export function useGradeLockColumns(
           )
         },
       },
+
       {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => {
           const lock = row.original
           const status = calculateLockStatus(lock)
-          const isLocked = status === "locked" || status === "auto_locked"
+
+          const isLocked =
+            status === "locked" ||
+            status === "auto_locked"
 
           return (
             <div className="flex gap-2">
-              {/* APPLY TEMPLATE */}
               <Button
                 size="sm"
                 variant="secondary"
                 className="gap-1.5"
                 onClick={(e) => {
                   e.stopPropagation()
-                  console.log("APPLY CLICKED:", lock)
-                  onApplyTemplate?.(lock)
+                  onApplyTemplate(lock)
                 }}
               >
                 <Wand2 className="h-3.5 w-3.5" />
                 Apply
               </Button>
 
-              {/* OVERRIDE */}
               {isLocked && (
                 <Button
                   size="sm"
@@ -132,6 +172,6 @@ export function useGradeLockColumns(
         },
       },
     ],
-    [onOverride, onApplyTemplate]
+    [onOverride, onApplyTemplate, settingMap]
   )
 }

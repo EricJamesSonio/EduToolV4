@@ -1,3 +1,5 @@
+// ===== File: frontend/src/components/admin/educator/CreateEducatorDialog.tsx =====
+
 "use client";
 
 import { useState } from "react";
@@ -13,10 +15,9 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useCreateEducator } from "@/hooks/admin/useEducators";
 import { EducatorCredentialsCard } from "./EducatorCredentialsCard";
-
-// ✅ Added imports
 import { useOrganization } from "@/hooks/admin/useOrganization";
 import { EmailInput } from "@/components/shared/EmailInput";
+import { buildFullEmail } from "@/lib/email/buildFullEmail";
 
 interface CreateEducatorDialogProps {
   open: boolean;
@@ -42,7 +43,6 @@ export function CreateEducatorDialog({
 
   const createMutation = useCreateEducator();
 
-  // ✅ Get organization email extension
   const { data: org } = useOrganization();
   const emailExtension = org?.emailExtension ?? null;
 
@@ -50,8 +50,17 @@ export function CreateEducatorDialog({
     e.preventDefault();
     setError(null);
 
+    const fullEmail = buildFullEmail(
+      email,
+      emailExtension,
+      "educator"
+    );
+
     createMutation.mutate(
-      { fullName, email },
+      {
+        fullName,
+        email: fullEmail,
+      },
       {
         onSuccess: (result) => {
           setCredentials({
@@ -61,6 +70,7 @@ export function CreateEducatorDialog({
               result.educatorId ?? result.educatorCode ?? "",
             password: result.plainPassword,
           });
+
           setFullName("");
           setEmail("");
         },
@@ -90,6 +100,7 @@ export function CreateEducatorDialog({
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4 py-2">
+            {/* Full Name */}
             <div className="space-y-1.5">
               <Label htmlFor="edu-fullname">Full Name</Label>
               <Input
@@ -97,25 +108,46 @@ export function CreateEducatorDialog({
                 placeholder="Juan dela Cruz"
                 required
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) =>
+                  setFullName(e.target.value)
+                }
                 disabled={createMutation.isPending}
               />
             </div>
 
-            {/* ✅ Replaced Input with EmailInput */}
+            {/* Username only (NO @ input anymore) */}
             <div className="space-y-1.5">
-              <Label htmlFor="edu-email">Email</Label>
-              <EmailInput
+              <Label htmlFor="edu-email">Email Username</Label>
+              <Input
+                id="edu-email"
+                placeholder="juan.delacruz"
+                required
                 value={email}
-                onChange={setEmail}
-                extension={emailExtension}
-                placeholder="educator"
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
                 disabled={createMutation.isPending}
               />
+
+              {email.trim() && emailExtension && (
+                <p className="text-xs text-muted-foreground">
+                  Preview:{" "}
+                  <span className="font-medium">
+                    {buildFullEmail(
+                      email,
+                      emailExtension,
+                      "educator"
+                    )}
+                  </span>
+                </p>
+              )}
             </div>
 
             {error && (
-              <p className="text-sm text-destructive" role="alert">
+              <p
+                className="text-sm text-destructive"
+                role="alert"
+              >
                 {error}
               </p>
             )}
@@ -130,10 +162,14 @@ export function CreateEducatorDialog({
               >
                 Cancel
               </Button>
+
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={createMutation.isPending}
+                disabled={
+                  createMutation.isPending ||
+                  !email.trim()
+                }
               >
                 {createMutation.isPending ? (
                   <>
@@ -159,3 +195,4 @@ export function CreateEducatorDialog({
     </>
   );
 }
+

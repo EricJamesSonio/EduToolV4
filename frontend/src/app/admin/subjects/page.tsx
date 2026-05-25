@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner"; // kept for potential future use; harmless
 import type { Subject } from "@/types/admin/subject.types";
 import { PageHeader }   from "@/components/shared/PageHeader";
+import { HelpGuide }    from "@/components/shared/help-guide/HelpGuide";
 import { Button }       from "@/components/ui/button";
 import { Plus }         from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -54,14 +55,17 @@ export default function SubjectsPage(): React.JSX.Element {
       <PageHeader
         title="Subjects"
         actions={
-          <Button
-            onClick={() => setCreateOpen(true)}
-            size="sm"
-            disabled={!filters.selectedSchoolYearId}
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            {filters.activeTab === "minor" ? "New Minor Subject" : "New Subject"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <HelpGuide slug="admin_subjects" />
+            <Button
+              onClick={() => setCreateOpen(true)}
+              size="sm"
+              disabled={!filters.selectedSchoolYearId}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              {filters.activeTab === "minor" ? "New Minor Subject" : "New Subject"}
+            </Button>
+          </div>
         }
       />
 

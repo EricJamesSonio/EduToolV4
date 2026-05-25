@@ -33,14 +33,14 @@ export interface UpdateSubjectRequest {
   termLabel?: string;
 }
 
-// ❌ educatorId REMOVED
 export interface GetSubjectsQuery {
   schoolYearId?: string;
-  levelId?: string;
-  search?: string;
-  courseId?: string;
-  strandId?: string;
-  subjectType?: SubjectType;
+  programId?:    string;   // ← was missing
+  levelId?:      string;
+  search?:       string;
+  courseId?:     string;
+  strandId?:     string;
+  subjectType?:  SubjectType;
 }
 
 export interface ShareSubjectRequest {

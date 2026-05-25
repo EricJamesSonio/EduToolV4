@@ -35,8 +35,10 @@ export interface SeedOrganizationRequest {
   excludedSubjects?:     string[]                        // plain names — for minors/GE
   excludedLevelSubjects?: Record<string, string[]>       // levelName → plain subject names
   levelConfigs?:         Record<string, string[]>
-  gradingScales?:        Record<string, GradingScalePayload>
+  seedGradingScales?:     boolean
   sectionConfigs?:       Record<string, { name: string; capacity: number }[]>
+  seedGradingSchemes?:    boolean
+  seedSemesterTemplates?: boolean
 }
 
 export const organizationApi = {
@@ -63,4 +65,19 @@ export const organizationApi = {
   seedOrg: async (data: SeedOrganizationRequest): Promise<void> => {
     await client.post("/organization/seed", data)
   },
+
+  validateEmailExtension: async (emailExtension: string): Promise<{ isUnique: boolean; message?: string }> => {
+      const res = await client.post<{ success: boolean; data: { isUnique: boolean; message?: string } }>(
+        "/organization/validate-email-extension",
+        { emailExtension },
+      )
+      return res.data.data
+    },
+
+    checkHasAccounts: async (): Promise<{ hasAccounts: boolean; count: number }> => {
+      const res = await client.get<{ success: boolean; data: { hasAccounts: boolean; count: number } }>(
+        "/organization/check-accounts",
+      )
+      return res.data.data
+    },
 }

@@ -1,52 +1,95 @@
-import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
-import { semesterApi, CreateSemesterRequest, UpdateSemesterRequest } from "@/api/admin/semester.api";
-import type { Semester } from "@/types/admin/semester.types";
+// ===== File: frontend/src/hooks/admin/useSemesters.ts
 
-// Fetch all semesters
-export const useSemesters = (): UseQueryResult<Semester[], unknown> => {
-  return useQuery({
-    queryKey: ["semesters"],
-    queryFn: semesterApi.getAll,
-  });
-};
+import {
+  useAsyncQuery,
+  useMutationWithInvalidation,
+} from "@/hooks/hook-factory.utils";
 
-// Create a new semester
-export const useCreateSemester = (): UseMutationResult<Semester, unknown, CreateSemesterRequest> => {
-  const queryClient = useQueryClient();
+import {
+  semesterApi,
+  type CreateSemesterRequest,
+  type UpdateSemesterRequest,
+} from "@/api/admin/semester.api";
 
-  return useMutation({
-    mutationFn: semesterApi.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["semesters"] });
-    },
-  });
-};
-
-// Update an existing semester
-export const useUpdateSemester = (): UseMutationResult<
+import type {
   Semester,
-  unknown,
-  { id: string; data: UpdateSemesterRequest }
-> => {
-  const queryClient = useQueryClient();
+} from "@/types/admin/semester.types";
 
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateSemesterRequest }) =>
-      semesterApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["semesters"] });
-    },
-  });
+
+const semesterKeys = {
+  all: ["semesters"] as const,
 };
 
-// Delete a semester
-export const useDeleteSemester = (): UseMutationResult<void, unknown, string> => {
-  const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: semesterApi.delete,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["semesters"] });
-    },
-  });
+// ── GET all semesters ─────────────────────────────
+
+export const useSemesters = () => {
+  return useAsyncQuery<Semester[]>(
+    semesterKeys.all,
+    semesterApi.getAll,
+  );
 };
+
+
+// ── CREATE semester ──────────────────────────────
+
+export const useCreateSemester =
+  () => {
+    return useMutationWithInvalidation(
+      (
+        data: CreateSemesterRequest,
+      ) =>
+        semesterApi.create(
+          data,
+        ),
+
+      {
+        invalidateKeys: [
+          semesterKeys.all,
+        ],
+      },
+    );
+  };
+
+
+// ── UPDATE semester ──────────────────────────────
+
+export const useUpdateSemester =
+  () => {
+    return useMutationWithInvalidation(
+      ({
+        id,
+        data,
+      }: {
+        id: string;
+        data: UpdateSemesterRequest;
+      }) =>
+        semesterApi.update(
+          id,
+          data,
+        ),
+
+      {
+        invalidateKeys: [
+          semesterKeys.all,
+        ],
+      },
+    );
+  };
+
+
+// ── DELETE semester ──────────────────────────────
+
+export const useDeleteSemester =
+  () => {
+    return useMutationWithInvalidation(
+      (id: string) =>
+        semesterApi.delete(id),
+
+      {
+        invalidateKeys: [
+          semesterKeys.all,
+        ],
+      },
+    );
+  };

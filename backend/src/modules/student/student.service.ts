@@ -1,3 +1,4 @@
+// @/modules/student/student.service.ts
 import {
   Injectable,
   ConflictException,
@@ -21,7 +22,7 @@ import {
 import { hashPassword } from '@/commons/utils/hash.util';
 import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '../enrollment/enrollment.repository';
-import { OrganizationService } from '../organization/organization.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 const IRREVERSIBLE_STATUSES: StudentStatus[] = [
   StudentStatus.DROPPED,
@@ -36,8 +37,8 @@ export class StudentService {
     private readonly sectionService: SectionService,
     private readonly classRepository: ClassRepository,
     private readonly enrollmentRepo: EnrollmentRepository,
-    private readonly organizationService: OrganizationService,
-  ) { }
+    private readonly auditLogService: AuditLogService,   // ← INJECTED
+  ) {}
 
   private extractMeta(account: Record<string, any>): Record<string, any> {
     const raw = account?.profile?.metadata;
@@ -48,39 +49,21 @@ export class StudentService {
   formatAccount(account: Record<string, any>) {
     const meta = this.extractMeta(account);
     return {
-      id: account.id as string,
-      orgId: account.org_id as string,
-      email: account.email as string,
-      status: account.status as string,
-      fullName: (account.profile?.full_name ?? null) as string | null,
-      studentId: (meta['studentId'] ?? null) as string | null,
-      levelId: (meta['levelId'] ?? null) as string | null,
-      sectionId: (meta['sectionId'] ?? null) as string | null,
-      createdAt: account.created_at as Date,
+      id:            account.id as string,
+      orgId:         account.org_id as string,
+      email:         account.email as string,
+      status:        account.status as string,
+      fullName:      (account.profile?.full_name ?? null) as string | null,
+      studentId:     (meta['studentId'] ?? null) as string | null,
+      levelId:       (meta['levelId'] ?? null) as string | null,
+      sectionId:     (meta['sectionId'] ?? null) as string | null,
+      createdAt:     account.created_at as Date,
       personalEmail: (account.profile?.personal_email ?? null) as string | null,
     };
   }
 
-  private async buildOrgEmail(orgId: string, emailName: string) {
-    const org = await this.organizationService.getOwn(orgId);
-    const extension = org?.emailExtension?.trim();
-    if (!extension) {
-      throw new BadRequestException(
-        'Set the organization email extension before creating student accounts.',
-      );
-    }
-
-    const localPart = emailName.trim().replace(/^@+/, '');
-    if (!localPart || localPart.includes('@')) {
-      throw new BadRequestException('Email name must not include an email extension.');
-    }
-
-    return `${localPart}${extension.startsWith('@') ? extension : `@${extension}`}`.toLowerCase();
-  }
-
   async create(orgId: string, dto: CreateStudentDto) {
-    const email = await this.buildOrgEmail(orgId, dto.emailName);
-    const emailTaken = await this.studentRepository.findByEmail(email, orgId);
+    const emailTaken = await this.studentRepository.findByEmail(dto.email, orgId);
     if (emailTaken) {
       throw new ConflictException(
         'An account with this email already exists in the organization.',
@@ -94,37 +77,33 @@ export class StudentService {
       );
     }
 
-    const plainPassword = generateSystemPassword();
+    const plainPassword  = generateSystemPassword();
     const hashedPassword = await hashPassword(plainPassword);
 
     const account = await this.studentRepository.create({
       orgId,
-      email,
+      email:          dto.email,
       hashedPassword,
-      status: StudentStatus.PENDING,
-      fullName: dto.fullName,
-      studentId: dto.studentId,
-      levelId: dto.levelId,
-      sectionId: dto.sectionId,
+      status:         StudentStatus.PENDING,
+      fullName:       dto.fullName,
+      studentId:      dto.studentId,
+      levelId:        dto.levelId,
+      sectionId:      dto.sectionId,
     });
 
     return { ...this.formatAccount(account), plainPassword };
   }
 
   async findAll(orgId: string, query: QueryStudentDto) {
-    // Pass ALL hierarchy filters straight to the repository.
-    // The repository resolves them via StudentSchoolYear → StudentProgramEnrollment.
-    // Do NOT post-filter on profile metadata — enrolled students store their
-    // level/section in StudentProgramEnrollment, not in profile.metadata.
     const accounts = await this.studentRepository.findAll(orgId, {
-      search: query.search,
-      status: query.status,
+      search:       query.search,
+      status:       query.status,
       schoolYearId: query.schoolYearId,
-      programId: query.programId,
-      courseId: query.courseId,
-      strandId: query.strandId,
-      levelId: query.levelId,
-      sectionId: query.sectionId,
+      programId:    query.programId,
+      courseId:     query.courseId,
+      strandId:     query.strandId,
+      levelId:      query.levelId,
+      sectionId:    query.sectionId,
     });
 
     return accounts.map((a) => this.formatAccount(a as Record<string, any>));
@@ -136,17 +115,13 @@ export class StudentService {
     return this.formatAccount(account as Record<string, any>);
   }
 
-  async update(id: string, orgId: string, dto: UpdateStudentDto) {
+  // actorId added — the admin performing the action, threaded from controller
+  async update(id: string, orgId: string, dto: UpdateStudentDto, actorId: string) {
     const account = await this.studentRepository.findById(id, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
-    let email = account.email;
-    if (dto.emailName) {
-      email = await this.buildOrgEmail(orgId, dto.emailName);
-    }
-
-    if (email && email !== account.email) {
-      const emailTaken = await this.studentRepository.findByEmail(email, orgId);
+    if (dto.email && dto.email !== account.email) {
+      const emailTaken = await this.studentRepository.findByEmail(dto.email, orgId);
       if (emailTaken) {
         throw new ConflictException(
           'An account with this email already exists in the organization.',
@@ -165,21 +140,36 @@ export class StudentService {
     }
 
     const updated = await this.studentRepository.updateProfile(id, {
-      fullName: dto.fullName,
-      email: email,
-      levelId: dto.levelId,
+      fullName:  dto.fullName,
+      email:     dto.email,
+      levelId:   dto.levelId,
       sectionId: dto.sectionId,
     });
+
+    // ── Audit log ──────────────────────────────────────────────────────────
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action:     'student_profile_changed',
+      entityType: 'student',
+      entityId:   id,
+      metadata:   {
+        changes: Object.fromEntries(
+          Object.entries(dto).filter(([, v]) => v !== undefined),
+        ),
+      },
+    }).catch(() => { /* fire-and-forget — never block the response */ });
 
     return this.formatAccount(updated as Record<string, any>);
   }
 
-  async updateStatus(id: string, orgId: string, dto: UpdateStudentStatusDto) {
+  // actorId added
+  async updateStatus(id: string, orgId: string, dto: UpdateStudentStatusDto, actorId: string) {
     const account = await this.studentRepository.findById(id, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
     const currentStatus = account.status as StudentStatus;
-    const newStatus = dto.status;
+    const newStatus     = dto.status;
 
     if (
       IRREVERSIBLE_STATUSES.includes(currentStatus) &&
@@ -188,12 +178,27 @@ export class StudentService {
       if (!dto.reason) {
         throw new BadRequestException(
           `Reversing a "${currentStatus}" status back to active requires a reason. ` +
-          `This action will be logged in the audit trail.`,
+            `This action will be logged in the audit trail.`,
         );
       }
     }
 
     const updated = await this.studentRepository.updateStatus(id, newStatus);
+
+    // ── Audit log ──────────────────────────────────────────────────────────
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action:     'student_status_changed',
+      entityType: 'student',
+      entityId:   id,
+      metadata:   {
+        from:   currentStatus,
+        to:     newStatus,
+        reason: dto.reason ?? null,
+      },
+    }).catch(() => {});
+
     return this.formatAccount(updated as Record<string, any>);
   }
 
@@ -203,7 +208,7 @@ export class StudentService {
       throw new BadRequestException('CSV file is empty or malformed.');
     }
 
-    const emails = rows.map((r) => r['Email']).filter(Boolean);
+    const emails     = rows.map((r) => r['Email']).filter(Boolean);
     const studentIds = rows.map((r) => r['Student ID']).filter(Boolean);
 
     const [existingEmails, existingStudentIds] = await Promise.all([
@@ -212,7 +217,7 @@ export class StudentService {
     ]);
 
     const takenEmailSet = new Set(existingEmails);
-    const takenIdSet = new Set(existingStudentIds);
+    const takenIdSet    = new Set(existingStudentIds);
 
     const validationReport: Array<{
       row: number;
@@ -222,7 +227,7 @@ export class StudentService {
     const validRows: Array<{ row: number; data: Record<string, string> }> = [];
 
     for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
+      const row    = rows[i];
       const errors: string[] = [];
       const rowNum = i + 2;
 
@@ -248,30 +253,30 @@ export class StudentService {
 
     if (validationReport.length > 0) {
       return {
-        status: 'validation_failed',
-        totalRows: rows.length,
-        validCount: validRows.length,
+        status:       'validation_failed',
+        totalRows:    rows.length,
+        validCount:   validRows.length,
         invalidCount: validationReport.length,
-        errors: validationReport,
-        message: 'Fix the errors and re-upload, or proceed with valid rows only.',
+        errors:       validationReport,
+        message:      'Fix the errors and re-upload, or proceed with valid rows only.',
       };
     }
 
     const created: Array<ReturnType<typeof this.formatAccount> & { plainPassword: string }> = [];
 
     for (const { data } of validRows) {
-      const plainPassword = generateSystemPassword();
+      const plainPassword  = generateSystemPassword();
       const hashedPassword = await hashPassword(plainPassword);
 
       const account = await this.studentRepository.create({
         orgId,
-        email: data['Email'],
+        email:          data['Email'],
         hashedPassword,
-        status: StudentStatus.PENDING,
-        fullName: data['Full Name'],
-        studentId: data['Student ID'],
-        levelId: data['Level ID'] || undefined,
-        sectionId: data['Section ID'] || undefined,
+        status:         StudentStatus.PENDING,
+        fullName:       data['Full Name'],
+        studentId:      data['Student ID'],
+        levelId:        data['Level ID'] || undefined,
+        sectionId:      data['Section ID'] || undefined,
       });
 
       created.push({ ...this.formatAccount(account), plainPassword });
@@ -280,14 +285,26 @@ export class StudentService {
     return { status: 'success', totalCreated: created.length, students: created };
   }
 
-  async resetPassword(id: string, orgId: string) {
+  // actorId added
+  async resetPassword(id: string, orgId: string, actorId: string) {
     const account = await this.studentRepository.findById(id, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
-    const plainPassword = generateSystemPassword();
+    const plainPassword  = generateSystemPassword();
     const hashedPassword = await hashPassword(plainPassword);
 
     await this.studentRepository.updatePassword(id, hashedPassword);
+
+    // ── Audit log ──────────────────────────────────────────────────────────
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action:     'password_reset',
+      entityType: 'student',
+      entityId:   id,
+      metadata:   null,
+    }).catch(() => {});
+
     return { id, plainPassword };
   }
 
@@ -296,13 +313,13 @@ export class StudentService {
     const rows = accounts.map((a) => {
       const meta = this.extractMeta(a as Record<string, any>);
       return {
-        fullName: a.profile?.full_name ?? '',
-        studentId: (meta['studentId'] ?? '') as string,
-        email: a.email,
+        fullName:      a.profile?.full_name ?? '',
+        studentId:     (meta['studentId'] ?? '') as string,
+        email:         a.email,
         plainPassword: '••••••••••',
-        levelId: (meta['levelId'] ?? '') as string,
-        sectionId: (meta['sectionId'] ?? '') as string,
-        status: a.status,
+        levelId:       (meta['levelId'] ?? '') as string,
+        sectionId:     (meta['sectionId'] ?? '') as string,
+        status:        a.status,
       };
     });
     return buildCredentialsCsv(rows);
@@ -326,7 +343,7 @@ export class StudentService {
     return this.enrollmentRepo.findByStudentAcrossOrg(studentId, orgId);
   }
 
-  async addEnrollment(studentId: string, orgId: string, classId: string) {
+  async addEnrollment(studentId: string, orgId: string, classId: string, actorId: string) {
     const account = await this.studentRepository.findById(studentId, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
@@ -357,19 +374,46 @@ export class StudentService {
     if (cls.capacity > 0) {
       const activeCount = await this.enrollmentRepo.countActive(classId);
       if (activeCount >= cls.capacity) {
+        // ── Audit: capacity overflow ──────────────────────────────────────
+        this.auditLogService.logAdminAction({
+          orgId,
+          actorId,
+          action:     'class_capacity_overflow',
+          entityType: 'class',
+          entityId:   classId,
+          metadata:   { studentId, capacity: cls.capacity },
+        }).catch(() => {});
+
         return {
-          overflow: true,
-          message: `Class is at full capacity (${cls.capacity} students).`,
+          overflow:  true,
+          message:   `Class is at full capacity (${cls.capacity} students).`,
           classId,
           studentId,
         };
       }
     }
 
-    return this.enrollmentRepo.create({ orgId, classId, studentId, status: 'active' });
+    const enrollment = await this.enrollmentRepo.create({
+      orgId,
+      classId,
+      studentId,
+      status: 'active',
+    });
+
+    // ── Audit: enrollment created ─────────────────────────────────────────
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action:     'enrollment_created',
+      entityType: 'enrollment',
+      entityId:   (enrollment as any).id,
+      metadata:   { studentId, classId },
+    }).catch(() => {});
+
+    return enrollment;
   }
 
-  async deleteEnrollment(studentId: string, enrollmentId: string, orgId: string) {
+  async deleteEnrollment(studentId: string, enrollmentId: string, orgId: string, actorId: string) {
     const account = await this.studentRepository.findById(studentId, orgId);
     if (!account) throw new NotFoundException('Student not found.');
 
@@ -381,27 +425,35 @@ export class StudentService {
       throw new ConflictException('Enrollment is already removed.');
     }
 
-    return this.enrollmentRepo.updateStatus(enrollmentId, 'removed');
+    const result = await this.enrollmentRepo.updateStatus(enrollmentId, 'removed');
+
+    // ── Audit: enrollment removed ─────────────────────────────────────────
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action:     'enrollment_removed',
+      entityType: 'enrollment',
+      entityId:   enrollmentId,
+      metadata:   { studentId, classId: enrollment.class_id },
+    }).catch(() => {});
+
+    return result;
   }
 
   async getEducatorClasses(educatorId: string, orgId: string) {
     const classes = await this.classRepository.findAll(orgId, { educatorId });
     return Promise.all(
       classes.map(async (cls) => {
-        const { subject } = await this.classRepository.findSubjectWithEducator(
-          cls.subject_id,
-          cls.educator_id,
-          orgId,
-        );
+        const { subject } = await this.classRepository.findSubjectWithEducator(cls.id);
         return {
-          id: cls.id,
-          subjectId: cls.subject_id,
-          subjectName: subject?.name ?? null,
-          sectionId: cls.section_id,
+          id:           cls.id,
+          subjectId:    cls.subject_id,
+          subjectName:  subject?.name ?? null,
+          sectionId:    cls.section_id,
           schoolYearId: cls.school_year_id,
-          semesterId: cls.semester_id,
-          capacity: cls.capacity,
-          schedules: cls.schedules,
+          semesterId:   cls.semester_id,
+          capacity:     cls.capacity,
+          schedules:    cls.schedules,
         };
       }),
     );

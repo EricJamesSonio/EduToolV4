@@ -1,133 +1,282 @@
-import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from "@tanstack/react-query";
+import {
+  useQueryClient,
+  type UseQueryResult,
+  type UseMutationResult,
+} from "@tanstack/react-query";
+
+import {
+  useAsyncQuery,
+  useMutationWithInvalidation,
+} from "@/hooks/hook-factory.utils";
+
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { educatorApi } from "@/api/admin/educator.api";
-import type { CreateEducatorRequest, CreateEducatorResponse, UpdateEducatorRequest } from "@/api/admin/educator.api";
+
+import type {
+  CreateEducatorRequest,
+  CreateEducatorResponse,
+  UpdateEducatorRequest,
+} from "@/api/admin/educator.api";
+
 import type { Educator } from "@/types/admin/educator.types";
-import { educatorKeys } from "@/hooks/queryKeys";
-import { createStandardMutationOptions } from "@/lib/error-handling";
-import { QUERY_CONFIGS } from "@/lib/query-client";
+
 import { toast } from "sonner";
 
-export const useEducators = (search?: string): UseQueryResult<Educator[], Error> => {
-  return useQuery({
-    queryKey: educatorKeys.list({ search }),
-    queryFn: () => educatorApi.getAll(search),
-    ...QUERY_CONFIGS.list,
-  });
+
+// ─────────────────────────────────────────────
+// LIST
+// ─────────────────────────────────────────────
+export const useEducators = (
+  search?: string,
+): UseQueryResult<Educator[], Error> => {
+  return useAsyncQuery<Educator[]>(
+    queryKeys.admin.educators.list({ search }),
+    () => educatorApi.getAll(search),
+    {
+      staleTime: 1000 * 60,
+    },
+  );
 };
 
-export const useEducator = (id: string): UseQueryResult<Educator, Error> => {
-  return useQuery({
-    queryKey: educatorKeys.detail(id),
-    queryFn: () => educatorApi.getOne(id),
-    enabled: !!id,
-    ...QUERY_CONFIGS.detail,
-  });
+
+// ─────────────────────────────────────────────
+// DETAIL
+// ─────────────────────────────────────────────
+export const useEducator = (
+  id: string,
+): UseQueryResult<Educator, Error> => {
+  return useAsyncQuery<Educator>(
+    queryKeys.admin.educators.detail(id),
+    () => educatorApi.getOne(id),
+    {
+      enabled: !!id,
+      staleTime: 1000 * 60 * 5,
+    },
+  );
 };
 
-export const useCreateEducator = (): UseMutationResult<CreateEducatorResponse, Error, CreateEducatorRequest> => {
-  const queryClient = useQueryClient();
 
-  const standardOptions = createStandardMutationOptions({
-    entity: "Educator",
-    operation: "create",
-  });
+// ─────────────────────────────────────────────
+// CREATE (FIXED REAL-TIME INVALIDATION)
+// ─────────────────────────────────────────────
+export const useCreateEducator =
+  (): UseMutationResult<
+    CreateEducatorResponse,
+    Error,
+    CreateEducatorRequest
+  > => {
+    const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: educatorApi.create,
-    onSuccess: (newEducator) => {
-      queryClient.setQueryData(educatorKeys.detail(newEducator.id), newEducator);
-      queryClient.invalidateQueries({ queryKey: educatorKeys.lists() });
-      standardOptions.onSuccess?.(newEducator);
-    },
-    onError: standardOptions.onError,
-  });
-};
+    return useMutationWithInvalidation<
+      CreateEducatorResponse,
+      Error,
+      CreateEducatorRequest
+    >(
+      (data) => educatorApi.create(data),
+      {
+        // 🔥 FIX: invalidate ALL educator lists properly
+        invalidateKeys: [
+          queryKeys.admin.educators.list({}),
+        ],
 
-export const useUpdateEducator = (): UseMutationResult<Educator, Error, { id: string; data: UpdateEducatorRequest }> => {
-  const queryClient = useQueryClient();
+        onSuccess: (newEducator) => {
+          // detail cache
+          queryClient.setQueryData(
+            queryKeys.admin.educators.detail(
+              newEducator.id,
+            ),
+            newEducator,
+          );
 
-  const standardOptions = createStandardMutationOptions({
-    entity: "Educator",
-    operation: "update",
-  });
+          toast.success(
+            "Educator created successfully",
+          );
+        },
 
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateEducatorRequest }) =>
-      educatorApi.update(id, data),
-    onMutate: async ({ id, data }) => {
-      await queryClient.cancelQueries({ queryKey: educatorKeys.detail(id) });
+        onError: (error: any) => {
+          toast.error(
+            error?.response?.data?.message ||
+              "Failed to create educator",
+          );
+        },
+      },
+    );
+  };
 
-      const previousEducator = queryClient.getQueryData(educatorKeys.detail(id));
 
-      queryClient.setQueryData(educatorKeys.detail(id), (old: Educator) =>
-        old ? { ...old, ...data } : null
-      );
+// ─────────────────────────────────────────────
+// UPDATE (OPTIMISTIC)
+// ─────────────────────────────────────────────
+export const useUpdateEducator =
+  (): UseMutationResult<
+    Educator,
+    Error,
+    { id: string; data: UpdateEducatorRequest }
+  > => {
+    const queryClient = useQueryClient();
 
-      return { previousEducator };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousEducator) {
-        queryClient.setQueryData(educatorKeys.detail(variables.id), context.previousEducator);
-      }
-      standardOptions.onError?.(err);
-    },
-    onSettled: (data, error, variables) => {
-      queryClient.invalidateQueries({ queryKey: educatorKeys.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: educatorKeys.lists() });
-      standardOptions.onSettled?.(data, error, variables as any);
-    },
-    onSuccess: () => {
-      standardOptions.onSuccess?.();
-    },
-  });
-};
+    return useMutationWithInvalidation<
+      Educator,
+      Error,
+      { id: string; data: UpdateEducatorRequest }
+    >(
+      ({ id, data }) =>
+        educatorApi.update(id, data),
+      {
+        invalidateKeys: [
+          queryKeys.admin.educators.list({}),
+        ],
 
-export const useDeleteEducator = (): UseMutationResult<void, Error, string> => {
-  const queryClient = useQueryClient();
+        onMutate: async ({ id, data }) => {
+          await queryClient.cancelQueries({
+            queryKey:
+              queryKeys.admin.educators.detail(
+                id,
+              ),
+          });
 
-  const standardOptions = createStandardMutationOptions({
-    entity: "Educator",
-    operation: "delete",
-  });
+          const previous =
+            queryClient.getQueryData<Educator>(
+              queryKeys.admin.educators.detail(
+                id,
+              ),
+            );
 
-  return useMutation({
-    mutationFn: educatorApi.delete,
-    onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: educatorKeys.detail(id) });
+          queryClient.setQueryData<
+            Educator
+          >(
+            queryKeys.admin.educators.detail(
+              id,
+            ),
+            (old) =>
+              old ? { ...old, ...data } : old,
+          );
 
-      const previousEducator = queryClient.getQueryData(educatorKeys.detail(id));
+          return { previous };
+        },
 
-      queryClient.removeQueries({ queryKey: educatorKeys.detail(id) });
+        onError: (err, variables, context: any) => {
+          if (context?.previous) {
+            queryClient.setQueryData(
+              queryKeys.admin.educators.detail(
+                variables.id,
+              ),
+              context.previous,
+            );
+          }
 
-      return { previousEducator };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousEducator) {
-        queryClient.setQueryData(educatorKeys.detail(variables), context.previousEducator);
-      }
-      standardOptions.onError?.(err);
-    },
-    onSettled: (data, error, variables) => {
-      queryClient.invalidateQueries({ queryKey: educatorKeys.lists() });
-      standardOptions.onSettled?.(data, error, variables as any);
-    },
-    onSuccess: () => {
-      standardOptions.onSuccess?.();
-    },
-  });
-};
+          toast.error(
+            "Failed to update educator",
+          );
+        },
 
-export const useResetEducatorPassword = (): UseMutationResult<{ id: string; plainPassword: string }, Error, string> => {
-  const standardOptions = createStandardMutationOptions({
-    entity: "Educator",
-    operation: "resetPassword",
-  });
+        onSuccess: () => {
+          toast.success(
+            "Educator updated successfully",
+          );
+        },
+      },
+    );
+  };
 
-  return useMutation({
-    mutationFn: educatorApi.resetPassword,
-    onSuccess: () => {
-      standardOptions.onSuccess?.();
-    },
-    onError: standardOptions.onError,
-  });
-};
+
+// ─────────────────────────────────────────────
+// DELETE (OPTIMISTIC)
+// ─────────────────────────────────────────────
+export const useDeleteEducator =
+  (): UseMutationResult<void, Error, string> => {
+    const queryClient = useQueryClient();
+
+    return useMutationWithInvalidation<
+      void,
+      Error,
+      string
+    >(
+      (id) => educatorApi.delete(id),
+      {
+        invalidateKeys: [
+          queryKeys.admin.educators.list({}),
+        ],
+
+        onMutate: async (id) => {
+          await queryClient.cancelQueries({
+            queryKey:
+              queryKeys.admin.educators.detail(
+                id,
+              ),
+          });
+
+          const previous =
+            queryClient.getQueryData<Educator>(
+              queryKeys.admin.educators.detail(
+                id,
+              ),
+            );
+
+          queryClient.removeQueries({
+            queryKey:
+              queryKeys.admin.educators.detail(
+                id,
+              ),
+          });
+
+          return { previous };
+        },
+
+        onError: (err, id, context: any) => {
+          if (context?.previous) {
+            queryClient.setQueryData(
+              queryKeys.admin.educators.detail(
+                id,
+              ),
+              context.previous,
+            );
+          }
+
+          toast.error(
+            "Failed to delete educator",
+          );
+        },
+
+        onSuccess: () => {
+          toast.success(
+            "Educator deleted successfully",
+          );
+        },
+      },
+    );
+  };
+
+
+// ─────────────────────────────────────────────
+// RESET PASSWORD
+// ─────────────────────────────────────────────
+export const useResetEducatorPassword =
+  (): UseMutationResult<
+    { id: string; plainPassword: string },
+    Error,
+    string
+  > => {
+    return useMutationWithInvalidation<
+      { id: string; plainPassword: string },
+      Error,
+      string
+    >(
+      (id) =>
+        educatorApi.resetPassword(id),
+      {
+        invalidateKeys: [],
+        onSuccess: () => {
+          toast.success(
+            "Password reset successfully",
+          );
+        },
+        onError: (error: any) => {
+          toast.error(
+            error?.response?.data?.message ||
+              "Failed to reset password",
+          );
+        },
+      },
+    );
+  };

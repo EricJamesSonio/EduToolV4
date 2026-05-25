@@ -8,10 +8,18 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
     <InputPrimitive
       type={type}
       data-slot="input"
-      className={cn(
-        "h-8 w-full min-w-0 rounded-lg bg-white border-2 border-gray-300 px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:border-gray-300 disabled:opacity-70 aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm",
-        className
-      )}
+className={cn(
+  "flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition-colors",
+  "placeholder:text-muted-foreground",
+  "focus-visible:border-gray-500 focus-visible:outline-none focus-visible:ring-0",
+  "disabled:cursor-not-allowed disabled:opacity-50",
+
+  // 🔥 fix autofill blue
+  "[&:-webkit-autofill]:bg-white",
+  "[&:-webkit-autofill]:text-black",
+  "[&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_white]",
+  "[&:-webkit-autofill]:transition-colors"
+)}
       {...props}
     />
   )

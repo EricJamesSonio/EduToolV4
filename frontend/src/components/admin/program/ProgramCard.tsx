@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { Eye, Trash2, GraduationCap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PROGRAM_TYPE_LABELS } from "./constants";
+import { cn } from "@/lib/utils";
+import { PROGRAM_TYPE_LABELS, PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
 import type { Program } from "@/types/admin/program.types";
 
 interface ProgramCardProps {
@@ -18,19 +19,23 @@ export function ProgramCard({ program, onDelete }: ProgramCardProps): React.JSX.
   const courseCount = program.courses?.length ?? 0;
   const strandCount = program.strands?.length ?? 0;
 
-  // Use `as const` cast ensures TS knows this is a valid ProgramType key
   const label = PROGRAM_TYPE_LABELS[program.type as keyof typeof PROGRAM_TYPE_LABELS];
+  const color = PROGRAM_TYPE_COLORS[program.type as keyof typeof PROGRAM_TYPE_COLORS]
+    ?? "bg-slate-500/10 text-slate-600 border-slate-200";
 
   return (
     <div className="rounded-lg border bg-card p-5 space-y-4">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 shrink-0 mt-0.5">
-          <GraduationCap className="h-4.5 w-4.5 text-primary" />
+        <div className="icon-container icon-edu shrink-0 mt-0.5">
+          <GraduationCap className="h-4.5 w-4.5" />
         </div>
         <div className="space-y-1">
           <h3 className="font-semibold text-sm leading-tight">{program.name}</h3>
           <div className="flex items-center gap-2">
-            <Badge variant={isCustom ? "outline" : "secondary"} className="text-xs">
+            <Badge
+              variant="outline"
+              className={cn("text-xs border px-2 py-0.5", color)}
+            >
               {label}
             </Badge>
             {courseCount > 0 && (

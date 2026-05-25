@@ -1,0 +1,207 @@
+// ===== File: frontend/src/components/admin/grading-scale/GradingScaleList.tsx =====
+"use client";
+
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import type { AxiosError } from "axios";
+import { Plus, MoreHorizontal, Pencil, Trash2, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { gradingScaleApi } from "@/api/admin/grading-scale.api";
+import type { GradingScale } from "@/types/admin/grading-scale.types";
+
+interface GradingScaleListProps {
+  scales: GradingScale[];
+  isLoading: boolean;
+  onCreateClick: () => void;
+  onEditClick: (scale: GradingScale) => void;
+}
+
+function passingThreshold(scale: GradingScale): string {
+  const passingRanges = scale.ranges.filter((r) => r.isPassing);
+  if (passingRanges.length === 0) return "—";
+  const min = Math.min(...passingRanges.map((r) => r.minPercent));
+  return `${min}%`;
+}
+
+export function GradingScaleList({
+  scales,
+  isLoading,
+  onCreateClick,
+  onEditClick,
+}: GradingScaleListProps) {
+  const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<GradingScale | null>(null);
+  
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => gradingScaleApi.delete(id),
+    onSuccess: () => {
+      toast.success("Grading scale deleted.");
+      queryClient.invalidateQueries({ queryKey: ["gradingScales"] });
+      setDeleteTarget(null);
+    },
+    onError: (e) => {
+      const err = e as AxiosError<{ message: string }>;
+      toast.error(err?.response?.data?.message ?? "Failed to delete.");
+      setDeleteTarget(null);
+    },
+  });
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-12 w-full rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+
+  if (scales.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed px-4 py-8 text-center">
+        <p className="text-sm font-medium text-muted-foreground">No grading scales yet</p>
+        <p className="text-xs text-muted-foreground mt-1">Create your first grading scale template</p>
+        <Button size="sm" variant="outline" className="mt-3" onClick={onCreateClick}>
+          <Plus className="h-3.5 w-3.5 mr-1.5" /> New Scale
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-2">
+        {scales.map((scale) => (
+          <div
+            key={scale.id}
+            className="rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+          >
+            <div
+              className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none"
+              onClick={() =>
+                setExpanded(expanded === scale.id ? null : scale.id)
+              }
+            >
+              <ChevronRight
+                className={cn(
+                  "h-4 w-4 text-muted-foreground transition-transform shrink-0",
+                  expanded === scale.id && "rotate-90"
+                )}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{scale.name}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">
+                  {scale.ranges.length} range{scale.ranges.length !== 1 ? "s" : ""}
+                </span>
+                <Badge variant="outline" className="font-mono text-xs">
+                  {passingThreshold(scale)}
+                </Badge>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded hover:bg-accent"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditClick(scale);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    disabled={scale.isLocked}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget(scale);
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {expanded === scale.id && (
+              <div className="border-t px-4 py-3 bg-muted/20 space-y-2">
+                {scale.ranges.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">No ranges defined</p>
+                ) : (
+                  scale.ranges.map((range, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        {range.name} ({range.minPercent}–{range.maxPercent}%)
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {range.isPassing && (
+                          <Badge variant="secondary" className="text-xs">Passing</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {deleteTarget && (
+        <Dialog open onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Delete grading scale?</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Delete <strong>&quot;{deleteTarget.name}&quot;</strong>? This cannot be undone.
+            </p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={deleteMutation.isPending || deleteTarget.isLocked}
+                onClick={handleDelete}
+              >
+                {deleteMutation.isPending ? "Deleting…" : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
+}

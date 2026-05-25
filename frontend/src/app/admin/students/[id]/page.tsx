@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -76,6 +76,15 @@ export default function StudentDetailPage({
 
   const enrollments = enrollmentsRaw ?? [];
   const programEnrollments = schoolYearEnrollments ?? [];
+  const programIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const e of programEnrollments) {
+      for (const pe of e.programEnrollments) {
+        if (pe.program_id) ids.add(pe.program_id);
+      }
+    }
+    return Array.from(ids);
+  }, [programEnrollments]);
 
   // ── Remove enrollment ────────────────────────────────────────────────────
   const removeEnrollmentMutation = useMutation({
@@ -148,6 +157,7 @@ export default function StudentDetailPage({
       <StudentEnrollmentsList
         enrollments={enrollments}
         isLoading={enrollmentsLoading}
+        programIds={programIds}
         onEnroll={() => setEnrollOpen(true)}
         onRemove={setRemoveTarget}
       />
@@ -181,6 +191,7 @@ export default function StudentDetailPage({
         <EnrollStudentInClassDialog
           open={enrollOpen}
           studentId={id}
+          programIds={programIds}
           onClose={() => setEnrollOpen(false)}
         />
       )}

@@ -1,6 +1,8 @@
 // src/app.module.ts
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 import { CoreModule } from './core/core.module';
 
@@ -13,12 +15,16 @@ import { PlatformDomainModule } from './domains/platform/platform-domain.module'
 import { SchedulerModule } from './core/scheduler/scheduler.module';
 
 import { HealthModule } from './modules/health/health.module';
-import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
-    // ServeStaticModule removed — frontend is served by Next.js
+
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
+      serveStaticOptions: { index: false },
+    }),
 
     CoreModule,
     SchedulerModule,
@@ -30,7 +36,6 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     PlatformDomainModule,
 
     HealthModule,
-    DashboardModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}

@@ -11,82 +11,95 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
-        mono: ["var(--font-geist-mono)", "monospace"],
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "monospace"],
+        heading: ["var(--font-heading)", "system-ui", "sans-serif"],
       },
-      colors: {
-        // Brand palette — EduTool primary blue
-        brand: {
-          50: "#eff6ff",
-          100: "#dbeafe",
-          200: "#bfdbfe",
-          300: "#93c5fd",
-          400: "#60a5fa",
-          500: "#3b82f6",
-          600: "#2563eb",
-          700: "#1d4ed8",
-          800: "#1e40af",
-          900: "#1e3a8a",
-          950: "#172554",
-        },
-        // Sidebar specific
-        sidebar: {
-          bg: "hsl(var(--sidebar-bg))",
-          border: "hsl(var(--sidebar-border))",
-          text: "hsl(var(--sidebar-text))",
-          "text-muted": "hsl(var(--sidebar-text-muted))",
-          active: "hsl(var(--sidebar-active))",
-          "active-text": "hsl(var(--sidebar-active-text))",
-          hover: "hsl(var(--sidebar-hover))",
-        },
-        // Surface colors for cards / panels
-        surface: {
-          DEFAULT: "hsl(var(--surface))",
-          raised: "hsl(var(--surface-raised))",
-          overlay: "hsl(var(--surface-overlay))",
-        },
-        // shadcn/ui required tokens (do not remove)
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
-        },
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        chart: {
-          "1": "hsl(var(--chart-1))",
-          "2": "hsl(var(--chart-2))",
-          "3": "hsl(var(--chart-3))",
-          "4": "hsl(var(--chart-4))",
-          "5": "hsl(var(--chart-5))",
-        },
-      },
+colors: {
+  // Brand palette — static OK for hard colors
+  brand: {
+    50: "#eff6ff",
+    100: "#dbeafe",
+    200: "#bfdbfe",
+    300: "#93c5fd",
+    400: "#60a5fa",
+    500: "#3b82f6",
+    600: "#2563eb",
+    700: "#1d4ed8",
+    800: "#1e40af",
+    900: "#1e3a8a",
+    950: "#172554",
+  },
+
+  // Sidebar (OPTIONAL if you still use it)
+  sidebar: {
+    bg: "var(--sidebar-bg)",
+    border: "var(--sidebar-border)",
+    text: "var(--sidebar-text)",
+    "text-muted": "var(--sidebar-text-muted)",
+    active: "var(--sidebar-active)",
+    "active-text": "var(--sidebar-active-text)",
+    hover: "var(--sidebar-hover)",
+  },
+
+  // Surface system (optional future use)
+  surface: {
+    DEFAULT: "var(--surface)",
+    raised: "var(--surface-raised)",
+    overlay: "var(--surface-overlay)",
+  },
+
+  // ✅ CORE THEME TOKENS (FIXED)
+  background: "var(--background)",
+  foreground: "var(--foreground)",
+
+  card: {
+    DEFAULT: "var(--card)",
+    foreground: "var(--card-foreground)",
+  },
+
+  popover: {
+    DEFAULT: "var(--popover)",
+    foreground: "var(--popover-foreground)",
+  },
+
+  primary: {
+    DEFAULT: "var(--primary)",
+    foreground: "var(--primary-foreground)",
+  },
+
+  secondary: {
+    DEFAULT: "var(--secondary)",
+    foreground: "var(--secondary-foreground)",
+  },
+
+  muted: {
+    DEFAULT: "var(--muted)",
+    foreground: "var(--muted-foreground)",
+  },
+
+  accent: {
+    DEFAULT: "var(--accent)",
+    foreground: "var(--accent-foreground)",
+  },
+
+  destructive: {
+    DEFAULT: "var(--destructive)",
+    foreground: "var(--destructive-foreground)",
+  },
+
+  border: "var(--border)",
+  input: "var(--input)",
+  ring: "var(--ring)",
+
+  chart: {
+    "1": "var(--chart-1)",
+    "2": "var(--chart-2)",
+    "3": "var(--chart-3)",
+    "4": "var(--chart-4)",
+    "5": "var(--chart-5)",
+  },
+},
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -94,9 +107,9 @@ const config: Config = {
       },
       // Sidebar dimensions
       spacing: {
-        "sidebar": "240px",
+        sidebar: "240px",
         "sidebar-collapsed": "64px",
-        "topbar": "56px",
+        topbar: "56px",
       },
       keyframes: {
         "accordion-down": {

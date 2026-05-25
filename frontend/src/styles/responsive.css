@@ -8,19 +8,6 @@
 /* Tablet (768px and up) */
 @media (min-width: 768px) {
 
-  /* Adjust font sizes for larger screens */
-  h1 {
-    font-size: clamp(2rem, 4vw, 2.5rem);
-  }
-
-  h2 {
-    font-size: clamp(1.75rem, 3vw, 2.125rem);
-  }
-
-  h3 {
-    font-size: clamp(1.5rem, 2.5vw, 1.75rem);
-  }
-
   /* Increase padding for larger screens */
   .page-container {
     padding-inline: clamp(2rem, 5vw, 4rem);
@@ -35,19 +22,6 @@
 
 /* Desktop (1024px and up) */
 @media (min-width: 1024px) {
-
-  /* Full-size headings on desktop */
-  h1 {
-    font-size: 2.25rem;
-  }
-
-  h2 {
-    font-size: 1.875rem;
-  }
-
-  h3 {
-    font-size: 1.5rem;
-  }
 
   /* Maximum padding on large screens */
   .page-container {
@@ -92,15 +66,15 @@
   }
 
   h1 {
-    font-size: 1.5rem;
+    font-size: clamp(2rem, 10vw, 3rem);
   }
 
   h2 {
-    font-size: 1.25rem;
+    font-size: clamp(1.5rem, 7vw, 2.25rem);
   }
 
   h3 {
-    font-size: 1.125rem;
+    font-size: clamp(1.25rem, 5vw, 1.75rem);
   }
 
   /* Compact table cells on mobile */

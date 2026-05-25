@@ -16,6 +16,10 @@ export interface GradeLockSetting {
 export interface GradeLockClassSubject {
   id: string
   name: string
+  program_id?: string | null
+  course_id?: string | null
+  strand_id?: string | null
+  level_id?: string | null
   program?: { id: string; name: string } | null
   course?: { id: string; name: string } | null
   strand?: { id: string; name: string } | null
@@ -24,6 +28,7 @@ export interface GradeLockClassSubject {
 
 export interface GradeLockClass {
   id: string
+  program_id?: string | null
   subject_id: string
   educator_id: string
   school_year_id: string
@@ -34,6 +39,10 @@ export interface GradeLock {
   id: string
   org_id: string
   class_id: string
+
+  // ✅ add this
+  setting_id?: string | null
+
   is_locked: boolean
   locked_by: string | null
   locked_at: string | null

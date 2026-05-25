@@ -2,15 +2,24 @@ export type AssessmentType = "quiz" | "exam" | "activity" | "custom";
 
 export interface AssessmentScore {
   assessmentId: string;
+  submissionId?: string;
   type: AssessmentType;
+  title?: string | null;
   score: number | null;
   manualScore: number | null;
   totalItems: number;
   status: string;
+  gradingMode?: string;
+  systemSectionScore?: number | null;
+  manualSectionScore?: number | null;
+  isMissed?: boolean;
+  isExempted?: boolean;
+  created_at?: string | null;
 }
 
 export interface CategoryBreakdown {
   category: string;
+  type?: string;
   weight: number;
   rawAverage: number;
   manualScore: number | null;
@@ -34,5 +43,7 @@ export interface StudentGrade {
 export interface TermGrades {
   termId: string;
   termName: string;
+  semesterId?: string;
+  semesterName?: string;
   students: StudentGrade[];
 }

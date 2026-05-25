@@ -156,4 +156,10 @@ export class GradingSchemeService {
   async lockForClass(classId: string) {
     return this.repo.lockByClassId(classId);
   }
+
+  async getAllowedAssessmentTypes(classId: string, orgId: string): Promise<string[]> {
+    const scheme = await this.repo.findByClassId(classId, orgId);
+    if (!scheme) return [];
+    return scheme.components.map((c) => c.type);
+  }
 }

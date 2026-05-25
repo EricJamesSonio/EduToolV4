@@ -202,13 +202,163 @@ async assignToProgram(orgId: string, dto: AssignTemplateDto) {
     )
   }
 
-  return this.repo.assignToProgram({
+  // Validate program has an Academic Calendar with matching break count
+  const calendar = await this.db.programCalendar.findFirst({
+    where: { program_id: program.id, school_year_id: program.school_year_id, org_id: orgId },
+    include: { breaks: { orderBy: { order_index: 'asc' } } },
+  })
+
+  if (!calendar) {
+    throw new BadRequestException(
+      `Program "${program.name}" has no Academic Calendar set up. Set up a calendar first before assigning a semester template.`,
+    )
+  }
+
+  const breakCount = calendar.breaks.length
+  const semesterCount = template.semesters.length
+
+  if (breakCount !== semesterCount) {
+    throw new BadRequestException(
+      `Template "${template.name}" has ${semesterCount} semester(s) but the program calendar has ${breakCount} break point(s). The semester count must match the number of calendar breaks.`,
+    )
+  }
+
+  const assignment = await this.repo.assignToProgram({
     orgId,
     programId: dto.programId,
     templateId: dto.templateId,
     termDates: dto.termDates,
   })
+
+  if (dto.termDates && dto.termDates.length > 0) {
+    await this.saveTermDates(orgId, dto.programId, dto.termDates)
+  } else {
+    await this.createPlaceholderSemesters(orgId, program.school_year_id, template)
+  }
+
+  return assignment
 }
+
+private async createPlaceholderSemesters(
+  orgId: string,
+  schoolYearId: string,
+  template: any,
+) {
+  for (const semItem of template.semesters) {
+    const existingSemester = await this.db.semester.findFirst({
+      where: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        name: semItem.name,
+      },
+    })
+
+    if (existingSemester) continue
+
+    // Create with placeholder dates (can be updated later)
+    const semester = await this.db.semester.create({
+      data: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        name: semItem.name,
+        start_date: new Date(),
+        end_date: new Date(),
+      },
+    })
+
+    // Create placeholder terms
+    for (const termItem of semItem.terms) {
+      await this.db.term.create({
+        data: {
+          org_id: orgId,
+          semester_id: semester.id,
+          name: termItem.name,
+          order_index: termItem.orderIndex ?? termItem.order_index ?? 0, // ✅ FIX: Add order_index
+          start_date: new Date(),
+          end_date: new Date(),
+        },
+      })
+    }
+  }
+}
+
+  /**
+   * Compute smart default term dates from calendar breaks + template.
+   * Each break IS a semester teaching period. The gaps between breaks
+   * are no-class periods. Each semester's duration is equally divided
+   * among its terms.
+   */
+  async computeDefaultTermDates(
+    orgId: string,
+    programId: string,
+    templateId: string,
+  ) {
+    const template = await this.repo.findById(templateId, orgId)
+    if (!template) throw new NotFoundException('Semester template not found.')
+
+    const program = await this.programRepo.findById(programId, orgId)
+    if (!program) throw new NotFoundException('Program not found.')
+
+    const calendar = await this.db.programCalendar.findFirst({
+      where: { program_id: programId, school_year_id: program.school_year_id, org_id: orgId },
+      include: { breaks: { orderBy: { order_index: 'asc' } } },
+    })
+
+    if (!calendar) return []
+
+    const breaks = calendar.breaks
+
+    // Build semester periods from calendar breaks.
+    // Each break IS a semester period. The gaps between breaks are no-class periods.
+    const semPeriods: Array<{ start: Date; end: Date }> = []
+
+    for (let i = 0; i < breaks.length; i++) {
+      const semStart = new Date(breaks[i].start_date)
+      const semEnd   = new Date(breaks[i].end_date)
+
+      if (semStart <= semEnd) {
+        semPeriods.push({ start: semStart, end: semEnd })
+      }
+    }
+
+    // Map each template semester to the corresponding teaching period
+    const result: Array<{
+      termId:     string
+      startDate:  string
+      endDate:    string
+    }> = []
+
+    for (let si = 0; si < template.semesters.length && si < semPeriods.length; si++) {
+      const sem = template.semesters[si]
+      const period = semPeriods[si]
+      const totalDays = Math.round(
+        (period.end.getTime() - period.start.getTime()) / (1000 * 60 * 60 * 24),
+      ) + 1
+      const termCount = sem.terms.length
+      const daysPerTerm = termCount > 0 ? Math.floor(totalDays / termCount) : totalDays
+
+      for (let ti = 0; ti < termCount; ti++) {
+        const term = sem.terms[ti]
+        const tStart = new Date(period.start)
+        tStart.setDate(tStart.getDate() + ti * daysPerTerm)
+
+        const tEnd = ti === termCount - 1
+          ? new Date(period.end)
+          : new Date(tStart)
+        if (ti < termCount - 1) {
+          tEnd.setDate(tStart.getDate() + daysPerTerm - 1)
+        }
+
+        result.push({
+          termId:    term.id ?? '',
+          startDate: tStart.toISOString().slice(0, 10),
+          endDate:   tEnd.toISOString().slice(0, 10),
+        })
+      }
+    }
+
+    return result
+  }
 
   async removeAssignment(programId: string, orgId: string) {
     await this.repo.removeAssignment(programId, orgId)

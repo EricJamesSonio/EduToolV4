@@ -1,71 +1,73 @@
-// frontend\src\components\admin\class\CreateClassDialog.tsx
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import type { AxiosError } from "axios";
-import { classApi } from "@/api/admin/class.api";
+import { AlertTriangle, ArrowRight } from "lucide-react";
+
+import { classApi }            from "@/api/admin/class.api";
 import type { CreateClassRequest, ScheduleSlot } from "@/api/admin/class.api";
-import { subjectApi } from "@/api/admin/subject.api";
-import { educatorApi } from "@/api/admin/educator.api";
-import { programApi } from "@/api/admin/program.api";
-import { courseApi } from "@/api/admin/course.api";
-import { strandApi } from "@/api/admin/strand.api";
-import { levelApi } from "@/api/admin/level.api";
-import { sectionApi } from "@/api/admin/section.api";
-import type { Level } from "@/types/admin/level.types";
-import type { Subject } from "@/types/admin/subject.types";
-import type { Class } from "@/types/admin/class.types";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { subjectApi }          from "@/api/admin/subject.api";
+import { educatorApi }         from "@/api/admin/educator.api";
+import { programApi }          from "@/api/admin/program.api";
+import { courseApi }           from "@/api/admin/course.api";
+import { strandApi }           from "@/api/admin/strand.api";
+import { levelApi }            from "@/api/admin/level.api";
+import { sectionApi }          from "@/api/admin/section.api";
+import { semesterTemplateApi } from "@/api/admin/semester-template.api";
+import type { Level }          from "@/types/admin/level.types";
+import type { Subject }        from "@/types/admin/subject.types";
+
+import { Button }   from "@/components/ui/button";
+import { Input }    from "@/components/ui/input";
+import { Label }    from "@/components/ui/label";
+import { Badge }    from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ScheduleSlotFields } from "./ScheduleSlotFields";
 import { toArray } from "@/utils/classes.utils";
 import {
   loadClassDraft,
   clearClassDraft,
-  useClassDraft,
+  useClassDraftAutosave,
 } from "@/components/admin/class/hooks//useClassDraft";
 
 export interface ScheduleSlotForm {
-  weekday: string;
+  weekday:   string;
   startTime: string;
-  endTime: string;
+  endTime:   string;
 }
 
 export interface CreateClassForm {
-  programId: string;
-  trackId: string;
-  levelId: string;
-  sectionId: string;
-  subjectId: string;
+  programId:  string;
+  trackId:    string;
+  levelId:    string;
+  sectionId:  string;
+  subjectId:  string;
   educatorId: string;
-  capacity: string;
-  schedules: ScheduleSlotForm[];
+  capacity:   string;
+  schedules:  ScheduleSlotForm[];
 }
 
 const EMPTY_DEFAULTS: CreateClassForm = {
-  programId: "",
-  trackId: "",
-  levelId: "",
-  sectionId: "",
-  subjectId: "",
+  programId:  "",
+  trackId:    "",
+  levelId:    "",
+  sectionId:  "",
+  subjectId:  "",
   educatorId: "",
-  capacity: "30",
-  schedules: [{ weekday: "1", startTime: "08:00", endTime: "09:00" }],
+  capacity:   "30",
+  schedules:  [{ weekday: "1", startTime: "08:00", endTime: "09:00" }],
 };
 
 interface CreateClassDialogProps {
-  open: boolean;
-  onClose: () => void;
+  open:              boolean;
+  onClose:           () => void;
   defaultSubjectId?: string;
-  schoolYearId: string | null;
-  schoolYearName: string | null;
+  schoolYearId:      string | null;
+  schoolYearName:    string | null;
 }
 
 export function CreateClassDialog({
@@ -76,68 +78,69 @@ export function CreateClassDialog({
   schoolYearName,
 }: CreateClassDialogProps): React.JSX.Element {
   const queryClient = useQueryClient();
-  const [duplicateWarning, setDuplicateWarning] = useState<Class | null>(null);
+  const router      = useRouter();
 
-  const { draft: classDraft, saveDraft } = useClassDraft();
-
-  // Load draft once on mount — fall back to empty defaults
-  const hasDraft = !!classDraft && Object.keys(classDraft).length > 0;
+  const draft    = loadClassDraft();
+  const hasDraft = !!draft && Object.keys(draft).length > 0;
 
   const methods = useForm<CreateClassForm>({
     defaultValues: {
       ...EMPTY_DEFAULTS,
-      ...classDraft,
-      // URL param always wins over draft for subjectId
-      subjectId: defaultSubjectId ?? classDraft?.subjectId ?? "",
+      ...draft,
+      subjectId: defaultSubjectId ?? draft?.subjectId ?? "",
     },
   });
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = methods;
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = methods;
+
   const formValues = watch();
+  useClassDraftAutosave(formValues);
 
-  // Autosave whenever any field changes
-  useEffect(() => {
-    if (formValues && Object.keys(formValues).length > 0) {
-      saveDraft(formValues);
-    }
-  }, [formValues, saveDraft]);
-
-  const selectedProgramId = formValues.programId;
-  const selectedTrackId = formValues.trackId;
-  const selectedLevelId = formValues.levelId;
-  const selectedSectionId = formValues.sectionId;
-  const selectedSubjectId = formValues.subjectId;
+  const selectedProgramId  = formValues.programId;
+  const selectedTrackId    = formValues.trackId;
+  const selectedLevelId    = formValues.levelId;
+  const selectedSectionId  = formValues.sectionId;
+  const selectedSubjectId  = formValues.subjectId;
   const selectedEducatorId = formValues.educatorId;
+
+  // ── Data queries ────────────────────────────────────────────────────────────
 
   const { data: programsRaw } = useQuery({
     queryKey: ["admin", "programs", schoolYearId],
-    queryFn: () => programApi.getAll(schoolYearId!),
-    enabled: !!schoolYearId,
+    queryFn:  () => programApi.getAll(schoolYearId!),
+    enabled:  !!schoolYearId,
   });
   const programs = toArray<{ id: string; name: string }>(programsRaw);
 
   const { data: coursesRaw } = useQuery({
     queryKey: ["admin", "courses", schoolYearId, selectedProgramId],
-    queryFn: () => courseApi.getAll({ schoolYearId: schoolYearId!, programId: selectedProgramId! }),
-    enabled: !!schoolYearId && !!selectedProgramId,
+    queryFn:  () => courseApi.getAll({ schoolYearId: schoolYearId!, programId: selectedProgramId! }),
+    enabled:  !!schoolYearId && !!selectedProgramId,
   });
 
   const { data: strandsRaw } = useQuery({
     queryKey: ["admin", "strands", selectedProgramId],
-    queryFn: () => strandApi.getAll({ program_id: selectedProgramId! }),
-    enabled: !!selectedProgramId,
+    queryFn:  () => strandApi.getAll({ program_id: selectedProgramId! }),
+    enabled:  !!selectedProgramId,
   });
 
-  const courses = toArray<{ id: string; name: string }>(coursesRaw);
-  const strands = toArray<{ id: string; name: string }>(strandsRaw);
-  const tracks = courses.length > 0 ? courses : strands;
-  const hasTrack = tracks.length > 0;
+  const courses       = toArray<{ id: string; name: string }>(coursesRaw);
+  const strands       = toArray<{ id: string; name: string }>(strandsRaw);
+  const tracks        = courses.length > 0 ? courses : strands;
+  const hasTrack      = tracks.length > 0;
   const isCourseTrack = courses.length > 0;
 
   const { data: levelsRaw } = useQuery({
     queryKey: ["admin", "levels", "school-year", schoolYearId],
-    queryFn: () => levelApi.getBySchoolYear(schoolYearId!),
-    enabled: !!schoolYearId,
+    queryFn:  () => levelApi.getBySchoolYear(schoolYearId!),
+    enabled:  !!schoolYearId,
   });
   const levels = useMemo<Level[]>(() => {
     const all = toArray<Level>(levelsRaw);
@@ -147,8 +150,8 @@ export function CreateClassDialog({
 
   const { data: sectionsRaw } = useQuery({
     queryKey: ["admin", "sections", schoolYearId, selectedLevelId],
-    queryFn: () => sectionApi.getAll(schoolYearId!, selectedLevelId!),
-    enabled: !!schoolYearId && !!selectedLevelId,
+    queryFn:  () => sectionApi.getAll(schoolYearId!, selectedLevelId!),
+    enabled:  !!schoolYearId && !!selectedLevelId,
   });
   const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 
@@ -160,7 +163,7 @@ export function CreateClassDialog({
     ],
     queryFn: () => subjectApi.getAll({
       levelId: selectedLevelId!,
-      ...(selectedTrackId && isCourseTrack ? { courseId: selectedTrackId } : {}),
+      ...(selectedTrackId && isCourseTrack  ? { courseId: selectedTrackId } : {}),
       ...(selectedTrackId && !isCourseTrack ? { strandId: selectedTrackId } : {}),
     }),
     enabled: !!selectedLevelId,
@@ -169,28 +172,40 @@ export function CreateClassDialog({
 
   const { data: educatorsRaw } = useQuery({
     queryKey: ["admin", "educators", "all"],
-    queryFn: () => educatorApi.getAll(),
+    queryFn:  () => educatorApi.getAll(),
   });
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
-  // Fetch existing classes for duplicate checking
-  const { data: existingClassesRaw } = useQuery({
-    queryKey: ["admin", "classes", "all", schoolYearId],
-    queryFn: () => classApi.getAll({ schoolYearId: schoolYearId! }),
-    enabled: !!schoolYearId,
+  // ── Semester template assignment check ─────────────────────────────────────
+  // Fired as soon as schoolYearId is available; result is cached so selecting
+  // a program costs zero extra network round-trips.
+  const { data: templateAssignments = [] } = useQuery({
+    queryKey: ["admin", "semester-template-assignments", schoolYearId],
+    queryFn:  () => semesterTemplateApi.getAssignmentsBySchoolYear(schoolYearId!),
+    enabled:  !!schoolYearId,
   });
-  const existingClasses = toArray<Class>(existingClassesRaw);
 
-  // Cascade resets — only clear downstream fields, not ones loaded from draft
+  // Build a Set of program IDs that already have a template assigned
+  const assignedProgramIds = useMemo(
+    () => new Set(templateAssignments.map((a) => a.program_id)),
+    [templateAssignments],
+  );
+
+  // True when the user has picked a program that has no semester template assignment
+  const programMissingTemplate =
+    !!selectedProgramId && !assignedProgramIds.has(selectedProgramId);
+
+  // ── Cascade resets ──────────────────────────────────────────────────────────
+
   useEffect(() => {
-    setValue("trackId", "");
-    setValue("levelId", "");
+    setValue("trackId",   "");
+    setValue("levelId",   "");
     setValue("sectionId", "");
     setValue("subjectId", "");
   }, [selectedProgramId, setValue]);
 
   useEffect(() => {
-    setValue("levelId", "");
+    setValue("levelId",   "");
     setValue("sectionId", "");
     setValue("subjectId", "");
   }, [selectedTrackId, setValue]);
@@ -204,25 +219,27 @@ export function CreateClassDialog({
     setValue("subjectId", "");
   }, [selectedSectionId, setValue]);
 
+  // ── Submit ──────────────────────────────────────────────────────────────────
+
   const mutation = useMutation({
     mutationFn: (values: CreateClassForm) => {
       const payload: CreateClassRequest = {
-        subjectId: values.subjectId,
-        educatorId: values.educatorId,
-        sectionId: values.sectionId || undefined,
+        subjectId:    values.subjectId,
+        educatorId:   values.educatorId,
+        sectionId:    values.sectionId || undefined,
         schoolYearId: schoolYearId!,
-        capacity: Number(values.capacity),
-        schedules: values.schedules.map((s) => ({
-          weekday: Number(s.weekday),
+        capacity:     Number(values.capacity),
+        schedules:    values.schedules.map((s) => ({
+          weekday:   Number(s.weekday),
           startTime: s.startTime,
-          endTime: s.endTime,
+          endTime:   s.endTime,
         })) as ScheduleSlot[],
       };
       return classApi.create(payload);
     },
     onSuccess: () => {
       toast.success("Class created.");
-      clearClassDraft(); // ← clear on success
+      clearClassDraft();
       queryClient.invalidateQueries({ queryKey: ["admin", "classes"] });
       reset(EMPTY_DEFAULTS);
       onClose();
@@ -233,55 +250,23 @@ export function CreateClassDialog({
   });
 
   function handleClose(): void {
-    // Just close — draft is preserved so user can resume
-    setDuplicateWarning(null);
     onClose();
   }
 
   function handleDiscard(): void {
-    clearClassDraft(); // ← clear on explicit discard
+    clearClassDraft();
     reset(EMPTY_DEFAULTS);
     onClose();
   }
 
-  // Function to check for duplicate classes
-  const checkDuplicateClass = (values: CreateClassForm): Class | null => {
-    if (!schoolYearId) return null;
-
-    return existingClasses.find(existingClass => {
-      const subjectMatch = existingClass.subjectId === values.subjectId;
-      const sectionMatch = existingClass.sectionId === values.sectionId;
-      const educatorMatch = existingClass.educatorId === values.educatorId;
-      const schoolYearMatch = existingClass.schoolYearId === schoolYearId;
-
-      return subjectMatch && sectionMatch && educatorMatch && schoolYearMatch;
-    }) || null;
-  };
-
-  const handleFormSubmit = (values: CreateClassForm) => {
-    const duplicate = checkDuplicateClass(values);
-    if (duplicate) {
-      setDuplicateWarning(duplicate);
-    } else {
-      mutation.mutate(values);
-    }
-  };
-
-  const handleConfirmCreate = () => {
-    if (duplicateWarning) {
-      const formValues = methods.getValues();
-      mutation.mutate(formValues);
-      setDuplicateWarning(null);
-    }
-  };
-
   const isSubmitDisabled =
-    mutation.isPending ||
-    !selectedProgramId ||
+    mutation.isPending        ||
+    !selectedProgramId        ||
+    programMissingTemplate    || // ← block submit when template missing
     (hasTrack && !selectedTrackId) ||
-    !selectedLevelId ||
-    !selectedSectionId ||
-    !selectedSubjectId ||
+    !selectedLevelId          ||
+    !selectedSectionId        ||
+    !selectedSubjectId        ||
     !selectedEducatorId;
 
   return (
@@ -297,12 +282,17 @@ export function CreateClassDialog({
             )}
           </DialogTitle>
         </DialogHeader>
+
         <FormProvider {...methods}>
-          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 mt-1">
+          <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-1">
+
             {/* School Year — read-only */}
             <div className="space-y-1.5">
               <Label>School Year</Label>
-              <Input value={schoolYearName ?? schoolYearId ?? "No school year selected"} disabled />
+              <Input
+                value={schoolYearName ?? schoolYearId ?? "No school year selected"}
+                disabled
+              />
             </div>
 
             {/* Program */}
@@ -314,7 +304,9 @@ export function CreateClassDialog({
                 disabled={!schoolYearId}
               >
                 <SelectTrigger>
-                  <span>{programs.find((p) => p.id === selectedProgramId)?.name ?? "Select program"}</span>
+                  <span>
+                    {programs.find((p) => p.id === selectedProgramId)?.name ?? "Select program"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {programs.map((p) => (
@@ -324,6 +316,33 @@ export function CreateClassDialog({
               </Select>
             </div>
 
+            {/* ── Semester template warning — shown immediately after program select ── */}
+            {programMissingTemplate && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-4 py-3 flex items-start gap-3">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                    No semester template assigned
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                    This program doesn&apos;t have a semester template yet. Classes can&apos;t be
+                    created until one is assigned.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDiscard();
+                      router.push("/admin/semester-settings");
+                    }}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-amber-800 dark:text-amber-300 hover:underline"
+                  >
+                    Go to Semester Settings
+                    <ArrowRight className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Course / Strand */}
             {hasTrack && (
               <div className="space-y-1.5">
@@ -331,10 +350,13 @@ export function CreateClassDialog({
                 <Select
                   value={selectedTrackId}
                   onValueChange={(v) => setValue("trackId", v ?? "")}
-                  disabled={!selectedProgramId}
+                  disabled={!selectedProgramId || programMissingTemplate}
                 >
                   <SelectTrigger>
-                    <span>{tracks.find((t) => t.id === selectedTrackId)?.name ?? `Select ${isCourseTrack ? "course" : "strand"}`}</span>
+                    <span>
+                      {tracks.find((t) => t.id === selectedTrackId)?.name ??
+                        `Select ${isCourseTrack ? "course" : "strand"}`}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {tracks.map((t) => (
@@ -351,10 +373,16 @@ export function CreateClassDialog({
               <Select
                 value={selectedLevelId}
                 onValueChange={(v) => setValue("levelId", v ?? "")}
-                disabled={!selectedProgramId || (hasTrack && !selectedTrackId)}
+                disabled={
+                  !selectedProgramId ||
+                  programMissingTemplate ||
+                  (hasTrack && !selectedTrackId)
+                }
               >
                 <SelectTrigger>
-                  <span>{levels.find((l) => l.id === selectedLevelId)?.name ?? "Select level"}</span>
+                  <span>
+                    {levels.find((l) => l.id === selectedLevelId)?.name ?? "Select level"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {levels.length === 0 ? (
@@ -374,14 +402,18 @@ export function CreateClassDialog({
               <Select
                 value={selectedSectionId}
                 onValueChange={(v) => setValue("sectionId", v ?? "")}
-                disabled={!selectedLevelId}
+                disabled={!selectedLevelId || programMissingTemplate}
               >
                 <SelectTrigger>
-                  <span>{sections.find((s) => s.id === selectedSectionId)?.name ?? "Select section"}</span>
+                  <span>
+                    {sections.find((s) => s.id === selectedSectionId)?.name ?? "Select section"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {sections.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No sections for this level</div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No sections for this level
+                    </div>
                   ) : (
                     sections.map((s) => (
                       <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
@@ -397,18 +429,21 @@ export function CreateClassDialog({
               <Select
                 value={selectedSubjectId}
                 onValueChange={(v) => setValue("subjectId", v ?? "")}
-                disabled={!selectedLevelId}
+                disabled={!selectedLevelId || programMissingTemplate}
               >
                 <SelectTrigger>
                   <span>
                     {!selectedLevelId
                       ? "Select a level first"
-                      : (subjects.find((s) => s.id === selectedSubjectId)?.title ?? "Select subject")}
+                      : (subjects.find((s) => s.id === selectedSubjectId)?.title ??
+                          "Select subject")}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
                   {subjects.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No subjects for this level</div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No subjects for this level
+                    </div>
                   ) : (
                     subjects.map((s) => (
                       <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
@@ -424,9 +459,13 @@ export function CreateClassDialog({
               <Select
                 value={selectedEducatorId}
                 onValueChange={(v) => setValue("educatorId", v ?? "")}
+                disabled={programMissingTemplate}
               >
                 <SelectTrigger>
-                  <span>{educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Select educator"}</span>
+                  <span>
+                    {educators.find((e) => e.id === selectedEducatorId)?.fullName ??
+                      "Select educator"}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {educators.map((e) => (
@@ -442,6 +481,7 @@ export function CreateClassDialog({
               <Input
                 type="number"
                 min={1}
+                disabled={programMissingTemplate}
                 {...register("capacity", {
                   required: "Capacity is required",
                   min: { value: 1, message: "At least 1" },
@@ -456,11 +496,20 @@ export function CreateClassDialog({
             <ScheduleSlotFields />
 
             <div className="flex justify-end gap-2 pt-1">
-              {/* Discard clears draft; Cancel just closes and preserves it */}
-              <Button type="button" variant="ghost" onClick={handleDiscard} disabled={mutation.isPending}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleDiscard}
+                disabled={mutation.isPending}
+              >
                 Discard
               </Button>
-              <Button type="button" variant="outline" onClick={handleClose} disabled={mutation.isPending}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={mutation.isPending}
+              >
                 Save & Close
               </Button>
               <Button type="submit" disabled={isSubmitDisabled}>
@@ -470,22 +519,6 @@ export function CreateClassDialog({
           </form>
         </FormProvider>
       </DialogContent>
-
-      {/* Duplicate Class Confirmation Dialog */}
-      {duplicateWarning && (
-        <ConfirmDialog
-          open
-          title="Duplicate Class Detected"
-          message={`This subject already exists for this section. Are you sure you want to create another class with this subject?`}
-          confirmLabel="Create Anyway"
-          destructive={false}
-          isLoading={mutation.isPending}
-          onConfirm={handleConfirmCreate}
-          onOpenChange={(open) => {
-            if (!open) setDuplicateWarning(null);
-          }}
-        />
-      )}
     </Dialog>
   );
 }

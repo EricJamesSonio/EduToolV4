@@ -1,89 +1,99 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { adminGradingSchemeApi } from '@/api/admin/grading-scheme.api'
+import { UseQueryResult, UseMutationResult, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
+import { adminGradingSchemeApi } from "@/api/admin/grading-scheme.api";
 import type {
   CreateGradingSchemeDto,
   UpdateGradingSchemeDto,
-} from '@/types/admin/grading-scheme.types'
+} from "@/types/admin/grading-scheme.types";
 
-const gradingSchemeKeys = {
-  all: ['grading-schemes'] as const,
-  byClass: (classId: string) =>
-    ['grading-schemes', 'class', classId] as const,
-}
-
-// Query: Get grading scheme for a specific class
-export const useGradingSchemeByClass = (classId: string) => {
-  return useQuery({
-    queryKey: gradingSchemeKeys.byClass(classId),
-    queryFn: () => adminGradingSchemeApi.getByClass(classId),
-    enabled: !!classId,
-  })
-}
-
-// Mutation: Create grading scheme
-export const useCreateGradingScheme = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (data: CreateGradingSchemeDto) =>
-      adminGradingSchemeApi.create(data),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: gradingSchemeKeys.byClass(data.classId),
-      })
+// Get grading scheme by class
+export const useGradingSchemeByClass = (classId: string): UseQueryResult<any, Error> => {
+  return useAsyncQuery(
+    queryKeys.admin.gradingSchemes.detail(classId),
+    () => adminGradingSchemeApi.getByClass(classId),
+    {
+      enabled: !!classId,
     },
-  })
-}
+  );
+};
 
-// Mutation: Update grading scheme
-export const useUpdateGradingScheme = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({
-      schemeId,
-      data,
-    }: {
-      schemeId: string
-      data: UpdateGradingSchemeDto
-    }) => adminGradingSchemeApi.update(schemeId, data),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: gradingSchemeKeys.byClass(data.classId),
-      })
-    },
-  })
-}
+// Create grading scheme
+export const useCreateGradingScheme = (): UseMutationResult<any, Error, CreateGradingSchemeDto> => {
+  const queryClient = useQueryClient();
 
-// Mutation: Apply template to single class
-export const useApplyTemplateToClass = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: {
-      classId: string
-      templateId: string
-      name?: string
-    }) => adminGradingSchemeApi.applyToClass(payload),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: gradingSchemeKeys.byClass(data.classId),
-      })
+  return useMutationWithInvalidation<any, Error, CreateGradingSchemeDto>(
+    (data) => adminGradingSchemeApi.create(data),
+    {
+      invalidateKeys: [],
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.gradingSchemes.detail(data.classId),
+        });
+      },
     },
-  })
-}
+  );
+};
 
-// Mutation: Apply template to program (bulk to all classes)
-export const useApplyTemplateToProgram = () => {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: {
-      programId: string
-      templateId: string
-      overwriteExisting?: boolean
-    }) => adminGradingSchemeApi.applyToProgram(payload),
-    onSuccess: () => {
-      // Invalidate all grading schemes since bulk operation
-      queryClient.invalidateQueries({
-        queryKey: gradingSchemeKeys.all,
-      })
+// Update grading scheme
+export const useUpdateGradingScheme = (): UseMutationResult<
+  any,
+  Error,
+  { schemeId: string; data: UpdateGradingSchemeDto }
+> => {
+  const queryClient = useQueryClient();
+
+  return useMutationWithInvalidation<any, Error, { schemeId: string; data: UpdateGradingSchemeDto }>(
+    ({ schemeId, data }) => adminGradingSchemeApi.update(schemeId, data),
+    {
+      invalidateKeys: [],
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.gradingSchemes.detail(data.classId),
+        });
+      },
     },
-  })
-}
+  );
+};
+
+// Apply template to single class
+export const useApplyTemplateToClass = (): UseMutationResult<
+  any,
+  Error,
+  { classId: string; templateId: string; name?: string }
+> => {
+  const queryClient = useQueryClient();
+
+  return useMutationWithInvalidation<any, Error, { classId: string; templateId: string; name?: string }>(
+    (payload) => adminGradingSchemeApi.applyToClass(payload),
+    {
+      invalidateKeys: [],
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.gradingSchemes.detail(data.classId),
+        });
+      },
+    },
+  );
+};
+
+// Apply template to program (bulk)
+export const useApplyTemplateToProgram = (): UseMutationResult<
+  void,
+  Error,
+  { programId: string; templateId: string; overwriteExisting?: boolean }
+> => {
+  const queryClient = useQueryClient();
+
+  return useMutationWithInvalidation<void, Error, { programId: string; templateId: string; overwriteExisting?: boolean }>(
+    (payload) => adminGradingSchemeApi.applyToProgram(payload),
+    {
+      invalidateKeys: [queryKeys.admin.gradingSchemes.list()],
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.gradingSchemes.all,
+        });
+      },
+    },
+  );
+};

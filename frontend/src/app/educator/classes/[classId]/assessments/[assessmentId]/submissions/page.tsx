@@ -10,15 +10,14 @@ import {
   useAssessment,
   useAssessmentSubmissions,
   useUpdateSubmissionStatus,
-  useGradeEssay,
   usePublishAssessment,
   useUnpublishAssessment,
 } from "@/hooks/educator/useAssessments";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import { Loader2, Users, CheckCircle2, Ban, XCircle, UserPlus, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Submission, SubmissionStatus } from "@/types/educator/submission.types";
 
@@ -29,75 +28,21 @@ const STATUS_STYLES: Record<SubmissionStatus, string> = {
   draft: "bg-blue-50 text-blue-600 border-blue-200",
   submitted: "bg-green-50 text-green-700 border-green-200",
   exempted: "bg-purple-50 text-purple-700 border-purple-200",
+  custom: "bg-amber-50 text-amber-700 border-amber-200",
   custom_score: "bg-amber-50 text-amber-700 border-amber-200",
 };
 
+function getStatusLabel(sub: Submission): string {
+  if (sub.isMissed) return "Missed";
+  if (sub.isExempted) return "Exempted";
+  if (sub.status === "custom" || sub.status === "custom_score") return "Custom Score";
+  return STATUS_LABELS[sub.status] ?? sub.status;
+}
+
 const STATUS_LABELS: Record<SubmissionStatus, string> = {
   not_started: "Not Started", draft: "Draft", submitted: "Submitted",
-  exempted: "Exempted", custom_score: "Custom Score",
+  exempted: "Exempted", custom: "Custom Score", custom_score: "Custom Score",
 };
-
-// ─── Essay Grader dialog ──────────────────────────────────────────────────────
-
-function EssayGraderDialog({
-  submission,
-  assessmentId,
-  classId,
-  onClose,
-}: {
-  submission: Submission;
-  assessmentId: string;
-  classId: string;
-  onClose: () => void;
-}): React.JSX.Element {
-  const [score, setScore] = useState(submission.score ?? 0);
-  const { mutateAsync: gradeEssay, isPending } = useGradeEssay(classId, assessmentId);
-
-  async function handleSave(): Promise<void> {
-    await gradeEssay({ submissionId: submission.id, score });
-    toast.success("Essay score saved.");
-    onClose();
-  }
-
-  return (
-    <DialogContent className="max-w-lg">
-      <DialogHeader>
-        <DialogTitle>Grade Essay — {submission.studentName}</DialogTitle>
-      </DialogHeader>
-      <div className="space-y-4 pt-2">
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Student Response</p>
-          <div className="rounded-lg border bg-muted/20 p-3 text-sm max-h-48 overflow-y-auto">
-            {submission.answers.filter((a) => a.answer).map((a) => (
-              <p key={a.questionId} className="mb-2">{a.answer}</p>
-            ))}
-            {!submission.answers.some((a) => a.answer) && (
-              <p className="text-muted-foreground italic">No response submitted.</p>
-            )}
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Score (0 – {submission.totalPoints})</label>
-          <input
-            type="number"
-            min={0}
-            max={submission.totalPoints}
-            value={score}
-            onChange={(e) => setScore(parseInt(e.target.value, 10) || 0)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-          />
-        </div>
-        <div className="flex gap-2 justify-end">
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" onClick={handleSave} disabled={isPending}>
-            {isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-            Save Score
-          </Button>
-        </div>
-      </div>
-    </DialogContent>
-  );
-}
 
 // ─── Set Status dialog ────────────────────────────────────────────────────────
 
@@ -112,7 +57,7 @@ function SetStatusDialog({
   classId: string;
   onClose: () => void;
 }): React.JSX.Element {
-  const [status, setStatus] = useState<"exempted" | "custom">("exempted");
+  const [status, setStatus] = useState<"exempted" | "custom" | "missed">("exempted");
   const [manualScore, setManualScore] = useState(submission.score ?? 0);
   const { mutateAsync: updateStatus, isPending } = useUpdateSubmissionStatus(classId, assessmentId);
 
@@ -130,8 +75,9 @@ function SetStatusDialog({
       <div className="space-y-4 pt-2">
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Status</label>
-          <select value={status} onChange={(e) => setStatus(e.target.value as "exempted" | "custom")} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+          <select value={status} onChange={(e) => setStatus(e.target.value as "exempted" | "custom" | "missed")} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
             <option value="exempted">Exempted</option>
+            <option value="missed">Missed</option>
             <option value="custom">Custom Score</option>
           </select>
         </div>
@@ -164,8 +110,22 @@ export default function SubmissionsPage(): React.JSX.Element {
   const { mutateAsync: publish, isPending: isPublishing } = usePublishAssessment(classId);
   const { mutateAsync: unpublish, isPending: isUnpublishing } = useUnpublishAssessment(classId);
 
-  const [essayTarget, setEssayTarget] = useState<Submission | null>(null);
   const [statusTarget, setStatusTarget] = useState<Submission | null>(null);
+  const [filter, setFilter] = useState<"all" | "submitted" | "exempted" | "missed" | "not_assigned" | "not_started">("all");
+
+  const isNotAssigned = (sub: Submission) => sub.id.startsWith("not_started_");
+  const isNotStarted = (sub: Submission) => !isNotAssigned(sub) && (sub.status === "not_started" || sub.status === "draft");
+
+  const filteredSubmissions = submissions?.filter((sub) => {
+    switch (filter) {
+      case "submitted": return sub.status === "submitted";
+      case "exempted": return sub.isExempted;
+      case "missed": return sub.isMissed;
+      case "not_assigned": return isNotAssigned(sub);
+      case "not_started": return isNotStarted(sub);
+      default: return true;
+    }
+  });
 
   async function handlePublishAll(): Promise<void> {
     await publish(assessmentId);
@@ -178,6 +138,7 @@ export default function SubmissionsPage(): React.JSX.Element {
   }
 
   const hasEssayQuestions = assessment?.questions.some((q) => q.type === "essay") ?? false;
+  const hasManualQuestions = assessment?.questions.some((q) => q.type === "manual") ?? false;
 
   return (
     <div className="space-y-6">
@@ -205,13 +166,39 @@ export default function SubmissionsPage(): React.JSX.Element {
         </div>
       </div>
 
+      {/* Filter tabs */}
+      <div className="flex items-center gap-1 flex-wrap">
+        {([
+          { key: "all", label: "All", icon: Users },
+          { key: "submitted", label: "Submitted", icon: CheckCircle2 },
+          { key: "exempted", label: "Exempted", icon: Ban },
+          { key: "missed", label: "Missed", icon: XCircle },
+          { key: "not_assigned", label: "Not Assigned", icon: UserPlus },
+          { key: "not_started", label: "Not Started", icon: Clock },
+        ] as const).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setFilter(key)}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+              filter === key
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Table */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />Loading submissions...
         </div>
-      ) : !submissions?.length ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No submissions yet.</p>
+      ) : !filteredSubmissions?.length ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">No submissions match this filter.</p>
       ) : (
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
@@ -226,19 +213,24 @@ export default function SubmissionsPage(): React.JSX.Element {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {submissions.map((sub) => (
+              {filteredSubmissions.map((sub) => (
                 <tr key={sub.id} className="hover:bg-muted/20 transition-colors">
                   <td className="px-4 py-3">
                     <p className="font-medium">{sub.studentName}</p>
                     <p className="text-xs text-muted-foreground">{sub.studentCode}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_STYLES[sub.status])}>
-                      {STATUS_LABELS[sub.status]}
+                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_STYLES[sub.status] ?? STATUS_STYLES.custom)}>
+                      {getStatusLabel(sub)}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {sub.score !== null ? `${sub.score} / ${sub.totalPoints}` : "—"}
+                    {(() => {
+                      if (sub.isExempted) return <span className="text-muted-foreground">&mdash;</span>;
+                      const earned = sub.manualScore ?? sub.manualSectionScore ?? sub.score;
+                      if (earned !== null) return `${earned} / ${sub.totalPoints}`;
+                      return <span className="text-muted-foreground">&mdash;</span>;
+                    })()}
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn("text-xs font-medium", sub.isPublished ? "text-green-600" : "text-muted-foreground")}>
@@ -246,7 +238,13 @@ export default function SubmissionsPage(): React.JSX.Element {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {hasEssayQuestions ? (
+                    {hasManualQuestions ? (
+                      sub.manualSectionScore != null ? (
+                        <span className="text-xs text-green-600">Graded</span>
+                      ) : (
+                        <span className="text-xs text-amber-600">Pending</span>
+                      )
+                    ) : hasEssayQuestions ? (
                       sub.essayGraded ? (
                         <span className="text-xs text-green-600">Graded</span>
                       ) : (
@@ -256,10 +254,16 @@ export default function SubmissionsPage(): React.JSX.Element {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end">
-                      {hasEssayQuestions && !sub.essayGraded && sub.status === "submitted" && (
-                        <Button variant="ghost" size="sm" onClick={() => setEssayTarget(sub)}>Grade Essay</Button>
+                      {(hasEssayQuestions || hasManualQuestions) && sub.status === "submitted" && (
+                        <Link href={`/educator/classes/${classId}/assessments/${assessmentId}/submissions/${sub.id}/review`}>
+                          <Button variant="ghost" size="sm">
+                            {hasManualQuestions && sub.manualSectionScore == null ? "Grade" : "Review"}
+                          </Button>
+                        </Link>
                       )}
-                      <Button variant="ghost" size="sm" onClick={() => setStatusTarget(sub)}>Set Status</Button>
+                      {sub.status === "not_started" && (
+                        <Button variant="ghost" size="sm" onClick={() => setStatusTarget(sub)}>Set Status</Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -270,12 +274,6 @@ export default function SubmissionsPage(): React.JSX.Element {
       )}
 
       {/* Dialogs */}
-      <Dialog open={!!essayTarget} onOpenChange={(o) => !o && setEssayTarget(null)}>
-        {essayTarget && (
-          <EssayGraderDialog submission={essayTarget} assessmentId={assessmentId} classId={classId} onClose={() => setEssayTarget(null)} />
-        )}
-      </Dialog>
-
       <Dialog open={!!statusTarget} onOpenChange={(o) => !o && setStatusTarget(null)}>
         {statusTarget && (
           <SetStatusDialog submission={statusTarget} assessmentId={assessmentId} classId={classId} onClose={() => setStatusTarget(null)} />

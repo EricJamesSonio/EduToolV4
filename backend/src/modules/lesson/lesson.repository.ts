@@ -40,6 +40,7 @@ export class LessonRepository {
         ...(weekNumber ? { week_number: weekNumber } : {}),
       },
       orderBy: [{ week_number: 'asc' }, { sub_index: 'asc' }],
+      include: { concept: true },
     });
   }
 
@@ -108,6 +109,9 @@ export class LessonRepository {
     orgId: string;
     lessonId: string;
     content: object;
+    rawResponse?: string;
+    rawRequest?: string;
+    promptVersion?: string;
   }) {
     await this.db.lessonConcept.deleteMany({
       where: { lesson_id: data.lessonId },
@@ -118,6 +122,9 @@ export class LessonRepository {
         org_id: data.orgId,
         lesson_id: data.lessonId,
         content: data.content,
+        raw_response: data.rawResponse ?? null,
+        raw_request: data.rawRequest ?? null,
+        prompt_version: data.promptVersion ?? null,
       },
     });
   }

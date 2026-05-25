@@ -32,6 +32,10 @@ export class SubmissionRepository {
         status: data.status as any,
         score: null,
         manual_score: null,
+        manual_section_score: null,
+        system_section_score: null,
+        is_missed: false,
+        is_exempted: false,
         submitted_at: null,
       },
     });
@@ -42,6 +46,7 @@ export class SubmissionRepository {
     data: {
       status: string;
       score?: number;
+      systemSectionScore?: number;
       submittedAt?: Date;
     },
   ) {
@@ -50,6 +55,7 @@ export class SubmissionRepository {
       data: {
         status: data.status as any,
         ...(data.score !== undefined ? { score: data.score } : {}),
+        ...(data.systemSectionScore !== undefined ? { system_section_score: data.systemSectionScore } : {}),
         ...(data.submittedAt !== undefined ? { submitted_at: data.submittedAt } : {}),
       },
     });
@@ -110,6 +116,15 @@ export class SubmissionRepository {
   async findQuestionsByAssessment(assessmentId: string) {
     return this.db.question.findMany({
       where: { assessment_id: assessmentId },
+    });
+  }
+
+  // ───────── REOPEN ─────────
+
+  async clearReopenedUntil(submissionId: string) {
+    return this.db.submission.update({
+      where: { id: submissionId },
+      data: { reopened_until: null },
     });
   }
 

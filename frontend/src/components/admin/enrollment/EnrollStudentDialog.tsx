@@ -11,24 +11,28 @@ import { Button } from "@/components/ui/button";
 import { Badge }  from "@/components/ui/badge";
 import { Search, UserPlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface Props {
-  open:                boolean;
-  onClose:             () => void;
-  alreadyEnrolled:     StudentSchoolYearEnrollment[];
-  onConfirm:           (students: Student[]) => void;
-  isLoading:           boolean;
+  open:                      boolean;
+  onClose:                   () => void;
+  alreadyEnrolled:           StudentSchoolYearEnrollment[];
+  programEnrolledStudentIds: Set<string>;
+  onConfirm:                 (students: Student[]) => void;
+  isLoading:                 boolean;
 }
 
 export function EnrollStudentDialog({
   open,
   onClose,
   alreadyEnrolled,
+  programEnrolledStudentIds,
   onConfirm,
   isLoading,
 }: Props) {
-  const [search, setSearch]     = useState("");
-  const [selected, setSelected] = useState<Student[]>([]);
+  const [search, setSearch]         = useState("");
+  const [selected, setSelected]     = useState<Student[]>([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { data: allStudents = [], isLoading: studentsLoading } = useQuery({
     queryKey: ["admin", "students", "all"],
@@ -46,11 +50,12 @@ export function EnrollStudentDialog({
     return allStudents.filter(
       (s) =>
         !enrolledIds.has(s.id) &&
+        !programEnrolledStudentIds.has(s.id) &&
         (s.fullName.toLowerCase().includes(q) ||
           s.email.toLowerCase().includes(q) ||
           s.studentId.toLowerCase().includes(q)),
     );
-  }, [allStudents, enrolledIds, search]);
+  }, [allStudents, enrolledIds, programEnrolledStudentIds, search]);
 
   const selectedIds = useMemo(() => new Set(selected.map((s) => s.id)), [selected]);
 
@@ -69,6 +74,7 @@ export function EnrollStudentDialog({
   };
 
   const handleConfirm = () => {
+    setConfirmOpen(false);
     onConfirm(selected);
   };
 
@@ -123,7 +129,9 @@ export function EnrollStudentDialog({
             </div>
           ) : filtered.length === 0 ? (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-              {search ? "No students match your search." : "All active students are already enrolled."}
+              {search
+                ? "No students match your search."
+                : "All eligible students are already enrolled or already in a program."}
             </div>
           ) : (
             filtered.map((student) => {
@@ -176,7 +184,7 @@ export function EnrollStudentDialog({
               Cancel
             </Button>
             <Button
-              onClick={handleConfirm}
+              onClick={() => setConfirmOpen(true)}
               disabled={selected.length === 0 || isLoading}
             >
               {isLoading ? "Enrolling..." : `Enroll ${selected.length > 0 ? `(${selected.length})` : ""}`}
@@ -184,6 +192,18 @@ export function EnrollStudentDialog({
           </div>
         </div>
       </DialogContent>
+
+      {confirmOpen && (
+        <ConfirmDialog
+          open
+          title="Enroll students?"
+          message={`Are you sure you want to enroll ${selected.length} student${selected.length > 1 ? "s" : ""} in the program?`}
+          confirmLabel="Enroll"
+          isLoading={isLoading}
+          onConfirm={handleConfirm}
+          onOpenChange={(o) => { if (!o) setConfirmOpen(false); }}
+        />
+      )}
     </Dialog>
   );
 }

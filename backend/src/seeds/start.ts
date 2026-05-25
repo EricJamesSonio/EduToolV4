@@ -1,26 +1,28 @@
 /**
- * seed-platform.ts
- * UPDATED FOR CURRENT SCHEMA
- * - Global unique email
- * - Handles Profile.personal_email
- * - Avoids unnecessary overwrites
- * - Clean logs
+ * seed-data.ts
+ * MAIN SEED ORCHESTRATOR
+ * - Platform accounts
+ * - Admin users
+ * - Guides (imported module)
  */
 
 import { PrismaClient, Role, AccountStatus } from '@prisma/client'
 import * as bcrypt from 'bcrypt'
+import { seedAdminGuides } from './seed-admin-guides'
 
 const db = new PrismaClient()
 
-// ── Config ────────────────────────────────────────────────────────────────────
-
 const SALT_ROUNDS = 10
+
+// ── Platform Owner ───────────────────────────────────────────────
 
 const PLATFORM_OWNER = {
   email: 'platform@edutool.dev',
   password: 'platform123',
   fullName: 'Platform Owner',
 }
+
+// ── Admin Users ───────────────────────────────────────────────────
 
 const ADMINS = [
   { email: 'admin1@edutool.dev', password: 'admin123', fullName: 'Admin One' },
@@ -35,7 +37,7 @@ const ADMINS = [
   { email: 'admin10@edutool.dev', password: 'admin123', fullName: 'Admin Ten' },
 ]
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helper ────────────────────────────────────────────────────────
 
 async function upsertAccount(params: {
   email: string
@@ -49,17 +51,14 @@ async function upsertAccount(params: {
 
   const account = await db.account.upsert({
     where: { email },
-
     update: {
-      // optional: only update critical fields
       password: hashed,
       role,
       status: AccountStatus.active,
-      deleted_at: null, // revive if soft-deleted
+      deleted_at: null,
     },
-
     create: {
-      org_id: null, // platform-level
+      org_id: null,
       role,
       email,
       password: hashed,
@@ -67,15 +66,12 @@ async function upsertAccount(params: {
     },
   })
 
-  // Profile upsert (now supports personal_email)
   await db.profile.upsert({
     where: { account_id: account.id },
-
     update: {
       full_name: fullName,
-      personal_email: email, // optional but useful
+      personal_email: email,
     },
-
     create: {
       account_id: account.id,
       full_name: fullName,
@@ -84,15 +80,15 @@ async function upsertAccount(params: {
   })
 
   console.log(`✓ ${role.padEnd(16)} ${email}`)
-
   return account
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Main Seeder ───────────────────────────────────────────────────
 
 async function main() {
-  console.log('\n🌱 Seeding PLATFORM accounts...\n')
+  console.log('\n🌱 START SEED PROCESS...\n')
 
+  // 1. Platform Owner
   console.log('▶ Platform Owner')
   await upsertAccount({
     email: PLATFORM_OWNER.email,
@@ -101,7 +97,8 @@ async function main() {
     role: Role.platform_owner,
   })
 
-  console.log('\n▶ Admins (no org yet)')
+  // 2. Admins
+  console.log('\n▶ Admin Accounts')
   for (const admin of ADMINS) {
     await upsertAccount({
       email: admin.email,
@@ -111,19 +108,14 @@ async function main() {
     })
   }
 
+  // 3. Guides (SEPARATED MODULE)
+  console.log('\n▶ Admin Guides')
+  await seedAdminGuides()
+
   console.log('\n✅ SEED COMPLETE\n')
-
-  console.log('────────────────────────────────────────────')
-  console.log(`Platform Owner → ${PLATFORM_OWNER.email} / ${PLATFORM_OWNER.password}`)
-
-  ADMINS.forEach((a) =>
-    console.log(`Admin          → ${a.email} / ${a.password}`)
-  )
-
-  console.log('────────────────────────────────────────────\n')
 }
 
-// ── Execute ───────────────────────────────────────────────────────────────────
+// ── Execute ───────────────────────────────────────────────────────
 
 main()
   .catch((e) => {

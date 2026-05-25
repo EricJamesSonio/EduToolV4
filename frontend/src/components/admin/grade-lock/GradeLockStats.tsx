@@ -1,15 +1,22 @@
-import type { GradeLock, GradeLockStatus } from "@/types/admin/grade-lock.types"
+import type {
+  GradeLock,
+  GradeLockStatus,
+} from "@/types/admin/grade-lock.types";
 
 interface GradeLockStatsProps {
-  gradeLocks: GradeLock[]
+  gradeLocks: GradeLock[];
 }
 
 function resolveStatus(lock: GradeLock): GradeLockStatus {
-  if (lock.lockStatus) return lock.lockStatus
+  if (lock.lockStatus) return lock.lockStatus;
+
   if (lock.is_locked) {
-    return lock.locked_by === "system" ? "auto_locked" : "locked"
+    return lock.locked_by === "system"
+      ? "auto_locked"
+      : "locked";
   }
-  return "unlocked"
+
+  return "unlocked";
 }
 
 export function GradeLockStats({
@@ -17,28 +24,58 @@ export function GradeLockStats({
 }: GradeLockStatsProps): React.ReactElement {
   const counts = {
     total: gradeLocks.length,
-    unlocked: gradeLocks.filter((l) => resolveStatus(l) === "unlocked").length,
-    locked: gradeLocks.filter((l) => resolveStatus(l) === "locked").length,
-    autoLocked: gradeLocks.filter((l) => resolveStatus(l) === "auto_locked").length,
-  }
+    unlocked: gradeLocks.filter(
+      (l) => resolveStatus(l) === "unlocked"
+    ).length,
+    locked: gradeLocks.filter(
+      (l) => resolveStatus(l) === "locked"
+    ).length,
+    autoLocked: gradeLocks.filter(
+      (l) => resolveStatus(l) === "auto_locked"
+    ).length,
+  };
 
   const stats = [
-    { label: "Total Classes", value: counts.total, colorClass: "", borderClass: "border-primary" },
-    { label: "Unlocked", value: counts.unlocked, colorClass: "text-muted-foreground", borderClass: "border-border" },
-    { label: "Locked", value: counts.locked, colorClass: "text-destructive", borderClass: "border-destructive" },
-    { label: "Auto-Locked", value: counts.autoLocked, colorClass: "text-amber-600 dark:text-amber-400", borderClass: "border-amber-500" },
-  ]
+    {
+      label: "Total Classes",
+      value: counts.total,
+      valueClass: "text-foreground",
+    },
+    {
+      label: "Unlocked",
+      value: counts.unlocked,
+      valueClass: "text-muted-foreground",
+    },
+    {
+      label: "Locked",
+      value: counts.locked,
+      valueClass: "text-destructive",
+    },
+    {
+      label: "Auto-Locked",
+      value: counts.autoLocked,
+      valueClass: "text-amber-600 dark:text-amber-400",
+    },
+  ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-      {stats.map(({ label, value, colorClass, borderClass }) => (
-        <div key={label} className={`border-2 ${borderClass} bg-card p-5 flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow`}>
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
-          <p className={`mt-2 text-3xl font-bold ${colorClass}`}>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {stats.map(({ label, value, valueClass }) => (
+        <div
+          key={label}
+          className="rounded-xl border bg-card p-4 transition-colors hover:bg-muted/20"
+        >
+          <p className="text-xs text-muted-foreground">
+            {label}
+          </p>
+
+          <p
+            className={`mt-2 text-2xl font-semibold tracking-tight ${valueClass}`}
+          >
             {value}
           </p>
         </div>
       ))}
     </div>
-  )
+  );
 }

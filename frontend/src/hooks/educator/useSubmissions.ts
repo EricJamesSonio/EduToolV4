@@ -33,7 +33,7 @@ export const useUpdateSubmissionStatus = (
 ): UseMutationResult<
   Submission,
   unknown,
-  { submissionId: string; status: "exempted" | "custom"; manualScore?: number }
+  { submissionId: string; status: "exempted" | "custom" | "missed"; manualScore?: number }
 > => {
   const qc = useQueryClient();
 

@@ -95,6 +95,8 @@ export class SubjectRepository {
     return { ...enriched, sharings: [] };
   }
 
+// filepath: backend/src/modules/subject/subject.repository.ts
+
 async findAll(
   orgId: string,
   filters: {
@@ -126,64 +128,72 @@ async findAll(
     levelFilter = { level_id: filters.levelId };
   } else if (filters.schoolYearId) {
     const levels = await this.db.level.findMany({
-      where: { school_year_id: filters.schoolYearId },
+      where:  { school_year_id: filters.schoolYearId },
       select: { id: true },
     });
     const levelIds = levels.map((l) => l.id);
     levelFilter = { OR: [{ level_id: { in: levelIds } }, { level_id: null }] };
   }
 
-  // Query base subjects
-  const subjects = await this.db.subject.findMany({
-    where: {
-      org_id: orgId,
-      ...levelFilter,
-      ...(filters.programId ? { program_id: filters.programId } : {}),
-      ...(filters.subjectType ? { subject_type: filters.subjectType } : {}),
-      ...(filters.yearLevel ? { year_level: filters.yearLevel } : {}),
-      ...(filters.termLabel ? { term_label: filters.termLabel } : {}),
-      ...(filters.search ? { name: { contains: filters.search, mode: 'insensitive' } } : {}),
-      ...courseFilter,
-    },
-    include: {
-      prerequisites: {
-        include: {
-          prerequisite: {
-            select: { id: true, name: true, year_level: true, term_label: true },
-          },
+  // ── THE FIX ──────────────────────────────────────────────────────────────
+  // When no specific programId is selected ("All programs"), scope subjects
+  // to only the programs that belong to the selected school year.
+  // Without this, the level_id: null branch returns subjects from ALL years.
+  let programFilter: Record<string, unknown> = {};
+  if (filters.programId) {
+    programFilter = { program_id: filters.programId };
+  } else if (filters.schoolYearId) {
+    const programs = await this.db.program.findMany({
+      where:  { school_year_id: filters.schoolYearId, org_id: orgId },
+      select: { id: true },
+    });
+    const programIds = programs.map((p) => p.id);
+    programFilter = { program_id: { in: programIds } };
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const baseWhere = {
+    org_id: orgId,
+    ...levelFilter,
+    ...programFilter,           // ← replaces the old inline programId check
+    ...(filters.subjectType ? { subject_type: filters.subjectType } : {}),
+    ...(filters.yearLevel   ? { year_level:   filters.yearLevel }   : {}),
+    ...(filters.termLabel   ? { term_label:   filters.termLabel }   : {}),
+    ...(filters.search      ? { name: { contains: filters.search, mode: 'insensitive' as const } } : {}),
+    ...courseFilter,
+  };
+
+  const subjectInclude = {
+    prerequisites: {
+      include: {
+        prerequisite: {
+          select: { id: true, name: true, year_level: true, term_label: true },
         },
       },
-      sharings: true,
     },
+    sharings: true,
+  };
+
+  const subjects = await this.db.subject.findMany({
+    where:   baseWhere,
+    include: subjectInclude,
     orderBy: [{ year_level: 'asc' }, { term_label: 'asc' }, { name: 'asc' }],
   });
 
-  // Query shared minor subjects (if levelId is specified)
+  // Shared minor subjects visible to the selected level
   let sharedMinorSubjects: any[] = [];
   if (filters.levelId) {
     sharedMinorSubjects = await this.db.subject.findMany({
       where: {
-        org_id: orgId,
+        org_id:       orgId,
         subject_type: 'minor',
-        sharings: {
-          some: { level_id: filters.levelId },
-        },
+        sharings:     { some: { level_id: filters.levelId } },
       },
-      include: {
-        prerequisites: {
-          include: {
-            prerequisite: {
-              select: { id: true, name: true, year_level: true, term_label: true },
-            },
-          },
-        },
-        sharings: true,
-      },
+      include: subjectInclude,
       orderBy: [{ year_level: 'asc' }, { term_label: 'asc' }, { name: 'asc' }],
     });
   }
 
-  // Merge both lists (avoiding duplicates)
   const allSubjects = [
     ...subjects,
     ...sharedMinorSubjects.filter(
@@ -191,9 +201,10 @@ async findAll(
     ),
   ];
 
-  const enriched = await this.enrichSubjects(allSubjects);
-  const allSharings = allSubjects.flatMap((s: any) => s.sharings ?? []);
+  const enriched        = await this.enrichSubjects(allSubjects);
+  const allSharings     = allSubjects.flatMap((s: any) => s.sharings ?? []);
   const enrichedSharings = await this.enrichSharings(allSharings);
+
   const sharingsBySubject = enrichedSharings.reduce<Record<string, any[]>>(
     (acc, sh) => {
       if (!acc[sh.subjectId]) acc[sh.subjectId] = [];

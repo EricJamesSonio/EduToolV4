@@ -22,7 +22,7 @@ export class EnrollmentRepository {
   }
 
   async findByClass(classId: string, orgId: string) {
-    return this.db.enrollment.findMany({
+    const enrollments = await this.db.enrollment.findMany({
       where: {
         class_id: classId,
         org_id: orgId,
@@ -30,6 +30,24 @@ export class EnrollmentRepository {
       },
       orderBy: { created_at: 'asc' },
     })
+
+    if (enrollments.length === 0) return []
+
+    const studentIds = enrollments.map((e) => e.student_id)
+    const accounts = await this.db.account.findMany({
+      where: { id: { in: studentIds }, org_id: orgId, role: 'student' },
+      select: {
+        id: true,
+        profile: { select: { full_name: true } },
+      },
+    })
+
+    const nameMap = new Map(accounts.map((a) => [a.id, a.profile?.full_name ?? null]))
+
+    return enrollments.map((e) => ({
+      ...e,
+      student_name: nameMap.get(e.student_id) ?? null,
+    }))
   }
 
   async findById(id: string, orgId: string) {
@@ -96,7 +114,10 @@ export class EnrollmentRepository {
       },
       include: {
         class: {
-          include: { schedules: true },
+          include: {
+            schedules: true,
+            subject: { select: { id: true, name: true } },
+          },
         },
       },
       orderBy: { created_at: 'asc' },

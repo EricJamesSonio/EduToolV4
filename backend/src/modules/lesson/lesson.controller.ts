@@ -119,6 +119,18 @@ getWeekStructure(
   ) {
     return this.lessonService.reExtractConcept(id, orgId, educatorId, detail);
   }
+
+  // POST /classes/:classId/lessons/:id/concept-build
+  @Post(':id/concept-build')
+  @Roles('educator')
+  conceptBuild(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') educatorId: string,
+    @Body('detail') detail: string,
+  ) {
+    return this.lessonService.conceptBuild(id, orgId, educatorId, detail);
+  }
 }
 
 // ── Student routes ────────────────────────────────────────────────────────────

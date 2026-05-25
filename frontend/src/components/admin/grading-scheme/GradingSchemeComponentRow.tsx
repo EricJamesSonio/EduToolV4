@@ -7,11 +7,20 @@ import { Trash2 } from "lucide-react";
 import type { ComponentType, GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
 
 const COMPONENT_TYPES: { value: ComponentType; label: string }[] = [
-  { value: "quiz",     label: "Quiz" },
-  { value: "activity", label: "Activity" },
-  { value: "exam",     label: "Exam" },
-  { value: "custom",   label: "Custom" },
-  { value: "manual",   label: "Manual Entry" },
+  { value: "written_work",         label: "Written Work" },
+  { value: "performance_task",     label: "Performance Task" },
+  { value: "quarterly_assessment", label: "Quarterly Assessment" },
+  { value: "exam",                 label: "Exam" },
+  { value: "quiz",                 label: "Quiz" },
+  { value: "assignment",           label: "Assignment" },
+  { value: "project",              label: "Project" },
+  { value: "recitation",           label: "Recitation" },
+  { value: "participation",        label: "Participation" },
+  { value: "behavior",             label: "Behavior" },
+  { value: "attendance",           label: "Attendance" },
+  { value: "activity",             label: "Activity" },
+  { value: "custom",               label: "Custom" },
+  { value: "other",                label: "Other" },
 ];
 
 interface GradingSchemeComponentRowProps {

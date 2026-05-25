@@ -14,6 +14,7 @@ interface SchemeCategory {
   name: string;    // e.g. "Quiz", "Exam", "Activity"
   type: string;    // maps to assessment.type: quiz | exam | activity | manual
   weight: number;  // e.g. 0.3 = 30%
+  maxScore?: number | null;
   is_optional: boolean;
 }
 
@@ -30,6 +31,7 @@ function componentsToCategories(components: any[]): SchemeCategory[] {
     name: c.name,
     type: c.type ?? c.name.toLowerCase(), // use explicit type if present, else derive from name
     weight: c.weight,
+    maxScore: c.max_score ?? c.maxScore ?? null,
     is_optional: c.is_optional,
   }));
 }
@@ -68,10 +70,20 @@ export class GradeService {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
     const cls = await this.repo.findClassWithSubject(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
-    const terms = await this.resolveTerms(cls.semester_id);
-    return Promise.all(
-      terms.map((term) => this.buildTermResult(classId, term.id, term.name, orgId, cls)),
-    );
+
+    const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
+    const results: any[] = [];
+    for (const semester of semesters) {
+      const terms = await this.repo.findTermsBySemester(semester.id);
+      for (const term of terms) {
+        const termResult = await this.buildTermResult(
+          classId, term.id, term.name, orgId, cls,
+          { id: semester.id, name: semester.name },
+        );
+        results.push(termResult);
+      }
+    }
+    return results;
   }
 
   async getGradesByTerm(classId: string, termId: string, orgId: string, educatorId: string) {
@@ -79,11 +91,20 @@ export class GradeService {
     const cls = await this.repo.findClassWithSubject(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
 
-    const terms = await this.repo.findTermsBySemester(cls.semester_id);
-    const term = terms.find((t) => t.id === termId);
-    const termName = term?.name ?? '';
+    const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
+    let semesterInfo: { id: string; name: string } | undefined;
+    let termName = '';
+    for (const s of semesters) {
+      const terms = await this.repo.findTermsBySemester(s.id);
+      const found = terms.find((t: any) => t.id === termId);
+      if (found) {
+        termName = found.name;
+        semesterInfo = { id: s.id, name: s.name };
+        break;
+      }
+    }
 
-    return this.buildTermResult(classId, termId, termName, orgId, cls);
+    return this.buildTermResult(classId, termId, termName, orgId, cls, semesterInfo);
   }
 
   async computeGrades(
@@ -181,9 +202,10 @@ export class GradeService {
   private async buildTermResult(
     classId: string,
     termId: string,
-    termName: string,   // ← new param
+    termName: string,
     orgId: string,
     cls: any,
+    semesterInfo?: { id: string; name: string },
   ) {
     const enrolledStudentIds: string[] = cls.enrollments.map((e: any) => e.student_id);
 
@@ -228,7 +250,12 @@ export class GradeService {
       };
     });
 
-    return { termId, termName, students };   // ← termName added
+    return {
+      termId,
+      termName,
+      students,
+      ...(semesterInfo ? { semesterId: semesterInfo.id, semesterName: semesterInfo.name } : {}),
+    };
   }
 
   private computeWeightedScore(
@@ -322,15 +349,14 @@ export class GradeService {
     const subject = await this.repo.findSubjectLevel(cls.subject_id, orgId);
     if (!subject) return null;
 
-    const levelId = subject.level_id;
-
-    if (!levelId) {
-      throw new NotFoundException(
-        'Subject has no level_id. Cannot determine grading scale.',
-      );
+    const programId = subject.program_id;
+    if (programId) {
+      return this.repo.findGradingScale(programId, cls.school_year_id, orgId);
     }
 
-    return this.repo.findGradingScale(levelId, cls.school_year_id, orgId);
+    throw new NotFoundException(
+      'Subject has no program. Cannot determine grading scale.',
+    );
   }
 
   private async resolveTerms(semesterId: string) {

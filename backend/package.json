@@ -53,7 +53,7 @@
     "winston": "^3.10.0"
   },
   "devDependencies": {
-    "@nestjs/cli": "^10.3.2",
+    "@nestjs/cli": "^10.4.9",
     "@nestjs/schematics": "^10.1.1",
     "@nestjs/testing": "^10.3.0",
     "@swc/cli": "^0.5.2",
@@ -61,7 +61,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^4.17.21",
-    "@types/jest": "^29.5.12",
+    "@types/jest": "^29.5.14",
     "@types/multer": "^2.1.0",
     "@types/node": "^20.11.30",
     "@types/pdfkit": "^0.17.5",

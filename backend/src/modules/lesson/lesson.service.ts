@@ -11,7 +11,7 @@ import { CreateLessonDto, UpdateLessonDto, QueryLessonDto } from './dto/lesson.d
 import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
 import { SemesterTemplateRepository } from '../semester-template/semester-template.repository';
-import { AiService } from '@/core/ai/ai.service';
+import { AiService, ConceptExtractResult } from '@/core/ai/ai.service';
 import { AttendanceRepository } from '../attendance/attendance.repository';
 
 const MIN_DETAIL_WORDS = 10;
@@ -224,6 +224,52 @@ export class LessonService {
     return { success: true, message: 'Concept extraction started.' };
   }
 
+  async conceptBuild(
+    id: string,
+    orgId: string,
+    educatorId: string,
+    detail: string,
+  ) {
+    const lesson = await this.lessonRepo.findById(id, orgId);
+    if (!lesson) throw new NotFoundException('Lesson not found.');
+    const cls = await this.classRepo.findById(lesson.class_id, orgId);
+    if (cls?.educator_id !== educatorId) {
+      throw new ForbiddenException('You do not own this class.');
+    }
+    if (countWords(detail) < MIN_DETAIL_WORDS) {
+      throw new BadRequestException('Lesson detail must be at least 10 words.');
+    }
+
+    const result = await this.aiService.buildConcepts(detail);
+
+    await this.lessonRepo.upsertConcept({
+      orgId,
+      lessonId: id,
+      content: result.conceptBuild as any,
+      rawResponse: result.rawResponse,
+      rawRequest: result.rawRequest,
+      promptVersion: result.promptVersion,
+    });
+
+    await this.notificationService.createNotification({
+      orgId,
+      accountId: educatorId,
+      type: 'concept_build_completed',
+      payload: { lessonId: id },
+    });
+
+    await this.auditLog.logActivityEvent({
+      orgId,
+      actorId: educatorId,
+      action: 'concept_build_completed',
+      entityType: 'class',
+      entityId: lesson.class_id,
+      metadata: { lessonId: id },
+    });
+
+    return result.conceptBuild;
+  }
+
   async getStudentLessons(
     classId: string,
     studentId: string,
@@ -312,6 +358,7 @@ async getWeekStructure(
     semesterWeek: number;
 
     termName: string;
+    termId: string;
     semesterName: string;
     semesterIndex: number;
 
@@ -366,6 +413,7 @@ async getWeekStructure(
           semesterWeek,
 
           termName: term.name,
+          termId: term.id,
           semesterName: sem.name,
           semesterIndex: si + 1,
 
@@ -424,12 +472,15 @@ private getWeekdayOccurrences(
     educatorId: string,
     detail: string,
   ) {
-    const conceptBuild = await this.aiService.extractConcepts(detail);
+    const result = await this.aiService.extractConcepts(detail);
 
     await this.lessonRepo.upsertConcept({
       orgId,
       lessonId,
-      content: conceptBuild as any,
+      content: result.conceptBuild as any,
+      rawResponse: result.rawResponse,
+      rawRequest: result.rawRequest,
+      promptVersion: result.promptVersion,
     });
 
     await this.notificationService.createNotification({

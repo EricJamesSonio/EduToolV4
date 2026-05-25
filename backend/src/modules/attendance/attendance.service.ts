@@ -194,7 +194,32 @@ export class AttendanceService {
 
     const records = await this.attendanceRepo.findRecordsBySession(sessionId);
 
-    return { ...session, records };
+    const enrollments = await this.db.enrollment.findMany({
+      where: { class_id: classId, status: 'active' },
+      select: { student_id: true },
+    });
+
+    const studentIds = enrollments.map((e) => e.student_id);
+
+    const accounts = await this.db.account.findMany({
+      where: { id: { in: studentIds } },
+      include: {
+        profile: { select: { full_name: true } },
+      },
+    });
+
+    const accountsMap = new Map(accounts.map((a) => [a.id, a]));
+
+    const students = enrollments.map((e) => {
+      const acc = accountsMap.get(e.student_id);
+      return {
+        id: e.student_id,
+        name: acc?.profile?.full_name ?? acc?.email?.split('@')[0] ?? 'Unknown',
+        code: acc?.email?.split('@')[0] ?? e.student_id.slice(0, 8),
+      };
+    });
+
+    return { ...session, records, students };
   }
 
   // =========================================================

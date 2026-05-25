@@ -51,6 +51,39 @@ export class AssessmentCoreService {
     if (assessment.class_id !== classId) throw new ForbiddenException('Invalid class access.');
   }
 
+  // ───────── HYBRID GRADING HELPERS ─────────
+
+  isHybridAssessment(assessment: any): boolean {
+    return assessment.grading_mode === 'hybrid';
+  }
+
+  isManualAssessment(assessment: any): boolean {
+    return assessment.grading_mode === 'manual';
+  }
+
+  isSystemAssessment(assessment: any): boolean {
+    return assessment.grading_mode === 'system' || !assessment.grading_mode;
+  }
+
+  calculateSystemSectionScore(submission: any): number {
+    return submission.system_section_score ?? 0;
+  }
+
+  calculateManualSectionScore(submission: any): number {
+    return submission.manual_section_score ?? 0;
+  }
+
+  buildResultWithSections(submission: any, assessment: any): any {
+    const systemScore = this.calculateSystemSectionScore(submission);
+    const manualScore = this.calculateManualSectionScore(submission);
+    return {
+      systemScore,
+      manualScore,
+      totalScore: systemScore + manualScore,
+      manualMaxScore: assessment.manual_max_score ?? null,
+    };
+  }
+
   // ───────── BUILDERS ─────────
 
   buildAssessmentListItem(assessment: any, submission: any | null) {
@@ -61,8 +94,36 @@ export class AssessmentCoreService {
       releaseDate: assessment.release_date,
       endDate: assessment.end_date,
       isPublished: assessment.is_published,
+      gradingMode: assessment.grading_mode ?? 'system',
+      showBreakdown: assessment.show_breakdown ?? false,
       submissionStatus: submission?.status ?? 'not_started',
       submittedAt: submission?.submitted_at ?? null,
+    };
+  }
+
+  private mapQuestion(raw: any) {
+    return {
+      id: raw.id,
+      questionText: raw.question_text,
+      type: raw.type,
+      choices: raw.choices,
+      order: raw.order,
+      isManual: raw.is_manual ?? false,
+      sectionType: raw.section_type ?? null,
+    };
+  }
+
+  private mapQuestionWithAnswer(raw: any, studentAnswer: string | null) {
+    return {
+      id: raw.id,
+      questionText: raw.question_text,
+      type: raw.type,
+      correctAnswer: raw.correct_answer,
+      choices: raw.choices,
+      order: raw.order,
+      isManual: raw.is_manual ?? false,
+      sectionType: raw.section_type ?? null,
+      studentAnswer,
     };
   }
 
@@ -74,19 +135,66 @@ export class AssessmentCoreService {
       releaseDate: assessment.release_date,
       endDate: assessment.end_date,
       isPublished: assessment.is_published,
+      gradingMode: assessment.grading_mode ?? 'system',
+      showBreakdown: assessment.show_breakdown ?? false,
+      manualMaxScore: assessment.manual_max_score ?? null,
       locked,
-      ...(locked ? {} : { questions }),
+      ...(locked ? {} : { questions: questions?.map((q) => this.mapQuestion(q)) }),
     };
   }
 
-  buildResult(submission: any, assessment: any, isGradeLocked: boolean) {
-    return {
+  buildResult(submission: any, assessment: any, isGradeLocked: boolean, questions: any[] = [], answers: any[] = []) {
+    const canView = this.canViewScore(assessment, isGradeLocked);
+    const answerMap = new Map(answers.map((a: any) => [a.question_id, a]));
+
+    const review = canView
+      ? questions.map((q: any) => {
+          const ans = answerMap.get(q.id);
+          return {
+            id: q.id,
+            questionText: q.question_text,
+            type: q.type,
+            correctAnswer: q.correct_answer,
+            choices: q.choices,
+            order: q.order,
+            isManual: q.is_manual ?? false,
+            sectionType: q.section_type ?? null,
+            studentAnswer: ans?.answer ?? null,
+            isCorrect: ans?.is_correct ?? null,
+          };
+        })
+      : undefined;
+
+    const score = canView
+      ? (submission.manual_score ?? submission.score)
+      : null;
+
+    const result: any = {
       status: submission.status,
       submittedAt: submission.submitted_at,
-      score: this.canViewScore(assessment, isGradeLocked)
-        ? (submission.manual_score ?? submission.score)
-        : null,
+      score,
       isPublished: assessment.is_published,
+      totalItems: assessment.total_items,
+      gradingMode: assessment.grading_mode ?? 'system',
+      showBreakdown: assessment.show_breakdown ?? false,
+      questions: review,
     };
+
+    if (this.isHybridAssessment(assessment)) {
+      const sections = this.buildResultWithSections(submission, assessment);
+      result.systemScore = sections.systemScore;
+      result.manualScore = sections.manualScore;
+      result.manualMaxScore = sections.manualMaxScore;
+    }
+
+    return result;
+  }
+
+  handleMissedSubmission(submission: any): any {
+    return { ...submission, score: 0, is_missed: true };
+  }
+
+  handleExemptedSubmission(submission: any): any {
+    return { ...submission, score: 0, is_exempted: true };
   }
 }

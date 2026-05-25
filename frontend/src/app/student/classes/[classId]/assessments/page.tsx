@@ -19,7 +19,6 @@ function deriveStatus(a: StudentAssessmentItem): string {
   if (a.submissionStatus === "submitted") return "submitted";
   if (a.submissionStatus === "graded")    return "graded";
   if (a.submissionStatus === "exempted")  return "exempted";
-  if (!a.isPublished)                     return "draft";
   if (a.releaseDate && new Date(a.releaseDate) > now) return "not_yet_open";
   if (a.endDate && new Date(a.endDate) < now)         return "missed";
   return "open";
@@ -42,8 +41,7 @@ function getAction(
   classId: string,
   router: ReturnType<typeof useRouter>
 ): React.ReactNode {
-  if (status === "open" || status === "draft") {
-    const label = status === "draft" ? "Resume" : "Take Assessment";
+  if (status === "open") {
     return (
       <Button
         size="sm"
@@ -51,7 +49,7 @@ function getAction(
           router.push(`/student/classes/${classId}/assessments/${a.id}`)
         }
       >
-        {label}
+        Take Assessment
       </Button>
     );
   }
@@ -164,17 +162,20 @@ function AssessmentRowSkeleton() {
 export default function StudentAssessmentsPage(): React.JSX.Element {
   const { classId } = useParams<{ classId: string }>();
 
-  const { data: rawData, isLoading } = useStudentAssessments(classId);
-  const assessments: StudentAssessmentItem[] = Array.isArray(rawData)
-    ? rawData
-    : (((rawData as unknown) as Record<string, unknown>)
-        ?.data as StudentAssessmentItem[]) ?? [];
+  const { data: raw, isLoading, isError } = useStudentAssessments(classId);
+  const assessments = raw ?? [];
 
   return (
     <div className="space-y-6">
       <PageHeader title="Assessments" />
 
-      {isLoading && (
+      {isError && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-sm text-destructive">Could not load assessments.</p>
+        </div>
+      )}
+
+      {!isError && isLoading && (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
             <AssessmentRowSkeleton key={i} />
@@ -182,7 +183,7 @@ export default function StudentAssessmentsPage(): React.JSX.Element {
         </div>
       )}
 
-      {!isLoading && assessments.length === 0 && (
+      {!isError && !isLoading && assessments.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <ClipboardList className="h-8 w-8 text-muted-foreground/30 mb-2" />
           <p className="text-sm text-muted-foreground">No assessments yet</p>
@@ -192,7 +193,7 @@ export default function StudentAssessmentsPage(): React.JSX.Element {
         </div>
       )}
 
-      {!isLoading && assessments.length > 0 && (
+      {!isError && !isLoading && assessments.length > 0 && (
         <div className="space-y-2">
           {assessments.map((a) => (
             <AssessmentRow key={a.id} item={a} classId={classId} />

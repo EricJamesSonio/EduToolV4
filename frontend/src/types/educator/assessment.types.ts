@@ -1,13 +1,19 @@
 // filepath: frontend/src/types/educator/assessment.types.ts
 
-export type AssessmentType = "quiz" | "activity" | "exam" | "custom";
+export type AssessmentType =
+  | "written_work" | "performance_task" | "quarterly_assessment"
+  | "exam" | "quiz" | "project" | "recitation"
+  | "attendance" | "activity" | "custom" | "other";
+
+export type GradingMode = "system" | "manual" | "hybrid";
 
 export type QuestionType =
   | "multiple_choice"
   | "true_or_false"
   | "identification"
   | "enumeration"
-  | "essay";
+  | "essay"
+  | "manual";
 
 export interface Choice {
   label: "A" | "B" | "C" | "D";
@@ -24,6 +30,8 @@ export interface Question {
   correctAnswer: string | null;
   points: number;
   isLocked: boolean;
+  isManual?: boolean;
+  sectionType?: string | null;
 }
 
 export interface ItemRange {
@@ -35,6 +43,15 @@ export interface ItemRange {
 }
 
 export type AssessmentStatus = "upcoming" | "open" | "closed";
+
+export interface GenerationStatus {
+  status: "generating" | "completed" | "failed";
+  message: string;
+  chunksTotal: number;
+  chunksDone: number;
+  currentChunk?: string;
+  error?: string;
+}
 
 export interface Assessment {
   id: string;
@@ -50,6 +67,9 @@ export interface Assessment {
   endDate: string | null;
   status: AssessmentStatus;
   isPublished: boolean;
+  gradingMode?: GradingMode;
+  showBreakdown?: boolean;
+  manualMaxScore?: number | null;
   assignedStudentIds: string[] | null;
   submittedCount: number;
   pendingEssayCount: number;

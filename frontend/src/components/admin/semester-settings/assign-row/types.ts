@@ -5,6 +5,7 @@ export interface Program {
   id: string
   name: string
   type: string
+  school_year_id: string
 }
 
 export interface ProgramWithAssignment extends Program {

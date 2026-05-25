@@ -6,12 +6,25 @@ export interface ManualScoreDto {
   score: number;
 }
 
+export interface TermOption {
+  termId: string;
+  termName: string;
+  semesterName: string;
+}
+
 type Envelope<T> = { success: boolean; data: T };
 
 export const gradeApi = {
   getByClass: async (classId: string): Promise<TermGrades[]> => {
     const { data } = await apiClient.get<Envelope<TermGrades[]>>(
       `/classes/${classId}/grades`
+    );
+    return data.data;
+  },
+
+  getTermOptions: async (classId: string): Promise<TermOption[]> => {
+    const { data } = await apiClient.get<Envelope<TermOption[]>>(
+      `/classes/${classId}/grades/term-options`
     );
     return data.data;
   },

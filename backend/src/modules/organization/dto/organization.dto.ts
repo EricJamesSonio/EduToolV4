@@ -1,3 +1,5 @@
+// backend/src/modules/organization/dto/organization.dto.ts
+
 import {
   IsString,
   IsOptional,
@@ -9,6 +11,7 @@ import {
   IsObject,
   IsNumber,
   ValidateNested,
+  IsBoolean,
 } from 'class-validator'
 import { Type } from 'class-transformer'
 
@@ -112,21 +115,11 @@ export class SeedOrganizationDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  excludedSubjects?: string[]   // plain names — minors/GE only
+  excludedSubjects?: string[]
 
   @IsOptional()
   @IsObject()
-  excludedLevelSubjects?: Record<string, string[]>   // levelName → plain subject names
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  excludedGradingSchemePrograms?: string[]
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  excludedSemesterTemplatePrograms?: string[]
+  excludedLevelSubjects?: Record<string, string[]>
 
   @IsOptional()
   @IsObject()
@@ -134,9 +127,21 @@ export class SeedOrganizationDto {
 
   @IsOptional()
   @IsObject()
-  gradingScales?: Record<string, GradingScalePayloadDto>
+  sectionConfigs?: Record<string, SectionItemDto[]>
 
   @IsOptional()
   @IsObject()
-  sectionConfigs?: Record<string, SectionItemDto[]>
+  gradingScales?: Record<string, GradingScalePayloadDto>
+
+  @IsOptional()
+  @IsBoolean()
+  seedGradingScales?: boolean
+
+  @IsOptional()
+  @IsBoolean()
+  seedGradingSchemes?: boolean
+
+  @IsOptional()
+  @IsBoolean()
+  seedSemesterTemplates?: boolean
 }

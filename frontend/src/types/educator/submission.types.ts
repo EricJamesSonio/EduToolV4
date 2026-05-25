@@ -3,6 +3,7 @@ export type SubmissionStatus =
   | "draft"
   | "submitted"
   | "exempted"
+  | "custom"
   | "custom_score";
 
 export interface SubmissionAnswer {
@@ -27,4 +28,9 @@ export interface Submission {
   startedAt: string | null;
   submittedAt: string | null;
   updatedAt: string;
+  systemSectionScore?: number | null;
+  manualSectionScore?: number | null;
+  manualScore?: number | null;
+  isMissed?: boolean;
+  isExempted?: boolean;
 }

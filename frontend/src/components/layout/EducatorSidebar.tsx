@@ -16,14 +16,20 @@ import {
   BarChart2,
   ClipboardList,
   Video,
+  HelpCircle,
 } from "lucide-react";
 
 const TOP_LEVEL_GROUPS: NavGroup[] = [
   {
     items: [
       { label: "My Classes", href: "/educator/classes", icon: BookOpen },
-      { label: "Grading Scheme Library", href: "/educator/gradingScheme-library", icon: Library },
+      { label: "Grading Scheme Library", href: "/educator/grading-scheme-library", icon: Library },
       { label: "Activity Log", href: "/educator/activity-log", icon: ActivitySquare },
+    ],
+  },
+  {
+    items: [
+      { label: "Help", href: "/educator/help", icon: HelpCircle },
     ],
   },
 ];
@@ -54,7 +60,13 @@ export function EducatorSidebar() {
             { label: "Attendance", href: `/educator/classes/${classId}/attendance`, icon: CalendarCheck },
             { label: "Grades", href: `/educator/classes/${classId}/grades`, icon: BarChart2 },
             { label: "Grading Scheme", href: `/educator/classes/${classId}/grading-scheme`, icon: ClipboardList },
+            { label: "Grading Scale", href: `/educator/classes/${classId}/grading-scale`, icon: ClipboardList },
             { label: "Meetings", href: `/educator/classes/${classId}/meetings`, icon: Video },
+          ],
+        },
+        {
+          items: [
+            { label: "Help", href: "/educator/help", icon: HelpCircle },
           ],
         },
       ]

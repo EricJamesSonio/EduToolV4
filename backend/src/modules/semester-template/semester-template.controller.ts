@@ -84,6 +84,16 @@ export class SemesterTemplateController {
   // IMPORTANT: NESTED ASSIGNMENT ROUTE
   // MUST BE BEFORE :id ROUTES
   // ─────────────────────────────────────────────
+  @Get('assignments/:programId/default-term-dates')
+  @Roles('admin')
+  async computeDefaultTermDates(
+    @Param('programId') programId: string,
+    @Query('templateId') templateId: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.service.computeDefaultTermDates(orgId, programId, templateId)
+  }
+
   @Post('assignments/:programId/term-dates')
   @Roles('admin')
   async saveTermDates(

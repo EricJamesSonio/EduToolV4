@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useQueryClient } from "@tanstack/react-query";
 import { useClassGrades, useComputeGrades, useSetManualScore } from "@/hooks/educator/useGrades";
 import type { TermGrades, StudentGrade, CategoryBreakdown } from "@/types/educator/grade.types";
 import { cn } from "@/lib/utils";
@@ -119,40 +120,201 @@ function ManualCell({
   );
 }
 
+// ─── Status Cell ───────────────────────────────────────────────────────────────
+
+const STATUS_ACTIONS = [
+  { label: "Missed", status: "missed" as const },
+  { label: "Custom Score", status: "custom" as const },
+  { label: "Exempted", status: "exempted" as const },
+];
+
+function StatusCell({
+  score,
+  classId,
+  assessmentId,
+  submissionId,
+  studentId,
+  isMissed,
+  isExempted,
+  status,
+  totalItems,
+  onStatusChange,
+}: {
+  score: number | null;
+  classId: string;
+  assessmentId: string;
+  submissionId?: string;
+  studentId?: string;
+  isMissed?: boolean;
+  isExempted?: boolean;
+  status: string;
+  totalItems: number;
+  onStatusChange: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleAction = async (newStatus: string) => {
+    const effectiveId = submissionId || (studentId ? `not_started_${studentId}` : null);
+    if (!effectiveId) return;
+    let body: any = { status: newStatus };
+    if (newStatus === "custom") {
+      const raw = window.prompt("Enter custom score:");
+      if (raw === null) return;
+      const val = parseInt(raw, 10);
+      if (isNaN(val) || val < 0) { toast.error("Invalid score."); return; }
+      body = { status: "custom", manualScore: val };
+    }
+    setPending(true);
+    try {
+      await apiClient.patch(
+        `/classes/${classId}/assessments/${assessmentId}/submissions/${effectiveId}/status`,
+        body,
+      );
+      onStatusChange();
+    } catch {
+      toast.error("Failed to update status.");
+    } finally {
+      setPending(false);
+      setOpen(false);
+    }
+  };
+
+  if (status === 'not_started' || (!submissionId && !score && score !== 0)) {
+    return (
+      <div className="relative" ref={ref}>
+        <button
+          onClick={() => setOpen(!open)}
+          className="text-xs text-muted-foreground/50 hover:text-foreground transition-colors w-6 h-6 rounded"
+        >
+          —
+        </button>
+        {open && (
+          <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-32 rounded-md border bg-popover shadow-md py-1">
+            {STATUS_ACTIONS.map((action) => (
+              <button
+                key={action.status}
+                onClick={() => handleAction(action.status)}
+                disabled={pending}
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors disabled:opacity-50"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const isCustom = status === 'custom' && !isMissed && !isExempted;
+  const isMissedOrExempted = isMissed || isExempted || isCustom;
+  const badgeLabel = isMissed ? "M" : isExempted ? "E" : isCustom ? "C" : null;
+  const badgeClass = isMissed
+    ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+    : isExempted
+      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+      : isCustom
+        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+        : "";
+
+  const currentLabel = isMissed ? "missed" : isExempted ? "exempted" : isCustom ? "custom" : null;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="text-xs tabular-nums text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {isCustom ? (
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              C
+            </span>
+            <span className="text-xs">{fmt(score, 0)}/{totalItems}</span>
+          </span>
+        ) : isMissed || isExempted ? (
+          <span className={`inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold ${badgeClass}`}>
+            {badgeLabel}
+          </span>
+        ) : score !== null ? (
+          `${fmt(score, 0)}/${totalItems}`
+        ) : (
+          "—"
+        )}
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-32 rounded-md border bg-popover shadow-md py-1">
+          {STATUS_ACTIONS.filter(
+            (a) => a.status !== currentLabel,
+          ).map((action) => (
+            <button
+              key={action.status}
+              onClick={() => handleAction(action.status)}
+              disabled={pending}
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors disabled:opacity-50 whitespace-nowrap"
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Default View Table ───────────────────────────────────────────────────────
 
 function DefaultGradeTable({
+  classId,
   termData,
   onManualCommit,
   saving,
+  refreshKey,
+  onRefresh,
 }: {
+  classId: string;
   termData: TermGrades;
   onManualCommit: (studentId: string, category: string, value: number) => void;
   saving: Set<string>;
+  refreshKey: number;
+  onRefresh: () => void;
 }) {
   const { students } = termData;
   if (students.length === 0) return <EmptyState />;
 
-  // Collect unique assessment types for column headers
-  const allAssessmentIds = Array.from(
+  // Collect unique assessments sorted by created_at
+  const allAssessments = Array.from(
     new Map(
       students.flatMap((s) =>
-        s.assessmentScores.map((a) => [a.assessmentId, { id: a.assessmentId, type: a.type }])
+        s.assessmentScores.map((a) => [
+          a.assessmentId,
+          { id: a.assessmentId, type: a.type, title: a.title, created_at: a.created_at ?? null },
+        ])
       )
     ).values()
-  );
-
-  // Collect unique manual categories
-  const manualCategories = Array.from(
-    new Set(students.flatMap((s) => s.categoryBreakdown.filter((c) => c.manualScore !== undefined || c.category).map((c) => c.category)))
-  ).filter(Boolean);
+  ).sort((a, b) => {
+    if (!a.created_at && !b.created_at) return 0;
+    if (!a.created_at) return 1;
+    if (!b.created_at) return -1;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
 
   // Find actual manual categories from breakdown
   const manualCats = Array.from(
     new Set(
       students.flatMap((s) =>
         s.categoryBreakdown
-          .filter((c) => c.manualScore !== null || c.category.toLowerCase().match(/attendance|behavior|recitation|participation/))
+          .filter((c) => c.manualScore !== null)
           .map((c) => c.category)
       )
     )
@@ -167,9 +329,10 @@ function DefaultGradeTable({
               <th className="sticky left-0 bg-muted/50 text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground min-w-[200px]">
                 Student
               </th>
-              {allAssessmentIds.map((a) => (
-                <th key={a.id} className="text-center px-3 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-                  <span className="capitalize">{a.type}</span>
+              {allAssessments.map((a) => (
+                <th key={a.id} className="text-center px-3 py-3 font-semibold text-xs whitespace-nowrap">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">{a.title ?? a.type}</div>
+                  <div className="text-[10px] text-muted-foreground/60 font-normal capitalize">{a.type}</div>
                 </th>
               ))}
               {manualCats.map((cat) => (
@@ -210,18 +373,25 @@ function DefaultGradeTable({
                     </div>
                   </td>
 
-                  {/* Assessment scores */}
-                  {allAssessmentIds.map((a) => {
+                  {/* Assessment scores with status badges */}
+                  {allAssessments.map((a) => {
                     const score = student.assessmentScores.find((s) => s.assessmentId === a.id);
-                    const earned = score?.manualScore ?? score?.score ?? null;
-                    const total = score?.totalItems ?? null;
                     return (
                       <td key={a.id} className="text-center px-3 py-3">
-                        <span className="text-xs tabular-nums text-muted-foreground">
-                          {earned !== null && total !== null
-                            ? `${fmt(earned, 0)}/${total}`
-                            : "—"}
-                        </span>
+                        <div className="flex items-center justify-center">
+                          <StatusCell
+                            score={score?.manualScore ?? score?.score ?? null}
+                            classId={classId}
+                            assessmentId={a.id}
+                            submissionId={score?.submissionId}
+                            studentId={student.studentId}
+                            isMissed={score?.isMissed}
+                            isExempted={score?.isExempted}
+                            status={score?.status ?? 'not_started'}
+                            totalItems={score?.totalItems ?? 0}
+                            onStatusChange={onRefresh}
+                          />
+                        </div>
                       </td>
                     );
                   })}
@@ -269,6 +439,88 @@ function DefaultGradeTable({
   );
 }
 
+// ─── Per-Student Category Drill-Down Modal ────────────────────────────────────
+
+function StudentCategoryDrillDown({
+  student,
+  category,
+  onClose,
+}: {
+  student: StudentGrade | null;
+  category: string | null;
+  onClose: () => void;
+}) {
+  if (!student || !category) return null;
+
+  const bd = student.categoryBreakdown.find(
+    (c) => c.category.toLowerCase() === category.toLowerCase()
+  );
+  const categoryType = bd?.type;
+
+  const assessments = student.assessmentScores
+    .filter((a) => categoryType ? a.type.toLowerCase() === categoryType.toLowerCase() : a.type.toLowerCase() === category.toLowerCase())
+    .sort((a, b) => {
+      if (!a.created_at && !b.created_at) return 0;
+      if (!a.created_at) return 1;
+      if (!b.created_at) return -1;
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-lg rounded-xl border bg-background shadow-xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h3 className="font-semibold text-lg capitalize">
+            {student.studentName} &mdash; {category}
+          </h3>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1.5 hover:bg-muted transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-6">
+          {assessments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No assessments in this category.</p>
+          ) : (
+            <div className="space-y-3">
+              {assessments.map((a) => {
+                const earned = a.manualScore ?? a.score;
+                return (
+                  <div key={a.assessmentId} className="flex items-center justify-between rounded-lg border px-4 py-3">
+                    <span className="text-sm font-medium capitalize">{a.type}</span>
+                    <span className="text-sm tabular-nums">
+                      {earned !== null ? (
+                        <>{fmt(earned, 0)}/{a.totalItems}</>
+                      ) : a.isMissed ? (
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-bold">M</span>
+                      ) : a.isExempted ? (
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold">E</span>
+                      ) : a.status === 'custom' ? (
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold">C</span>
+                      ) : (
+                        <span className="text-muted-foreground/50">&mdash;</span>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="mt-4 pt-4 border-t flex items-center justify-between">
+            <span className="text-sm font-semibold">Average</span>
+            <span className="text-sm font-bold tabular-nums">
+              {bd ? `${fmt(bd.rawAverage)}%` : "—"}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Clean View Table ─────────────────────────────────────────────────────────
 
 function CleanGradeTable({
@@ -279,102 +531,118 @@ function CleanGradeTable({
   onManualCommit: (studentId: string, category: string, value: number) => void;
 }) {
   const { students } = termData;
+  const [drillDown, setDrillDown] = useState<{ student: StudentGrade; category: string } | null>(null);
   if (students.length === 0) return <EmptyState />;
 
-  // Collect all category names from breakdowns
+  // Collect all category names from breakdowns, excluding empty manual categories
   const allCategories = Array.from(
     new Set(students.flatMap((s) => s.categoryBreakdown.map((c) => c.category)))
-  );
+  ).filter((cat) => {
+    return students.some((s) => {
+      const bd = s.categoryBreakdown.find((c) => c.category === cat);
+      return bd?.type !== 'manual' || bd?.manualScore != null;
+    });
+  });
 
   return (
-    <div className="rounded-xl border overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-muted/50 border-b">
-              <th className="sticky left-0 bg-muted/50 text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground min-w-[200px]">
-                Student
-              </th>
-              {allCategories.map((cat) => (
-                <th key={cat} className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-                  {cat}
+    <>
+      <div className="rounded-xl border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted/50 border-b">
+                <th className="sticky left-0 bg-muted/50 text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground min-w-[200px]">
+                  Student
                 </th>
-              ))}
-              <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground">
-                Term Grade
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {students.map((student, idx) => {
-              const isLocked = student.grade?.is_locked ?? false;
-              return (
-                <tr
-                  key={student.studentId}
-                  className={cn(
-                    "transition-colors",
-                    idx % 2 === 0 ? "bg-background" : "bg-muted/20",
-                    "hover:bg-muted/40"
-                  )}
-                >
-                  <td className="sticky left-0 bg-inherit px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                        {student.studentName.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{student.studentName}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">{student.studentCode}</p>
-                      </div>
-                      {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
-                    </div>
-                  </td>
-
-                  {allCategories.map((cat) => {
-                    const bd = student.categoryBreakdown.find(
-                      (c) => c.category.toLowerCase() === cat.toLowerCase()
-                    );
-                    const isManual = bd?.manualScore !== undefined && bd?.manualScore !== null;
-                    return (
-                      <td key={cat} className="text-center px-4 py-3">
-                        {isManual ? (
-                          <ManualCell
-                            value={bd?.manualScore ?? null}
-                            studentId={student.studentId}
-                            category={cat}
-                            isLocked={isLocked}
-                            onCommit={onManualCommit}
-                          />
-                        ) : (
-                          <span className="text-xs tabular-nums text-muted-foreground">
-                            {bd ? `${fmt(bd.rawAverage)}%` : "—"}
-                          </span>
-                        )}
-                      </td>
-                    );
-                  })}
-
-                  <td className="text-center px-4 py-3">
-                    {student.grade ? (
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className={cn("text-sm font-bold tabular-nums", gradeColor(student.grade.final_score))}>
-                          {fmt(student.grade.final_score)}%
-                        </span>
-                        <span className="text-[10px] font-mono text-muted-foreground">
-                          {student.grade.final_grade}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
+                {allCategories.map((cat) => (
+                  <th key={cat} className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                    {cat}
+                  </th>
+                ))}
+                <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground">
+                  Term Grade
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {students.map((student, idx) => {
+                const isLocked = student.grade?.is_locked ?? false;
+                return (
+                  <tr
+                    key={student.studentId}
+                    className={cn(
+                      "transition-colors",
+                      idx % 2 === 0 ? "bg-background" : "bg-muted/20",
+                      "hover:bg-muted/40"
                     )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  >
+                    <td className="sticky left-0 bg-inherit px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                          {student.studentName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{student.studentName}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">{student.studentCode}</p>
+                        </div>
+                        {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+                      </div>
+                    </td>
+
+                    {allCategories.map((cat) => {
+                      const bd = student.categoryBreakdown.find(
+                        (c) => c.category.toLowerCase() === cat.toLowerCase()
+                      );
+                      const isManual = bd?.manualScore !== undefined && bd?.manualScore !== null;
+                      return (
+                        <td key={cat} className="text-center px-4 py-3">
+                          {isManual ? (
+                            <ManualCell
+                              value={bd?.manualScore ?? null}
+                              studentId={student.studentId}
+                              category={cat}
+                              isLocked={isLocked}
+                              onCommit={onManualCommit}
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setDrillDown({ student, category: cat })}
+                              className="text-xs tabular-nums text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2 decoration-dotted decoration-muted-foreground/40"
+                            >
+                              {bd ? `${fmt(bd.rawAverage)}%` : "—"}
+                            </button>
+                          )}
+                        </td>
+                      );
+                    })}
+
+                    <td className="text-center px-4 py-3">
+                      {student.grade ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className={cn("text-sm font-bold tabular-nums", gradeColor(student.grade.final_score))}>
+                            {fmt(student.grade.final_score)}%
+                          </span>
+                          <span className="text-[10px] font-mono text-muted-foreground">
+                            {student.grade.final_grade}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+      <StudentCategoryDrillDown
+        student={drillDown?.student ?? null}
+        category={drillDown?.category ?? null}
+        onClose={() => setDrillDown(null)}
+      />
+    </>
   );
 }
 
@@ -426,19 +694,44 @@ export default function GradesPage() {
   const { data: allTerms, isLoading } = useClassGrades(classId);
 
   const [activeTermId, setActiveTermId] = useState<string | null>(null);
+  const [activeSemesterId, setActiveSemesterId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("default");
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
   const [locking, setLocking] = useState(false);
   const [saving, setSaving] = useState<Set<string>>(new Set());
+  const [refreshKey, setRefreshKey] = useState(0);
+  const qc = useQueryClient();
 
-  // Set initial active term once data loads
+  // Derive unique semesters from term data
+  const semesters = allTerms
+    ? Array.from(
+        new Map(
+          allTerms.map((t) => [
+            t.semesterId ?? "default",
+            { id: t.semesterId ?? "default", name: t.semesterName ?? "Default" },
+          ]),
+        ).values(),
+      )
+    : [];
+
+  const semesterTerms = allTerms?.filter(
+    (t) => (t.semesterId ?? "default") === (activeSemesterId ?? ""),
+  ) ?? [];
+
+  // Set initial active semester and term once data loads
   useEffect(() => {
-    if (allTerms && allTerms.length > 0 && !activeTermId) {
-      setActiveTermId(allTerms[0].termId);
+    if (semesters.length > 0 && !activeSemesterId) {
+      setActiveSemesterId(semesters[0].id);
     }
-  }, [allTerms, activeTermId]);
+  }, [semesters, activeSemesterId]);
 
-  const activeTerm = allTerms?.find((t) => t.termId === activeTermId) ?? null;
+  useEffect(() => {
+    if (semesterTerms.length > 0 && !activeTermId) {
+      setActiveTermId(semesterTerms[0].termId);
+    }
+  }, [semesterTerms, activeTermId]);
+
+  const activeTerm = semesterTerms.find((t) => t.termId === activeTermId) ?? null;
 
   const computeMutation = useComputeGrades(classId, activeTermId ?? "");
 
@@ -544,10 +837,30 @@ export default function GradesPage() {
         }
       />
 
+      {/* Semester tabs */}
+      {semesters.length > 1 && (
+        <div className="flex items-center gap-1">
+          {semesters.map((sem) => (
+            <button
+              key={sem.id}
+              onClick={() => { setActiveSemesterId(sem.id); setActiveTermId(null); }}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                activeSemesterId === sem.id
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {sem.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Term tabs */}
-      {allTerms && allTerms.length > 0 && (
+      {semesterTerms.length > 0 && (
         <div className="flex items-center gap-1 border-b">
-          {allTerms.map((term) => (
+          {semesterTerms.map((term) => (
             <button
               key={term.termId}
               onClick={() => setActiveTermId(term.termId)}
@@ -600,9 +913,12 @@ export default function GradesPage() {
           {/* Table */}
           {viewMode === "default" ? (
             <DefaultGradeTable
+              classId={classId}
               termData={activeTerm}
               onManualCommit={handleManualCommit}
               saving={saving}
+              refreshKey={refreshKey}
+              onRefresh={() => { setRefreshKey((k) => k + 1); qc.invalidateQueries({ queryKey: ["grades", classId] }); }}
             />
           ) : (
             <CleanGradeTable

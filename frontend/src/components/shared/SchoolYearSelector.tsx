@@ -31,41 +31,56 @@ export function SchoolYearSelector({
       const defaultId =
         schoolYears.find((sy) => sy.status === "active")?.id ??
         schoolYears[0].id;
+
       onSelect(defaultId);
     }
   }, [schoolYears, selectedId, onSelect]);
 
-  if (isLoading) return <Skeleton className="h-11 w-64" />;
+  if (isLoading) {
+    return <Skeleton className="h-10 w-full sm:w-64" />;
+  }
 
   if (schoolYears.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">No school years found.</p>
+      <p className="text-sm text-muted-foreground">
+        No school years found.
+      </p>
     );
   }
 
   const selected = schoolYears.find((sy) => sy.id === selectedId);
 
   return (
-    <div className="flex items-center gap-2">
-      <CalendarDays className="h-5 w-5 text-muted-foreground shrink-0" />
+    <div className="flex w-full items-center gap-2">
+      <CalendarDays className="h-5 w-5 shrink-0 text-muted-foreground" />
+
       <Select
         value={selectedId ?? ""}
         onValueChange={(value) => {
           if (value) onSelect(value);
         }}
       >
-        <SelectTrigger className="w-64 h-11 text-base border-2 border-primary bg-secondary">
-          <span className="truncate font-medium">
+        <SelectTrigger className="w-full sm:w-64 h-10 text-sm">
+          <span className="truncate">
             {selected?.name ?? "Select school year"}
           </span>
         </SelectTrigger>
-        <SelectContent className="w-[16rem] min-w-[16rem]">
+
+        <SelectContent className="sm:min-w-[16rem]">
           {schoolYears.map((sy) => (
-            <SelectItem key={sy.id} value={sy.id} className="text-base py-3">
-              <div className="flex items-center gap-2 w-full">
-                <span className="font-medium">{sy.name}</span>
+            <SelectItem
+              key={sy.id}
+              value={sy.id}
+              className="text-sm"
+            >
+              <div className="flex w-full items-center gap-2">
+                <span>{sy.name}</span>
+
                 {sy.status === "active" && (
-                  <Badge variant="default" className="text-xs py-0.5 px-2 font-semibold ml-auto">
+                  <Badge
+                    variant="default"
+                    className="ml-auto text-[10px]"
+                  >
                     Active
                   </Badge>
                 )}

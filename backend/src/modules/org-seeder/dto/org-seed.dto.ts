@@ -7,6 +7,7 @@ import {
   IsNumber,
   ValidateNested,
   IsObject,
+  IsBoolean,
 } from 'class-validator'
 import { Type } from 'class-transformer'
 
@@ -88,7 +89,16 @@ export class OrgSeedDto {
   @IsObject()
   gradingScales?: Record<string, GradingScaleOptionDto>
 
-  // new "other" field — required, non-optional
+  // NEW FLAGS
+  @IsOptional()
+  @IsBoolean()
+  seedGradingSchemes?: boolean
+
+  @IsOptional()
+  @IsBoolean()
+  seedSemesterTemplates?: boolean
+
+  // new "other" field
   @IsObject()
   other!: Record<string, any>
 }

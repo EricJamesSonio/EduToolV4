@@ -97,6 +97,62 @@ export class GradeRepository {
     });
   }
 
+  // ───────── ASSESSMENTS (for computation) ─────────
+
+  async findAssessmentsForTerm(classId: string, termId: string, orgId: string) {
+    return this.db.assessment.findMany({
+      where: {
+        org_id: orgId,
+        class_id: classId,
+        term_id: termId,
+        deleted_at: null,
+      },
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        total_items: true,
+        grading_mode: true,
+        show_breakdown: true,
+        is_published: true,
+        manual_max_score: true,
+        created_at: true,
+      },
+      orderBy: { created_at: 'asc' },
+    });
+  }
+
+  async registerAssessmentForAllStudents(assessmentId: string, classId: string, orgId: string) {
+    const enrollments = await this.db.enrollment.findMany({
+      where: { class_id: classId, org_id: orgId, status: 'active' },
+      select: { student_id: true },
+    });
+    if (enrollments.length === 0) return 0;
+
+    const existing = await this.db.submission.findMany({
+      where: { assessment_id: assessmentId },
+      select: { student_id: true },
+    });
+    const existingIds = new Set(existing.map((s: any) => s.student_id));
+
+    const newSubs: any[] = enrollments
+      .filter((e) => !existingIds.has(e.student_id))
+      .map((e) => ({
+        org_id: orgId,
+        assessment_id: assessmentId,
+        student_id: e.student_id,
+        status: 'draft',
+        score: null,
+        manual_score: null,
+        submitted_at: null,
+      }));
+
+    if (newSubs.length > 0) {
+      await this.db.submission.createMany({ data: newSubs });
+    }
+    return newSubs.length;
+  }
+
   // ───────── SUBMISSIONS (for computation) ─────────
 
   async findSubmissionsForTerm(classId: string, termId: string, orgId: string) {
@@ -115,6 +171,8 @@ export class GradeRepository {
             type: true,
             total_items: true,
             term_id: true,
+            grading_mode: true,
+            created_at: true,
           },
         },
       },
@@ -168,7 +226,14 @@ export class GradeRepository {
   async findSubjectLevel(subjectId: string, orgId: string) {
     return this.db.subject.findFirst({
       where: { id: subjectId, org_id: orgId },
-      select: { level_id: true },
+      select: { level_id: true, program_id: true },
+    });
+  }
+
+  async findSemestersBySchoolYear(schoolYearId: string) {
+    return this.db.semester.findMany({
+      where: { school_year_id: schoolYearId },
+      orderBy: { start_date: 'asc' },
     });
   }
 
@@ -228,6 +293,13 @@ export class GradeRepository {
       include: { terms: { orderBy: { order_index: 'asc' } } },
     });
     return semester?.terms ?? [];
+  }
+
+  async setAssessmentVisibility(assessmentId: string, showBreakdown: boolean) {
+    return this.db.assessment.update({
+      where: { id: assessmentId },
+      data: { show_breakdown: showBreakdown },
+    });
   }
 
   async findStudentProfiles(studentIds: string[]): Promise<Map<string, { name: string; code: string }>> {

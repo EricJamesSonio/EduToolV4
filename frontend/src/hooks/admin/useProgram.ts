@@ -1,71 +1,140 @@
+// ===== File: frontend/src/hooks/admin/usePrograms.ts
+
 import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  UseQueryResult,
-  UseMutationResult,
-} from "@tanstack/react-query";
+  useAsyncQuery,
+  useMutationWithInvalidation,
+} from "@/hooks/hook-factory.utils";
+
 import { programApi } from "@/api/admin/program.api";
-import type { CreateProgramRequest, UpdateProgramRequest } from "@/api/admin/program.api";
-import type { Program } from "@/types/admin/program.types";
 
-// schoolYearId is required for the backend to return results
-// (service returns [] when schoolYearId is absent)
-export const usePrograms = (schoolYearId?: string): UseQueryResult<Program[], Error> => {
-  return useQuery({
-    queryKey: ["programs", schoolYearId],
-    queryFn: () => programApi.getAll(schoolYearId!),
-    enabled: !!schoolYearId, // don't fire until we have a schoolYearId
-  });
-};
+import type {
+  CreateProgramRequest,
+  UpdateProgramRequest,
+} from "@/api/admin/program.api";
 
-export const useCreateProgram = (): UseMutationResult<
+import type {
   Program,
-  Error,
-  CreateProgramRequest
-> => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: programApi.create,
-    onSuccess: (_, variables) => {
-      // invalidate only the relevant school year bucket
-      queryClient.invalidateQueries({
-        queryKey: ["programs", variables.schoolYearId],
-      });
+} from "@/types/admin/program.types";
+
+const programKeys = {
+  all: ["programs"] as const,
+
+  list: (schoolYearId?: string) =>
+    ["programs", schoolYearId] as const,
+
+  detail: (id: string) =>
+    ["admin", "programs", id] as const,
+};
+
+
+// ── GET programs by school year ─────────────────────────
+
+export const usePrograms = (
+  schoolYearId?: string,
+) => {
+  return useAsyncQuery<Program[]>(
+    programKeys.list(
+      schoolYearId,
+    ),
+
+    () =>
+      programApi.getAll(
+        schoolYearId!,
+      ),
+
+    {
+      enabled: !!schoolYearId,
     },
-  });
+  );
 };
 
-export const useUpdateProgram = (): UseMutationResult<
-  Program,
-  Error,
-  { id: string; data: UpdateProgramRequest }
-> => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateProgramRequest }) =>
-      programApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["programs"] });
+
+// ── CREATE program ──────────────────────────────────────
+
+export const useCreateProgram = () => {
+  return useMutationWithInvalidation(
+    (
+      data: CreateProgramRequest,
+    ) =>
+      programApi.create(
+        data,
+      ),
+
+    {
+      onSuccess: (
+        _,
+        variables,
+      ) => {
+        // invalidate only affected bucket
+        return {
+          invalidateKeys: [
+            programKeys.list(
+              variables.schoolYearId,
+            ),
+          ],
+        };
+      },
     },
-  });
+  );
 };
 
-export const useDeleteProgram = (): UseMutationResult<void, Error, string> => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: programApi.delete,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["programs"] });
+
+// ── UPDATE program ──────────────────────────────────────
+
+export const useUpdateProgram =
+  () => {
+    return useMutationWithInvalidation(
+      ({
+        id,
+        data,
+      }: {
+        id: string;
+        data: UpdateProgramRequest;
+      }) =>
+        programApi.update(
+          id,
+          data,
+        ),
+
+      {
+        invalidateKeys: [
+          programKeys.all,
+        ],
+      },
+    );
+  };
+
+
+// ── DELETE program ──────────────────────────────────────
+
+export const useDeleteProgram =
+  () => {
+    return useMutationWithInvalidation(
+      (id: string) =>
+        programApi.delete(id),
+
+      {
+        invalidateKeys: [
+          programKeys.all,
+        ],
+      },
+    );
+  };
+
+
+// ── GET program detail ──────────────────────────────────
+
+export const useProgramDetail = (
+  id: string,
+) => {
+  return useAsyncQuery<Program>(
+    programKeys.detail(id),
+
+    () =>
+      programApi.getOne(id),
+
+    {
+      enabled: !!id,
     },
-  });
+  );
 };
-
-export const useProgramDetail = (id: string): UseQueryResult<Program, Error> => {
-  return useQuery({
-    queryKey: ["admin", "programs", id],
-    queryFn: () => programApi.getOne(id),
-    enabled: !!id,
-  });
-};
-

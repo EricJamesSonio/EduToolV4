@@ -1,69 +1,108 @@
+// ===== File: frontend/src/components/shared/EmailInput.tsx =====
 "use client";
-import { useState, useEffect } from "react";
+
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { useState, useMemo } from "react";
 
 interface EmailInputProps {
   value: string;
-  onChange: (fullEmail: string) => void;
-  extension?: string | null; // e.g. "@edutool.ph"
+  onChange: (value: string) => void;
+  extension?: string | null;
   placeholder?: string;
   disabled?: boolean;
-  className?: string;
+  role?: "student" | "educator"; // ✅ NEW: Role-based suffix
+  includeUsernameSeparator?: boolean;
 }
 
 /**
- * Smart email input. If an org extension is set, the user types just the
- * username part and the extension is shown as a suffix badge. The full email
- * (username + extension) is emitted via onChange.
+ * ✅ NEW: EmailInput with role-based extension suffix
+ *
+ * If extension is "@example.com" and role is "student":
+ * - User types: "juan123"
+ * - Output email: "juan123@example.student.com"
+ *
+ * If role is "educator":
+ * - User types: "mr_dela_cruz"
+ * - Output email: "mr_dela_cruz@example.educator.com"
  */
 export function EmailInput({
   value,
   onChange,
   extension,
-  placeholder,
-  disabled,
-  className,
+  placeholder = "username",
+  disabled = false,
+  role = "student",
+  includeUsernameSeparator = false,
 }: EmailInputProps): React.JSX.Element {
-  const hasExtension = !!extension;
+  const [isFocused, setIsFocused] = useState(false);
 
-  // Derive the username portion from the full value
-  const username = hasExtension && value.endsWith(extension!)
-    ? value.slice(0, -extension!.length)
-    : value;
+  // ✅ NEW: Build full email extension with role suffix
+  const fullExtension = useMemo(() => {
+    if (!extension) return "";
 
-  function handleUsernameChange(raw: string) {
-    // Strip any "@" the user types — the extension handles that
-    const cleaned = raw.replace(/@.*/, "");
-    onChange(hasExtension ? `${cleaned}${extension}` : cleaned);
-  }
+    const baseDomain = extension.replace(/^@/, "");
 
-  if (!hasExtension) {
-    return (
-      <Input
-        type="email"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder ?? "email@example.com"}
-        disabled={disabled}
-        className={className}
-      />
-    );
-  }
+    if (role === "student") {
+      return `@${baseDomain}.student`;
+    } else if (role === "educator") {
+      return `@${baseDomain}.educator`;
+    }
+
+    return `@${baseDomain}`;
+  }, [extension, role]);
+
+  // Parse the input value (username only)
+  const username = value.replace(fullExtension, "").replace(/@.*$/, "");
+
+  // Build the full email for display
+  const displayEmail = fullExtension ? `${username}${fullExtension}.com` : value;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+
+    // Remove any @ symbols or existing extensions
+    const cleanedUsername = input
+      .replace(/@.*$/, "") // Remove everything after @
+      .replace(/\s/g, "") // Remove spaces
+      .toLowerCase();
+
+    onChange(cleanedUsername);
+  };
 
   return (
-    <div className={cn("flex items-center rounded-md border bg-background ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", className)}>
-      <Input
-        type="text"
-        value={username}
-        onChange={(e) => handleUsernameChange(e.target.value)}
-        placeholder={placeholder ?? "username"}
-        disabled={disabled}
-        className="border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none"
-      />
-      <span className="pr-3 text-sm font-mono text-muted-foreground whitespace-nowrap select-none">
-        {extension}
-      </span>
+    <div className="space-y-1.5">
+      <div className="relative">
+        <Input
+          type="email"
+          placeholder={placeholder || "username"}
+          value={username}
+          onChange={handleChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          disabled={disabled}
+          autoComplete="off"
+          className="pr-32"
+        />
+        {/* ✅ Display extension in placeholder style inside input */}
+        {isFocused && username && fullExtension && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+            {fullExtension}.com
+          </span>
+        )}
+      </div>
+
+      {/* ✅ Show preview below input when not focused */}
+      {!isFocused && username && fullExtension && (
+        <p className="text-xs text-muted-foreground">
+          Full email: <span className="font-mono text-foreground">{displayEmail}</span>
+        </p>
+      )}
+
+      {!extension && (
+        <p className="text-xs text-muted-foreground italic">
+          No email extension set in organization. Ask your admin to configure one.
+        </p>
+      )}
     </div>
   );
 }

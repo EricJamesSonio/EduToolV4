@@ -5,6 +5,8 @@ import { DataTable } from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
 import type { Section } from "@/types/admin/section.types";
 import type { Program } from "@/types/admin/program.types";
 
@@ -26,7 +28,6 @@ export function SectionTable({
   onEdit,
   onDelete,
 }: SectionTableProps): React.JSX.Element {
-  // Build lookup maps from programs
   const courseMap = Object.fromEntries(
     programs.flatMap((p) =>
       (p.courses ?? []).map((c) => [
@@ -43,6 +44,10 @@ export function SectionTable({
         { name: s.name, programName: p.name },
       ])
     )
+  );
+
+  const programTypeMap = Object.fromEntries(
+    programs.map((p) => [p.id, p.type])
   );
 
   const columns: ColumnDef<Section>[] = [
@@ -66,26 +71,36 @@ export function SectionTable({
           return <span className="text-muted-foreground text-xs">—</span>;
         }
 
+        const programType = programTypeMap[levelInfo.programId];
+        const programColor =
+          PROGRAM_TYPE_COLORS[
+            programType as keyof typeof PROGRAM_TYPE_COLORS
+          ] ?? "bg-slate-500/10 text-slate-600 border-slate-200";
+
         return (
           <div className="flex flex-col gap-0.5">
-            {/* Program */}
-            <span className="text-xs text-muted-foreground">
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-xs border px-2 py-0.5 w-fit font-normal",
+                programColor
+              )}
+            >
               {levelInfo.programName}
-            </span>
+            </Badge>
 
-            {/* Course or Strand */}
             {course && (
               <span className="text-xs text-muted-foreground">
                 {course.code ? `${course.code} – ${course.name}` : course.name}
               </span>
             )}
+
             {strand && (
               <span className="text-xs text-muted-foreground">
                 {strand.name}
               </span>
             )}
 
-            {/* Level */}
             <Badge variant="secondary" className="font-normal w-fit text-xs">
               {levelInfo.name}
             </Badge>
@@ -128,6 +143,7 @@ export function SectionTable({
       id: "actions",
       cell: ({ row }) => {
         const section = row.original;
+
         return (
           <div className="flex items-center gap-1">
             <Button
@@ -139,6 +155,7 @@ export function SectionTable({
             >
               <Pencil className="h-3.5 w-3.5" />
             </Button>
+
             <Button
               size="sm"
               variant="ghost"

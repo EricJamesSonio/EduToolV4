@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import * as React from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSidebar } from "@/context/SidebarContext";
 import type { LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -28,7 +29,7 @@ export interface NavGroup {
 interface SidebarShellProps {
   header: React.ReactNode;
   groups: NavGroup[];
-  footer?: React.ReactNode; // ✅ new
+  footer?: React.ReactNode;
   className?: string;
 }
 
@@ -44,24 +45,27 @@ function NavLink({
 }: {
   item: NavItem;
   collapsed: boolean;
-}): React.JSX.Element {
+}) {
   const isActive = useIsActive(item.href, item.exact);
   const Icon = item.icon;
 
-  const link = (
+  const base =
+    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors";
+
+  const stateStyles = isActive
+    ? "bg-muted text-foreground"
+    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground";
+
+  // ✅ FIX: Wrap Link with a DOM element (<span>) when using asChild
+  const linkContent = (
     <Link
       href={item.href}
-      className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-        "hover:bg-muted hover:text-foreground",
-        isActive ? "bg-primary/10 text-primary" : "text-muted-foreground",
-        collapsed && "justify-center px-2"
-      )}
+      className={cn(base, stateStyles, collapsed && "justify-center px-2")}
     >
       <Icon
         className={cn(
           "h-4 w-4 shrink-0",
-          isActive ? "text-primary" : "text-muted-foreground"
+          isActive ? "text-foreground" : "text-muted-foreground"
         )}
       />
       {!collapsed && <span className="truncate">{item.label}</span>}
@@ -70,70 +74,92 @@ function NavLink({
 
   if (collapsed) {
     return (
-      <Tooltip>
-        <TooltipTrigger render={link} />
-        <TooltipContent side="right">{item.label}</TooltipContent>
-      </Tooltip>
-    );
+  <Tooltip>
+    <TooltipTrigger>
+      {linkContent}
+    </TooltipTrigger>
+    <TooltipContent side="right">{item.label}</TooltipContent>
+  </Tooltip>
+      );
   }
 
-  return link;
+  return linkContent;
 }
 
-export function SidebarShell({ header, groups, footer, className }: SidebarShellProps): React.JSX.Element {
-  const [collapsed, setCollapsed] = useState(false);
+export function SidebarShell({
+  header,
+  groups,
+  footer,
+  className,
+}: SidebarShellProps) {
+  const { collapsed, setCollapsed } = useSidebar();
 
   return (
-    <TooltipProvider delay={200}>
+    <TooltipProvider delayDuration={200}>
       <aside
         className={cn(
-          "fixed left-0 top-14 bottom-0 z-40 flex flex-col border-r bg-background transition-all duration-200",
+          "fixed left-0 top-14 bottom-0 z-40 flex flex-col border-r",
+          "bg-card text-foreground border-border",
+          "transition-all duration-200",
           collapsed ? "w-14" : "w-56",
           className
         )}
       >
-        {/* Header slot */}
+        {/* Header */}
         {!collapsed && (
-          <div className="border-b px-4 py-3 text-sm">{header}</div>
+          <div className="border-b border-border px-4 py-3 text-sm text-foreground">
+            {header}
+          </div>
         )}
 
-        {/* Nav groups */}
+        {/* Nav */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-4">
           {groups.map((group, gi) => (
-            <div key={gi} className="space-y-0.5">
+            <div key={gi} className="space-y-1">
               {group.label && !collapsed && (
-                <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {group.label}
                 </p>
               )}
+
               {group.items.map((item) => (
-                <NavLink key={item.href} item={item} collapsed={collapsed} />
+                <NavLink
+                  key={item.href}
+                  item={item}
+                  collapsed={collapsed}
+                />
               ))}
             </div>
           ))}
         </nav>
 
-        {/* Footer slot */}
+        {/* Footer */}
         {footer && (
-          <div className={cn("border-t p-2", collapsed && "flex justify-center")}>
+          <div
+            className={cn(
+              "border-t border-border p-2",
+              collapsed && "flex justify-center"
+            )}
+          >
             {footer}
           </div>
         )}
 
-        {/* Collapse toggle */}
-        <div className="border-t p-2">
+        {/* Toggle */}
+        <div className="border-t border-border p-2">
           <button
             onClick={() => setCollapsed((c) => !c)}
             className={cn(
-              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors",
+              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm",
+              "bg-muted text-foreground hover:bg-muted/80 transition-colors",
               collapsed && "justify-center px-2"
             )}
           >
             {collapsed ? (
-              <ChevronRight className="h-4 w-4 shrink-0" />
+              <ChevronRight className="h-4 w-4" />
             ) : (
               <>
-                <ChevronLeft className="h-4 w-4 shrink-0" />
+                <ChevronLeft className="h-4 w-4" />
                 <span>Collapse</span>
               </>
             )}

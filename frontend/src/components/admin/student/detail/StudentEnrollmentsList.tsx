@@ -9,6 +9,7 @@ import type { StudentEnrollment } from "@/api/admin/student.api";
 interface Props {
   enrollments: StudentEnrollment[];
   isLoading: boolean;
+  programIds: string[];
   onEnroll: () => void;
   onRemove: (enrollment: StudentEnrollment) => void;
 }
@@ -16,9 +17,11 @@ interface Props {
 export function StudentEnrollmentsList({
   enrollments,
   isLoading,
+  programIds,
   onEnroll,
   onRemove,
 }: Props): React.JSX.Element {
+  const hasProgram = programIds.length > 0;
   return (
     <div className="rounded-lg border bg-card">
       <div className="flex items-center justify-between px-5 py-4 border-b">
@@ -31,7 +34,13 @@ export function StudentEnrollmentsList({
             </span>
           )}
         </div>
-        <Button size="sm" variant="outline" onClick={onEnroll}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onEnroll}
+          disabled={!hasProgram}
+          title={!hasProgram ? "Please enroll the student in a program first" : ""}
+        >
           <Plus className="mr-1.5 h-4 w-4" />
           Enroll in Class
         </Button>
@@ -57,8 +66,8 @@ export function StudentEnrollmentsList({
               className="flex items-center justify-between px-5 py-3"
             >
               <div className="flex items-center gap-3">
-                <span className="text-sm font-mono text-muted-foreground">
-                  {e.classId}
+                <span className="text-sm text-muted-foreground">
+                  {e.class?.subject?.name ?? e.class_id}
                 </span>
                 <StatusBadge status={e.status} />
               </div>

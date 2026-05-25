@@ -16,7 +16,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, User } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import type { Role } from "@/types/auth.types";
 
 interface TopBarProps {
   className?: string;
@@ -29,16 +28,6 @@ function getInitials(name: string): string {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-}
-
-function getProfilePath(role: Role): string {
-  const map: Record<Role, string> = {
-    platform_owner: "/platform/profile",
-    admin:          "/admin/profile",
-    educator:       "/educator/profile",
-    student:        "/student/profile",
-  };
-  return map[role] ?? "/profile";
 }
 
 export function TopBar({ className }: TopBarProps) {
@@ -76,6 +65,7 @@ export function TopBar({ className }: TopBarProps) {
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-48">
+            {/* Label must be inside a Group — Base UI requirement */}
             <DropdownMenuGroup>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col gap-0.5">
@@ -91,10 +81,7 @@ export function TopBar({ className }: TopBarProps) {
 
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <Link
-                  href={user ? getProfilePath(user.role) : "/profile"}
-                  className="flex items-center cursor-pointer w-full"
-                >
+                <Link href="/profile" className="flex items-center cursor-pointer w-full">
                   <User className="mr-2 h-4 w-4" />
                   My Profile
                 </Link>

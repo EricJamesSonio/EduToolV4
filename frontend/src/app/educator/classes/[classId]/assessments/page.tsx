@@ -35,11 +35,12 @@ import {
 import { Plus, Loader2, Eye, Users, Trash2 } from "lucide-react";
 import type { AssessmentType } from "@/types/educator/assessment.types";
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
+  draft: "bg-amber-50 text-amber-700 border-amber-200",
   upcoming: "bg-blue-50 text-blue-700 border-blue-200",
   open: "bg-green-50 text-green-700 border-green-200",
   closed: "bg-zinc-100 text-zinc-600 border-zinc-200",
-} as const;
+};
 
 const TYPE_LABELS: Record<AssessmentType, string> = {
   quiz: "Quiz",
@@ -184,16 +185,9 @@ export default function AssessmentsPage(): React.JSX.Element {
                           </Button>
                         </Link>
                         <AlertDialog>
-                          <AlertDialogTrigger>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="gap-1.5 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Delete
-                            </Button>
-                          </AlertDialogTrigger>
+<AlertDialogTrigger>
+  Delete
+</AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete this assessment?</AlertDialogTitle>

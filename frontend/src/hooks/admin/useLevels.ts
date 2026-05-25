@@ -1,83 +1,102 @@
-// frontend/src/hooks/admin/useLevels.ts
+// ===== File: frontend/src/hooks/admin/useLevels.ts
 
 import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  UseQueryResult,
-  UseMutationResult,
-} from "@tanstack/react-query";
-import { levelApi, UpdateDefaultLevelsRequest } from "@/api/admin/level.api";
-import type { Level, LevelDefault } from "@/types/admin/level.types";
+  useAsyncQuery,
+  useMutationWithInvalidation,
+} from "@/hooks/hook-factory.utils";
 
-// ── GET default levels ───────────────────────────────────────────────────────
-export const useDefaultLevels = (): UseQueryResult<LevelDefault[], Error> => {
-  return useQuery<LevelDefault[], Error>({
-    queryKey: ["levels", "defaults"],
-    queryFn: levelApi.getDefaults,
-  });
-};
+import {
+  levelApi,
+  type UpdateDefaultLevelsRequest,
+} from "@/api/admin/level.api";
 
-// ── UPDATE default levels ────────────────────────────────────────────────────
-export const useUpdateDefaultLevels = (): UseMutationResult<
-  LevelDefault[],
-  Error,
-  UpdateDefaultLevelsRequest
-> => {
-  const queryClient = useQueryClient();
-  return useMutation<LevelDefault[], Error, UpdateDefaultLevelsRequest>({
-    mutationFn: levelApi.updateDefaults,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["levels", "defaults"] });
-    },
-  });
-};
-
-// ── GET levels by school year ────────────────────────────────────────────────
-export const useLevelsByYear = (schoolYearId: string): UseQueryResult<Level[], Error> => {
-  return useQuery<Level[], Error>({
-    queryKey: ["levels", schoolYearId],
-    queryFn: () => levelApi.getBySchoolYear(schoolYearId),
-    enabled: !!schoolYearId,
-  });
-};
-
-// ── UPDATE single level ─────────────────────────────────────────────────────
-export const useUpdateLevel = (): UseMutationResult<
+import type {
   Level,
-  Error,
-  { id: string; name: string; schoolYearId?: string }
-> => {
-  const queryClient = useQueryClient();
-  return useMutation<Level, Error, { id: string; name: string; schoolYearId?: string }>({
-    mutationFn: ({ id, name }) => levelApi.updateOne(id, name),
-    onSuccess: (_, variables) => {
-      // Invalidate specific list query if context provided
-      if (variables.schoolYearId) {
-        queryClient.invalidateQueries({ queryKey: ["levels", variables.schoolYearId] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["levels"] });
-      }
-    },
-  });
+  LevelDefault,
+} from "@/types/admin/level.types";
+
+const levelKeys = {
+  all: ["levels"] as const,
+
+  defaults: () =>
+    ["levels", "defaults"] as const,
+
+  byYear: (schoolYearId: string) =>
+    ["levels", schoolYearId] as const,
 };
 
-// ── DELETE single level ─────────────────────────────────────────────────────
-export const useDeleteLevel = (): UseMutationResult<
-  void,
-  Error,
-  { id: string; schoolYearId?: string }
-> => {
-  const queryClient = useQueryClient();
-  return useMutation<void, Error, { id: string; schoolYearId?: string }>({
-    mutationFn: ({ id }) => levelApi.deleteOne(id),
-    onSuccess: (_, variables) => {
-      // Invalidate specific list query if context provided
-      if (variables.schoolYearId) {
-        queryClient.invalidateQueries({ queryKey: ["levels", variables.schoolYearId] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["levels"] });
-      }
+
+// ── GET default levels ─────────────────────────────────────
+
+export const useDefaultLevels = () => {
+  return useAsyncQuery<LevelDefault[]>(
+    levelKeys.defaults(),
+    levelApi.getDefaults,
+  );
+};
+
+
+// ── UPDATE default levels ─────────────────────────────────
+
+export const useUpdateDefaultLevels =
+  () => {
+    return useMutationWithInvalidation(
+      (
+        data: UpdateDefaultLevelsRequest,
+      ) =>
+        levelApi.updateDefaults(data),
+
+      {
+        invalidateKeys: [
+          levelKeys.all,
+        ],
+      },
+    );
+  };
+
+
+// ── GET levels by school year ─────────────────────────────
+
+export const useLevelsByYear = (
+  schoolYearId: string,
+) => {
+  return useAsyncQuery<Level[]>(
+    levelKeys.byYear(
+      schoolYearId,
+    ),
+
+    () =>
+      levelApi.getBySchoolYear(
+        schoolYearId,
+      ),
+
+    {
+      enabled: !!schoolYearId,
     },
-  });
+  );
+};
+
+
+// ── UPDATE single level ───────────────────────────────────
+
+export const useUpdateLevel = () => {
+  return useMutationWithInvalidation(
+    ({
+      id,
+      name,
+    }: {
+      id: string;
+      name: string;
+    }) =>
+      levelApi.updateOne(
+        id,
+        name,
+      ),
+
+    {
+      invalidateKeys: [
+        levelKeys.all,
+      ],
+    },
+  );
 };

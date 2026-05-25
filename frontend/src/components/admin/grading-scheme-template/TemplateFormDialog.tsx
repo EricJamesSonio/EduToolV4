@@ -39,8 +39,11 @@ const COMPONENT_TYPES: { value: ComponentType; label: string; color: string }[] 
   { value: "quarterly_assessment", label: "Quarterly Assessment",  color: "bg-amber-100 text-amber-700" },
   { value: "exam",                 label: "Exam",                  color: "bg-red-100 text-red-700" },
   { value: "quiz",                 label: "Quiz",                  color: "bg-orange-100 text-orange-700" },
+  { value: "assignment",           label: "Assignment",            color: "bg-indigo-100 text-indigo-700" },
   { value: "project",              label: "Project",               color: "bg-green-100 text-green-700" },
   { value: "recitation",           label: "Recitation",            color: "bg-cyan-100 text-cyan-700" },
+  { value: "participation",        label: "Participation",         color: "bg-pink-100 text-pink-700" },
+  { value: "behavior",             label: "Behavior",              color: "bg-rose-100 text-rose-700" },
   { value: "attendance",           label: "Attendance",            color: "bg-teal-100 text-teal-700" },
   { value: "other",                label: "Other",                 color: "bg-gray-100 text-gray-700" },
 ];

@@ -8,6 +8,7 @@ import {
 import { SubmissionRepository } from './submission.repository';
 import { AssessmentRepository } from '../assessment/core/assessment-core.repository';
 import { AttendanceService } from '../attendance/attendance.service';
+import { GradeEducatorService } from '../grade/educator/grade-educator.service';
 import { SaveDraftDto, FinishSubmissionDto } from './dto/submission.dto';
 
 @Injectable()
@@ -16,28 +17,30 @@ export class SubmissionService {
     private readonly submissionRepo: SubmissionRepository,
     private readonly assessmentRepo: AssessmentRepository,
     private readonly attendanceService: AttendanceService,
+    private readonly gradeService: GradeEducatorService,
   ) {}
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  private async assertAssessmentOpen(assessmentId: string, orgId: string) {
+  private async assertAssessmentOpen(assessmentId: string, orgId: string, studentId?: string) {
     const assessment = await this.assessmentRepo.findById(assessmentId, orgId);
     if (!assessment) throw new NotFoundException('Assessment not found.');
 
     const now = new Date();
 
-    // Must be published
-    if (!assessment.is_published) {
-      throw new ForbiddenException('Assessment is not published.');
-    }
-
     // Must be past release date
-    if (!assessment.release_date || now < new Date(assessment.release_date)) {
+    if (assessment.release_date && now < new Date(assessment.release_date)) {
       throw new ForbiddenException('Assessment has not been released yet.');
     }
 
-    // Must be before end date
+    // Check end date — skip if student has a reopened_until extension
     if (assessment.end_date && now > new Date(assessment.end_date)) {
+      if (studentId) {
+        const submission = await this.submissionRepo.findByStudent(assessmentId, studentId);
+        if (submission?.reopened_until && now < new Date(submission.reopened_until)) {
+          return assessment; // extension is still valid
+        }
+      }
       throw new ForbiddenException('Assessment deadline has passed.');
     }
 
@@ -51,7 +54,7 @@ export class SubmissionService {
     orgId: string,
     studentId: string,
   ) {
-    const assessment = await this.assertAssessmentOpen(assessmentId, orgId);
+    const assessment = await this.assertAssessmentOpen(assessmentId, orgId, studentId);
 
     // Check existing attempt
     const existing = await this.submissionRepo.findByStudent(
@@ -87,7 +90,7 @@ export class SubmissionService {
     studentId: string,
     dto: SaveDraftDto,
   ) {
-    await this.assertAssessmentOpen(assessmentId, orgId);
+    await this.assertAssessmentOpen(assessmentId, orgId, studentId);
 
     const submission = await this.submissionRepo.findByStudent(
       assessmentId,
@@ -131,7 +134,7 @@ export class SubmissionService {
     studentId: string,
     dto: FinishSubmissionDto,
   ) {
-    const assessment = await this.assertAssessmentOpen(assessmentId, orgId);
+    const assessment = await this.assertAssessmentOpen(assessmentId, orgId, studentId);
 
     const submission = await this.submissionRepo.findByStudent(
       assessmentId,
@@ -164,36 +167,59 @@ export class SubmissionService {
       dto.answers,
     );
 
-    // ── Auto-grade non-essay questions ───────────────────────────────────────
+    // ── Auto-grade (skip entirely for manual mode) ───────────────────────────
 
-    const questionMap = new Map(questions.map((q) => [q.id, q]));
+    const isManual = assessment.grading_mode === 'manual';
+    const isHybrid = assessment.grading_mode === 'hybrid';
 
-    const gradedAnswers = savedAnswers
-      .filter((a) => {
+    let gradedAnswers: Array<{ id: string; isCorrect: boolean }> = [];
+    let score: number | null = null;
+    let systemSectionScore: number | undefined;
+    let essayPending = false;
+
+    if (!isManual) {
+      const questionMap = new Map(questions.map((q) => [q.id, q]));
+
+      // For hybrid: only auto-grade system (non-manual) questions
+      // For system: auto-grade all non-essay questions
+      const autoGradable = savedAnswers.filter((a) => {
         const q = questionMap.get(a.question_id);
-        return q && q.type !== 'essay'; // essays graded manually
-      })
-      .map((a) => {
-        const q = questionMap.get(a.question_id)!;
-        return {
-          id: a.id,
-          isCorrect:
-            a.answer.trim().toLowerCase() ===
-            (q.correct_answer ?? '').trim().toLowerCase(),
-        };
+        if (!q) return false;
+        if (q.type === 'essay' || q.type === 'manual') return false;
+        if (q.is_manual) return false;
+        return true;
       });
 
-    await this.submissionRepo.gradeAnswers(submission.id, gradedAnswers);
+      gradedAnswers = autoGradable
+        .map((a) => {
+          const q = questionMap.get(a.question_id)!;
+          return {
+            id: a.id,
+            isCorrect:
+              a.answer.trim().toLowerCase() ===
+              (q.correct_answer ?? '').trim().toLowerCase(),
+          };
+        });
 
-    // Score = number of correct non-essay answers
-    const score = gradedAnswers.filter((a) => a.isCorrect).length;
+      await this.submissionRepo.gradeAnswers(submission.id, gradedAnswers);
 
-    // Mark as submitted
+      score = gradedAnswers.filter((a) => a.isCorrect).length;
+      systemSectionScore = isHybrid ? score : undefined;
+      essayPending = savedAnswers.length - gradedAnswers.length > 0;
+    }
+
+    // Mark as submitted — also clear reopened_until so extension is consumed
     const updated = await this.submissionRepo.updateStatus(submission.id, {
       status: 'submitted',
-      score,
+      ...(score !== null ? { score } : {}),
+      ...(systemSectionScore !== undefined ? { systemSectionScore } : {}),
       submittedAt: new Date(),
     });
+
+    // Clear reopened_until if it was set
+    if (submission.reopened_until) {
+      await this.submissionRepo.clearReopenedUntil(submission.id).catch(() => {});
+    }
 
     // ── Fire-and-forget: auto-mark present ───────────────────────────────────
     if (assessment.class_id) {
@@ -207,11 +233,20 @@ export class SubmissionService {
         .catch(() => {}); // non-blocking, never throws
     }
 
+    // ── Fire-and-forget: auto-recompute grade ─────────────────────────────────
+    if (assessment.class_id && assessment.term_id) {
+      this.gradeService
+        .recomputeStudentGrade(assessment.class_id, assessment.term_id, studentId, orgId)
+        .catch((err) =>
+          console.error(`[Submission] Grade recompute failed for ${studentId}:`, err),
+        );
+    }
+
     return {
       submissionId: submission.id,
       score,
-      totalGraded: gradedAnswers.length,
-      essayPending: savedAnswers.length - gradedAnswers.length > 0,
+      totalGraded: isManual ? 0 : gradedAnswers.length,
+      essayPending,
       submittedAt: updated.submitted_at,
     };
   }

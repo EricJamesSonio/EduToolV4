@@ -31,6 +31,16 @@ export class GradingSchemeController {
     return this.service.findByClass(classId, orgId);
   }
 
+  // educator: get allowed assessment types based on scheme
+  @Get('class/:classId/allowed-types')
+  @Roles('admin', 'educator')
+  async getAllowedTypes(
+    @Param('classId') classId: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.service.getAllowedAssessmentTypes(classId, orgId);
+  }
+
   // educator: manually create scheme for a class
   @Post()
   @Roles('admin', 'educator')

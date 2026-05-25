@@ -1,18 +1,18 @@
-import { Injectable } from '@nestjs/common'
-import { DatabaseService } from '@/core/database/database.provider'
+import { Injectable } from '@nestjs/common';
+import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
 export class ClassRepository {
   constructor(private readonly db: DatabaseService) {}
 
   async create(data: {
-    orgId: string
-    subjectId: string
-    educatorId: string
-    sectionId?: string
-    schoolYearId: string
-    semesterId: string
-    capacity: number
+    orgId: string;
+    subjectId: string;
+    educatorId: string;
+    sectionId?: string;
+    schoolYearId: string;
+    semesterId: string;
+    capacity: number;
   }) {
     return this.db.class.create({
       data: {
@@ -24,8 +24,176 @@ export class ClassRepository {
         semester_id: data.semesterId,
         capacity: data.capacity,
       },
-      include: { schedules: true },
-    })
+      include: {
+        schedules: true,
+        educator: {
+          include: {
+            profile: { select: { full_name: true } },
+          },
+        },
+      },
+    });
+  }
+
+  async findAll(orgId: string, filters: any) {
+    return this.db.class.findMany({
+      where: {
+        org_id: orgId,
+        deleted_at: null,
+        ...(filters.schoolYearId && { school_year_id: filters.schoolYearId }),
+        ...(filters.semesterId && { semester_id: filters.semesterId }),
+        ...(filters.educatorId && { educator_id: filters.educatorId }),
+        ...(filters.subjectId && { subject_id: filters.subjectId }),
+        ...(filters.sectionId && { section_id: filters.sectionId }),
+      },
+      include: {
+        _count: {
+          select: { enrollments: true },
+        },
+        schedules: true,
+        subject: {
+          select: {
+            id: true,
+            name: true,
+            program_id: true,
+            course_id: true,
+            strand_id: true,
+            level_id: true,
+            course: { select: { program_id: true } },
+            strand: { select: { program_id: true } },
+          },
+        },
+        educator: {
+          include: {
+            profile: {
+              select: {
+                full_name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+  async findById(id: string, orgId: string) {
+    return this.db.class.findFirst({
+      where: { id, org_id: orgId, deleted_at: null },
+      include: {
+        _count: {
+          select: { enrollments: true },
+        },
+        schedules: true,
+        educator: {
+          include: {
+            profile: { select: { full_name: true } },
+          },
+        },
+        subject: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  async update(
+    id: string,
+    data: {
+      educatorId?: string;
+      sectionId?: string | null;
+      capacity?: number;
+    },
+  ) {
+    return this.db.class.update({
+      where: { id },
+      data: {
+        ...(data.educatorId !== undefined && { educator_id: data.educatorId }),
+        ...(data.sectionId !== undefined && { section_id: data.sectionId }),
+        ...(data.capacity !== undefined && { capacity: data.capacity }),
+      },
+      include: {
+        schedules: true,
+        educator: {
+          include: {
+            profile: { select: { full_name: true } },
+          },
+        },
+      },
+    });
+  }
+
+  async findActiveClassesByEducator(educatorId: string, orgId: string) {
+    return this.db.class.findMany({
+      where: {
+        org_id: orgId,
+        educator_id: educatorId,
+        deleted_at: null,
+      },
+      include: {
+        educator: {
+          include: {
+            profile: { select: { full_name: true } },
+          },
+        },
+      },
+    });
+  }
+
+  async findEducatorSchedules(educatorId: string, orgId: string) {
+    return this.db.classSchedule.findMany({
+      where: {
+        org_id: orgId,
+        class: { educator_id: educatorId, deleted_at: null },
+      },
+      include: {
+        class: {
+          include: {
+            educator: {
+              include: {
+                profile: { select: { full_name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async findSchedulesByClass(classId: string) {
+    return this.db.classSchedule.findMany({
+      where: { class_id: classId },
+    });
+  }
+
+  async findSectionSchedules(sectionId: string, orgId: string) {
+    return this.db.classSchedule.findMany({
+      where: {
+        org_id: orgId,
+        class: { section_id: sectionId, deleted_at: null },
+      },
+      include: { class: true },
+    });
+  }
+
+  async findBySchoolYear(schoolYearId: string, orgId: string) {
+    return this.db.class.findMany({
+      where: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        deleted_at: null,
+      },
+      include: {
+        educator: {
+          include: {
+            profile: { select: { full_name: true } },
+          },
+        },
+      },
+    });
   }
 
   async findEnrolledStudents(classId: string, orgId: string) {
@@ -35,24 +203,18 @@ export class ClassRepository {
         org_id: orgId,
         status: { not: 'removed' },
       },
-      select: {
-        student_id: true,
-      },
+      select: { student_id: true },
     });
 
     const studentIds = enrollments.map((e) => e.student_id);
-    if (studentIds.length === 0) return [];
+    if (!studentIds.length) return [];
 
     const profiles = await this.db.profile.findMany({
-      where: {
-        account_id: { in: studentIds },
-      },
+      where: { account_id: { in: studentIds } },
       select: {
         account_id: true,
         full_name: true,
-        account: {
-          select: { email: true },
-        },
+        account: { select: { email: true } },
       },
     });
 
@@ -63,85 +225,15 @@ export class ClassRepository {
     }));
   }
 
-  async findAll(
-    orgId: string,
-    filters: {
-      schoolYearId?: string
-      semesterId?: string
-      educatorId?: string
-      subjectId?: string
-      sectionId?: string
-    },
-  ) {
-    return this.db.class.findMany({
-      where: {
-        org_id: orgId,
-        deleted_at: null,
-        ...(filters.schoolYearId ? { school_year_id: filters.schoolYearId } : {}),
-        ...(filters.semesterId ? { semester_id: filters.semesterId } : {}),
-        ...(filters.educatorId ? { educator_id: filters.educatorId } : {}),
-        ...(filters.subjectId ? { subject_id: filters.subjectId } : {}),
-        ...(filters.sectionId ? { section_id: filters.sectionId } : {}),
-      },
-      include: {
-        schedules: true,
-        subject: {
-          select: {
-            id:         true,
-            name:       true,
-            program_id: true,
-            course_id:  true,
-            strand_id:  true,
-            level_id:   true,
-            course:     { select: { program_id: true } },
-            strand:     { select: { program_id: true } },
-          },
-        },
-      },
-      orderBy: { created_at: 'desc' },
-    })
-  }
-
-  async findById(id: string, orgId: string) {
-    return this.db.class.findFirst({
-      where: { id, org_id: orgId, deleted_at: null },
-      include: { schedules: true },
-    })
-  }
-
-  async update(
-    id: string,
-    data: {
-      educatorId?: string
-      sectionId?: string | null
-      capacity?: number
-    },
-  ) {
-    return this.db.class.update({
-      where: { id },
-      data: {
-        ...(data.educatorId !== undefined ? { educator_id: data.educatorId } : {}),
-        ...(data.sectionId !== undefined ? { section_id: data.sectionId } : {}),
-        ...(data.capacity !== undefined ? { capacity: data.capacity } : {}),
-      },
-      include: { schedules: true },
-    })
-  }
-
-  async softDelete(id: string) {
-    return this.db.class.update({
-      where: { id },
-      data: { deleted_at: new Date() },
-    })
-  }
-
   async replaceSchedules(
     orgId: string,
     classId: string,
     slots: Array<{ weekday: number; startTime: Date; endTime: Date }>,
   ) {
-    await this.db.classSchedule.deleteMany({ where: { class_id: classId } })
-    if (slots.length === 0) return []
+    await this.db.classSchedule.deleteMany({ where: { class_id: classId } });
+
+    if (!slots.length) return [];
+
     return this.db.classSchedule.createMany({
       data: slots.map((s) => ({
         org_id: orgId,
@@ -150,67 +242,10 @@ export class ClassRepository {
         start_time: s.startTime,
         end_time: s.endTime,
       })),
-    })
+    });
   }
 
-  async findEducatorSchedules(educatorId: string, orgId: string) {
-    return this.db.classSchedule.findMany({
-      where: {
-        org_id: orgId,
-        class: { educator_id: educatorId, deleted_at: null },
-      },
-      include: { class: true },
-    })
-  }
-
-  async findSectionSchedules(sectionId: string, orgId: string) {
-    return this.db.classSchedule.findMany({
-      where: {
-        org_id: orgId,
-        class: { section_id: sectionId, deleted_at: null },
-      },
-      include: { class: true },
-    })
-  }
-
-  async findActiveClassesByEducator(educatorId: string, orgId: string) {
-    return this.db.class.findMany({
-      where: { org_id: orgId, educator_id: educatorId, deleted_at: null },
-    })
-  }
-
-  async findBySchoolYear(schoolYearId: string, orgId: string) {
-    return this.db.class.findMany({
-      where: { org_id: orgId, school_year_id: schoolYearId, deleted_at: null },
-    })
-  }
-
-  async findSubjectWithEducator(
-    subjectId: string,
-    educatorId: string,
-    orgId: string,
-  ) {
-    const [subject, educatorProfile] = await Promise.all([
-      this.db.subject.findFirst({
-        where: { id: subjectId, org_id: orgId },
-        select: { id: true, name: true, level_id: true },
-      }),
-      this.db.profile.findFirst({
-        where: { account: { id: educatorId } },
-        select: { full_name: true },
-      }),
-    ])
-    return { subject, educatorProfile }
-  }
-
-  async createOwnershipLog(data: {
-    orgId: string
-    classId: string
-    fromEducatorId: string
-    toEducatorId: string
-    reason?: string
-    reassignedBy: string
-  }) {
+  async createOwnershipLog(data: any) {
     return this.db.classOwnershipLog.create({
       data: {
         org_id: data.orgId,
@@ -220,20 +255,63 @@ export class ClassRepository {
         reason: data.reason ?? null,
         reassigned_by: data.reassignedBy,
       },
-    })
+    });
   }
 
   async findOwnershipHistory(classId: string, orgId: string) {
     return this.db.classOwnershipLog.findMany({
       where: { class_id: classId, org_id: orgId },
       orderBy: { reassigned_at: 'asc' },
-    })
+    });
   }
 
   async lockGradingSchemeForClass(classId: string, orgId: string) {
     return this.db.gradingScheme.updateMany({
-      where: { class_id: classId, org_id: orgId, is_locked: false },
-      data: { is_locked: true, locked_at: new Date() },
-    })
+      where: {
+        class_id: classId,
+        org_id: orgId,
+        is_locked: false,
+      },
+      data: {
+        is_locked: true,
+        locked_at: new Date(),
+      },
+    });
+  }
+
+  async softDelete(id: string) {
+    return this.db.class.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+      },
+    });
+  }
+
+  async findSubjectWithEducator(id: string) {
+    const cls = await this.db.class.findUnique({
+      where: { id },
+      include: {
+        subject: true,
+        educator: {
+          include: {
+            profile: {
+              select: {
+                full_name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!cls) {
+      throw new Error('Class not found');
+    }
+
+    return {
+      subject: cls.subject,
+      educatorProfile: cls.educator.profile,
+    };
   }
 }

@@ -1,26 +1,29 @@
-import { useEffect } from "react"
-import { useForm } from "react-hook-form"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
-import { organizationApi } from "@/api/admin/organization.api"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Skeleton } from "@/components/ui/skeleton"
+"use client";
+
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { organizationApi } from "@/api/admin/organization.api";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface OrgForm {
-  name:        string
-  description: string
+  name: string;
+  description: string;
 }
 
 export function OrgDetailsCard() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   const { data: org, isLoading } = useQuery({
     queryKey: ["admin", "organization"],
-    queryFn:  organizationApi.getOrg,
-  })
+    queryFn: organizationApi.getOrg,
+  });
 
   const {
     register,
@@ -29,33 +32,46 @@ export function OrgDetailsCard() {
     formState: { errors, isDirty },
   } = useForm<OrgForm>({
     defaultValues: { name: "", description: "" },
-  })
+  });
 
   useEffect(() => {
-    if (org) reset({ name: org.name, description: org.description ?? "" })
-  }, [org, reset])
+    if (org) {
+      reset({
+        name: org.name,
+        description: org.description ?? "",
+      });
+    }
+  }, [org, reset]);
 
   const updateMutation = useMutation({
     mutationFn: (values: OrgForm) =>
       organizationApi.updateOrg({
-        name:        values.name,
+        name: values.name,
         description: values.description || undefined,
       }),
     onSuccess: (updated) => {
-      toast.success("Organization updated.")
-      queryClient.invalidateQueries({ queryKey: ["admin", "organization"] })
-      reset({ name: updated.name, description: updated.description ?? "" })
+      toast.success("Organization updated.");
+      queryClient.invalidateQueries({ queryKey: ["admin", "organization"] });
+
+      reset({
+        name: updated.name,
+        description: updated.description ?? "",
+      });
     },
     onError: () => toast.error("Failed to update organization."),
-  })
+  });
 
-  const onSubmit = (values: OrgForm) => updateMutation.mutate(values)
+  const onSubmit = (values: OrgForm) => updateMutation.mutate(values);
 
   return (
-    <div className="rounded-lg border bg-card p-6 space-y-5">
-      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-        Details
-      </h2>
+    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+
+      {/* Title */}
+      <div>
+        <h2 className="text-lg font-semibold text-foreground">
+          Details
+        </h2>
+      </div>
 
       {isLoading ? (
         <div className="space-y-4">
@@ -66,27 +82,36 @@ export function OrgDetailsCard() {
         </div>
       ) : (
         <>
+          {/* Name */}
           <div className="space-y-1.5">
-            <Label htmlFor="org-name">Organization Name</Label>
+            <Label htmlFor="org-name" className="text-sm text-foreground">
+              Organization Name
+            </Label>
+
             <Input
               id="org-name"
               placeholder="e.g. St. Mary's Academy"
               {...register("name", {
-                required:  "Name is required",
-                minLength: { value: 2,   message: "At least 2 characters" },
+                required: "Name is required",
+                minLength: { value: 2, message: "At least 2 characters" },
                 maxLength: { value: 100, message: "Max 100 characters" },
               })}
             />
+
             {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
+              <p className="text-sm text-destructive">
+                {errors.name.message}
+              </p>
             )}
           </div>
 
+          {/* Description */}
           <div className="space-y-1.5">
-            <Label htmlFor="org-desc">
+            <Label htmlFor="org-desc" className="text-sm text-foreground">
               Description{" "}
-              <span className="text-muted-foreground font-normal">(optional)</span>
+              <span className="text-muted-foreground">(optional)</span>
             </Label>
+
             <Textarea
               id="org-desc"
               placeholder="A brief description of your school..."
@@ -95,11 +120,15 @@ export function OrgDetailsCard() {
                 maxLength: { value: 500, message: "Max 500 characters" },
               })}
             />
+
             {errors.description && (
-              <p className="text-xs text-destructive">{errors.description.message}</p>
+              <p className="text-sm text-destructive">
+                {errors.description.message}
+              </p>
             )}
           </div>
 
+          {/* Save button */}
           {isDirty && (
             <div className="flex justify-end pt-2">
               <Button
@@ -113,5 +142,5 @@ export function OrgDetailsCard() {
         </>
       )}
     </div>
-  )
+  );
 }

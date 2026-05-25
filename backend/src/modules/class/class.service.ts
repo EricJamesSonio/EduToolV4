@@ -233,20 +233,25 @@ async create(orgId: string, dto: CreateClassDto) {
       sectionId:    query.sectionId,
     })
 
-    return classes.map((cls) => {
-      const subject = (cls as any).subject
-      const programId =
-        subject?.program_id ??
-        subject?.course?.program_id ??
-        subject?.strand?.program_id ??
-        null
+return classes.map((cls) => {
+  const subject = (cls as any).subject
+  const educator = (cls as any).educator
 
-      return {
-        ...cls,
-        program_id:    programId,
-        subject_name:  subject?.name ?? null,
-      }
-    })
+  const programId =
+    subject?.program_id ??
+    subject?.course?.program_id ??
+    subject?.strand?.program_id ??
+    null
+
+  return {
+    ...cls,
+    program_id:    programId,
+    subject_name:  subject?.name ?? null,
+
+    // ✅ THIS IS THE FIX
+    educatorName: educator?.profile?.full_name ?? null,
+  }
+})
   }
 
   async findById(id: string, orgId: string) {
@@ -259,14 +264,24 @@ async create(orgId: string, dto: CreateClassDto) {
     const cls = await this.classRepository.findById(id, orgId)
     if (!cls) throw new NotFoundException('Class not found.')
 
-    if (dto.schedules) {
-      const slots      = this.parseSlots(dto.schedules)
-      const educatorId = dto.educatorId ?? cls.educator_id
-      const sectionId  = dto.sectionId  ?? cls.section_id ?? undefined
+    const newEducatorId = dto.educatorId ?? cls.educator_id
+    const newSectionId  = dto.sectionId  ?? cls.section_id ?? undefined
 
-      await this.assertNoEducatorConflict(educatorId, orgId, slots, id)
-      if (sectionId) await this.assertNoSectionConflict(sectionId, orgId, slots, id)
+    // Determine which schedules to validate against
+    if (dto.schedules) {
+      const slots = this.parseSlots(dto.schedules)
+      await this.assertNoEducatorConflict(newEducatorId, orgId, slots, id)
+      if (newSectionId) await this.assertNoSectionConflict(newSectionId, orgId, slots, id)
       await this.classRepository.replaceSchedules(orgId, id, slots)
+    } else if (dto.educatorId && dto.educatorId !== cls.educator_id) {
+      // Educator changed without schedule change — validate against existing schedules
+      const schedules = await this.classRepository.findSchedulesByClass(id)
+      const slots: TimeSlot[] = schedules.map((s) => ({
+        weekday: s.weekday,
+        startTime: new Date(s.start_time),
+        endTime: new Date(s.end_time),
+      }))
+      await this.assertNoEducatorConflict(newEducatorId, orgId, slots, id)
     }
 
     return this.classRepository.update(id, {
@@ -371,9 +386,7 @@ async create(orgId: string, dto: CreateClassDto) {
     return Promise.all(
       enrollments.map(async (enrollment) => {
         const cls = (enrollment as any).class
-        const { subject, educatorProfile } = await this.classRepository.findSubjectWithEducator(
-          cls.subject_id, cls.educator_id, orgId,
-        )
+        const { subject, educatorProfile } = await this.classRepository.findSubjectWithEducator(cls.id)
         return {
           enrollmentId:     enrollment.id,
           enrollmentStatus: enrollment.status,
@@ -397,9 +410,7 @@ async create(orgId: string, dto: CreateClassDto) {
   async getStudentClassById(classId: string, studentId: string, orgId: string) {
     const enrollment = await this.enrollmentService.getStudentEnrollmentForClass(classId, studentId, orgId)
     const cls        = (enrollment as any).class
-    const { subject, educatorProfile } = await this.classRepository.findSubjectWithEducator(
-      cls.subject_id, cls.educator_id, orgId,
-    )
+    const { subject, educatorProfile } = await this.classRepository.findSubjectWithEducator(cls.id)
     return {
       enrollmentId:     enrollment.id,
       enrollmentStatus: enrollment.status,

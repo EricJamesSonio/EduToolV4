@@ -1,14 +1,20 @@
 // frontend/src/hooks/admin/useStudents.ts
 
 import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  UseMutationResult,
-  UseQueryResult,
-} from "@tanstack/react-query";
+  useAsyncQuery,
+  useMutationWithInvalidation,
+} from "@/hooks/hook-factory.utils";
+
 import { studentApi } from "@/api/admin/student.api";
-import type { Student, BulkImportResult } from "@/types/admin/student.types";
+import { studentKeys } from "@/hooks/queryKeys";
+
+import { toast } from "sonner";
+
+import type {
+  Student,
+  BulkImportResult,
+} from "@/types/admin/student.types";
+
 import type {
   CreateStudentRequest,
   CreateStudentResponse,
@@ -16,154 +22,268 @@ import type {
   UpdateStudentStatusRequest,
   GetStudentsQuery,
 } from "@/api/admin/student.api";
-import { studentKeys } from "@/hooks/queryKeys";
-import { toast } from "sonner";
+
+import { useQueryClient } from "@tanstack/react-query";
+
+
+// ── LIST ─────────────────────────────────────────────
 
 export const useStudents = (
   query?: GetStudentsQuery,
-): UseQueryResult<Student[], unknown> => {
-  return useQuery<Student[], unknown>({
-    queryKey: studentKeys.list(query),
-    queryFn: () => studentApi.getAll(query),
-    staleTime: 1000 * 60, // 1 minute for student lists
-  });
-};
-
-export const useStudent = (id: string): UseQueryResult<Student, unknown> => {
-  return useQuery<Student, unknown>({
-    queryKey: studentKeys.detail(id),
-    queryFn: () => studentApi.getOne(id),
-    enabled: !!id,
-    staleTime: 1000 * 60 * 5, // 5 minutes for individual student data
-  });
-};
-
-export const useCreateStudent = (): UseMutationResult<
-  CreateStudentResponse,
-  unknown,
-  CreateStudentRequest
-> => {
-  const queryClient = useQueryClient();
-  return useMutation<CreateStudentResponse, unknown, CreateStudentRequest>({
-    mutationFn: studentApi.create,
-    onSuccess: (newStudent) => {
-      // Add new student to cache immediately
-      queryClient.setQueryData(studentKeys.detail(newStudent.id), newStudent);
-      queryClient.invalidateQueries({ queryKey: studentKeys.lists() });
-      toast.success("Student created successfully");
+) => {
+  return useAsyncQuery<Student[]>(
+    studentKeys.list(query),
+    () => studentApi.getAll(query),
+    {
+      staleTime: 1000 * 60,
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to create student");
-    },
-  });
+  );
 };
 
-export const useUpdateStudent = (): UseMutationResult<
-  Student,
-  unknown,
-  { id: string; data: UpdateStudentRequest }
-> => {
+
+// ── DETAIL ───────────────────────────────────────────
+
+export const useStudent = (id: string) => {
+  return useAsyncQuery<Student>(
+    studentKeys.detail(id),
+    () => studentApi.getOne(id),
+    {
+      enabled: !!id,
+      staleTime: 1000 * 60 * 5,
+    },
+  );
+};
+
+
+// ── CREATE ───────────────────────────────────────────
+
+export const useCreateStudent = () => {
   const queryClient = useQueryClient();
-  return useMutation<Student, unknown, { id: string; data: UpdateStudentRequest }>({
-    mutationFn: ({ id, data }) => studentApi.update(id, data),
-    onMutate: async ({ id, data }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: studentKeys.detail(id) });
 
-      // Snapshot the previous value
-      const previousStudent = queryClient.getQueryData(studentKeys.detail(id));
+  return useMutationWithInvalidation(
+    (data: CreateStudentRequest) =>
+      studentApi.create(data),
 
-      // Optimistically update to the new value
-      queryClient.setQueryData(studentKeys.detail(id), (old: Student) =>
-        old ? { ...old, ...data } : null
+    {
+      invalidateKeys: [
+        studentKeys.lists(),
+      ],
+
+      onSuccess: (newStudent) => {
+        queryClient.setQueryData(
+          studentKeys.detail(newStudent.id),
+          newStudent,
+        );
+
+        toast.success(
+          "Student created successfully",
+        );
+      },
+
+      onError: (error: any) => {
+        toast.error(
+          error?.response?.data?.message ||
+            "Failed to create student",
+        );
+      },
+    },
+  );
+};
+
+
+// ── UPDATE (optimistic) ─────────────────────────────
+
+export const useUpdateStudent = () => {
+  const queryClient = useQueryClient();
+
+  return {
+    mutate: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateStudentRequest;
+    }) => {
+      await queryClient.cancelQueries({
+        queryKey: studentKeys.detail(id),
+      });
+
+      const previous =
+        queryClient.getQueryData<Student>(
+          studentKeys.detail(id),
+        );
+
+      queryClient.setQueryData<Student>(
+        studentKeys.detail(id),
+        (old) =>
+          old ? { ...old, ...data } : old,
       );
 
-      return { previousStudent };
-    },
-    onError: (err, variables, context) => {
-      // Rollback on error
-      if (context?.previousStudent) {
-        queryClient.setQueryData(studentKeys.detail(variables.id), context.previousStudent);
+      try {
+        const result =
+          await studentApi.update(id, data);
+
+        queryClient.invalidateQueries({
+          queryKey: studentKeys.detail(id),
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: studentKeys.lists(),
+        });
+
+        toast.success(
+          "Student updated successfully",
+        );
+
+        return result;
+      } catch (err) {
+        if (previous) {
+          queryClient.setQueryData(
+            studentKeys.detail(id),
+            previous,
+          );
+        }
+
+        toast.error(
+          "Failed to update student",
+        );
+
+        throw err;
       }
-      toast.error("Failed to update student");
     },
-    onSettled: (data, error, variables) => {
-      // Refetch to ensure server state is reflected
-      queryClient.invalidateQueries({ queryKey: studentKeys.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: studentKeys.lists() });
-    },
-    onSuccess: () => {
-      toast.success("Student updated successfully");
-    },
-  });
+  };
 };
 
-export const useUpdateStudentStatus = (): UseMutationResult<
-  Student,
-  unknown,
-  { id: string; data: UpdateStudentStatusRequest }
-> => {
+
+// ── UPDATE STATUS (optimistic) ───────────────────────
+
+export const useUpdateStudentStatus = () => {
   const queryClient = useQueryClient();
-  return useMutation<Student, unknown, { id: string; data: UpdateStudentStatusRequest }>({
-    mutationFn: ({ id, data }) => studentApi.updateStatus(id, data),
-    onMutate: async ({ id, data }) => {
-      await queryClient.cancelQueries({ queryKey: studentKeys.detail(id) });
 
-      const previousStudent = queryClient.getQueryData(studentKeys.detail(id));
+  return {
+    mutate: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateStudentStatusRequest;
+    }) => {
+      await queryClient.cancelQueries({
+        queryKey: studentKeys.detail(id),
+      });
 
-      queryClient.setQueryData(studentKeys.detail(id), (old: Student) =>
-        old ? { ...old, status: data.status } : null
+      const previous =
+        queryClient.getQueryData<Student>(
+          studentKeys.detail(id),
+        );
+
+      queryClient.setQueryData<Student>(
+        studentKeys.detail(id),
+        (old) =>
+          old
+            ? {
+                ...old,
+                status: data.status,
+              }
+            : old,
       );
 
-      return { previousStudent };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousStudent) {
-        queryClient.setQueryData(studentKeys.detail(variables.id), context.previousStudent);
-      }
-      toast.error("Failed to update student status");
-    },
-    onSettled: (data, error, variables) => {
-      queryClient.invalidateQueries({ queryKey: studentKeys.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: studentKeys.lists() });
-    },
-    onSuccess: (_, variables) => {
-      toast.success(`Student status updated to ${variables.data.status}`);
-    },
-  });
-};
+      try {
+        const result =
+          await studentApi.updateStatus(
+            id,
+            data,
+          );
 
-export const useResetStudentPassword = (): UseMutationResult<
-  { password: string },
-  unknown,
-  string
-> => {
-  return useMutation<{ password: string }, unknown, string>({
-    mutationFn: async (id: string) => {
-      const { plainPassword } = await studentApi.resetPassword(id);
-      return { password: plainPassword }; // renamed — never expose raw field name in UI layer
-    },
-  });
-};
+        queryClient.invalidateQueries({
+          queryKey: studentKeys.detail(id),
+        });
 
-export const useBulkImportStudents = (): UseMutationResult<
-  BulkImportResult,
-  unknown,
-  File
-> => {
-  const queryClient = useQueryClient();
-  return useMutation<BulkImportResult, unknown, File>({
-    mutationFn: studentApi.bulkImport,
-    onSuccess: (result) => {
-      if (result.status === "success") {
-        queryClient.invalidateQueries({ queryKey: studentKeys.lists() });
-        toast.success(`Successfully imported ${result.importedCount} students`);
-      } else {
-        toast.error(`Import failed: ${result.errors?.join(', ') || 'Unknown error'}`);
+        queryClient.invalidateQueries({
+          queryKey: studentKeys.lists(),
+        });
+
+        toast.success(
+          `Student status updated to ${data.status}`,
+        );
+
+        return result;
+      } catch (err) {
+        if (previous) {
+          queryClient.setQueryData(
+            studentKeys.detail(id),
+            previous,
+          );
+        }
+
+        toast.error(
+          "Failed to update student status",
+        );
+
+        throw err;
       }
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to import students");
-    },
-  });
+  };
 };
+
+
+// ── RESET PASSWORD ────────────────────────────────────
+
+export const useResetStudentPassword =
+  () => {
+    return useMutationWithInvalidation(
+      async (id: string) => {
+        const res =
+          await studentApi.resetPassword(id);
+
+        return {
+          password:
+            res.plainPassword,
+        };
+      },
+    );
+  };
+
+
+// ── BULK IMPORT ──────────────────────────────────────
+
+export const useBulkImportStudents =
+  () => {
+    const queryClient = useQueryClient();
+
+    return useMutationWithInvalidation(
+      (file: File) =>
+        studentApi.bulkImport(file),
+
+      {
+        invalidateKeys: [
+          studentKeys.lists(),
+        ],
+
+        onSuccess: (result) => {
+          if (
+            result.status ===
+            "success"
+          ) {
+            toast.success(
+              `Successfully imported ${result.importedCount} students`,
+            );
+          } else {
+            toast.error(
+              `Import failed: ${result.errors?.join(
+                ", ",
+              )}`,
+            );
+          }
+        },
+
+        onError: (error: any) => {
+          toast.error(
+            error?.response?.data
+              ?.message ||
+              "Failed to import students",
+          );
+        },
+      },
+    );
+  };

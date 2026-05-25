@@ -1,6 +1,7 @@
 // @/modules/assessment/student/assessment-student.service.ts
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AssessmentCoreService } from '../core/assessment-core.service';
+import { DatabaseService } from '@/core/database/database.provider';
 import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository'; 
 import { GradeRepository } from '@/modules/grade/grade.repository';
 
@@ -8,6 +9,7 @@ import { GradeRepository } from '@/modules/grade/grade.repository';
 export class AssessmentStudentService {
   constructor(  
     private readonly core: AssessmentCoreService,
+    private readonly db: DatabaseService,
     private readonly enrollmentRepo: EnrollmentRepository,
     private readonly gradeRepo: GradeRepository,
   ) {}
@@ -93,6 +95,11 @@ export class AssessmentStudentService {
 
     const isLocked = grade?.is_locked ?? false;
 
-    return this.core.buildResult(submission, assessment, isLocked);
+    const questions = await this.core.getQuestions(assessmentId);
+    const answers = await this.db.submissionAnswer.findMany({
+      where: { submission_id: submission.id },
+    });
+
+    return this.core.buildResult(submission, assessment, isLocked, questions, answers);
   }
 }

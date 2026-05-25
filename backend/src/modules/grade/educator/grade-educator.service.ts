@@ -6,13 +6,14 @@ import {
 import { GradeRepository } from '../grade.repository';
 import { GradeCoreService, GradeRange } from '../core/grade-core.service';
 import { AuditLogService } from 'src/modules/audit-log/audit-log.service';
-import { SetManualScoreDto } from './dto/grade-educator.dto';
+import { SetManualScoreDto, SetGradeVisibilityDto } from './dto/grade-educator.dto';
 
 function componentsToCategories(components: any[]) {
   return components.map((c) => ({
     name: c.name,
     type: c.type ?? c.name.toLowerCase(),
     weight: c.weight,
+    maxScore: c.max_score ?? c.maxScore ?? null,
   }));
 }
 
@@ -24,12 +25,38 @@ export class GradeEducatorService {
     private readonly auditLog: AuditLogService,
   ) {}
 
+  async setGradeVisibility(
+    classId: string,
+    assessmentId: string,
+    orgId: string,
+    educatorId: string,
+    dto: SetGradeVisibilityDto,
+  ) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    const updated = await this.repo.setAssessmentVisibility(assessmentId, dto.showBreakdown);
+
+    await this.auditLog.logActivityEvent({
+      orgId,
+      actorId: educatorId,
+      action: 'grade_visibility_set',
+      entityType: 'class',
+      entityId: classId,
+      metadata: { assessmentId, showBreakdown: dto.showBreakdown },
+    });
+
+    return updated;
+  }
+
   async publishAllByClass(classId: string, orgId: string) {
     return this.repo.publishByClass(classId, orgId);
   }
 
   async unlockAllByClass(classId: string, orgId: string) {
     return this.repo.unlockByClass(classId, orgId);
+  }
+
+  async registerAssessmentForAllStudents(assessmentId: string, classId: string, orgId: string) {
+    return this.repo.registerAssessmentForAllStudents(assessmentId, classId, orgId);
   }
 
   async computeAndSaveGrade(data: {
@@ -51,12 +78,35 @@ export class GradeEducatorService {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
     const cls = await this.repo.findClassWithSubject(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
-    const terms = await this.repo.findTermsBySemester(cls.semester_id);
-    return Promise.all(
-      terms.map((term) =>
-        this.buildTermResult(classId, term.id, term.name, orgId, cls),
-      ),
-    );
+
+    const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
+    const results: any[] = [];
+    for (const semester of semesters) {
+      const terms = await this.repo.findTermsBySemester(semester.id);
+      for (const term of terms) {
+        const termResult = await this.buildTermResult(
+          classId, term.id, term.name, orgId, cls,
+          { id: semester.id, name: semester.name },
+        );
+        results.push(termResult);
+      }
+    }
+    return results;
+  }
+
+  async getTermOptions(classId: string, orgId: string, educatorId: string) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    const cls = await this.repo.findClassWithSubject(classId, orgId);
+    if (!cls) return [];
+    const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
+    const options: { termId: string; termName: string; semesterName: string }[] = [];
+    for (const semester of semesters) {
+      const terms = await this.repo.findTermsBySemester(semester.id);
+      for (const term of terms) {
+        options.push({ termId: term.id, termName: term.name, semesterName: semester.name });
+      }
+    }
+    return options;
   }
 
   async getGradesByTerm(
@@ -69,11 +119,61 @@ export class GradeEducatorService {
     const cls = await this.repo.findClassWithSubject(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
 
-    const terms = await this.repo.findTermsBySemester(cls.semester_id);
-    const term = terms.find((t) => t.id === termId);
-    const termName = term?.name ?? '';
+    const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
+    let semesterInfo: { id: string; name: string } | undefined;
+    let termName = '';
+    for (const s of semesters) {
+      const terms = await this.repo.findTermsBySemester(s.id);
+      const found = terms.find((t: any) => t.id === termId);
+      if (found) {
+        termName = found.name;
+        semesterInfo = { id: s.id, name: s.name };
+        break;
+      }
+    }
 
-    return this.buildTermResult(classId, termId, termName, orgId, cls);
+    return this.buildTermResult(classId, termId, termName, orgId, cls, semesterInfo);
+  }
+
+  /**
+   * Recompute grade for a single student after submission.
+   * Called automatically on submission finish.
+   */
+  async recomputeStudentGrade(
+    classId: string,
+    termId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    const cls = await this.repo.findClassWithSubject(classId, orgId);
+    if (!cls) return;
+
+    const [scheme, submissions, allAssessments, manualScores] = await Promise.all([
+      this.repo.findGradingSchemeForClass(classId, orgId),
+      this.repo.findSubmissionsForTerm(classId, termId, orgId),
+      this.repo.findAssessmentsForTerm(classId, termId, orgId),
+      this.repo.findManualScores(classId, termId, orgId, studentId),
+    ]);
+
+    if (!scheme) return;
+
+    const categories = componentsToCategories(scheme.components);
+
+    const gradingScale = await this.resolveGradingScale(cls, orgId);
+    if (!gradingScale) return;
+    const ranges = gradingScale.ranges as unknown as GradeRange[];
+
+    const studentSubmissions = submissions.filter((s: any) => s.student_id === studentId);
+
+    const finalScore = this.core.computeWeightedScore(
+      studentSubmissions,
+      manualScores,
+      allAssessments,
+      categories,
+    );
+    const finalGrade = this.core.resolveGrade(finalScore, ranges);
+
+    await this.repo.upsert({ orgId, studentId, classId, termId, finalScore, finalGrade });
   }
 
   async computeGrades(
@@ -99,8 +199,11 @@ export class GradeEducatorService {
     if (!gradingScale) throw new NotFoundException('No grading scale found for this class.');
     const ranges = gradingScale.ranges as unknown as GradeRange[];
 
-    const submissions = await this.repo.findSubmissionsForTerm(classId, termId, orgId);
-    const manualScores = await this.repo.findManualScores(classId, termId, orgId);
+    const [submissions, allAssessments, manualScores] = await Promise.all([
+      this.repo.findSubmissionsForTerm(classId, termId, orgId),
+      this.repo.findAssessmentsForTerm(classId, termId, orgId),
+      this.repo.findManualScores(classId, termId, orgId),
+    ]);
 
     let computed = 0;
     for (const studentId of enrolledStudentIds) {
@@ -110,6 +213,7 @@ export class GradeEducatorService {
       const finalScore = this.core.computeWeightedScore(
         studentSubmissions,
         studentManuals,
+        allAssessments,
         categories,
       );
       const finalGrade = this.core.resolveGrade(finalScore, ranges);
@@ -174,14 +278,16 @@ export class GradeEducatorService {
     termName: string,
     orgId: string,
     cls: any,
+    semesterInfo?: { id: string; name: string },
   ) {
     const enrolledStudentIds: string[] = cls.enrollments.map((e: any) => e.student_id);
 
-    const [submissions, grades, manualScores, scheme, studentProfiles] =
+    const [submissions, grades, manualScores, allAssessments, scheme, studentProfiles] =
       await Promise.all([
         this.repo.findSubmissionsForTerm(classId, termId, orgId),
         this.repo.findByClassAndTerm(classId, termId, orgId),
         this.repo.findManualScores(classId, termId, orgId),
+        this.repo.findAssessmentsForTerm(classId, termId, orgId),
         this.repo.findGradingSchemeForClass(classId, orgId),
         this.repo.findStudentProfiles(enrolledStudentIds),
       ]);
@@ -194,18 +300,53 @@ export class GradeEducatorService {
       const studentSubs = submissions.filter((s: any) => s.student_id === studentId);
       const studentManuals = manualScores.filter((m: any) => m.student_id === studentId);
 
+      const submittedAssessmentIds = new Set(
+        studentSubs.map((s: any) => s.assessment_id),
+      );
+
       const assessmentScores = studentSubs.map((s: any) => ({
         assessmentId: s.assessment_id,
+        submissionId: s.id,
         type: s.assessment.type,
+        title: s.assessment.title ?? null,
         score: s.score,
         manualScore: s.manual_score,
         totalItems: s.assessment.total_items,
         status: s.status,
+        gradingMode: s.assessment?.grading_mode ?? 'system',
+        systemSectionScore: s.system_section_score ?? null,
+        manualSectionScore: s.manual_section_score ?? null,
+        isMissed: s.is_missed ?? false,
+        isExempted: s.is_exempted ?? false,
+        created_at: s.assessment.created_at ?? null,
       }));
+
+      // Include all non-deleted assessments the student hasn't submitted to
+      for (const assessment of allAssessments) {
+        if (!submittedAssessmentIds.has(assessment.id)) {
+          assessmentScores.push({
+            assessmentId: assessment.id,
+            submissionId: null,
+            type: assessment.type,
+            title: assessment.title ?? null,
+            score: null,
+            manualScore: null,
+            totalItems: assessment.total_items ?? 0,
+            status: 'not_started',
+            gradingMode: assessment.grading_mode ?? 'system',
+            systemSectionScore: null,
+            manualSectionScore: null,
+            isMissed: false,
+            isExempted: false,
+            created_at: assessment.created_at ?? null,
+          });
+        }
+      }
 
       const categoryBreakdown = this.core.buildCategoryBreakdown(
         studentSubs,
         studentManuals,
+        allAssessments,
         categories,
       );
 
@@ -219,22 +360,26 @@ export class GradeEducatorService {
       };
     });
 
-    return { termId, termName, students };
+    return {
+      termId,
+      termName,
+      students,
+      ...(semesterInfo ? { semesterId: semesterInfo.id, semesterName: semesterInfo.name } : {}),
+    };
   }
 
   private async resolveGradingScale(cls: any, orgId: string) {
     const subject = await this.repo.findSubjectLevel(cls.subject_id, orgId);
     if (!subject) return null;
 
-    const levelId = subject.level_id;
-
-    if (!levelId) {
-      throw new NotFoundException(
-        'Subject has no level_id. Cannot determine grading scale.',
-      );
+    const programId = subject.program_id;
+    if (programId) {
+      return this.repo.findGradingScale(programId, cls.school_year_id, orgId);
     }
 
-    return this.repo.findGradingScale(levelId, cls.school_year_id, orgId);
+    throw new NotFoundException(
+      'Subject has no program. Cannot determine grading scale.',
+    );
   }
 
   private async assertEducatorOwnsClass(

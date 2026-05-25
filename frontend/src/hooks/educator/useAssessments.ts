@@ -4,8 +4,7 @@ import {
   useMutation,
   useQueryClient,
   UseQueryResult,
-  UseMutationResult,
-  Query,
+  UseMutationResult, Query
 } from "@tanstack/react-query";
 import {
   assessmentApi,
@@ -18,8 +17,6 @@ import {
 import type { Assessment, Question } from "@/types/educator/assessment.types";
 import type { Submission } from "@/types/educator/submission.types";
 import { assessmentKeys, submissionKeys } from "@/hooks/queryKeys";
-import { createStandardMutationOptions } from "@/lib/error-handling";
-import { QUERY_CONFIGS } from "@/lib/query-client";
 import { toast } from "sonner";
 
 export const useAssessments = (
@@ -175,10 +172,9 @@ export const useAssessmentSubmissions = (
   assessmentId: string,
 ): UseQueryResult<Submission[], Error> => {
   return useQuery({
-    queryKey: submissionKeys.detail(assessmentId),
+    queryKey: submissionKeys.list({ assessmentId }),
     queryFn: () => assessmentApi.getSubmissions(classId, assessmentId),
     enabled: !!classId && !!assessmentId,
-    ...QUERY_CONFIGS.list,
     staleTime: 1000 * 15, // 15 seconds for submissions (highly dynamic)
   });
 };
@@ -186,23 +182,17 @@ export const useAssessmentSubmissions = (
 export const useUpdateSubmissionStatus = (
   classId: string,
   assessmentId: string,
-): UseMutationResult<Submission, Error, { submissionId: string; assessmentId: string } & UpdateSubmissionStatusRequest> => {
+): UseMutationResult<Submission, Error, { submissionId: string } & UpdateSubmissionStatusRequest> => {
   const qc = useQueryClient();
-
-  const standardOptions = createStandardMutationOptions({
-    entity: "Submission",
-    operation: "update",
-  });
-
   return useMutation({
-    mutationFn: ({ submissionId, assessmentId, ...body }) =>
+    mutationFn: ({ submissionId, ...body }) =>
       assessmentApi.updateSubmissionStatus(classId, assessmentId, submissionId, body),
-    onMutate: async ({ submissionId, assessmentId, ...body }) => {
-      await qc.cancelQueries({ queryKey: submissionKeys.detail(assessmentId) });
+    onMutate: async ({ submissionId, ...body }) => {
+      await qc.cancelQueries({ queryKey: submissionKeys.list({ assessmentId }) });
 
-      const previousSubmissions = qc.getQueryData(submissionKeys.detail(assessmentId));
+      const previousSubmissions = qc.getQueryData(submissionKeys.list({ assessmentId }));
 
-      qc.setQueryData(submissionKeys.detail(assessmentId), (old: Submission[] = []) =>
+      qc.setQueryData(submissionKeys.list({ assessmentId }), (old: Submission[] = []) =>
         old.map(submission =>
           submission.id === submissionId ? { ...submission, ...body } : submission
         )
@@ -212,17 +202,15 @@ export const useUpdateSubmissionStatus = (
     },
     onError: (err, variables, context) => {
       if (context?.previousSubmissions) {
-        qc.setQueryData(submissionKeys.detail(variables.assessmentId), context.previousSubmissions);
+        qc.setQueryData(submissionKeys.list({ assessmentId }), context.previousSubmissions);
       }
-      standardOptions.onError?.(err);
+      toast.error("Failed to update submission status");
     },
     onSettled: (data, error, variables) => {
-      qc.invalidateQueries({ queryKey: submissionKeys.detail(variables.assessmentId) });
-      standardOptions.onSettled?.(data, error, variables as any);
+      qc.invalidateQueries({ queryKey: submissionKeys.list({ assessmentId }) });
     },
     onSuccess: (_, variables) => {
       toast.success(`Submission status updated to ${variables.status}`);
-      standardOptions.onSuccess?.(variables);
     },
   });
 };
@@ -230,23 +218,17 @@ export const useUpdateSubmissionStatus = (
 export const useGradeEssay = (
   classId: string,
   assessmentId: string,
-): UseMutationResult<Submission, Error, { submissionId: string; assessmentId: string } & GradeEssayRequest> => {
+): UseMutationResult<Submission, Error, { submissionId: string } & GradeEssayRequest> => {
   const qc = useQueryClient();
-
-  const standardOptions = createStandardMutationOptions({
-    entity: "Essay",
-    operation: "update",
-  });
-
   return useMutation({
-    mutationFn: ({ submissionId, assessmentId, ...body }) =>
+    mutationFn: ({ submissionId, ...body }) =>
       assessmentApi.gradeEssay(classId, assessmentId, submissionId, body),
-    onMutate: async ({ submissionId, assessmentId, ...body }) => {
-      await qc.cancelQueries({ queryKey: submissionKeys.detail(assessmentId) });
+    onMutate: async ({ submissionId, ...body }) => {
+      await qc.cancelQueries({ queryKey: submissionKeys.list({ assessmentId }) });
 
-      const previousSubmissions = qc.getQueryData(submissionKeys.detail(assessmentId));
+      const previousSubmissions = qc.getQueryData(submissionKeys.list({ assessmentId }));
 
-      qc.setQueryData(submissionKeys.detail(assessmentId), (old: Submission[] = []) =>
+      qc.setQueryData(submissionKeys.list({ assessmentId }), (old: Submission[] = []) =>
         old.map(submission =>
           submission.id === submissionId ? { ...submission, ...body, graded: true } : submission
         )
@@ -256,16 +238,15 @@ export const useGradeEssay = (
     },
     onError: (err, variables, context) => {
       if (context?.previousSubmissions) {
-        qc.setQueryData(submissionKeys.detail(variables.assessmentId), context.previousSubmissions);
+        qc.setQueryData(submissionKeys.list({ assessmentId }), context.previousSubmissions);
       }
-      standardOptions.onError?.(err);
+      toast.error("Failed to grade essay");
     },
     onSettled: (data, error, variables) => {
-      qc.invalidateQueries({ queryKey: submissionKeys.detail(variables.assessmentId) });
-      standardOptions.onSettled?.(data, error, variables as any);
+      qc.invalidateQueries({ queryKey: submissionKeys.list({ assessmentId }) });
     },
-    onSuccess: (data) => {
-      standardOptions.onSuccess?.(data);
+    onSuccess: () => {
+      toast.success("Essay graded successfully");
     },
   });
 };
@@ -274,12 +255,6 @@ export const usePublishAssessment = (
   classId: string,
 ): UseMutationResult<{ success: true }, Error, string> => {
   const qc = useQueryClient();
-
-  const standardOptions = createStandardMutationOptions({
-    entity: "Assessment",
-    operation: "generic",
-  });
-
   return useMutation({
     mutationFn: (assessmentId: string) => assessmentApi.publish(classId, assessmentId),
     onMutate: async (assessmentId) => {
@@ -288,7 +263,7 @@ export const usePublishAssessment = (
       const previousAssessment = qc.getQueryData(assessmentKeys.detail(assessmentId));
 
       qc.setQueryData(assessmentKeys.detail(assessmentId), (old: Assessment) =>
-        old ? { ...old, published: true } : null
+        old ? { ...old, isPublished: true } : null
       );
 
       return { previousAssessment };
@@ -297,15 +272,14 @@ export const usePublishAssessment = (
       if (context?.previousAssessment) {
         qc.setQueryData(assessmentKeys.detail(variables), context.previousAssessment);
       }
-      standardOptions.onError?.(err);
+      toast.error("Failed to publish assessment");
     },
     onSettled: (data, error, variables) => {
       qc.invalidateQueries({ queryKey: assessmentKeys.detail(variables) });
       qc.invalidateQueries({ queryKey: assessmentKeys.lists() });
-      standardOptions.onSettled?.(data, error, variables as any);
     },
-    onSuccess: (data) => {
-      standardOptions.onSuccess?.(data);
+    onSuccess: () => {
+      toast.success("Scores published successfully");
     },
   });
 };
@@ -314,12 +288,6 @@ export const useUnpublishAssessment = (
   classId: string,
 ): UseMutationResult<{ success: true }, Error, string> => {
   const qc = useQueryClient();
-
-  const standardOptions = createStandardMutationOptions({
-    entity: "Assessment",
-    operation: "generic",
-  });
-
   return useMutation({
     mutationFn: (assessmentId: string) => assessmentApi.unpublish(classId, assessmentId),
     onMutate: async (assessmentId) => {
@@ -328,7 +296,7 @@ export const useUnpublishAssessment = (
       const previousAssessment = qc.getQueryData(assessmentKeys.detail(assessmentId));
 
       qc.setQueryData(assessmentKeys.detail(assessmentId), (old: Assessment) =>
-        old ? { ...old, published: false } : null
+        old ? { ...old, isPublished: false } : null
       );
 
       return { previousAssessment };
@@ -337,15 +305,14 @@ export const useUnpublishAssessment = (
       if (context?.previousAssessment) {
         qc.setQueryData(assessmentKeys.detail(variables), context.previousAssessment);
       }
-      standardOptions.onError?.(err);
+      toast.error("Failed to unpublish assessment");
     },
     onSettled: (data, error, variables) => {
       qc.invalidateQueries({ queryKey: assessmentKeys.detail(variables) });
       qc.invalidateQueries({ queryKey: assessmentKeys.lists() });
-      standardOptions.onSettled?.(data, error, variables as any);
     },
-    onSuccess: (data) => {
-      standardOptions.onSuccess?.(data);
+    onSuccess: () => {
+      toast.success("Scores unpublished successfully");
     },
   });
 };
