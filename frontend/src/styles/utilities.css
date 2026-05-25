@@ -182,6 +182,177 @@
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  /* ── Landing card with soft shadow + hover lift ── */
+  .card-landing {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: transform 250ms ease, box-shadow 250ms ease;
+  }
+
+  .card-landing:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* ── Icon container for feature/step icons ── */
+  .icon-container {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
+
+  .icon-container:hover {
+    transform: scale(1.06);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* ── Semantic icon background colors ── */
+  .icon-people   { background: color-mix(in oklch, var(--primary) 12%, transparent); color: var(--primary); }
+  .icon-edu      { background: color-mix(in oklch, var(--success) 12%, transparent); color: var(--success); }
+  .icon-schedule { background: color-mix(in oklch, color-mix(in oklch, var(--primary) 50%, var(--accent)) 12%, transparent); color: color-mix(in oklch, var(--primary) 50%, var(--accent)); }
+  .icon-warning  { background: color-mix(in oklch, var(--warning) 12%, transparent); color: var(--warning); }
+  .icon-danger   { background: color-mix(in oklch, var(--destructive) 12%, transparent); color: var(--destructive); }
+  .icon-security { background: color-mix(in oklch, var(--destructive) 12%, transparent); color: var(--destructive); }
+  .icon-structure{ background: color-mix(in oklch, var(--info) 12%, transparent); color: var(--info); }
+  .icon-analytics{ background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 12%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
+  .icon-utility  { background: color-mix(in oklch, var(--warning) 12%, transparent); color: var(--warning); }
+  .icon-action   { background: color-mix(in oklch, var(--primary) 12%, transparent); color: var(--primary); }
+  .icon-global   { background: color-mix(in oklch, var(--info) 12%, transparent); color: var(--info); }
+  .icon-credential{background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 12%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
+  .icon-educator { background: oklch(0.55 0.18 290 / 0.12); color: oklch(0.40 0.18 290); }
+.icon-classes {
+  background: color-mix(in oklch, #22C55E 12%, transparent);
+  color: #22C55E;
+}
+  .icon-share    { background: color-mix(in oklch, color-mix(in oklch, var(--success) 50%, var(--info)) 12%, transparent); color: color-mix(in oklch, var(--success) 50%, var(--info)); }
+
+  .dark .icon-people    { background: color-mix(in oklch, var(--primary) 22%, transparent); color: color-mix(in oklch, var(--primary) 80%, white); }
+  .dark .icon-edu       { background: color-mix(in oklch, var(--success) 22%, transparent); color: color-mix(in oklch, var(--success) 80%, white); }
+  .dark .icon-schedule  { background: color-mix(in oklch, color-mix(in oklch, var(--primary) 50%, var(--accent)) 22%, transparent); color: color-mix(in oklch, var(--primary) 50%, var(--accent)); }
+  .dark .icon-warning   { background: color-mix(in oklch, var(--warning) 22%, transparent); color: color-mix(in oklch, var(--warning) 80%, white); }
+  .dark .icon-danger    { background: color-mix(in oklch, var(--destructive) 22%, transparent); color: color-mix(in oklch, var(--destructive) 80%, white); }
+  .dark .icon-security  { background: color-mix(in oklch, var(--destructive) 22%, transparent); color: color-mix(in oklch, var(--destructive) 80%, white); }
+  .dark .icon-structure { background: color-mix(in oklch, var(--info) 22%, transparent); color: color-mix(in oklch, var(--info) 80%, white); }
+  .dark .icon-analytics { background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 22%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
+  .dark .icon-utility   { background: color-mix(in oklch, var(--warning) 22%, transparent); color: color-mix(in oklch, var(--warning) 80%, white); }
+  .dark .icon-global    { background: color-mix(in oklch, var(--info) 22%, transparent); color: color-mix(in oklch, var(--info) 80%, white); }
+  .dark .icon-credential{ background: color-mix(in oklch, color-mix(in oklch, var(--warning) 50%, var(--destructive)) 22%, transparent); color: color-mix(in oklch, var(--warning) 50%, var(--destructive)); }
+  .dark .icon-share     { background: color-mix(in oklch, color-mix(in oklch, var(--success) 50%, var(--info)) 22%, transparent); color: color-mix(in oklch, var(--success) 50%, var(--info)); }
+  .dark .icon-educator  { background: oklch(0.55 0.18 290 / 0.22); color: oklch(0.72 0.18 290); }
+  .dark .icon-classes   { background: color-mix(in oklch, #E75840 22%, transparent); color: color-mix(in oklch, #E75840 85%, white); }
+
+  /* ── Gradient text for hero headings ── */
+  .gradient-text {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Section header accent line ── */
+  .section-accent {
+    display: inline-block;
+    width: 3rem;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    border-radius: 2px;
+  }
+
+  /* ── Glass card (for hero mockup, navbar) ── */
+  .card-glass {
+    background: color-mix(in oklch, var(--card) 85%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* ── Step connector for workflow timeline ── */
+  .step-connector {
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--primary), var(--accent));
+    border-radius: 1px;
+  }
+
+  /* ── Feature card accent bar ── */
+  .feature-accent {
+    width: 2.5rem;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  /* ── Landing animations ── */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes section-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s ease-out forwards;
+  }
+
+  .animate-section-in {
+    animation: section-fade-in 0.8s ease-out;
+  }
+
+  .section-targeted {
+    opacity: 0;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.4s ease-out forwards;
+  }
+
+  .animate-delay-1 { animation-delay: 0.1s; }
+  .animate-delay-2 { animation-delay: 0.2s; }
+  .animate-delay-3 { animation-delay: 0.3s; }
+  .animate-delay-4 { animation-delay: 0.4s; }
+  .animate-delay-5 { animation-delay: 0.5s; }
+
   /* ── Skeleton loader pulse (for loading states in grade tables, etc.) ── */
   .skeleton {
     background: linear-gradient(90deg,
@@ -215,12 +386,12 @@
 }
 
 .table-enhanced thead tr {
-  background-color: color-mix(in oklch, var(--muted) 50%, transparent);
-  border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+  background-color: var(--primary);
+  border-bottom: none;
 }
 
 .table-enhanced th {
-  color: var(--muted-foreground);
+  color: var(--primary-foreground);
   font-weight: 500;
   border-bottom: none;
 }
@@ -230,7 +401,7 @@
 }
 
 .table-enhanced tbody tr:hover {
-  background-color: color-mix(in oklch, var(--muted) 60%, transparent);
+  background-color: color-mix(in oklch, var(--primary) 8%, transparent);
   border-left: none;
 }
 
