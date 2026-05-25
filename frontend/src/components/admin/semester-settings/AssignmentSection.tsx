@@ -85,6 +85,7 @@ export function AssignmentSection({
           templates={templates}
           schoolYearStart={selectedSchoolYear?.start_date ?? null}
           schoolYearEnd={selectedSchoolYear?.end_date ?? null}
+          schoolYearStarted={selectedSchoolYear?.status === "active" || selectedSchoolYear?.status === "ended"}
           isLoading={isProgramsLoading}
         />
       )}

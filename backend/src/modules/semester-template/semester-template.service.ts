@@ -284,9 +284,9 @@ private async createPlaceholderSemesters(
 
   /**
    * Compute smart default term dates from calendar breaks + template.
-   * Each break IS a semester period (first break start = calendar start,
-   * last break end = calendar end). The gaps between breaks are the actual
-   * no-class periods. Each semester's duration is equally divided among its terms.
+   * Each break IS a semester teaching period. The gaps between breaks
+   * are no-class periods. Each semester's duration is equally divided
+   * among its terms.
    */
   async computeDefaultTermDates(
     orgId: string,
@@ -321,7 +321,7 @@ private async createPlaceholderSemesters(
       }
     }
 
-    // Map each template semester to the corresponding period
+    // Map each template semester to the corresponding teaching period
     const result: Array<{
       termId:     string
       startDate:  string

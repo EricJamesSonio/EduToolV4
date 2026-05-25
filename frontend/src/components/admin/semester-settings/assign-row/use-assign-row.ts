@@ -127,6 +127,15 @@ export function useAssignRow(
     }
   }, [program.id])
 
+  const handleSmartDateConfig = useCallback(() => {
+    const id = selectedTemplateId ?? current?.template_id
+    if (!id) {
+      toast.error("No template selected.")
+      return
+    }
+    computeAndFillDefaults(id)
+  }, [selectedTemplateId, current, computeAndFillDefaults])
+
   // ── Apply assignment (with term dates) ──
 
   const applyAssignment = useCallback(async () => {
@@ -182,10 +191,8 @@ export function useAssignRow(
       return
     }
 
-    // Don't assign immediately — just show smart defaults
     setSelectedTemplateId(templateId)
     setExpanded(true)
-    computeAndFillDefaults(templateId)
   }
 
   const handleConfirm = () => {
@@ -331,6 +338,7 @@ export function useAssignRow(
     handleRequestSave,
     handleSaveDates,
     handleCancelEdit,
+    handleSmartDateConfig,
     // Save confirm
     confirmSaveOpen,
     setConfirmSaveOpen,

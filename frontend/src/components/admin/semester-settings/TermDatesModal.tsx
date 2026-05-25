@@ -60,6 +60,10 @@ export function TermDatesModal({
     confirmSaveOpen,
     setConfirmSaveOpen,
     requestTemplateChange,
+    confirmOpen,
+    handleConfirm,
+    handleCancelConfirm,
+    handleSmartDateConfig,
   } = useAssignRow(program, templates);
 
   const syMin = schoolYearStart ? toDateInput(schoolYearStart) : "";
@@ -126,10 +130,21 @@ export function TermDatesModal({
               onCancelEdit={handleCancelEdit}
               onEnterEdit={() => setPanelMode("edit")}
               onClose={() => onOpenChange(false)}
+              onSmartDateConfig={handleSmartDateConfig}
             />
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Template change confirm dialog */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Change template?"
+        description="This will replace the current template assignment. Existing term dates will be removed."
+        confirmLabel="Yes, change it"
+        onConfirm={handleConfirm}
+        onCancel={handleCancelConfirm}
+      />
 
       {/* Save dates confirm dialog */}
       <ConfirmDialog

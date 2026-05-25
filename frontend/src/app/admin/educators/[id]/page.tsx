@@ -123,9 +123,9 @@ export default function EducatorDetailPage(): React.JSX.Element {
       <div className="rounded-lg border p-5 space-y-4">
         <h2 className="text-sm font-semibold">Profile</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <ProfileField icon={User}  label="Full Name"   value={educator.fullName} />
-          <ProfileField icon={Hash}  label="Educator ID" value={educator.educatorId ?? educator.educatorCode ?? ""} mono />
-          <ProfileField icon={Mail}  label="Email"       value={educator.email} />
+          <ProfileField icon={User}  iconClass="icon-people"    label="Full Name"   value={educator.fullName} />
+          <ProfileField icon={Hash}  iconClass="icon-credential" label="Educator ID" value={educator.educatorId ?? educator.educatorCode ?? ""} mono />
+          <ProfileField icon={Mail}  iconClass="icon-people"    label="Email"       value={educator.email} />
         </div>
       </div>
 
@@ -198,12 +198,12 @@ export default function EducatorDetailPage(): React.JSX.Element {
 }
 
 function ProfileField({
-  icon: Icon, label, value, mono = false,
-}: { icon: React.ElementType; label: string; value: string; mono?: boolean }) {
+  icon: Icon, label, value, mono = false, iconClass,
+}: { icon: React.ElementType; label: string; value: string; mono?: boolean; iconClass?: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
-        <Icon className="h-4 w-4 text-muted-foreground" />
+      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${iconClass ?? "bg-muted text-muted-foreground"}`}>
+        <Icon className="h-4 w-4" />
       </div>
       <div className="space-y-0.5">
         <p className="text-xs text-muted-foreground">{label}</p>

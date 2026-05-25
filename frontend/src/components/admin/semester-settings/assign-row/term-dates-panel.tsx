@@ -1,7 +1,7 @@
 // ===== File: frontend/src/components/admin/semester-settings/TermDatesPanelModal.tsx =====
 "use client"
 
-import { AlertCircle, Pencil, CalendarRange } from "lucide-react"
+import { AlertCircle, Pencil, CalendarRange, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -23,6 +23,7 @@ interface TermDatesPanelModalProps {
   onCancelEdit: () => void
   onEnterEdit: () => void
   onClose: () => void
+  onSmartDateConfig?: () => void
 }
 
 function formatDate(iso: string): string {
@@ -48,6 +49,7 @@ export function TermDatesPanel({
   onCancelEdit,
   onEnterEdit,
   onClose,
+  onSmartDateConfig,
 }: TermDatesPanelModalProps) {
   // Group terms by semesterName for cleaner view
   const grouped = allTerms.reduce<Record<string, TermWithSemester[]>>((acc, term) => {
@@ -167,6 +169,24 @@ export function TermDatesPanel({
               </div>
             </div>
           ))}
+
+          {/* Smart date button */}
+          {onSmartDateConfig && (
+            <div className="flex items-center gap-2 pt-2">
+              <Separator className="flex-1" />
+              <span className="text-[11px] text-muted-foreground shrink-0">or</span>
+              <Separator className="flex-1" />
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 text-xs gap-1.5 shrink-0"
+                onClick={onSmartDateConfig}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Auto-Configure Dates
+              </Button>
+            </div>
+          )}
 
           {/* Edit actions */}
           <div className="flex gap-2 pt-3 border-t">

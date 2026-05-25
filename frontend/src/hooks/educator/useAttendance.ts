@@ -14,7 +14,7 @@ import {
 import type {
   WeekSessions,
   SessionWithRecords,
-  AttendanceRecord,
+  AttendanceRecord
 } from "@/types/educator/attendance.types";
 
 // ======================================================

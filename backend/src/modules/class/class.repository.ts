@@ -47,6 +47,9 @@ export class ClassRepository {
         ...(filters.sectionId && { section_id: filters.sectionId }),
       },
       include: {
+        _count: {
+          select: { enrollments: true },
+        },
         schedules: true,
         subject: {
           select: {
@@ -78,6 +81,9 @@ export class ClassRepository {
     return this.db.class.findFirst({
       where: { id, org_id: orgId, deleted_at: null },
       include: {
+        _count: {
+          select: { enrollments: true },
+        },
         schedules: true,
         educator: {
           include: {

@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { toast } from "sonner";
 import { AlertCircle, AlertTriangle, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,10 @@ import {
 } from "@/components/ui/select";
 import { DataTable } from "@/components/shared/DataTable";
 import { TermDatesModal } from "./TermDatesModal";
+import { ConfirmDialog } from "./assign-row/confirm-dialog";
 import { useProgramCalendarQuery } from "./assign-row/use-program-calendar-query";
+import { useRemoveTemplateAssignment } from "@/hooks/admin/useSemesterTemplate";
+import { errMsg } from "./assign-row/helpers";
 import {
   PROGRAM_TYPE_LABELS,
   PROGRAM_TYPE_COLORS,
@@ -37,20 +41,25 @@ interface ProgramAssignmentTableProps {
   templates: SemesterTemplate[];
   schoolYearStart: string | null;
   schoolYearEnd: string | null;
+  schoolYearStarted: boolean;
   isLoading: boolean;
 }
 
 function ProgramTableRowActions({
   program,
   templates,
+  schoolYearStarted,
   onAssign,
 }: {
   program: Program;
   templates: SemesterTemplate[];
+  schoolYearStarted: boolean;
   onAssign: (program: Program, templateId: string) => void;
 }) {
   const { hasNoCalendar, matchingTemplates } = useProgramCalendarQuery(program, templates);
+  const removeMutation = useRemoveTemplateAssignment();
   const [selectedId, setSelectedId] = useState(program.semesterAssignment?.template_id ?? "none")
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false)
 
   if (hasNoCalendar) {
     return (
@@ -65,40 +74,70 @@ function ProgramTableRowActions({
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Select
-        value={selectedId}
-        onValueChange={(value) => {
-          setSelectedId(value)
-          if (value !== "none") {
-            onAssign(program, value)
-          }
-        }}
-      >
-        <SelectTrigger className="h-8 w-44 text-xs">
-          <SelectValue placeholder="Assign template…" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">— None —</SelectItem>
-          {matchingTemplates.map((t) => (
-            <SelectItem key={t.id} value={t.id} className="text-xs">
-              {t.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {program.semesterAssignment && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8 text-xs gap-1 shrink-0"
-          onClick={() => onAssign(program, program.semesterAssignment!.template_id)}
+    <>
+      <div className="flex items-center gap-2">
+        <Select
+          value={selectedId}
+          onValueChange={(value) => {
+            setSelectedId(value)
+            if (value === "none") {
+              if (schoolYearStarted) return
+              setRemoveConfirmOpen(true)
+            } else {
+              onAssign(program, value)
+            }
+          }}
         >
-          <CalendarDays className="h-3.5 w-3.5" />
-          Dates
-        </Button>
-      )}
-    </div>
+          <SelectTrigger className="h-8 w-44 text-xs">
+            <SelectValue placeholder="Assign template…" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none" disabled={schoolYearStarted}>
+              — None —
+            </SelectItem>
+            {matchingTemplates.map((t) => (
+              <SelectItem key={t.id} value={t.id} className="text-xs">
+                {t.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {program.semesterAssignment && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1 shrink-0"
+            onClick={() => onAssign(program, program.semesterAssignment!.template_id)}
+          >
+            <CalendarDays className="h-3.5 w-3.5" />
+            Dates
+          </Button>
+        )}
+      </div>
+
+      <ConfirmDialog
+        open={removeConfirmOpen}
+        title="Remove template assignment?"
+        description="This will remove the current template assignment and all configured term dates for this program."
+        confirmLabel="Yes, remove"
+        onConfirm={() => {
+          setRemoveConfirmOpen(false)
+          removeMutation.mutate(program.id, {
+            onSuccess: () => {
+              toast.success("Assignment removed.")
+            },
+            onError: (e) => {
+              toast.error(errMsg(e))
+              setSelectedId(program.semesterAssignment?.template_id ?? "none")
+            },
+          })
+        }}
+        onCancel={() => {
+          setRemoveConfirmOpen(false)
+          setSelectedId(program.semesterAssignment?.template_id ?? "none")
+        }}
+      />
+    </>
   )
 }
 
@@ -107,6 +146,7 @@ export function ProgramAssignmentTable({
   templates,
   schoolYearStart,
   schoolYearEnd,
+  schoolYearStarted,
   isLoading,
 }: ProgramAssignmentTableProps): React.JSX.Element {
   // ================= STATE =================
@@ -213,6 +253,7 @@ export function ProgramAssignmentTable({
                   <ProgramTableRowActions
                     program={prog}
                     templates={templates}
+                    schoolYearStarted={schoolYearStarted}
                     onAssign={handleAssign}
                   />
                 );

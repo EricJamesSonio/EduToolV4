@@ -41,12 +41,13 @@ interface StatCardProps {
   label: string;
   value: number | undefined;
   icon: React.ElementType;
+  iconColor?: string;
   isLoading: boolean;
   warning?: boolean;
   action?: { label: string; onClick: () => void };
 }
 
-function StatCard({ label, value, icon: Icon, isLoading, warning, action }: StatCardProps) {
+function StatCard({ label, value, icon: Icon, iconColor, isLoading, warning, action }: StatCardProps) {
   return (
     <div className={cn(
       "rounded-lg border bg-card p-5 flex items-start justify-between gap-4",
@@ -74,11 +75,13 @@ function StatCard({ label, value, icon: Icon, isLoading, warning, action }: Stat
         )}
       </div>
       <div className={cn(
-        "rounded-md p-2 bg-muted",
+        "rounded-md p-2",
+        iconColor ?? "bg-muted",
         warning && value && value > 0 && "bg-amber-100 dark:bg-amber-900/30"
       )}>
         <Icon className={cn(
-          "h-5 w-5 text-muted-foreground",
+          "h-5 w-5",
+          iconColor ? "text-current" : "text-muted-foreground",
           warning && value && value > 0 && "text-amber-600"
         )} />
       </div>
@@ -110,8 +113,8 @@ function OrgSetupModal({
     <Dialog open={open} onOpenChange={() => { }}>
       <DialogContent className="sm:max-w-md" showCloseButton={false}>
         <DialogHeader>
-          <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-            <Building2 className="h-5 w-5 text-primary" />
+          <div className="icon-container icon-action mb-2">
+            <Building2 className="h-5 w-5" />
           </div>
           <DialogTitle className="text-lg">Set up your organization</DialogTitle>
           <DialogDescription>
@@ -283,24 +286,28 @@ export default function AdminDashboardPage(): React.JSX.Element {
           label="Total Students"
           value={overview?.totalStudents}
           icon={Users}
+          iconColor="icon-people"
           isLoading={overviewLoading}
         />
         <StatCard
           label="Total Educators"
           value={overview?.totalEducators}
           icon={UserSquare2}
+          iconColor="icon-educator"
           isLoading={overviewLoading}
         />
         <StatCard
           label="Active Classes"
           value={overview?.totalClasses}
           icon={GraduationCap}
+          iconColor="icon-classes"
           isLoading={overviewLoading}
         />
         <StatCard
           label="Pending Students"
           value={overview?.pendingStudents}
           icon={AlertTriangle}
+          iconColor="icon-warning"
           isLoading={overviewLoading}
           warning
           action={{

@@ -58,6 +58,7 @@ export function AssignRow({
     calendarStart,
     calendarEnd,
     matchingTemplates,
+    handleSmartDateConfig,
   } = useAssignRow(program, templates)
 
   const syMin = schoolYearStart ? toDateInput(schoolYearStart) : ""
@@ -168,6 +169,7 @@ export function AssignRow({
               onCancelEdit={handleCancelEdit}
               onEnterEdit={() => setPanelMode("edit")}
               onClose={() => setExpanded(false)}
+              onSmartDateConfig={handleSmartDateConfig}
             />
           )}
         </>

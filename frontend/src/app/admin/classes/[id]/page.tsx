@@ -156,7 +156,7 @@ const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClas
   }
 
   const isArchived = enrichedCls.status === "archived";
-  const enrolledCount = enrichedCls.enrolledCount ?? enrollments.length;
+  const enrolledCount = enrollments.length;
 
   return (
    <div className="space-y-6">

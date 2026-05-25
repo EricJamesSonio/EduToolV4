@@ -13,11 +13,8 @@ interface EnrolledStudentsListProps {
   onRemove: (target: { enrollmentId: string; studentName: string }) => void;
 }
 
-// Prefer student name → student code → truncated UUID (never show full UUID)
 function getStudentLabel(enrollment: EnrollmentResponse): string {
-  if (enrollment.studentName) return enrollment.studentName;
-  if (enrollment.studentCode) return enrollment.studentCode;
-  return enrollment.student_id.slice(0, 8) + "…";
+  return enrollment.student_name ?? enrollment.student_id.slice(0, 8) + "…";
 }
 
 export function EnrolledStudentsList({
@@ -75,12 +72,6 @@ export function EnrolledStudentsList({
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{label}</p>
-                  {/* Show student code as subtitle when we also have a full name */}
-                  {enrollment.studentName && enrollment.studentCode && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {enrollment.studentCode}
-                    </p>
-                  )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
