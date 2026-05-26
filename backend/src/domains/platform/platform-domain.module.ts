@@ -5,9 +5,10 @@ import { OrganizationModule } from '@/modules/organization/organization.module';
 import { PlatformModule } from '@/modules/platform/platform.module';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { GuideModule } from '@/modules/guide/guide.module';
+import { PlatformRegistrationModule } from '@/modules/platform-registration/platform-registration.module';
 
 @Module({
-  imports: [OrganizationModule, PlatformModule, AuthModule, GuideModule],
-  exports: [OrganizationModule, PlatformModule, AuthModule, GuideModule],
+  imports: [OrganizationModule, PlatformModule, AuthModule, GuideModule, PlatformRegistrationModule],
+  exports: [OrganizationModule, PlatformModule, AuthModule, GuideModule, PlatformRegistrationModule],
 })
 export class PlatformDomainModule {}
