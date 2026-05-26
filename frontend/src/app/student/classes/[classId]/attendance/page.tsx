@@ -6,8 +6,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { formatDate } from "@/utils/date.util";
 import { useStudentAttendance } from "@/hooks/student/useAttendance";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import type {
   AttendanceSessionEntry,
   AttendanceSummary,
@@ -86,75 +95,67 @@ function AttendanceTable({ sessions }: { sessions: AttendanceSessionEntry[] }) {
   const weeks = Object.keys(byWeek).map(Number).sort((a, b) => a - b);
 
   return (
-    <div className="rounded-lg border border-border/60 overflow-hidden">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border/60 bg-muted/40">
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground w-20">
-              Week
-            </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground w-16">
-              Session
-            </th>
-            <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Date
-            </th>
-            <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Status
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {weeks.map((week) =>
-            byWeek[week]
-              ?.sort((a, b) => (a.subIndex ?? 0) - (b.subIndex ?? 0))
-              .map((session, i) => (
-                <tr
-                  key={session.sessionId}
-                  className={cn(
-                    "border-b border-border/40 last:border-0",
-                    i === 0 && "border-t border-border/60"
-                  )}
-                >
-                  {/* Week cell — only show on first row of week */}
-                  <td className="px-4 py-3 text-xs font-medium text-muted-foreground">
-                    {i === 0 ? `Week ${week}` : ""}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">
-                    {session.subIndex ?? i + 1}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-foreground">
-                    {formatDate(session.date)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <StatusBadge status={session.status} />
-                  </td>
-                </tr>
-              ))
-          )}
-        </tbody>
-      </table>
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-20">Week</TableHead>
+          <TableHead className="w-16">Session</TableHead>
+          <TableHead>Date</TableHead>
+          <TableHead className="text-right">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {weeks.map((week) =>
+          byWeek[week]
+            ?.sort((a, b) => (a.subIndex ?? 0) - (b.subIndex ?? 0))
+            .map((session, i) => (
+              <TableRow key={session.sessionId}>
+                <TableCell>
+                  {i === 0 ? (
+                    <span className={cn("inline-block rounded-md px-2 py-0.5 text-xs font-semibold", WEEK_COLORS[(week - 1) % WEEK_COLORS.length])}>
+                      Week {week}
+                    </span>
+                  ) : null}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {session.subIndex ?? i + 1}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {formatDate(session.date)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <StatusBadge status={session.status} />
+                </TableCell>
+              </TableRow>
+            ))
+        )}
+      </TableBody>
+    </Table>
   );
 }
 
 function TableSkeleton() {
   return (
-    <div className="rounded-lg border border-border/60 overflow-hidden">
-      <div className="bg-muted/40 px-4 py-2.5 flex gap-8">
-        {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-3 w-16" />
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Week</TableHead>
+          <TableHead>Session</TableHead>
+          <TableHead>Date</TableHead>
+          <TableHead className="text-right">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <TableRow key={i}>
+            <TableCell><Skeleton className="h-3 w-12" /></TableCell>
+            <TableCell><Skeleton className="h-3 w-8" /></TableCell>
+            <TableCell><Skeleton className="h-3 w-24" /></TableCell>
+            <TableCell className="text-right"><Skeleton className="h-5 w-16 rounded-full ml-auto" /></TableCell>
+          </TableRow>
         ))}
-      </div>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="flex gap-8 px-4 py-3 border-t border-border/40">
-          <Skeleton className="h-3 w-12" />
-          <Skeleton className="h-3 w-8" />
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-5 w-16 ml-auto rounded-full" />
-        </div>
-      ))}
-    </div>
+      </TableBody>
+    </Table>
   );
 }
 

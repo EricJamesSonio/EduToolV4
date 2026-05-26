@@ -10,20 +10,15 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { useGuideBySlug } from "@/hooks/platform/useGuides";
-import { API_BASE_URL } from "@/config/api.config";
-
-function resolveImageUrl(url: string | null): string | undefined {
-  if (!url) return undefined;
-  return url.startsWith("/uploads/") ? `${API_BASE_URL}${url}` : url;
-}
+import { GUIDES } from "./guides.data";
 
 interface HelpGuideProps {
   slug: string;
 }
 
 export function HelpGuide({ slug }: HelpGuideProps) {
-  const { data: guide, isLoading } = useGuideBySlug(slug);
+  const guide = GUIDES[slug];
+  const folder = `/guides/admin/${slug.replace("admin_", "")}`;
 
   return (
     <Sheet>
@@ -40,11 +35,7 @@ export function HelpGuide({ slug }: HelpGuideProps) {
         className="w-full sm:max-w-2xl p-0 flex flex-col"
         showCloseButton={false}
       >
-        {isLoading ? (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Loading...
-          </div>
-        ) : !guide ? (
+        {!guide ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             Guide not available
           </div>
@@ -66,8 +57,7 @@ export function HelpGuide({ slug }: HelpGuideProps) {
                 </div>
               ) : (
                 guide.steps.map((step, index) => (
-                  <div key={step.id} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* LEFT: text, vertically centered to image */}
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex items-center">
                       <div className="flex items-start gap-3">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
@@ -86,20 +76,26 @@ export function HelpGuide({ slug }: HelpGuideProps) {
                       </div>
                     </div>
 
-                    {/* RIGHT: image */}
                     <div className="flex items-center justify-center">
-                      {step.imageUrl ? (
-                        <img
-                          src={resolveImageUrl(step.imageUrl)}
-                          alt={`Step ${index + 1}`}
-                          className="w-full rounded-lg border border-border object-contain shadow-sm"
-                          style={{ maxHeight: 260 }}
-                        />
-                      ) : (
-                        <div className="flex h-32 w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted/20">
-                          <span className="text-xs text-muted-foreground">No image</span>
-                        </div>
-                      )}
+                      <img
+                        src={`${folder}/step-${index + 1}.png`}
+                        alt={`Step ${index + 1}`}
+                        className="w-full rounded-lg border border-border object-contain shadow-sm"
+                        style={{ maxHeight: 260 }}
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.style.display = "none";
+                          const placeholder = target.nextElementSibling as HTMLElement | null;
+                          if (placeholder) {
+                            placeholder.style.display = "flex";
+                          }
+                        }}
+                      />
+                      <div
+                        className="hidden h-32 w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted/20"
+                      >
+                        <span className="text-xs text-muted-foreground">No image</span>
+                      </div>
                     </div>
                   </div>
                 ))
