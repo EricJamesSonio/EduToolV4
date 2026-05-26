@@ -100,7 +100,7 @@ export function SolutionSection() {
               >
                 {/* TEXT */}
                 <div className="flex-[0.9] space-y-6 flex flex-col justify-center">
-                  <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+                  <p className="text-xs font-semibold tracking-widest uppercase text-primary">
                     {item.eyebrow}
                   </p>
 

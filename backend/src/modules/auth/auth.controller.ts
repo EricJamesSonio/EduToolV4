@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto, RefreshTokenDto } from './dto/auth.dto';
+import { RegisterDto, VerifyOtpDto, ResendOtpDto } from './dto/register.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
@@ -17,33 +18,18 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  /**
-   * POST /auth/login  @Public()
-   * Accepts email + password, returns access & refresh tokens.
-   */
   @Post('login')
   @HttpCode(HttpStatus.OK)
-async login(@Body() dto: LoginDto) {
-  console.log('>>> LOGIN ROUTE HIT');
-  return this.authService.login(dto);
-}
+  async login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
+  }
 
-  /**
-   * POST /auth/refresh  @Public()
-   * Accepts a refresh token, issues a new token pair.
-   * We still require the user to be identified; the refresh token
-   * is validated inside the service against the stored hash.
-   */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refresh(dto.refreshToken);
   }
 
-  /**
-   * POST /auth/logout
-   * Clears the stored refresh token — invalidates the session.
-   */
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AuthGuard)
@@ -51,14 +37,27 @@ async login(@Body() dto: LoginDto) {
     await this.authService.logout(accountId);
   }
 
-  /**
-   * GET /auth/me
-   * Returns the current authenticated account's profile.
-   */
-@Get('me')
-@UseGuards(AuthGuard)
-async getMe(@CurrentUser('id') accountId: string) {
-  console.log('>>> ME ROUTE HIT');
-  return this.authService.getMe(accountId);
-}
+  @Get('me')
+  @UseGuards(AuthGuard)
+  async getMe(@CurrentUser('id') accountId: string) {
+    return this.authService.getMe(accountId);
+  }
+
+  @Post('register')
+  @HttpCode(HttpStatus.OK)
+  async register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  async verifyOtp(@Body() dto: VerifyOtpDto) {
+    return this.authService.verifyOtp(dto);
+  }
+
+  @Post('resend-otp')
+  @HttpCode(HttpStatus.OK)
+  async resendOtp(@Body() dto: ResendOtpDto) {
+    return this.authService.resendOtp(dto);
+  }
 }
