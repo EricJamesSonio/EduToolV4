@@ -79,17 +79,18 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-sm">
-              <span className="text-base font-bold text-primary-foreground">
-                E
-              </span>
+          <Link href="/" className="inline-flex items-center gap-2.5 group">
+            <div className="w-11 h-11 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200">
+              <img
+                src="/edutool.png"
+                alt="EduTool logo"
+                className="w-full h-full object-cover"
+              />
             </div>
-
-            <span className="text-xl font-bold tracking-tight">
+            <span className="font-heading font-bold text-xl tracking-tight">
               EduTool
             </span>
-          </div>
+          </Link>
         </div>
 
         <Card className="shadow-sm">

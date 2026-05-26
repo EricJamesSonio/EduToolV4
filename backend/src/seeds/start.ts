@@ -3,12 +3,10 @@
  * MAIN SEED ORCHESTRATOR
  * - Platform accounts
  * - Admin users
- * - Guides (imported module)
  */
 
 import { PrismaClient, Role, AccountStatus } from '@prisma/client'
 import * as bcrypt from 'bcrypt'
-import { seedAdminGuides } from './seed-admin-guides'
 
 const db = new PrismaClient()
 
@@ -107,10 +105,6 @@ async function main() {
       role: Role.admin,
     })
   }
-
-  // 3. Guides (SEPARATED MODULE)
-  console.log('\n▶ Admin Guides')
-  await seedAdminGuides()
 
   console.log('\n✅ SEED COMPLETE\n')
 }
