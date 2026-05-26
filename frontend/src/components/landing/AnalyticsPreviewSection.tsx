@@ -42,7 +42,7 @@ const stats = [
 
 export function AnalyticsPreviewSection() {
   return (
-    <section className="page-container py-20 md:py-28 space-y-14">
+    <section id="Analytics Preview" className="page-container py-20 md:py-28 space-y-14">
       {/* Header */}
       <div className="text-center space-y-5 max-w-2xl mx-auto">
         <div className="flex justify-center">

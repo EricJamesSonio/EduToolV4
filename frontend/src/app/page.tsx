@@ -11,9 +11,9 @@ import { HeroSection } from "@/components/landing/HeroSection";
 
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { SolutionSection } from "@/components/landing/SolutionSection";
-import { ReusableComponentsSection } from "@/components/landing/ReusableComponentsSection";
-import { WorkflowSection } from "@/components/landing/WorkflowSection";
+import { ResourcesSection } from "@/components/landing/ResourcesSection";
 import { AnalyticsPreviewSection } from "@/components/landing/AnalyticsPreviewSection";
+import { PricingSection } from "@/components/landing/PricingSection";
 import { CTASection } from "@/components/landing/CTASection";
 import { ContactAdminSection } from "@/components/landing/Contactadminsection";
 import { Footer } from "@/components/landing/Footer";
@@ -47,9 +47,9 @@ export default function RootPage(): React.ReactNode {
       <HeroSection />
       <FeaturesSection />
       <SolutionSection />
-      <ReusableComponentsSection />
-      <WorkflowSection />
+      <ResourcesSection />
       <AnalyticsPreviewSection />
+      <PricingSection />
       <CTASection />
       <ContactAdminSection />
       <Footer />
