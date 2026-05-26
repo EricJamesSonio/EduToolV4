@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 import { useStudentLesson, useStudentLessons } from "@/hooks/student/usestudentLessons";
 import { StudentLesson } from "@/api/student/lesson.api";
 
@@ -38,40 +39,44 @@ export default function StudentLessonDetailPage(): React.JSX.Element {
         Back to Lessons
       </Button>
 
-      {/* Title */}
-      {isLoading ? (
-        <Skeleton className="h-7 w-64" />
-      ) : (
-        <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Week {lesson?.weekNumber}
-          </p>
-          <h1 className="text-xl font-semibold text-foreground">
-            {lesson?.title}
-          </h1>
-          {lesson?.description && (
-            <p className="text-sm text-muted-foreground">{lesson.description}</p>
+      {/* Title + Content */}
+      <Card>
+        <CardContent className="p-6 space-y-6">
+          {isLoading ? (
+            <Skeleton className="h-7 w-64" />
+          ) : (
+            <div className="space-y-1">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Week {lesson?.weekNumber}
+              </p>
+              <h1 className="text-xl font-semibold text-foreground">
+                {lesson?.title}
+              </h1>
+              {lesson?.description && (
+                <p className="text-sm text-muted-foreground">{lesson.description}</p>
+              )}
+            </div>
           )}
-        </div>
-      )}
 
-      {/* Content */}
-      {isLoading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-5/6" />
-          <Skeleton className="h-4 w-4/6" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-        </div>
-      ) : lesson?.detail ? (
-        <div
-          className="prose prose-sm max-w-none text-foreground"
-          dangerouslySetInnerHTML={{ __html: lesson.detail }}
-        />
-      ) : (
-        <p className="text-sm text-muted-foreground">No content available.</p>
-      )}
+          {/* Content */}
+          {isLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-4/6" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          ) : lesson?.detail ? (
+            <div
+              className="prose prose-sm max-w-none text-foreground"
+              dangerouslySetInnerHTML={{ __html: lesson.detail }}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">No content available.</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Prev / Next navigation */}
       <div className="flex items-center justify-between pt-4 border-t border-border/60">

@@ -120,7 +120,7 @@ export default function EducatorDetailPage(): React.JSX.Element {
       />
 
       {/* Profile card */}
-      <div className="rounded-lg border p-5 space-y-4">
+      <div className="rounded-lg border bg-card p-5 space-y-4">
         <h2 className="text-sm font-semibold">Profile</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <ProfileField icon={User}  iconClass="icon-people"    label="Full Name"   value={educator.fullName} />
@@ -130,12 +130,12 @@ export default function EducatorDetailPage(): React.JSX.Element {
       </div>
 
       {/* Class assignment manager */}
-      <div className="rounded-lg border p-5">
+      <div className="rounded-lg border bg-card p-5">
         <EducatorClassAssignmentManager educatorId={educator.id} />
       </div>
 
       {/* Danger zone */}
-      <div className="rounded-lg border border-destructive/20 p-5 space-y-3">
+      <div className="rounded-lg border border-destructive/20 bg-card p-5 space-y-3">
         <h2 className="text-sm font-semibold text-destructive">Danger Zone</h2>
         <Separator className="bg-destructive/10" />
         <div className="flex items-center justify-between">

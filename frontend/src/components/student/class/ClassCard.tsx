@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { Clock, User, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { Badge } from "@/components/ui/badge";
 import { formatSchedule } from "@/utils/classes.utils";
 import type { StudentClassItem } from "@/api/student/class.api";
 
 interface ClassCardProps {
   item: StudentClassItem;
+  colorIndex?: number;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -17,7 +19,7 @@ const STATUS_STYLES: Record<string, string> = {
   removed: "bg-slate-100  text-slate-500   border-slate-200   dark:bg-slate-900/20 dark:text-slate-400",
 };
 
-export function ClassCard({ item }: ClassCardProps) {
+export function ClassCard({ item, colorIndex = 0 }: ClassCardProps) {
   const { enrollmentStatus, class: cls } = item;
   const schedule = formatSchedule(cls.schedules);
 
@@ -26,11 +28,9 @@ export function ClassCard({ item }: ClassCardProps) {
       href={`/student/classes/${cls.id}`}
       className="rounded-xl border bg-card p-6 space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200 group block"
     >
-      <div className="space-y-1">
-        <p className="font-semibold text-base group-hover:text-primary transition-colors truncate">
-          {cls.subjectName ?? "Unnamed Subject"}
-        </p>
-      </div>
+      <p className={cn("inline-block rounded-md px-2.5 py-1 text-xs font-semibold", WEEK_COLORS[colorIndex % WEEK_COLORS.length])}>
+        {cls.subjectName ?? "Unnamed Subject"}
+      </p>
 
       <div className="space-y-2 text-sm text-muted-foreground">
         {cls.educatorName && (

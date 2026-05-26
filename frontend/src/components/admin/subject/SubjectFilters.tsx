@@ -7,6 +7,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import type { FiltersState, FiltersActions } from "./hooks/useSubjectFilters";
 import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { Program } from "@/types/admin/program.types";
@@ -187,11 +190,20 @@ const showLevels =
                 ) : (
                   <>
                     <SelectItem value="all">All Levels</SelectItem>
-                    {visibleLevels.map((level) => (
-                      <SelectItem key={level.id} value={level.id}>
-                        {level.name}
-                      </SelectItem>
-                    ))}
+                    {visibleLevels.map((level) => {
+                      const match = level.name.match(/^(\d+)/);
+                      const idx = match ? (parseInt(match[1]) - 1) % WEEK_COLORS.length : 0;
+                      return (
+                        <SelectItem key={level.id} value={level.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{level.name}</span>
+                            <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", WEEK_COLORS[idx])}>
+                              {match?.[1] ?? ""}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </>
                 )}
               </SelectContent>

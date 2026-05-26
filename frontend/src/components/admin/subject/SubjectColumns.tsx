@@ -7,6 +7,7 @@ import { Lock, LockOpen, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import type { Subject } from "@/types/admin/subject.types";
 
 export function useSubjectColumns(
@@ -28,10 +29,16 @@ export function useSubjectColumns(
       accessorKey: "levelName",
       cell: (info) => {
         const name = info.getValue<string | null>();
-        return name ? (
-          <Badge variant="secondary">{name}</Badge>
-        ) : (
-          <span className="text-sm text-muted-foreground">—</span>
+        if (!name) return <span className="text-sm text-muted-foreground">—</span>;
+        const match = name.match(/^(\d+)/);
+        const idx = match ? (parseInt(match[1]) - 1) % WEEK_COLORS.length : 0;
+        return (
+          <Badge
+            variant="outline"
+            className={cn("text-xs border px-2 py-0.5 font-normal", WEEK_COLORS[idx])}
+          >
+            {name}
+          </Badge>
         );
       },
     },

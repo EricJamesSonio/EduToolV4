@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
 import type { GradingScale } from "@/types/admin/grading-scale.types";
 
@@ -159,18 +160,22 @@ export function GradingScaleList({
                 {scale.ranges.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">No ranges defined</p>
                 ) : (
-                  scale.ranges.map((range, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">
-                        {range.name} ({range.minPercent}–{range.maxPercent}%)
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {range.isPassing && (
-                          <Badge variant="secondary" className="text-xs">Passing</Badge>
-                        )}
+                  scale.ranges.map((range, idx) => {
+                    const clrs = [["text-blue-600", "bg-blue-500/10 text-blue-600"], ["text-emerald-600", "bg-emerald-500/10 text-emerald-600"], ["text-purple-600", "bg-purple-500/10 text-purple-600"], ["text-amber-600", "bg-amber-500/10 text-amber-600"], ["text-teal-600", "bg-teal-500/10 text-teal-600"], ["text-indigo-600", "bg-indigo-500/10 text-indigo-600"], ["text-pink-600", "bg-pink-500/10 text-pink-600"], ["text-cyan-600", "bg-cyan-500/10 text-cyan-600"], ["text-orange-600", "bg-orange-500/10 text-orange-600"], ["text-rose-600", "bg-rose-500/10 text-rose-600"]];
+                    const c = clrs[idx % 10];
+                    return (
+                      <div key={idx} className="flex items-center justify-between text-xs">
+                        <span className={cn("font-medium", c[0])}>
+                          {range.name} ({range.minPercent}–{range.maxPercent}%)
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {range.isPassing && (
+                            <span className={cn("inline-block rounded-sm px-1.5 py-0.5 text-[10px] font-semibold", c[1])}>Passing</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             )}
