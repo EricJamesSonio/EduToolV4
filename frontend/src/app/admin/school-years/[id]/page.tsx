@@ -8,7 +8,6 @@ import Link              from "next/link";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { EnrollmentTab } from "@/components/admin/enrollment/EnrollmentTab";
 import { OverviewTab }   from "@/components/admin/school-years/OverviewTab";
-import { CalendarTab }   from "@/components/admin/school-years/CalendarTab";
 import { ProgramsTab }   from "@/components/admin/school-years/ProgramsTab";
 import { StatusBadge }   from "@/components/shared/StatusBadge";
 import { Skeleton }      from "@/components/ui/skeleton";
@@ -62,7 +61,6 @@ export default function SchoolYearDetailPage({
     { key: "overview",   label: "Overview" },
     { key: "enrollment", label: "Enrollment", icon: <Users    className="inline mr-1.5 h-3.5 w-3.5" /> },
     { key: "programs",   label: "Programs",   icon: <BookOpen className="inline mr-1.5 h-3.5 w-3.5" /> },
-    { key: "calendar",   label: "Calendar" },
   ];
 
   return (
@@ -114,7 +112,6 @@ export default function SchoolYearDetailPage({
         {activeTab === "overview"   && <OverviewTab schoolYear={schoolYear} />}
         {activeTab === "enrollment" && <EnrollmentTab schoolYearId={id} isEnded={isEnded} />}
         {activeTab === "programs"   && <ProgramsTab schoolYearId={id} isEnded={isEnded} />}
-        {activeTab === "calendar"   && <CalendarTab schoolYearId={id} />}
       </div>
     </div>
   );
