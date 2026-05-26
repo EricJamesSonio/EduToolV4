@@ -191,7 +191,7 @@ export function ClassGradingSchemeEditor({
 
   // ================= UI =================
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       {/* LOCK */}
       {isLocked && (
         <div className="flex items-center gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">

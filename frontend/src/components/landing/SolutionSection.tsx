@@ -3,45 +3,45 @@
 const solutions = [
   {
     eyebrow: "School setup",
-    heading: "Set Up Your Academic System with Ease",
-    body: "Quickly configure programs, levels, sections, and subjects — all tailored to how your school actually operates.",
+    heading: "Set Up Your School in Minutes, Not Weeks",
+    body: "Stop wasting hours configuring programs, subjects, and levels. EduTool lets you structure your academic system exactly how your school operates—quickly and without frustration.",
     points: [
       "Supports K–12, college, and custom programs",
-      "Flexible academic hierarchy",
-      "No rigid system limitations",
+      "Flexible academic hierarchy that adapts to your system",
+      "No rigid setup or limitations",
     ],
     video: "/videos/setup.mp4",
   },
   {
     eyebrow: "Class management",
-    heading: "Organize Classes and Students Efficiently",
-    body: "Easily manage enrollments, assign students to classes, and keep everything structured and accessible.",
+    heading: "Keep Classes Organized Without the Chaos",
+    body: "Managing students and class assignments shouldn’t be messy. Easily enroll students, assign them to classes, and keep everything structured in one place.",
     points: [
-      "Simple student enrollment",
-      "Clear class organization",
-      "Centralized management dashboard",
+      "Simple and fast student enrollment",
+      "Clear and organized class structure",
+      "Centralized dashboard for full visibility",
     ],
     video: "/videos/classes.mp4",
   },
   {
     eyebrow: "Grading system",
-    heading: "Streamline Grading and Evaluation",
-    body: "Create grading schemes once and reuse them across subjects and programs — with full control over finalization.",
+    heading: "Finish Grading Faster and With Fewer Errors",
+    body: "Avoid repetitive grading setup and manual mistakes. Create grading systems once and reuse them across subjects while keeping full control over final results.",
     points: [
-      "Reusable grading schemes",
-      "Custom grading scales",
-      "Grade locking for accuracy",
+      "Reusable grading schemes across subjects",
+      "Custom grading scales that fit your school",
+      "Grade locking to prevent unwanted changes",
     ],
     video: "/videos/grading.mp4",
   },
   {
     eyebrow: "Fast onboarding",
-    heading: "Launch Your School Faster",
-    body: "Use built-in templates and the organization seeder to skip repetitive setup and get started instantly.",
+    heading: "Get Your School Running From Day One",
+    body: "Skip repetitive setup and start faster. With built-in templates and automated configuration, you can launch your system without delays.",
     points: [
-      "Prebuilt templates",
-      "Automated academic setup",
-      "Consistent configurations",
+      "Prebuilt templates for faster setup",
+      "Automated academic structure generation",
+      "Consistent and reliable configurations",
     ],
     video: "/videos/seeder.mp4",
   },
@@ -49,7 +49,7 @@ const solutions = [
 
 function VideoPreview({ src }: { src: string }) {
   return (
-    <div className="w-full rounded-xl overflow-hidden border border-border bg-muted shadow-sm">
+    <div className="w-full rounded-xl overflow-hidden border border-border bg-muted shadow-sm relative">
       <video
         src={src}
         autoPlay
@@ -58,6 +58,10 @@ function VideoPreview({ src }: { src: string }) {
         playsInline
         className="w-full h-auto object-cover"
       />
+      {/* Optional label for clarity */}
+      <div className="absolute bottom-3 right-3 text-xs bg-black/60 text-white px-2 py-1 rounded">
+        Demo
+      </div>
     </div>
   );
 }
@@ -75,12 +79,12 @@ export function SolutionSection() {
         </div>
 
         <h2 className="font-bold">
-          Everything You Need to Manage Your School
+          Run Your School Without the Chaos
         </h2>
 
         <p className="text-lg text-muted-foreground">
-          From setup to grading, EduTool helps administrators, educators,
-          and students stay organized and in control.
+          EduTool helps you simplify operations, reduce manual work, and stay in
+          control—from setup to grading and everything in between.
         </p>
       </div>
 
@@ -131,6 +135,13 @@ export function SolutionSection() {
             </div>
           );
         })}
+      </div>
+
+      {/* CTA */}
+      <div className="text-center mt-24">
+        <button className="px-6 py-3 bg-primary text-white rounded-lg font-medium shadow">
+          Request Access
+        </button>
       </div>
     </section>
   );

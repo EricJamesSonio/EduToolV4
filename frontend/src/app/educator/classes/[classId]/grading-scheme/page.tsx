@@ -12,7 +12,7 @@ export default function ClassGradingSchemePage({ params }: Props) {
   const { classId } = use(params);
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       <PageHeader
         title="Grading Scheme"
         description="Define how student grades are weighted for this class. Lock occurs automatically once the first student is enrolled."
