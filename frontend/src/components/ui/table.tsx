@@ -13,7 +13,7 @@ const Table: React.FC<React.ComponentProps<"table">> = ({
   return (
     <div
       data-slot="table-container"
-      className="w-full overflow-x-auto"
+      className="w-full overflow-x-auto rounded-[var(--radius)] bg-white dark:bg-[#0B1121]"
     >
       <table
         data-slot="table"

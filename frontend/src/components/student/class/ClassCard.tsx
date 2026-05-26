@@ -1,12 +1,9 @@
-// frontend/src/components/student/class/ClassCard.tsx
 "use client";
 
 import Link from "next/link";
-import { User, Clock, ChevronRight } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Clock, User, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { formatSchedule } from "@/utils/classes.utils";
 import type { StudentClassItem } from "@/api/student/class.api";
 
@@ -15,71 +12,53 @@ interface ClassCardProps {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  active:  "bg-emerald-50 text-emerald-700 border-emerald-200",
-  pending: "bg-amber-50   text-amber-700   border-amber-200",
-  removed: "bg-slate-100  text-slate-500   border-slate-200",
+  active:  "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400",
+  pending: "bg-amber-50   text-amber-700   border-amber-200   dark:bg-amber-950/20 dark:text-amber-400",
+  removed: "bg-slate-100  text-slate-500   border-slate-200   dark:bg-slate-900/20 dark:text-slate-400",
 };
 
-export function ClassCard({ item }: ClassCardProps): React.JSX.Element {
+export function ClassCard({ item }: ClassCardProps) {
   const { enrollmentStatus, class: cls } = item;
   const schedule = formatSchedule(cls.schedules);
 
   return (
-    <Card className="group flex flex-col hover:shadow-md transition-shadow duration-200 border-border/60">
-      {/* Accent stripe */}
-      <div className="h-1.5 w-full rounded-t-xl bg-primary/80" />
+    <Link
+      href={`/student/classes/${cls.id}`}
+      className="rounded-xl border bg-card p-6 space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200 group block"
+    >
+      <div className="space-y-1">
+        <p className="font-semibold text-base group-hover:text-primary transition-colors truncate">
+          {cls.subjectName ?? "Unnamed Subject"}
+        </p>
+      </div>
 
-      <CardHeader className="pb-2 pt-4 px-5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-base leading-snug text-foreground truncate">
-              {cls.subjectName ?? "Unnamed Subject"}
-            </h3>
+      <div className="space-y-2 text-sm text-muted-foreground">
+        {cls.educatorName && (
+          <div className="flex items-center gap-2">
+            <User className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{cls.educatorName}</span>
           </div>
-          <Badge
-            variant="outline"
-            className={cn(
-              "shrink-0 text-[11px] font-medium capitalize",
-              STATUS_STYLES[enrollmentStatus] ?? "bg-muted text-muted-foreground"
-            )}
-          >
-            {enrollmentStatus}
-          </Badge>
-        </div>
-      </CardHeader>
+        )}
+        {schedule && (
+          <div className="flex items-center gap-2">
+            <Clock className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{schedule}</span>
+          </div>
+        )}
+      </div>
 
-      <CardContent className="px-5 pb-4 flex-1 space-y-2">
-        <Row icon={User} label={cls.educatorName ?? "No educator assigned"} />
-        <Row icon={Clock} label={schedule} />
-      </CardContent>
-
-      <CardFooter className="px-5 pb-4">
-        <Link
-          href={`/student/classes/${cls.id}`}
+      <div className="flex items-center justify-between pt-2">
+        <Badge
+          variant="outline"
           className={cn(
-            buttonVariants({ variant: "default", size: "sm" }),
-            "w-full justify-center"
+            "text-[11px] font-medium capitalize",
+            STATUS_STYLES[enrollmentStatus] ?? "bg-muted text-muted-foreground"
           )}
         >
-          View Class
-          <ChevronRight className="h-3.5 w-3.5" />
-        </Link>
-      </CardFooter>
-    </Card>
-  );
-}
-
-function Row({
-  icon: Icon,
-  label,
-}: {
-  icon: React.ElementType;
-  label: string;
-}): React.JSX.Element {
-  return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
-      <span className="truncate">{label}</span>
-    </div>
+          {enrollmentStatus}
+        </Badge>
+        <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+      </div>
+    </Link>
   );
 }
