@@ -18,6 +18,7 @@ import {
   Lock,
   ScrollText,
   CalendarRange,
+  UserPlus,
 } from "lucide-react";
 
 const GROUPS = [
@@ -26,12 +27,13 @@ const GROUPS = [
     items: [
       { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, exact: true },
       { label: "Organization", href: "/admin/organization", icon: Building2 },
-      { label: "School Years", href: "/admin/school-years", icon: CalendarDays },
+      { label: "Enrollment", href: "/admin/enrollment", icon: UserPlus },
     ],
   },
   {
     label: "Academic",
     items: [
+      { label: "School Years", href: "/admin/school-years", icon: CalendarDays },
       { label: "Programs", href: "/admin/programs", icon: BookOpen },
       { label: "Sections", href: "/admin/sections", icon: Layers },
       { label: "Subjects", href: "/admin/subjects", icon: FlaskConical },

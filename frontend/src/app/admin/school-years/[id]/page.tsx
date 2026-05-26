@@ -6,12 +6,11 @@ import { useSearchParams } from "next/navigation";
 import { useQuery }      from "@tanstack/react-query";
 import Link              from "next/link";
 import { schoolYearApi } from "@/api/admin/school-year.api";
-import { EnrollmentTab } from "@/components/admin/enrollment/EnrollmentTab";
 import { OverviewTab }   from "@/components/admin/school-years/OverviewTab";
 import { ProgramsTab }   from "@/components/admin/school-years/ProgramsTab";
 import { StatusBadge }   from "@/components/shared/StatusBadge";
 import { Skeleton }      from "@/components/ui/skeleton";
-import { AlertTriangle, BookOpen, ChevronLeft, Users } from "lucide-react";
+import { AlertTriangle, BookOpen, ChevronLeft } from "lucide-react";
 import { cn }            from "@/lib/utils";
 import type { Tab }      from "@/components/admin/school-years/constants";
 
@@ -58,9 +57,8 @@ export default function SchoolYearDetailPage({
   const isEnded = schoolYear.status === "ended";
 
   const TABS: { key: Tab; label: string; icon?: React.ReactNode }[] = [
-    { key: "overview",   label: "Overview" },
-    { key: "enrollment", label: "Enrollment", icon: <Users    className="inline mr-1.5 h-3.5 w-3.5" /> },
-    { key: "programs",   label: "Programs",   icon: <BookOpen className="inline mr-1.5 h-3.5 w-3.5" /> },
+    { key: "overview", label: "Overview" },
+    { key: "programs", label: "Programs", icon: <BookOpen className="inline mr-1.5 h-3.5 w-3.5" /> },
   ];
 
   return (
@@ -109,9 +107,8 @@ export default function SchoolYearDetailPage({
 
       {/* Content */}
       <div>
-        {activeTab === "overview"   && <OverviewTab schoolYear={schoolYear} />}
-        {activeTab === "enrollment" && <EnrollmentTab schoolYearId={id} isEnded={isEnded} />}
-        {activeTab === "programs"   && <ProgramsTab schoolYearId={id} isEnded={isEnded} />}
+        {activeTab === "overview" && <OverviewTab schoolYear={schoolYear} />}
+        {activeTab === "programs" && <ProgramsTab schoolYearId={id} isEnded={isEnded} />}
       </div>
     </div>
   );

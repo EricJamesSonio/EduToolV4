@@ -16,7 +16,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn }       from "@/lib/utils";
 import { LevelWithSectionsList } from "./LevelWithSectionsList";
 import { SubjectsSection }       from "./SubjectsSection";
-import { ProgramEnrollmentView } from "./ProgramEnrollmentView";
 import { useEnrollmentDrilldown } from "@/components/admin/school-years/hooks/useEnrollmentDrilldown";
 import type { ProgramDetailTab } from "./constants";
 
@@ -69,7 +68,6 @@ export function ProgramDetailView({
     ...(isCollege ? [{ key: "courses"  as ProgramDetailTab, label: "Courses" }] : []),
     ...(isSHS     ? [{ key: "strands"  as ProgramDetailTab, label: "Strands" }] : []),
     { key: "subjects",   label: "Subjects" },
-    { key: "enrollment", label: "Enrollment" },
   ];
 
   return (
@@ -151,19 +149,6 @@ export function ProgramDetailView({
               levels={allLevels}
               isEnded={isEnded}
               initialLevelId={subjectLevelId}
-            />
-          )
-        )}
-
-        {activeTab === "enrollment" && (
-          levelsLoading ? (
-            <Skeleton className="h-40 w-full rounded-lg" />
-          ) : (
-            <ProgramEnrollmentView
-              program={activeProgram}
-              schoolYearId={schoolYearId}
-              levels={allLevels}
-              isEnded={isEnded}
             />
           )
         )}

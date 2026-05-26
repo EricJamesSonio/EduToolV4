@@ -10,6 +10,7 @@ import { cn }      from "@/lib/utils";
 import { formatDate } from "@/utils/date.util";
 import { UserMinus, GraduationCap } from "lucide-react";
 import type { StudentSchoolYearEnrollment } from "@/types/admin/student-enrollment.types";
+import type { Student } from "@/types/admin/student.types";
 
 const STATUS_CLASS: Record<string, string> = {
   active:     "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400",
@@ -23,6 +24,7 @@ interface Props {
   onUnenroll:    (enrollment: StudentSchoolYearEnrollment) => void;
   onAssignProgram: (enrollment: StudentSchoolYearEnrollment) => void;
   isUnenrolling: boolean;
+  studentMap?:   Map<string, Student>;
 }
 
 export function EnrolledStudentTable({
@@ -31,21 +33,30 @@ export function EnrolledStudentTable({
   onUnenroll,
   onAssignProgram,
   isUnenrolling,
+  studentMap,
 }: Props) {
   const [unenrollTarget, setUnenrollTarget] =
     useState<StudentSchoolYearEnrollment | null>(null);
 
   const columns: ColumnDef<StudentSchoolYearEnrollment>[] = [
     {
-      accessorKey: "student_id",
+      id: "student",
       header: "Student",
-      cell: ({ row }) => (
-        <div className="min-w-0">
-          <p className="text-sm font-medium truncate">
-            {row.original.student_id}
-          </p>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const student = studentMap?.get(row.original.student_id);
+        return (
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">
+              {student?.fullName ?? row.original.student_id}
+            </p>
+            {student && (
+              <p className="text-xs text-muted-foreground truncate">
+                {student.studentId}
+              </p>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "status",
