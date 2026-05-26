@@ -11,6 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Tabs, TabsList, TabsTrigger, TabsContent,
+} from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
@@ -21,6 +24,7 @@ import { useLevelsByYear } from "@/hooks/admin/useLevels";
 import {
   useSchoolYearEnrollments,
   useBulkEnrollStudents,
+  useEnrollInProgram,
   useUpdateProgramEnrollment,
 } from "@/hooks/admin/useStudentEnrollment";
 import { useSections } from "@/hooks/admin/useSchoolYears";
@@ -38,6 +42,7 @@ import { cn } from "@/lib/utils";
 import type { Student } from "@/types/admin/student.types";
 import type {
   StudentSchoolYearEnrollment,
+  EnrollStudentProgramRequest,
 } from "@/types/admin/student-enrollment.types";
 
 export default function EnrollWorkspacePage() {
@@ -142,6 +147,20 @@ export default function EnrollWorkspacePage() {
     });
   }, []);
 
+  // ── All context students ────────────────────────────
+
+  const allContextEnrollments = useMemo(() => {
+    if (!programId) return [];
+    return enrollments.filter((e) =>
+      e.programEnrollments.some((pe) =>
+        pe.program_id === programId &&
+        (!courseId || pe.course?.id === courseId) &&
+        (!strandId || pe.strand?.id === strandId) &&
+        (!levelId || pe.level?.id === levelId),
+      ),
+    );
+  }, [enrollments, programId, courseId, strandId, levelId]);
+
   // ── Pending section students ─────────────────────────
 
   const pendingSectionEnrollments = useMemo(() => {
@@ -160,28 +179,46 @@ export default function EnrollWorkspacePage() {
   // ── Mutations ─────────────────────────────────────────
 
   const bulkEnrollMutation = useBulkEnrollStudents(schoolYearId);
+  const enrollInProgramMutation = useEnrollInProgram(schoolYearId);
   const updateProgEnrollMutation = useUpdateProgramEnrollment(schoolYearId);
 
   // ── Handle enroll ─────────────────────────────────────
 
-  const handleEnroll = useCallback(() => {
+  const handleEnroll = useCallback(async () => {
     const students = allStudents.filter((s) => selected.has(s.id));
     if (students.length === 0) return;
 
-    bulkEnrollMutation.mutate(
-      { students: students.map((s) => ({ student_id: s.id })) },
-      {
-        onSuccess: () => {
-          toast.success(`${students.length} student(s) enrolled.`);
-          router.push(`/admin/enrollment`);
-        },
-        onError: (err: unknown) => {
-          const e = err as { response?: { data?: { message?: string } } };
-          toast.error(e?.response?.data?.message ?? "Failed to enroll students.");
-        },
-      },
-    );
-  }, [selected, allStudents, bulkEnrollMutation, router]);
+    try {
+      await bulkEnrollMutation.mutateAsync(
+        { students: students.map((s) => ({ student_id: s.id })) },
+      );
+
+      const programData: EnrollStudentProgramRequest = {
+        program_id: programId,
+        ...(levelId ? { level_id: levelId } : {}),
+        ...(courseId ? { course_id: courseId } : {}),
+        ...(strandId ? { strand_id: strandId } : {}),
+      };
+
+      await Promise.all(
+        students.map((s) =>
+          enrollInProgramMutation.mutateAsync({
+            studentId: s.id,
+            data: programData,
+          }),
+        ),
+      );
+
+      toast.success(`${students.length} student(s) enrolled.`);
+      router.push(`/admin/enrollment`);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      toast.error(e?.response?.data?.message ?? "Failed to enroll some students.");
+    }
+  }, [
+    selected, allStudents, bulkEnrollMutation, enrollInProgramMutation,
+    programId, levelId, courseId, strandId, router,
+  ]);
 
   // ── Handle section assignment ─────────────────────────
 
@@ -199,6 +236,87 @@ export default function EnrollWorkspacePage() {
       );
     },
     [updateProgEnrollMutation],
+  );
+
+  // ── Shared row renderer ─────────────────────────────
+
+  const renderRow = useCallback(
+    (enr: StudentSchoolYearEnrollment, requireNoSection: boolean): React.ReactNode => {
+      const pe = enr.programEnrollments.find(
+        (pe) =>
+          pe.program_id === programId &&
+          (!requireNoSection || pe.section === null) &&
+          (!courseId || pe.course?.id === courseId) &&
+          (!strandId || pe.strand?.id === strandId) &&
+          (!levelId || pe.level?.id === levelId),
+      );
+      if (!pe) return null;
+      const student = studentMap.get(enr.student_id);
+      const hasSection = pe.section !== null;
+      const rowSectionId = sectionAssignments[pe.id] ?? "";
+      return (
+        <div key={`${pe.id}-${enr.id}`} className="flex items-center gap-3 px-5 py-2.5">
+          <span className="w-24 text-sm text-muted-foreground truncate">
+            {student?.studentId ?? "—"}
+          </span>
+          <span className="flex-1 text-sm font-medium truncate">
+            {student?.fullName ?? "Unknown Student"}
+          </span>
+          <span className="w-20 text-xs text-muted-foreground truncate">
+            {pe.program.name}
+          </span>
+          <div className="w-48 flex items-center gap-2">
+            {hasSection ? (
+              <span className="text-xs font-medium truncate">
+                {pe.section!.name}
+              </span>
+            ) : (
+              <>
+                <Select
+                  value={rowSectionId}
+                  onValueChange={(v) =>
+                    setSectionAssignments((prev) => ({
+                      ...prev,
+                      [pe.id]: v ?? "",
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select section">
+                      {(value: string | null) => {
+                        if (!value) return null;
+                        const s = sections.find((sec) => sec.id === value);
+                        return s?.name ?? value;
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sections.map((sec) => (
+                      <SelectItem key={sec.id} value={sec.id} className="text-xs">
+                        {sec.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs shrink-0"
+                  disabled={!rowSectionId || updateProgEnrollMutation.isPending}
+                  onClick={() => handleAssignSection(pe.id, rowSectionId)}
+                >
+                  Assign
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    },
+    [
+      programId, courseId, strandId, levelId, studentMap, sections,
+      sectionAssignments, updateProgEnrollMutation, handleAssignSection,
+    ],
   );
 
   // ── Loading ───────────────────────────────────────────
@@ -500,12 +618,15 @@ export default function EnrollWorkspacePage() {
         </div>
       )}
 
-      {/* ── Section 2: Pending Section ─────────────────── */}
+      {/* ── Section 2: All Students / Pending Section tabs ── */}
       {levelId && (
-        <div className="rounded-lg border bg-card">
+        <Tabs defaultValue="all" className="rounded-lg border bg-card">
           <div className="flex items-center gap-2 px-5 py-3 border-b bg-muted/20">
             <UserRoundCheck className="h-4 w-4 text-primary" />
-            <span className="text-sm font-semibold">Pending Section</span>
+            <TabsList>
+              <TabsTrigger value="all">All Students</TabsTrigger>
+              <TabsTrigger value="pending">Pending Section</TabsTrigger>
+            </TabsList>
           </div>
 
           {pageLoading ? (
@@ -518,13 +639,6 @@ export default function EnrollWorkspacePage() {
                 </div>
               ))}
             </div>
-          ) : pendingSectionEnrollments.length === 0 ? (
-            <div className="px-5 py-8 text-center space-y-2">
-              <UserRoundCheck className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-              <p className="text-sm text-muted-foreground">
-                All students in this context have a section assigned.
-              </p>
-            </div>
           ) : (
             <>
               {/* Column headers */}
@@ -535,77 +649,38 @@ export default function EnrollWorkspacePage() {
                 <span className="w-48">Section</span>
               </div>
 
-              {/* Rows */}
-              <div className="divide-y">
-                {pendingSectionEnrollments.map((enr) => {
-                  const pe = enr.programEnrollments.find(
-                    (pe) =>
-                      pe.program_id === programId &&
-                      pe.section === null &&
-                      (!courseId || pe.course?.id === courseId) &&
-                      (!strandId || pe.strand?.id === strandId) &&
-                      (!levelId || pe.level?.id === levelId),
-                  );
-                  if (!pe) return null;
+              <TabsContent value="all">
+                {allContextEnrollments.length === 0 ? (
+                  <div className="px-5 py-8 text-center space-y-2">
+                    <Users className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+                    <p className="text-sm text-muted-foreground">
+                      No students are enrolled in this context yet.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {allContextEnrollments.map((enr) => renderRow(enr, false))}
+                  </div>
+                )}
+              </TabsContent>
 
-                  const student = studentMap.get(enr.student_id);
-                  const rowSectionId = sectionAssignments[pe.id] ?? "";
-
-                  return (
-                    <div
-                      key={pe.id}
-                      className="flex items-center gap-3 px-5 py-2.5"
-                    >
-                      <span className="w-24 text-sm text-muted-foreground truncate">
-                        {student?.studentId ?? "—"}
-                      </span>
-                      <span className="flex-1 text-sm font-medium truncate">
-                        {student?.fullName ?? "Unknown Student"}
-                      </span>
-                      <span className="w-20 text-xs text-muted-foreground truncate">
-                        {pe.program.name}
-                      </span>
-                      <div className="w-48 flex items-center gap-2">
-                        <Select
-                          value={rowSectionId}
-                          onValueChange={(v) =>
-                            setSectionAssignments((prev) => ({
-                              ...prev,
-                              [pe.id]: v ?? "",
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Select section" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sections.map((sec) => (
-                              <SelectItem key={sec.id} value={sec.id} className="text-xs">
-                                {sec.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-xs shrink-0"
-                          disabled={
-                            !rowSectionId ||
-                            updateProgEnrollMutation.isPending
-                          }
-                          onClick={() => handleAssignSection(pe.id, rowSectionId)}
-                        >
-                          Assign
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <TabsContent value="pending">
+                {pendingSectionEnrollments.length === 0 ? (
+                  <div className="px-5 py-8 text-center space-y-2">
+                    <UserRoundCheck className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+                    <p className="text-sm text-muted-foreground">
+                      All students in this context have a section assigned.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {pendingSectionEnrollments.map((enr) => renderRow(enr, true))}
+                  </div>
+                )}
+              </TabsContent>
             </>
           )}
-        </div>
+        </Tabs>
       )}
 
       {/* ── Confirm enroll dialog ──────────────────────── */}

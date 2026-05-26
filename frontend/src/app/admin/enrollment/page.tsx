@@ -7,19 +7,26 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { EnrolledStudentTable } from "@/components/admin/enrollment/EnrolledStudentTable";
 import { ProgramEnrollmentDialog } from "@/components/admin/enrollment/ProgramEnrollmentDialog";
 import { OrgEnrollmentSettingCard } from "@/components/admin/enrollment/OrgEnrollmentSettingCard";
+import { DataTable } from "@/components/shared/DataTable";
+import type { ColumnDef } from "@tanstack/react-table";
 
-import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
+import { useSchoolYears, useSections } from "@/hooks/admin/useSchoolYears";
 import { useStudents } from "@/hooks/admin/useStudents";
 import {
   useSchoolYearEnrollments,
   useUnenrollStudent,
   useEnrollInProgram,
+  useUpdateProgramEnrollment,
 } from "@/hooks/admin/useStudentEnrollment";
 
 import { Plus, Users, BookOpen, UserRoundCheck, Layers, ClipboardList } from "lucide-react";
@@ -27,8 +34,14 @@ import { Plus, Users, BookOpen, UserRoundCheck, Layers, ClipboardList } from "lu
 import type { Student } from "@/types/admin/student.types";
 import type {
   StudentSchoolYearEnrollment,
+  ProgramEnrollmentSnapshot,
   EnrollStudentProgramRequest,
 } from "@/types/admin/student-enrollment.types";
+
+interface PendingSectionRow {
+  enrollment: StudentSchoolYearEnrollment;
+  pe: ProgramEnrollmentSnapshot;
+}
 
 export default function EnrollmentPage() {
   const router = useRouter();
@@ -38,6 +51,9 @@ export default function EnrollmentPage() {
 
   // Program dialog
   const [programTarget, setProgramTarget] = useState<Student | null>(null);
+
+  // Section assignment per row
+  const [sectionAssignments, setSectionAssignments] = useState<Record<string, string>>({});
 
   // ── Data ──────────────────────────────────────────────
 
@@ -69,10 +85,25 @@ export default function EnrollmentPage() {
     0,
   );
 
+  // ── Pending section data ────────────────────────────
+
+  const pendingSectionEnrollments = useMemo(() => {
+    if (!schoolYearId) return [];
+    return enrollments.filter((e) =>
+      e.programEnrollments.some((pe) => pe.section === null),
+    ).map((e) => {
+      const pe = e.programEnrollments.find((pe) => pe.section === null);
+      return { enrollment: e, pe: pe! };
+    });
+  }, [enrollments, schoolYearId]);
+
+  const { data: allSections = [] } = useSections(schoolYearId);
+
   // ── Mutations ─────────────────────────────────────────-
 
   const unenrollMutation = useUnenrollStudent(schoolYearId ?? "");
   const programEnrollMutation = useEnrollInProgram(schoolYearId ?? "");
+  const updateSectionMutation = useUpdateProgramEnrollment(schoolYearId ?? "");
 
   // ── Handlers ───────────────────────────────────────────
 
@@ -118,10 +149,121 @@ export default function EnrollmentPage() {
     [programTarget, programEnrollMutation],
   );
 
+  const handleAssignSection = useCallback(
+    (programEnrollmentId: string, sectionId: string) => {
+      updateSectionMutation.mutate(
+        { programEnrollmentId, data: { section_id: sectionId } },
+        {
+          onSuccess: () => toast.success("Section assigned."),
+          onError: (err: unknown) => {
+            const e = err as { response?: { data?: { message?: string } } };
+            toast.error(e?.response?.data?.message ?? "Failed to assign section.");
+          },
+        },
+      );
+    },
+    [updateSectionMutation],
+  );
+
   const handleEnrollClick = useCallback(() => {
     if (!schoolYearId) return;
     router.push(`/admin/enrollment/enroll?schoolYearId=${schoolYearId}`);
   }, [schoolYearId, router]);
+
+  // ── Pending section columns ─────────────────────────
+
+  const pendingColumns: ColumnDef<PendingSectionRow>[] = useMemo(() => [
+    {
+      id: "student",
+      header: "Student",
+      cell: ({ row }) => {
+        const student = studentMap.get(row.original.enrollment.student_id);
+        return (
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">
+              {student?.fullName ?? "Unknown Student"}
+            </p>
+            {student && (
+              <p className="text-xs text-muted-foreground truncate">
+                {student.studentId}
+              </p>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      id: "programs",
+      header: "Programs",
+      cell: ({ row }) => {
+        const { pe } = row.original;
+        return (
+          <Badge variant="secondary" className="text-xs font-normal">
+            {pe.program.name}
+            {pe.course && ` · ${pe.course.code ?? pe.course.name}`}
+            {pe.strand && ` · ${pe.strand.name}`}
+            {pe.level  && ` · ${pe.level.name}`}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: "section",
+      header: "Section",
+      cell: ({ row }) => {
+        const { pe } = row.original;
+        const levelSections = allSections.filter(
+          (s) => s.level_id === pe.level?.id,
+        );
+        const rowSectionId = sectionAssignments[pe.id] ?? "";
+        return (
+          <div className="flex items-center gap-2">
+            <Select
+              value={rowSectionId}
+              onValueChange={(v) =>
+                setSectionAssignments((prev) => ({
+                  ...prev,
+                  [pe.id]: v ?? "",
+                }))
+              }
+            >
+              <SelectTrigger className="h-8 text-xs flex-1">
+                <SelectValue placeholder="Select section">
+                  {(value: string | null) => {
+                    if (!value) return null;
+                    const s = allSections.find((sec) => sec.id === value);
+                    return s?.name ?? value;
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {levelSections.length === 0 ? (
+                  <SelectItem value="__none__" disabled className="text-xs text-muted-foreground">
+                    No sections for this level
+                  </SelectItem>
+                ) : (
+                  levelSections.map((sec) => (
+                    <SelectItem key={sec.id} value={sec.id} className="text-xs">
+                      {sec.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs shrink-0"
+              disabled={!rowSectionId || updateSectionMutation.isPending}
+              onClick={() => handleAssignSection(pe.id, rowSectionId)}
+            >
+              Assign
+            </Button>
+          </div>
+        );
+      },
+    },
+  ], [studentMap, allSections, sectionAssignments, updateSectionMutation, handleAssignSection]);
 
   const isEnded = selectedSchoolYear?.status === "ended";
 
@@ -217,17 +359,19 @@ export default function EnrollmentPage() {
               />
             </TabsContent>
 
-            <TabsContent value="pending" className="pt-4">
-              <div className="rounded-lg border border-dashed bg-muted/20 px-6 py-12 text-center space-y-2">
-                <UserRoundCheck className="h-10 w-10 text-muted-foreground/30 mx-auto" />
-                <p className="text-sm font-medium text-muted-foreground">
-                  Pending Section Assignments
-                </p>
-                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  Students enrolled in a program who haven&apos;t been assigned to a
-                  section yet will appear here. You can assign them from this view.
-                </p>
-              </div>
+            <TabsContent value="pending" className="pt-4 space-y-2">
+              <p className="text-xs text-muted-foreground px-1">
+                Students enrolled in a program who haven&apos;t been assigned to a
+                section yet.
+              </p>
+              <DataTable
+                columns={pendingColumns}
+                data={pendingSectionEnrollments}
+                isLoading={enrollLoading}
+                emptyTitle="All students have sections assigned"
+                emptyDescription="No pending section assignments for this school year."
+                className="rounded-lg border"
+              />
             </TabsContent>
 
             <TabsContent value="assignment" className="pt-4">

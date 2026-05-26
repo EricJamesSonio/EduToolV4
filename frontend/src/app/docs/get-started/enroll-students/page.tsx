@@ -3,7 +3,7 @@ export default function EnrollStudentsPage() {
     <article className="max-w-none">
       <div className="mb-12">
         <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-semibold rounded-full mb-4">
-          8 min read
+          2 min read
         </span>
         <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
           How to Enroll Students
