@@ -240,11 +240,11 @@ export function CreateStudentDialog({
               autoComplete="off"
               {...register("email", {
                 required: "Email username is required",
-                pattern: {
-                  value: /^[a-zA-Z0-9._-]+$/,
-                  message:
-                    "Only letters, numbers, dots, underscores, and hyphens are allowed.",
-                },
+              pattern: {
+                value: /^[a-zA-Z0-9_-]+$/,
+                message:
+                  "Only letters, numbers, underscores, and hyphens are allowed.",
+              },
               })}
               disabled={mutation.isPending}
             />
