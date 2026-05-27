@@ -8,10 +8,15 @@ import {
 import { meetingApi } from "@/api/educator/meeting.api";
 import type {
   Meeting,
+  MeetingToken,
   CreateMeetingDto,
   UpdateMeetingDto,
   EnrolledStudent,
 } from "@/types/educator/meeting.types";
+
+interface UseMeetingOptions {
+  refetchInterval?: number | false;
+}
 
 const KEY = {
   list:     (classId: string) => ["meetings", classId] as const,
@@ -29,12 +34,14 @@ export const useMeetings = (classId: string): UseQueryResult<Meeting[]> => {
 
 export const useMeeting = (
   classId: string,
-  meetingId: string
+  meetingId: string,
+  options?: UseMeetingOptions
 ): UseQueryResult<Meeting> => {
   return useQuery({
     queryKey: KEY.detail(classId, meetingId),
     queryFn:  () => meetingApi.getOne(classId, meetingId),
     enabled:  !!classId && !!meetingId,
+    refetchInterval: options?.refetchInterval,
   });
 };
 
@@ -82,6 +89,14 @@ export const useEndMeeting = (
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEY.list(classId) });
     },
+  });
+};
+
+export const useMeetingToken = (meetingId: string): UseQueryResult<MeetingToken> => {
+  return useQuery({
+    queryKey: ["educator", "meeting", "token", meetingId],
+    queryFn:  () => meetingApi.getToken(meetingId),
+    enabled:  !!meetingId,
   });
 };
 
