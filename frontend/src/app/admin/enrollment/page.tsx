@@ -274,20 +274,19 @@ export default function EnrollmentPage() {
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_enrollment" />
+            <SchoolYearSelector
+              schoolYears={schoolYears}
+              isLoading={syLoading}
+              selectedId={schoolYearId}
+              onSelect={setSchoolYearId}
+            />
           </div>
         }
       />
 
-      <SchoolYearSelector
-        schoolYears={schoolYears}
-        isLoading={syLoading}
-        selectedId={schoolYearId}
-        onSelect={setSchoolYearId}
-      />
-
       {schoolYearId && (
         <>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2">
             <Button
               size="sm"
               onClick={handleEnrollClick}
