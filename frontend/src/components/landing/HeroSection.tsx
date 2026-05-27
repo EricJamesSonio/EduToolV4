@@ -50,13 +50,15 @@ export function HeroSection() {
               </Button>
             </Link>
 
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full sm:w-auto text-lg px-8 py-6"
-            >
-              View Demo
-            </Button>
+  <Link href="#solutions">
+  <Button
+    size="lg"
+    variant="outline"
+    className="w-full sm:w-auto text-lg px-8 py-6"
+  >
+    View Demo
+  </Button>
+</Link>
           </div>
 
           {/* Trust badges (kept, but cleaner) */}

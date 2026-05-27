@@ -15,7 +15,7 @@ export function Footer() {
       <div className="page-container py-16 space-y-12">
         {/* Main Content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
-          {/* Brand - wider column */}
+          {/* Brand */}
           <div className="lg:col-span-2 space-y-5">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center shadow-sm">
@@ -54,21 +54,6 @@ export function Footer() {
               </ul>
             </div>
           ))}
-        </div>
-
-        {/* Newsletter */}
-        <div className="max-w-md mx-auto text-center space-y-3">
-          <p className="text-sm font-medium">Stay updated with product news</p>
-          <div className="flex gap-2">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 px-4 py-2.5 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-            <button className="px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
-              Subscribe
-            </button>
-          </div>
         </div>
 
         {/* Divider */}
