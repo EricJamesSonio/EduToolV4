@@ -1,7 +1,7 @@
 "use client";
 
 import { useRoleGuard } from "@/hooks/useRole";
-import { TopBar } from "@/components/layout/TopBar";
+import { PortalNavbar } from "@/components/layout/PortalNavbar";
 import { PlatformSidebar } from "@/components/layout/PlatformSidebar";
 
 export default function PlatformLayout({
@@ -13,9 +13,9 @@ export default function PlatformLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <TopBar />
+      <PortalNavbar />
       <PlatformSidebar />
-      <main className="ml-56 pt-14 transition-all duration-200">
+      <main className="ml-56 pt-[76px] transition-all duration-200">
         <div className="p-6">{children}</div>
       </main>
     </div>

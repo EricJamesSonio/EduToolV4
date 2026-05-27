@@ -12,6 +12,7 @@ import { envValidationSchema } from '../configs/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { LoggerModule } from './logger/logger.module';
 import { AiModule } from './ai/ai.module';
+import { MailModule } from '@/modules/mail/mail.module';
 
 @Global()
 @Module({
@@ -24,6 +25,7 @@ import { AiModule } from './ai/ai.module';
     DatabaseModule,
     LoggerModule,
     AiModule,
+    MailModule,
   ],
   exports: [DatabaseModule, LoggerModule, ConfigModule, AiModule],
 })

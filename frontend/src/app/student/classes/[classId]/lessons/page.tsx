@@ -1,23 +1,23 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import { BookOpen } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useStudentLessons } from "@/hooks/student/usestudentLessons";
 import type { StudentLesson } from "@/api/student/lesson.api";
 
 export default function StudentLessonsPage(): React.JSX.Element {
   const { classId } = useParams<{ classId: string }>();
-  const router = useRouter();
 
     const { data: lessonsRaw, isLoading } = useStudentLessons(classId);
     const lessons: StudentLesson[] = Array.isArray(lessonsRaw)
     ? lessonsRaw
     : (((lessonsRaw as unknown) as Record<string, unknown>)?.data as StudentLesson[] ?? []);
 
-  // Group lessons by weekNumber
   const byWeek = lessons.reduce<Record<number, StudentLesson[]>>((acc, lesson) => {
     if (!acc[lesson.weekNumber]) acc[lesson.weekNumber] = [];
     acc[lesson.weekNumber].push(lesson);
@@ -33,13 +33,15 @@ export default function StudentLessonsPage(): React.JSX.Element {
       <PageHeader title="Lessons" />
 
       {isLoading && (
-        <div className="space-y-6">
-          {[1, 2].map((w) => (
-            <div key={w} className="space-y-3">
-              <Skeleton className="h-4 w-24" />
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-16 w-full rounded-lg" />
-              ))}
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((w) => (
+            <div key={w} className="rounded-xl border bg-card p-6 space-y-4">
+              <Skeleton className="h-6 w-20 rounded-md" />
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <Skeleton key={i} className="h-4 w-40" />
+                ))}
+              </div>
             </div>
           ))}
         </div>
@@ -55,42 +57,34 @@ export default function StudentLessonsPage(): React.JSX.Element {
         </div>
       )}
 
-      {!isLoading && weeks.map((week) => (
-        <div key={week} className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Week {week}
-          </h2>
-          <div className="space-y-2">
-            {byWeek[week]?.sort((a, b) => (a.subIndex ?? 0) - (b.subIndex ?? 0)).map((lesson) => (
-                <div
-                  key={lesson.id}
-                  className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-card px-4 py-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground truncate">
+      {!isLoading && (
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {weeks.map((week) => (
+            <div
+              key={week}
+              className="rounded-xl border bg-card p-6 space-y-4"
+            >
+               <p className={cn("inline-block rounded-md px-2.5 py-1 text-xs font-semibold", WEEK_COLORS[(week - 1) % WEEK_COLORS.length])}>
+                Week {week}
+              </p>
+
+              <div className="space-y-1">
+                {byWeek[week]
+                  ?.sort((a, b) => (a.subIndex ?? 0) - (b.subIndex ?? 0))
+                  .map((lesson) => (
+                    <Link
+                      key={lesson.id}
+                      href={`/student/classes/${classId}/lessons/${lesson.id}`}
+                      className="block text-sm text-foreground hover:text-primary hover:underline transition-colors py-0.5"
+                    >
                       {lesson.title}
-                    </p>
-                    {lesson.description && (
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                        {lesson.description}
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0"
-                    onClick={() =>
-                      router.push(`/student/classes/${classId}/lessons/${lesson.id}`)
-                    }
-                  >
-                    View
-                  </Button>
-                </div>
-              ))}
-          </div>
+                    </Link>
+                  ))}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }

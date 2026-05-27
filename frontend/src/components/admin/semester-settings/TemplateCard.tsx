@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import type { SemesterTemplate } from "@/types/admin/semester-template.types";
 
 interface TemplateCardProps {
@@ -94,36 +95,42 @@ export function TemplateCard({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[...template.semesters]
               .sort((a, b) => a.order_index - b.order_index)
-              .map((sem) => (
-                <div
-                  key={sem.id ?? sem.order_index}
-                  className="rounded-lg border bg-background p-4"
-                >
-                  <p className="mb-3 text-sm font-medium text-foreground">
-                    {sem.name}
-                  </p>
-
-                  {sem.terms.length === 0 ? (
-                    <p className="text-xs italic text-muted-foreground">
-                      No terms
+              .map((sem, si) => {
+                const cardBg = ["bg-blue-50/50", "bg-emerald-50/50", "bg-purple-50/50", "bg-amber-50/50", "bg-teal-50/50", "bg-indigo-50/50", "bg-pink-50/50", "bg-cyan-50/50", "bg-orange-50/50", "bg-rose-50/50"];
+                const textClr = ["text-blue-600", "text-emerald-600", "text-purple-600", "text-amber-600", "text-teal-600", "text-indigo-600", "text-pink-600", "text-cyan-600", "text-orange-600", "text-rose-600"];
+                const dotClr  = ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500", "bg-orange-500", "bg-rose-500"];
+                const siMod = si % 10;
+                return (
+                  <div
+                    key={sem.id ?? sem.order_index}
+                    className={cn("rounded-lg border", cardBg[siMod], "p-4")}
+                  >
+                    <p className={cn("mb-3 text-sm font-medium", textClr[siMod])}>
+                      {sem.name}
                     </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {[...sem.terms]
-                        .sort((a, b) => a.order_index - b.order_index)
-                        .map((term) => (
-                          <div
-                            key={term.id ?? term.order_index}
-                            className="flex items-center gap-2 text-xs text-muted-foreground"
-                          >
-                            <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
-                            {term.name}
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+
+                    {sem.terms.length === 0 ? (
+                      <p className="text-xs italic text-muted-foreground">
+                        No terms
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {[...sem.terms]
+                          .sort((a, b) => a.order_index - b.order_index)
+                          .map((term, ti) => (
+                            <div
+                              key={term.id ?? term.order_index}
+                              className="flex items-center gap-2 text-xs text-muted-foreground"
+                            >
+                              <div className={cn("h-1.5 w-1.5 shrink-0 rounded-full", dotClr[(siMod * 10 + ti) % 10])} />
+                              {term.name}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}

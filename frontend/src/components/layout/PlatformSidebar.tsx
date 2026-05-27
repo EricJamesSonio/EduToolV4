@@ -2,7 +2,7 @@
 
 import { SidebarShell } from "./SidebarShell";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, LogOut, BookOpen } from "lucide-react";
+import { Users, LogOut, ClipboardList } from "lucide-react";
 
 const GROUPS = [
   {
@@ -13,9 +13,14 @@ const GROUPS = [
         icon: Users,
       },
       {
-        label: "Guides",
-        href: "/platform/guides",
-        icon: BookOpen,
+        label: "Requests",
+        href: "/platform/requests",
+        icon: ClipboardList,
+      },
+            {
+        label: "Schools",
+        href: "/platform/schools",
+        icon: ClipboardList,
       },
     ],
   },

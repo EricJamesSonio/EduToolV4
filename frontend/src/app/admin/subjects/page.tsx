@@ -6,6 +6,7 @@ import { toast } from "sonner"; // kept for potential future use; harmless
 import type { Subject } from "@/types/admin/subject.types";
 import { PageHeader }   from "@/components/shared/PageHeader";
 import { HelpGuide }    from "@/components/shared/help-guide/HelpGuide";
+import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { Button }       from "@/components/ui/button";
 import { Plus }         from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -57,45 +58,47 @@ export default function SubjectsPage(): React.JSX.Element {
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_subjects" />
-            <Button
-              onClick={() => setCreateOpen(true)}
-              size="sm"
-              disabled={!filters.selectedSchoolYearId}
-            >
-              <Plus className="mr-1.5 h-4 w-4" />
-              {filters.activeTab === "minor" ? "New Minor Subject" : "New Subject"}
-            </Button>
+            <SchoolYearSelector
+              schoolYears={schoolYears}
+              isLoading={syLoading}
+              selectedId={filters.selectedSchoolYearId}
+              onSelect={filters.setSelectedSchoolYearId}
+            />
           </div>
         }
       />
 
-      {/* Filters — spread so each setter is passed as an individual prop */}
-      <SubjectFilters
-        {...filters}
-        schoolYears={schoolYears}
-        programs={programs}
-        levels={levels}
-        courses={courses}
-        strands={strands}
-        syLoading={syLoading}
-        programsLoading={programsLoading}
-        levelsLoading={levelsLoading}
-      />
-
-      {/* Tabs — pass setActiveTab so clicking Minor/Major actually works */}
-      <SubjectTabs
-        filters={filters}
-        onTabChange={filters.setActiveTab}
-      />
-
-      {/* Search */}
+      {/* Search + New Subject on one line */}
       {filters.selectedSchoolYearId && (
-        <SubjectSearch
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          resultCount={filteredSubjects.length}
-        />
+        <div className="flex items-center justify-between gap-4">
+          <SubjectSearch
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            resultCount={filteredSubjects.length}
+          />
+          <Button onClick={() => setCreateOpen(true)} size="sm">
+            <Plus className="mr-1.5 h-4 w-4" />
+            {filters.activeTab === "minor" ? "New Minor Subject" : "New Subject"}
+          </Button>
+        </div>
       )}
+
+      {/* Tabs + Filters on one line */}
+      <div className="flex items-center justify-between gap-4">
+        <SubjectTabs
+          filters={filters}
+          onTabChange={filters.setActiveTab}
+        />
+        <SubjectFilters
+          {...filters}
+          programs={programs}
+          levels={levels}
+          courses={courses}
+          strands={strands}
+          programsLoading={programsLoading}
+          levelsLoading={levelsLoading}
+        />
+      </div>
 
       {/* Table or empty state */}
       {filters.selectedSchoolYearId ? (

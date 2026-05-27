@@ -267,4 +267,65 @@ async getAdmins(query: GetAdminsDto) {
       },
     });
   }
+
+async getSchools(query: { search?: string; page?: number; limit?: number }) {
+  const { search } = query;
+  const pageNum = Number(query.page ?? 1);
+  const limitNum = Number(query.limit ?? 20);
+  const skip = (pageNum - 1) * limitNum;
+
+  const where: Prisma.OrganizationWhereInput = search
+    ? {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email_extension: { contains: search, mode: 'insensitive' } },
+        ],
+      }
+    : {};
+
+  const [orgs, total] = await Promise.all([
+    this.db.organization.findMany({
+      where,
+      orderBy: { name: 'asc' },
+      skip,
+      take: limitNum,
+      include: {
+        accounts: {
+          where: { role: 'admin', deleted_at: null },
+          select: {
+            id: true,
+            email: true,
+            status: true,
+            profile: { select: { full_name: true } },
+          },
+          take: 1,
+        },
+      },
+    }),
+    this.db.organization.count({ where }),
+  ]);
+
+  const data = orgs.map((org) => {
+    const admin = org.accounts[0] ?? null;
+    return {
+      id: org.id,
+      name: org.name,
+      description: org.description ?? null,
+      emailExtension: org.email_extension ?? null,
+      admin: admin
+        ? {
+            id: admin.id,
+            email: admin.email,
+            status: admin.status,
+            fullName: admin.profile?.full_name ?? null,
+          }
+        : null,
+    };
+  });
+
+  return {
+    data,
+    meta: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) },
+  };
+}
 }

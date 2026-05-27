@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Eye, Trash2, GraduationCap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, pickCardColor } from "@/lib/utils";
 import { PROGRAM_TYPE_LABELS, PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
 import type { Program } from "@/types/admin/program.types";
 
@@ -24,13 +24,13 @@ export function ProgramCard({ program, onDelete }: ProgramCardProps): React.JSX.
     ?? "bg-slate-500/10 text-slate-600 border-slate-200";
 
   return (
-    <div className="rounded-lg border bg-card p-5 space-y-4">
+    <div className="rounded-xl border bg-card p-6 space-y-4">
       <div className="flex items-start gap-3">
-        <div className="icon-container icon-edu shrink-0 mt-0.5">
+        <div className={`icon-container ${pickCardColor(program.id)} shrink-0 mt-0.5`}>
           <GraduationCap className="h-4.5 w-4.5" />
         </div>
         <div className="space-y-1">
-          <h3 className="font-semibold text-sm leading-tight">{program.name}</h3>
+          <h3 className="font-semibold text-lg leading-tight">{program.name}</h3>
           <div className="flex items-center gap-2">
             <Badge
               variant="outline"

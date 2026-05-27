@@ -108,7 +108,7 @@ export function SectionsPanel({
 
   return (
     <>
-      <div className="border-t bg-muted/10">
+      <div className="border-t">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-2.5">
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">

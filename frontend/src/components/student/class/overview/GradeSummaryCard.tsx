@@ -1,4 +1,3 @@
-// frontend/src/components/student/class/overview/GradeSummaryCard.tsx
 import { BarChart2, ChevronRight, Lock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import type { StudentTermGrade } from "@/api/student/grade.api";
 
 interface GradeSummaryCardProps {
@@ -19,13 +19,12 @@ export function GradeSummaryCard({
   isLoading,
   onViewAll,
 }: GradeSummaryCardProps): React.JSX.Element {
-  // Only show released grades
   const released = grades.filter((g) => g.isReleased);
 
   return (
     <Card>
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
-        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <CardTitle className={cn("inline-block rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wider", WEEK_COLORS[5])}>
           Grade Summary
         </CardTitle>
         <Button
@@ -60,15 +59,15 @@ export function GradeSummaryCard({
         )}
 
         {!isLoading &&
-          released.map((g) => (
-            <GradeRow key={g.termId} grade={g} />
+          released.map((g, i) => (
+            <GradeRow key={g.termId} grade={g} index={i} />
           ))}
       </CardContent>
     </Card>
   );
 }
 
-function GradeRow({ grade }: { grade: StudentTermGrade }): React.JSX.Element {
+function GradeRow({ grade, index }: { grade: StudentTermGrade; index: number }) {
   const score = grade.finalScore ?? 0;
   const hasGrade = grade.finalGrade !== null;
 
@@ -84,7 +83,7 @@ function GradeRow({ grade }: { grade: StudentTermGrade }): React.JSX.Element {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <Lock className="h-3 w-3 text-muted-foreground/40" />
-          <span className="text-sm font-medium text-foreground">
+          <span className={cn("inline-block rounded-sm px-1.5 py-0.5 text-xs font-semibold", WEEK_COLORS[(index + 6) % WEEK_COLORS.length])}>
             Term {grade.termId.slice(-4)}
           </span>
         </div>

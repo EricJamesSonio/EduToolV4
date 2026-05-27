@@ -120,7 +120,7 @@ export function WeekCalendar({
                   return (
                     <div
                       key={`${week.semesterIndex}-${week.globalWeek}`}
-                      className="rounded-xl border p-4 space-y-2"
+                      className="rounded-xl border bg-card p-6 space-y-4"
                     >
                       {/* Week Label */}
                       <div className="text-sm font-medium">

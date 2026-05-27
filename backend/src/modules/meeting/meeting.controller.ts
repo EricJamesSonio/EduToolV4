@@ -20,13 +20,18 @@ import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+import { AgoraTokenService } from './agora-token.service';
 
 // ── Educator routes ───────────────────────────────────────────────────────────
 
 @Controller('classes/:classId/meetings')
 @UseGuards(AuthGuard, RolesGuard)
 export class MeetingController {
-  constructor(private readonly meetingService: MeetingService) {}
+constructor(
+  private readonly meetingService: MeetingService,
+  private readonly agoraTokenService: AgoraTokenService,
+) {}
+  
 
   @Post()
   @Roles('educator')
@@ -48,7 +53,17 @@ export class MeetingController {
   ) {
     return this.meetingService.findAll(classId, orgId, educatorId);
   }
-
+  
+  @Get(':id/token')
+  @Roles('educator')
+  getToken(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+  ) {
+    return this.agoraTokenService.getToken(id, orgId, userId, userRole);
+  }
   @Get(':id')
   @Roles('educator')
   findOne(
@@ -102,8 +117,10 @@ export class MeetingController {
 @Controller('meetings')
 @UseGuards(AuthGuard, RolesGuard)
 export class MeetingJoinController {
-  constructor(private readonly meetingService: MeetingService) {}
-
+  constructor(
+    private readonly meetingService: MeetingService,
+    private readonly agoraTokenService: AgoraTokenService,  // ← add
+  ) {}
   @Post(':id/join-request')
   @Roles('student')
   requestJoin(
@@ -134,7 +151,10 @@ export class MeetingJoinController {
 @Controller('student/classes/:classId/meetings')
 @UseGuards(AuthGuard, RolesGuard)
 export class StudentMeetingController {
-  constructor(private readonly meetingService: MeetingService) {}
+  constructor(
+  private readonly meetingService: MeetingService,
+  private readonly agoraTokenService: AgoraTokenService,
+) {}
 
   @Get()
   @Roles('student')
@@ -155,5 +175,16 @@ export class StudentMeetingController {
     @CurrentUser('id') studentId: string,
   ) {
     return this.meetingService.findOneForStudent(id, classId, orgId, studentId);
+  }
+
+  @Get(':id/token')
+  @Roles('educator', 'student')  // both roles need it
+  getToken(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: string,
+  ) {
+    return this.agoraTokenService.getToken(id, orgId, userId, userRole);
   }
 }

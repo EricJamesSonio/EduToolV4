@@ -377,65 +377,64 @@ export class OrgSeederService {
             .map((l) => l.name);
 
       if (progKey === 'college') {
-        // Step 1: Create levels once per program (shared across all courses)
-        for (const levelName of levelNames) {
-          if (!shouldSeedL(levelName)) {
-            result.levels.skipped++;
-            continue;
-          }
-
-          const id = seedId('level', progKey, levelName, schoolYearId, orgId);
-          const existing = await this.db.level.findFirst({ where: { id } });
-
-          let levelId: string;
-          if (existing) {
-            levelId = existing.id;
-            result.levels.already_exists++;
-          } else {
-            const rec = await this.db.level.create({
-              data: {
-                id,
-                org_id: orgId,
-                school_year_id: schoolYearId,
-                program_id: programId,
-                name: levelName,
-              },
-            });
-            levelId = rec.id;
-            result.levels.seeded++;
-          }
-
-          levelMap[levelName] = levelId;
-          // Also populate scoped keys so subject seeding (courseCode|levelName) still works
-          for (const courseCode of Object.keys(courseMap)) {
-            levelMap[`${courseCode}|${levelName}`] = levelId;
-          }
-        }
-
-        // Step 2: Create sections per course × level
+        // Create levels per course (scoped with course_id)
         for (const courseCode of Object.keys(courseMap)) {
           const courseId = courseMap[courseCode];
           if (!courseId) continue;
 
-          // Step 2: Create sections per level only (shared across courses in seeding)
-          for (const levelName of levelNames) {
-            if (!shouldSeedL(levelName)) continue;
+          const courseCustom = levelConfigs[courseCode];
+          const courseLevelNames = courseCustom?.length
+            ? courseCustom
+            : customNames?.length
+              ? customNames
+              : defaultDefs
+                  .filter((l) => l.programKey === progKey && l.courseCode === courseCode)
+                  .map((l) => l.name);
 
-            const levelId = levelMap[levelName];
-            if (!levelId) continue;
+          for (const levelName of courseLevelNames) {
+            if (!shouldSeedL(levelName)) {
+              result.levels.skipped++;
+              continue;
+            }
 
+            const id = seedId('level', progKey, courseCode, levelName, schoolYearId, orgId);
+            const existing = await this.db.level.findFirst({ where: { id } });
+
+            let levelId: string;
+            if (existing) {
+              levelId = existing.id;
+              result.levels.already_exists++;
+            } else {
+              const rec = await this.db.level.create({
+                data: {
+                  id,
+                  org_id: orgId,
+                  school_year_id: schoolYearId,
+                  program_id: programId,
+                  course_id: courseId,
+                  name: levelName,
+                },
+              });
+              levelId = rec.id;
+              result.levels.seeded++;
+            }
+
+            levelMap[`${courseCode}|${levelName}`] = levelId;
+
+            // Create sections for this course-scoped level
             const defaultSections = defaultDefs.find(
-              (l) => l.programKey === progKey && l.name === levelName,
+              (l) => l.programKey === progKey && l.courseCode === courseCode && l.name === levelName,
             )?.sections ?? [
               { name: 'Section A', capacity: 40 },
               { name: 'Section B', capacity: 40 },
             ];
-            const sections = sectionConfigs[levelName] ?? defaultSections;
+            const sections = sectionConfigs[`${courseCode}|${levelName}`] ?? defaultSections;
 
             for (const sec of sections) {
               const sectionId = seedId(
                 'section',
                 progKey,
+                courseCode,
                 levelName,
                 sec.name,
                 schoolYearId,
@@ -453,6 +452,7 @@ export class OrgSeederService {
                     id: sectionId,
                     org_id: orgId,
                     level_id: levelId,
+                    course_id: courseId,
                     school_year_id: schoolYearId,
                     name: sec.name,
                     capacity: sec.capacity,
@@ -464,65 +464,64 @@ export class OrgSeederService {
           }
         }
       } else if (progKey === 'shs') {
-        // Step 1: Create levels once per program (shared across all strands)
-        for (const levelName of levelNames) {
-          if (!shouldSeedL(levelName)) {
-            result.levels.skipped++;
-            continue;
-          }
-
-          const id = seedId('level', progKey, levelName, schoolYearId, orgId);
-          const existing = await this.db.level.findFirst({ where: { id } });
-
-          let levelId: string;
-          if (existing) {
-            levelId = existing.id;
-            result.levels.already_exists++;
-          } else {
-            const rec = await this.db.level.create({
-              data: {
-                id,
-                org_id: orgId,
-                school_year_id: schoolYearId,
-                program_id: programId,
-                name: levelName,
-              },
-            });
-            levelId = rec.id;
-            result.levels.seeded++;
-          }
-
-          levelMap[levelName] = levelId;
-          // Also populate scoped keys so subject seeding (strandName|levelName) still works
-          for (const strandName of Object.keys(strandMap)) {
-            levelMap[`${strandName}|${levelName}`] = levelId;
-          }
-        }
-
-        // Step 2: Create sections per strand × level
+        // Create levels per strand (scoped with strand_id)
         for (const strandName of Object.keys(strandMap)) {
           const strandId = strandMap[strandName];
           if (!strandId) continue;
 
-          // Step 2: Create sections per level only (shared across strands in seeding)
-          for (const levelName of levelNames) {
-            if (!shouldSeedL(levelName)) continue;
+          const strandCustom = levelConfigs[strandName];
+          const strandLevelNames = strandCustom?.length
+            ? strandCustom
+            : customNames?.length
+              ? customNames
+              : defaultDefs
+                  .filter((l) => l.programKey === progKey)
+                  .map((l) => l.name);
 
-            const levelId = levelMap[levelName];
-            if (!levelId) continue;
+          for (const levelName of strandLevelNames) {
+            if (!shouldSeedL(levelName)) {
+              result.levels.skipped++;
+              continue;
+            }
 
+            const id = seedId('level', progKey, strandName, levelName, schoolYearId, orgId);
+            const existing = await this.db.level.findFirst({ where: { id } });
+
+            let levelId: string;
+            if (existing) {
+              levelId = existing.id;
+              result.levels.already_exists++;
+            } else {
+              const rec = await this.db.level.create({
+                data: {
+                  id,
+                  org_id: orgId,
+                  school_year_id: schoolYearId,
+                  program_id: programId,
+                  strand_id: strandId,
+                  name: levelName,
+                },
+              });
+              levelId = rec.id;
+              result.levels.seeded++;
+            }
+
+            levelMap[`${strandName}|${levelName}`] = levelId;
+
+            // Create sections for this strand-scoped level
             const defaultSections = defaultDefs.find(
               (l) => l.programKey === progKey && l.name === levelName,
             )?.sections ?? [
               { name: 'Section A', capacity: 40 },
               { name: 'Section B', capacity: 40 },
             ];
-            const sections = sectionConfigs[levelName] ?? defaultSections;
+            const sections = sectionConfigs[`${strandName}|${levelName}`] ?? defaultSections;
 
             for (const sec of sections) {
               const sectionId = seedId(
                 'section',
                 progKey,
+                strandName,
                 levelName,
                 sec.name,
                 schoolYearId,
@@ -540,6 +539,7 @@ export class OrgSeederService {
                     id: sectionId,
                     org_id: orgId,
                     level_id: levelId,
+                    strand_id: strandId,
                     school_year_id: schoolYearId,
                     name: sec.name,
                     capacity: sec.capacity,
@@ -886,7 +886,12 @@ export class OrgSeederService {
         continue;
       }
 
-      const levelId = levelMap[s.levelName];
+      const levelKey = s.courseCode
+        ? `${s.courseCode}|${s.levelName}`
+        : s.strandName
+          ? `${s.strandName}|${s.levelName}`
+          : s.levelName;
+      const levelId = levelMap[levelKey];
       if (!levelId) {
         result.subjects.skipped++;
         continue;
@@ -969,7 +974,10 @@ export class OrgSeederService {
           continue;
         }
 
-        const levelId = s.yearLevel ? levelMap[s.yearLevel] : null;
+        const firstCourseCode = Object.keys(courseMap)[0];
+        const levelId = s.yearLevel && firstCourseCode
+          ? levelMap[`${firstCourseCode}|${s.yearLevel}`]
+          : null;
         if (!levelId) {
           result.subjects.skipped++;
           continue;
@@ -1061,7 +1069,10 @@ export class OrgSeederService {
           subjectId = seenShsMinors.get(dedupeKey)!;
           result.subjects.already_exists++;
         } else {
-          const levelId = s.levelName ? levelMap[s.levelName] : null;
+          const firstStrandName = Object.keys(strandMap)[0];
+          const levelId = s.levelName && firstStrandName
+            ? levelMap[`${firstStrandName}|${s.levelName}`]
+            : null;
           if (!levelId) {
             result.subjects.skipped++;
             continue;
@@ -1134,7 +1145,14 @@ export class OrgSeederService {
 
     for (const s of subjectDefs) {
       if (s.prereqNames.length === 0) continue;
-      if (!s.isMinor && !levelMap[s.levelName]) continue;
+      if (!s.isMinor) {
+        const levelKey = s.courseCode
+          ? `${s.courseCode}|${s.levelName}`
+          : s.strandName
+            ? `${s.strandName}|${s.levelName}`
+            : s.levelName;
+        if (!levelMap[levelKey]) continue;
+      }
 
       const subjectId = subjectNameToId[s.name];
       if (!subjectId) continue;

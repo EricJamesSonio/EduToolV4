@@ -8,6 +8,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
 import { DataTable } from "@/components/shared/DataTable";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
@@ -259,9 +260,12 @@ export function GradingScaleAssignmentSection({
                   <SelectValue placeholder="Choose a grading scale..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {scales.map((scale) => (
+                  {scales.map((scale, i) => (
                     <SelectItem key={scale.id} value={scale.id}>
-                      {scale.name} ({scale.ranges.length} ranges)
+                      <div className="flex items-center gap-2">
+                        <div className={cn("h-2 w-2 rounded-full shrink-0", ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500", "bg-orange-500", "bg-rose-500"][i % 10])} />
+                        {scale.name} ({scale.ranges.length} ranges)
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>

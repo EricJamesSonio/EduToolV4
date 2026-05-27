@@ -117,7 +117,7 @@ export default function AttendancePage() {
                       return (
                         <div
                           key={`${week.semesterIndex}-${week.globalWeek}`}
-                          className="rounded-xl border p-4 space-y-3"
+                          className="rounded-xl border bg-card p-6 space-y-4"
                         >
                           {/* Week label */}
                           <div>

@@ -26,6 +26,8 @@ export class LevelRepository {
         org_id: orgId,
         program_id: programId,
         school_year_id: schoolYearId,
+        course_id: null,
+        strand_id: null,
       },
       orderBy: { name: 'asc' },
     })
@@ -73,13 +75,17 @@ export class LevelRepository {
     programId: string
     schoolYearId: string
     name: string
+    courseId?: string
+    strandId?: string
   }) {
     return this.db.level.create({
       data: {
         org_id: orgId,
         school_year_id: data.schoolYearId,
-        program_id: data.programId,
-        name: data.name,
+        program_id:     data.programId,
+        course_id:      data.courseId ?? null,
+        strand_id:      data.strandId ?? null,
+        name:           data.name,
       },
     })
   }
@@ -104,12 +110,16 @@ export class LevelRepository {
     orgId: string,
     programId: string,
     schoolYearId: string,
+    courseId?: string,
+    strandId?: string,
   ): Promise<void> {
     await this.db.level.deleteMany({
       where: {
         org_id: orgId,
         program_id: programId,
         school_year_id: schoolYearId,
+        course_id: courseId ?? null,
+        strand_id: strandId ?? null,
       },
     })
   }
@@ -119,13 +129,17 @@ export class LevelRepository {
     programId: string
     schoolYearId: string
     name: string
+    courseId?: string
+    strandId?: string
   }>) {
     await this.db.level.createMany({
       data: levels.map((l) => ({
         org_id: l.orgId,
         school_year_id: l.schoolYearId,
-        program_id: l.programId,
-        name: l.name,
+        program_id:     l.programId,
+        course_id:      l.courseId ?? null,
+        strand_id:      l.strandId ?? null,
+        name:           l.name,
       })),
     })
     return this.db.level.findMany({
@@ -133,6 +147,8 @@ export class LevelRepository {
         org_id: levels[0].orgId,
         program_id: levels[0].programId,
         school_year_id: levels[0].schoolYearId,
+        course_id:      levels[0].courseId ?? null,
+        strand_id:      levels[0].strandId ?? null,
       },
       orderBy: { name: 'asc' },
     })
@@ -143,25 +159,11 @@ export class LevelRepository {
     schoolYearId: string,
     courseId: string,
   ) {
-    // Get all sections that belong to this course in this school year
-    const sections = await this.db.section.findMany({
+    return this.db.level.findMany({
       where: {
         org_id: orgId,
         school_year_id: schoolYearId,
         course_id: courseId,
-      },
-      select: { level_id: true },
-      distinct: ['level_id'],
-    })
-
-    if (sections.length === 0) return []
-
-    // Extract unique level IDs and fetch them
-    const levelIds = sections.map((s) => s.level_id)
-    return this.db.level.findMany({
-      where: {
-        id: { in: levelIds },
-        org_id: orgId,
       },
       orderBy: { name: 'asc' },
     })
@@ -172,25 +174,11 @@ export class LevelRepository {
     schoolYearId: string,
     strandId: string,
   ) {
-    // Get all sections that belong to this strand in this school year
-    const sections = await this.db.section.findMany({
+    return this.db.level.findMany({
       where: {
         org_id: orgId,
         school_year_id: schoolYearId,
         strand_id: strandId,
-      },
-      select: { level_id: true },
-      distinct: ['level_id'],
-    })
-
-    if (sections.length === 0) return []
-
-    // Extract unique level IDs and fetch them
-    const levelIds = sections.map((s) => s.level_id)
-    return this.db.level.findMany({
-      where: {
-        id: { in: levelIds },
-        org_id: orgId,
       },
       orderBy: { name: 'asc' },
     })

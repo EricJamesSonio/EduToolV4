@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
+const DOT_COLORS = ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500", "bg-orange-500", "bg-rose-500"];
 import {
   Select,
   SelectContent,
@@ -95,9 +97,12 @@ function ProgramTableRowActions({
             <SelectItem value="none" disabled={schoolYearStarted}>
               — None —
             </SelectItem>
-            {matchingTemplates.map((t) => (
+            {matchingTemplates.map((t, i) => (
               <SelectItem key={t.id} value={t.id} className="text-xs">
-                {t.name}
+                <div className="flex items-center gap-2">
+                  <div className={cn("h-2 w-2 rounded-full shrink-0", DOT_COLORS[i % DOT_COLORS.length])} />
+                  {t.name}
+                </div>
               </SelectItem>
             ))}
           </SelectContent>

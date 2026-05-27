@@ -289,7 +289,7 @@ export function HolidayCalendarGrid({
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <p className="text-base font-semibold">
+        <p className="text-base font-semibold text-primary-foreground">
           {MONTH_NAMES[month]} {year}
         </p>
         <button

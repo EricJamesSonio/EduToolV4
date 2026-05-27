@@ -32,7 +32,7 @@ export default function SchoolYearsPage(): React.JSX.Element {
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_school_years" />
-            <Button onClick={() => setCreateOpen(true)}>
+            <Button onClick={() => setCreateOpen(true)} size="sm">
               <Plus className="mr-2 h-4 w-4" />
               New School Year
             </Button>

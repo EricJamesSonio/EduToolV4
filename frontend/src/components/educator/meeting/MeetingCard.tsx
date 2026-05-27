@@ -40,7 +40,7 @@ export function MeetingCard({ meeting, classId }: MeetingCardProps) {
 
   return (
     <div className={cn(
-      "rounded-lg border bg-card px-5 py-4 transition-colors",
+      "rounded-xl border bg-card px-6 py-4 transition-colors",
       status === "live" && "border-green-200 bg-green-50/30"
     )}>
       <div className="flex items-start justify-between gap-4">

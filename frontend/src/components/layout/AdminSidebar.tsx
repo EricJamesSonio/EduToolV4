@@ -18,6 +18,8 @@ import {
   Lock,
   ScrollText,
   CalendarRange,
+  UserPlus,
+  Database,
 } from "lucide-react";
 
 const GROUPS = [
@@ -26,17 +28,22 @@ const GROUPS = [
     items: [
       { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, exact: true },
       { label: "Organization", href: "/admin/organization", icon: Building2 },
-      { label: "School Years", href: "/admin/school-years", icon: CalendarDays },
+      { label: "Data Seeder", href: "/admin/data-seeder", icon: Database },
+      { label: "Enrollment", href: "/admin/enrollment", icon: UserPlus },
+      
     ],
   },
   {
     label: "Academic",
     items: [
+      { label: "School Years", href: "/admin/school-years", icon: CalendarDays },
       { label: "Programs", href: "/admin/programs", icon: BookOpen },
       { label: "Sections", href: "/admin/sections", icon: Layers },
       { label: "Subjects", href: "/admin/subjects", icon: FlaskConical },
-      { label: "Semester Settings", href: "/admin/semester-settings", icon: CalendarClock },
       { label: "Academic Calendar", href: "/admin/academic-calendar", icon: CalendarRange },
+      { label: "Semester Settings", href: "/admin/semester-settings", icon: CalendarClock },
+      { label: "Classes", href: "/admin/classes", icon: GraduationCap },
+      
     ],
   },
   {
@@ -44,7 +51,7 @@ const GROUPS = [
     items: [
       { label: "Grading Scales", href: "/admin/grading-scales", icon: BarChart3 },
       { label: "Grading Schemes", href: "/admin/grading-schemes", icon: ClipboardList },
-      { label: "Classes", href: "/admin/classes", icon: GraduationCap },
+      
     ],
   },
   {

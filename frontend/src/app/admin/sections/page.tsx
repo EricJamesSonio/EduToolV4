@@ -105,31 +105,31 @@ export default function SectionsPage(): React.JSX.Element {
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_sections" />
-            <Button
-              onClick={() => setCreateOpen(true)}
-              size="sm"
-              disabled={!schoolYearId}
-            >
-              <Plus className="mr-1.5 h-4 w-4" />
-              New Section
-            </Button>
+            <SchoolYearSelector
+              schoolYears={schoolYears}
+              isLoading={syLoading}
+              selectedId={schoolYearId}
+              onSelect={(id) => {
+                setSchoolYearId(id);
+                setFilterProgramId("all");
+                setFilterCourseId("all");
+                setFilterStrandId("all");
+                setFilterLevelId("all");
+                setSearch("");
+              }}
+            />
           </div>
         }
       />
 
-      <SchoolYearSelector
-        schoolYears={schoolYears}
-        isLoading={syLoading}
-        selectedId={schoolYearId}
-        onSelect={(id) => {
-          setSchoolYearId(id);
-          setFilterProgramId("all");
-          setFilterCourseId("all");
-          setFilterStrandId("all");
-          setFilterLevelId("all");
-          setSearch("");
-        }}
-      />
+      {schoolYearId && (
+        <div className="flex items-center justify-end gap-2">
+          <Button onClick={() => setCreateOpen(true)} size="sm">
+            <Plus className="mr-1.5 h-4 w-4" />
+            New Section
+          </Button>
+        </div>
+      )}
 
       {schoolYearId && !isLoading && (
         <div className="flex items-center gap-3">

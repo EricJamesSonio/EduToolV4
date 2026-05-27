@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { Plus, X, GripVertical } from "lucide-react";
 import type { AxiosError } from "axios";
 import type {
@@ -32,6 +33,7 @@ import {
   DEFAULT_TEMPLATES,
   PROGRAM_TYPE_LABELS,
   PROGRAM_TYPE_DESCRIPTIONS,
+  PROGRAM_TYPE_COLORS,
   type LocalTerm,
   type LocalSemester,
 } from "./semester-templates.constants";
@@ -278,16 +280,30 @@ export function TemplateFormDialog({
                   {(Object.entries(PROGRAM_TYPE_LABELS) as [
                     ProgramType,
                     string,
-                  ][]).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      <div className="flex flex-col">
-                        <span>{label}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {PROGRAM_TYPE_DESCRIPTIONS[value]}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  ][]).map(([value, label]) => {
+                    const dotColor = ({
+                      college: "bg-blue-500",
+                      shs: "bg-violet-500",
+                      jhs: "bg-amber-500",
+                      elementary: "bg-emerald-500",
+                      kinder: "bg-pink-500",
+                      daycare: "bg-orange-500",
+                      custom: "bg-slate-500",
+                    } as Record<string, string>)[value] ?? "bg-gray-500";
+                    return (
+                      <SelectItem key={value} value={value}>
+                        <div className="flex items-center gap-2">
+                          <div className={cn("h-2 w-2 rounded-full shrink-0", dotColor)} />
+                          <div className="flex flex-col">
+                            <span>{label}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {PROGRAM_TYPE_DESCRIPTIONS[value]}
+                            </span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

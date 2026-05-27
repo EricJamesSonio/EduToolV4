@@ -53,14 +53,14 @@ export class LevelService {
   }
 
   /**
-   * Get levels by school year and program
+   * Get levels by school year and program (only program-scoped levels, not course/strand scoped)
    */
   async getBySchoolYear(orgId: string, schoolYearId: string) {
     return this.levelRepository.findBySchoolYear(orgId, schoolYearId);
   }
 
   /**
-   * Get levels for a specific course (via sections)
+   * Get levels for a specific course (direct course_id lookup)
    */
   async getByCourse(orgId: string, schoolYearId: string, courseId: string) {
     return this.levelRepository.findByCourseAndSchoolYear(
@@ -71,13 +71,24 @@ export class LevelService {
   }
 
   /**
-   * Get levels for a specific strand (via sections)
+   * Get levels for a specific strand (direct strand_id lookup)
    */
   async getByStrand(orgId: string, schoolYearId: string, strandId: string) {
     return this.levelRepository.findByStrandAndSchoolYear(
       orgId,
       schoolYearId,
       strandId,
+    );
+  }
+
+  /**
+   * Get levels by program and school year (excluding course/strand scoped levels)
+   */
+  async getByProgram(orgId: string, programId: string, schoolYearId: string) {
+    return this.levelRepository.findByProgramAndSchoolYear(
+      orgId,
+      programId,
+      schoolYearId,
     );
   }
 
@@ -109,7 +120,13 @@ export class LevelService {
    * Create a new level
    */
   async createOne(orgId: string, dto: CreateLevelDto) {
-    return this.levelRepository.create(orgId, dto);
+    return this.levelRepository.create(orgId, {
+      programId:    dto.programId,
+      schoolYearId: dto.schoolYearId,
+      name:         dto.name,
+      courseId:     dto.courseId,
+      strandId:     dto.strandId,
+    });
   }
 
   /**
@@ -252,7 +269,7 @@ export class LevelService {
   }
 
   /**
-   * Bulk generate levels for a program
+   * Bulk generate levels for a program, optionally scoped to a course or strand
    */
   async bulkGenerate(orgId: string, dto: BulkGenerateLevelsDto) {
     const program = await this.db.program.findFirst({
@@ -265,12 +282,16 @@ export class LevelService {
       orgId,
       dto.programId,
       dto.schoolYearId,
+      dto.courseId,
+      dto.strandId,
     );
     return this.levelRepository.bulkCreate(
       names.map((name) => ({
         orgId,
         programId: dto.programId,
         schoolYearId: dto.schoolYearId,
+        courseId:     dto.courseId,
+        strandId:     dto.strandId,
         name,
       })),
     );

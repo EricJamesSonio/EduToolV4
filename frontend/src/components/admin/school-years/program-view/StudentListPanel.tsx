@@ -212,7 +212,6 @@ export function StudentListPanel({
           open
           onClose={() => setEnrollOpen(false)}
           alreadyEnrolled={allEnrollments}
-          programEnrolledStudentIds={programEnrolledStudentIds}
           onConfirm={handleEnroll}
           isLoading={bulkEnroll.isPending || enrollInProgram.isPending}
         />

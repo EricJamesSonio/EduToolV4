@@ -32,7 +32,7 @@ const components = Array.isArray(scheme?.components)
     .reduce((sum, c) => sum + c.weight, 0);
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border bg-card px-5 py-4">
+    <div className="flex items-center justify-between gap-4 rounded-xl border bg-card px-6 py-4">
 
       {/* LEFT */}
       <div className="min-w-0 space-y-1.5">

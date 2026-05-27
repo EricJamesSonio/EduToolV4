@@ -118,15 +118,15 @@ export default function AssessmentsPage(): React.JSX.Element {
         ) : (
           <div className="rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-muted/40 border-b">
+              <thead>
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Title</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Release Date</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">End Date</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Submitted</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Essays</th>
+                  <th className="text-left px-4 py-3 font-medium">Title</th>
+                  <th className="text-left px-4 py-3 font-medium">Type</th>
+                  <th className="text-left px-4 py-3 font-medium">Release Date</th>
+                  <th className="text-left px-4 py-3 font-medium">End Date</th>
+                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="text-left px-4 py-3 font-medium">Submitted</th>
+                  <th className="text-left px-4 py-3 font-medium">Essays</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>

@@ -104,19 +104,19 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
     <>
       <div
         className={cn(
-          "rounded-lg border bg-card p-5 space-y-4",
+          "rounded-xl border bg-card p-6 space-y-4",
           year.status === "active" && "border-primary/30 bg-primary/5"
         )}
       >
         {/* Header with Icon and Info */}
         <div className="flex items-start gap-3">
-          <div className="icon-container shrink-0 mt-0.5">
+          <div className="icon-container icon-edu shrink-0 mt-0.5">
             {getStatusIcon()}
           </div>
           <div className="flex-1 space-y-1">
-            <h3 className="font-semibold text-sm leading-tight">{year.name}</h3>
+            <h3 className="font-semibold text-lg leading-tight">{year.name}</h3>
             {(year.start_date || year.end_date) && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {year.start_date ? formatDate(year.start_date) : "—"}
                 {" "}–{" "}
                 {year.end_date ? formatDate(year.end_date) : "—"}

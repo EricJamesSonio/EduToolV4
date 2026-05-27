@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { useDeleteGradingSchemeTemplate } from "@/hooks/admin/useGradingSchemeTemplates";
 import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
 import type { AxiosError } from "axios";
@@ -127,12 +128,21 @@ export function GradingSchemeTemplateList({
                 {template.components?.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">No components</p>
                 ) : (
-                  template.components?.map((comp, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">{comp.name}</span>
-                      <span className="font-medium">{comp.weight}%</span>
-                    </div>
-                  ))
+                  template.components?.map((comp, idx) => {
+                    const dots  = ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500", "bg-orange-500", "bg-rose-500"];
+                    const texts = ["text-blue-600", "text-emerald-600", "text-purple-600", "text-amber-600", "text-teal-600", "text-indigo-600", "text-pink-600", "text-cyan-600", "text-orange-600", "text-rose-600"];
+                    const bgs   = ["bg-blue-500/10", "bg-emerald-500/10", "bg-purple-500/10", "bg-amber-500/10", "bg-teal-500/10", "bg-indigo-500/10", "bg-pink-500/10", "bg-cyan-500/10", "bg-orange-500/10", "bg-rose-500/10"];
+                    const i = idx % 10;
+                    return (
+                      <div key={idx} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className={cn("h-1.5 w-1.5 rounded-full", dots[i])} />
+                          <span className={cn("font-medium", texts[i])}>{comp.name}</span>
+                        </div>
+                        <span className={cn("rounded-sm px-1.5 py-0.5 font-semibold", bgs[i], texts[i])}>{comp.weight}%</span>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             )}

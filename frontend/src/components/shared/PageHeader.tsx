@@ -23,11 +23,11 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
+    <div data-slot="page-header" className={cn("flex flex-col gap-3", className)}>
 
       {/* HEADER (THEME-BASED, NOT HARD-CODED) */}
       <div className="w-full rounded-lg border border-border bg-card px-6 py-4">
-        <h1 className="text-center text-2xl font-bold tracking-wide text-foreground">
+        <h1 className="text-center font-bold tracking-wide">
           {title}
         </h1>
       </div>

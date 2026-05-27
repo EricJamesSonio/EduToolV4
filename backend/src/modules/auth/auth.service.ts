@@ -3,6 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -10,8 +11,10 @@ import { AccountStatus } from '@prisma/client';
 
 import { AuthRepository } from './auth.repository';
 import { LoginDto } from './dto/auth.dto';
+import { RegisterDto, VerifyOtpDto, ResendOtpDto } from './dto/register.dto';
 import { AuthTokens, TokenPayload } from './entity/auth.entity';
 import { comparePassword, hashPassword } from '@/commons/utils/hash.util';
+import { MailService } from '@/modules/mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -19,9 +22,8 @@ export class AuthService {
     private readonly authRepository: AuthRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) { }
-
-  // ─── Login ────────────────────────────────────────────────────────────────
+    private readonly mailService: MailService,
+  ) {}
 
   async login(dto: LoginDto): Promise<AuthTokens> {
     const account = await this.authRepository.findAccountByEmail(dto.email);
@@ -35,7 +37,6 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Block inactive statuses from logging in
     const blockedStatuses: AccountStatus[] = [
       AccountStatus.suspended,
       AccountStatus.dropped,
@@ -50,14 +51,80 @@ export class AuthService {
       );
     }
 
-    const tokens = await this.generateTokens(account.id, account.org_id, account.role, account.email);
-    return tokens;
+    return this.generateTokens(account.id, account.org_id, account.role, account.email);
   }
 
-  // ─── Refresh ──────────────────────────────────────────────────────────────
+  async register(dto: RegisterDto): Promise<{ message: string }> {
+    const existing = await this.authRepository.findAccountByEmail(dto.email);
+    if (existing) {
+      throw new BadRequestException('Email already registered');
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await this.authRepository.createOtp({
+      email: dto.email,
+      full_name: dto.fullName,
+      code,
+      plan: dto.plan ?? null,
+      institution_name: dto.institutionName ?? null,
+      role: dto.role ?? null,
+      student_count: dto.studentCount ?? null,
+      programs_departments: dto.programsDepartments ?? null,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000),
+    });
+
+    await this.mailService.sendOtpEmail(dto.email, code);
+
+    return { message: 'Verification code sent to your email' };
+  }
+
+  async verifyOtp(dto: VerifyOtpDto): Promise<{ message: string }> {
+    const otp = await this.authRepository.findValidOtp(dto.email, dto.code);
+
+    if (!otp) {
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    if (otp.used_at) {
+      throw new BadRequestException('Verification code already used');
+    }
+
+    if (new Date() > otp.expires_at) {
+      throw new BadRequestException('Verification code has expired');
+    }
+
+    await this.authRepository.markOtpUsed(otp.id);
+
+    await this.authRepository.createRegistrationRequest({
+      email: dto.email,
+      full_name: otp.full_name ?? dto.email,
+      plan: otp.plan ?? null,
+      institution_name: otp.institution_name ?? null,
+      role: otp.role ?? null,
+      student_count: otp.student_count ?? null,
+      programs_departments: otp.programs_departments ?? null,
+    });
+
+    return { message: 'Registration request submitted for review' };
+  }
+
+  async resendOtp(dto: ResendOtpDto): Promise<{ message: string }> {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await this.authRepository.createOtp({
+      email: dto.email,
+      code,
+      plan: null,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000),
+    });
+
+    await this.mailService.sendOtpEmail(dto.email, code);
+
+    return { message: 'New verification code sent to your email' };
+  }
 
   async refresh(incomingRefreshToken: string): Promise<AuthTokens> {
-    // decode without verifying to extract the subject
     let accountId: string;
     try {
       const payload = this.jwtService.decode(incomingRefreshToken) as { sub: string };
@@ -85,13 +152,9 @@ export class AuthService {
     return this.generateTokens(account.id, account.org_id, account.role, account.email);
   }
 
-  // ─── Logout ───────────────────────────────────────────────────────────────
-
   async logout(accountId: string): Promise<void> {
     await this.authRepository.clearRefreshToken(accountId);
   }
-
-  // ─── Me ───────────────────────────────────────────────────────────────────
 
   async getMe(accountId: string) {
     const account = await this.authRepository.findAccountById(accountId);
@@ -113,8 +176,6 @@ export class AuthService {
     };
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
-
   private async generateTokens(
     accountId: string,
     org_id: string | null,
@@ -132,7 +193,6 @@ export class AuthService {
       expiresIn: (this.configService.get<string>('jwt.expiresIn') ?? '1h') as any,
     });
 
-    // Refresh token is a longer-lived JWT; we only store its hash
     const refreshToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('jwt.secret'),
       expiresIn: '7d',

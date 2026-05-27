@@ -1,10 +1,10 @@
-// frontend/src/components/student/class/overview/UpcomingAssessmentsCard.tsx
 import { ClipboardList, ChevronRight, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { formatDate } from "@/utils/date.util";
 import type { StudentAssessmentItem } from "@/api/student/assessment.api";
 
@@ -32,7 +32,6 @@ export function UpcomingAssessmentsCard({
   isLoading,
   onViewAll,
 }: UpcomingAssessmentsCardProps): React.JSX.Element {
-  // Show only upcoming (not graded) first, fallback to latest 3
   const upcoming = assessments
     .filter((a) => a.isPublished && a.submissionStatus !== "graded")
     .slice(0, 3);
@@ -42,7 +41,7 @@ export function UpcomingAssessmentsCard({
   return (
     <Card>
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
-        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <CardTitle className={cn("inline-block rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wider", WEEK_COLORS[4])}>
           Upcoming Assessments
         </CardTitle>
         <Button
@@ -73,17 +72,17 @@ export function UpcomingAssessmentsCard({
         )}
 
         {!isLoading &&
-          display.map((a) => (
+          display.map((a, i) => (
             <div
               key={a.id}
               className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5"
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground capitalize truncate">
+                <span className={cn("inline-block rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize", WEEK_COLORS[i % WEEK_COLORS.length])}>
                   {a.type.replace(/_/g, " ")}
-                </p>
+                </span>
                 {a.endDate && (
-                  <div className="flex items-center gap-1 mt-0.5">
+                  <div className="flex items-center gap-1 mt-1.5">
                     <Clock className="h-3 w-3 text-muted-foreground/50" />
                     <p className="text-[11px] text-muted-foreground">
                       Due {formatDate(a.endDate)}

@@ -59,6 +59,11 @@ export class LevelController {
       return this.levelService.getByStrand(orgId, query.schoolYearId, query.strandId);
     }
 
+    // Filter by program (only program-scoped levels, not course/strand scoped)
+    if (query.programId && query.schoolYearId) {
+      return this.levelService.getByProgram(orgId, query.programId, query.schoolYearId);
+    }
+
     // Otherwise, return all levels for school year (or all if no school year)
     if (query.schoolYearId) {
       return this.levelService.getBySchoolYear(orgId, query.schoolYearId);

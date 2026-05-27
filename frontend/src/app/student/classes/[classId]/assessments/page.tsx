@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { formatDate } from "@/utils/date.util";
 import { useStudentAssessments } from "@/hooks/student/useStudentAssessments";
 import type { StudentAssessmentItem } from "@/api/student/assessment.api";
@@ -87,9 +88,11 @@ function getAction(
 function AssessmentRow({
   item,
   classId,
+  index,
 }: {
   item: StudentAssessmentItem;
   classId: string;
+  index: number;
 }) {
   const router = useRouter();
   const status = deriveStatus(item);
@@ -105,7 +108,7 @@ function AssessmentRow({
       {/* Info */}
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-foreground capitalize">
+          <span className={cn("rounded-md px-2 py-0.5 text-xs font-semibold capitalize", WEEK_COLORS[index % WEEK_COLORS.length])}>
             {item.type.replace(/_/g, " ")}
           </span>
           <Badge
@@ -195,8 +198,8 @@ export default function StudentAssessmentsPage(): React.JSX.Element {
 
       {!isError && !isLoading && assessments.length > 0 && (
         <div className="space-y-2">
-          {assessments.map((a) => (
-            <AssessmentRow key={a.id} item={a} classId={classId} />
+          {assessments.map((a, i) => (
+            <AssessmentRow key={a.id} item={a} classId={classId} index={i} />
           ))}
         </div>
       )}

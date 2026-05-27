@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/select";
 
 import { useAuditLogs, useActivityLogs } from "@/hooks/admin/useAuditLog";
+import { useEducators } from "@/hooks/admin/useEducators";
+import { useClasses } from "@/hooks/admin/useClasses";
 import type { AuditLog, ActivityLog } from "@/types/admin/audit-log.types";
 import type { GetAuditLogQuery, GetActivityLogQuery } from "@/api/admin/audit-log.api";
 
@@ -180,25 +182,33 @@ function ExpandableMetadata({
 
 function ActorCell({
   actorId,
+  educatorMap,
 }: {
   actorId?: string | null;
+  educatorMap: Map<string, string>;
 }) {
   const safeActorId = actorId ?? "unknown";
 
-  const isSystem = safeActorId === "system";
+  if (safeActorId === "system") {
+    return (
+      <Badge variant="outline" className="font-mono text-xs">
+        System
+      </Badge>
+    );
+  }
 
-  return isSystem ? (
-    <Badge variant="outline" className="font-mono text-xs">
-      system
-    </Badge>
+  const name = educatorMap.get(safeActorId) ?? null;
+
+  return name ? (
+    <span className="text-sm font-medium truncate max-w-[160px] block" title={safeActorId}>
+      {name}
+    </span>
   ) : (
     <span
-      className="font-mono text-xs truncate max-w-[120px] block"
+      className="font-mono text-xs text-muted-foreground truncate max-w-[160px] block"
       title={safeActorId}
     >
-      {safeActorId.length > 12
-        ? `${safeActorId.slice(0, 8)}…`
-        : safeActorId}
+      {safeActorId}
     </span>
   );
 }
@@ -212,6 +222,21 @@ function AuditLogTab() {
   const [entityType, setEntityType]   = useState("all");
   const [search, setSearch]           = useState("");
   const [page, setPage]               = useState(1);
+
+  const { data: educators } = useEducators();
+  const { data: classes }   = useClasses();
+
+  const educatorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (educators) for (const e of educators) map.set(e.id, e.fullName);
+    return map;
+  }, [educators]);
+
+  const classMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (classes) for (const c of classes) map.set(c.id, c.title ?? c.subjectName ?? c.id);
+    return map;
+  }, [classes]);
 
   const query = useMemo<GetAuditLogQuery>(() => ({
     ...(from ? { from } : {}),
@@ -255,7 +280,7 @@ function AuditLogTab() {
     {
       accessorKey: "actorId",
       header: "Actor",
-      cell: ({ row }) => <ActorCell actorId={row.original.actorId} />,
+      cell: ({ row }) => <ActorCell actorId={row.original.actorId} educatorMap={educatorMap} />,
     },
     {
       accessorKey: "action",
@@ -272,6 +297,9 @@ function AuditLogTab() {
 cell: ({ row }) => {
   const entityId = row.original.entityId ?? "unknown";
   const entityType = row.original.entityType ?? "unknown";
+  const entityName = entityType.toLowerCase() === "class"
+    ? classMap.get(entityId) ?? null
+    : null;
 
   return (
     <div className="space-y-0.5">
@@ -279,14 +307,18 @@ cell: ({ row }) => {
         {entityType}
       </p>
 
-      <p
-        className="font-mono text-xs text-muted-foreground truncate max-w-[140px]"
-        title={entityId}
-      >
-        {entityId.length > 14
-          ? `${entityId.slice(0, 10)}…`
-          : entityId}
-      </p>
+      {entityName ? (
+        <p className="text-sm truncate max-w-[160px]" title={entityId}>
+          {entityName}
+        </p>
+      ) : (
+        <p
+          className="font-mono text-xs text-muted-foreground truncate max-w-[160px]"
+          title={entityId}
+        >
+          {entityId}
+        </p>
+      )}
     </div>
   );
 },
@@ -296,7 +328,7 @@ cell: ({ row }) => {
       header: "Details",
       cell: ({ row }) => <ExpandableMetadata metadata={row.original.metadata} />,
     },
-  ], []);
+  ], [educatorMap, classMap]);
 
   return (
     <div className="space-y-4">
@@ -408,6 +440,21 @@ function ActivityLogTab() {
   const [classId, setClassId] = useState("");
   const [page, setPage]       = useState(1);
 
+  const { data: educators } = useEducators();
+  const { data: classes }   = useClasses();
+
+  const educatorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (educators) for (const e of educators) map.set(e.id, e.fullName);
+    return map;
+  }, [educators]);
+
+  const classMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (classes) for (const c of classes) map.set(c.id, c.title ?? c.subjectName ?? c.id);
+    return map;
+  }, [classes]);
+
   const query = useMemo<GetActivityLogQuery>(() => ({
     ...(from    ? { from }    : {}),
     ...(to      ? { to }      : {}),
@@ -450,7 +497,7 @@ function ActivityLogTab() {
     {
       accessorKey: "actorId",
       header: "Educator",
-      cell: ({ row }) => <ActorCell actorId={row.original.actorId} />,
+      cell: ({ row }) => <ActorCell actorId={row.original.actorId} educatorMap={educatorMap} />,
     },
     {
       accessorKey: "action",
@@ -463,24 +510,29 @@ function ActivityLogTab() {
     },
     {
       id: "class",
-      header: "Class ID",
-      cell: ({ row }) => (
-        <span
-          className="font-mono text-xs text-muted-foreground truncate max-w-[140px] block"
-          title={row.original.entityId}
-        >
-          {row.original.entityId.length > 14
-            ? `${row.original.entityId.slice(0, 10)}…`
-            : row.original.entityId}
-        </span>
-      ),
+      header: "Class",
+      cell: ({ row }) => {
+        const name = classMap.get(row.original.entityId) ?? null;
+        return name ? (
+          <span className="text-sm truncate max-w-[160px] block" title={row.original.entityId}>
+            {name}
+          </span>
+        ) : (
+          <span
+            className="font-mono text-xs text-muted-foreground truncate max-w-[160px] block"
+            title={row.original.entityId}
+          >
+            {row.original.entityId}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "metadata",
       header: "Details",
       cell: ({ row }) => <ExpandableMetadata metadata={row.original.metadata} />,
     },
-  ], []);
+  ], [educatorMap, classMap]);
 
   return (
     <div className="space-y-4">

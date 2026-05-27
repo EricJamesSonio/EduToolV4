@@ -7,7 +7,6 @@ import type {
   IAgoraRTCRemoteUser,
 } from "agora-rtc-sdk-ng";
 
-
 interface UseAgoraRTCProps {
   appId: string;
   channel: string;
@@ -15,58 +14,59 @@ interface UseAgoraRTCProps {
   uid: number;
 }
 
-export const useAgoraRTC = ({
-  appId,
-  channel,
-  token,
-  uid,
-}: UseAgoraRTCProps) => {
+export const useAgoraRTC = ({ appId, channel, token, uid }: UseAgoraRTCProps) => {
   const clientRef = useRef<IAgoraRTCClient | null>(null);
+  const localAudioRef = useRef<ILocalAudioTrack | null>(null);
+  const localVideoRef = useRef<ILocalVideoTrack | null>(null);
 
   const [localAudio, setLocalAudio] = useState<ILocalAudioTrack | null>(null);
   const [localVideo, setLocalVideo] = useState<ILocalVideoTrack | null>(null);
-  const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([]);;
+  const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([]);
   const [joined, setJoined] = useState(false);
 
   useEffect(() => {
     if (!appId || !channel || !token) return;
 
-    const client = AgoraRTC.createClient({
-      mode: "rtc",
-      codec: "vp8",
-    });
-
+    const client = AgoraRTC.createClient({ mode: "rtc", codec: "h264" });
     clientRef.current = client;
 
     const init = async () => {
       await client.join(appId, channel, token, uid);
 
       const [micTrack, camTrack] =
-        await AgoraRTC.createMicrophoneAndCameraTracks();
+        await AgoraRTC.createMicrophoneAndCameraTracks(
+          { AEC: true, ANS: true, AGC: true },
+          {
+            encoderConfig: {
+              width: 640,
+              height: 480,
+              frameRate: 24,
+              bitrateMin: 400,
+              bitrateMax: 800,
+            },
+            optimizationMode: "motion",
+          }
+        );
 
       await client.publish([micTrack, camTrack]);
+
+      camTrack.play("local-video-pip");
+
+      // Store in refs for reliable cleanup
+      localAudioRef.current = micTrack;
+      localVideoRef.current = camTrack;
 
       setLocalAudio(micTrack);
       setLocalVideo(camTrack);
       setJoined(true);
     };
 
-    init();
+    init().catch(console.error);
 
-    // ==============================
-    // Remote users
-    // ==============================
     client.on("user-published", async (user, mediaType) => {
       await client.subscribe(user, mediaType);
-
-      if (mediaType === "video") {
-        user.videoTrack?.play(`remote-${user.uid}`);
-      }
-
-      if (mediaType === "audio") {
-        user.audioTrack?.play();
-      }
-
+      if (mediaType === "video") user.videoTrack?.play(`remote-${user.uid}`);
+      if (mediaType === "audio") user.audioTrack?.play();
       setRemoteUsers((prev) => {
         const exists = prev.find((u) => u.uid === user.uid);
         if (exists) return prev;
@@ -75,46 +75,44 @@ export const useAgoraRTC = ({
     });
 
     client.on("user-unpublished", (user) => {
-      setRemoteUsers((prev) =>
-        prev.filter((u) => u.uid !== user.uid)
-      );
+      setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid));
     });
 
     client.on("user-left", (user) => {
-      setRemoteUsers((prev) =>
-        prev.filter((u) => u.uid !== user.uid)
-      );
+      setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid));
     });
 
     return () => {
-      const cleanup = async () => {
-        localAudio?.close();
-        localVideo?.close();
-        await client.leave();
-      };
-
-      cleanup();
+      // Use refs — always has the latest track references
+      localAudioRef.current?.close();
+      localVideoRef.current?.close();
+      localAudioRef.current = null;
+      localVideoRef.current = null;
+      client.leave().catch(console.error);
+      clientRef.current = null;
+      setJoined(false);
+      setLocalAudio(null);
+      setLocalVideo(null);
+      setRemoteUsers([]);
     };
   }, [appId, channel, token, uid]);
 
   const toggleMic = async () => {
-    if (!localAudio) return;
-    await localAudio.setEnabled(!localAudio.enabled);
+    if (!localAudioRef.current) return;
+    await localAudioRef.current.setEnabled(!localAudioRef.current.enabled);
   };
 
   const toggleCamera = async () => {
-    if (!localVideo) return;
-    await localVideo.setEnabled(!localVideo.enabled);
+    if (!localVideoRef.current) return;
+    await localVideoRef.current.setEnabled(!localVideoRef.current.enabled);
   };
 
   return {
     client: clientRef.current,
     joined,
-
     localAudio,
     localVideo,
     remoteUsers,
-
     toggleMic,
     toggleCamera,
   };

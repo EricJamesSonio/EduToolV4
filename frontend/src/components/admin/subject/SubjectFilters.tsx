@@ -1,5 +1,4 @@
 // frontend\src\components\admin\subject\SubjectFilters.tsx
-import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import {
   Select,
   SelectContent,
@@ -7,27 +6,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import type { FiltersState, FiltersActions } from "./hooks/useSubjectFilters";
-import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { Program } from "@/types/admin/program.types";
 import type { Level } from "@/types/admin/level.types";
 import type { Course } from "@/types/admin/course.types";
 import type { Strand } from "@/types/admin/strand.types";
 
 interface SubjectFiltersProps extends FiltersState, FiltersActions {
-  schoolYears: SchoolYear[];
   programs: Program[];
   levels: Level[];
   courses: Course[];
   strands: Strand[];
-  syLoading: boolean;
   programsLoading: boolean;
   levelsLoading: boolean;
 }
 
 export function SubjectFilters({
   selectedSchoolYearId,
-  setSelectedSchoolYearId,
   selectedProgramId,
   setSelectedProgramId,
   filterLevelId,
@@ -36,37 +34,32 @@ export function SubjectFilters({
   setSelectedCourseId,
   selectedStrandId,
   setSelectedStrandId,
-  schoolYears,
   programs,
   levels,
   courses,
   strands,
-  syLoading,
   programsLoading,
   levelsLoading,
 }: SubjectFiltersProps) {
-  // Levels are filtered based on the selected course or strand
+const hasCourses = courses.length > 0;
+const hasStrands = strands.length > 0;
+
+// Levels are filtered based on the selected course or strand
 const visibleLevels = (() => {
   if (selectedProgramId === "all") return [];
+  // If course is selected, levels are already course-scoped via the API
+  if (selectedCourseId !== "all") return levels;
+  // If strand is selected, levels are already strand-scoped via the API
+  if (selectedStrandId !== "all") return levels;
+  // Fallback: program-scoped levels
   return levels.filter((l) => l.program_id === selectedProgramId);
 })();
 
-  // Whether the selected program has courses or strands (determines if we skip straight to levels)
-  const hasCourses = courses.length > 0;
-  const hasStrands = strands.length > 0;
 const showLevels =
   selectedProgramId !== "all" && visibleLevels.length > 0;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {/* School Year */}
-      <SchoolYearSelector
-        schoolYears={schoolYears}
-        isLoading={syLoading}
-        selectedId={selectedSchoolYearId}
-        onSelect={setSelectedSchoolYearId}
-      />
-
       {selectedSchoolYearId && (
         <>
           {/* Program */}
@@ -187,11 +180,20 @@ const showLevels =
                 ) : (
                   <>
                     <SelectItem value="all">All Levels</SelectItem>
-                    {visibleLevels.map((level) => (
-                      <SelectItem key={level.id} value={level.id}>
-                        {level.name}
-                      </SelectItem>
-                    ))}
+                    {visibleLevels.map((level) => {
+                      const match = level.name.match(/^(\d+)/);
+                      const idx = match ? (parseInt(match[1]) - 1) % WEEK_COLORS.length : 0;
+                      return (
+                        <SelectItem key={level.id} value={level.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{level.name}</span>
+                            <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", WEEK_COLORS[idx])}>
+                              {match?.[1] ?? ""}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </>
                 )}
               </SelectContent>

@@ -325,22 +325,22 @@ function DefaultGradeTable({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-muted/50 border-b">
-              <th className="sticky left-0 bg-muted/50 text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground min-w-[200px]">
+            <tr className="border-b">
+              <th className="sticky left-0 bg-primary text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide min-w-[200px]">
                 Student
               </th>
               {allAssessments.map((a) => (
                 <th key={a.id} className="text-center px-3 py-3 font-semibold text-xs whitespace-nowrap">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">{a.title ?? a.type}</div>
-                  <div className="text-[10px] text-muted-foreground/60 font-normal capitalize">{a.type}</div>
+                  <div className="text-xs uppercase tracking-wide">{a.title ?? a.type}</div>
+                  <div className="text-[10px] opacity-70 font-normal capitalize">{a.type}</div>
                 </th>
               ))}
               {manualCats.map((cat) => (
-                <th key={cat} className="text-center px-3 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                <th key={cat} className="text-center px-3 py-3 font-semibold text-xs uppercase tracking-wide whitespace-nowrap">
                   {cat}
                 </th>
               ))}
-              <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+              <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide whitespace-nowrap">
                 Term Grade
               </th>
             </tr>
@@ -550,16 +550,16 @@ function CleanGradeTable({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-muted/50 border-b">
-                <th className="sticky left-0 bg-muted/50 text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground min-w-[200px]">
+              <tr className="border-b">
+                <th className="sticky left-0 bg-background text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide min-w-[200px]">
                   Student
                 </th>
                 {allCategories.map((cat) => (
-                  <th key={cat} className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                  <th key={cat} className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide whitespace-nowrap">
                     {cat}
                   </th>
                 ))}
-                <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide">
                   Term Grade
                 </th>
               </tr>

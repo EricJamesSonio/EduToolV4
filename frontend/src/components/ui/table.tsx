@@ -13,12 +13,12 @@ const Table: React.FC<React.ComponentProps<"table">> = ({
   return (
     <div
       data-slot="table-container"
-      className="w-full overflow-x-auto"
+      className="w-full overflow-x-auto rounded-[var(--radius)] bg-white dark:bg-[#0B1121]"
     >
       <table
         data-slot="table"
         className={cn(
-          "w-full caption-bottom text-sm table-enhanced",
+          "w-full caption-bottom table-enhanced",
           className
         )}
         {...props}
@@ -98,7 +98,7 @@ const TableHead: React.FC<
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-3 text-left align-middle font-semibold whitespace-nowrap text-foreground",
+        "text-left align-middle font-semibold whitespace-nowrap",
         className
       )}
       {...props}
@@ -116,7 +116,7 @@ const TableCell: React.FC<
     <td
       data-slot="table-cell"
       className={cn(
-        "p-3 align-middle whitespace-nowrap text-foreground",
+        "align-middle whitespace-nowrap",
         className
       )}
       {...props}

@@ -14,19 +14,17 @@ import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface Props {
-  open:                      boolean;
-  onClose:                   () => void;
-  alreadyEnrolled:           StudentSchoolYearEnrollment[];
-  programEnrolledStudentIds: Set<string>;
-  onConfirm:                 (students: Student[]) => void;
-  isLoading:                 boolean;
+  open:            boolean;
+  onClose:         () => void;
+  alreadyEnrolled: StudentSchoolYearEnrollment[];
+  onConfirm:       (students: Student[]) => void;
+  isLoading:       boolean;
 }
 
 export function EnrollStudentDialog({
   open,
   onClose,
   alreadyEnrolled,
-  programEnrolledStudentIds,
   onConfirm,
   isLoading,
 }: Props) {
@@ -36,7 +34,7 @@ export function EnrollStudentDialog({
 
   const { data: allStudents = [], isLoading: studentsLoading } = useQuery({
     queryKey: ["admin", "students", "all"],
-    queryFn:  () => studentApi.getAll({ status: "active" }),
+    queryFn:  () => studentApi.getAll({}),
     enabled:  open,
   });
 
@@ -45,17 +43,21 @@ export function EnrollStudentDialog({
     [alreadyEnrolled],
   );
 
+  const eligible = useMemo(
+    () => allStudents.filter((s) => !enrolledIds.has(s.id)),
+    [allStudents, enrolledIds],
+  );
+
   const filtered = useMemo(() => {
+    if (!search) return eligible;
     const q = search.toLowerCase();
-    return allStudents.filter(
+    return eligible.filter(
       (s) =>
-        !enrolledIds.has(s.id) &&
-        !programEnrolledStudentIds.has(s.id) &&
-        (s.fullName.toLowerCase().includes(q) ||
-          s.email.toLowerCase().includes(q) ||
-          s.studentId.toLowerCase().includes(q)),
+        s.fullName.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q) ||
+        s.studentId.toLowerCase().includes(q),
     );
-  }, [allStudents, enrolledIds, programEnrolledStudentIds, search]);
+  }, [eligible, search]);
 
   const selectedIds = useMemo(() => new Set(selected.map((s) => s.id)), [selected]);
 
@@ -80,7 +82,7 @@ export function EnrollStudentDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-4 w-4" />
@@ -122,7 +124,7 @@ export function EnrollStudentDialog({
         )}
 
         {/* Student list */}
-        <div className="max-h-72 overflow-y-auto rounded-md border divide-y">
+        <div className="max-h-96 overflow-y-auto rounded-md border divide-y">
           {studentsLoading ? (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
               Loading students...
@@ -131,7 +133,7 @@ export function EnrollStudentDialog({
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
               {search
                 ? "No students match your search."
-                : "All eligible students are already enrolled or already in a program."}
+                : "All students are already enrolled in this school year."}
             </div>
           ) : (
             filtered.map((student) => {

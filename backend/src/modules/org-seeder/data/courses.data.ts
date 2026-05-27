@@ -10,12 +10,12 @@ export const COLLEGE_COURSES = [
 ]
 
 export const BSED_MAJORS = [
-  { code: 'BSED-ENG',  name: 'BSED – English Major' },
-  { code: 'BSED-MATH', name: 'BSED – Mathematics Major' },
-  { code: 'BSED-SCI',  name: 'BSED – Science Major' },
-  { code: 'BSED-SS',   name: 'BSED – Social Studies Major' },
-  { code: 'BSED-FIL',  name: 'BSED – Filipino Major' },
-  { code: 'BSED-TLE',  name: 'BSED – TLE Major' },
+  { code: 'BSED-ENG',  name: 'BSED – English Major',       years: 4 },
+  { code: 'BSED-MATH', name: 'BSED – Mathematics Major',   years: 4 },
+  { code: 'BSED-SCI',  name: 'BSED – Science Major',       years: 4 },
+  { code: 'BSED-SS',   name: 'BSED – Social Studies Major', years: 4 },
+  { code: 'BSED-FIL',  name: 'BSED – Filipino Major',      years: 4 },
+  { code: 'BSED-TLE',  name: 'BSED – TLE Major',           years: 4 },
 ]
 
 export const YEAR_LABELS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year']

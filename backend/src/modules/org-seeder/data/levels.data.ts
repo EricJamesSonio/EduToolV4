@@ -1,7 +1,7 @@
 import { COLLEGE_COURSES, BSED_MAJORS } from './courses.data'
 
 export type SectionDef = { name: string; capacity: number }
-export type LevelDef   = { programKey: string; name: string; sections: SectionDef[] }
+export type LevelDef   = { programKey: string; courseCode?: string; name: string; sections: SectionDef[] }
 
 const s3x50 = (): SectionDef[] => [
   { name: 'Section A', capacity: 50 },
@@ -50,9 +50,15 @@ export function buildLevelDefs(): LevelDef[] {
     { programKey: 'shs', name: 'Grade 12', sections: s3x40() },
   )
 
-  const maxYears = Math.max(...COLLEGE_COURSES.map((c) => c.years))
-  for (let y = 1; y <= maxYears; y++) {
-    defs.push({ programKey: 'college', name: YEAR_LABELS[y - 1], sections: s3x50() })
+  for (const course of [...COLLEGE_COURSES, ...BSED_MAJORS]) {
+    for (let y = 1; y <= course.years; y++) {
+      defs.push({
+        programKey: 'college',
+        courseCode: course.code,
+        name: YEAR_LABELS[y - 1],
+        sections: s3x50(),
+      })
+    }
   }
 
   return defs
