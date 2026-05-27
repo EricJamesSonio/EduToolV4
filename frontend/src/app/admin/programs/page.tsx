@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { programApi } from "@/api/admin/program.api";
@@ -20,6 +21,7 @@ import type { AxiosError } from "axios";
 
 export default function ProgramsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
 
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -30,12 +32,18 @@ export default function ProgramsPage(): React.JSX.Element {
     queryFn: schoolYearApi.getAll,
   });
 
-  // Auto-select active or first school year once
+  // Auto-select active or first school year once;
+  // respect ?schoolYearId search param if present and valid
   useEffect(() => {
     if (!schoolYears.length || selectedSchoolYearId) return;
+    const urlId = searchParams.get("schoolYearId");
+    if (urlId && schoolYears.some((sy) => sy.id === urlId)) {
+      setSelectedSchoolYearId(urlId);
+      return;
+    }
     const active = schoolYears.find((sy) => sy.status === "active");
     setSelectedSchoolYearId(active?.id ?? schoolYears[0].id);
-  }, [schoolYears]);
+  }, [schoolYears, searchParams]);
 
   const { data: programs, isLoading: programsLoading } = useQuery({
     queryKey: ["admin", "programs", selectedSchoolYearId],
@@ -84,16 +92,18 @@ export default function ProgramsPage(): React.JSX.Element {
               selectedId={selectedSchoolYearId}
               onSelect={setSelectedSchoolYearId}
             />
-            <Button
-              onClick={() => selectedSchoolYearId && setCreateOpen(true)}
-              disabled={!selectedSchoolYearId}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Program
-            </Button>
           </div>
         }
       />
+
+      {selectedSchoolYearId && (
+        <div className="flex items-center justify-end gap-2">
+          <Button onClick={() => setCreateOpen(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Program
+          </Button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
