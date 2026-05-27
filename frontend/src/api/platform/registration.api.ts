@@ -5,6 +5,10 @@ export interface RegistrationRequest {
   email: string;
   full_name: string;
   plan: string | null;
+  institution_name: string | null;
+  role: string | null;
+  student_count: string | null;
+  programs_departments: string | null;
   status: "pending" | "approved" | "rejected";
   created_at: string;
   updated_at: string;

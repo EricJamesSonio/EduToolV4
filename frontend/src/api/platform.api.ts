@@ -23,6 +23,27 @@ export interface GetAdminsQuery {
   limit?: number;
 }
 
+export interface SchoolOrg {
+  id: string;
+  name: string;
+  description: string | null;
+  emailExtension: string | null;
+  admin: {
+    id: string;
+    email: string;
+    status: string;
+    fullName: string | null;
+  } | null;
+}
+
+export interface GetSchoolsQuery {
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+
+
 export const platformApi = {
   getAdmins: async (query?: GetAdminsQuery): Promise<PaginatedResponse<AdminAccount>> => {
     const res = await client.get<{ success: boolean; data: PaginatedResponse<AdminAccount> }>(
@@ -65,4 +86,12 @@ export const platformApi = {
     );
     return res.data.data;
   },
+
+getSchools: async (query?: GetSchoolsQuery): Promise<PaginatedResponse<SchoolOrg>> => {
+  const res = await client.get<{ success: boolean; data: PaginatedResponse<SchoolOrg> }>(
+    "/platform/schools",
+    { params: query }
+  );
+  return res.data.data;
+},
 };

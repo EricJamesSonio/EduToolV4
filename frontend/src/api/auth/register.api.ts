@@ -4,6 +4,10 @@ export interface RegisterPayload {
   email: string;
   fullName: string;
   plan?: string;
+  institutionName?: string;
+  role?: string;
+  studentCount?: string;
+  programsDepartments?: string;
 }
 
 export interface VerifyOtpPayload {
