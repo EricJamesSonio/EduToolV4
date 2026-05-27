@@ -164,6 +164,9 @@ async findAll(
   };
 
   const subjectInclude = {
+    program: {
+      select: { name: true, type: true },
+    },
     prerequisites: {
       include: {
         prerequisite: {
