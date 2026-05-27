@@ -6,7 +6,7 @@ import { ArrowRight, Calendar } from "lucide-react";
 
 export function CTASection() {
   return (
-    <section className="page-container py-20 md:py-28">
+    <section className="page-container py-6 md:py-10">
       <div className="relative overflow-hidden bg-gradient-to-br from-primary via-primary to-accent rounded-2xl p-12 md:p-16 text-center space-y-8 shadow-lg">
         {/* Decorative elements */}
         <div className="absolute -top-16 -right-16 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>

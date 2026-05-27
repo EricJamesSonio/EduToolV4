@@ -62,7 +62,7 @@ const resources: ResourceCard[] = [
 
 export function ResourcesSection() {
   return (
-    <section id="resources" className="page-container py-20 md:py-28 space-y-14">
+    <section id="resources" className="page-container py-6 md:py-10 space-y-14">
       {/* Header */}
       <div className="text-center space-y-5 max-w-2xl mx-auto">
         <div className="flex justify-center">

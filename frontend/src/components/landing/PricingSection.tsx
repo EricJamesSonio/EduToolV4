@@ -56,7 +56,7 @@ const plans = [
 
 export function PricingSection() {
   return (
-    <section id="pricing" className="page-container py-20 md:py-28 space-y-14">
+    <section id="pricing" className="page-container py-6 md:py-10 space-y-14">
       <div className="text-center space-y-5 max-w-2xl mx-auto">
         <div className="flex justify-center">
           <div className="section-accent"></div>
