@@ -156,6 +156,7 @@ model Course {
   sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
   sections           Section[]
+  levels             Level[]
 }
 
 model Strand {
@@ -171,17 +172,22 @@ model Strand {
   sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
   sections           Section[]
+  levels             Level[]
 }
 
 model Level {
-  id             String @id @default(uuid())
+  id             String  @id @default(uuid())
   org_id         String
   school_year_id String
   program_id     String
+  course_id      String?
+  strand_id      String?
   name           String
 
   schoolYear         SchoolYear                 @relation(fields: [school_year_id], references: [id])
   program            Program                    @relation(fields: [program_id], references: [id])
+  course             Course?                    @relation(fields: [course_id], references: [id])
+  strand             Strand?                    @relation(fields: [strand_id], references: [id])
   sections           Section[]
   sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]

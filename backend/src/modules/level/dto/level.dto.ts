@@ -46,6 +46,14 @@ export class CreateLevelDto {
   @IsUUID()
   schoolYearId!: string;
 
+  @IsOptional()
+  @IsUUID()
+  courseId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  strandId?: string;
+
   @IsString()
   @MinLength(1)
   @MaxLength(100)
@@ -66,7 +74,7 @@ export class UpdateLevelDto {
 /**
  * DTO for querying levels
  * Supports filtering by:
- * - schoolYearId (with optional courseId or strandId)
+ * - schoolYearId (with optional courseId, strandId, or programId)
  */
 export class QueryLevelDto {
   @IsOptional()
@@ -80,6 +88,14 @@ export class QueryLevelDto {
   @IsOptional()
   @IsUUID()
   strandId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  programId?: string;
+
+  @IsOptional()
+  @IsString()
+  scoped?: string; // "program" to get only program-scoped (no course/strand), "all" for everything
 }
 
 /**
@@ -91,6 +107,14 @@ export class BulkGenerateLevelsDto {
 
   @IsUUID()
   schoolYearId!: string;
+
+  @IsOptional()
+  @IsUUID()
+  courseId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  strandId?: string;
 
   @IsInt()
   @Min(1)
