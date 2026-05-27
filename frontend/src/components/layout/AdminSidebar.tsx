@@ -19,6 +19,7 @@ import {
   ScrollText,
   CalendarRange,
   UserPlus,
+  Database,
 } from "lucide-react";
 
 const GROUPS = [
@@ -28,6 +29,7 @@ const GROUPS = [
       { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, exact: true },
       { label: "Organization", href: "/admin/organization", icon: Building2 },
       { label: "Enrollment", href: "/admin/enrollment", icon: UserPlus },
+      { label: "Data Seeder", href: "/admin/data-seeder", icon: Database },
     ],
   },
   {

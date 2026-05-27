@@ -1,6 +1,7 @@
 "use client";
 
 import { BarChart3, TrendingUp, Users, PieChart, Calendar } from "lucide-react";
+import { useScrollAnimation } from "@/hooks/useScrollAnimation"; // Import the custom hook
 
 const stats = [
   {
@@ -41,8 +42,16 @@ const stats = [
 ];
 
 export function AnalyticsPreviewSection() {
+  // Use the custom hook for the section
+  const { ref, isInView } = useScrollAnimation();
+
   return (
-    <section id="Analytics Preview" className="page-container py-20 md:py-28 space-y-14">
+    // Apply the ref and conditionally add the animation class
+    <section 
+      id="Analytics Preview" 
+      className={`page-container py-20 md:py-28 space-y-14 ${isInView ? "animate-section-in" : ""}`}
+      ref={ref}
+    >
       {/* Header */}
       <div className="text-center space-y-5 max-w-2xl mx-auto">
         <div className="flex justify-center">
