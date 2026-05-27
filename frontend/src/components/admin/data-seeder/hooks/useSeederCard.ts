@@ -149,6 +149,7 @@ export function useSeederCard() {
     sectionConfigs,
     seedGradingSchemes,        // ← add this
     seedSemesterTemplates,     // ← add this
+    resetAll,
   } = seedState;
 
   function buildSectionConfigsPayload(): Record<string, { name: string; capacity: number }[]> {
@@ -185,6 +186,7 @@ export function useSeederCard() {
     onSuccess: () => {
       toast.success("Seed completed! Your programs, levels, and subjects are ready.");
       setCollapsed(true);
+      resetAll();
       queryClient.invalidateQueries({ queryKey: ["admin", "programs"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "courses"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "strands"] });
