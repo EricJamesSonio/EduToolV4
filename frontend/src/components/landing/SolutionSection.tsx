@@ -370,15 +370,27 @@ export function SolutionSection() {
                     </p>
 
                     <ul className="space-y-3">
-                      {item.points.map((point, i) => (
-                        <li
-                          key={i}
-                          className="flex items-center gap-3 text-base text-muted-foreground"
-                        >
-                          <span className="w-2 h-2 rounded-full bg-primary/60 flex-shrink-0" />
-                          {point}
-                        </li>
-                      ))}
+                      {item.points.map((point, i) => {
+                        const textColors = [
+                          "text-primary",
+                          "text-emerald-600",
+                          "text-amber-600",
+                          "text-purple-600",
+                          "text-cyan-600",
+                          "text-orange-600",
+                        ];
+                        return (
+                          <li
+                            key={i}
+                            className="flex items-center gap-3 text-base"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-foreground/60 flex-shrink-0" />
+                            <span className={`${textColors[i % textColors.length]} font-medium`}>
+                              {point}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
 

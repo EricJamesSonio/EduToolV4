@@ -99,12 +99,22 @@ export function PricingSection() {
             </div>
 
             <ul className="space-y-3 mb-8 flex-1">
-              {plan.features.map((feature) => (
-                <li key={feature} className="flex items-start gap-3 text-sm text-muted-foreground">
-                  <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                  {feature}
-                </li>
-              ))}
+              {plan.features.map((feature, i) => {
+                const textColors = [
+                  "text-primary",
+                  "text-emerald-600",
+                  "text-amber-600",
+                  "text-purple-600",
+                  "text-cyan-600",
+                  "text-orange-600",
+                ];
+                return (
+                  <li key={feature} className="flex items-start gap-3 text-sm">
+                    <Check className={`h-4 w-4 shrink-0 mt-0.5 ${textColors[i % textColors.length]}`} />
+                    <span className={textColors[i % textColors.length]}>{feature}</span>
+                  </li>
+                );
+              })}
             </ul>
 
             <Link href={plan.href}>
