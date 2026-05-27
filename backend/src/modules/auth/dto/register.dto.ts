@@ -11,6 +11,22 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   plan?: string;
+
+  @IsOptional()
+  @IsString()
+  institutionName?: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @IsOptional()
+  @IsString()
+  studentCount?: string;
+
+  @IsOptional()
+  @IsString()
+  programsDepartments?: string;
 }
 
 export class VerifyOtpDto {

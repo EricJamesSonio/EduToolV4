@@ -67,6 +67,10 @@ export class AuthService {
       full_name: dto.fullName,
       code,
       plan: dto.plan ?? null,
+      institution_name: dto.institutionName ?? null,
+      role: dto.role ?? null,
+      student_count: dto.studentCount ?? null,
+      programs_departments: dto.programsDepartments ?? null,
       expires_at: new Date(Date.now() + 10 * 60 * 1000),
     });
 
@@ -96,6 +100,10 @@ export class AuthService {
       email: dto.email,
       full_name: otp.full_name ?? dto.email,
       plan: otp.plan ?? null,
+      institution_name: otp.institution_name ?? null,
+      role: otp.role ?? null,
+      student_count: otp.student_count ?? null,
+      programs_departments: otp.programs_departments ?? null,
     });
 
     return { message: 'Registration request submitted for review' };

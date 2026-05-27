@@ -932,14 +932,18 @@ model MeetingChatMessage {
   created_at  DateTime @default(now())
 }
 model Otp {
-  id         String    @id @default(uuid())
-  email      String
-  full_name  String?
-  code       String
-  plan       String?
-  expires_at DateTime
-  used_at    DateTime?
-  created_at DateTime  @default(now())
+  id                   String    @id @default(uuid())
+  email                String
+  full_name            String?
+  code                 String
+  plan                 String?
+  institution_name     String?
+  role                 String?
+  student_count        String?
+  programs_departments String?
+  expires_at           DateTime
+  used_at              DateTime?
+  created_at           DateTime  @default(now())
 }
 
 enum RegistrationStatus {
@@ -949,11 +953,15 @@ enum RegistrationStatus {
 }
 
 model RegistrationRequest {
-  id         String             @id @default(uuid())
-  email      String
-  full_name  String
-  plan       String?
-  status     RegistrationStatus @default(pending)
-  created_at DateTime           @default(now())
-  updated_at DateTime           @updatedAt
+  id                   String             @id @default(uuid())
+  email                String
+  full_name            String
+  plan                 String?
+  institution_name     String?
+  role                 String?
+  student_count        String?
+  programs_departments String?
+  status               RegistrationStatus @default(pending)
+  created_at           DateTime           @default(now())
+  updated_at           DateTime           @updatedAt
 }

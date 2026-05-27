@@ -68,9 +68,13 @@ export class AuthRepository {
 
   async createOtp(data: {
     email: string;
-    full_name: string;
+    full_name?: string | null;
     code: string;
     plan: string | null;
+    institution_name?: string | null;
+    role?: string | null;
+    student_count?: string | null;
+    programs_departments?: string | null;
     expires_at: Date;
   }) {
     return this.db.otp.create({ data });
@@ -101,6 +105,10 @@ export class AuthRepository {
     email: string;
     full_name: string;
     plan: string | null;
+    institution_name?: string | null;
+    role?: string | null;
+    student_count?: string | null;
+    programs_departments?: string | null;
   }) {
     return this.db.registrationRequest.create({ data });
   }

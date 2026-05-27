@@ -34,9 +34,7 @@ export class PlatformRegistrationService {
     }
 
     if (request.status !== 'pending') {
-      throw new BadRequestException(
-        `Request is already ${request.status}`,
-      );
+      throw new BadRequestException(`Request is already ${request.status}`);
     }
 
     const email = dto.adminEmail ?? request.email;
@@ -68,6 +66,9 @@ export class PlatformRegistrationService {
 
     await this.repo.updateStatus(id, 'approved');
 
+    // Send email immediately while plaintext password is still in memory
+    await this.mailService.sendCredentialsEmail(email, password);
+
     return {
       email: account.email,
       fullName: account.profile?.full_name ?? '',
@@ -82,9 +83,7 @@ export class PlatformRegistrationService {
     }
 
     if (request.status !== 'pending') {
-      throw new BadRequestException(
-        `Request is already ${request.status}`,
-      );
+      throw new BadRequestException(`Request is already ${request.status}`);
     }
 
     await this.repo.updateStatus(id, 'rejected');
@@ -104,20 +103,8 @@ export class PlatformRegistrationService {
       );
     }
 
-    const account = await this.db.account.findFirst({
-      where: { email: request.email, deleted_at: null },
-      include: { profile: true },
-    });
-
-    if (!account) {
-      throw new NotFoundException('Account not found for this request');
-    }
-
-    await this.mailService.sendCredentialsEmail(
-      account.email,
-      'Password was set during account creation',
+    throw new BadRequestException(
+      'Credentials were already sent at approval time. The password cannot be resent as it is not stored in plaintext.',
     );
-
-    return { message: 'Credentials email sent' };
   }
 }
