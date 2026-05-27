@@ -1,9 +1,9 @@
 // frontend/src/components/admin/data-seeder/SeederCard.tsx
 "use client";
 
-import { Database, Loader2 } from "lucide-react";
+import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, BarChart3, Calendar, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, pickCardColor } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 import { SchoolYearStep } from "./SchoolYearStep";
@@ -18,6 +18,22 @@ import { GradingSchemeStep } from "./GradingSchemeStep";
 import { SemesterTemplateStep } from "./SemesterTemplateStep";
 import { LEVEL_DEFS } from "./constants/seed-data";
 import { useSeederCard } from "./hooks/useSeederCard";
+
+function Card({ id, icon: Icon, title, children }: { id: string; icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border bg-card p-6 space-y-4">
+      <div className="flex items-start gap-3">
+        <div className={`icon-container ${pickCardColor(id)} shrink-0 mt-0.5`}>
+          <Icon className="h-4.5 w-4.5" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-lg leading-tight">{title}</h3>
+        </div>
+      </div>
+      {children}
+    </div>
+  )
+}
 
 export function SeederCard() {
   const {
@@ -68,7 +84,7 @@ export function SeederCard() {
     <>
       <div className="space-y-6">
         {/* School Year */}
-        <div className="rounded-xl border bg-card p-6 space-y-4">
+        <Card id="school-year" icon={CalendarDays} title="School Year">
           <SchoolYearStep
             schoolYears={schoolYears}
             isLoading={syLoading}
@@ -77,7 +93,7 @@ export function SeederCard() {
             onCreate={handleCreateSchoolYear}
             isCreating={createSchoolYearMutation.isPending}
           />
-        </div>
+        </Card>
 
         <div
           className={cn(
@@ -86,7 +102,7 @@ export function SeederCard() {
           )}
         >
           {/* Programs */}
-          <div className="rounded-xl border bg-card p-6 space-y-4">
+          <Card id="programs" icon={Layers} title="Programs">
             <ProgramStep
               selectedPrograms={selectedPrograms}
               disabledProgramTypes={existingProgramTypes}
@@ -94,11 +110,11 @@ export function SeederCard() {
               onSelectAllPrograms={helpers.selectAllPrograms}
               onDeselectAllPrograms={helpers.deselectAllPrograms}
             />
-          </div>
+          </Card>
 
           {/* Levels */}
           {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
-            <div className="rounded-xl border bg-card p-6 space-y-4">
+            <Card id="levels" icon={LayoutList} title="Levels">
               <LevelStep
                 selectedPrograms={selectedPrograms}
                 selectedCourses={selectedCourses}
@@ -108,12 +124,12 @@ export function SeederCard() {
                 onSetCount={setLevelCount}
                 onRenameAt={renameLevelAt}
               />
-            </div>
+            </Card>
           )}
 
           {/* Sections */}
           {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
-            <div className="rounded-xl border bg-card p-6 space-y-4">
+            <Card id="sections" icon={Scale} title="Sections">
               <SectionStep
                 selectedPrograms={selectedPrograms}
                 selectedCourses={selectedCourses}
@@ -122,12 +138,12 @@ export function SeederCard() {
                 sectionConfigs={sectionConfigs}
                 onSetSections={setSectionsForLevel}
               />
-            </div>
+            </Card>
           )}
 
           {/* Strands (SHS) */}
           {selectedPrograms.has("shs") && (
-            <div className="rounded-xl border bg-card p-6 space-y-4">
+            <Card id="strands" icon={BookOpen} title="SHS Strands">
               <StrandStep
                 selectedStrands={selectedStrands}
                 disabledStrandNames={existingStrandNames}
@@ -135,12 +151,12 @@ export function SeederCard() {
                 onSelectAllStrands={helpers.selectAllStrands}
                 onDeselectAllStrands={helpers.deselectAllStrands}
               />
-            </div>
+            </Card>
           )}
 
           {/* Courses (College) */}
           {selectedPrograms.has("college") && (
-            <div className="rounded-xl border bg-card p-6 space-y-4">
+            <Card id="courses" icon={BookOpen} title="College Courses">
               <CourseStep
                 selectedCourses={selectedCourses}
                 disabledCourseCodes={existingCourseCodes}
@@ -148,11 +164,11 @@ export function SeederCard() {
                 onSelectAllCourses={helpers.selectAllCourses}
                 onDeselectAllCourses={helpers.deselectAllCourses}
               />
-            </div>
+            </Card>
           )}
 
           {/* Subjects */}
-          <div className="rounded-xl border bg-card p-6 space-y-4">
+          <Card id="subjects" icon={BookOpen} title="Subjects">
             <SubjectStep
               selectedPrograms={selectedPrograms}
               selectedLevels={derivedSelectedLevels}
@@ -165,12 +181,12 @@ export function SeederCard() {
               onDeselectAllForGroup={helpers.deselectAllForGroup}
               allSelectableSubjects={allSelectableSubjects}
             />
-          </div>
+          </Card>
 
           {/* Grading & Templates */}
           {selectedPrograms.size > 0 && (
             <>
-              <div className="rounded-xl border bg-card p-6 space-y-4">
+              <Card id="grading-scale" icon={BarChart3} title="Grading Scale">
                 <GradingScaleStep
                   selectedPrograms={selectedPrograms}
                   seedGradingScale={seedGradingScale}
@@ -178,9 +194,9 @@ export function SeederCard() {
                   onToggleSeed={setSeedGradingScale}
                   onSelectPreset={setGradingScaleForProgram}
                 />
-              </div>
+              </Card>
 
-              <div className="rounded-xl border bg-card p-6 space-y-4">
+              <Card id="grading-scheme" icon={Scale} title="Grading Scheme">
                 <GradingSchemeStep
                   selectedPrograms={selectedPrograms}
                   seedGradingSchemes={seedGradingSchemes}
@@ -188,9 +204,9 @@ export function SeederCard() {
                   onToggleSeed={setSeedGradingSchemes}
                   onToggleScheme={toggleGradingScheme}
                 />
-              </div>
+              </Card>
 
-              <div className="rounded-xl border bg-card p-6 space-y-4">
+              <Card id="semester-templates" icon={Calendar} title="Semester Templates">
                 <SemesterTemplateStep
                   selectedPrograms={selectedPrograms}
                   seedSemesterTemplates={seedSemesterTemplates}
@@ -198,12 +214,12 @@ export function SeederCard() {
                   onToggleSeed={setSeedSemesterTemplates}
                   onToggleTemplate={toggleSemesterTemplate}
                 />
-              </div>
+              </Card>
             </>
           )}
 
           {/* Summary + Apply */}
-          <div className="rounded-xl border bg-card p-6 space-y-4">
+          <Card id="summary" icon={Database} title="Summary">
             <div className="flex flex-row items-center justify-between">
               <p className="text-sm text-muted-foreground">{summaryText}</p>
               <Button
@@ -227,7 +243,7 @@ export function SeederCard() {
                 )}
               </Button>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
 

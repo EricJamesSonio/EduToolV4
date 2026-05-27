@@ -1,5 +1,4 @@
-import { Check, Layers } from "lucide-react"
-import { Label } from "@/components/ui/label"
+import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ProgramStepProps {
@@ -36,27 +35,21 @@ export function ProgramStep({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label className="flex items-center gap-1.5">
-          <Layers className="h-3.5 w-3.5" />
-          Programs
-        </Label>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className="text-xs text-primary hover:underline"
-            onClick={onSelectAllPrograms}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            className="text-xs text-muted-foreground hover:underline"
-            onClick={onDeselectAllPrograms}
-          >
-            None
-          </button>
-        </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="text-xs text-primary hover:underline"
+          onClick={onSelectAllPrograms}
+        >
+          All
+        </button>
+        <button
+          type="button"
+          className="text-xs text-muted-foreground hover:underline"
+          onClick={onDeselectAllPrograms}
+        >
+          None
+        </button>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {PROGRAM_DEFS.map((prog) => (

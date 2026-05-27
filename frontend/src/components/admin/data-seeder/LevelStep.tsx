@@ -2,8 +2,7 @@
 "use client"
 
 import { useState } from "react"
-import { BookOpen, ChevronDown, ChevronRight, Minus, Pencil, Plus, RotateCcw } from "lucide-react"
-import { Label } from "@/components/ui/label"
+import { ChevronDown, ChevronRight, Minus, Pencil, Plus, RotateCcw } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -231,10 +230,6 @@ export function LevelStep({
 
   return (
     <div className="space-y-2">
-      <Label className="flex items-center gap-1.5">
-        <BookOpen className="h-3.5 w-3.5" />
-        Levels
-      </Label>
       <div className="space-y-2">
         {entities.map(({ key, label }) => {
           const config = levelConfigs[key] ?? (() => {

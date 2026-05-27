@@ -1,8 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { LayoutList, ChevronDown, ChevronRight, Minus, Plus, Pencil, RotateCcw } from "lucide-react"
-import { Label } from "@/components/ui/label"
+import { ChevronDown, ChevronRight, Minus, Plus, Pencil, RotateCcw } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -313,10 +312,6 @@ export function SectionStep({
 
   return (
     <div className="space-y-2">
-      <Label className="flex items-center gap-1.5">
-        <LayoutList className="h-3.5 w-3.5" />
-        Sections
-      </Label>
       <div className="space-y-2">
         {entities.map(({ key }) => {
           const levelNames = levelConfigs[key]?.names ?? getDefaultLevelNames(key)
