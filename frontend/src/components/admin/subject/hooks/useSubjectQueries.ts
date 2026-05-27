@@ -25,11 +25,24 @@ export function useSubjectQueries(filters: FiltersState) {
     queryKey: [
       "admin", "levels",
       filters.selectedSchoolYearId,
+      filters.selectedProgramId,
       filters.selectedCourseId,
       filters.selectedStrandId,
     ],
     queryFn: async () => {
       if (!filters.selectedSchoolYearId) return [];
+      // When a course is selected, fetch course-scoped levels
+      if (filters.selectedCourseId !== "all") {
+        return levelApi.getByCourse(filters.selectedSchoolYearId, filters.selectedCourseId);
+      }
+      // When a strand is selected, fetch strand-scoped levels
+      if (filters.selectedStrandId !== "all") {
+        return levelApi.getByStrand(filters.selectedSchoolYearId, filters.selectedStrandId);
+      }
+      // Fallback: program-scoped levels (no course_id/strand_id)
+      if (filters.selectedProgramId !== "all") {
+        return levelApi.getBySchoolYear(filters.selectedSchoolYearId, filters.selectedProgramId);
+      }
       return levelApi.getBySchoolYear(filters.selectedSchoolYearId);
     },
     enabled: !!filters.selectedSchoolYearId,

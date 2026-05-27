@@ -25,6 +25,13 @@ export function useSubjectColumns(
       ),
     },
     {
+      header: "Program",
+      accessorKey: "programName",
+      cell: (info) => (
+        <span className="text-sm">{info.getValue<string>()}</span>
+      ),
+    },
+    {
       header: "Level",
       accessorKey: "levelName",
       cell: (info) => {
