@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
-import type { MeetingParticipant, ChatMessage } from "@/types/meeting/socket.types";
+
+import type {
+  MeetingParticipant,
+  ChatMessage,
+} from "@/types/meeting/socket.types";
 
 interface UseMeetingSocketProps {
   meetingId: string;
@@ -38,55 +42,114 @@ export const useMeetingSocket = ({
   useEffect(() => {
     if (!meetingId || !token) return;
 
+    let isActive = true;
+
     const socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
       auth: { token },
       query: { meetingId },
       transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
     socketRef.current = socket;
 
-    socket.on("connect", () => setConnected(true));
-    socket.on("disconnect", () => setConnected(false));
-
-    socket.on("room:state", (data: { participants: MeetingParticipant[]; chatHistory: ChatMessage[]; currentSlide: number; isPresenting: boolean }) => {
-      setParticipants(data.participants || []);
-      setChat(data.chatHistory || []);
-      setCurrentSlide(data.currentSlide ?? 0);
-      setIsPresenting(data.isPresenting ?? false);
+    socket.on("connect", () => {
+      if (isActive) {
+        setConnected(true);
+      }
     });
 
-    socket.on("room:participant_joined", (data: { participants: MeetingParticipant[] }) => {
-      setParticipants(data.participants);
+    socket.on("disconnect", () => {
+      if (isActive) {
+        setConnected(false);
+      }
     });
 
-    socket.on("room:participant_left", (data: { participants: MeetingParticipant[] }) => {
-      setParticipants(data.participants);
+    socket.on("connect_error", (err) => {
+      console.error("Socket connect error:", err.message);
     });
+
+    socket.on(
+      "room:state",
+      (data: {
+        participants: MeetingParticipant[];
+        chatHistory: ChatMessage[];
+        currentSlide: number;
+        isPresenting: boolean;
+      }) => {
+        if (!isActive) return;
+
+        setParticipants(data.participants || []);
+        setChat(data.chatHistory || []);
+        setCurrentSlide(data.currentSlide ?? 0);
+        setIsPresenting(data.isPresenting ?? false);
+      }
+    );
+
+    socket.on(
+      "room:participant_joined",
+      (data: { participants: MeetingParticipant[] }) => {
+        if (!isActive) return;
+
+        setParticipants(data.participants || []);
+      }
+    );
+
+    socket.on(
+      "room:participant_left",
+      (data: { participants: MeetingParticipant[] }) => {
+        if (!isActive) return;
+
+        setParticipants(data.participants || []);
+      }
+    );
 
     socket.on("chat:message", (msg: ChatMessage) => {
+      if (!isActive) return;
+
       setChat((prev) => [...prev, msg]);
     });
 
-    socket.on("hand:update", (data: { participants: MeetingParticipant[] }) => {
-      setParticipants(data.participants);
-    });
+    socket.on(
+      "hand:update",
+      (data: { participants: MeetingParticipant[] }) => {
+        if (!isActive) return;
+
+        setParticipants(data.participants || []);
+      }
+    );
 
     socket.on("lesson:slide_sync", (data: { slide: number }) => {
+      if (!isActive) return;
+
       setCurrentSlide(data.slide);
     });
 
-    socket.on("lesson:presentation_started", (data: { currentSlide: number }) => {
-      setIsPresenting(true);
-      setCurrentSlide(data.currentSlide);
-    });
+    socket.on(
+      "lesson:presentation_started",
+      (data: { currentSlide: number }) => {
+        if (!isActive) return;
+
+        setIsPresenting(true);
+        setCurrentSlide(data.currentSlide);
+      }
+    );
 
     socket.on("lesson:presentation_stopped", () => {
+      if (!isActive) return;
+
       setIsPresenting(false);
     });
 
     return () => {
+      isActive = false;
+
       socket.disconnect();
+      socketRef.current = null;
+
+      setConnected(false);
     };
   }, [meetingId, token]);
 

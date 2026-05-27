@@ -20,6 +20,11 @@ export interface MeetingTokenResponse {
   warning?: string;
 }
 
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+}
+
 export const studentMeetingApi = {
   getAll: async (classId: string): Promise<StudentMeeting[]> => {
     const res = await client.get<StudentMeeting[]>(
@@ -40,9 +45,9 @@ export const studentMeetingApi = {
     return res.data;
   },
   getToken: async (meetingId: string): Promise<MeetingTokenResponse> => {
-    const res = await client.get<MeetingTokenResponse>(
+    const res = await client.get<ApiResponse<MeetingTokenResponse>>(
       `/meetings/${meetingId}/token`
     );
-    return res.data;
+    return res.data.data;
   },
 };
