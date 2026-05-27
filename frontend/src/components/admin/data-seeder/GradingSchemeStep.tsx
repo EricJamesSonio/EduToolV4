@@ -1,8 +1,6 @@
 "use client"
 
-import { Scale } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Label } from "@/components/ui/label"
 import { GRADING_SCHEME_TEMPLATES, PROGRAMS } from "./constants/seed-data"
 
 interface GradingSchemeStepProps {
@@ -29,12 +27,8 @@ export function GradingSchemeStep({
 
   return (
     <div className="space-y-2">
-      {/* Section header — matches LevelStep / GradingScaleStep pattern */}
-      <div className="flex items-center justify-between">
-        <Label className="flex items-center gap-1.5">
-          <Scale className="h-3.5 w-3.5" />
-          Grading Scheme Templates
-        </Label>
+      {/* Enable/disable toggle */}
+      <div className="flex items-center justify-end">
         <button
           type="button"
           onClick={() => onToggleSeed(!seedGradingSchemes)}

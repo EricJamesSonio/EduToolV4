@@ -2,9 +2,8 @@
 "use client"
 
 import { useState } from "react"
-import { BarChart3, Check, ChevronDown, ChevronRight } from "lucide-react"
+import { Check, ChevronDown, ChevronRight } from "lucide-react"
 import { Badge }  from "@/components/ui/badge"
-import { Label }  from "@/components/ui/label"
 import { cn }     from "@/lib/utils"
 import { GRADING_SCALE_PRESETS, PROGRAMS, type GradingScalePreset } from "./constants/seed-data"
 
@@ -145,12 +144,8 @@ export function GradingScaleStep({
 
   return (
     <div className="space-y-3">
-      {/* Section header with enable/disable toggle */}
-      <div className="flex items-center justify-between">
-        <Label className="flex items-center gap-1.5">
-          <BarChart3 className="h-3.5 w-3.5" />
-          Grading Scales
-        </Label>
+      {/* Enable/disable toggle */}
+      <div className="flex items-center justify-end">
         <button
           type="button"
           onClick={() => onToggleSeed(!seedGradingScale)}

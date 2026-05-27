@@ -1,5 +1,3 @@
-import { BookOpen } from "lucide-react"
-import { Label } from "@/components/ui/label"
 import { Checkbox } from "./ui/Checkbox"
 import { Collapsible } from "./ui/Collapsible"
 import { COLLEGE_COURSES } from "./constants/seed-data"
@@ -27,10 +25,6 @@ export function CourseStep({
 
   return (
     <div className="space-y-2">
-      <Label className="flex items-center gap-1.5">
-        <BookOpen className="h-3.5 w-3.5" />
-        College Courses
-      </Label>
       <Collapsible
         title="College Courses"
         count={selectedCount}
