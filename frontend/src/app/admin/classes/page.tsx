@@ -189,14 +189,18 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
               selectedId={selectedSchoolYearId}
               onSelect={setSelectedSchoolYearId}
             />
-
-            <Button onClick={() => setCreateOpen(true)} size="sm">
-              <Plus className="mr-1.5 h-4 w-4" />
-              New Class
-            </Button>
           </div>
         }
       />
+
+      {selectedSchoolYearId && (
+        <div className="flex items-center justify-end gap-2">
+          <Button onClick={() => setCreateOpen(true)} size="sm">
+            <Plus className="mr-1.5 h-4 w-4" />
+            New Class
+          </Button>
+        </div>
+      )}
 
 <ClassesFilterBar
   filterSemesterId={filters.filterSemesterId}

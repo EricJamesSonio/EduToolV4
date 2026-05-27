@@ -27,19 +27,22 @@ export const levelApi = {
     return res.data.data;
   },
 
-  getBySchoolYear: async (schoolYearId: string): Promise<Level[]> => {
+  getBySchoolYear: async (
+    schoolYearId: string,
+    programId?: string,
+  ): Promise<Level[]> => {
+    const params: Record<string, string> = { schoolYearId };
+    if (programId) params.programId = programId;
     const res = await client.get<{ success: boolean; data: Level[] }>(
       "/levels",
-      {
-        params: { schoolYearId },
-      }
+      { params },
     );
     return res.data.data;
   },
 
   /**
    * Get levels for a specific course within a school year
-   * Returns only levels that have sections in this course
+   * Returns levels where course_id matches
    */
 getByCourse: async (
   schoolYearId: string,
@@ -54,7 +57,7 @@ getByCourse: async (
 
   /**
    * Get levels for a specific strand within a school year
-   * Returns only levels that have sections in this strand
+   * Returns levels where strand_id matches
    */
 getByStrand: async (
   schoolYearId: string,
@@ -86,6 +89,8 @@ getByStrand: async (
     programId: string;
     name: string;
     schoolYearId: string;
+    courseId?: string;
+    strandId?: string;
   }): Promise<Level> => {
     const res = await client.post<{ success: boolean; data: Level }>(
       "/levels",
@@ -102,6 +107,8 @@ getByStrand: async (
     programId: string;
     schoolYearId: string;
     count: number;
+    courseId?: string;
+    strandId?: string;
   }): Promise<Level[]> => {
     const res = await client.post<{ success: boolean; data: Level[] }>(
       "/levels/bulk-generate",
