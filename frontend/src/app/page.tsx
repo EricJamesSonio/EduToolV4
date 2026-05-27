@@ -45,10 +45,11 @@ export default function RootPage(): React.ReactNode {
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
       <HeroSection />
+      <AnalyticsPreviewSection />
       <FeaturesSection />
       <SolutionSection />
       <ResourcesSection />
-      <AnalyticsPreviewSection />
+      
       <PricingSection />
       <CTASection />
       <ContactAdminSection />
