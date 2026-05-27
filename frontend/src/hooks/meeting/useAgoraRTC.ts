@@ -7,7 +7,6 @@ import type {
   IAgoraRTCRemoteUser,
 } from "agora-rtc-sdk-ng";
 
-
 interface UseAgoraRTCProps {
   appId: string;
   channel: string;
@@ -25,17 +24,13 @@ export const useAgoraRTC = ({
 
   const [localAudio, setLocalAudio] = useState<ILocalAudioTrack | null>(null);
   const [localVideo, setLocalVideo] = useState<ILocalVideoTrack | null>(null);
-  const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([]);;
+  const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([]);
   const [joined, setJoined] = useState(false);
 
   useEffect(() => {
     if (!appId || !channel || !token) return;
 
-    const client = AgoraRTC.createClient({
-      mode: "rtc",
-      codec: "vp8",
-    });
-
+    const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
     clientRef.current = client;
 
     const init = async () => {
@@ -46,16 +41,16 @@ export const useAgoraRTC = ({
 
       await client.publish([micTrack, camTrack]);
 
+      // Play directly into the DOM element — no waiting for React state
+      camTrack.play("local-video-pip");
+
       setLocalAudio(micTrack);
       setLocalVideo(camTrack);
       setJoined(true);
     };
 
-    init();
+    init().catch(console.error);
 
-    // ==============================
-    // Remote users
-    // ==============================
     client.on("user-published", async (user, mediaType) => {
       await client.subscribe(user, mediaType);
 
@@ -75,15 +70,11 @@ export const useAgoraRTC = ({
     });
 
     client.on("user-unpublished", (user) => {
-      setRemoteUsers((prev) =>
-        prev.filter((u) => u.uid !== user.uid)
-      );
+      setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid));
     });
 
     client.on("user-left", (user) => {
-      setRemoteUsers((prev) =>
-        prev.filter((u) => u.uid !== user.uid)
-      );
+      setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid));
     });
 
     return () => {
@@ -92,7 +83,6 @@ export const useAgoraRTC = ({
         localVideo?.close();
         await client.leave();
       };
-
       cleanup();
     };
   }, [appId, channel, token, uid]);
@@ -110,11 +100,9 @@ export const useAgoraRTC = ({
   return {
     client: clientRef.current,
     joined,
-
     localAudio,
     localVideo,
     remoteUsers,
-
     toggleMic,
     toggleCamera,
   };

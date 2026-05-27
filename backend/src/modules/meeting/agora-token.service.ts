@@ -1,7 +1,13 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { MeetingRepository } from './meeting.repository';
+import { RtcTokenBuilder, RtcRole } from 'agora-token';
 
 @Injectable()
 export class AgoraTokenService {
@@ -19,10 +25,15 @@ export class AgoraTokenService {
   // Deterministic uid from userId string (mirrors Python _user_id_to_uid)
   private userIdToUid(userId: string): number {
     const hash = crypto.createHash('md5').update(userId).digest('hex');
-    return parseInt(hash.slice(0, 8), 16) % (2 ** 31);
+    return parseInt(hash.slice(0, 8), 16) % 2 ** 31;
   }
 
-  async getToken(meetingId: string, orgId: string, userId: string, userRole: string) {
+  async getToken(
+    meetingId: string,
+    orgId: string,
+    userId: string,
+    userRole: string,
+  ) {
     const meeting = await this.meetingRepo.findById(meetingId, orgId);
     if (!meeting) throw new NotFoundException('Meeting not found.');
     if (meeting.status === 'ended') {
@@ -31,7 +42,10 @@ export class AgoraTokenService {
 
     // Educators always get in; students must be invited or enrolled
     if (userRole === 'student') {
-      const isInvited = await this.meetingRepo.isStudentInvited(meetingId, userId);
+      const isInvited = await this.meetingRepo.isStudentInvited(
+        meetingId,
+        userId,
+      );
       if (!isInvited) {
         throw new ForbiddenException('You are not invited to this meeting.');
       }
@@ -62,35 +76,18 @@ export class AgoraTokenService {
   // Reference: https://docs.agora.io/en/video-calling/get-started/authentication-workflow
 
   private buildRtcToken(channelName: string, uid: number): string {
-    const expireTs = Math.floor(Date.now() / 1000) + 3600; // 1 hour
+    const expireTs = Math.floor(Date.now() / 1000) + 3600;
 
-    // Privilege values
-    const privileges: Record<number, number> = {
-      1: expireTs, // joinChannel
-      2: expireTs, // publishAudioStream
-      3: expireTs, // publishVideoStream
-      4: expireTs, // publishDataStream
-    };
-
-    const version = '007';
-    const appIdBuf = Buffer.from(this.appId, 'utf8');
-    const ts = Math.floor(Date.now() / 1000);
-    const salt = Math.floor(Math.random() * 0xffffffff);
-
-    // Build message
-    const msgBuf = this.packMessage(ts, salt, expireTs, uid, channelName, privileges);
-
-    // HMAC-SHA256 signature
-    const sig = crypto
-      .createHmac('sha256', Buffer.from(this.appCert, 'utf8'))
-      .update(Buffer.concat([appIdBuf, msgBuf]))
-      .digest();
-
-    // Pack final token
-    const tokenBuf = this.packToken(sig, msgBuf);
-    return `${version}${this.appId}${tokenBuf.toString('base64')}`;
+    return RtcTokenBuilder.buildTokenWithUid(
+      this.appId,
+      this.appCert,
+      channelName,
+      uid,
+      RtcRole.PUBLISHER,
+      expireTs,
+      expireTs,
+    );
   }
-
   private packMessage(
     ts: number,
     salt: number,

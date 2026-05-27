@@ -3,19 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  Mic,
-  MicOff,
-  Video,
-  VideoOff,
-  Hand,
-  MessageSquare,
-  Users,
-  LogOut,
-  Smile,
-  DoorOpen,
-  UserPlus,
-  Check,
-  X,
+  Mic, MicOff, Video, VideoOff, Hand, MessageSquare,
+  Users, LogOut, Smile, DoorOpen, UserPlus, Check, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,20 +13,14 @@ import { getAccessToken } from "@/api/client";
 import { useAgoraRTC } from "@/hooks/meeting/useAgoraRTC";
 import { useMeetingSocket } from "@/hooks/meeting/useMeetingSocket";
 import {
-  useMeeting,
-  useMeetingToken,
-  useEnrolledStudents,
-  useRespondToJoinRequest,
-  useEndMeeting,
+  useMeeting, useMeetingToken, useEnrolledStudents,
+  useRespondToJoinRequest, useEndMeeting,
 } from "@/hooks/educator/useMeeting";
 import type { EnrolledStudent } from "@/types/educator/meeting.types";
 
 const REACTIONS = ["👍", "👏", "❤️", "😂", "😮", "🎉"];
 
-function ReactionPicker({
-  onPick,
-  onClose,
-}: {
+function ReactionPicker({ onPick, onClose }: {
   onPick: (emoji: string) => void;
   onClose: () => void;
 }) {
@@ -56,10 +39,7 @@ function ReactionPicker({
   );
 }
 
-function ChatPanel({
-  chat,
-  onSend,
-}: {
+function ChatPanel({ chat, onSend }: {
   chat: { userId: string; name: string; message: string; sentAt: string }[];
   onSend: (msg: string) => void;
 }) {
@@ -82,9 +62,7 @@ function ChatPanel({
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {chat.map((msg, i) => (
           <div key={`${msg.userId}-${i}`} className="space-y-0.5">
-            <p className="text-[11px] font-medium text-muted-foreground">
-              {msg.name}
-            </p>
+            <p className="text-[11px] font-medium text-muted-foreground">{msg.name}</p>
             <p className="text-sm text-foreground bg-muted/50 rounded-lg px-3 py-1.5">
               {msg.message}
             </p>
@@ -100,26 +78,19 @@ function ChatPanel({
           placeholder="Send a message..."
           className="flex-1 text-sm bg-muted/50 rounded-lg px-3 py-1.5 outline-none border border-border/40 focus:border-primary/50"
         />
-        <Button size="sm" onClick={handleSend} disabled={!input.trim()}>
-          Send
-        </Button>
+        <Button size="sm" onClick={handleSend} disabled={!input.trim()}>Send</Button>
       </div>
     </div>
   );
 }
 
-function ParticipantsPanel({
-  participants,
-}: {
+function ParticipantsPanel({ participants }: {
   participants: { userId: string; name: string; role: string; handRaised: boolean }[];
 }) {
   return (
     <div className="p-3 space-y-1 overflow-y-auto">
       {participants.map((p) => (
-        <div
-          key={p.userId}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/40"
-        >
+        <div key={p.userId} className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/40">
           <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
             {p.name[0]?.toUpperCase()}
           </div>
@@ -134,12 +105,7 @@ function ParticipantsPanel({
   );
 }
 
-function JoinRequestsPanel({
-  requests,
-  students,
-  onRespond,
-  isPending,
-}: {
+function JoinRequestsPanel({ requests, students, onRespond, isPending }: {
   requests: { id: string; studentId: string }[];
   students: EnrolledStudent[];
   onRespond: (reqId: string, status: "accepted" | "declined") => void;
@@ -158,18 +124,11 @@ function JoinRequestsPanel({
       {requests.map((req) => {
         const student = students.find((s) => s.id === req.studentId);
         return (
-          <div
-            key={req.id}
-            className="flex items-center justify-between px-3 py-2 rounded-lg border border-border/40"
-          >
+          <div key={req.id} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border/40">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">
-                {student?.fullName ?? req.studentId}
-              </p>
+              <p className="text-sm font-medium truncate">{student?.fullName ?? req.studentId}</p>
               {student?.email && (
-                <p className="text-[11px] text-muted-foreground truncate">
-                  {student.email}
-                </p>
+                <p className="text-[11px] text-muted-foreground truncate">{student.email}</p>
               )}
             </div>
             <div className="flex items-center gap-1 shrink-0 ml-2">
@@ -204,46 +163,23 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const { data: tokenData, isLoading: tokenLoading } = useMeetingToken(meetingId);
 
   const students: EnrolledStudent[] = Array.isArray(studentsRaw) ? studentsRaw : [];
-
   const authToken = getAccessToken() ?? "";
 
-  const {
-    joined,
-    localVideo,
-    localAudio,
-    remoteUsers,
-    toggleMic,
-    toggleCamera,
-  } = useAgoraRTC(
+  const { joined, localAudio, localVideo, remoteUsers, toggleMic, toggleCamera } = useAgoraRTC(
     tokenData
-      ? {
-          appId: tokenData.appId,
-          channel: tokenData.channel,
-          token: tokenData.token,
-          uid: tokenData.uid,
-        }
+      ? { appId: tokenData.appId, channel: tokenData.channel, token: tokenData.token, uid: tokenData.uid }
       : { appId: "", channel: "", token: "", uid: 0 }
   );
 
   const {
-    connected,
-    participants,
-    chat,
-    currentSlide,
-    isPresenting,
-    sendChat,
-    raiseHand,
-    lowerHand,
-    sendReaction,
-    changeSlide,
-    startPresentation,
-    stopPresentation,
+    connected, participants, chat, currentSlide, isPresenting,
+    sendChat, raiseHand, lowerHand, sendReaction,
+    startPresentation, stopPresentation,
   } = useMeetingSocket({ meetingId, token: authToken });
 
   const respondMutation = useRespondToJoinRequest(classId, meetingId);
   const endMeetingMutation = useEndMeeting(classId);
 
-  const localVideoRef = useRef<HTMLDivElement>(null);
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [handRaised, setHandRaised] = useState(false);
@@ -252,9 +188,10 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
 
   const pendingRequests = meeting?.joinRequests.filter((r) => r.status === "pending") ?? [];
 
+  // Re-play local video if track changes (e.g. camera restart)
   useEffect(() => {
-    if (localVideo && localVideoRef.current) {
-      localVideo.play(localVideoRef.current);
+    if (localVideo) {
+      localVideo.play("local-video-pip");
     }
   }, [localVideo]);
 
@@ -269,11 +206,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   };
 
   const handleToggleHand = () => {
-    if (handRaised) {
-      lowerHand();
-    } else {
-      raiseHand();
-    }
+    if (handRaised) lowerHand(); else raiseHand();
     setHandRaised((v) => !v);
   };
 
@@ -283,9 +216,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
 
   const handleEndMeeting = () => {
     endMeetingMutation.mutate(meetingId, {
-      onSuccess: () => {
-        router.push(`/educator/classes/${classId}/meetings/${meetingId}`);
-      },
+      onSuccess: () => router.push(`/educator/classes/${classId}/meetings/${meetingId}`),
     });
   };
 
@@ -301,9 +232,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   if (!tokenData) {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-4">
-        <p className="text-sm text-muted-foreground">
-          You are not authorized to join this meeting.
-        </p>
+        <p className="text-sm text-muted-foreground">You are not authorized to join this meeting.</p>
         <Button variant="outline" onClick={() => router.push(`/educator/classes/${classId}/meetings`)}>
           Back to Meetings
         </Button>
@@ -313,19 +242,14 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
 
   return (
     <div className="h-screen flex flex-col bg-zinc-950 text-white overflow-hidden">
-      {/* Video grid */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Remote users */}
-        <div
-          className={cn(
-            "flex-1 grid gap-1 p-1",
-            remoteUsers.length === 0
-              ? "place-items-center"
-              : remoteUsers.length === 1
-              ? "grid-cols-1"
-              : "grid-cols-2"
-          )}
-        >
+        <div className={cn(
+          "flex-1 grid gap-1 p-1",
+          remoteUsers.length === 0 ? "place-items-center"
+            : remoteUsers.length === 1 ? "grid-cols-1"
+            : "grid-cols-2"
+        )}>
           {remoteUsers.length === 0 && !joined && (
             <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
           )}
@@ -338,32 +262,25 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
           ))}
         </div>
 
-        {/* Local video — picture-in-picture */}
+        {/* Local video PIP — id used by Agora to render directly */}
         <div
-          ref={localVideoRef}
+          id="local-video-pip"
           className="absolute bottom-4 right-4 w-36 h-24 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10"
         />
 
-        {/* Slide sync indicator */}
         {isPresenting && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-zinc-800/80 backdrop-blur-sm text-xs text-zinc-300 px-3 py-1.5 rounded-full border border-zinc-700 z-10">
             📽 Presenting · Slide {currentSlide + 1}
           </div>
         )}
 
-        {/* Side panel */}
         {sidePanel && (
           <div className="w-72 border-l border-zinc-800 bg-zinc-900 flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
               <span className="text-sm font-medium capitalize">
                 {sidePanel === "join-requests" ? "Join Requests" : sidePanel}
               </span>
-              <button
-                onClick={() => setSidePanel(null)}
-                className="text-zinc-400 hover:text-white text-xs"
-              >
-                ✕
-              </button>
+              <button onClick={() => setSidePanel(null)} className="text-zinc-400 hover:text-white text-xs">✕</button>
             </div>
             <div className="flex-1 overflow-hidden">
               {sidePanel === "chat" ? (
@@ -395,83 +312,53 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         )}
       </div>
 
-      {/* Reaction picker */}
       {showReactions && (
-        <ReactionPicker
-          onPick={sendReaction}
-          onClose={() => setShowReactions(false)}
-        />
+        <ReactionPicker onPick={sendReaction} onClose={() => setShowReactions(false)} />
       )}
 
       {/* Controls bar */}
       <div className="relative h-16 flex items-center justify-center gap-3 border-t border-zinc-800 bg-zinc-900 px-4">
-        {/* Connection indicator */}
-        <div
-          className={cn(
-            "absolute left-4 flex items-center gap-1.5 text-[11px]",
-            connected ? "text-emerald-400" : "text-zinc-500"
-          )}
-        >
-          <span
-            className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              connected ? "bg-emerald-400" : "bg-zinc-500"
-            )}
-          />
+        <div className={cn(
+          "absolute left-4 flex items-center gap-1.5 text-[11px]",
+          connected ? "text-emerald-400" : "text-zinc-500"
+        )}>
+          <span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-emerald-400" : "bg-zinc-500")} />
           {connected ? "Connected" : "Connecting..."}
         </div>
 
-        {/* Mic */}
         <button
           onClick={handleToggleMic}
           className={cn(
             "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            micOn
-              ? "text-zinc-300 hover:bg-zinc-800"
-              : "text-red-400 hover:bg-red-900/30"
+            micOn ? "text-zinc-300 hover:bg-zinc-800" : "text-red-400 hover:bg-red-900/30"
           )}
         >
-          {micOn ? (
-            <Mic className="h-5 w-5" />
-          ) : (
-            <MicOff className="h-5 w-5" />
-          )}
+          {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
           {micOn ? "Mute" : "Unmute"}
         </button>
 
-        {/* Camera */}
         <button
           onClick={handleToggleCam}
           className={cn(
             "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            camOn
-              ? "text-zinc-300 hover:bg-zinc-800"
-              : "text-red-400 hover:bg-red-900/30"
+            camOn ? "text-zinc-300 hover:bg-zinc-800" : "text-red-400 hover:bg-red-900/30"
           )}
         >
-          {camOn ? (
-            <Video className="h-5 w-5" />
-          ) : (
-            <VideoOff className="h-5 w-5" />
-          )}
+          {camOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
           {camOn ? "Stop Video" : "Start Video"}
         </button>
 
-        {/* Raise hand */}
         <button
           onClick={handleToggleHand}
           className={cn(
             "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            handRaised
-              ? "text-amber-400 hover:bg-amber-900/30"
-              : "text-zinc-300 hover:bg-zinc-800"
+            handRaised ? "text-amber-400 hover:bg-amber-900/30" : "text-zinc-300 hover:bg-zinc-800"
           )}
         >
           <Hand className="h-5 w-5" />
           {handRaised ? "Lower Hand" : "Raise Hand"}
         </button>
 
-        {/* Reactions */}
         <button
           onClick={() => setShowReactions((v) => !v)}
           className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] text-zinc-300 hover:bg-zinc-800 transition-colors"
@@ -480,68 +367,44 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
           React
         </button>
 
-        {/* Presentation */}
         <button
-          onClick={() => {
-            if (isPresenting) {
-              stopPresentation();
-            } else {
-              startPresentation();
-            }
-          }}
+          onClick={() => isPresenting ? stopPresentation() : startPresentation()}
           className={cn(
             "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            isPresenting
-              ? "text-primary bg-primary/10"
-              : "text-zinc-300 hover:bg-zinc-800"
+            isPresenting ? "text-primary bg-primary/10" : "text-zinc-300 hover:bg-zinc-800"
           )}
         >
           <DoorOpen className="h-5 w-5" />
           {isPresenting ? "Stop" : "Present"}
         </button>
 
-        {/* Chat */}
         <button
-          onClick={() =>
-            setSidePanel((p) => (p === "chat" ? null : "chat"))
-          }
+          onClick={() => setSidePanel((p) => p === "chat" ? null : "chat")}
           className={cn(
             "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            sidePanel === "chat"
-              ? "text-primary bg-primary/10"
-              : "text-zinc-300 hover:bg-zinc-800"
+            sidePanel === "chat" ? "text-primary bg-primary/10" : "text-zinc-300 hover:bg-zinc-800"
           )}
         >
           <MessageSquare className="h-5 w-5" />
           Chat
         </button>
 
-        {/* Participants */}
         <button
-          onClick={() =>
-            setSidePanel((p) => (p === "participants" ? null : "participants"))
-          }
+          onClick={() => setSidePanel((p) => p === "participants" ? null : "participants")}
           className={cn(
             "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            sidePanel === "participants"
-              ? "text-primary bg-primary/10"
-              : "text-zinc-300 hover:bg-zinc-800"
+            sidePanel === "participants" ? "text-primary bg-primary/10" : "text-zinc-300 hover:bg-zinc-800"
           )}
         >
           <Users className="h-5 w-5" />
           {participants.length > 0 ? `${participants.length}` : "People"}
         </button>
 
-        {/* Join Requests */}
         <button
-          onClick={() =>
-            setSidePanel((p) => (p === "join-requests" ? null : "join-requests"))
-          }
+          onClick={() => setSidePanel((p) => p === "join-requests" ? null : "join-requests")}
           className={cn(
             "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors relative",
-            sidePanel === "join-requests"
-              ? "text-amber-400 bg-amber-900/20"
-              : "text-zinc-300 hover:bg-zinc-800"
+            sidePanel === "join-requests" ? "text-amber-400 bg-amber-900/20" : "text-zinc-300 hover:bg-zinc-800"
           )}
         >
           <UserPlus className="h-5 w-5" />
@@ -553,7 +416,6 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
           )}
         </button>
 
-        {/* End Meeting */}
         <button
           onClick={handleEndMeeting}
           disabled={endMeetingMutation.isPending}
