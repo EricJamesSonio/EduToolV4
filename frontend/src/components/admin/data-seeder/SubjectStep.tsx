@@ -1,7 +1,5 @@
 "use client"
 
-import { BookOpen } from "lucide-react"
-import { Label }    from "@/components/ui/label"
 import { Badge }    from "@/components/ui/badge"
 import { Checkbox }    from "./ui/Checkbox"
 import { Collapsible } from "./ui/Collapsible"
@@ -134,25 +132,19 @@ export function SubjectStep({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <Label className="flex items-center gap-1.5">
-          <BookOpen className="h-3.5 w-3.5" />
-          Subjects
-        </Label>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
-              major
-            </Badge>
-            = unique per level/course
-          </span>
-          <span className="flex items-center gap-1">
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
-              minor
-            </Badge>
-            = shared across all
-          </span>
-        </div>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+        <span className="flex items-center gap-1">
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
+            major
+          </Badge>
+          = unique per level/course
+        </span>
+        <span className="flex items-center gap-1">
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+            minor
+          </Badge>
+          = shared across all
+        </span>
       </div>
 
       {/* Level subjects — each level is its own group */}

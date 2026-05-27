@@ -1,5 +1,3 @@
-import { BookOpen } from "lucide-react"
-import { Label } from "@/components/ui/label"
 import { Checkbox } from "./ui/Checkbox"
 import { Collapsible } from "./ui/Collapsible"
 
@@ -24,10 +22,6 @@ export function StrandStep({
 
   return (
     <div className="space-y-2">
-      <Label className="flex items-center gap-1.5">
-        <BookOpen className="h-3.5 w-3.5" />
-        SHS Strands
-      </Label>
       <Collapsible
         title="Senior High School Strands"
         count={SHS_STRANDS.filter((s) => selectedStrands.has(s) && !isDisabled(s))

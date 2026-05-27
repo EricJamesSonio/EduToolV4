@@ -268,6 +268,22 @@ export function useSeedState() {
     }))
   }
 
+  // ===== RESET =====
+  function resetAll() {
+    setSelectedPrograms(new Set())
+    setSelectedCourses(new Set())
+    setSelectedStrands(new Set())
+    setSelectedSubjects(new Set())
+    setLevelConfigs(buildInitialLevelConfigs())
+    setSectionConfigs(buildInitialSectionConfigs())
+    setSeedGradingScale(false)
+    setGradingScaleByProgram(buildInitialGradingScaleByProgram())
+    setSeedGradingSchemes(false)
+    setGradingSchemesByProgram(buildInitialGradingSchemesByProgram())
+    setSeedSemesterTemplates(false)
+    setSemesterTemplatesByProgram(buildInitialSemesterTemplatesByProgram())
+  }
+
   // ===== UTILITY FUNCTIONS =====
   function toggleSet(
     set: Set<string>,
@@ -343,6 +359,7 @@ export function useSeedState() {
     toggleSemesterTemplate,
 
     // Utilities
+    resetAll,
     toggleSet,
     selectAll,
     deselectAll,

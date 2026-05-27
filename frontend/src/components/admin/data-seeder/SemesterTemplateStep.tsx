@@ -1,9 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Calendar, ChevronDown, ChevronRight } from "lucide-react"
+import { ChevronDown, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Label } from "@/components/ui/label"
 import { SEMESTER_TEMPLATES, PROGRAMS } from "./constants/seed-data"
 
 interface SemesterTemplateStepProps {
@@ -40,12 +39,8 @@ export function SemesterTemplateStep({
 
   return (
     <div className="space-y-2">
-      {/* Section header — same toggle pattern as GradingScaleStep / GradingSchemeStep */}
-      <div className="flex items-center justify-between">
-        <Label className="flex items-center gap-1.5">
-          <Calendar className="h-3.5 w-3.5" />
-          Semester Templates
-        </Label>
+      {/* Enable/disable toggle */}
+      <div className="flex items-center justify-end">
         <button
           type="button"
           onClick={() => onToggleSeed(!seedSemesterTemplates)}
