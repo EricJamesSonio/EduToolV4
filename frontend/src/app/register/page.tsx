@@ -9,12 +9,44 @@ import { Label } from "@/components/ui/label";
 import { register, verifyOtp, resendOtp } from "@/api/auth/register.api";
 
 type Step = "form" | "otp" | "submitted";
+type Role = "admin" | "educator" | "student";
 
 const planLabels: Record<string, string> = {
   free: "Free",
   standard: "Standard ($20/mo)",
   pro: "Pro ($50/mo)",
 };
+
+type RadioGroupProps = {
+  label: string;
+  options: string[];
+  value: string;
+  onChange: (val: string) => void;
+};
+
+function RadioGroup({ label, options, value, onChange }: RadioGroupProps) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onChange(opt)}
+            className={`text-left px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+              value === opt
+                ? "border-primary bg-primary/5 text-primary"
+                : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
+            }`}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function RegisterPageContent() {
   const router = useRouter();
@@ -24,6 +56,10 @@ function RegisterPageContent() {
   const [step, setStep] = useState<Step>("form");
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  const [institutionName, setInstitutionName] = useState("");
+  const [role, setRole] = useState("");
+  const [studentCount, setStudentCount] = useState("");
+  const [programsDepartments, setProgramsDepartments] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,9 +67,15 @@ function RegisterPageContent() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!role || !studentCount || !programsDepartments) {
+      setError("Please complete all selections.");
+      return;
+    }
+
     setLoading(true);
     try {
-      await register({ email, fullName, plan });
+      await register({ email, fullName, plan, institutionName, role, studentCount, programsDepartments });
       setStep("otp");
     } catch (err: any) {
       setError(err?.response?.data?.message ?? "Registration failed");
@@ -109,6 +151,18 @@ function RegisterPageContent() {
                   required
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="institutionName">Institution Name</Label>
+                <Input
+                  id="institutionName"
+                  value={institutionName}
+                  onChange={(e) => setInstitutionName(e.target.value)}
+                  placeholder="e.g. Manila Central University"
+                  required
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -120,6 +174,28 @@ function RegisterPageContent() {
                   required
                 />
               </div>
+
+              <RadioGroup
+                label="Your Role"
+                options={["Principal", "IT Director", "Admin Officer", "Other"]}
+                value={role}
+                onChange={setRole}
+              />
+
+              <RadioGroup
+                label="Student Count"
+                options={["Under 500", "500 – 1,000", "1,000 – 3,000", "3,000+"]}
+                value={studentCount}
+                onChange={setStudentCount}
+              />
+
+              <RadioGroup
+                label="Programs / Departments"
+                options={["1–5", "6–15", "16–30", "30+"]}
+                value={programsDepartments}
+                onChange={setProgramsDepartments}
+              />
+
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Sending..." : "Send Verification Code"}
               </Button>
@@ -160,6 +236,14 @@ function RegisterPageContent() {
                 Your registration request has been submitted. The platform owner
                 will review your application and create your account.
               </p>
+              {institutionName && (
+                <div className="rounded-lg bg-muted/50 px-4 py-3 text-left text-sm space-y-1">
+                  <p><span className="font-medium">Institution:</span> {institutionName}</p>
+                  <p><span className="font-medium">Role:</span> {role}</p>
+                  <p><span className="font-medium">Students:</span> {studentCount}</p>
+                  <p><span className="font-medium">Programs/Depts:</span> {programsDepartments}</p>
+                </div>
+              )}
               <Button
                 className="w-full"
                 variant="outline"

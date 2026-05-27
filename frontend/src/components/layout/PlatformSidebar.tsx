@@ -17,6 +17,11 @@ const GROUPS = [
         href: "/platform/requests",
         icon: ClipboardList,
       },
+            {
+        label: "Schools",
+        href: "/platform/schools",
+        icon: ClipboardList,
+      },
     ],
   },
 ];
