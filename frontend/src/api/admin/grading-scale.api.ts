@@ -1,9 +1,12 @@
 import client from "@/api/client";
-import type { GradingScale, GradeRange } from "@/types/admin/grading-scale.types";
+import type {
+  GradingScale,
+  GradeRange,
+  GradingScaleAssignment,
+} from "@/types/admin/grading-scale.types";
 
 export interface CreateGradingScaleRequest {
-  programId: string;
-  schoolYearId: string;
+  programType: string;
   name: string;
   ranges: GradeRange[];
 }
@@ -14,8 +17,12 @@ export interface UpdateGradingScaleRequest {
 }
 
 export interface GetGradingScalesQuery {
-  programId?: string;
-  schoolYearId?: string;
+  programType?: string;
+}
+
+export interface AssignGradingScaleRequest {
+  scaleId: string;
+  schoolYearId: string;
 }
 
 export const gradingScaleApi = {
@@ -50,15 +57,34 @@ export const gradingScaleApi = {
     await client.delete(`/grading-scales/${id}`);
   },
 
-assignToProgram: async (
-  programId: string,
-  scaleId: string
-): Promise<GradingScale> => {
-  const res = await client.post<{ success: boolean; data: GradingScale }>(
-    `/grading-scales/programs/${programId}/grading-scale`,
-    { scaleId }
-  );
+  assignToProgram: async (
+    programId: string,
+    scaleId: string,
+    schoolYearId: string
+  ): Promise<GradingScale> => {
+    const res = await client.post<{ success: boolean; data: GradingScale }>(
+      `/grading-scales/programs/${programId}/grading-scale`,
+      { scaleId, schoolYearId }
+    );
+    return res.data.data;
+  },
 
-  return res.data.data;
-},
+  getAssignments: async (
+    schoolYearId: string
+  ): Promise<GradingScaleAssignment[]> => {
+    const res = await client.get<{ success: boolean; data: GradingScaleAssignment[] }>(
+      "/grading-scales/assignments",
+      { params: { schoolYearId } }
+    );
+    return res.data.data;
+  },
+
+  removeAssignment: async (
+    programId: string,
+    schoolYearId: string
+  ): Promise<void> => {
+    await client.delete("/grading-scales/assignments", {
+      params: { programId, schoolYearId },
+    });
+  },
 };
