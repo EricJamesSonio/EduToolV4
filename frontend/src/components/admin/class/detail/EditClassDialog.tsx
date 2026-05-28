@@ -12,15 +12,10 @@ import { educatorApi } from "@/api/admin/educator.api";
 import { sectionApi } from "@/api/admin/section.api";
 import type { Class } from "@/types/admin/class.types";
 
+import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -119,11 +114,7 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Class</DialogTitle>
-        </DialogHeader>
+    <Modal open={open} onClose={handleClose} title="Edit Class" size="lg">
 
         <form
           onSubmit={handleSubmit((v) => mutation.mutate(v))}
@@ -276,7 +267,6 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }
