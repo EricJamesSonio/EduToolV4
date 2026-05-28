@@ -6,13 +6,7 @@ import { toast } from "sonner";
 import { Copy, Check, KeyRound } from "lucide-react";
 import type { AxiosError } from "axios";
 import { studentApi } from "@/api/admin/student.api";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,11 +52,7 @@ export function ResetPasswordDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Reset Password</DialogTitle>
-        </DialogHeader>
+    <Modal open={open} onClose={handleClose} title="Reset Password" size="sm">
 
         {!newPassword ? (
           <>
@@ -73,7 +63,7 @@ export function ResetPasswordDialog({
                 Their old password will be invalidated immediately.
               </p>
             </div>
-            <DialogFooter>
+            <ModalFooter>
               <Button variant="outline" onClick={handleClose} disabled={mutation.isPending}>
                 Cancel
               </Button>
@@ -84,11 +74,11 @@ export function ResetPasswordDialog({
                 <KeyRound className="mr-1.5 h-4 w-4" />
                 {mutation.isPending ? "Resetting..." : "Reset Password"}
               </Button>
-            </DialogFooter>
+            </ModalFooter>
           </>
         ) : (
           <>
-            <div className="space-y-3 py-2">
+            <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 New password generated. Copy it now — it won't be shown again.
               </p>
@@ -115,12 +105,11 @@ export function ResetPasswordDialog({
                 </div>
               </div>
             </div>
-            <DialogFooter>
+            <ModalFooter>
               <Button onClick={handleClose}>Done</Button>
-            </DialogFooter>
+            </ModalFooter>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }

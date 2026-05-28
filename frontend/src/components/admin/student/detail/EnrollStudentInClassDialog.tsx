@@ -8,13 +8,7 @@ import { studentApi } from "@/api/admin/student.api";
 import { classApi } from "@/api/admin/class.api";
 import type { Class } from "@/types/admin/class.types";
 import { toArray } from "@/utils/classes.utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -77,13 +71,9 @@ export function EnrollStudentInClassDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Enroll in Class</DialogTitle>
-        </DialogHeader>
+    <Modal open={open} onClose={handleClose} title="Enroll in Class" size="sm">
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Select Class</Label>
             <Select
@@ -118,7 +108,7 @@ export function EnrollStudentInClassDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button variant="outline" onClick={handleClose} disabled={mutation.isPending}>
             Cancel
           </Button>
@@ -128,8 +118,7 @@ export function EnrollStudentInClassDialog({
           >
             {mutation.isPending ? "Enrolling..." : "Enroll"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ModalFooter>
+    </Modal>
   );
 }
