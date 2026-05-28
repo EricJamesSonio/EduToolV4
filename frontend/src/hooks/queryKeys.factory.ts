@@ -92,15 +92,12 @@ export const queryKeys = {
       detail: (id: string) => [...adminKeys.all, 'levels', 'detail', id] as const,
       enriched: (filters?: Record<string, any>) => [...adminKeys.all, 'levels', 'enriched', filters] as const,
     },
-organization: {
-  all: [...adminKeys.all, "organization"] as const,
-
-  detail: [...adminKeys.all, "organization", "detail"] as const,
-
-  settings: [...adminKeys.all, "organization", "settings"] as const,
-
-  accountsCheck: [...adminKeys.all, "organization", "accounts-check"] as const,
-},
+    organization: {
+      all: [...adminKeys.all, 'organization'] as const,
+      detail: () => [...adminKeys.all, 'organization', 'detail'] as const,
+      settings: () => [...adminKeys.all, 'organization', 'settings'] as const,
+      accountsCheck: () => [...adminKeys.all, 'organization', 'accounts-check'] as const, // ← add
+    },
     orgEnrollmentSetting: {
       all: [...adminKeys.all, 'orgEnrollmentSetting'] as const,
       detail: () => [...adminKeys.all, 'orgEnrollmentSetting', 'detail'] as const,

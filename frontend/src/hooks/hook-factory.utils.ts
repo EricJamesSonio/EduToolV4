@@ -175,6 +175,8 @@ export function useMutationWithInvalidation<
   return useMutation({
     mutationFn,
 
+    ...options,
+
     onSuccess: (data, variables, context) => {
       invalidateKeys?.forEach((key) => {
         queryClient.invalidateQueries({
@@ -188,8 +190,6 @@ export function useMutationWithInvalidation<
         context
       );
     },
-
-    ...options,
   });
 }
 

@@ -2,14 +2,13 @@ import { UseQueryResult, UseMutationResult } from "@tanstack/react-query";
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
-import type { GradingScale } from "@/types/admin/grading-scale.types";
+import type { GradingScale, GradingScaleAssignment } from "@/types/admin/grading-scale.types";
 import type {
   CreateGradingScaleRequest,
   UpdateGradingScaleRequest,
   GetGradingScalesQuery,
 } from "@/api/admin/grading-scale.api";
 
-// Get grading scales with optional filters
 export const useGradingScales = (
   query?: GetGradingScalesQuery,
 ): UseQueryResult<GradingScale[], Error> => {
@@ -19,7 +18,6 @@ export const useGradingScales = (
   );
 };
 
-// Create grading scale (includes programId in request)
 export const useCreateGradingScale = (): UseMutationResult<
   GradingScale,
   Error,
@@ -33,7 +31,6 @@ export const useCreateGradingScale = (): UseMutationResult<
   );
 };
 
-// Update grading scale
 export const useUpdateGradingScale = (): UseMutationResult<
   GradingScale,
   Error,
@@ -44,5 +41,15 @@ export const useUpdateGradingScale = (): UseMutationResult<
     {
       invalidateKeys: [queryKeys.admin.gradingScales.list()],
     },
+  );
+};
+
+export const useGradingScaleAssignments = (
+  schoolYearId: string | null,
+): UseQueryResult<GradingScaleAssignment[], Error> => {
+  return useAsyncQuery<GradingScaleAssignment[]>(
+    ["admin", "gradingScales", "assignments", schoolYearId] as const,
+    () => gradingScaleApi.getAssignments(schoolYearId!),
+    { enabled: !!schoolYearId },
   );
 };
