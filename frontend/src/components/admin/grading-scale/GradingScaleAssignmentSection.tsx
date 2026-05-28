@@ -1,14 +1,12 @@
-// ===== File: frontend/src/components/admin/grading-scale/GradingScaleAssignmentSection.tsx =====
 "use client";
 
 import { useState, useMemo } from "react";
-import { AlertCircle, Check } from "lucide-react";
+import { AlertCircle, Check, X } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { cn } from "@/lib/utils";
-import { WEEK_COLORS } from "@/lib/palette";
 import { PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
 import { DataTable } from "@/components/shared/DataTable";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
@@ -32,7 +30,7 @@ import {
 
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
 import type { SchoolYear } from "@/types/admin/school-year.types";
-import type { GradingScale } from "@/types/admin/grading-scale.types";
+import type { GradingScale, GradingScaleAssignment } from "@/types/admin/grading-scale.types";
 
 interface Program {
   id: string;
@@ -49,6 +47,7 @@ interface GradingScaleAssignmentSectionProps {
   schoolYears: SchoolYear[];
   programs: Program[];
   scales: GradingScale[];
+  assignments: GradingScaleAssignment[];
   schoolYearsLoading: boolean;
   programsLoading: boolean;
   selectedSchoolYearId: string | null;
@@ -66,6 +65,7 @@ export function GradingScaleAssignmentSection({
   schoolYears,
   programs,
   scales,
+  assignments,
   schoolYearsLoading,
   programsLoading,
   selectedSchoolYearId,
@@ -73,13 +73,9 @@ export function GradingScaleAssignmentSection({
 }: GradingScaleAssignmentSectionProps): React.JSX.Element {
   const queryClient = useQueryClient();
 
-  // State
-  const [assignTarget, setAssignTarget] = useState<ProgramWithScale | null>(
-    null,
-  );
+  const [assignTarget, setAssignTarget] = useState<ProgramWithScale | null>(null);
   const [selectedScaleId, setSelectedScaleId] = useState<string>("");
 
-  // Mutation
   const assignMutation = useMutation({
     mutationFn: ({
       programId,
@@ -87,10 +83,23 @@ export function GradingScaleAssignmentSection({
     }: {
       programId: string;
       scaleId: string;
-    }) => gradingScaleApi.assignToProgram(programId, scaleId),
+    }) => gradingScaleApi.assignToProgram(programId, scaleId, selectedSchoolYearId!),
     onSuccess: () => {
       toast.success("Grading scale assigned successfully.");
-      queryClient.invalidateQueries({ queryKey: ["gradingScales"] });
+      const assignKey = ["admin", "gradingScales", "assignments", selectedSchoolYearId!] as const;
+      const current = queryClient.getQueryData<GradingScaleAssignment[]>(assignKey) ?? [];
+      const newAssign: GradingScaleAssignment = {
+        id: "",
+        orgId: "",
+        gradingScaleId: selectedScaleId,
+        programId: assignTarget!.id,
+        schoolYearId: selectedSchoolYearId!,
+        createdAt: new Date().toISOString(),
+        grading_scale: { name: selectedScale?.name ?? "" },
+        program: { name: assignTarget!.name },
+      };
+      queryClient.setQueryData(assignKey, [...current.filter(a => a.programId !== assignTarget!.id), newAssign]);
+      queryClient.invalidateQueries({ queryKey: assignKey });
       setAssignTarget(null);
       setSelectedScaleId("");
     },
@@ -101,25 +110,58 @@ export function GradingScaleAssignmentSection({
     },
   });
 
-  // Map programs with assigned scales
+  const removeMutation = useMutation({
+    mutationFn: ({
+      programId,
+    }: {
+      programId: string;
+    }) => gradingScaleApi.removeAssignment(programId, selectedSchoolYearId!),
+    onSuccess: (_data, variables) => {
+      toast.success("Assignment removed.");
+      const assignKey = ["admin", "gradingScales", "assignments", selectedSchoolYearId!] as const;
+      const current = queryClient.getQueryData<GradingScaleAssignment[]>(assignKey) ?? [];
+      queryClient.setQueryData(assignKey, current.filter(a => a.programId !== variables.programId));
+      queryClient.invalidateQueries({ queryKey: assignKey });
+    },
+    onError: (err: AxiosError<{ message: string }>) => {
+      toast.error(
+        err?.response?.data?.message ?? "Failed to remove assignment.",
+      );
+    },
+  });
+
+  const assignmentsByProgram = useMemo(() => {
+    const map = new Map<string, GradingScaleAssignment>();
+    for (const a of assignments) {
+      map.set(a.programId, a);
+    }
+    return map;
+  }, [assignments]);
+
   const programsWithScales = useMemo(() => {
     return programs.map((program) => {
-      const assignedScale = scales.find((s) => s.programId === program.id);
+      const assignment = assignmentsByProgram.get(program.id);
+      const scale = assignment
+        ? scales.find((s) => s.id === assignment.gradingScaleId)
+        : undefined;
       return {
         ...program,
-        assignedScaleId: assignedScale?.id,
-        assignedScaleName: assignedScale?.name,
+        assignedScaleId: scale?.id,
+        assignedScaleName: scale?.name,
       };
     });
-  }, [programs, scales]);
+  }, [programs, assignmentsByProgram, scales]);
 
-  // Get selected scale
   const selectedScale = useMemo(
     () => scales.find((s) => s.id === selectedScaleId),
     [scales, selectedScaleId],
   );
 
-  // Table columns
+  const compatibleScales = useMemo(() => {
+    if (!assignTarget) return scales;
+    return scales.filter((s) => s.programType === assignTarget.type);
+  }, [scales, assignTarget]);
+
   const programColumns = useMemo<ColumnDef<ProgramWithScale>[]>(
     () => [
       {
@@ -161,22 +203,38 @@ export function GradingScaleAssignmentSection({
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs gap-1 text-primary hover:bg-primary/10"
-            onClick={() => {
-              setAssignTarget(row.original);
-              setSelectedScaleId(row.original.assignedScaleId || "");
-            }}
-          >
-            <Check className="h-3.5 w-3.5" />
-            {row.original.assignedScaleName ? "Change" : "Assign"}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs gap-1 text-primary hover:bg-primary/10"
+              onClick={() => {
+                setAssignTarget(row.original);
+                setSelectedScaleId(row.original.assignedScaleId || "");
+              }}
+            >
+              <Check className="h-3.5 w-3.5" />
+              {row.original.assignedScaleName ? "Change" : "Assign"}
+            </Button>
+            {row.original.assignedScaleName && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  if (confirm(`Remove assignment from "${row.original.name}"?`)) {
+                    removeMutation.mutate({ programId: row.original.id });
+                  }
+                }}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
         ),
       },
     ],
-    [],
+    [removeMutation],
   );
 
   return (
@@ -213,7 +271,6 @@ export function GradingScaleAssignmentSection({
         )}
       </div>
 
-      {/* Assign Scale Modal */}
       {assignTarget && (
         <Dialog
           open={!!assignTarget}
@@ -232,7 +289,6 @@ export function GradingScaleAssignmentSection({
               </DialogTitle>
             </DialogHeader>
 
-            {/* Program Info */}
             <div className="rounded-md border bg-muted/30 p-3 space-y-2">
               <p className="text-xs text-muted-foreground">Program</p>
               <p className="font-medium text-sm">{assignTarget.name}</p>
@@ -249,30 +305,38 @@ export function GradingScaleAssignmentSection({
               </Badge>
             </div>
 
-            {/* Scale Selector */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Select Scale</label>
               <Select
                 value={selectedScaleId}
-                onValueChange={setSelectedScaleId}
+                onValueChange={(v) => setSelectedScaleId(v ?? "")}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose a grading scale..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {scales.map((scale, i) => (
-                    <SelectItem key={scale.id} value={scale.id}>
-                      <div className="flex items-center gap-2">
-                        <div className={cn("h-2 w-2 rounded-full shrink-0", ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500", "bg-orange-500", "bg-rose-500"][i % 10])} />
-                        {scale.name} ({scale.ranges.length} ranges)
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {compatibleScales.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                      No scales available for this program type
+                    </div>
+                  ) : (
+                    compatibleScales.map((scale, i) => (
+                      <SelectItem key={scale.id} value={scale.id}>
+                        <div className="flex items-center gap-2">
+                          <div className={cn("h-2 w-2 rounded-full shrink-0", [
+                            "bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500",
+                            "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500",
+                            "bg-orange-500", "bg-rose-500",
+                          ][i % 10])} />
+                          {scale.name} ({scale.ranges.length} ranges)
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Selected Scale Details */}
             {selectedScale && (
               <div className="rounded-md border bg-muted/30 p-3 space-y-2">
                 <p className="text-xs text-muted-foreground">Scale Details</p>
@@ -284,7 +348,6 @@ export function GradingScaleAssignmentSection({
               </div>
             )}
 
-            {/* Confirmation Message */}
             <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
               <p className="text-xs text-blue-900">
                 Are you sure you want to assign this grading scale to{" "}
@@ -292,7 +355,6 @@ export function GradingScaleAssignmentSection({
               </p>
             </div>
 
-            {/* Actions */}
             <DialogFooter>
               <Button
                 variant="outline"

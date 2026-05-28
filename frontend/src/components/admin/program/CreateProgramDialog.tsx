@@ -5,15 +5,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { programApi } from "@/api/admin/program.api";
 import type { ProgramType } from "@/api/admin/program.api";
+import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -83,14 +78,10 @@ export function CreateProgramDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>New Program</DialogTitle>
-        </DialogHeader>
+    <Modal open={open} onClose={handleClose} title="New Program" size="sm">
         <form
           onSubmit={handleSubmit((v) => mutation.mutate(v))}
-          className="space-y-4 mt-1"
+          className="space-y-4"
         >
           <div className="space-y-1.5">
             <Label htmlFor="prog-name">Program Name</Label>
@@ -144,7 +135,6 @@ export function CreateProgramDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }
