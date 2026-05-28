@@ -6,13 +6,7 @@ import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { studentApi } from "@/api/admin/student.api";
 import type { Student, StudentStatus } from "@/types/admin/student.types";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -68,13 +62,9 @@ export function UpdateStatusDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Update Student Status</DialogTitle>
-        </DialogHeader>
+    <Modal open={open} onClose={handleClose} title="Update Student Status" size="sm">
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>New Status</Label>
             <Select
@@ -113,7 +103,7 @@ export function UpdateStatusDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button variant="outline" onClick={handleClose} disabled={mutation.isPending}>
             Cancel
           </Button>
@@ -123,8 +113,7 @@ export function UpdateStatusDialog({
           >
             {mutation.isPending ? "Updating..." : "Update Status"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ModalFooter>
+    </Modal>
   );
 }

@@ -10,10 +10,10 @@ import type { Subject, SubjectType } from "@/types/admin/subject.types";
 import type { Level } from "@/types/admin/level.types";
 import { programApi } from "@/api/admin/program.api";
 import { levelApi } from "@/api/admin/level.api";
+import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -179,18 +179,14 @@ export function SubjectDialog({
     (isMinorSubject && !selectedLevelId);
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onOpenChange={(o) => {
-        if (!o) handleClose();
-      }}
+      onClose={handleClose}
+      title={isEdit ? "Edit Subject" : "New Subject"}
+      size="md"
     >
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Subject" : "New Subject"}</DialogTitle>
-        </DialogHeader>
 
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-1">
+        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
           {/* Subject Type — create only */}
           {!isEdit && (
             <div className="space-y-1.5">
@@ -411,7 +407,6 @@ export function SubjectDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }
