@@ -1,4 +1,3 @@
-// ===== File: frontend/src/app/admin/grading-scales/page.tsx =====
 "use client";
 
 import { useState } from "react";
@@ -17,7 +16,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import { useGradingScales } from "@/hooks/admin/useGradingScales";
+import { useGradingScales, useGradingScaleAssignments } from "@/hooks/admin/useGradingScales";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { usePrograms } from "@/hooks/admin/usePrograms";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
@@ -28,24 +27,22 @@ export default function GradingScalesPage(): React.JSX.Element {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // State
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<GradingScale | null>(null);
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
 
-  // Queries
   const { data: schoolYears = [], isLoading: schoolYearsLoading } = useSchoolYears();
   const { data: scales = [], isLoading: scalesLoading } = useGradingScales();
   const { data: programs = [], isLoading: programsLoading } = usePrograms(
     selectedSchoolYearId ?? undefined
   );
+  const { data: assignments = [] } = useGradingScaleAssignments(selectedSchoolYearId);
 
-  // Mutations
   const deleteMutation = useMutation({
     mutationFn: (id: string) => gradingScaleApi.delete(id),
     onSuccess: () => {
       toast.success("Grading scale deleted.");
-      queryClient.invalidateQueries({ queryKey: ["gradingScales"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "gradingScales"] });
       setDeleteTarget(null);
     },
     onError: (err: AxiosError<{ message: string }>) => {
@@ -99,6 +96,7 @@ export default function GradingScalesPage(): React.JSX.Element {
             schoolYears={schoolYears}
             programs={programs}
             scales={scales}
+            assignments={assignments}
             schoolYearsLoading={schoolYearsLoading}
             programsLoading={programsLoading}
             selectedSchoolYearId={selectedSchoolYearId}

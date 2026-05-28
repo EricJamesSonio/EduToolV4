@@ -3,7 +3,7 @@
 import { use, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { Pencil, KeyRound, ShieldCheck, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
@@ -13,9 +13,9 @@ import { studentEnrollmentApi } from "@/api/admin/student-enrollment.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
-import { StudentDetailHeader } from "@/components/admin/student/detail/StudentDetailHeader";
 import { StudentInfoCard } from "@/components/admin/student/detail/StudentInfoCard";
 import { StudentEnrollmentsList } from "@/components/admin/student/detail/StudentEnrollmentsList";
 import { EditStudentDialog } from "@/components/admin/student/detail/EditStudentDialog";
@@ -128,8 +128,8 @@ export default function StudentDetailPage({
 
   // ── UI ───────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* ✅ Back Button */}
+    <div className="space-y-6">
+      {/* Back button when navigated from enrollment context */}
       {backUrl && (
         <Button
           variant="ghost"
@@ -142,11 +142,29 @@ export default function StudentDetailPage({
         </Button>
       )}
 
-      <StudentDetailHeader
-        student={student}
-        onEdit={() => setEditOpen(true)}
-        onResetPassword={() => setResetOpen(true)}
-        onUpdateStatus={() => setStatusOpen(true)}
+      <PageHeader
+        title={student.fullName}
+        breadcrumbs={[
+          { label: "Admin" },
+          { label: "Students", href: "/admin/students" },
+          { label: student.fullName },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setStatusOpen(true)}>
+              <ShieldCheck className="mr-1.5 h-4 w-4" />
+              Status
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setResetOpen(true)}>
+              <KeyRound className="mr-1.5 h-4 w-4" />
+              Reset Password
+            </Button>
+            <Button size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="mr-1.5 h-4 w-4" />
+              Edit
+            </Button>
+          </div>
+        }
       />
 
       <StudentInfoCard

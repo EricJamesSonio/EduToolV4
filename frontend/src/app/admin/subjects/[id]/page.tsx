@@ -3,160 +3,26 @@
 
 import { use, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ChevronLeft, Pencil, Lock, LockOpen,
-  AlertTriangle, Eye, Share2, X, BookOpen,
+  Pencil, Lock, LockOpen,
+  AlertTriangle, Eye, Share2, X,
 } from "lucide-react";
 import { subjectApi } from "@/api/admin/subject.api";
-import type { UpdateSubjectRequest } from "@/api/admin/subject.api";
 import { levelApi } from "@/api/admin/level.api";
 import { educatorApi } from "@/api/admin/educator.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { useUnshareSubject } from "@/hooks/admin/useSubject";
 import type { Subject, SubjectSharing } from "@/types/admin/subject.types";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { ShareSubjectDialog } from "@/components/admin/subject/ShareSubjectDialog";
+import { EditSubjectDialog } from "@/components/admin/subject/EditSubjectDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import type { AxiosError } from "axios";
-import type { Level } from "@/types/admin/level.types";
-
-// ─── Edit Dialog ──────────────────────────────────────────────────────────────
-
-interface EditSubjectForm {
-  name:       string;
-  levelId:    string;
-  educatorId: string;
-}
-
-function EditSubjectDialog({
-  subject,
-  levels,
-  educators,
-  open,
-  onClose,
-}: {
-  subject:   Subject;
-  levels:    Level[];
-  educators: { id: string; fullName: string }[];
-  open:      boolean;
-  onClose:   () => void;
-}): React.JSX.Element {
-  const queryClient = useQueryClient();
-
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } =
-    useForm<EditSubjectForm>({
-    defaultValues: {
-      name:       subject.title,
-      levelId:    subject.levelId ?? "",     // ← fix
-      educatorId: subject.educatorId ?? "",
-    }
-    });
-
-  const selectedLevelId    = watch("levelId");
-  const selectedEducatorId = watch("educatorId");
-
-  const mutation = useMutation({
-    mutationFn: (values: EditSubjectForm) =>
-      subjectApi.update(subject.id, {
-        name:       values.name,
-        levelId:    values.levelId    || undefined,
-        educatorId: values.educatorId || undefined,
-      } as UpdateSubjectRequest),
-    onSuccess: () => {
-      toast.success("Subject updated.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects", subject.id] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
-      onClose();
-    },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to update subject.");
-    },
-  });
-
-  const handleClose = () => { reset(); onClose(); };
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Edit Subject</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-1">
-          <div className="space-y-1.5">
-            <Label>Subject Name</Label>
-            <Input
-              {...register("name", {
-                required:  "Name is required",
-                minLength: { value: 2,   message: "At least 2 characters" },
-                maxLength: { value: 100, message: "Max 100 characters" },
-              })}
-            />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Level</Label>
-            <Select value={selectedLevelId} onValueChange={(v) => setValue("levelId", v ?? "")}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a level">
-                  {levels.find((l) => l.id === selectedLevelId)?.name ?? "Select a level"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">— None —</SelectItem>
-                {levels.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>
-              Assigned Educator{" "}
-              <span className="text-muted-foreground font-normal">(optional)</span>
-            </Label>
-            <Select value={selectedEducatorId} onValueChange={(v) => setValue("educatorId", v ?? "")}>
-              <SelectTrigger>
-                <SelectValue placeholder="Unassigned">
-                  {educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Unassigned"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
-                {educators.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>{e.fullName}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={mutation.isPending}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Saving..." : "Save Changes"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ─── Sharings Section ─────────────────────────────────────────────────────────
 
@@ -355,58 +221,33 @@ export default function SubjectDetailPage({
   const levelDisplayName = subject.levelName ?? subject.programName ?? null;
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      {/* Breadcrumb */}
-      <Link
-        href="/admin/subjects"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        Subjects
-      </Link>
-
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="icon-container icon-edu shrink-0 mt-0.5">
-            <BookOpen className="h-5 w-5" />
+    <div className="space-y-6">
+      <PageHeader
+        title={subject.title}
+        breadcrumbs={[
+          { label: "Admin" },
+          { label: "Subjects", href: "/admin/subjects" },
+          { label: subject.title },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            {!isLocked && (
+              <Button size="sm" onClick={() => setEditOpen(true)}>
+                <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
+              </Button>
+            )}
+            {isLocked ? (
+              <Button variant="outline" size="sm" onClick={() => setUnlockConfirm(true)}>
+                <LockOpen className="mr-1.5 h-3.5 w-3.5" /> Unlock
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => setLockConfirm(true)}>
+                <Lock className="mr-1.5 h-3.5 w-3.5" /> Lock
+              </Button>
+            )}
           </div>
-          <div className="space-y-1.5">
-            <h1 className="text-2xl font-semibold">{subject.title}</h1>
-            <div className="flex items-center gap-2">
-              <span className={cn(
-                "inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full",
-                isLocked
-                  ? "bg-muted text-muted-foreground"
-                  : "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400",
-              )}>
-                {isLocked ? <Lock className="h-3 w-3" /> : <LockOpen className="h-3 w-3" />}
-                {isLocked ? "Locked" : "Unlocked"}
-              </span>
-              <Badge variant={isMinor ? "outline" : "secondary"} className="text-xs font-normal capitalize">
-                {subject.subjectType}
-              </Badge>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {!isLocked && (
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-              <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
-            </Button>
-          )}
-          {isLocked ? (
-            <Button variant="outline" size="sm" onClick={() => setUnlockConfirm(true)}>
-              <LockOpen className="mr-1.5 h-3.5 w-3.5" /> Unlock
-            </Button>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => setLockConfirm(true)}>
-              <Lock className="mr-1.5 h-3.5 w-3.5" /> Lock
-            </Button>
-          )}
-        </div>
-      </div>
+        }
+      />
 
       {/* Locked banner */}
       {isLocked && (
