@@ -7,15 +7,10 @@ import { toast } from "sonner";
 
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 import type { SchoolYear } from "@/types/admin/school-year.types";
 import type { ShortDurationWarning } from "./types/types";
@@ -83,13 +78,9 @@ export function EditSchoolYearDialog({ schoolYear, open, onClose }: Props): Reac
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Edit School Year</DialogTitle>
-          </DialogHeader>
+      <Modal open={open} onClose={onClose} title="Edit School Year" size="sm">
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-1">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="sy-name">Title</Label>
               <Input
@@ -136,8 +127,7 @@ export function EditSchoolYearDialog({ schoolYear, open, onClose }: Props): Reac
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+      </Modal>
 
       <ConfirmDialog
         open={!!shortDurationWarning}

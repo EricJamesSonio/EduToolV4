@@ -6,7 +6,7 @@ import type { AxiosError } from "axios";
 import { useUpdateProgram } from "@/hooks/admin/useProgram";
 import { mapToApiProgramType } from "@/utils/programType.mapper"; // ✅ IMPORT MAPPER
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,13 +85,9 @@ export function EditProgramDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Edit Program</DialogTitle>
-        </DialogHeader>
+    <Modal open={open} onClose={handleClose} title="Edit Program" size="sm">
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-1">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Name */}
           <div className="space-y-1.5">
             <Label>Program Name</Label>
@@ -146,7 +142,6 @@ export function EditProgramDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }

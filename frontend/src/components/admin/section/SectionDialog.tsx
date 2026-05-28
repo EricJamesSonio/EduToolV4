@@ -22,11 +22,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Modal,
+  ModalBody,
+  ModalFooter,
+} from "@/components/shared/Modal";
 
 import {
   Select,
@@ -199,18 +198,14 @@ export function SectionDialog({
     !!selectedLevelId;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? "Edit Section" : "New Section"}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form
-          onSubmit={handleSubmit((v) => mutation.mutate(v))}
-          className="space-y-4 mt-1"
-        >
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title={isEdit ? "Edit Section" : "New Section"}
+      size="lg"
+    >
+      <form onSubmit={handleSubmit((v) => mutation.mutate(v))}>
+        <ModalBody>
           {/* Program */}
           {!isEdit && (
             <div className="space-y-1.5">
@@ -370,31 +365,30 @@ export function SectionDialog({
               })}
             />
           </div>
+        </ModalBody>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={mutation.isPending}
-            >
-              Cancel
-            </Button>
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={mutation.isPending}
+          >
+            Cancel
+          </Button>
 
-            <Button
-              type="submit"
-              disabled={mutation.isPending || (!isEdit && !canSubmit)}
-            >
-              {mutation.isPending
-                ? "Saving..."
-                : isEdit
-                ? "Save Changes"
-                : "Create Section"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <Button
+            type="submit"
+            disabled={mutation.isPending || (!isEdit && !canSubmit)}
+          >
+            {mutation.isPending
+              ? "Saving..."
+              : isEdit
+              ? "Save Changes"
+              : "Create Section"}
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }

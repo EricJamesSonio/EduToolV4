@@ -11,15 +11,10 @@ import type { AxiosError } from "axios";
 import { studentApi } from "@/api/admin/student.api";
 import type { CreateStudentRequest } from "@/api/admin/student.api";
 import { useOrganization } from "@/hooks/admin/useOrganization";
+import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { buildFullEmail } from "@/lib/email/buildFullEmail";
 
 interface CredentialsPreview {
@@ -132,18 +127,14 @@ export function CreateStudentDialog({
 
   if (credentials) {
     return (
-      <Dialog
+      <Modal
         open={open}
-        onOpenChange={(o) => {
-          if (!o) handleClose();
-        }}
+        onClose={handleClose}
+        title="Student Created"
+        size="sm"
       >
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Student Created</DialogTitle>
-          </DialogHeader>
 
-          <div className="space-y-3 mt-1">
+          <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               Save these credentials — the password won&apos;t
               be shown again.
@@ -185,8 +176,7 @@ export function CreateStudentDialog({
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </Modal>
     );
   }
 
@@ -195,22 +185,18 @@ export function CreateStudentDialog({
   // ───────────────────────────────────────────────────────────────────────────
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onOpenChange={(o) => {
-        if (!o) handleClose();
-      }}
+      onClose={handleClose}
+      title="New Student"
+      size="md"
     >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>New Student</DialogTitle>
-        </DialogHeader>
 
         <form
           onSubmit={handleSubmit((v) =>
             mutation.mutate(v)
           )}
-          className="space-y-4 mt-1"
+          className="space-y-4"
         >
           {/* Full Name */}
           <div className="space-y-1.5">
@@ -315,8 +301,7 @@ export function CreateStudentDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }
 
