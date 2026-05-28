@@ -137,9 +137,9 @@ model Program {
   levels             Level[]
   subjects           Subject[]
   studentEnrollments StudentProgramEnrollment[]
-  semesterAssignment ProgramSemesterAssignment?
-  gradingScales      GradingScale[]
-  programCalendars   ProgramCalendar[]
+  semesterAssignment      ProgramSemesterAssignment?
+  gradingScaleAssignments GradingScaleAssignment[]
+  programCalendars        ProgramCalendar[]
 }
 
 model Course {
@@ -225,8 +225,8 @@ model SchoolYear {
   strands            Strand[]
   levels             Level[]
   sections           Section[]
-  gradingScales      GradingScale[]
-  studentEnrollments StudentSchoolYear[]
+  gradingScaleAssignments GradingScaleAssignment[]
+  studentEnrollments      StudentSchoolYear[]
   semesters          Semester[]
   classes            Class[]
   academicCalendars  AcademicCalendar[]
@@ -571,21 +571,32 @@ model OrgHolidayConfig {
 //////////////////////
 
 model GradingScale {
-  id             String    @id @default(uuid())
-  org_id         String
-  school_year_id String
-  program_id     String
-  name           String
-  ranges         Json
-  is_locked      Boolean   @default(false)
-  locked_at      DateTime?
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  org_id       String
+  name         String
+  program_type String
+  ranges       Json
+  is_locked    Boolean   @default(false)
+  locked_at    DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
 
-  schoolYear SchoolYear @relation(fields: [school_year_id], references: [id])
-  program    Program    @relation(fields: [program_id], references: [id])
+  assignments GradingScaleAssignment[]
+}
 
-  @@unique([school_year_id, program_id])
+model GradingScaleAssignment {
+  id               String       @id @default(uuid())
+  org_id           String
+  grading_scale_id String
+  program_id       String
+  school_year_id   String
+  created_at       DateTime     @default(now())
+
+  grading_scale GradingScale @relation(fields: [grading_scale_id], references: [id], onDelete: Cascade)
+  program       Program      @relation(fields: [program_id], references: [id])
+  school_year   SchoolYear   @relation(fields: [school_year_id], references: [id])
+
+  @@unique([program_id, school_year_id])
 }
 
 //////////////////////

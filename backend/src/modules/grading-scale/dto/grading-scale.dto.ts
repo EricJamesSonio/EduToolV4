@@ -27,28 +27,27 @@ export class GradeRangeDto {
   @IsString()
   @MinLength(1)
   @MaxLength(20)
-  gradeValue!: string; // e.g. "1.0", "A", "Excellent"
+  gradeValue!: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  remark!: string; // e.g. "Passed", "Failed", "Incomplete"
+  remark!: string;
 
   @IsBoolean()
   isPassing!: boolean;
 }
 
 export class CreateGradingScaleDto {
-  @IsUUID()
-  programId!: string;
-
-  @IsUUID()
-  schoolYearId!: string;
-
   @IsString()
   @MinLength(2)
   @MaxLength(100)
   name!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  programType!: string;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -73,14 +72,13 @@ export class UpdateGradingScaleDto {
 export class AssignGradingScaleDto {
   @IsUUID()
   scaleId!: string;
+
+  @IsUUID()
+  schoolYearId!: string;
 }
 
 export class QueryGradingScaleDto {
   @IsOptional()
-  @IsUUID()
-  programId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  schoolYearId?: string;
+  @IsString()
+  programType?: string;
 }

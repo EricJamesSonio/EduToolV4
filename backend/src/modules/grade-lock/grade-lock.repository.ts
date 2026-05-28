@@ -275,13 +275,17 @@ export class GradeLockRepository {
     })
     if (!level) return
 
-    await this.db.gradingScale.updateMany({
+    const assignment = await this.db.gradingScaleAssignment.findFirst({
       where: {
         org_id: orgId,
         program_id: level.program_id,
         school_year_id: level.school_year_id,
-        is_locked: false,
       },
+    })
+    if (!assignment) return
+
+    await this.db.gradingScale.update({
+      where: { id: assignment.grading_scale_id },
       data: { is_locked: true, locked_at: new Date() },
     })
   }
