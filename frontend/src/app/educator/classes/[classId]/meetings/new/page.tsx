@@ -3,13 +3,15 @@
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Save, ArrowLeft, Users, UserCheck } from "lucide-react";
+import { Save, ArrowLeft, Users, UserCheck, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { WEEK_COLORS } from "@/lib/palette";
+import { cn } from "@/lib/utils";
 import { useCreateMeeting, useEnrolledStudents } from "@/hooks/educator/useMeeting";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { AxiosError } from "axios";
@@ -70,7 +72,7 @@ export default function NewMeetingPage({ params }: Props) {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
       <PageHeader
         title="New Meeting"
         breadcrumbs={[
@@ -80,6 +82,16 @@ export default function NewMeetingPage({ params }: Props) {
       />
 
       <div className="space-y-5 rounded-lg border bg-card p-6">
+        <div className="flex items-center gap-3 pb-2">
+          <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[0])}>
+            <Video className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-semibold">Meeting Details</h2>
+            <p className="text-xs text-muted-foreground">Schedule a new live session</p>
+          </div>
+        </div>
+
         {/* Title */}
         <div className="space-y-1.5">
           <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
@@ -119,17 +131,27 @@ export default function NewMeetingPage({ params }: Props) {
 
         {/* Invite */}
         <div className="space-y-3">
-          <Label>Invite Students</Label>
+          <div className="flex items-center gap-3 pt-2">
+            <div className={cn("rounded-md p-2 shrink-0", WEEK_COLORS[1])}>
+              <Users className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Invite Students</p>
+              <p className="text-xs text-muted-foreground">Choose who can join this meeting</p>
+            </div>
+          </div>
 
           {/* All students toggle */}
           <div
-            className="flex items-center gap-3 rounded-md border px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors"
+            className="flex items-center gap-3 rounded-md border bg-card px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors"
             onClick={() => setInviteAll(true)}
           >
             <div className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${inviteAll ? "border-primary bg-primary" : "border-muted-foreground"}`}>
               {inviteAll && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
             </div>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <div className={cn("rounded-md p-1.5", WEEK_COLORS[2])}>
+              <Users className="h-4 w-4" />
+            </div>
             <div>
               <p className="text-sm font-medium">All enrolled students</p>
               <p className="text-xs text-muted-foreground">{students.length} student{students.length !== 1 ? "s" : ""}</p>
@@ -138,14 +160,19 @@ export default function NewMeetingPage({ params }: Props) {
 
           {/* Select specific */}
           <div
-            className="flex items-center gap-3 rounded-md border px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors"
+            className="flex items-center gap-3 rounded-md border bg-card px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors"
             onClick={() => setInviteAll(false)}
           >
             <div className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${!inviteAll ? "border-primary bg-primary" : "border-muted-foreground"}`}>
               {!inviteAll && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
             </div>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-medium">Select specific students</p>
+            <div className={cn("rounded-md p-1.5", WEEK_COLORS[3])}>
+              <UserCheck className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Select specific students</p>
+              <p className="text-xs text-muted-foreground">Hand-pick participants</p>
+            </div>
           </div>
 
           {/* Student checklist */}

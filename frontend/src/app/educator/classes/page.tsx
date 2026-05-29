@@ -3,7 +3,9 @@
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Clock, Users } from "lucide-react";
+import { BookOpen, Clock, Eye } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 
 import { subjectApi } from "@/api/admin/subject.api";
 import { sectionApi } from "@/api/admin/section.api";
@@ -20,6 +22,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 import type { EducatorClass } from "@/types/educator/class.types";
 import type { Subject } from "@/types/admin/subject.types";
@@ -39,14 +42,14 @@ interface EnrichedClass extends EducatorClass {
 function ClassCard({
   cls,
   onClick,
+  colorIndex = 0,
 }: {
   cls: EnrichedClass;
   onClick: () => void;
+  colorIndex?: number;
 }): React.JSX.Element {
   const schedule = formatSchedules(cls.schedules);
 
-  // Build a readable context label: e.g. "BSCS · 1st Year · Section A"
-  // or "Elementary · Grade 3 · Section A"
   const contextParts = [
     cls.courseName ?? cls.strandName ?? cls.programName,
     cls.levelName,
@@ -54,67 +57,69 @@ function ClassCard({
   ].filter(Boolean);
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-left rounded-lg border bg-card px-5 py-4 hover:border-primary/40 hover:bg-accent/30 transition-colors group"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 space-y-1.5">
-          <p className="font-semibold text-base group-hover:text-primary transition-colors truncate">
+    <div className="rounded-xl border bg-card p-6 space-y-4">
+      <div className="flex items-start gap-3">
+        <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[colorIndex % WEEK_COLORS.length])}>
+          <BookOpen className="h-4 w-4" />
+        </div>
+        <div className="flex-1 min-w-0 space-y-1">
+          <h3 className="font-semibold text-lg leading-tight truncate">
             {cls.subjectName ?? cls.subject_id}
-          </p>
-
-          {/* Context line — program / level / section */}
-          {contextParts.length > 0 && (
-            <p className="text-xs font-medium text-primary/80 truncate">
-              {contextParts.join(" · ")}
-            </p>
-          )}
-
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            {cls.sectionName && (
-              <span className="flex items-center gap-1">
-                <Users className="h-3.5 w-3.5 shrink-0" />
-                {cls.sectionName}
-              </span>
+          </h3>
+          <div className="space-y-0.5">
+            {contextParts.length > 0 && (
+              <p className="text-sm text-muted-foreground truncate">
+                {contextParts.join(" · ")}
+              </p>
             )}
             {schedule !== "No schedule" && (
-              <span className="flex items-center gap-1">
+              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 shrink-0" />
-                {schedule}
-              </span>
+                <span className="truncate">{schedule}</span>
+              </p>
             )}
           </div>
         </div>
+        {cls.semesterName && (
+          <Badge variant="secondary" className="text-xs font-normal shrink-0 mt-0.5">
+            {cls.semesterName}
+          </Badge>
+        )}
+      </div>
 
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          {cls.semesterName && (
-            <Badge variant="secondary" className="text-xs font-normal">
-              {cls.semesterName}
-            </Badge>
-          )}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
           {cls.schoolYearName && (
-            <span className="text-xs text-muted-foreground">
-              {cls.schoolYearName}
-            </span>
+            <span className="text-xs text-muted-foreground">{cls.schoolYearName}</span>
           )}
           {cls.capacity > 0 && (
-            <span className="text-xs text-muted-foreground">
-              Cap: {cls.capacity}
-            </span>
+            <span className="text-xs text-muted-foreground">Cap: {cls.capacity}</span>
           )}
         </div>
+        <Button variant="outline" size="sm" onClick={onClick}>
+          <Eye className="mr-1.5 h-3.5 w-3.5" />
+          View
+        </Button>
       </div>
-    </button>
+    </div>
   );
 }
 
 function ClassCardSkeleton(): React.JSX.Element {
   return (
-    <div className="rounded-lg border bg-card px-5 py-4 space-y-2">
-      <Skeleton className="h-5 w-48" />
-      <Skeleton className="h-4 w-32" />
-      <Skeleton className="h-4 w-64" />
+    <div className="rounded-xl border bg-card p-6 space-y-4">
+      <div className="flex items-start gap-3">
+        <Skeleton className="h-9 w-9 rounded-md shrink-0" />
+        <div className="flex-1 space-y-1">
+          <Skeleton className="h-5 w-44" />
+          <Skeleton className="h-4 w-52" />
+        </div>
+        <Skeleton className="h-5 w-16 rounded-md shrink-0" />
+      </div>
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-8 w-20 rounded-md" />
+      </div>
     </div>
   );
 }
@@ -247,7 +252,7 @@ export default function EducatorClassesPage(): React.JSX.Element {
       />
 
       {classesLoading ? (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
             <ClassCardSkeleton key={i} />
           ))}
@@ -259,11 +264,12 @@ export default function EducatorClassesPage(): React.JSX.Element {
           description="You have no active classes yet. Contact your administrator."
         />
       ) : (
-        <div className="space-y-2">
-          {classes.map((cls) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {classes.map((cls, i) => (
             <ClassCard
               key={cls.id}
               cls={cls}
+              colorIndex={i}
               onClick={() => router.push(`/educator/classes/${cls.id}`)}
             />
           ))}
