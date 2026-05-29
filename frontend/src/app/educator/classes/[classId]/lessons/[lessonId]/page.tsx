@@ -28,7 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { UpdateLessonRequest, CreateLessonRequest } from "@/api/educator/lesson.api";
-import { Pencil, Trash2, Loader2, RotateCcw } from "lucide-react";
+import { Pencil, Trash2, Loader2, RotateCcw, Presentation } from "lucide-react";
 
 export default function LessonDetailPage(): React.JSX.Element {
   const params = useParams();
@@ -177,11 +177,25 @@ export default function LessonDetailPage(): React.JSX.Element {
                     Delete Lesson
                   </AlertDialogAction>
                 </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </>
-        }
-      />
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <Button
+                variant="default"
+                size="sm"
+                className="gap-1.5"
+                onClick={() =>
+                  router.push(
+                    `/educator/classes/${classId}/presentations/new?lessonId=${lessonId}`
+                  )
+                }
+              >
+                <Presentation className="h-3.5 w-3.5" />
+                Create Presentation
+              </Button>
+            </>
+          }
+        />
 
       {/* Re-extract banner */}
       {showReExtractBanner && (

@@ -5,9 +5,10 @@ import { ClassModule } from '@/modules/class/class.module'
 import { LessonModule } from '@/modules/lesson/lesson.module'
 import { AttendanceModule } from '@/modules/attendance/attendance.module'
 import { SubjectPrerequisiteModule } from '@/modules/subject-prerequisite/subject-prerequisite.module'
+import { PresentationModule } from '@/modules/presentation/presentation.module'
 
 @Module({
-  imports: [ClassModule, LessonModule, AttendanceModule, SubjectPrerequisiteModule],
-  exports: [ClassModule, LessonModule, AttendanceModule, SubjectPrerequisiteModule],
+  imports: [ClassModule, LessonModule, AttendanceModule, SubjectPrerequisiteModule, PresentationModule],
+  exports: [ClassModule, LessonModule, AttendanceModule, SubjectPrerequisiteModule, PresentationModule],
 })
 export class ClassDomainModule {}

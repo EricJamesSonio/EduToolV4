@@ -1,11 +1,19 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRoleGuard } from "@/hooks/useRole";
 import { StudentSidebar } from "@/components/layout/StudentSidebar";
 import { AppShell } from "@/components/layout/AppShell";
 import { SidebarProvider } from "@/context/SidebarContext";
-import { MeetingProvider } from "@/hooks/meeting/MeetingContext";
-import { MeetingMiniPlayer } from "@/components/meeting/MeetingMiniPlayer";
+
+const MeetingProvider = dynamic(
+  () => import("@/hooks/meeting/MeetingContext").then((m) => m.MeetingProvider),
+  { ssr: false }
+);
+const MeetingMiniPlayer = dynamic(
+  () => import("@/components/meeting/MeetingMiniPlayer").then((m) => m.MeetingMiniPlayer),
+  { ssr: false }
+);
 
 export default function StudentLayout({
   children,

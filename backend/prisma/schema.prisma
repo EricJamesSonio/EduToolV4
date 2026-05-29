@@ -692,6 +692,39 @@ model LessonConcept {
   lesson Lesson @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
 }
 
+// ── PRESENTATIONS ──────────────────────────────────────────────────────────
+
+model Presentation {
+  id          String   @id @default(uuid())
+  org_id      String
+  class_id    String
+  lesson_id   String
+  title       String
+  template    String   @default("modern")
+  settings    Json     @default("{}")
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  slides Slide[]
+
+  @@map("presentations")
+}
+
+model Slide {
+  id             String   @id @default(uuid())
+  presentation_id String
+  slide_number   Int
+  title          String?
+  content        String
+  lesson_section String?
+  created_at     DateTime @default(now())
+
+  presentation Presentation @relation(fields: [presentation_id], references: [id], onDelete: Cascade)
+
+  @@unique([presentation_id, slide_number])
+  @@map("slides")
+}
+
 //////////////////////
 // ASSESSMENTS
 //////////////////////
