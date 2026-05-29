@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -59,11 +57,7 @@ export function EducatorCredentialsCard({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
+    <Modal open={open} onClose={onClose} title={title} size="md">
 
         <div className="space-y-4 py-2">
           <p className="text-sm text-muted-foreground">
@@ -101,8 +95,7 @@ export function EducatorCredentialsCard({
 
           <Button className="w-full" onClick={onClose}>Done</Button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }
 

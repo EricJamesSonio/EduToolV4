@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { PROGRAM_TYPE_COLORS, PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
 import { WEEK_COLORS } from "@/lib/palette";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
 import type { GradingScale } from "@/types/admin/grading-scale.types";
@@ -56,7 +57,7 @@ export function GradingScaleList({
     mutationFn: (id: string) => gradingScaleApi.delete(id),
     onSuccess: () => {
       toast.success("Grading scale deleted.");
-      queryClient.invalidateQueries({ queryKey: ["gradingScales"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "gradingScales"] });
       setDeleteTarget(null);
     },
     onError: (e) => {
@@ -117,6 +118,17 @@ export function GradingScaleList({
                 <p className="text-sm font-medium truncate">{scale.name}</p>
               </div>
               <div className="flex items-center gap-3">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-xs border px-2 py-0.5 font-normal",
+                    PROGRAM_TYPE_COLORS[
+                      scale.programType as keyof typeof PROGRAM_TYPE_COLORS
+                    ] ?? "",
+                  )}
+                >
+                  {PROGRAM_TYPE_LABELS[scale.programType as keyof typeof PROGRAM_TYPE_LABELS] ?? scale.programType}
+                </Badge>
                 <span className="text-xs text-muted-foreground">
                   {scale.ranges.length} range{scale.ranges.length !== 1 ? "s" : ""}
                 </span>
@@ -166,7 +178,7 @@ export function GradingScaleList({
                     return (
                       <div key={idx} className="flex items-center justify-between text-xs">
                         <span className={cn("font-medium", c[0])}>
-                          {range.name} ({range.minPercent}–{range.maxPercent}%)
+                          {range.gradeValue} ({range.minPercent}–{range.maxPercent}%)
                         </span>
                         <div className="flex items-center gap-2">
                           {range.isPassing && (

@@ -17,6 +17,10 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Loader2, Users, CheckCircle2, Ban, XCircle, UserPlus, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Submission, SubmissionStatus } from "@/types/educator/submission.types";
@@ -142,29 +146,26 @@ export default function SubmissionsPage(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link href={`/educator/classes/${classId}/assessments`} className="hover:text-foreground transition-colors">Assessments</Link>
-            <span>/</span>
-            <Link href={`/educator/classes/${classId}/assessments/${assessmentId}`} className="hover:text-foreground transition-colors">{assessment?.title ?? "..."}</Link>
-            <span>/</span>
-            <span className="text-foreground font-medium">Submissions</span>
+      <PageHeader
+        title="Submissions"
+        breadcrumbs={[
+          { label: "Assessments", href: `/educator/classes/${classId}/assessments` },
+          { label: assessment?.title ?? "...", href: `/educator/classes/${classId}/assessments/${assessmentId}` },
+          { label: "Submissions" },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handlePublishAll} disabled={isPublishing}>
+              {isPublishing && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+              Publish All
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleUnpublishAll} disabled={isUnpublishing}>
+              {isUnpublishing && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+              Unpublish All
+            </Button>
           </div>
-          <h1 className="text-xl font-semibold">Submissions</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handlePublishAll} disabled={isPublishing}>
-            {isPublishing && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-            Publish All
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleUnpublishAll} disabled={isUnpublishing}>
-            {isUnpublishing && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-            Unpublish All
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1 flex-wrap">
@@ -200,77 +201,75 @@ export default function SubmissionsPage(): React.JSX.Element {
       ) : !filteredSubmissions?.length ? (
         <p className="text-sm text-muted-foreground py-8 text-center">No submissions match this filter.</p>
       ) : (
-        <div className="rounded-lg border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Student</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Score</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Published</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Essay</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filteredSubmissions.map((sub) => (
-                <tr key={sub.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="font-medium">{sub.studentName}</p>
-                    <p className="text-xs text-muted-foreground">{sub.studentCode}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_STYLES[sub.status] ?? STATUS_STYLES.custom)}>
-                      {getStatusLabel(sub)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {(() => {
-                      if (sub.isExempted) return <span className="text-muted-foreground">&mdash;</span>;
-                      const earned = sub.manualScore ?? sub.manualSectionScore ?? sub.score;
-                      if (earned !== null) return `${earned} / ${sub.totalPoints}`;
-                      return <span className="text-muted-foreground">&mdash;</span>;
-                    })()}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn("text-xs font-medium", sub.isPublished ? "text-green-600" : "text-muted-foreground")}>
-                      {sub.isPublished ? "Yes" : "No"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {hasManualQuestions ? (
-                      sub.manualSectionScore != null ? (
-                        <span className="text-xs text-green-600">Graded</span>
-                      ) : (
-                        <span className="text-xs text-amber-600">Pending</span>
-                      )
-                    ) : hasEssayQuestions ? (
-                      sub.essayGraded ? (
-                        <span className="text-xs text-green-600">Graded</span>
-                      ) : (
-                        <span className="text-xs text-amber-600">Pending</span>
-                      )
-                    ) : "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 justify-end">
-                      {(hasEssayQuestions || hasManualQuestions) && sub.status === "submitted" && (
-                        <Link href={`/educator/classes/${classId}/assessments/${assessmentId}/submissions/${sub.id}/review`}>
-                          <Button variant="ghost" size="sm">
-                            {hasManualQuestions && sub.manualSectionScore == null ? "Grade" : "Review"}
-                          </Button>
-                        </Link>
-                      )}
-                      {sub.status === "not_started" && (
-                        <Button variant="ghost" size="sm" onClick={() => setStatusTarget(sub)}>Set Status</Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="px-4 py-3">Student</TableHead>
+              <TableHead className="px-4 py-3">Status</TableHead>
+              <TableHead className="px-4 py-3">Score</TableHead>
+              <TableHead className="px-4 py-3">Published</TableHead>
+              <TableHead className="px-4 py-3">Essay</TableHead>
+              <TableHead className="px-4 py-3" />
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y">
+            {filteredSubmissions.map((sub) => (
+              <TableRow key={sub.id} className="hover:bg-muted/20">
+                <TableCell className="px-4 py-3">
+                  <p className="font-medium">{sub.studentName}</p>
+                  <p className="text-xs text-muted-foreground">{sub.studentCode}</p>
+                </TableCell>
+                <TableCell className="px-4 py-3">
+                  <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_STYLES[sub.status] ?? STATUS_STYLES.custom)}>
+                    {getStatusLabel(sub)}
+                  </span>
+                </TableCell>
+                <TableCell className="px-4 py-3">
+                  {(() => {
+                    if (sub.isExempted) return <span className="text-muted-foreground">&mdash;</span>;
+                    const earned = sub.manualScore ?? sub.manualSectionScore ?? sub.score;
+                    if (earned !== null) return `${earned} / ${sub.totalPoints}`;
+                    return <span className="text-muted-foreground">&mdash;</span>;
+                  })()}
+                </TableCell>
+                <TableCell className="px-4 py-3">
+                  <span className={cn("text-xs font-medium", sub.isPublished ? "text-green-600" : "text-muted-foreground")}>
+                    {sub.isPublished ? "Yes" : "No"}
+                  </span>
+                </TableCell>
+                <TableCell className="px-4 py-3">
+                  {hasManualQuestions ? (
+                    sub.manualSectionScore != null ? (
+                      <span className="text-xs text-green-600">Graded</span>
+                    ) : (
+                      <span className="text-xs text-amber-600">Pending</span>
+                    )
+                  ) : hasEssayQuestions ? (
+                    sub.essayGraded ? (
+                      <span className="text-xs text-green-600">Graded</span>
+                    ) : (
+                      <span className="text-xs text-amber-600">Pending</span>
+                    )
+                  ) : "—"}
+                </TableCell>
+                <TableCell className="px-4 py-3">
+                  <div className="flex items-center gap-1 justify-end">
+                    {(hasEssayQuestions || hasManualQuestions) && sub.status === "submitted" && (
+                      <Link href={`/educator/classes/${classId}/assessments/${assessmentId}/submissions/${sub.id}/review`}>
+                        <Button variant="ghost" size="sm">
+                          {hasManualQuestions && sub.manualSectionScore == null ? "Grade" : "Review"}
+                        </Button>
+                      </Link>
+                    )}
+                    {sub.status === "not_started" && (
+                      <Button variant="ghost" size="sm" onClick={() => setStatusTarget(sub)}>Set Status</Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
 
       {/* Dialogs */}

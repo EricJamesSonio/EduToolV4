@@ -4,7 +4,7 @@ import { use, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-// Add import
+import { Pencil, Archive, AlertTriangle } from "lucide-react";
 import { useGradingSchemeByClass } from "@/hooks/admin/useGradingSchemes";
 import { classApi } from "@/api/admin/class.api";
 import { subjectApi } from "@/api/admin/subject.api";
@@ -15,10 +15,11 @@ import { sectionApi } from "@/api/admin/section.api";
 import type { EnrollmentResponse } from "@/api/admin/class.api";
 import type { Class } from "@/types/admin/class.types";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { toArray } from "@/utils/classes.utils";
 
-import { ClassDetailHeader } from "@/components/admin/class/detail/ClassDetailHeader";
 import { ClassInfoCard } from "@/components/admin/class/detail/ClassInfoCard";
 import { EnrolledStudentsList } from "@/components/admin/class/detail/EnrolledStudentsList";
 import { EditClassDialog } from "@/components/admin/class/detail/EditClassDialog";
@@ -160,11 +161,42 @@ const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClas
 
   return (
    <div className="space-y-6">
-      <ClassDetailHeader
-        cls={enrichedCls}
-        onEdit={() => setEditOpen(true)}
-        onArchive={() => setArchiveConfirm(true)}
+      <PageHeader
+        title={enrichedCls.subjectName ?? "Unnamed Class"}
+        breadcrumbs={[
+          { label: "Admin" },
+          { label: "Classes", href: "/admin/classes" },
+          { label: enrichedCls.subjectName ?? "Unnamed Class" },
+        ]}
+        actions={
+          !isArchived && (
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => setEditOpen(true)}>
+                <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive border-destructive/20 hover:bg-destructive/10"
+                onClick={() => setArchiveConfirm(true)}
+              >
+                <Archive className="mr-1.5 h-3.5 w-3.5" /> Archive
+              </Button>
+            </div>
+          )
+        }
       />
+
+      {isArchived && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          This class is archived and read-only.
+        </div>
+      )}
+
+      <div className="text-sm text-muted-foreground -mt-4">
+        {[enrichedCls.semesterName, enrichedCls.sectionName].filter(Boolean).join(" · ")}
+      </div>
 
       <ClassInfoCard cls={enrichedCls} enrolledCount={enrolledCount} />
 

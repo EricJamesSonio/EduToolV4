@@ -9,17 +9,11 @@ import { Search } from "lucide-react";
 import { classApi } from "@/api/admin/class.api";
 import { studentApi } from "@/api/admin/student.api";
 
+import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 
 import { toArray } from "../utils/classDetail.utils";
 
@@ -71,14 +65,13 @@ export function EnrollStudentDialog({
   });
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Enroll Student</DialogTitle>
-          <DialogDescription>
-            Search by name or Student ID to find and enroll a student.
-          </DialogDescription>
-        </DialogHeader>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Enroll Student"
+      description="Search by name or Student ID to find and enroll a student."
+      size="md"
+    >
 
         <div className="space-y-3 mt-1">
           <div className="relative">
@@ -143,7 +136,6 @@ export function EnrollStudentDialog({
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }

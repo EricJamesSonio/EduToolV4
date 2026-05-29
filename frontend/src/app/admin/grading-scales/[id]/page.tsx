@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
 import { useGradingScales } from "@/hooks/admin/useGradingScales";
 import type { GradeRange } from "@/types/admin/grading-scale.types";
+import { PROGRAM_TYPE_LABELS, PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
 import {
   GradingScaleRangeEditor,
   validateRanges,
@@ -17,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { Lock, ArrowLeft, Save } from "lucide-react";
 import type { AxiosError } from "axios";
 
@@ -47,7 +49,7 @@ const [initialised, setInitialised] = useState(false)
       gradingScaleApi.update(id, { name, ranges }),
     onSuccess: () => {
       toast.success("Grading scale saved.");
-      queryClient.invalidateQueries({ queryKey: ["gradingScales"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "gradingScales"] });
     },
     onError: (err: AxiosError<{ message: string }>) => {
       toast.error(err?.response?.data?.message ?? "Failed to save grading scale.");
@@ -138,28 +140,7 @@ const [initialised, setInitialised] = useState(false)
       {/* Meta row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Name */}
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label>Scale Name</Label>
-          <Input
-            value={name}
-            disabled={disabled}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Standard Grading Scale"
-          />
-          {submitted && !name.trim() && (
-            <p className="text-xs text-destructive">Name is required.</p>
-          )}
-        </div>
-
-        {/* Passing threshold — computed, read-only */}
-        <div className="space-y-1.5">
-          <Label>Passing Threshold</Label>
-          <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3">
-            <Badge variant="outline" className="font-mono text-xs">
-              {passingThreshold}
-            </Badge>
-            <span className="ml-2 text-xs text-muted-foreground">computed from ranges</span>
-          </div>
+        <div className="space-y-1.5 sm:col-span-1">
         </div>
       </div>
 

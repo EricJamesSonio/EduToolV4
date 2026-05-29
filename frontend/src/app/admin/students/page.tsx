@@ -1,11 +1,13 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Users, Plus, Download, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { studentApi }  from "@/api/admin/student.api";
+import { schoolYearApi } from "@/api/admin/school-year.api";
+import { studentEnrollmentApi } from "@/api/admin/student-enrollment.api";
 import type { Student } from "@/types/admin/student.types";
 import type { GetStudentsQuery } from "@/api/admin/student.api";
 
@@ -36,6 +38,54 @@ function StudentsPageInner(): React.JSX.Element {
   });
 
   const students: Student[] = studentsRaw ?? [];
+
+  // ── Active school year ────────────────────────────────────────────────
+  const { data: schoolYears } = useQuery({
+    queryKey: ["admin", "school-years"],
+    queryFn: schoolYearApi.getAll,
+  });
+
+  const activeSchoolYearId = useMemo(
+    () =>
+      schoolYears?.find((sy) => sy.status === "active")?.id ??
+      schoolYears?.[0]?.id ??
+      null,
+    [schoolYears],
+  );
+
+  // ── School-year enrollments (for program/level/section enrichment) ───
+  const { data: schoolYearEnrollments } = useQuery({
+    queryKey: ["admin", "school-year-enrollments", activeSchoolYearId],
+    queryFn: () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
+    enabled: !!activeSchoolYearId,
+  });
+
+  // Merge enrollment data into each student row
+  const enrichedStudents: Student[] = useMemo(
+    () =>
+      students.map((s) => {
+        const sye = schoolYearEnrollments?.find(
+          (e) => e.student_id === s.id,
+        );
+        if (!sye?.programEnrollments?.length) return s;
+        const pe =
+          sye.programEnrollments.find((p) => p.status === "active") ??
+          sye.programEnrollments[0];
+        return {
+          ...s,
+          programName: pe.program?.name ?? s.programName,
+          levelName: pe.level?.name ?? s.levelName,
+          sectionName: pe.section?.name ?? s.sectionName,
+          courseName: pe.course
+            ? pe.course.code
+              ? `${pe.course.code} – ${pe.course.name}`
+              : pe.course.name
+            : s.courseName,
+          strandName: pe.strand?.name ?? s.strandName,
+        };
+      }),
+    [students, schoolYearEnrollments],
+  );
 
   const handleDownloadCredentials = () => {
     window.open(studentApi.downloadCredentials(), "_blank");
@@ -127,7 +177,7 @@ function StudentsPageInner(): React.JSX.Element {
         />
       ) : (
         <StudentTable
-          data={students}
+          data={enrichedStudents}
           onView={(s) => router.push(`/admin/students/${s.id}`)}
         />
       )}

@@ -62,7 +62,7 @@ export function Navbar() {
         {/* Right Buttons */}
         <div className="flex items-center gap-4">
           <Link href="/login">
-            <Button variant="outline" className="shadow-xs text-base px-5 py-2.5">
+            <Button variant="outline" className="bg-white shadow-xs text-base px-5 py-2.5">
               Sign In
             </Button>
           </Link>

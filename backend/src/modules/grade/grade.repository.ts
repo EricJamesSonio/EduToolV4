@@ -200,13 +200,15 @@ export class GradeRepository {
   // ───────── GRADING SCALE ─────────
 
   async findGradingScale(programId: string, schoolYearId: string, orgId: string) {
-    return this.db.gradingScale.findFirst({
+    const assignment = await this.db.gradingScaleAssignment.findFirst({
       where: {
         org_id: orgId,
         program_id: programId,
         school_year_id: schoolYearId,
       },
+      include: { grading_scale: true },
     });
+    return assignment?.grading_scale ?? null;
   }
 
   // ───────── CLASS INFO ─────────

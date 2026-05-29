@@ -1,16 +1,9 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -235,21 +228,13 @@ export function TemplateFormDialog({
   /* ========================= */
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
+      onClose={onClose}
+      title={isEdit ? "Edit Template" : "New Semester Template"}
+      description="Templates are reusable across school years — assign them per program."
+      size="2xl"
     >
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? "Edit Template" : "New Semester Template"}
-          </DialogTitle>
-          <DialogDescription>
-            Templates are reusable across school years — assign them per program.
-          </DialogDescription>
-        </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -394,7 +379,7 @@ export function TemplateFormDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button variant="outline" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
@@ -405,8 +390,7 @@ export function TemplateFormDialog({
               ? "Save Changes"
               : "Create Template"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ModalFooter>
+    </Modal>
   );
 }

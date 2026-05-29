@@ -9,13 +9,7 @@ import type { AxiosError } from "axios";
 import { studentApi, type UpdateStudentRequest } from "@/api/admin/student.api";
 import type { Student } from "@/types/admin/student.types";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Modal, ModalFooter } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input }  from "@/components/ui/input";
 import { Label }  from "@/components/ui/label";
@@ -73,13 +67,9 @@ export function EditStudentDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Edit Student</DialogTitle>
-        </DialogHeader>
+    <Modal open={open} onClose={onClose} title="Edit Student" size="md">
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="fullName">Full Name</Label>
             <Input
@@ -108,7 +98,7 @@ export function EditStudentDialog({
           </p>
         </div>
 
-        <DialogFooter>
+        <ModalFooter>
           <Button
             variant="outline"
             onClick={onClose}
@@ -122,8 +112,7 @@ export function EditStudentDialog({
           >
             {mutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ModalFooter>
+    </Modal>
   );
 }

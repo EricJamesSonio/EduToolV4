@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { format, isPast, isWithinInterval, addMinutes } from "date-fns";
 import {
-  Calendar, Users, Radio, ArrowLeft, Pencil,
+  Calendar, Radio, Pencil, Video,
   UserPlus, UserMinus, Check, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,6 +22,7 @@ import {
   useUpdateMeeting,
   useRespondToJoinRequest,
 } from "@/hooks/educator/useMeeting";
+import { WEEK_COLORS } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 import type { AxiosError } from "axios";
 import type { EnrolledStudent } from "@/types/educator/meeting.types";
@@ -123,7 +127,7 @@ export default function MeetingDetailPage({ params }: Props) {
   };
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <PageHeader
         title={meeting.title}
         breadcrumbs={[
@@ -158,31 +162,35 @@ export default function MeetingDetailPage({ params }: Props) {
       />
 
       {/* Meeting info card */}
-      <div className="rounded-lg border bg-card p-5 space-y-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <Badge
-            variant={isLive ? "default" : isEnded ? "outline" : "secondary"}
-            className={cn("text-xs", isLive && "bg-green-600 text-white")}
-          >
-            {isLive ? "Live" : isEnded ? "Ended" : "Upcoming"}
-          </Badge>
-          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5" />
-            {format(new Date(meeting.startTime), "MMMM d, yyyy · h:mm a")}
-          </span>
+      <div className="rounded-lg border bg-card p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[meetingId.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % WEEK_COLORS.length])}>
+            <Video className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge
+                variant={isLive ? "default" : isEnded ? "outline" : "secondary"}
+                className={cn("text-xs", isLive && "bg-green-600 text-white")}
+              >
+                {isLive ? "Live" : isEnded ? "Ended" : "Upcoming"}
+              </Badge>
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Calendar className="h-3.5 w-3.5" />
+                {format(new Date(meeting.startTime), "MMMM d, yyyy · h:mm a")}
+              </span>
+            </div>
+            {meeting.description && (
+              <p className="text-sm text-muted-foreground mt-3">{meeting.description}</p>
+            )}
+          </div>
         </div>
-        {meeting.description && (
-          <p className="text-sm text-muted-foreground">{meeting.description}</p>
-        )}
       </div>
 
-      {/* Invite Manager */}
-      <div className="rounded-lg border bg-card p-5 space-y-4">
+      {/* Invited Students */}
+      <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-semibold">Invited Students</h2>
-            <p className="text-sm text-muted-foreground">{invitedIds.size} invited</p>
-          </div>
+          <p className="text-sm font-medium text-muted-foreground">{invitedIds.size} student{invitedIds.size !== 1 ? "s" : ""} invited</p>
           {!isEnded && uninvitedStudents.length > 0 && (
             <Button
               size="sm"
@@ -222,83 +230,94 @@ export default function MeetingDetailPage({ params }: Props) {
           </ScrollArea>
         )}
 
-        {/* Invited list */}
+        {/* Invited list table */}
         {invitedIds.size === 0 ? (
           <p className="text-sm text-muted-foreground">No students invited yet.</p>
         ) : (
-          <div className="space-y-1">
-            {meeting.invites.map((invite) => {
-              const student = students.find((s) => s.id === invite.studentId);
-              return (
-                <div key={invite.id} className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-muted/40">
-                  <div>
-                    <p className="text-sm font-medium">{student?.fullName ?? invite.studentId}</p>
-                    {student?.email && (
-                      <p className="text-xs text-muted-foreground">{student.email}</p>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-primary text-primary-foreground">
+                <TableHead className="text-primary-foreground">Student</TableHead>
+                <TableHead className="text-primary-foreground">Email</TableHead>
+                {!isEnded && <TableHead className="text-primary-foreground text-right">Actions</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {meeting.invites.map((invite) => {
+                const student = students.find((s) => s.id === invite.studentId);
+                return (
+                  <TableRow key={invite.id} className="bg-white">
+                    <TableCell className="font-medium">{student?.fullName ?? invite.studentId}</TableCell>
+                    <TableCell className="text-muted-foreground">{student?.email ?? "—"}</TableCell>
+                    {!isEnded && (
+                      <TableCell className="text-right">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setShowRemoveConfirm(invite.studentId)}
+                          disabled={updateMutation.isPending}
+                        >
+                          <UserMinus className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
                     )}
-                  </div>
-                  {!isEnded && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => setShowRemoveConfirm(invite.studentId)}
-                      disabled={updateMutation.isPending}
-                    >
-                      <UserMinus className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
       </div>
 
       {/* Join Requests */}
       {pendingRequests.length > 0 && (
-        <div className="rounded-lg border bg-card p-5 space-y-4">
-          <div>
-            <h2 className="font-semibold">Join Requests</h2>
-            <p className="text-sm text-muted-foreground">{pendingRequests.length} pending</p>
-          </div>
-          <div className="space-y-2">
-            {pendingRequests.map((req) => {
-              const student = students.find((s) => s.id === req.studentId);
-              return (
-                <div key={req.id} className="flex items-center justify-between px-3 py-2 rounded-md border">
-                  <div>
-                    <p className="text-sm font-medium">{student?.fullName ?? req.studentId}</p>
-                    {student?.email && (
-                      <p className="text-xs text-muted-foreground">{student.email}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2 gap-1 text-xs text-green-700 border-green-200 hover:bg-green-50"
-                      onClick={() => handleRespond(req.id, "accepted")}
-                      disabled={respondMutation.isPending}
-                    >
-                      <Check className="h-3 w-3" />
-                      Accept
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 px-2 gap-1 text-xs text-destructive border-destructive/20 hover:bg-destructive/5"
-                      onClick={() => handleRespond(req.id, "declined")}
-                      disabled={respondMutation.isPending}
-                    >
-                      <X className="h-3 w-3" />
-                      Decline
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-muted-foreground">{pendingRequests.length} pending request{pendingRequests.length !== 1 ? "s" : ""}</p>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-primary text-primary-foreground">
+                <TableHead className="text-primary-foreground">Student</TableHead>
+                <TableHead className="text-primary-foreground">Email</TableHead>
+                <TableHead className="text-primary-foreground text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pendingRequests.map((req) => {
+                const student = students.find((s) => s.id === req.studentId);
+                return (
+                  <TableRow key={req.id} className="bg-white">
+                    <TableCell className="font-medium">{student?.fullName ?? req.studentId}</TableCell>
+                    <TableCell className="text-muted-foreground">{student?.email ?? "—"}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 gap-1 text-xs text-green-700 border-green-200 hover:bg-green-50"
+                          onClick={() => handleRespond(req.id, "accepted")}
+                          disabled={respondMutation.isPending}
+                        >
+                          <Check className="h-3 w-3" />
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 gap-1 text-xs text-destructive border-destructive/20 hover:bg-destructive/5"
+                          onClick={() => handleRespond(req.id, "declined")}
+                          disabled={respondMutation.isPending}
+                        >
+                          <X className="h-3 w-3" />
+                          Decline
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       )}
 

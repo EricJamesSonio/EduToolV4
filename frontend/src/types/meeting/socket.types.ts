@@ -6,8 +6,9 @@ export interface MeetingParticipant {
 }
 
 export interface ChatMessage {
-  userId: string;
-  name: string;
+  id: string;
+  senderId: string;
+  senderName: string;
   message: string;
-  sentAt: string;
+  createdAt: string;
 }

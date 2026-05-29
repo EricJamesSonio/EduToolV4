@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, User, ChevronRight } from "lucide-react";
+import { BookOpen, Clock, User, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatSchedule } from "@/utils/classes.utils";
 import type { StudentClassItem } from "@/api/student/class.api";
 
@@ -28,36 +29,53 @@ export function ClassCard({ item, colorIndex = 0 }: ClassCardProps) {
       href={`/student/classes/${cls.id}`}
       className="rounded-xl border bg-card p-6 space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200 group block"
     >
-      <p className={cn("inline-block rounded-md px-2.5 py-1 text-xs font-semibold", WEEK_COLORS[colorIndex % WEEK_COLORS.length])}>
-        {cls.subjectName ?? "Unnamed Subject"}
-      </p>
-
-      <div className="space-y-2 text-sm text-muted-foreground">
-        {cls.educatorName && (
-          <div className="flex items-center gap-2">
-            <User className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{cls.educatorName}</span>
+      <div className="flex items-start gap-3">
+        <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[colorIndex % WEEK_COLORS.length])}>
+          <BookOpen className="h-4 w-4" />
+        </div>
+        <div className="flex-1 min-w-0 space-y-1">
+          <h3 className="font-semibold text-lg leading-tight truncate">
+            {cls.subjectName ?? "Unnamed Subject"}
+          </h3>
+          <div className="space-y-0.5">
+            {cls.educatorName && (
+              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{cls.educatorName}</span>
+              </p>
+            )}
+            {schedule && (
+              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{schedule}</span>
+              </p>
+            )}
           </div>
-        )}
-        {schedule && (
-          <div className="flex items-center gap-2">
-            <Clock className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{schedule}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between pt-2">
+        </div>
         <Badge
           variant="outline"
           className={cn(
-            "text-[11px] font-medium capitalize",
+            "text-[11px] font-medium capitalize shrink-0 mt-0.5",
             STATUS_STYLES[enrollmentStatus] ?? "bg-muted text-muted-foreground"
           )}
         >
           {enrollmentStatus}
         </Badge>
-        <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+      </div>
+
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          {cls.schoolYearId && (
+            <span className="text-xs text-muted-foreground">{cls.schoolYearId}</span>
+          )}
+          {cls.capacity > 0 && (
+            <span className="text-xs text-muted-foreground">Cap: {cls.capacity}</span>
+          )}
+        </div>
+        <Button variant="outline" size="sm">
+          <Eye className="mr-1.5 h-3.5 w-3.5" />
+          View
+        </Button>
       </div>
     </Link>
   );

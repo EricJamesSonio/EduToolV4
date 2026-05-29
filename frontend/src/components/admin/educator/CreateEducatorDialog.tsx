@@ -3,12 +3,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,16 +85,14 @@ export function CreateEducatorDialog({
 
   return (
     <>
-      <Dialog
+      <Modal
         open={open && !credentials}
-        onOpenChange={(v) => !v && onClose()}
+        onClose={onClose}
+        title="Create Educator Account"
+        size="md"
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create Educator Account</DialogTitle>
-          </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Full Name */}
             <div className="space-y-1.5">
               <Label htmlFor="edu-fullname">Full Name</Label>
@@ -182,8 +175,7 @@ export function CreateEducatorDialog({
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+      </Modal>
 
       {credentials && (
         <EducatorCredentialsCard

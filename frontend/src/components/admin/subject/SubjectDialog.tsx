@@ -11,10 +11,10 @@ import type { Subject, SubjectType } from "@/types/admin/subject.types";
 import type { Level } from "@/types/admin/level.types";
 import { programApi } from "@/api/admin/program.api";
 import { levelApi } from "@/api/admin/level.api";
+import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -234,18 +234,14 @@ export function SubjectDialog({
     (isMinorSubject && !selectedLevelId);
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onOpenChange={(o) => {
-        if (!o) handleClose();
-      }}
+      onClose={handleClose}
+      title={isEdit ? "Edit Subject" : "New Subject"}
+      size="md"
     >
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Subject" : "New Subject"}</DialogTitle>
-        </DialogHeader>
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 mt-1">
+        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
           {/* Subject Type — create only */}
           {!isEdit && (
             <div className="space-y-1.5">
@@ -466,23 +462,6 @@ export function SubjectDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
-
-      {/* Duplicate Subject Confirmation Dialog */}
-      {duplicateWarning && (
-        <ConfirmDialog
-          open
-          title="Duplicate Subject Detected"
-          message={`A subject named "${duplicateWarning.title}" already exists for this ${duplicateWarning.subjectType === 'minor' ? 'minor subject' : 'major subject'} in the same program${duplicateWarning.levelName ? ` and level (${duplicateWarning.levelName})` : ''}${duplicateWarning.subjectType === 'major' && programType === 'college' && duplicateWarning.courseId ? ` and course` : duplicateWarning.subjectType === 'major' && programType === 'shs' && duplicateWarning.strandId ? ` and strand` : ''}. Do you want to create another session of this subject?`}
-          confirmLabel="Create Anyway"
-          destructive={false}
-          isLoading={mutation.isPending}
-          onConfirm={handleConfirmCreate}
-          onOpenChange={(open) => {
-            if (!open) setDuplicateWarning(null);
-          }}
-        />
-      )}
-    </Dialog>
+    </Modal>
   );
 }

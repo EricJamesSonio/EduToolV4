@@ -18,7 +18,7 @@ import { DatabaseService } from '@/core/database/database.provider';
 
 interface AuthPayload {
   sub: string;
-  orgId: string;
+  org_id: string | null;
   role: string;
   email: string;
 }
@@ -92,11 +92,12 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
       const payload = this.verifyToken(token);
       if (!payload) return this.kick(client, 'Invalid token');
+      if (!payload.org_id) return this.kick(client, 'Missing org');
 
       const meetingId = client.handshake.query?.meetingId as string;
       if (!meetingId) return this.kick(client, 'Missing meetingId');
 
-      const meeting = await this.meetingRepo.findById(meetingId, payload.orgId);
+      const meeting = await this.meetingRepo.findById(meetingId, payload.org_id);
       if (!meeting) return this.kick(client, 'Meeting not found');
       if (meeting.status === 'ended') return this.kick(client, 'Meeting has ended');
 
@@ -131,7 +132,7 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       room.participants.set(client.id, {
         socketId: client.id,
         userId: payload.sub,
-        orgId: payload.orgId,
+        orgId: payload.org_id,
         role: payload.role,
         name,
         handRaised: false,
@@ -195,7 +196,7 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   ) {
     const meetingId = client.data?.meetingId;
     const auth: AuthPayload = client.data?.auth;
-    if (!meetingId || !auth) return;
+    if (!meetingId || !auth || !auth.org_id) return;
 
     const text = (data?.message ?? '').trim();
     if (!text) return;
@@ -203,7 +204,7 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     // Persist to DB
     const saved = await this.db.meetingChatMessage.create({
       data: {
-        org_id: auth.orgId,
+        org_id: auth.org_id,
         meeting_id: meetingId,
         sender_id: auth.sub,
         sender_name: client.data.name,

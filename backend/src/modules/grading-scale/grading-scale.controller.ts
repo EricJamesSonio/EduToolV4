@@ -1,5 +1,3 @@
-// backend/src/modules/grading-scale/grading-scale.controller.ts
-
 import {
   Controller,
   Post,
@@ -29,15 +27,6 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 export class GradingScaleController {
   constructor(private readonly gradingScaleService: GradingScaleService) {}
 
-  // ── STATIC / SPECIFIC ROUTES FIRST ───────────────────────────────────────
-  // NestJS matches top-to-bottom. Static string segments must come before
-  // :param segments, otherwise "programs" or "by-class" get swallowed as IDs.
-
-  /**
-   * GET /grading-scales/by-class/:classId
-   * Returns the grading scale applied to the class's program.
-   * Accessible to educators and admins.
-   */
   @Get('by-class/:classId')
   async findByClass(
     @Param('classId') classId: string,
@@ -52,10 +41,6 @@ export class GradingScaleController {
     return scale;
   }
 
-  /**
-   * POST /grading-scales/programs/:programId/grading-scale
-   * Assign an existing grading scale to a program.
-   */
   @Post('programs/:programId/grading-scale')
   @Roles('admin')
   async assignToProgram(
@@ -67,15 +52,33 @@ export class GradingScaleController {
       orgId,
       programId,
       dto.scaleId,
+      dto.schoolYearId,
     );
   }
 
-  // ── COLLECTION ROUTES ─────────────────────────────────────────────────────
+  @Get('assignments')
+  async getAssignments(
+    @CurrentUser('org_id') orgId: string,
+    @Query('schoolYearId') schoolYearId: string,
+  ) {
+    return this.gradingScaleService.getAssignments(orgId, schoolYearId);
+  }
 
-  /**
-   * POST /grading-scales
-   * Create a new grading scale for a program & school year.
-   */
+  @Delete('assignments')
+  @Roles('admin')
+  async removeAssignment(
+    @CurrentUser('org_id') orgId: string,
+    @Query('programId') programId: string,
+    @Query('schoolYearId') schoolYearId: string,
+  ) {
+    await this.gradingScaleService.removeAssignment(
+      orgId,
+      programId,
+      schoolYearId,
+    );
+    return { success: true };
+  }
+
   @Post()
   @Roles('admin')
   async create(
@@ -85,10 +88,6 @@ export class GradingScaleController {
     return this.gradingScaleService.create(orgId, dto);
   }
 
-  /**
-   * GET /grading-scales
-   * Get all grading scales (optionally filtered by programId, schoolYearId).
-   */
   @Get()
   async findAll(
     @CurrentUser('org_id') orgId: string,
@@ -97,11 +96,6 @@ export class GradingScaleController {
     return this.gradingScaleService.findAll(orgId, query);
   }
 
-  // ── :id ROUTES LAST ───────────────────────────────────────────────────────
-
-  /**
-   * PATCH /grading-scales/:id
-   */
   @Patch(':id')
   @Roles('admin')
   async update(
@@ -112,9 +106,6 @@ export class GradingScaleController {
     return this.gradingScaleService.update(id, orgId, dto);
   }
 
-  /**
-   * DELETE /grading-scales/:id
-   */
   @Delete(':id')
   @Roles('admin')
   async delete(

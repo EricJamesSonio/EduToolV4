@@ -4,10 +4,12 @@ import { use, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
-  BookOpen, Users, CalendarCheck, BarChart2,
-  ClipboardCheck, ClipboardList, Video, FileText,
+  BookOpen, Users, CalendarCheck,
   Clock, Hash, GraduationCap, Layers,
+  BarChart2, ClipboardCheck, ClipboardList, FileText, Video,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 
 import { classApi }     from "@/api/admin/class.api";
 import { subjectApi }   from "@/api/admin/subject.api";
@@ -39,32 +41,7 @@ function formatClassSchedules(
     .join(", ");
 }
 
-interface QuickLinkProps {
-  icon: React.ElementType;
-  label: string;
-  description: string;
-  href: string;
-  onClick: () => void;
-}
-
-function QuickLink({ icon: Icon, label, description, onClick }: QuickLinkProps): React.JSX.Element {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-start gap-3 rounded-lg border bg-card px-4 py-3.5 text-left hover:border-primary/40 hover:bg-accent/30 transition-colors group w-full"
-    >
-      <div className="rounded-md bg-muted p-2 shrink-0 group-hover:bg-primary/10 transition-colors">
-        <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-sm font-medium group-hover:text-primary transition-colors">{label}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-      </div>
-    </button>
-  );
-}
-
-function InfoRow({
+function DetailItem({
   icon: Icon, label, value,
 }: {
   icon: React.ElementType;
@@ -72,7 +49,7 @@ function InfoRow({
   value: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <div className="flex items-start gap-3 py-3 border-b last:border-0">
+    <div className="flex items-start gap-3">
       <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
@@ -203,11 +180,10 @@ export default function EducatorClassOverviewPage({
 
 if (clsLoading) {
   return (
-    <div className="space-y-4">
-      <Skeleton className="h-5 w-32" />
+    <div className="space-y-6">
       <Skeleton className="h-8 w-64" />
-      <Skeleton className="h-40 w-full rounded-lg" />
-      <Skeleton className="h-56 w-full rounded-lg" />
+      <Skeleton className="h-52 w-full rounded-lg" />
+      <Skeleton className="h-44 w-full rounded-xl" />
     </div>
   );
 }
@@ -253,104 +229,81 @@ if (clsLoading) {
       }
     />
 
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Info card */}
-      <div className="rounded-lg border bg-card px-5 py-1">
-        <InfoRow
-          icon={BookOpen}
-          label="Subject"
-          value={enriched.subjectName ?? enriched.subjectId}
-        />
+    <div className="space-y-6">
+      {/* Class details — single card, 2 columns */}
+      <div className="rounded-lg border bg-card p-6">
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+          <DetailItem icon={BookOpen} label="Subject" value={enriched.subjectName ?? enriched.subjectId} />
 
-        {enriched.programName && (
-          <InfoRow
-            icon={GraduationCap}
-            label="Program"
-            value={enriched.programName}
+          {enriched.programName && (
+            <DetailItem icon={GraduationCap} label="Program" value={enriched.programName} />
+          )}
+
+          {enriched.courseName && (
+            <DetailItem icon={Layers} label="Course" value={enriched.courseName} />
+          )}
+
+          {enriched.strandName && (
+            <DetailItem icon={Layers} label="Strand" value={enriched.strandName} />
+          )}
+
+          {enriched.levelName && (
+            <DetailItem icon={BookOpen} label="Level" value={enriched.levelName} />
+          )}
+
+          <DetailItem
+            icon={Users}
+            label="Section"
+            value={enriched.sectionName ?? <span className="text-muted-foreground">—</span>}
           />
-        )}
 
-        {enriched.courseName && (
-          <InfoRow
-            icon={Layers}
-            label="Course"
-            value={enriched.courseName}
-          />
-        )}
+          <DetailItem icon={Clock} label="Schedule" value={schedule} />
 
-        {enriched.strandName && (
-          <InfoRow
-            icon={Layers}
-            label="Strand"
-            value={enriched.strandName}
-          />
-        )}
-
-        {enriched.levelName && (
-          <InfoRow
-            icon={BookOpen}
-            label="Level"
-            value={enriched.levelName}
-          />
-        )}
-
-        <InfoRow
-          icon={Users}
-          label="Section"
-          value={
-            enriched.sectionName ?? (
-              <span className="text-muted-foreground">—</span>
-            )
-          }
-        />
-
-        <InfoRow
-          icon={Clock}
-          label="Schedule"
-          value={schedule}
-        />
-
-        <InfoRow
-          icon={Hash}
-          label="Capacity"
-          value={
-            activeCount !== null ? (
-              <span>
-                <span className="text-foreground">
-                  {activeCount}
+          <DetailItem
+            icon={Hash}
+            label="Capacity"
+            value={
+              activeCount !== null ? (
+                <span>
+                  <span className="text-foreground">{activeCount}</span>
+                  <span className="text-muted-foreground"> / {capacityLabel} enrolled</span>
                 </span>
-                <span className="text-muted-foreground">
-                  {" "}
-                  / {capacityLabel} enrolled
-                </span>
-              </span>
-            ) : (
-              capacityLabel
-            )
-          }
-        />
+              ) : (
+                capacityLabel
+              )
+            }
+          />
 
-        <InfoRow
-          icon={CalendarCheck}
-          label="School Year"
-          value={enriched.schoolYearName ?? "—"}
-        />
+          <DetailItem icon={CalendarCheck} label="School Year" value={enriched.schoolYearName ?? "—"} />
+        </dl>
       </div>
 
-      {/* Quick links */}
+      {/* Quick links — 3-column colored cards */}
       <div>
-        <h2 className="text-sm font-semibold mb-3">
-          Class Sections
-        </h2>
+        <h2 className="text-sm font-semibold mb-3">Class Sections</h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {quickLinks.map((link) => (
-            <QuickLink
-              key={link.href}
-              {...link}
-              onClick={() => router.push(link.href)}
-            />
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {quickLinks.map((link, i) => {
+            const color = WEEK_COLORS[i % WEEK_COLORS.length];
+            const Icon = link.icon;
+            return (
+              <button
+                key={link.href}
+                onClick={() => router.push(link.href)}
+                className="rounded-xl border bg-card p-6 space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200 group text-left"
+              >
+                <div className={cn("rounded-md p-2.5 w-fit", color)}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">{link.label}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {link.description}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

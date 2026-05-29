@@ -4,7 +4,8 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
-import { ArrowLeft, Check, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, Loader2, ChevronDown, ChevronUp, Sparkles, Pencil, BookOpen } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { useLessons } from "@/hooks/educator/useLessons";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import {
@@ -18,6 +19,7 @@ import { educatorGradingSchemeApi } from "@/api/educator/grading-scheme.api";
 import { gradeApi } from "@/api/educator/grade.api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { useQuery } from "@tanstack/react-query";
 import type { Lesson, LessonConcept } from "@/types/educator/lesson.types";
 import type { AssessmentType, QuestionType, Question, GradingMode } from "@/types/educator/assessment.types";
@@ -117,21 +119,40 @@ function defaultSectionTitle(type: QuestionType): string {
   return map[type] ?? `${type.replace(/_/g, " ")} Questions`;
 }
 
+const CIRCLE_COLORS = [
+  { fill: "bg-blue-500 text-white border-transparent", outline: "border-blue-500 text-blue-500 bg-background" },
+  { fill: "bg-emerald-500 text-white border-transparent", outline: "border-emerald-500 text-emerald-500 bg-background" },
+  { fill: "bg-purple-500 text-white border-transparent", outline: "border-purple-500 text-purple-500 bg-background" },
+  { fill: "bg-amber-500 text-white border-transparent", outline: "border-amber-500 text-amber-500 bg-background" },
+  { fill: "bg-teal-500 text-white border-transparent", outline: "border-teal-500 text-teal-500 bg-background" },
+  { fill: "bg-indigo-500 text-white border-transparent", outline: "border-indigo-500 text-indigo-500 bg-background" },
+  { fill: "bg-pink-500 text-white border-transparent", outline: "border-pink-500 text-pink-500 bg-background" },
+  { fill: "bg-cyan-500 text-white border-transparent", outline: "border-cyan-500 text-cyan-500 bg-background" },
+  { fill: "bg-orange-500 text-white border-transparent", outline: "border-orange-500 text-orange-500 bg-background" },
+  { fill: "bg-rose-500 text-white border-transparent", outline: "border-rose-500 text-rose-500 bg-background" },
+];
+
 function StepIndicator({ steps, current }: { steps: string[]; current: number }) {
   return (
     <div className="flex items-center overflow-x-auto pb-1">
       {steps.map((label, i) => {
         const done = i < current;
         const active = i === current;
+        const c = CIRCLE_COLORS[i % CIRCLE_COLORS.length];
         return (
           <div key={i} className="flex items-center shrink-0">
-            <div className="flex flex-col items-center gap-1">
-              <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-colors", done && "bg-primary border-primary text-primary-foreground", active && "border-primary text-primary bg-background", !done && !active && "border-muted-foreground/30 text-muted-foreground/40")}>
-                {done ? <Check className="h-3 w-3" /> : i + 1}
+            <div className="flex flex-col items-center gap-1.5">
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-[3px] transition-colors",
+                done && c.fill,
+                active && c.outline,
+                !done && !active && "border-muted-foreground/30 text-muted-foreground/40 bg-background",
+              )}>
+                {done ? <Check className="h-4 w-4" /> : i + 1}
               </div>
-              <span className={cn("text-[10px] whitespace-nowrap", active ? "text-primary font-medium" : "text-muted-foreground/50")}>{label}</span>
+              <span className={cn("text-xs whitespace-nowrap", active ? "text-primary font-medium" : "text-muted-foreground/50")}>{label}</span>
             </div>
-            {i < steps.length - 1 && <div className={cn("h-0.5 w-6 mx-1 mb-4 shrink-0", i < current ? "bg-primary" : "bg-muted")} />}
+            {i < steps.length - 1 && <div className={cn("h-0.5 w-8 mx-1 mb-6 shrink-0", i < current ? "bg-primary" : "bg-muted")} />}
           </div>
         );
       })}
@@ -144,21 +165,37 @@ function Step0({ gradingMode, showBreakdown, onChange, onNext }: {
   gradingMode: GradingMode; showBreakdown: boolean;
   onChange: (u: Partial<BuilderState>) => void; onNext: () => void;
 }) {
+  const [selected, setSelected] = useState<GradingMode | null>(null);
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-6">
       <p className="text-sm text-muted-foreground">Choose how this assessment will be graded.</p>
-      <div className="space-y-3">
-        {(["system", "manual"] as const).map((mode) => (
-          <button key={mode} type="button" onClick={() => onChange({ gradingMode: mode })}
-            className={cn("w-full text-left px-4 py-4 rounded-lg border text-sm transition-colors", gradingMode === mode ? "border-primary bg-primary/5" : "hover:bg-muted/40 border-border")}>
-            <div className="font-medium">{GRADING_MODE_LABELS[mode]}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {mode === "system"
-                ? "Questions are auto-generated from lesson concepts and auto-graded. Add Manual (Educator-Written) sections to include manually graded components — the system automatically treats it as hybrid."
-                : "Educator creates an assessment with free-form instructions. No auto-grading — scores are set manually. Best for projects, recitation, and behavior."}
-            </p>
-          </button>
-        ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {(["system", "manual"] as const).map((mode, i) => {
+          const isSelected = gradingMode === mode;
+          return (
+            <div key={mode} role="button" tabIndex={0}
+              onClick={() => { setSelected(mode); onChange({ gradingMode: mode }); onNext(); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(mode); onChange({ gradingMode: mode }); onNext(); } }}
+              className={cn("relative rounded-xl border bg-card p-6 space-y-4 text-left transition-all duration-200 cursor-pointer select-none", isSelected ? "border-primary shadow-sm ring-1 ring-primary/20" : "hover:border-primary/40 hover:shadow-sm")}>
+              {isSelected && (
+                <span className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                  <Check className="h-3 w-3" />
+                </span>
+              )}
+              <div className={cn("rounded-md p-2.5 w-fit", i === 0 ? "bg-blue-500/10 text-blue-600" : "bg-amber-500/10 text-amber-600")}>
+                {mode === "system" ? <Sparkles className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">{GRADING_MODE_LABELS[mode]}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {mode === "system"
+                    ? "Questions are auto-generated from lesson concepts and auto-graded. Add Manual (Educator-Written) sections to include manually graded components — the system automatically treats it as hybrid."
+                    : "Educator creates an assessment with free-form instructions. No auto-grading — scores are set manually. Best for projects, recitation, and behavior."}
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </div>
       <label className="flex items-center gap-2 text-sm cursor-pointer">
         <input type="checkbox" checked={showBreakdown} onChange={(e) => onChange({ showBreakdown: e.target.checked })} className="rounded" />
@@ -177,17 +214,22 @@ function Step1({ classId, selected, onSelect, onNext }: { classId: string; selec
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">Select a lesson with a completed concept build to generate questions from.</p>
-      <div className="space-y-2 max-w-xl">
-        {lessons.map((lesson) => {
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {lessons.map((lesson, idx) => {
           const hasConcept = !!lesson.concept;
           return (
             <button key={lesson.id} disabled={!hasConcept} onClick={() => { onSelect(lesson); onNext(); }}
-              className={cn("w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors", selected?.id === lesson.id && "border-primary bg-primary/5", hasConcept && selected?.id !== lesson.id && "hover:bg-muted/40 border-border", !hasConcept && "opacity-40 cursor-not-allowed bg-muted/20 border-border")}>
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{lesson.title}</span>
-                <span className={cn("text-xs px-2 py-0.5 rounded-full border", hasConcept ? "bg-green-50 text-green-700 border-green-200" : "bg-zinc-100 text-zinc-500 border-zinc-200")}>{hasConcept ? "Concept ready" : "No concept build"}</span>
+              className={cn("rounded-xl border bg-card p-6 space-y-4 text-left transition-all duration-200", selected?.id === lesson.id && "border-primary shadow-sm", hasConcept && selected?.id !== lesson.id && "hover:border-primary/40 hover:shadow-sm", !hasConcept && "opacity-40 cursor-not-allowed")}>
+              <div className={cn("rounded-md p-2.5 w-fit", WEEK_COLORS[idx % WEEK_COLORS.length])}>
+                <BookOpen className="h-4 w-4" />
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Week {lesson.weekNumber}{lesson.description ? ` — ${lesson.description}` : ""}</p>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">{lesson.title}</p>
+                <p className="text-xs text-muted-foreground">Week {lesson.weekNumber}{lesson.description ? ` — ${lesson.description}` : ""}</p>
+              </div>
+              <span className={cn("inline-block text-xs px-2 py-0.5 rounded-full border", hasConcept ? "bg-green-50 text-green-700 border-green-200" : "bg-zinc-100 text-zinc-500 border-zinc-200")}>
+                {hasConcept ? "Concept ready" : "No concept build"}
+              </span>
             </button>
           );
         })}
@@ -217,29 +259,30 @@ function getConceptContent(concept: LessonConcept | null): ConceptContent {
   };
 }
 
-// ─── Step 2: View Concepts (system/hybrid) ────────────────────────────────────
 function Step2({ concept, onNext }: { concept: LessonConcept | null; onNext: () => void }) {
   const cc = getConceptContent(concept);
   if (!cc.sections.length) return <p className="text-sm text-muted-foreground">No concept build available.</p>;
   return (
-    <div className="space-y-4 max-w-xl">
+    <div className="space-y-4">
       <p className="text-sm text-muted-foreground">Review concept sections used to generate questions.</p>
-      <div className="rounded-lg border divide-y">
-        {cc.sections.map((name) => {
-          const count = cc.conceptItems.filter((ci) => ci.section === name).length;
-          return (
-            <div key={name} className="px-4 py-3 flex items-center justify-between">
-              <span className="text-sm font-medium">{name}</span>
-              <span className="text-xs text-muted-foreground">{count} items</span>
-            </div>
-          );
-        })}
-        <div className="px-4 py-3 flex items-center justify-between bg-muted/20">
-          <span className="text-sm font-semibold">Total</span>
-          <span className="text-sm font-semibold">{cc.conceptItems.length} items</span>
+      <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="divide-y">
+          {cc.sections.map((name) => {
+            const count = cc.conceptItems.filter((ci) => ci.section === name).length;
+            return (
+              <div key={name} className="px-4 py-3 flex items-center justify-between">
+                <span className="text-sm font-medium">{name}</span>
+                <span className="text-xs text-muted-foreground">{count} items</span>
+              </div>
+            );
+          })}
+          <div className="px-4 py-3 flex items-center justify-between bg-muted/20">
+            <span className="text-sm font-semibold">Total</span>
+            <span className="text-sm font-semibold">{cc.conceptItems.length} items</span>
+          </div>
         </div>
+        <Button onClick={onNext} size="sm">Next</Button>
       </div>
-      <Button onClick={onNext} size="sm">Next</Button>
     </div>
   );
 }
@@ -386,8 +429,9 @@ function Step3({
   }));
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div className="grid grid-cols-3 gap-4 max-w-lg">
+    <div className="space-y-6">
+      <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Assessment Type <span className="text-destructive">*</span></label>
           <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
@@ -414,6 +458,7 @@ function Step3({
             className={cn("w-full rounded-md border bg-background px-3 py-2 text-sm", totalErr && "border-destructive")} />
           {totalErr ? <p className="text-xs text-destructive">{totalErr}</p> : <p className="text-xs text-muted-foreground">System-generated items count. Concept build limit ({conceptItems.length}) only applies to AI sections.</p>}
         </div>
+      </div>
       </div>
 
       {hasManualSections && (
@@ -771,7 +816,7 @@ function Step5({
   }
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="space-y-6">
       {/* ── Assessment Summary Card ── */}
       <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
         <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -975,33 +1020,37 @@ function ManualStep1({ type, title, manualInstructions, schemeTypes, onChange, o
 }) {
   const valid = !!type && !!manualInstructions.trim();
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div className="grid grid-cols-2 gap-4 max-w-md">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Assessment Type <span className="text-destructive">*</span></label>
-          <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm">
-            <option value="">Select type...</option>
-            {schemeTypes.map((t) => <option key={t} value={t}>{TYPE_LABELS[t] ?? t.replace(/_/g, " ")}</option>)}
-          </select>
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Title</label>
-          <input type="text" value={title}
-            onChange={(e) => onChange({ title: e.target.value })}
-            placeholder="e.g. Quiz 2"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+    <div className="space-y-6">
+      <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Assessment Type <span className="text-destructive">*</span></label>
+            <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })}
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+              <option value="">Select type...</option>
+              {schemeTypes.map((t) => <option key={t} value={t}>{TYPE_LABELS[t] ?? t.replace(/_/g, " ")}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Title</label>
+            <input type="text" value={title}
+              onChange={(e) => onChange({ title: e.target.value })}
+              placeholder="e.g. Quiz 2"
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+          </div>
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Instructions <span className="text-destructive">*</span></label>
-        <p className="text-xs text-muted-foreground">Describe the task, project, or criteria for this manual assessment.</p>
-        <textarea value={manualInstructions}
-          onChange={(e) => onChange({ manualInstructions: e.target.value })}
-          placeholder={`e.g., "This is the score based on your behavior as a student."\n\ne.g., "Create a website and submit the GitHub link."`}
-          rows={8}
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none" />
+      <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Instructions <span className="text-destructive">*</span></label>
+          <p className="text-xs text-muted-foreground">Describe the task, project, or criteria for this manual assessment.</p>
+          <textarea value={manualInstructions}
+            onChange={(e) => onChange({ manualInstructions: e.target.value })}
+            placeholder={`e.g., "This is the score based on your behavior as a student."\n\ne.g., "Create a website and submit the GitHub link."`}
+            rows={8}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none" />
+        </div>
       </div>
 
       <Button onClick={onNext} disabled={!valid} size="sm">Next</Button>
@@ -1022,57 +1071,65 @@ function ManualStep2({ classId, totalItems, releaseDate, endDate, selectedStuden
     enabled: !!classId,
   });
   return (
-    <div className="space-y-6 max-w-md">
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Total Items / Max Score <span className="text-destructive">*</span></label>
-        <input type="number" min={1} value={totalItems}
-          onChange={(e) => onChange({ totalItems: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-          className="w-24 rounded-md border bg-background px-3 py-2 text-sm" />
-        <p className="text-xs text-muted-foreground">Maximum possible score for this manual assessment.</p>
-      </div>
-
-      {termOptions.length > 0 && (
+    <div className="space-y-6">
+      <div className="rounded-xl border bg-card p-6 space-y-4">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Term <span className="text-destructive">*</span></label>
-          <select value={selectedTermId} onChange={(e) => onChange({ selectedTermId: e.target.value })}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm">
-            <option value="">Select term...</option>
-            {termOptions.map((t) => (
-              <option key={t.termId} value={t.termId}>{t.termName} ({t.semesterName})</option>
-            ))}
-          </select>
+          <label className="text-sm font-medium">Total Items / Max Score <span className="text-destructive">*</span></label>
+          <input type="number" min={1} value={totalItems}
+            onChange={(e) => onChange({ totalItems: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+            className="w-24 rounded-md border bg-background px-3 py-2 text-sm" />
+          <p className="text-xs text-muted-foreground">Maximum possible score for this manual assessment.</p>
         </div>
-      )}
 
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Release Date</label>
-        <input type="datetime-local" value={releaseDate} onChange={(e) => onChange({ releaseDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
-      </div>
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">End Date</label>
-        <input type="datetime-local" value={endDate} onChange={(e) => onChange({ endDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
-        {invalid && <p className="text-xs text-destructive">End date must be after release date.</p>}
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Assign to Students</label>
-        <p className="text-xs text-muted-foreground">Leave empty to assign to all enrolled students.</p>
-        <div className="max-h-48 overflow-y-auto rounded-lg border divide-y">
-          {students?.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">No enrolled students.</p>}
-          {students?.map((s) => (
-            <label key={s.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/30">
-              <input type="checkbox" checked={selectedStudentIds.includes(s.id)} onChange={(e) => onChange({ selectedStudentIds: e.target.checked ? [...selectedStudentIds, s.id] : selectedStudentIds.filter((id) => id !== s.id) })} className="rounded" />
-              <span>{s.fullName}</span>
-              {s.email && <span className="text-xs text-muted-foreground ml-auto">{s.email}</span>}
-            </label>
-          ))}
-        </div>
-        {students && students.length > 0 && (
-          <div className="flex gap-2">
-            <button type="button" onClick={() => onChange({ selectedStudentIds: students.map((s) => s.id) })} className="text-xs text-primary hover:underline">Select all</button>
-            <button type="button" onClick={() => onChange({ selectedStudentIds: [] })} className="text-xs text-muted-foreground hover:underline">Clear</button>
+        {termOptions.length > 0 && (
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Term <span className="text-destructive">*</span></label>
+            <select value={selectedTermId} onChange={(e) => onChange({ selectedTermId: e.target.value })}
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+              <option value="">Select term...</option>
+              {termOptions.map((t) => (
+                <option key={t.termId} value={t.termId}>{t.termName} ({t.semesterName})</option>
+              ))}
+            </select>
           </div>
         )}
+      </div>
+
+      <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Release Date</label>
+            <input type="datetime-local" value={releaseDate} onChange={(e) => onChange({ releaseDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">End Date</label>
+            <input type="datetime-local" value={endDate} onChange={(e) => onChange({ endDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+            {invalid && <p className="text-xs text-destructive">End date must be after release date.</p>}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Assign to Students</label>
+          <p className="text-xs text-muted-foreground">Leave empty to assign to all enrolled students.</p>
+          <div className="max-h-48 overflow-y-auto rounded-lg border divide-y">
+            {students?.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">No enrolled students.</p>}
+            {students?.map((s) => (
+              <label key={s.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/30">
+                <input type="checkbox" checked={selectedStudentIds.includes(s.id)} onChange={(e) => onChange({ selectedStudentIds: e.target.checked ? [...selectedStudentIds, s.id] : selectedStudentIds.filter((id) => id !== s.id) })} className="rounded" />
+                <span>{s.fullName}</span>
+                {s.email && <span className="text-xs text-muted-foreground ml-auto">{s.email}</span>}
+              </label>
+            ))}
+          </div>
+          {students && students.length > 0 && (
+            <div className="flex gap-2">
+              <button type="button" onClick={() => onChange({ selectedStudentIds: students.map((s) => s.id) })} className="text-xs text-primary hover:underline">Select all</button>
+              <button type="button" onClick={() => onChange({ selectedStudentIds: [] })} className="text-xs text-muted-foreground hover:underline">Clear</button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="pt-1 space-y-2">
@@ -1100,41 +1157,47 @@ function Step6({ classId, releaseDate, endDate, selectedStudentIds, termInfo, on
     enabled: !!classId,
   });
   return (
-    <div className="space-y-6 max-w-md">
+    <div className="space-y-6">
       {termInfo && (
-        <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+        <div className="rounded-xl border bg-card p-6 text-sm">
           <span className="text-muted-foreground">Assessment will be registered in: </span>
           <span className="font-semibold">{termInfo.termName} ({termInfo.semesterName})</span>
         </div>
       )}
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Release Date</label>
-        <input type="datetime-local" value={releaseDate} onChange={(e) => onChange({ releaseDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
-      </div>
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">End Date</label>
-        <input type="datetime-local" value={endDate} onChange={(e) => onChange({ endDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
-        {invalid && <p className="text-xs text-destructive">End date must be after release date.</p>}
-      </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Assign to Students</label>
-        <p className="text-xs text-muted-foreground">Leave empty to assign to all enrolled students.</p>
-        <div className="max-h-48 overflow-y-auto rounded-lg border divide-y">
-          {students?.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">No enrolled students.</p>}
-          {students?.map((s) => (
-            <label key={s.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/30">
-              <input type="checkbox" checked={selectedStudentIds.includes(s.id)} onChange={(e) => onChange({ selectedStudentIds: e.target.checked ? [...selectedStudentIds, s.id] : selectedStudentIds.filter((id) => id !== s.id) })} className="rounded" />
-              <span>{s.fullName}</span>
-              {s.email && <span className="text-xs text-muted-foreground ml-auto">{s.email}</span>}
-            </label>
-          ))}
-        </div>
-        {students && students.length > 0 && (
-          <div className="flex gap-2">
-            <button type="button" onClick={() => onChange({ selectedStudentIds: students.map((s) => s.id) })} className="text-xs text-primary hover:underline">Select all</button>
-            <button type="button" onClick={() => onChange({ selectedStudentIds: [] })} className="text-xs text-muted-foreground hover:underline">Clear</button>
+      <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Release Date</label>
+            <input type="datetime-local" value={releaseDate} onChange={(e) => onChange({ releaseDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
           </div>
-        )}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">End Date</label>
+            <input type="datetime-local" value={endDate} onChange={(e) => onChange({ endDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+            {invalid && <p className="text-xs text-destructive">End date must be after release date.</p>}
+          </div>
+        </div>
+      </div>
+      <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Assign to Students</label>
+          <p className="text-xs text-muted-foreground">Leave empty to assign to all enrolled students.</p>
+          <div className="max-h-48 overflow-y-auto rounded-lg border divide-y">
+            {students?.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">No enrolled students.</p>}
+            {students?.map((s) => (
+              <label key={s.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/30">
+                <input type="checkbox" checked={selectedStudentIds.includes(s.id)} onChange={(e) => onChange({ selectedStudentIds: e.target.checked ? [...selectedStudentIds, s.id] : selectedStudentIds.filter((id) => id !== s.id) })} className="rounded" />
+                <span>{s.fullName}</span>
+                {s.email && <span className="text-xs text-muted-foreground ml-auto">{s.email}</span>}
+              </label>
+            ))}
+          </div>
+          {students && students.length > 0 && (
+            <div className="flex gap-2">
+              <button type="button" onClick={() => onChange({ selectedStudentIds: students.map((s) => s.id) })} className="text-xs text-primary hover:underline">Select all</button>
+              <button type="button" onClick={() => onChange({ selectedStudentIds: [] })} className="text-xs text-muted-foreground hover:underline">Clear</button>
+            </div>
+          )}
+        </div>
       </div>
       <div className="pt-1 space-y-2">
         <Button onClick={onPublish} disabled={isLoading || !!invalid} size="sm">
@@ -1285,11 +1348,11 @@ export default function NewAssessmentPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-3xl">
-      <div className="flex items-center gap-3">
-        <Link href={`/educator/classes/${classId}/assessments`} className="text-muted-foreground hover:text-foreground transition-colors"><ArrowLeft className="h-4 w-4" /></Link>
-        <h1 className="text-xl font-semibold">New Assessment</h1>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="New Assessment"
+        breadcrumbs={[{ label: "Assessments", href: `/educator/classes/${classId}/assessments` }]}
+      />
       <StepIndicator steps={allSteps} current={step} />
       <div className="pt-2">
         {step === 0 && (

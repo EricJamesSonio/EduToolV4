@@ -3,6 +3,9 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
+import { Calendar } from "lucide-react";
 
 type Lesson = {
   id: string;
@@ -122,32 +125,35 @@ export function WeekCalendar({
                       key={`${week.semesterIndex}-${week.globalWeek}`}
                       className="rounded-xl border bg-card p-6 space-y-4"
                     >
-                      {/* Week Label */}
-                      <div className="text-sm font-medium">
-                        Week {week.semesterWeek}
-                      </div>
-
-                      {/* Date */}
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(week.date), "MMM dd, yyyy")}
+                      {/* Header */}
+                      <div className="flex items-start gap-3">
+                        <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[week.globalWeek % WEEK_COLORS.length])}>
+                          <Calendar className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <h3 className="font-semibold text-lg leading-tight">
+                            Week {week.semesterWeek}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(week.date), "MMM dd, yyyy")}
+                          </p>
+                        </div>
                       </div>
 
                       {/* Lessons */}
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         {lessonsForWeek.length > 0 ? (
                           lessonsForWeek.map((lesson) => (
                             <Link
                               key={lesson.id}
                               href={`/educator/classes/${classId}/lessons/${lesson.id}`}
-                              className="block text-sm hover:underline"
+                              className="block text-sm font-medium rounded-lg border bg-card px-4 py-3 hover:border-primary/40 hover:bg-accent/30 transition-colors"
                             >
                               {lesson.title}
                             </Link>
                           ))
                         ) : (
-                          <div className="text-xs text-muted-foreground">
-                            No lesson
-                          </div>
+                          <p className="text-xs text-muted-foreground">No lesson</p>
                         )}
                       </div>
 

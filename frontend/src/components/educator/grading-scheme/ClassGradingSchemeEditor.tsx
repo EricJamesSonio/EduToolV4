@@ -202,63 +202,66 @@ export function ClassGradingSchemeEditor({
         </div>
       )}
 
-      {/* ACTIONS */}
-      {!isLocked && (
-        <div className="flex gap-2">
+      <div className="rounded-lg border bg-card p-6 space-y-5">
+        {/* ACTIONS */}
+        {!isLocked && (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowLibrary(true)}
+              disabled={isBusy}
+            >
+              <Library className="h-4 w-4" />
+              Import from Library
+            </Button>
+          </div>
+        )}
+
+        {/* ROWS */}
+        <div className="space-y-3">
+          {rows.map((row, i) => (
+            <GradingSchemeComponentRow
+              key={i}
+              index={i}
+              row={row}
+              disabled={isLocked || isBusy}
+              onChange={handleChange}
+              onDelete={setDeleteIndex}
+            />
+          ))}
+        </div>
+
+        {/* ADD */}
+        {!isLocked && (
           <Button
+            onClick={handleAdd}
             size="sm"
-            variant="outline"
-            onClick={() => setShowLibrary(true)}
-            disabled={isBusy}
+            className="bg-primary text-white hover:bg-primary/90"
           >
-            <Library className="h-4 w-4" />
-            Import from Library
+            <Plus className="h-4 w-4" />
+            Add Category
+          </Button>
+        )}
+
+        {/* FOOTER */}
+        <div className="flex justify-between items-center border-t pt-4">
+          <span
+            className={cn(
+              "text-sm font-medium",
+              currentTotalWeight === 100
+                ? "text-green-600"
+                : "text-destructive"
+            )}
+          >
+            {currentTotalWeight}% / 100%
+          </span>
+
+          <Button disabled={!canSave} onClick={handleSave}>
+            <Save className="h-4 w-4" />
+            Save
           </Button>
         </div>
-      )}
-
-      {/* ROWS */}
-      <div className="space-y-3">
-        {rows.map((row, i) => (
-          <GradingSchemeComponentRow
-            key={i}
-            index={i}
-            row={row}
-            disabled={isLocked || isBusy}
-            onChange={handleChange}
-            onDelete={setDeleteIndex}
-          />
-        ))}
-      </div>
-
-      {/* ADD */}
-      {!isLocked && (
-        <Button
-          onClick={handleAdd}
-          size="sm"
-          variant="outline"
-        >
-          <Plus className="h-4 w-4" />
-          Add Category
-        </Button>
-      )}
-
-      {/* FOOTER */}
-      <div className="flex justify-between border-t pt-4">
-        <span
-          className={cn(
-            currentTotalWeight === 100
-              ? "text-green-600"
-              : "text-destructive"
-          )}
-        >
-          {currentTotalWeight}% / 100%
-        </span>
-
-        <Button disabled={!canSave} onClick={handleSave}>
-          <Save className="h-4 w-4" />
-          Save
-        </Button>
       </div>
 
       {/* DELETE */}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Clock, Send } from "lucide-react";
+import { ArrowLeft, ClipboardList, CheckCircle2, Clock, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,9 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Progress } from "@/components/ui/progress";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { useStudentAssessment } from "@/hooks/student/useStudentAssessments";
 import {
   useStartSubmission,
@@ -167,7 +169,7 @@ export default function AssessmentTakerPage(): React.JSX.Element {
 
   if (isLoading || !assessment) {
     return (
-      <div className="space-y-5 max-w-3xl mx-auto">
+      <div className="space-y-5">
         <Skeleton className="h-7 w-48" />
         <Skeleton className="h-32 w-full rounded-lg" />
         <Skeleton className="h-48 w-full rounded-lg" />
@@ -175,27 +177,58 @@ export default function AssessmentTakerPage(): React.JSX.Element {
     );
   }
 
+  const colorIdx = assessmentId.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+
   return (
-    <div className="max-w-3xl mx-auto">
-      {/* Sticky header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border/60 pb-3 pt-4 space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0"
-              onClick={() =>
-                router.push(`/student/classes/${classId}/assessments`)
-              }
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-base font-semibold truncate capitalize">
-              {isManual ? 'Instructions' : assessment.type?.replace(/_/g, " ")}
-            </h1>
+    <div className="space-y-6">
+      <PageHeader
+        title={isManual ? "Instructions" : (assessment.type?.replace(/_/g, " ") ?? "Assessment")}
+        breadcrumbs={[
+          { label: "Assessments", href: `/student/classes/${classId}/assessments` },
+          { label: isManual ? "Instructions" : (assessment.type?.replace(/_/g, " ") ?? "Assessment") },
+        ]}
+      />
+
+      {/* Info card */}
+      <div className="rounded-lg border bg-card p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[colorIdx % WEEK_COLORS.length])}>
+            <ClipboardList className="h-5 w-5" />
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex-1 min-w-0">
+            <h2 className="font-semibold capitalize">{assessment.type?.replace(/_/g, " ")}</h2>
+            <div className="flex items-center gap-3 flex-wrap mt-1">
+              {assessment.releaseDate && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  Released {new Date(assessment.releaseDate).toLocaleDateString()}
+                </span>
+              )}
+              {assessment.endDate && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  Due {new Date(assessment.endDate).toLocaleDateString()}
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground">{assessment.totalItems} items</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky progress bar */}
+      <div className="sticky top-0 z-10 bg-background border-b border-border/60 pb-3 pt-2 space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span>{answeredCount} of {questions.length} answered</span>
+            {saveStatus === "saving" && <span className="italic">Saving...</span>}
+            {saveStatus === "saved" && (
+              <span className="flex items-center gap-1 text-emerald-600">
+                <CheckCircle2 className="h-3 w-3" /> Saved
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
             {assessment.endDate && (
               <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                 <Clock className="h-3.5 w-3.5" />
@@ -213,23 +246,11 @@ export default function AssessmentTakerPage(): React.JSX.Element {
             </Button>
           </div>
         </div>
-
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{answeredCount} of {questions.length} answered</span>
-            {saveStatus === "saving" && <span className="italic">Saving...</span>}
-            {saveStatus === "saved" && (
-              <span className="flex items-center gap-1 text-emerald-600">
-                <CheckCircle2 className="h-3 w-3" /> Saved
-              </span>
-            )}
-          </div>
-          <Progress value={questions.length ? (answeredCount / questions.length) * 100 : 0} className="h-1.5" />
-        </div>
+        <Progress value={questions.length ? (answeredCount / questions.length) * 100 : 0} className="h-1.5" />
       </div>
 
       {/* Question list */}
-      <div className="space-y-4 pt-4 pb-20">
+      <div className="space-y-4 pb-20">
         {questions.map((q, i) => {
           const isAnswered = !!answers[q.id];
           const isManualQuestion = isManual && i === 0;
@@ -240,7 +261,7 @@ export default function AssessmentTakerPage(): React.JSX.Element {
               className={cn(
                 "rounded-xl border bg-card p-5 space-y-4 transition-shadow",
                 isManualQuestion
-                  ? "border-l-4 border-l-blue-400 bg-blue-50/20"
+                  ? "border-l-4 border-l-blue-400"
                   : isAnswered
                   ? "border-emerald-200/60 shadow-sm"
                   : "border-border/60"
@@ -284,7 +305,7 @@ export default function AssessmentTakerPage(): React.JSX.Element {
                     value={answers[q.id] ?? ""}
                     onChange={(e) => setAnswer(q.id, e.target.value)}
                     placeholder="Type your response here..."
-                    className="min-h-[160px] text-sm resize-none bg-white"
+                    className="min-h-[160px] text-sm resize-none bg-muted"
                   />
                 )}
 

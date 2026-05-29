@@ -41,11 +41,13 @@ export default function MeetingsPage({ params }: Props) {
           ))}
         </div>
       ) : meetings.length === 0 ? (
-        <EmptyState
-          icon={Video}
-          title="No meetings yet"
-          description='Click "+ New Meeting" to schedule your first meeting.'
-        />
+        <div className="rounded-lg border bg-card p-6">
+          <EmptyState
+            icon={Video}
+            title="No meetings yet"
+            description='Click "+ New Meeting" to schedule your first meeting.'
+          />
+        </div>
       ) : (
         <div className="space-y-2">
           {meetings.map((m) => (

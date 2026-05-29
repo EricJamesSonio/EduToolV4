@@ -11,13 +11,8 @@ import type { Subject, SubjectSharing } from "@/types/admin/subject.types";
 import type { Course } from "@/types/admin/course.types";
 import type { Strand } from "@/types/admin/strand.types";
 import type { Level } from "@/types/admin/level.types";
+import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -234,19 +229,17 @@ export function ShareSubjectDialog({
     courses.length > 0 || strands.length > 0 || levelTargets.length > 0;
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onOpenChange={(o) => {
-        if (!o) handleClose();
-      }}
+      onClose={handleClose}
+      title={
+        <span className="flex items-center gap-2">
+          <Share2 className="h-4 w-4" />
+          Share &quot;{subject.title}&quot;
+        </span>
+      }
+      size="md"
     >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Share2 className="h-4 w-4" />
-            Share &quot;{subject.title}&quot;
-          </DialogTitle>
-        </DialogHeader>
 
         <div className="space-y-4 mt-1">
           {/* Description based on program type */}
@@ -347,7 +340,6 @@ export function ShareSubjectDialog({
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }

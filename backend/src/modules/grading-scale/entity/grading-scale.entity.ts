@@ -9,12 +9,20 @@ export class GradeRangeEntity {
 export class GradingScaleEntity {
   id!: string;
   orgId!: string;
-  programId!: string; // CHANGED from levelId → programId
-  schoolYearId!: string;
   name!: string;
+  programType!: string;
   ranges!: GradeRangeEntity[];
   isLocked!: boolean;
   lockedAt!: Date | null;
   createdAt!: Date;
   updatedAt!: Date;
+}
+
+export class GradingScaleAssignmentEntity {
+  id!: string;
+  orgId!: string;
+  gradingScaleId!: string;
+  programId!: string;
+  schoolYearId!: string;
+  createdAt!: Date;
 }

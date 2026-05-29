@@ -1,5 +1,4 @@
 import { ClipboardList, ChevronRight, Clock } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,11 +38,14 @@ export function UpcomingAssessmentsCard({
   const display = upcoming.length > 0 ? upcoming : assessments.slice(0, 3);
 
   return (
-    <Card>
-      <CardHeader className="pb-2 flex flex-row items-center justify-between">
-        <CardTitle className={cn("inline-block rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wider", WEEK_COLORS[4])}>
-          Upcoming Assessments
-        </CardTitle>
+    <div className="rounded-lg border bg-card p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[4])}>
+            <ClipboardList className="h-4 w-4" />
+          </div>
+          <h3 className="font-semibold">Upcoming Assessments</h3>
+        </div>
         <Button
           variant="ghost"
           size="sm"
@@ -53,9 +55,9 @@ export function UpcomingAssessmentsCard({
           View all
           <ChevronRight className="ml-0.5 h-3.5 w-3.5" />
         </Button>
-      </CardHeader>
+      </div>
 
-      <CardContent className="space-y-2">
+      <div className="space-y-2">
         {isLoading && (
           <>
             <AssessmentRowSkeleton />
@@ -75,7 +77,7 @@ export function UpcomingAssessmentsCard({
           display.map((a, i) => (
             <div
               key={a.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5"
+              className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5"
             >
               <div className="flex-1 min-w-0">
                 <span className={cn("inline-block rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize", WEEK_COLORS[i % WEEK_COLORS.length])}>
@@ -102,14 +104,14 @@ export function UpcomingAssessmentsCard({
               </Badge>
             </div>
           ))}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
 function AssessmentRowSkeleton(): React.JSX.Element {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
+    <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
       <div className="space-y-1.5 flex-1">
         <Skeleton className="h-3.5 w-1/2" />
         <Skeleton className="h-3 w-1/3" />

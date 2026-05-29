@@ -3,12 +3,11 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
-import { programApi } from "@/api/admin/program.api"; // CHANGED from levelApi → programApi
-import { schoolYearApi } from "@/api/admin/school-year.api";
-import type { GradeRange } from "@/types/admin/grading-scale.types";
-import type { Program } from "@/types/admin/program.types";
+import type { GradeRange, GradingScale } from "@/types/admin/grading-scale.types";
+import { PROGRAM_TYPE_VALUES, PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
+import type { ProgramType } from "@/types/admin/program.types";
 import {
   GradingScaleRangeEditor,
   validateRanges,
@@ -50,8 +49,7 @@ const DEFAULT_RANGES: GradeRange[] = [
 
 interface FormValues {
   name: string;
-  schoolYearId: string;
-  programId: string; // CHANGED from levelId → programId
+  programType: string;
 }
 
 interface CreateGradingScaleDialogProps {
@@ -78,11 +76,10 @@ export function CreateGradingScaleDialog({
     setValue,
     formState: { errors },
   } = useForm<FormValues>({
-    defaultValues: { name: "", schoolYearId: "", programId: "" }, // CHANGED
+    defaultValues: { name: "", programType: "" },
   });
 
-  const schoolYearId = watch("schoolYearId");
-  const programId = watch("programId"); // CHANGED from levelId → programId
+  const programType = watch("programType");
 
   useEffect(() => {
     if (!open) {
@@ -93,29 +90,12 @@ export function CreateGradingScaleDialog({
     }
   }, [open, reset]);
 
-  const { data: schoolYears = [] } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: schoolYearApi.getAll,
-    enabled: open,
-  });
-
-  // CHANGED: Fetch programs instead of levels
-  const { data: programs = [] } = useQuery({
-    queryKey: ["admin", "programs", schoolYearId],
-    queryFn: () => programApi.getAll(schoolYearId!),
-    enabled: open && !!schoolYearId,
-  });
-
-  // CHANGED: Reset programId when schoolYearId changes
-  useEffect(() => {
-    setValue("programId", "");
-  }, [schoolYearId, setValue]);
-
   const mutation = useMutation({
-    mutationFn: gradingScaleApi.create,
+    mutationFn: (data: { name: string; programType: string; ranges: GradeRange[] }) =>
+      gradingScaleApi.create(data),
     onSuccess: () => {
       toast.success("Grading scale created.");
-      queryClient.invalidateQueries({ queryKey: ["gradingScales"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "gradingScales"] });
       onClose();
     },
     onError: (err: AxiosError<{ message: string }>) => {
@@ -133,8 +113,7 @@ export function CreateGradingScaleDialog({
 
     mutation.mutate({
       name: values.name,
-      schoolYearId: values.schoolYearId,
-      programId: values.programId, // CHANGED from levelId → programId
+      programType: values.programType,
       ranges,
     });
   };
@@ -164,62 +143,29 @@ export function CreateGradingScaleDialog({
             )}
           </div>
 
-          {/* School Year + Program — side by side */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>School Year</Label>
-              <Select
-                value={schoolYearId}
-                onValueChange={(v) => setValue("schoolYearId", v ?? "")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select school year" />
-                </SelectTrigger>
-                <SelectContent>
-                  {schoolYears.map((sy) => (
-                    <SelectItem key={sy.id} value={sy.id}>
-                      {sy.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!schoolYearId && submitted && (
-                <p className="text-xs text-destructive">
-                  School year is required.
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Program</Label> {/* CHANGED from "Level" */}
-              <Select
-                value={programId}
-                onValueChange={(v) => setValue("programId", v ?? "")}
-                disabled={!schoolYearId}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      schoolYearId
-                        ? "Select program" // CHANGED
-                        : "Select school year first"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {programs.map((p: Program) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!programId && submitted && (
-                <p className="text-xs text-destructive">
-                  Program is required.
-                </p>
-              )}
-            </div>
+          {/* Program Type */}
+          <div className="space-y-1.5">
+            <Label>Program Type</Label>
+            <Select
+              value={programType}
+              onValueChange={(v) => setValue("programType", v ?? "")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select program type" />
+              </SelectTrigger>
+              <SelectContent>
+                {PROGRAM_TYPE_VALUES.map((pt) => (
+                  <SelectItem key={pt} value={pt}>
+                    {PROGRAM_TYPE_LABELS[pt]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!programType && submitted && (
+              <p className="text-xs text-destructive">
+                Program type is required.
+              </p>
+            )}
           </div>
 
           {/* Range Editor */}

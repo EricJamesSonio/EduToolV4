@@ -20,11 +20,11 @@ import { semesterTemplateApi } from "@/api/admin/semester-template.api";
 import type { Level }          from "@/types/admin/level.types";
 import type { Subject }        from "@/types/admin/subject.types";
 
+import { Modal } from "@/components/shared/Modal";
 import { Button }   from "@/components/ui/button";
 import { Input }    from "@/components/ui/input";
 import { Label }    from "@/components/ui/label";
 import { Badge }    from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { ScheduleSlotFields } from "./ScheduleSlotFields";
 import { toArray } from "@/utils/classes.utils";
@@ -270,21 +270,19 @@ export function CreateClassDialog({
     !selectedEducatorId;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Modal open={open} onClose={handleClose} title={
+          <span className="flex items-center gap-2">
             New Class
             {hasDraft && (
               <Badge variant="secondary" className="text-xs font-normal">
                 Draft restored
               </Badge>
             )}
-          </DialogTitle>
-        </DialogHeader>
+          </span>
+        } size="lg">
 
         <FormProvider {...methods}>
-          <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-1">
+          <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
 
             {/* School Year — read-only */}
             <div className="space-y-1.5">
@@ -518,7 +516,6 @@ export function CreateClassDialog({
             </div>
           </form>
         </FormProvider>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }

@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Hand, MessageSquare,
   Users, LogOut, Smile, DoorOpen, UserPlus, Check, X,
+  Maximize, Minimize,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { getAccessToken } from "@/api/client";
-import { useAgoraRTC } from "@/hooks/meeting/useAgoraRTC";
-import { useMeetingSocket } from "@/hooks/meeting/useMeetingSocket";
+import { useAuth } from "@/hooks/useAuth";
+import { useMeeting as useMeetingContext } from "@/hooks/meeting/MeetingContext";
+import { useChat } from "@/hooks/meeting/useChat";
+import { ChatPanel } from "@/components/meeting/ChatPanel";
 import {
   useMeeting, useMeetingToken, useEnrolledStudents,
   useRespondToJoinRequest, useEndMeeting,
@@ -35,51 +38,6 @@ function ReactionPicker({ onPick, onClose }: {
           {emoji}
         </button>
       ))}
-    </div>
-  );
-}
-
-function ChatPanel({ chat, onSend }: {
-  chat: { userId: string; name: string; message: string; sentAt: string }[];
-  onSend: (msg: string) => void;
-}) {
-  const [input, setInput] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat]);
-
-  const handleSend = () => {
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    onSend(trimmed);
-    setInput("");
-  };
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {chat.map((msg, i) => (
-          <div key={`${msg.userId}-${i}`} className="space-y-0.5">
-            <p className="text-[11px] font-medium text-muted-foreground">{msg.name}</p>
-            <p className="text-sm text-foreground bg-muted/50 rounded-lg px-3 py-1.5">
-              {msg.message}
-            </p>
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-      <div className="border-t border-border/60 p-3 flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Send a message..."
-          className="flex-1 text-sm bg-muted/50 rounded-lg px-3 py-1.5 outline-none border border-border/40 focus:border-primary/50"
-        />
-        <Button size="sm" onClick={handleSend} disabled={!input.trim()}>Send</Button>
-      </div>
     </div>
   );
 }
@@ -164,18 +122,42 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
 
   const students: EnrolledStudent[] = Array.isArray(studentsRaw) ? studentsRaw : [];
   const authToken = getAccessToken() ?? "";
+  const meetingCtx = useMeetingContext();
+  const { user: currentUser } = useAuth();
+  const currentUserId = currentUser?.id ?? "";
+  const currentUserName = currentUser?.fullName ?? "You";
 
-  const { joined, localAudio, localVideo, remoteUsers, toggleMic, toggleCamera } = useAgoraRTC(
-    tokenData
-      ? { appId: tokenData.appId, channel: tokenData.channel, token: tokenData.token, uid: tokenData.uid }
-      : { appId: "", channel: "", token: "", uid: 0 }
-  );
+  // Join meeting when token is ready, minimize on unmount
+  useEffect(() => {
+    if (!tokenData) return;
+    if (meetingCtx.isInMeeting && meetingCtx.meetingId === meetingId) {
+      meetingCtx.maximize();
+    } else {
+      meetingCtx.joinMeeting({
+        classId,
+        meetingId,
+        role: "educator",
+        tokenData: { appId: tokenData.appId, channel: tokenData.channel, token: tokenData.token, uid: tokenData.uid },
+        authToken,
+      });
+    }
+    return () => { meetingCtx.minimize(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenData]);
 
+  const { joined, localVideo, remoteUsers, toggleMic, toggleCamera } = meetingCtx;
   const {
     connected, participants, chat, currentSlide, isPresenting,
     sendChat, raiseHand, lowerHand, sendReaction,
     startPresentation, stopPresentation,
-  } = useMeetingSocket({ meetingId, token: authToken });
+  } = meetingCtx;
+
+  const { messages: chatMessages, send: sendChatMessage } = useChat({
+    chat,
+    sendChat,
+    currentUserId,
+    currentUserName,
+  });
 
   const respondMutation = useRespondToJoinRequest(classId, meetingId);
   const endMeetingMutation = useEndMeeting(classId);
@@ -185,15 +167,55 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const [handRaised, setHandRaised] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [sidePanel, setSidePanel] = useState<"chat" | "participants" | "join-requests" | null>(null);
+  const [localExpanded, setLocalExpanded] = useState(false);
+  const [pipSize, setPipSize] = useState({ w: 240, h: 160 });
+  const [isFullscreen, setIsFullscreen] = useState(true);
+  const [showPipMenu, setShowPipMenu] = useState(false);
+  const [pipResizing, setPipResizing] = useState(false);
+  const pipRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<{ startX: number; startY: number; startW: number; startH: number } | null>(null);
+
+  const handleResizeStart = (e: React.MouseEvent, corner: "se" | "sw" | "ne" | "nw" | "e" | "w" | "n" | "s") => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    resizeRef.current = { startX, startY, startW: pipSize.w, startH: pipSize.h };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizeRef.current) return;
+      let dx = ev.clientX - resizeRef.current.startX;
+      let dy = ev.clientY - resizeRef.current.startY;
+      let newW = resizeRef.current.startW;
+      let newH = resizeRef.current.startH;
+      if (corner.includes("e")) newW += dx;
+      if (corner.includes("w")) newW -= dx;
+      if (corner.includes("s")) newH += dy;
+      if (corner.includes("n")) newH -= dy;
+      setPipSize({ w: Math.max(120, newW), h: Math.max(80, newH) });
+    };
+
+    const onUp = () => {
+      resizeRef.current = null;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
 
   const pendingRequests = meeting?.joinRequests.filter((r) => r.status === "pending") ?? [];
 
-  // Re-play local video if track changes (e.g. camera restart)
+  // Re-play local video when track or mode changes
   useEffect(() => {
-    if (localVideo) {
-      localVideo.play("local-video-pip");
+    if (!localVideo) return;
+    const id = localExpanded ? "local-video-grid" : "local-video-pip";
+    const el = document.getElementById(id);
+    if (el) {
+      localVideo.play(id);
     }
-  }, [localVideo]);
+  }, [localVideo, localExpanded]);
 
   const handleToggleMic = async () => {
     await toggleMic();
@@ -215,6 +237,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   };
 
   const handleEndMeeting = () => {
+    meetingCtx.leaveMeeting();
     endMeetingMutation.mutate(meetingId, {
       onSuccess: () => router.push(`/educator/classes/${classId}/meetings/${meetingId}`),
     });
@@ -241,32 +264,126 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-zinc-950 text-white overflow-hidden">
+    <div className={cn(
+      "flex flex-col bg-zinc-950 text-white overflow-hidden",
+      isFullscreen ? "fixed inset-0 z-50" : "h-screen"
+    )}>
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Remote users */}
-        <div className={cn(
-          "flex-1 grid gap-1 p-1",
-          remoteUsers.length === 0 ? "place-items-center"
-            : remoteUsers.length === 1 ? "grid-cols-1"
-            : "grid-cols-2"
-        )}>
-          {remoteUsers.length === 0 && !joined && (
-            <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
-          )}
-          {remoteUsers.map((user) => (
-            <div
-              key={String(user.uid)}
-              id={`remote-${user.uid}`}
-              className="rounded-lg bg-zinc-800 w-full h-full min-h-[200px]"
-            />
-          ))}
-        </div>
+        {/* Remote users + optional expanded local */}
+        <div className="flex-1 relative">
+          <div className={cn(
+            "h-full grid gap-1 p-1",
+            localExpanded
+              ? remoteUsers.length === 0
+                ? "grid-cols-1"
+                : "grid-cols-2"
+              : remoteUsers.length === 0
+                ? "place-items-center"
+                : remoteUsers.length === 1
+                ? "grid-cols-1"
+                : "grid-cols-2"
+          )}>
+            {!localExpanded && remoteUsers.length === 0 && !joined && (
+              <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
+            )}
+            {localExpanded && (
+              <div
+                id="local-video-grid"
+                className="rounded-lg bg-zinc-800 w-full min-h-[300px] border border-zinc-700 overflow-hidden relative"
+              >
+                {!camOn && (
+                  <div className="absolute inset-0 flex items-center justify-center text-zinc-500 pointer-events-none">
+                    <VideoOff className="h-6 w-6" />
+                  </div>
+                )}
+                {/* Top bar with label + close */}
+                <div className="absolute top-0 inset-x-0 h-8 flex items-center justify-between px-2 bg-gradient-to-b from-black/50 to-transparent z-10">
+                  <span className="text-xs text-zinc-300">Your Camera</span>
+                  <button
+                    onClick={() => setLocalExpanded(false)}
+                    className="h-6 w-6 flex items-center justify-center rounded-md bg-black/40 hover:bg-black/60 text-zinc-400 hover:text-white text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="absolute bottom-2 left-2 text-xs text-zinc-400 bg-zinc-900/60 px-1.5 py-0.5 rounded pointer-events-none z-10">
+                  You {micOn ? "" : "🔇"}
+                </div>
+              </div>
+            )}
+            {remoteUsers.map((user) => (
+              <div
+                key={String(user.uid)}
+                id={`remote-${user.uid}`}
+                className="rounded-lg bg-zinc-800 w-full h-full min-h-[200px]"
+              />
+            ))}
+          </div>
 
-        {/* Local video PIP — id used by Agora to render directly */}
-        <div
-          id="local-video-pip"
-          className="absolute bottom-4 right-4 w-36 h-24 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10"
-        />
+          {/* Local video PIP (collapsed — resizable) */}
+          {!localExpanded && (
+            <div
+              ref={pipRef}
+              id="local-video-pip"
+              style={{ width: pipSize.w, height: pipSize.h }}
+              onClick={() => { if (pipResizing) { setPipResizing(false); } else { setShowPipMenu((v) => !v); } }}
+              className="absolute bottom-4 right-4 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10 select-none cursor-default"
+            >
+            {!camOn && (
+              <div className="absolute inset-0 flex items-center justify-center text-zinc-500 pointer-events-none z-0">
+                <VideoOff className="h-6 w-6" />
+              </div>
+            )}
+            <div className="absolute bottom-1.5 left-1.5 text-[10px] text-zinc-400 bg-zinc-900/60 px-1.5 py-0.5 rounded pointer-events-none z-0">
+              You {micOn ? "" : "🔇"}
+            </div>
+
+            {/* Click menu */}
+            {showPipMenu && (
+              <>
+                <div className="absolute inset-0 bg-black/40 z-10" onClick={(e) => { e.stopPropagation(); setShowPipMenu(false); }} />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2 z-20">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setLocalExpanded(true); setShowPipMenu(false); }}
+                    className="h-8 px-3 text-xs font-medium bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700 whitespace-nowrap"
+                  >
+                    Full Display
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setPipResizing(true); setShowPipMenu(false); }}
+                    className="h-8 px-3 text-xs font-medium bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700 whitespace-nowrap"
+                  >
+                    Resize
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Resize handles (visible in resize mode) */}
+            {pipResizing && (
+              <>
+                {/* Corners */}
+                <div onMouseDown={(e) => handleResizeStart(e, "se")} className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-30 hover:bg-zinc-500/40 rounded-bl" />
+                <div onMouseDown={(e) => handleResizeStart(e, "sw")} className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize z-30 hover:bg-zinc-500/40 rounded-br" />
+                <div onMouseDown={(e) => handleResizeStart(e, "ne")} className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize z-30 hover:bg-zinc-500/40 rounded-bl" />
+                <div onMouseDown={(e) => handleResizeStart(e, "nw")} className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-30 hover:bg-zinc-500/40 rounded-br" />
+                {/* Edges */}
+                <div onMouseDown={(e) => handleResizeStart(e, "e")} className="absolute top-0 bottom-0 right-0 w-1.5 cursor-e-resize z-30 hover:bg-zinc-500/30" />
+                <div onMouseDown={(e) => handleResizeStart(e, "w")} className="absolute top-0 bottom-0 left-0 w-1.5 cursor-w-resize z-30 hover:bg-zinc-500/30" />
+                <div onMouseDown={(e) => handleResizeStart(e, "n")} className="absolute left-0 right-0 top-0 h-1.5 cursor-n-resize z-30 hover:bg-zinc-500/30" />
+                <div onMouseDown={(e) => handleResizeStart(e, "s")} className="absolute left-0 right-0 bottom-0 h-1.5 cursor-s-resize z-30 hover:bg-zinc-500/30" />
+              </>
+            )}
+
+            {/* Exit resize mode hint */}
+            {pipResizing && (
+              <div className="absolute top-1 inset-x-1 flex justify-center z-30 pointer-events-none">
+                <span className="text-[9px] text-zinc-500 bg-zinc-900/70 px-2 py-0.5 rounded">Drag edges to resize · click to close</span>
+              </div>
+            )}
+          </div>
+        )}
+        </div>
 
         {isPresenting && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-zinc-800/80 backdrop-blur-sm text-xs text-zinc-300 px-3 py-1.5 rounded-full border border-zinc-700 z-10">
@@ -284,7 +401,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
             </div>
             <div className="flex-1 overflow-hidden">
               {sidePanel === "chat" ? (
-                <ChatPanel chat={chat} onSend={sendChat} />
+                <ChatPanel messages={chatMessages} currentUserId={currentUserId} onSend={sendChatMessage} />
               ) : sidePanel === "join-requests" ? (
                 <JoinRequestsPanel
                   requests={pendingRequests}
@@ -387,6 +504,17 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         >
           <MessageSquare className="h-5 w-5" />
           Chat
+        </button>
+
+        <button
+          onClick={() => setIsFullscreen((v) => !v)}
+          className={cn(
+            "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
+            isFullscreen ? "text-primary bg-primary/10" : "text-zinc-300 hover:bg-zinc-800"
+          )}
+        >
+          {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+          {isFullscreen ? "Exit Full" : "Full Screen"}
         </button>
 
         <button

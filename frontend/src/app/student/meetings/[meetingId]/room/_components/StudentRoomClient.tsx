@@ -4,14 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Hand, MessageSquare,
-  Users, LogOut, Smile,
+  Users, LogOut, Smile, Maximize, Minimize,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 import { useMeetingToken } from "@/hooks/student/useStudentMeetings";
-import { useAgoraRTC } from "@/hooks/meeting/useAgoraRTC";
-import { useMeetingSocket } from "@/hooks/meeting/useMeetingSocket";
+import { useMeeting as useMeetingContext } from "@/hooks/meeting/MeetingContext";
+import { useChat } from "@/hooks/meeting/useChat";
+import { ChatPanel } from "@/components/meeting/ChatPanel";
 import { getAccessToken } from "@/api/client";
 
 const REACTIONS = ["👍", "👏", "❤️", "😂", "😮", "🎉"];
@@ -31,51 +33,6 @@ function ReactionPicker({ onPick, onClose }: {
           {emoji}
         </button>
       ))}
-    </div>
-  );
-}
-
-function ChatPanel({ chat, onSend }: {
-  chat: { userId: string; name: string; message: string; sentAt: string }[];
-  onSend: (msg: string) => void;
-}) {
-  const [input, setInput] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat]);
-
-  const handleSend = () => {
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    onSend(trimmed);
-    setInput("");
-  };
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {chat.map((msg, i) => (
-          <div key={`${msg.userId}-${i}`} className="space-y-0.5">
-            <p className="text-[11px] font-medium text-muted-foreground">{msg.name}</p>
-            <p className="text-sm text-foreground bg-muted/50 rounded-lg px-3 py-1.5">
-              {msg.message}
-            </p>
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-      <div className="border-t border-border/60 p-3 flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Send a message..."
-          className="flex-1 text-sm bg-muted/50 rounded-lg px-3 py-1.5 outline-none border border-border/40 focus:border-primary/50"
-        />
-        <Button size="sm" onClick={handleSend} disabled={!input.trim()}>Send</Button>
-      </div>
     </div>
   );
 }
@@ -109,27 +66,53 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
 
   const { data: tokenData, isLoading: tokenLoading } = useMeetingToken(meetingId);
   const authToken = getAccessToken() ?? "";
+  const meetingCtx = useMeetingContext();
+  const { user: currentUser } = useAuth();
+  const currentUserId = currentUser?.id ?? "";
+  const currentUserName = currentUser?.fullName ?? "You";
 
-  const { joined, localAudio, localVideo, remoteUsers, toggleMic, toggleCamera } = useAgoraRTC(
-    tokenData
-      ? { appId: tokenData.appId, channel: tokenData.channel, token: tokenData.token, uid: tokenData.uid }
-      : { appId: "", channel: "", token: "", uid: 0 }
-  );
+  useEffect(() => {
+    if (!tokenData) return;
+    if (meetingCtx.isInMeeting && meetingCtx.meetingId === meetingId) {
+      meetingCtx.maximize();
+    } else {
+      meetingCtx.joinMeeting({
+        classId,
+        meetingId,
+        role: "student",
+        tokenData: { appId: tokenData.appId, channel: tokenData.channel, token: tokenData.token, uid: tokenData.uid },
+        authToken,
+      });
+    }
+    return () => { meetingCtx.minimize(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenData]);
 
+  const { joined, localVideo, remoteUsers, toggleMic, toggleCamera } = meetingCtx;
   const {
     connected, participants, chat, currentSlide, isPresenting,
     sendChat, raiseHand, lowerHand, sendReaction,
-  } = useMeetingSocket({ meetingId, token: authToken });
+  } = meetingCtx;
+
+  const { messages: chatMessages, send: sendChatMessage } = useChat({
+    chat,
+    sendChat,
+    currentUserId,
+    currentUserName,
+  });
 
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [handRaised, setHandRaised] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(true);
   const [sidePanel, setSidePanel] = useState<"chat" | "participants" | null>(null);
 
-  // Re-play local video if track changes
+  // Re-play local video when track or mount state changes
   useEffect(() => {
-    if (localVideo) {
+    if (!localVideo) return;
+    const el = document.getElementById("local-video-pip");
+    if (el) {
       localVideo.play("local-video-pip");
     }
   }, [localVideo]);
@@ -150,6 +133,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   };
 
   const handleLeave = () => {
+    meetingCtx.leaveMeeting();
     router.push(`/student/meetings/${meetingId}?classId=${classId}`);
   };
 
@@ -174,32 +158,37 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-zinc-950 text-white overflow-hidden">
+    <div className={cn(
+      "flex flex-col bg-zinc-950 text-white overflow-hidden",
+      isFullscreen ? "fixed inset-0 z-50" : "h-screen"
+    )}>
       <div className="flex-1 flex overflow-hidden relative">
         {/* Remote users */}
-        <div className={cn(
-          "flex-1 grid gap-1 p-1",
-          remoteUsers.length === 0 ? "place-items-center"
-            : remoteUsers.length === 1 ? "grid-cols-1"
-            : "grid-cols-2"
-        )}>
-          {remoteUsers.length === 0 && !joined && (
-            <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
-          )}
-          {remoteUsers.map((user) => (
-            <div
-              key={String(user.uid)}
-              id={`remote-${user.uid}`}
-              className="rounded-lg bg-zinc-800 w-full h-full min-h-[200px]"
-            />
-          ))}
-        </div>
+        <div className="flex-1 relative">
+          <div className={cn(
+            "h-full grid gap-1 p-1",
+            remoteUsers.length === 0 ? "place-items-center"
+              : remoteUsers.length === 1 ? "grid-cols-1"
+              : "grid-cols-2"
+          )}>
+            {remoteUsers.length === 0 && !joined && (
+              <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
+            )}
+            {remoteUsers.map((user) => (
+              <div
+                key={String(user.uid)}
+                id={`remote-${user.uid}`}
+                className="rounded-lg bg-zinc-800 w-full h-full min-h-[200px]"
+              />
+            ))}
+          </div>
 
-        {/* Local video PIP — id used by Agora to render directly */}
-        <div
-          id="local-video-pip"
-          className="absolute bottom-4 right-4 w-36 h-24 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10"
-        />
+          {/* Local video PIP — id used by Agora to render directly */}
+          <div
+            id="local-video-pip"
+            className="absolute bottom-4 right-4 w-52 h-36 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10"
+          />
+        </div>
 
         {isPresenting && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-zinc-800/80 backdrop-blur-sm text-xs text-zinc-300 px-3 py-1.5 rounded-full border border-zinc-700 z-10">
@@ -215,7 +204,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
             </div>
             <div className="flex-1 overflow-hidden">
               {sidePanel === "chat" ? (
-                <ChatPanel chat={chat} onSend={sendChat} />
+                <ChatPanel messages={chatMessages} currentUserId={currentUserId} onSend={sendChatMessage} />
               ) : (
                 <ParticipantsPanel participants={participants} />
               )}
@@ -288,6 +277,17 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
         >
           <MessageSquare className="h-5 w-5" />
           Chat
+        </button>
+
+        <button
+          onClick={() => setIsFullscreen((v) => !v)}
+          className={cn(
+            "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
+            isFullscreen ? "text-primary bg-primary/10" : "text-zinc-300 hover:bg-zinc-800"
+          )}
+        >
+          {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+          {isFullscreen ? "Exit Full" : "Full Screen"}
         </button>
 
         <button

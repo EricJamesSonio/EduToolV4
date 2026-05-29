@@ -55,7 +55,7 @@ export function HeroSection() {
               <Button
                 size="lg"
                 variant="outline"
-                className="w-full sm:w-auto text-lg px-8 py-6"
+                className="bg-white w-full sm:w-auto text-lg px-8 py-6"
               >
                 View Demo
               </Button>

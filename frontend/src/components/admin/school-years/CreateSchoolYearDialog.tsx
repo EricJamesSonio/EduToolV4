@@ -9,15 +9,10 @@ import { toast } from "sonner";
 
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 import type { CreateForm, ShortDurationWarning } from "./types/types";
 import { isShortDurationError } from "./utils/helpers";
@@ -88,13 +83,9 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>New School Year</DialogTitle>
-          </DialogHeader>
+      <Modal open={open} onClose={handleClose} title="New School Year" size="sm">
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-1">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="sy-name">Title</Label>
               <Input
@@ -152,8 +143,7 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+      </Modal>
 
       <ConfirmDialog
         open={!!shortDurationWarning}

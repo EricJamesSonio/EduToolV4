@@ -653,24 +653,40 @@ export class OrgSeederService {
             }));
 
     for (const { programKey, programId, scaleName, ranges } of assignments) {
-      const id = seedId('scale', programKey, scaleName, schoolYearId, orgId);
-      const existing = await this.db.gradingScale.findFirst({ where: { id } });
+      const scaleId = seedId('scale', programKey, scaleName, orgId);
+      let scale = await this.db.gradingScale.findFirst({ where: { id: scaleId } });
 
-      if (existing) {
-        result.gradingScales.already_exists++;
-      } else {
-        await this.db.gradingScale.create({
+      if (!scale) {
+        scale = await this.db.gradingScale.create({
           data: {
-            id,
+            id: scaleId,
             org_id: orgId,
-            school_year_id: schoolYearId,
-            program_id: programId,
             name: scaleName,
+            program_type: programKey,
             ranges,
             is_locked: false,
           },
         });
         result.gradingScales.seeded++;
+      } else {
+        result.gradingScales.already_exists++;
+      }
+
+      const assignmentId = seedId('assign', programKey, scaleName, schoolYearId, programId, orgId);
+      const existingAssign = await this.db.gradingScaleAssignment.findFirst({
+        where: { id: assignmentId },
+      });
+
+      if (!existingAssign) {
+        await this.db.gradingScaleAssignment.create({
+          data: {
+            id: assignmentId,
+            org_id: orgId,
+            grading_scale_id: scale.id,
+            program_id: programId,
+            school_year_id: schoolYearId,
+          },
+        });
       }
     }
   }

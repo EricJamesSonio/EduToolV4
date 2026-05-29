@@ -6,18 +6,13 @@ import { DataTable } from "@/components/shared/DataTable";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import type { Student } from "@/types/admin/student.types";
 
-type EnrichedStudent = Student & {
-  levelName?: string;
-  sectionName?: string;
-};
-
 interface StudentTableProps {
-  data: EnrichedStudent[];
-  onView: (student: EnrichedStudent) => void;
+  data: Student[];
+  onView: (student: Student) => void;
 }
 
 export function StudentTable({ data, onView }: StudentTableProps): React.JSX.Element {
-  const columns: ColumnDef<EnrichedStudent>[] = [
+  const columns: ColumnDef<Student>[] = [
     {
       header: "Full Name",
       accessorKey: "fullName",
@@ -35,8 +30,22 @@ export function StudentTable({ data, onView }: StudentTableProps): React.JSX.Ele
       ),
     },
     {
+      header: "Program",
+      accessorFn: (row) => row.programName ?? "—",
+      cell: ({ getValue }) => (
+        <span className="text-sm text-muted-foreground">{getValue<string>()}</span>
+      ),
+    },
+    {
       header: "Level",
       accessorFn: (row) => row.levelName ?? "—",
+      cell: ({ getValue }) => (
+        <span className="text-sm text-muted-foreground">{getValue<string>()}</span>
+      ),
+    },
+    {
+      header: "Course / Strand",
+      accessorFn: (row) => row.courseName ?? row.strandName ?? "—",
       cell: ({ getValue }) => (
         <span className="text-sm text-muted-foreground">{getValue<string>()}</span>
       ),
