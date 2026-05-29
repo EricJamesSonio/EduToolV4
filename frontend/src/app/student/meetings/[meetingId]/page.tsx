@@ -1,13 +1,14 @@
-// src/app/student/meetings/[meetingId]/page.tsx
 "use client";
 
 import { useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { ArrowLeft, Calendar, Clock, Radio, Video } from "lucide-react";
+import { Video, Calendar, Clock, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { isWithinInterval, addMinutes, isPast } from "date-fns";
 import { useStudentMeeting, useRequestJoinMeeting } from "@/hooks/student/useStudentMeetings";
 import { toast } from "sonner";
@@ -70,63 +71,54 @@ export default function StudentMeetingDetailPage(): React.JSX.Element {
     });
   };
 
+  const colorIdx = meetingId ? meetingId.split("").reduce((a, c) => a + c.charCodeAt(0), 0) : 0;
+
   return (
-    <div className="space-y-6 max-w-2xl">
-      {/* Back */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="gap-1.5 text-muted-foreground hover:text-foreground -ml-1"
-        onClick={() => router.push("/student/meetings")}
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Back to Meetings
-      </Button>
+    <div className="space-y-6">
+      <PageHeader
+        title={meeting?.title ?? "Meeting"}
+        breadcrumbs={[
+          { label: "Meetings", href: "/student/meetings" },
+          { label: meeting?.title ?? "Meeting" },
+        ]}
+      />
 
       {isLoading ? (
         <div className="space-y-4">
-          <Skeleton className="h-7 w-64" />
           <Skeleton className="h-32 w-full rounded-lg" />
         </div>
       ) : meeting ? (
         <>
-          {/* Title + status */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-semibold text-foreground">
-                {meeting.title}
-              </h1>
-              <Badge
-                variant="outline"
-                className={cn("text-[11px] font-medium shrink-0", meta.className)}
-              >
-                {meta.label}
-              </Badge>
-            </div>
-          </div>
-
-          {/* Info card */}
-          <div className="rounded-lg border border-border/60 bg-card p-5 space-y-4">
-            <div className="flex items-center gap-2 flex-wrap text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4" />
-                {new Date(meeting.startTime).toLocaleDateString(undefined, {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
-                {new Date(meeting.startTime).toLocaleTimeString(undefined, {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
+          <div className="rounded-lg border bg-card p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[colorIdx % WEEK_COLORS.length])}>
+                <Video className="h-5 w-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline" className={cn("text-[11px] font-medium shrink-0", meta.className)}>
+                    {meta.label}
+                  </Badge>
+                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    {new Date(meeting.startTime).toLocaleDateString(undefined, {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    {new Date(meeting.startTime).toLocaleTimeString(undefined, {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {/* Action */}
             <div className="pt-1">
               {meeting.isInvited ? (
                 <Button
@@ -189,11 +181,10 @@ export default function StudentMeetingDetailPage(): React.JSX.Element {
               )}
             </div>
 
-            {/* Invite / join request status notice */}
             {!meeting.isInvited &&
               !requested &&
               !meeting.joinRequest && (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   You are not invited to this meeting. You can request to join
                   and your educator will approve or decline.
                 </p>

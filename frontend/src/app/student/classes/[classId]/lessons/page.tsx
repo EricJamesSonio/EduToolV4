@@ -13,8 +13,8 @@ import type { StudentLesson } from "@/api/student/lesson.api";
 export default function StudentLessonsPage(): React.JSX.Element {
   const { classId } = useParams<{ classId: string }>();
 
-    const { data: lessonsRaw, isLoading } = useStudentLessons(classId);
-    const lessons: StudentLesson[] = Array.isArray(lessonsRaw)
+  const { data: lessonsRaw, isLoading } = useStudentLessons(classId);
+  const lessons: StudentLesson[] = Array.isArray(lessonsRaw)
     ? lessonsRaw
     : (((lessonsRaw as unknown) as Record<string, unknown>)?.data as StudentLesson[] ?? []);
 
@@ -36,10 +36,15 @@ export default function StudentLessonsPage(): React.JSX.Element {
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((w) => (
             <div key={w} className="rounded-xl border bg-card p-6 space-y-4">
-              <Skeleton className="h-6 w-20 rounded-md" />
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-9 w-9 rounded-md shrink-0" />
+                <div className="flex-1 space-y-1">
+                  <Skeleton className="h-5 w-24" />
+                </div>
+              </div>
               <div className="space-y-2">
                 {[1, 2].map((i) => (
-                  <Skeleton key={i} className="h-4 w-40" />
+                  <Skeleton key={i} className="h-12 w-full rounded-lg" />
                 ))}
               </div>
             </div>
@@ -64,20 +69,28 @@ export default function StudentLessonsPage(): React.JSX.Element {
               key={week}
               className="rounded-xl border bg-card p-6 space-y-4"
             >
-               <p className={cn("inline-block rounded-md px-2.5 py-1 text-xs font-semibold", WEEK_COLORS[(week - 1) % WEEK_COLORS.length])}>
-                Week {week}
-              </p>
+              <div className="flex items-start gap-3">
+                <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[(week - 1) % WEEK_COLORS.length])}>
+                  <BookOpen className="h-4 w-4" />
+                </div>
+                <h3 className="font-semibold text-lg leading-tight">Week {week}</h3>
+              </div>
 
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {byWeek[week]
                   ?.sort((a, b) => (a.subIndex ?? 0) - (b.subIndex ?? 0))
                   .map((lesson) => (
                     <Link
                       key={lesson.id}
                       href={`/student/classes/${classId}/lessons/${lesson.id}`}
-                      className="block text-sm text-foreground hover:text-primary hover:underline transition-colors py-0.5"
+                      className="block text-sm font-medium rounded-lg border bg-card px-4 py-3 hover:border-primary/40 hover:bg-accent/30 transition-colors"
                     >
                       {lesson.title}
+                      {lesson.description && (
+                        <p className="text-xs text-muted-foreground font-normal mt-0.5 line-clamp-1">
+                          {lesson.description}
+                        </p>
+                      )}
                     </Link>
                   ))}
               </div>
