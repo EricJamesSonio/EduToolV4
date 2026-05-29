@@ -9,9 +9,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 import { useMeetingToken } from "@/hooks/student/useStudentMeetings";
 import { useAgoraRTC } from "@/hooks/meeting/useAgoraRTC";
 import { useMeetingSocket } from "@/hooks/meeting/useMeetingSocket";
+import { useChat } from "@/hooks/meeting/useChat";
+import { ChatPanel } from "@/components/meeting/ChatPanel";
 import { getAccessToken } from "@/api/client";
 
 const REACTIONS = ["👍", "👏", "❤️", "😂", "😮", "🎉"];
@@ -31,51 +34,6 @@ function ReactionPicker({ onPick, onClose }: {
           {emoji}
         </button>
       ))}
-    </div>
-  );
-}
-
-function ChatPanel({ chat, onSend }: {
-  chat: { userId: string; name: string; message: string; sentAt: string }[];
-  onSend: (msg: string) => void;
-}) {
-  const [input, setInput] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat]);
-
-  const handleSend = () => {
-    const trimmed = input.trim();
-    if (!trimmed) return;
-    onSend(trimmed);
-    setInput("");
-  };
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {chat.map((msg, i) => (
-          <div key={`${msg.userId}-${i}`} className="space-y-0.5">
-            <p className="text-[11px] font-medium text-muted-foreground">{msg.name}</p>
-            <p className="text-sm text-foreground bg-muted/50 rounded-lg px-3 py-1.5">
-              {msg.message}
-            </p>
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-      <div className="border-t border-border/60 p-3 flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Send a message..."
-          className="flex-1 text-sm bg-muted/50 rounded-lg px-3 py-1.5 outline-none border border-border/40 focus:border-primary/50"
-        />
-        <Button size="sm" onClick={handleSend} disabled={!input.trim()}>Send</Button>
-      </div>
     </div>
   );
 }
@@ -120,6 +78,17 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
     connected, participants, chat, currentSlide, isPresenting,
     sendChat, raiseHand, lowerHand, sendReaction,
   } = useMeetingSocket({ meetingId, token: authToken });
+
+  const { user: currentUser } = useAuth();
+  const currentUserId = currentUser?.id ?? "";
+  const currentUserName = currentUser?.fullName ?? "You";
+
+  const { messages: chatMessages, send: sendChatMessage } = useChat({
+    chat,
+    sendChat,
+    currentUserId,
+    currentUserName,
+  });
 
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
@@ -215,7 +184,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
             </div>
             <div className="flex-1 overflow-hidden">
               {sidePanel === "chat" ? (
-                <ChatPanel chat={chat} onSend={sendChat} />
+                <ChatPanel messages={chatMessages} currentUserId={currentUserId} onSend={sendChatMessage} />
               ) : (
                 <ParticipantsPanel participants={participants} />
               )}
