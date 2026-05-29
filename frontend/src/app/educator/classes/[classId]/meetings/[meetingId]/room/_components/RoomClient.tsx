@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Hand, MessageSquare,
@@ -12,8 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { getAccessToken } from "@/api/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useAgoraRTC } from "@/hooks/meeting/useAgoraRTC";
-import { useMeetingSocket } from "@/hooks/meeting/useMeetingSocket";
+import { useMeeting as useMeetingContext } from "@/hooks/meeting/MeetingContext";
 import { useChat } from "@/hooks/meeting/useChat";
 import { ChatPanel } from "@/components/meeting/ChatPanel";
 import {
@@ -123,22 +122,32 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
 
   const students: EnrolledStudent[] = Array.isArray(studentsRaw) ? studentsRaw : [];
   const authToken = getAccessToken() ?? "";
+  const meetingCtx = useMeetingContext();
+  const { user: currentUser } = useAuth();
+  const currentUserId = currentUser?.id ?? "";
+  const currentUserName = currentUser?.fullName ?? "You";
 
-  const { joined, localAudio, localVideo, remoteUsers, toggleMic, toggleCamera } = useAgoraRTC(
-    tokenData
-      ? { appId: tokenData.appId, channel: tokenData.channel, token: tokenData.token, uid: tokenData.uid }
-      : { appId: "", channel: "", token: "", uid: 0 }
-  );
+  // Join meeting when token is ready, minimize on unmount
+  useEffect(() => {
+    if (!tokenData) return;
+    meetingCtx.joinMeeting({
+      classId,
+      meetingId,
+      tokenData: { appId: tokenData.appId, channel: tokenData.channel, token: tokenData.token, uid: tokenData.uid },
+      authToken,
+    });
+    return () => {
+      meetingCtx.minimize();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenData]);
 
+  const { joined, localVideo, remoteUsers, toggleMic, toggleCamera } = meetingCtx;
   const {
     connected, participants, chat, currentSlide, isPresenting,
     sendChat, raiseHand, lowerHand, sendReaction,
     startPresentation, stopPresentation,
-  } = useMeetingSocket({ meetingId, token: authToken });
-
-  const { user: currentUser } = useAuth();
-  const currentUserId = currentUser?.id ?? "";
-  const currentUserName = currentUser?.fullName ?? "You";
+  } = meetingCtx;
 
   const { messages: chatMessages, send: sendChatMessage } = useChat({
     chat,
@@ -225,6 +234,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   };
 
   const handleEndMeeting = () => {
+    meetingCtx.leaveMeeting();
     endMeetingMutation.mutate(meetingId, {
       onSuccess: () => router.push(`/educator/classes/${classId}/meetings/${meetingId}`),
     });

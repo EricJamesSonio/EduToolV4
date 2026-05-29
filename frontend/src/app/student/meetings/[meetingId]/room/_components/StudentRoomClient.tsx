@@ -11,8 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useMeetingToken } from "@/hooks/student/useStudentMeetings";
-import { useAgoraRTC } from "@/hooks/meeting/useAgoraRTC";
-import { useMeetingSocket } from "@/hooks/meeting/useMeetingSocket";
+import { useMeeting as useMeetingContext } from "@/hooks/meeting/MeetingContext";
 import { useChat } from "@/hooks/meeting/useChat";
 import { ChatPanel } from "@/components/meeting/ChatPanel";
 import { getAccessToken } from "@/api/client";
@@ -67,21 +66,30 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
 
   const { data: tokenData, isLoading: tokenLoading } = useMeetingToken(meetingId);
   const authToken = getAccessToken() ?? "";
-
-  const { joined, localAudio, localVideo, remoteUsers, toggleMic, toggleCamera } = useAgoraRTC(
-    tokenData
-      ? { appId: tokenData.appId, channel: tokenData.channel, token: tokenData.token, uid: tokenData.uid }
-      : { appId: "", channel: "", token: "", uid: 0 }
-  );
-
-  const {
-    connected, participants, chat, currentSlide, isPresenting,
-    sendChat, raiseHand, lowerHand, sendReaction,
-  } = useMeetingSocket({ meetingId, token: authToken });
-
+  const meetingCtx = useMeetingContext();
   const { user: currentUser } = useAuth();
   const currentUserId = currentUser?.id ?? "";
   const currentUserName = currentUser?.fullName ?? "You";
+
+  useEffect(() => {
+    if (!tokenData) return;
+    meetingCtx.joinMeeting({
+      classId,
+      meetingId,
+      tokenData: { appId: tokenData.appId, channel: tokenData.channel, token: tokenData.token, uid: tokenData.uid },
+      authToken,
+    });
+    return () => {
+      meetingCtx.minimize();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenData]);
+
+  const { joined, localVideo, remoteUsers, toggleMic, toggleCamera } = meetingCtx;
+  const {
+    connected, participants, chat, currentSlide, isPresenting,
+    sendChat, raiseHand, lowerHand, sendReaction,
+  } = meetingCtx;
 
   const { messages: chatMessages, send: sendChatMessage } = useChat({
     chat,
@@ -97,9 +105,11 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   const [isFullscreen, setIsFullscreen] = useState(true);
   const [sidePanel, setSidePanel] = useState<"chat" | "participants" | null>(null);
 
-  // Re-play local video if track changes
+  // Re-play local video when track or mount state changes
   useEffect(() => {
-    if (localVideo) {
+    if (!localVideo) return;
+    const el = document.getElementById("local-video-pip");
+    if (el) {
       localVideo.play("local-video-pip");
     }
   }, [localVideo]);
@@ -120,6 +130,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   };
 
   const handleLeave = () => {
+    meetingCtx.leaveMeeting();
     router.push(`/student/meetings/${meetingId}?classId=${classId}`);
   };
 

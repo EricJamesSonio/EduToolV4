@@ -1,10 +1,11 @@
-// ===== File: frontend\src\app\student\layout.tsx =====
 "use client";
 
 import { useRoleGuard } from "@/hooks/useRole";
 import { StudentSidebar } from "@/components/layout/StudentSidebar";
 import { AppShell } from "@/components/layout/AppShell";
 import { SidebarProvider } from "@/context/SidebarContext";
+import { MeetingProvider } from "@/hooks/meeting/MeetingContext";
+import { MeetingMiniPlayer } from "@/components/meeting/MeetingMiniPlayer";
 
 export default function StudentLayout({
   children,
@@ -14,10 +15,13 @@ export default function StudentLayout({
   useRoleGuard(["student"]);
 
   return (
-    <SidebarProvider>
-      <AppShell sidebar={<StudentSidebar />}>
-        {children}
-      </AppShell>
-    </SidebarProvider>
+    <MeetingProvider>
+      <SidebarProvider>
+        <AppShell sidebar={<StudentSidebar />}>
+          {children}
+        </AppShell>
+      </SidebarProvider>
+      <MeetingMiniPlayer />
+    </MeetingProvider>
   );
 }
