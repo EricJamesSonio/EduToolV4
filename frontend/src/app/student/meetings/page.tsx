@@ -1,21 +1,19 @@
-// src/app/student/meetings/page.tsx
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Video, Calendar, Radio, Clock } from "lucide-react";
+import { Video, Calendar, Radio, Clock, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { isWithinInterval, addMinutes, isPast } from "date-fns";
 import { useStudentMeetings, useRequestJoinMeeting } from "@/hooks/student/useStudentMeetings";
 import { useStudentClasses } from "@/hooks/student/useStudentClassess";
 import type { StudentMeeting } from "@/api/student/meeting.api";
 import { toast } from "sonner";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getMeetingStatus(
   startTime: string,
@@ -38,16 +36,16 @@ const STATUS_META = {
   ended:    { label: "Ended",    className: "bg-muted text-muted-foreground border-border/60" },
 };
 
-// ── Row ───────────────────────────────────────────────────────────────────────
-
-function MeetingRow({
+function MeetingCard({
   meeting,
   classId,
-  className: subjectName,
+  subjectName,
+  colorIndex,
 }: {
   meeting: StudentMeeting;
   classId: string;
-  className: string;
+  subjectName: string;
+  colorIndex: number;
 }) {
   const router = useRouter();
   const { mutate: requestJoin, isPending } = useRequestJoinMeeting();
@@ -71,19 +69,6 @@ function MeetingRow({
   };
 
   const renderAction = () => {
-    if (isEnded) {
-      return (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() =>
-            router.push(`/student/meetings/${meeting.id}?classId=${classId}`)
-          }
-        >
-          View Details
-        </Button>
-      );
-    }
     if (meeting.isInvited && isLive) {
       return (
         <Button
@@ -98,14 +83,13 @@ function MeetingRow({
         </Button>
       );
     }
-    if (meeting.isInvited && !isLive) {
+    if (meeting.isInvited && !isLive && !isEnded) {
       return (
         <Button size="sm" variant="outline" disabled>
           Not Live Yet
         </Button>
       );
     }
-    // Not invited
     if (requested || meeting.joinRequest?.status === "pending") {
       return (
         <Button size="sm" variant="outline" disabled>
@@ -126,66 +110,86 @@ function MeetingRow({
   };
 
   return (
-    <div className="flex items-center gap-4 rounded-lg border border-border/60 bg-card px-4 py-3">
-      <div className="shrink-0 h-9 w-9 rounded-md bg-muted flex items-center justify-center">
-        <Video className="h-4 w-4 text-muted-foreground/60" />
+    <div className="rounded-xl border bg-card p-6 space-y-4">
+      <div className="flex items-start gap-3">
+        <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[colorIndex % WEEK_COLORS.length])}>
+          <Video className="h-4 w-4" />
+        </div>
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-semibold text-lg leading-tight truncate">
+              {meeting.title}
+            </h3>
+            <Badge variant="outline" className={cn("text-[11px] font-medium shrink-0", meta.className)}>
+              {meta.label}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              {new Date(meeting.startTime).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" />
+              {new Date(meeting.startTime).toLocaleTimeString(undefined, {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+            <span className="text-muted-foreground/60">{subjectName}</span>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 min-w-0 space-y-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-foreground truncate">
-            {meeting.title}
-          </span>
-          <Badge variant="outline" className={cn("text-[11px] font-medium shrink-0", meta.className)}>
-            {meta.label}
-          </Badge>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            {new Date(meeting.startTime).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {new Date(meeting.startTime).toLocaleTimeString(undefined, {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-          <span className="text-muted-foreground/60">{subjectName}</span>
-        </div>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        {!isLive && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              router.push(`/student/meetings/${meeting.id}?classId=${classId}`)
+            }
+          >
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            View Details
+          </Button>
+        )}
+        <div className="ml-auto">{renderAction()}</div>
       </div>
-
-      <div className="shrink-0">{renderAction()}</div>
     </div>
   );
 }
 
-function MeetingRowSkeleton() {
+function MeetingCardSkeleton() {
   return (
-    <div className="flex items-center gap-4 rounded-lg border border-border/60 px-4 py-3">
-      <Skeleton className="h-9 w-9 rounded-md shrink-0" />
-      <div className="flex-1 space-y-2">
-        <Skeleton className="h-3.5 w-40" />
-        <Skeleton className="h-3 w-32" />
+    <div className="rounded-xl border bg-card p-6 space-y-4">
+      <div className="flex items-start gap-3">
+        <Skeleton className="h-9 w-9 rounded-md shrink-0" />
+        <div className="flex-1 space-y-1">
+          <Skeleton className="h-5 w-44" />
+          <Skeleton className="h-4 w-52" />
+        </div>
+        <Skeleton className="h-5 w-16 rounded-md shrink-0" />
       </div>
-      <Skeleton className="h-8 w-24 rounded-md shrink-0" />
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-8 w-24 rounded-md" />
+      </div>
     </div>
   );
 }
-
-// ── ClassMeetings — fetches meetings for one class ────────────────────────────
 
 function ClassMeetings({
   classId,
   subjectName,
+  colorIndex,
 }: {
   classId: string;
   subjectName: string;
+  colorIndex: number;
 }) {
   const { data: rawData, isLoading } = useStudentMeetings(classId);
   const meetings: StudentMeeting[] = Array.isArray(rawData)
@@ -196,27 +200,26 @@ function ClassMeetings({
   if (isLoading) {
     return (
       <>
-        <MeetingRowSkeleton />
-        <MeetingRowSkeleton />
+        <MeetingCardSkeleton />
+        <MeetingCardSkeleton />
       </>
     );
   }
 
   return (
     <>
-      {meetings.map((m) => (
-        <MeetingRow
+      {meetings.map((m, i) => (
+        <MeetingCard
           key={m.id}
           meeting={m}
           classId={classId}
-          className={subjectName}
+          subjectName={subjectName}
+          colorIndex={colorIndex + i}
         />
       ))}
     </>
   );
 }
-
-// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function StudentMeetingsPage(): React.JSX.Element {
   const { data: classesRaw, isLoading: classesLoading } = useStudentClasses();
@@ -230,8 +233,8 @@ export default function StudentMeetingsPage(): React.JSX.Element {
       <PageHeader title="Meetings" />
 
       {classesLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => <MeetingRowSkeleton key={i} />)}
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => <MeetingCardSkeleton key={i} />)}
         </div>
       ) : classes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -239,16 +242,17 @@ export default function StudentMeetingsPage(): React.JSX.Element {
           <p className="text-sm text-muted-foreground">No meetings yet</p>
         </div>
       ) : (
-        <div className="space-y-2">
-        {classes
-        .filter((c): c is NonNullable<typeof c> => c != null)
-        .map((c) => (
-            <ClassMeetings
-            key={c.class.id}
-            classId={c.class.id}
-            subjectName={c.class.subjectName ?? ""}
-            />
-        ))}
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {classes
+            .filter((c): c is NonNullable<typeof c> => c != null)
+            .map((c, i) => (
+              <ClassMeetings
+                key={c.class.id}
+                classId={c.class.id}
+                subjectName={c.class.subjectName ?? ""}
+                colorIndex={i * 10}
+              />
+            ))}
         </div>
       )}
     </div>

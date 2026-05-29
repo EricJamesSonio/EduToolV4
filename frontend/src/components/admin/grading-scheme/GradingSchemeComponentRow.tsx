@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { ComponentType, GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
 
 const COMPONENT_TYPES: { value: ComponentType; label: string }[] = [
@@ -23,6 +24,23 @@ const COMPONENT_TYPES: { value: ComponentType; label: string }[] = [
   { value: "other",                label: "Other" },
 ];
 
+const TYPE_COLORS: Record<string, string> = {
+  written_work:         "border-l-blue-500",
+  performance_task:     "border-l-emerald-500",
+  quarterly_assessment: "border-l-purple-500",
+  exam:                 "border-l-amber-500",
+  quiz:                 "border-l-teal-500",
+  assignment:           "border-l-indigo-500",
+  project:              "border-l-pink-500",
+  recitation:           "border-l-cyan-500",
+  participation:        "border-l-orange-500",
+  behavior:             "border-l-rose-500",
+  attendance:           "border-l-blue-500",
+  activity:             "border-l-emerald-500",
+  custom:               "border-l-purple-500",
+  other:                "border-l-gray-500",
+};
+
 interface GradingSchemeComponentRowProps {
   index:     number;
   row:       GradingSchemeComponentDto;
@@ -39,7 +57,10 @@ export function GradingSchemeComponentRow({
   onDelete,
 }: GradingSchemeComponentRowProps) {
   return (
-    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
+    <div className={cn(
+      "grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center border-l-4 pl-3",
+      TYPE_COLORS[row.type] ?? "border-l-gray-500"
+    )}>
       {/* Name */}
       <Input
         value={row.name}
