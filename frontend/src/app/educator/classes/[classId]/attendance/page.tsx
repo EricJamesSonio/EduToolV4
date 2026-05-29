@@ -12,6 +12,8 @@ import { format } from "date-fns";
 import { useAttendanceSessions } from "@/hooks/educator/useAttendance";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { WEEK_COLORS } from "@/lib/palette";
+import { cn } from "@/lib/utils";
 
 import type { WeekSessions } from "@/api/educator/attendance.api";
 
@@ -119,14 +121,19 @@ export default function AttendancePage() {
                           key={`${week.semesterIndex}-${week.globalWeek}`}
                           className="rounded-xl border bg-card p-6 space-y-4"
                         >
-                          {/* Week label */}
-                          <div>
-                            <p className="text-sm font-medium">
-                              Week {week.semesterWeek}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(week.date), "MMM dd, yyyy")}
-                            </p>
+                          {/* Week label with colored icon */}
+                          <div className="flex items-start gap-3">
+                            <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[(week.globalWeek - 1) % WEEK_COLORS.length])}>
+                              <CalendarDays className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold">
+                                Week {week.semesterWeek}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(week.date), "MMM dd, yyyy")}
+                              </p>
+                            </div>
                           </div>
 
                           {/* Sessions */}

@@ -2,7 +2,6 @@
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import {
   useLesson,
@@ -14,6 +13,7 @@ import {
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import { LessonForm } from "@/components/educator/lesson/LessonForm";
 import { ConceptBuildViewer } from "@/components/educator/lesson/ConceptBuildViewer";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -127,60 +127,61 @@ export default function LessonDetailPage(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb + actions */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-sm min-w-0">
-          <Link
-            href={`/educator/classes/${classId}/lessons`}
-            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-          >
-            Lessons
-          </Link>
-          <span className="text-muted-foreground">/</span>
-          <span className="font-medium truncate">{lesson.title}</span>
-        </div>
+      <PageHeader
+        title={lesson.title}
+        breadcrumbs={[
+          { label: "Lessons", href: `/educator/classes/${classId}/lessons` },
+          { label: lesson.title },
+        ]}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setIsEditing((v) => !v)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {isEditing ? "Cancel Edit" : "Edit"}
+            </Button>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setIsEditing((v) => !v)}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            {isEditing ? "Cancel Edit" : "Edit Lesson"}
-          </Button>
-
-          <AlertDialog>
-            <AlertDialogTrigger className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium text-destructive hover:bg-muted transition-colors">
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete this lesson?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently remove &quot;{lesson.title}&quot; and
-                  its concept build. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-destructive"
                 >
-                  {isDeleting && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Delete Lesson
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this lesson?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove &quot;{lesson.title}&quot; and
+                    its concept build. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {isDeleting && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Delete Lesson
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        }
+      />
 
       {/* Re-extract banner */}
       {showReExtractBanner && (
@@ -235,34 +236,30 @@ export default function LessonDetailPage(): React.JSX.Element {
           onSubmit={handleUpdate}
         />
       ) : (
-        <div className="space-y-4 max-w-2xl">
-          <div>
-            <p className="text-xs text-muted-foreground mb-0.5">Title</p>
-            <p className="font-medium">{lesson.title}</p>
+        <div className="rounded-lg border bg-card divide-y divide-border">
+          <div className="flex items-center gap-6 px-6 py-4">
+            <span className="w-28 text-sm text-muted-foreground shrink-0">Title</span>
+            <span className="text-sm font-medium">{lesson.title}</span>
           </div>
           {lesson.description && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-0.5">
-                Description
-              </p>
-              <p className="text-sm">{lesson.description}</p>
+            <div className="flex items-center gap-6 px-6 py-4">
+              <span className="w-28 text-sm text-muted-foreground shrink-0">Description</span>
+              <span className="text-sm">{lesson.description}</span>
             </div>
           )}
-          <div>
-            <p className="text-xs text-muted-foreground mb-0.5">Week</p>
-            <p className="text-sm">Week {lesson.weekNumber}</p>
+          <div className="flex items-center gap-6 px-6 py-4">
+            <span className="w-28 text-sm text-muted-foreground shrink-0">Week</span>
+            <span className="text-sm">Week {lesson.weekNumber}</span>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-0.5">
-              Lesson Detail
-            </p>
+          <div className="px-6 py-4 space-y-1.5">
+            <span className="text-sm text-muted-foreground">Lesson Detail</span>
             <p className="text-sm whitespace-pre-wrap">{lesson.detail}</p>
           </div>
         </div>
       )}
 
       {/* Concept build section */}
-      <div className="space-y-2 pt-2 border-t">
+      <div className="rounded-lg border bg-card p-6 space-y-4">
         <h2 className="text-sm font-semibold">Concept Build</h2>
         <ConceptBuildViewer
           classId={classId}

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-  Lock, Loader2, RefreshCw, ChevronDown, ChevronUp,
-  LayoutGrid, List, Save, X,
+  Lock, Loader2, RefreshCw,
+  LayoutGrid, List, X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -12,8 +12,12 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import { WEEK_COLORS } from "@/lib/palette";
 import { useQueryClient } from "@tanstack/react-query";
-import { useClassGrades, useComputeGrades, useSetManualScore } from "@/hooks/educator/useGrades";
+import { useClassGrades, useComputeGrades } from "@/hooks/educator/useGrades";
 import type { TermGrades, StudentGrade, CategoryBreakdown } from "@/types/educator/grade.types";
 import { cn } from "@/lib/utils";
 import apiClient from "@/api/client";
@@ -321,121 +325,106 @@ function DefaultGradeTable({
   );
 
   return (
-    <div className="rounded-xl border overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b">
-              <th className="sticky left-0 bg-primary text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide min-w-[200px]">
-                Student
-              </th>
-              {allAssessments.map((a) => (
-                <th key={a.id} className="text-center px-3 py-3 font-semibold text-xs whitespace-nowrap">
-                  <div className="text-xs uppercase tracking-wide">{a.title ?? a.type}</div>
-                  <div className="text-[10px] opacity-70 font-normal capitalize">{a.type}</div>
-                </th>
-              ))}
-              {manualCats.map((cat) => (
-                <th key={cat} className="text-center px-3 py-3 font-semibold text-xs uppercase tracking-wide whitespace-nowrap">
-                  {cat}
-                </th>
-              ))}
-              <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide whitespace-nowrap">
-                Term Grade
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {students.map((student, idx) => {
-              const isLocked = student.grade?.is_locked ?? false;
-              const isSaving = saving.has(student.studentId);
-              return (
-                <tr
-                  key={student.studentId}
-                  className={cn(
-                    "transition-colors",
-                    idx % 2 === 0 ? "bg-background" : "bg-muted/20",
-                    "hover:bg-muted/40"
-                  )}
-                >
-                  {/* Student */}
-                  <td className="sticky left-0 bg-inherit px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                        {student.studentName.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{student.studentName}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">{student.studentCode}</p>
-                      </div>
-                      {isSaving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
-                      {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-primary text-primary-foreground">
+          <TableHead className="sticky left-0 bg-primary text-primary-foreground text-left min-w-[200px] z-10">Student</TableHead>
+          {allAssessments.map((a) => (
+            <TableHead key={a.id} className="text-center whitespace-nowrap text-primary-foreground">
+              <div className="text-xs uppercase tracking-wide">{a.title ?? a.type}</div>
+              <div className="text-[10px] opacity-70 font-normal capitalize">{a.type}</div>
+            </TableHead>
+          ))}
+          {manualCats.map((cat) => (
+            <TableHead key={cat} className="text-center whitespace-nowrap uppercase text-primary-foreground">{cat}</TableHead>
+          ))}
+          <TableHead className="text-center whitespace-nowrap text-primary-foreground">Term Grade</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody className="divide-y">
+        {students.map((student, idx) => {
+          const isLocked = student.grade?.is_locked ?? false;
+          const isSaving = saving.has(student.studentId);
+          return (
+            <TableRow
+              key={student.studentId}
+              className="bg-white hover:bg-muted/40"
+            >
+              <TableCell className="sticky left-0 bg-white px-4 py-3 z-10">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                    {student.studentName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{student.studentName}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono">{student.studentCode}</p>
+                  </div>
+                  {isSaving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
+                  {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+                </div>
+              </TableCell>
+
+              {/* Assessment scores with status badges */}
+              {allAssessments.map((a) => {
+                const score = student.assessmentScores.find((s) => s.assessmentId === a.id);
+                return (
+                  <TableCell key={a.id} className="text-center">
+                    <div className="flex items-center justify-center">
+                      <StatusCell
+                        score={score?.manualScore ?? score?.score ?? null}
+                        classId={classId}
+                        assessmentId={a.id}
+                        submissionId={score?.submissionId}
+                        studentId={student.studentId}
+                        isMissed={score?.isMissed}
+                        isExempted={score?.isExempted}
+                        status={score?.status ?? 'not_started'}
+                        totalItems={score?.totalItems ?? 0}
+                        onStatusChange={onRefresh}
+                      />
                     </div>
-                  </td>
+                  </TableCell>
+                );
+              })}
 
-                  {/* Assessment scores with status badges */}
-                  {allAssessments.map((a) => {
-                    const score = student.assessmentScores.find((s) => s.assessmentId === a.id);
-                    return (
-                      <td key={a.id} className="text-center px-3 py-3">
-                        <div className="flex items-center justify-center">
-                          <StatusCell
-                            score={score?.manualScore ?? score?.score ?? null}
-                            classId={classId}
-                            assessmentId={a.id}
-                            submissionId={score?.submissionId}
-                            studentId={student.studentId}
-                            isMissed={score?.isMissed}
-                            isExempted={score?.isExempted}
-                            status={score?.status ?? 'not_started'}
-                            totalItems={score?.totalItems ?? 0}
-                            onStatusChange={onRefresh}
-                          />
-                        </div>
-                      </td>
-                    );
-                  })}
+              {/* Manual score cells */}
+              {manualCats.map((cat) => {
+                const breakdown = student.categoryBreakdown.find(
+                  (c) => c.category.toLowerCase() === cat.toLowerCase()
+                );
+                return (
+                  <TableCell key={cat} className="text-center">
+                    <ManualCell
+                      value={breakdown?.manualScore ?? null}
+                      studentId={student.studentId}
+                      category={cat}
+                      isLocked={isLocked}
+                      onCommit={onManualCommit}
+                    />
+                  </TableCell>
+                );
+              })}
 
-                  {/* Manual score cells */}
-                  {manualCats.map((cat) => {
-                    const breakdown = student.categoryBreakdown.find(
-                      (c) => c.category.toLowerCase() === cat.toLowerCase()
-                    );
-                    return (
-                      <td key={cat} className="text-center px-3 py-3">
-                        <ManualCell
-                          value={breakdown?.manualScore ?? null}
-                          studentId={student.studentId}
-                          category={cat}
-                          isLocked={isLocked}
-                          onCommit={onManualCommit}
-                        />
-                      </td>
-                    );
-                  })}
-
-                  {/* Term grade */}
-                  <td className="text-center px-4 py-3">
-                    {student.grade ? (
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className={cn("text-sm font-bold tabular-nums", gradeColor(student.grade.final_score))}>
-                          {fmt(student.grade.final_score)}%
-                        </span>
-                        <span className="text-[10px] font-mono text-muted-foreground">
-                          {student.grade.final_grade}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
+              {/* Term grade */}
+              <TableCell className="text-center">
+                {student.grade ? (
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className={cn("text-sm font-bold tabular-nums", gradeColor(student.grade.final_score))}>
+                      {fmt(student.grade.final_score)}%
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {student.grade.final_grade}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">—</span>
+                )}
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -469,7 +458,7 @@ function StudentCategoryDrillDown({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg rounded-xl border bg-background shadow-xl overflow-hidden">
+      <div className="relative z-10 w-full max-w-lg rounded-xl border bg-card shadow-xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h3 className="font-semibold text-lg capitalize">
             {student.studentName} &mdash; {category}
@@ -486,11 +475,14 @@ function StudentCategoryDrillDown({
             <p className="text-sm text-muted-foreground">No assessments in this category.</p>
           ) : (
             <div className="space-y-3">
-              {assessments.map((a) => {
+              {assessments.map((a, i) => {
                 const earned = a.manualScore ?? a.score;
                 return (
-                  <div key={a.assessmentId} className="flex items-center justify-between rounded-lg border px-4 py-3">
-                    <span className="text-sm font-medium capitalize">{a.type}</span>
+                  <div key={a.assessmentId} className="flex items-center justify-between rounded-lg border bg-card px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn("w-2.5 h-2.5 rounded-full shrink-0", WEEK_COLORS[i % WEEK_COLORS.length].split(" ")[0])} />
+                      <span className="text-sm font-medium capitalize">{a.type}</span>
+                    </div>
                     <span className="text-sm tabular-nums">
                       {earned !== null ? (
                         <>{fmt(earned, 0)}/{a.totalItems}</>
@@ -546,97 +538,87 @@ function CleanGradeTable({
 
   return (
     <>
-      <div className="rounded-xl border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b">
-                <th className="sticky left-0 bg-background text-left px-4 py-3 font-semibold text-xs uppercase tracking-wide min-w-[200px]">
-                  Student
-                </th>
-                {allCategories.map((cat) => (
-                  <th key={cat} className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide whitespace-nowrap">
-                    {cat}
-                  </th>
-                ))}
-                <th className="text-center px-4 py-3 font-semibold text-xs uppercase tracking-wide">
-                  Term Grade
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {students.map((student, idx) => {
-                const isLocked = student.grade?.is_locked ?? false;
-                return (
-                  <tr
-                    key={student.studentId}
-                    className={cn(
-                      "transition-colors",
-                      idx % 2 === 0 ? "bg-background" : "bg-muted/20",
-                      "hover:bg-muted/40"
-                    )}
-                  >
-                    <td className="sticky left-0 bg-inherit px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                          {student.studentName.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{student.studentName}</p>
-                          <p className="text-[10px] text-muted-foreground font-mono">{student.studentCode}</p>
-                        </div>
-                        {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
-                      </div>
-                    </td>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="sticky left-0 bg-background text-left min-w-[200px] z-10">Student</TableHead>
+            {allCategories.map((cat) => (
+              <TableHead key={cat} className="text-center whitespace-nowrap uppercase">{cat}</TableHead>
+            ))}
+            <TableHead className="text-center whitespace-nowrap">Term Grade</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="divide-y">
+          {students.map((student, idx) => {
+            const isLocked = student.grade?.is_locked ?? false;
+            return (
+              <TableRow
+                key={student.studentId}
+                className="bg-background hover:bg-muted/40"
+              >
+                <TableCell className="sticky left-0 bg-background px-4 py-3 z-10">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                      {student.studentName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{student.studentName}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono">{student.studentCode}</p>
+                    </div>
+                    {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+                  </div>
+                </TableCell>
 
-                    {allCategories.map((cat) => {
-                      const bd = student.categoryBreakdown.find(
-                        (c) => c.category.toLowerCase() === cat.toLowerCase()
-                      );
-                      const isManual = bd?.manualScore !== undefined && bd?.manualScore !== null;
-                      return (
-                        <td key={cat} className="text-center px-4 py-3">
-                          {isManual ? (
-                            <ManualCell
-                              value={bd?.manualScore ?? null}
-                              studentId={student.studentId}
-                              category={cat}
-                              isLocked={isLocked}
-                              onCommit={onManualCommit}
-                            />
-                          ) : (
-                            <button
-                              onClick={() => setDrillDown({ student, category: cat })}
-                              className="text-xs tabular-nums text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2 decoration-dotted decoration-muted-foreground/40"
-                            >
-                              {bd ? `${fmt(bd.rawAverage)}%` : "—"}
-                            </button>
-                          )}
-                        </td>
-                      );
-                    })}
-
-                    <td className="text-center px-4 py-3">
-                      {student.grade ? (
-                        <div className="flex flex-col items-center gap-0.5">
-                          <span className={cn("text-sm font-bold tabular-nums", gradeColor(student.grade.final_score))}>
-                            {fmt(student.grade.final_score)}%
-                          </span>
-                          <span className="text-[10px] font-mono text-muted-foreground">
-                            {student.grade.final_grade}
-                          </span>
-                        </div>
+                {allCategories.map((cat, ci) => {
+                  const bd = student.categoryBreakdown.find(
+                    (c) => c.category.toLowerCase() === cat.toLowerCase()
+                  );
+                  const isManual = bd?.manualScore !== undefined && bd?.manualScore !== null;
+                  return (
+                    <TableCell key={cat} className="text-center">
+                      {isManual ? (
+                        <ManualCell
+                          value={bd?.manualScore ?? null}
+                          studentId={student.studentId}
+                          category={cat}
+                          isLocked={isLocked}
+                          onCommit={onManualCommit}
+                        />
                       ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <button
+                          onClick={() => setDrillDown({ student, category: cat })}
+                          className={cn(
+                            "text-xs tabular-nums transition-colors underline underline-offset-2 decoration-dotted",
+                            "text-muted-foreground hover:text-foreground decoration-muted-foreground/40",
+                            bd && "text-foreground"
+                          )}
+                        >
+                          {bd ? `${fmt(bd.rawAverage)}%` : "—"}
+                        </button>
                       )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    </TableCell>
+                  );
+                })}
+
+                <TableCell className="text-center">
+                  {student.grade ? (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className={cn("text-sm font-bold tabular-nums", gradeColor(student.grade.final_score))}>
+                        {fmt(student.grade.final_score)}%
+                      </span>
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {student.grade.final_grade}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
       <StudentCategoryDrillDown
         student={drillDown?.student ?? null}
         category={drillDown?.category ?? null}
@@ -650,7 +632,7 @@ function CleanGradeTable({
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2 border rounded-xl">
+    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2 border rounded-xl bg-card">
       <LayoutGrid className="h-8 w-8 opacity-30" />
       <p className="text-sm">No students found for this term.</p>
     </div>
@@ -676,7 +658,7 @@ function StatsBar({ students }: { students: StudentGrade[] }) {
         { label: "Graded", value: `${graded}/${students.length}` },
         { label: "Class Average", value: avg !== null ? `${fmt(avg)}%` : "—" },
       ].map((stat) => (
-        <div key={stat.label} className="rounded-lg border px-4 py-3">
+        <div key={stat.label} className="rounded-lg border bg-card px-4 py-3">
           <p className="text-lg font-bold tabular-nums">{stat.value}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
         </div>
@@ -689,7 +671,6 @@ function StatsBar({ students }: { students: StudentGrade[] }) {
 
 export default function GradesPage() {
   const { classId } = useParams<{ classId: string }>();
-  const router = useRouter();
 
   const { data: allTerms, isLoading } = useClassGrades(classId);
 
@@ -859,21 +840,24 @@ export default function GradesPage() {
 
       {/* Term tabs */}
       {semesterTerms.length > 0 && (
-        <div className="flex items-center gap-1 border-b">
-          {semesterTerms.map((term) => (
-            <button
-              key={term.termId}
-              onClick={() => setActiveTermId(term.termId)}
-              className={cn(
-                "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap",
-                activeTermId === term.termId
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/40"
-              )}
-            >
-              {term.termName}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {semesterTerms.map((term, i) => {
+            const color = WEEK_COLORS[i % WEEK_COLORS.length];
+            return (
+              <button
+                key={term.termId}
+                onClick={() => setActiveTermId(term.termId)}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  activeTermId === term.termId
+                    ? color + " shadow-sm"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                {term.termName}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -930,7 +914,7 @@ export default function GradesPage() {
       )}
 
       {(!allTerms || allTerms.length === 0) && !isLoading && (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2 border rounded-xl">
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2 border rounded-xl bg-card">
           <LayoutGrid className="h-8 w-8 opacity-30" />
           <p className="text-sm">No terms found for this class.</p>
         </div>
