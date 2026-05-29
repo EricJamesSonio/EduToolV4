@@ -73,9 +73,14 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
 
   useEffect(() => {
     if (!tokenData) return;
+    if (meetingCtx.isInMeeting && meetingCtx.meetingId === meetingId) {
+      meetingCtx.maximize();
+      return;
+    }
     meetingCtx.joinMeeting({
       classId,
       meetingId,
+      role: "student",
       tokenData: { appId: tokenData.appId, channel: tokenData.channel, token: tokenData.token, uid: tokenData.uid },
       authToken,
     });

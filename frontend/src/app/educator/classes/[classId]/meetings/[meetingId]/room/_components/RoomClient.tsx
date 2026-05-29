@@ -130,9 +130,15 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   // Join meeting when token is ready, minimize on unmount
   useEffect(() => {
     if (!tokenData) return;
+    // If already in this meeting (e.g. returning from mini player), just maximize
+    if (meetingCtx.isInMeeting && meetingCtx.meetingId === meetingId) {
+      meetingCtx.maximize();
+      return;
+    }
     meetingCtx.joinMeeting({
       classId,
       meetingId,
+      role: "educator",
       tokenData: { appId: tokenData.appId, channel: tokenData.channel, token: tokenData.token, uid: tokenData.uid },
       authToken,
     });

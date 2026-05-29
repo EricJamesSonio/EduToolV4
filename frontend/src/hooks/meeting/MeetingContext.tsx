@@ -18,6 +18,7 @@ interface MeetingContextValue {
   isMinimized: boolean;
   meetingId: string;
   classId: string;
+  role: "educator" | "student";
 
   joined: boolean;
   localAudio: ILocalAudioTrack | null;
@@ -39,7 +40,7 @@ interface MeetingContextValue {
   startPresentation: () => void;
   stopPresentation: () => void;
 
-  joinMeeting: (params: { classId: string; meetingId: string; tokenData: MeetingTokenData; authToken: string }) => void;
+  joinMeeting: (params: { classId: string; meetingId: string; role: "educator" | "student"; tokenData: MeetingTokenData; authToken: string }) => void;
   leaveMeeting: () => void;
   minimize: () => void;
   maximize: () => void;
@@ -57,6 +58,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
   const [meetingParams, setMeetingParams] = useState<{
     classId: string;
     meetingId: string;
+    role: "educator" | "student";
     tokenData: MeetingTokenData;
     authToken: string;
   } | null>(null);
@@ -81,6 +83,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
   const joinMeeting = useCallback((params: {
     classId: string;
     meetingId: string;
+    role: "educator" | "student";
     tokenData: MeetingTokenData;
     authToken: string;
   }) => {
@@ -108,6 +111,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     isMinimized,
     meetingId: meetingParams?.meetingId ?? "",
     classId: meetingParams?.classId ?? "",
+    role: meetingParams?.role ?? "student",
 
     joined,
     localAudio,
