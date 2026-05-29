@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   CheckCircle2,
   XCircle,
   Clock,
   FileText,
-  ChevronLeft,
   Save,
   Loader2,
 } from "lucide-react";
@@ -19,6 +18,7 @@ import {
 } from "@/hooks/educator/useAttendance";
 
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/shared/PageHeader";
 import type { AttendanceStatus } from "@/types/educator/attendance.types";
 import type { AttendanceRecord } from "@/api/educator/attendance.api";
 
@@ -104,8 +104,6 @@ export default function AttendanceSessionPage() {
     classId: string;
     sessionId: string;
   }>();
-
-  const router = useRouter();
 
   const { data: session, isLoading } = useAttendanceSession(
     classId,
@@ -280,61 +278,65 @@ export default function AttendanceSessionPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <button
-            onClick={() =>
-              router.push(
-                `/educator/classes/${classId}/attendance`
-              )
-            }
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-2"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-            Back
-          </button>
-
-          <h1 className="text-xl font-semibold">{dateLabel}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {sessionLabel}
-          </p>
-        </div>
-
-        {isFuture ? (
-          <span className="text-xs text-muted-foreground italic">
-            Attendance cannot be taken for future sessions
-          </span>
-        ) : (
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={saving || dirtyCount === 0}
-          >
-            {saving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="h-3.5 w-3.5" />
-            )}
-            {saving ? "Saving..." : dirtyCount ? `Save (${dirtyCount})` : "Saved"}
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title={dateLabel}
+        description={sessionLabel}
+        breadcrumbs={[
+          { label: "Attendance", href: `/educator/classes/${classId}/attendance` },
+          { label: sessionLabel },
+        ]}
+        actions={
+          isFuture ? (
+            <span className="text-xs text-muted-foreground italic">
+              Attendance cannot be taken for future sessions
+            </span>
+          ) : (
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={saving || dirtyCount === 0}
+            >
+              {saving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="h-3.5 w-3.5" />
+              )}
+              {saving ? "Saving..." : dirtyCount ? `Save (${dirtyCount})` : "Saved"}
+            </Button>
+          )
+        }
+      />
 
       {/* Future session notice */}
       {isFuture && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/10 dark:border-amber-800 px-4 py-3">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/10 dark:border-amber-800 px-4 py-3">
           <p className="text-xs text-amber-700 dark:text-amber-400">
             This session is scheduled for <strong>{dateLabel}</strong>. Attendance can only be marked on or after this date.
           </p>
         </div>
       )}
 
+      {/* Info Card */}
+      <div className="rounded-lg border bg-card divide-y divide-border">
+        <div className="flex items-center gap-6 px-6 py-4">
+          <span className="w-28 text-sm text-muted-foreground shrink-0">Date</span>
+          <span className="text-sm">{dateLabel}</span>
+        </div>
+        <div className="flex items-center gap-6 px-6 py-4">
+          <span className="w-28 text-sm text-muted-foreground shrink-0">Session</span>
+          <span className="text-sm">{sessionLabel}</span>
+        </div>
+        <div className="flex items-center gap-6 px-6 py-4">
+          <span className="w-28 text-sm text-muted-foreground shrink-0">Total Students</span>
+          <span className="text-sm">{rows.length}</span>
+        </div>
+      </div>
+
       {/* Stats */}
       {!isFuture && (
         <div className="grid grid-cols-4 gap-3">
           {ALL_STATUSES.map((s) => (
-            <div key={s} className="rounded-lg border px-4 py-3">
+            <div key={s} className="rounded-lg border bg-card px-4 py-3">
               <p className="text-lg font-bold">{stats[s] ?? 0}</p>
               <p className="text-xs text-muted-foreground">
                 {STATUS_CONFIG[s].label}
@@ -344,17 +346,17 @@ export default function AttendanceSessionPage() {
         </div>
       )}
 
-      {/* Table */}
-      <div className="rounded-lg border overflow-hidden">
+      {/* Student rows */}
+      <div className="rounded-lg border bg-card divide-y divide-border">
         {rows.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+          <div className="px-6 py-8 text-center text-sm text-muted-foreground">
             No enrolled students found.
           </div>
         ) : (
           rows.map((row) => (
             <div
               key={row.studentId}
-              className="flex items-center justify-between px-4 py-3 border-b last:border-0"
+              className="flex items-center justify-between px-6 py-3"
             >
               <div>
                 <p className="font-medium">{row.studentName}</p>
