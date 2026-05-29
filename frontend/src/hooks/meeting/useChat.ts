@@ -40,12 +40,24 @@ export function useChat({
   }, []);
 
   const messages = useMemo(() => {
-    const serverKeys = new Set(
-      chat.map((m) => `${m.senderId}|${m.message}|${m.createdAt}`)
-    );
-    const filtered = optimistic.filter(
-      (opt) => !serverKeys.has(`${opt.senderId}|${opt.message}|${opt.createdAt}`)
-    );
+    const serverCount = new Map<string, number>();
+    for (const m of chat) {
+      const key = `${m.senderId}|${m.message}`;
+      serverCount.set(key, (serverCount.get(key) ?? 0) + 1);
+    }
+
+    const matched = new Map<string, number>();
+    const filtered = optimistic.filter((opt) => {
+      const key = `${opt.senderId}|${opt.message}`;
+      const count = matched.get(key) ?? 0;
+      const total = serverCount.get(key) ?? 0;
+      if (count < total) {
+        matched.set(key, count + 1);
+        return false;
+      }
+      return true;
+    });
+
     const merged = [...chat, ...filtered];
     merged.sort(
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
