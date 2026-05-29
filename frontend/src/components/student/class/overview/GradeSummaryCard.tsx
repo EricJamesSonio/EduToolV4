@@ -1,5 +1,4 @@
-import { BarChart2, ChevronRight, Lock } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart2, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,11 +21,14 @@ export function GradeSummaryCard({
   const released = grades.filter((g) => g.isReleased);
 
   return (
-    <Card>
-      <CardHeader className="pb-2 flex flex-row items-center justify-between">
-        <CardTitle className={cn("inline-block rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wider", WEEK_COLORS[5])}>
-          Grade Summary
-        </CardTitle>
+    <div className="rounded-lg border bg-card p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[5])}>
+            <BarChart2 className="h-4 w-4" />
+          </div>
+          <h3 className="font-semibold">Grade Summary</h3>
+        </div>
         <Button
           variant="ghost"
           size="sm"
@@ -36,9 +38,9 @@ export function GradeSummaryCard({
           View all
           <ChevronRight className="ml-0.5 h-3.5 w-3.5" />
         </Button>
-      </CardHeader>
+      </div>
 
-      <CardContent className="space-y-3">
+      <div className="space-y-3">
         {isLoading && (
           <>
             <GradeRowSkeleton />
@@ -62,8 +64,8 @@ export function GradeSummaryCard({
           released.map((g, i) => (
             <GradeRow key={g.termId} grade={g} index={i} />
           ))}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -82,9 +84,8 @@ function GradeRow({ grade, index }: { grade: StudentTermGrade; index: number }) 
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <Lock className="h-3 w-3 text-muted-foreground/40" />
           <span className={cn("inline-block rounded-sm px-1.5 py-0.5 text-xs font-semibold", WEEK_COLORS[(index + 6) % WEEK_COLORS.length])}>
-            Term {grade.termId.slice(-4)}
+            Term {index + 1}
           </span>
         </div>
         <div className="flex items-center gap-2">
