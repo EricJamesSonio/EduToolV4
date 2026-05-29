@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Hand, MessageSquare,
   Users, LogOut, Smile, DoorOpen, UserPlus, Check, X,
+  Maximize, Minimize,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -155,7 +156,8 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const [showReactions, setShowReactions] = useState(false);
   const [sidePanel, setSidePanel] = useState<"chat" | "participants" | "join-requests" | null>(null);
   const [localExpanded, setLocalExpanded] = useState(false);
-  const [pipSize, setPipSize] = useState({ w: 176, h: 112 });
+  const [pipSize, setPipSize] = useState({ w: 240, h: 160 });
+  const [isFullscreen, setIsFullscreen] = useState(true);
   const [showPipMenu, setShowPipMenu] = useState(false);
   const [pipResizing, setPipResizing] = useState(false);
   const pipRef = useRef<HTMLDivElement>(null);
@@ -249,67 +251,71 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-zinc-950 text-white overflow-hidden">
+    <div className={cn(
+      "flex flex-col bg-zinc-950 text-white overflow-hidden",
+      isFullscreen ? "fixed inset-0 z-50" : "h-screen"
+    )}>
       <div className="flex-1 flex overflow-hidden relative">
         {/* Remote users + optional expanded local */}
-        <div className={cn(
-          "flex-1 grid gap-1 p-1",
-          localExpanded
-            ? remoteUsers.length === 0
-              ? "grid-cols-1"
-              : "grid-cols-2"
-            : remoteUsers.length === 0
-              ? "place-items-center"
-              : remoteUsers.length === 1
-              ? "grid-cols-1"
-              : "grid-cols-2"
-        )}>
-          {!localExpanded && remoteUsers.length === 0 && !joined && (
-            <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
-          )}
-          {localExpanded && (
-            <div
-              id="local-video-grid"
-              className="rounded-lg bg-zinc-800 w-full min-h-[300px] border border-zinc-700 overflow-hidden relative"
-            >
-              {!camOn && (
-                <div className="absolute inset-0 flex items-center justify-center text-zinc-500 pointer-events-none">
-                  <VideoOff className="h-6 w-6" />
+        <div className="flex-1 relative">
+          <div className={cn(
+            "h-full grid gap-1 p-1",
+            localExpanded
+              ? remoteUsers.length === 0
+                ? "grid-cols-1"
+                : "grid-cols-2"
+              : remoteUsers.length === 0
+                ? "place-items-center"
+                : remoteUsers.length === 1
+                ? "grid-cols-1"
+                : "grid-cols-2"
+          )}>
+            {!localExpanded && remoteUsers.length === 0 && !joined && (
+              <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
+            )}
+            {localExpanded && (
+              <div
+                id="local-video-grid"
+                className="rounded-lg bg-zinc-800 w-full min-h-[300px] border border-zinc-700 overflow-hidden relative"
+              >
+                {!camOn && (
+                  <div className="absolute inset-0 flex items-center justify-center text-zinc-500 pointer-events-none">
+                    <VideoOff className="h-6 w-6" />
+                  </div>
+                )}
+                {/* Top bar with label + close */}
+                <div className="absolute top-0 inset-x-0 h-8 flex items-center justify-between px-2 bg-gradient-to-b from-black/50 to-transparent z-10">
+                  <span className="text-xs text-zinc-300">Your Camera</span>
+                  <button
+                    onClick={() => setLocalExpanded(false)}
+                    className="h-6 w-6 flex items-center justify-center rounded-md bg-black/40 hover:bg-black/60 text-zinc-400 hover:text-white text-sm"
+                  >
+                    ✕
+                  </button>
                 </div>
-              )}
-              {/* Top bar with label + close */}
-              <div className="absolute top-0 inset-x-0 h-8 flex items-center justify-between px-2 bg-gradient-to-b from-black/50 to-transparent z-10">
-                <span className="text-xs text-zinc-300">Your Camera</span>
-                <button
-                  onClick={() => setLocalExpanded(false)}
-                  className="h-6 w-6 flex items-center justify-center rounded-md bg-black/40 hover:bg-black/60 text-zinc-400 hover:text-white text-sm"
-                >
-                  ✕
-                </button>
+                <div className="absolute bottom-2 left-2 text-xs text-zinc-400 bg-zinc-900/60 px-1.5 py-0.5 rounded pointer-events-none z-10">
+                  You {micOn ? "" : "🔇"}
+                </div>
               </div>
-              <div className="absolute bottom-2 left-2 text-xs text-zinc-400 bg-zinc-900/60 px-1.5 py-0.5 rounded pointer-events-none z-10">
-                You {micOn ? "" : "🔇"}
-              </div>
-            </div>
-          )}
-          {remoteUsers.map((user) => (
-            <div
-              key={String(user.uid)}
-              id={`remote-${user.uid}`}
-              className="rounded-lg bg-zinc-800 w-full h-full min-h-[200px]"
-            />
-          ))}
-        </div>
+            )}
+            {remoteUsers.map((user) => (
+              <div
+                key={String(user.uid)}
+                id={`remote-${user.uid}`}
+                className="rounded-lg bg-zinc-800 w-full h-full min-h-[200px]"
+              />
+            ))}
+          </div>
 
-        {/* Local video PIP (collapsed — resizable) */}
-        {!localExpanded && (
-          <div
-            ref={pipRef}
-            id="local-video-pip"
-            style={{ width: pipSize.w, height: pipSize.h }}
-            onClick={() => { if (pipResizing) { setPipResizing(false); } else { setShowPipMenu((v) => !v); } }}
-            className="absolute bottom-4 right-4 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10 select-none cursor-default"
-          >
+          {/* Local video PIP (collapsed — resizable) */}
+          {!localExpanded && (
+            <div
+              ref={pipRef}
+              id="local-video-pip"
+              style={{ width: pipSize.w, height: pipSize.h }}
+              onClick={() => { if (pipResizing) { setPipResizing(false); } else { setShowPipMenu((v) => !v); } }}
+              className="absolute bottom-4 right-4 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10 select-none cursor-default"
+            >
             {!camOn && (
               <div className="absolute inset-0 flex items-center justify-center text-zinc-500 pointer-events-none z-0">
                 <VideoOff className="h-6 w-6" />
@@ -364,6 +370,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
             )}
           </div>
         )}
+        </div>
 
         {isPresenting && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-zinc-800/80 backdrop-blur-sm text-xs text-zinc-300 px-3 py-1.5 rounded-full border border-zinc-700 z-10">
@@ -484,6 +491,17 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         >
           <MessageSquare className="h-5 w-5" />
           Chat
+        </button>
+
+        <button
+          onClick={() => setIsFullscreen((v) => !v)}
+          className={cn(
+            "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
+            isFullscreen ? "text-primary bg-primary/10" : "text-zinc-300 hover:bg-zinc-800"
+          )}
+        >
+          {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+          {isFullscreen ? "Exit Full" : "Full Screen"}
         </button>
 
         <button

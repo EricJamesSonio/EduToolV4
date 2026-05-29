@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Hand, MessageSquare,
-  Users, LogOut, Smile,
+  Users, LogOut, Smile, Maximize, Minimize,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,6 +94,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   const [camOn, setCamOn] = useState(true);
   const [handRaised, setHandRaised] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(true);
   const [sidePanel, setSidePanel] = useState<"chat" | "participants" | null>(null);
 
   // Re-play local video if track changes
@@ -143,32 +144,37 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-zinc-950 text-white overflow-hidden">
+    <div className={cn(
+      "flex flex-col bg-zinc-950 text-white overflow-hidden",
+      isFullscreen ? "fixed inset-0 z-50" : "h-screen"
+    )}>
       <div className="flex-1 flex overflow-hidden relative">
         {/* Remote users */}
-        <div className={cn(
-          "flex-1 grid gap-1 p-1",
-          remoteUsers.length === 0 ? "place-items-center"
-            : remoteUsers.length === 1 ? "grid-cols-1"
-            : "grid-cols-2"
-        )}>
-          {remoteUsers.length === 0 && !joined && (
-            <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
-          )}
-          {remoteUsers.map((user) => (
-            <div
-              key={String(user.uid)}
-              id={`remote-${user.uid}`}
-              className="rounded-lg bg-zinc-800 w-full h-full min-h-[200px]"
-            />
-          ))}
-        </div>
+        <div className="flex-1 relative">
+          <div className={cn(
+            "h-full grid gap-1 p-1",
+            remoteUsers.length === 0 ? "place-items-center"
+              : remoteUsers.length === 1 ? "grid-cols-1"
+              : "grid-cols-2"
+          )}>
+            {remoteUsers.length === 0 && !joined && (
+              <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
+            )}
+            {remoteUsers.map((user) => (
+              <div
+                key={String(user.uid)}
+                id={`remote-${user.uid}`}
+                className="rounded-lg bg-zinc-800 w-full h-full min-h-[200px]"
+              />
+            ))}
+          </div>
 
-        {/* Local video PIP — id used by Agora to render directly */}
-        <div
-          id="local-video-pip"
-          className="absolute bottom-4 right-4 w-36 h-24 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10"
-        />
+          {/* Local video PIP — id used by Agora to render directly */}
+          <div
+            id="local-video-pip"
+            className="absolute bottom-4 right-4 w-52 h-36 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10"
+          />
+        </div>
 
         {isPresenting && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-zinc-800/80 backdrop-blur-sm text-xs text-zinc-300 px-3 py-1.5 rounded-full border border-zinc-700 z-10">
@@ -257,6 +263,17 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
         >
           <MessageSquare className="h-5 w-5" />
           Chat
+        </button>
+
+        <button
+          onClick={() => setIsFullscreen((v) => !v)}
+          className={cn(
+            "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
+            isFullscreen ? "text-primary bg-primary/10" : "text-zinc-300 hover:bg-zinc-800"
+          )}
+        >
+          {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+          {isFullscreen ? "Exit Full" : "Full Screen"}
         </button>
 
         <button
