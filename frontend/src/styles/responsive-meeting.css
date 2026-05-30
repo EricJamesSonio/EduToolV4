@@ -1,0 +1,121 @@
+/* ─────────────────────────────────────────────────────────────
+   MEETING ROOM — Responsive styles
+   Appended to: frontend/src/styles/responsive.css
+───────────────────────────────────────────────────────────── */
+
+/* ── Base (mobile-first) ─────────────────────────────────── */
+
+.meeting-room {
+  /* Prevent any child from accidentally overflowing on small screens */
+  overflow: hidden;
+}
+
+/* Controls bar: tighter on mobile, fixed height on desktop */
+.meeting-controls {
+  min-height: 52px;
+  padding-block: 6px;
+}
+
+/* Control button: compact icon + tiny label on mobile */
+.meeting-ctrl-btn {
+  min-width: 40px;
+  padding-inline: 6px;
+}
+
+.meeting-ctrl-label {
+  font-size: 9px;
+  line-height: 1;
+}
+
+/* Status text hidden on very small screens to save space */
+.meeting-status-label {
+  display: none;
+}
+
+/* Side panel: full-width overlay on mobile */
+.meeting-side-panel {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  z-index: 30;
+}
+
+/* ── Small mobile (≥ 480px) ──────────────────────────────── */
+@media (min-width: 480px) {
+  .meeting-ctrl-label {
+    font-size: 10px;
+  }
+
+  .meeting-ctrl-btn {
+    min-width: 44px;
+    padding-inline: 8px;
+  }
+}
+
+/* ── Tablet and up (≥ 640px) ─────────────────────────────── */
+@media (min-width: 640px) {
+  /* Controls bar back to single row with comfortable height */
+  .meeting-controls {
+    height: 64px;
+    flex-wrap: nowrap;
+    padding-block: 0;
+  }
+
+  .meeting-ctrl-label {
+    font-size: 10px;
+  }
+
+  /* Connection status label visible again */
+  .meeting-status-label {
+    display: inline;
+  }
+
+  /* Side panel: fixed sidebar, not full-screen overlay */
+  .meeting-side-panel {
+    position: relative;
+    inset: unset;
+    width: 18rem; /* 288px */
+    z-index: auto;
+  }
+
+  /* Buttons that were hidden on mobile appear again */
+  .meeting-ctrl-btn--hide-mobile {
+    display: flex;
+  }
+}
+
+/* ── Desktop (≥ 1024px) ──────────────────────────────────── */
+@media (min-width: 1024px) {
+  .meeting-side-panel {
+    width: 20rem; /* 320px */
+  }
+
+  .meeting-ctrl-btn {
+    padding-inline: 12px;
+  }
+
+  .meeting-ctrl-label {
+    font-size: 10px;
+  }
+}
+
+/* ── Hide-on-mobile utility (used by ControlBtn) ─────────── */
+@media (max-width: 639px) {
+  .meeting-ctrl-btn--hide-mobile {
+    display: none;
+  }
+
+  /* Reaction picker: smaller gap, may need scroll on tiny screens */
+  .meeting-reaction-picker {
+    gap: 0.375rem;
+    padding-inline: 0.5rem;
+  }
+}
+
+/* ── Touch devices: larger tap targets ──────────────────── */
+@media (hover: none) and (pointer: coarse) {
+  .meeting-ctrl-btn {
+    min-height: 48px;
+    min-width: 48px;
+  }
+}

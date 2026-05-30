@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Hand, MessageSquare,
@@ -24,15 +24,18 @@ import PresentationSelectorModal from "@/components/meeting/PresentationSelector
 import PresentationOverlay from "@/components/meeting/PresentationOverlay";
 import { useMeetingPresentation } from "@/hooks/meeting/useMeetingPresentation";
 import type { Presentation } from "@/types/educator/presentation.types";
+import PipVideo from "./PipVideo";
 
 const REACTIONS = ["👍", "👏", "❤️", "😂", "😮", "🎉"];
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ReactionPicker({ onPick, onClose }: {
   onPick: (emoji: string) => void;
   onClose: () => void;
 }) {
   return (
-    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-card border border-border/60 rounded-xl px-3 py-2 flex gap-2 shadow-lg z-20">
+    <div className="meeting-reaction-picker absolute bottom-16 left-1/2 -translate-x-1/2 bg-card border border-border/60 rounded-xl px-3 py-2 flex gap-2 shadow-lg z-20">
       {REACTIONS.map((emoji) => (
         <button
           key={emoji}
@@ -50,7 +53,7 @@ function ParticipantsPanel({ participants }: {
   participants: { userId: string; name: string; role: string; handRaised: boolean }[];
 }) {
   return (
-    <div className="p-3 space-y-1 overflow-y-auto">
+    <div className="p-3 space-y-1 overflow-y-auto h-full">
       {participants.map((p) => (
         <div key={p.userId} className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/40">
           <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
@@ -80,9 +83,8 @@ function JoinRequestsPanel({ requests, students, onRespond, isPending }: {
       </div>
     );
   }
-
   return (
-    <div className="p-3 space-y-2 overflow-y-auto">
+    <div className="p-3 space-y-2 overflow-y-auto h-full">
       {requests.map((req) => {
         const student = students.find((s) => s.id === req.studentId);
         return (
@@ -116,22 +118,108 @@ function JoinRequestsPanel({ requests, students, onRespond, isPending }: {
   );
 }
 
+function LocalVideoGrid({ camOn, micOn, onCollapse }: {
+  camOn: boolean;
+  micOn: boolean;
+  onCollapse: () => void;
+}) {
+  return (
+    <div
+      id="local-video-grid"
+      className="rounded-lg bg-zinc-800 w-full min-h-[200px] border border-zinc-700 overflow-hidden relative"
+    >
+      {!camOn && (
+        <div className="absolute inset-0 flex items-center justify-center text-zinc-500 pointer-events-none">
+          <VideoOff className="h-6 w-6" />
+        </div>
+      )}
+      <div className="absolute top-0 inset-x-0 h-8 flex items-center justify-between px-2 bg-gradient-to-b from-black/50 to-transparent z-10">
+        <span className="text-xs text-zinc-300">Your Camera</span>
+        <button
+          onClick={onCollapse}
+          className="h-6 w-6 flex items-center justify-center rounded-md bg-black/40 hover:bg-black/60 text-zinc-400 hover:text-white text-sm"
+        >
+          ✕
+        </button>
+      </div>
+      <div className="absolute bottom-2 left-2 text-xs text-zinc-400 bg-zinc-900/60 px-1.5 py-0.5 rounded pointer-events-none z-10">
+        You {micOn ? "" : "🔇"}
+      </div>
+    </div>
+  );
+}
+
+// ─── ControlButton ────────────────────────────────────────────────────────────
+
+function ControlBtn({
+  onClick, active, danger, disabled, label, hideOnMobile = false, children,
+}: {
+  onClick: () => void;
+  active?: boolean;
+  danger?: boolean;
+  disabled?: boolean;
+  label: string;
+  hideOnMobile?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "meeting-ctrl-btn flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors disabled:opacity-50",
+        active  && !danger && "text-primary bg-primary/10",
+        danger  && "text-red-400 hover:bg-red-900/30",
+        !active && !danger && "text-zinc-300 hover:bg-zinc-800",
+        hideOnMobile && "meeting-ctrl-btn--hide-mobile",
+      )}
+    >
+      {children}
+      <span className="meeting-ctrl-label text-[10px] leading-none whitespace-nowrap">{label}</span>
+    </button>
+  );
+}
+
+// ─── SidePanel ────────────────────────────────────────────────────────────────
+
+function SidePanel({
+  title, onClose, children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="meeting-side-panel border-l border-zinc-800 bg-zinc-900 flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 shrink-0">
+        <span className="text-sm font-medium capitalize">{title}</span>
+        <button onClick={onClose} className="text-zinc-400 hover:text-white text-xs">✕</button>
+      </div>
+      <div className="flex-1 overflow-hidden">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const { classId, meetingId } = useParams<{ classId: string; meetingId: string }>();
   const router = useRouter();
 
-  const { data: meeting } = useMeeting(classId, meetingId, { refetchInterval: 10000 });
-  const { data: studentsRaw } = useEnrolledStudents(classId);
+  const { data: meeting }                            = useMeeting(classId, meetingId, { refetchInterval: 10000 });
+  const { data: studentsRaw }                        = useEnrolledStudents(classId);
   const { data: tokenData, isLoading: tokenLoading } = useMeetingToken(meetingId);
 
   const students: EnrolledStudent[] = Array.isArray(studentsRaw) ? studentsRaw : [];
-  const authToken = getAccessToken() ?? "";
-  const meetingCtx = useMeetingContext();
-  const { user: currentUser } = useAuth();
-  const currentUserId = currentUser?.id ?? "";
-  const currentUserName = currentUser?.fullName ?? "You";
+  const authToken                   = getAccessToken() ?? "";
+  const meetingCtx                  = useMeetingContext();
+  const { user: currentUser }       = useAuth();
+  const currentUserId               = currentUser?.id ?? "";
+  const currentUserName             = currentUser?.fullName ?? "You";
 
-  // Join meeting when token is ready, minimize on unmount
+  // ── Join / leave ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!tokenData) return;
     if (meetingCtx.isInMeeting && meetingCtx.meetingId === meetingId) {
@@ -141,7 +229,10 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         classId,
         meetingId,
         role: "educator",
-        tokenData: { appId: tokenData.appId, channel: tokenData.channel, token: tokenData.token, uid: tokenData.uid },
+        tokenData: {
+          appId: tokenData.appId, channel: tokenData.channel,
+          token: tokenData.token, uid: tokenData.uid,
+        },
         authToken,
       });
     }
@@ -157,90 +248,52 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   } = meetingCtx;
 
   const { messages: chatMessages, send: sendChatMessage } = useChat({
-    chat,
-    sendChat,
-    currentUserId,
-    currentUserName,
+    chat, sendChat, currentUserId, currentUserName,
   });
 
-  const respondMutation = useRespondToJoinRequest(classId, meetingId);
+  const respondMutation    = useRespondToJoinRequest(classId, meetingId);
   const endMeetingMutation = useEndMeeting(classId);
 
-  const [micOn, setMicOn] = useState(true);
-  const [camOn, setCamOn] = useState(true);
-  const [handRaised, setHandRaised] = useState(false);
-  const [showReactions, setShowReactions] = useState(false);
-  const [sidePanel, setSidePanel] = useState<"chat" | "participants" | "join-requests" | null>(null);
-  const [showPresModal, setShowPresModal] = useState(false);
   const { presentation, selectPresentation, clearPresentation } = useMeetingPresentation(classId);
+
+  // ── UI state ──────────────────────────────────────────────────────────────
+  const [micOn,         setMicOn]         = useState(true);
+  const [camOn,         setCamOn]         = useState(true);
+  const [handRaised,    setHandRaised]    = useState(false);
+  const [showReactions, setShowReactions] = useState(false);
+  const [sidePanel,     setSidePanel]     = useState<"chat" | "participants" | "join-requests" | null>(null);
+  const [showPresModal, setShowPresModal] = useState(false);
   const [localExpanded, setLocalExpanded] = useState(false);
-  const [pipSize, setPipSize] = useState({ w: 240, h: 160 });
-  const [isFullscreen, setIsFullscreen] = useState(true);
-  const [showPipMenu, setShowPipMenu] = useState(false);
-  const [pipResizing, setPipResizing] = useState(false);
-  const pipRef = useRef<HTMLDivElement>(null);
-  const resizeRef = useRef<{ startX: number; startY: number; startW: number; startH: number } | null>(null);
-
-  const handleResizeStart = (e: React.MouseEvent, corner: "se" | "sw" | "ne" | "nw" | "e" | "w" | "n" | "s") => {
-    e.preventDefault();
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    resizeRef.current = { startX, startY, startW: pipSize.w, startH: pipSize.h };
-
-    const onMove = (ev: MouseEvent) => {
-      if (!resizeRef.current) return;
-      let dx = ev.clientX - resizeRef.current.startX;
-      let dy = ev.clientY - resizeRef.current.startY;
-      let newW = resizeRef.current.startW;
-      let newH = resizeRef.current.startH;
-      if (corner.includes("e")) newW += dx;
-      if (corner.includes("w")) newW -= dx;
-      if (corner.includes("s")) newH += dy;
-      if (corner.includes("n")) newH -= dy;
-      setPipSize({ w: Math.max(120, newW), h: Math.max(80, newH) });
-    };
-
-    const onUp = () => {
-      resizeRef.current = null;
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  };
+  const [isFullscreen,  setIsFullscreen]  = useState(true);
 
   const pendingRequests = meeting?.joinRequests.filter((r) => r.status === "pending") ?? [];
 
-  // Re-play local video when track or mode changes
+  // ── Video track replay ────────────────────────────────────────────────────
   useEffect(() => {
     if (!localVideo) return;
-    const id = localExpanded ? "local-video-grid" : "local-video-pip";
-    const el = document.getElementById(id);
-    if (el) {
-      localVideo.play(id);
-    }
+    const id  = localExpanded ? "local-video-grid" : "local-video-pip";
+    const raf = requestAnimationFrame(() => {
+      if (document.getElementById(id)) localVideo.play(id);
+    });
+    return () => cancelAnimationFrame(raf);
   }, [localVideo, localExpanded, isPresenting]);
 
-  const handleToggleMic = async () => {
-    await toggleMic();
-    setMicOn((v) => !v);
-  };
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      remoteUsers.forEach((user) => {
+        if (user.videoTrack) user.videoTrack.play(`remote-${user.uid}`);
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [isPresenting, remoteUsers]);
 
-  const handleToggleCam = async () => {
-    await toggleCamera();
-    setCamOn((v) => !v);
-  };
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleToggleMic  = async () => { await toggleMic();    setMicOn((v) => !v); };
+  const handleToggleCam  = async () => { await toggleCamera(); setCamOn((v) => !v); };
+  const handleToggleHand = () => { handRaised ? lowerHand() : raiseHand(); setHandRaised((v) => !v); };
 
-  const handleToggleHand = () => {
-    if (handRaised) lowerHand(); else raiseHand();
-    setHandRaised((v) => !v);
-  };
-
-  const handleRespond = (reqId: string, status: "accepted" | "declined") => {
+  const handleRespond = (reqId: string, status: "accepted" | "declined") =>
     respondMutation.mutate({ reqId, status });
-  };
 
   const handleLeave = () => {
     meetingCtx.leaveMeeting();
@@ -264,6 +317,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     stopPresentation();
   };
 
+  // ── Guards ────────────────────────────────────────────────────────────────
   if (tokenLoading) {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-4 bg-background">
@@ -284,188 +338,100 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     );
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className={cn(
-      "flex flex-col bg-zinc-950 text-white overflow-hidden",
-      isFullscreen ? "fixed inset-0 z-50" : "h-screen"
+      "meeting-room flex flex-col bg-zinc-950 text-white overflow-hidden",
+      isFullscreen ? "fixed inset-0 z-50" : "h-screen",
     )}>
-      <div className="flex-1 flex overflow-hidden relative">
+
+      {/* ── Main area ── */}
+      <div className="flex-1 flex overflow-hidden relative min-h-0">
+
+        {/* ── Presentation mode ──────────────────────────────────────────── */}
         {isPresenting ? (
-          <>
+          <div className="flex-1 relative overflow-hidden">
             <PresentationOverlay
               presentation={presentation}
               currentSlideIndex={currentSlide}
               onChangeSlide={changeSlide}
             />
-            {/* PIP overlay on top of presentation */}
             {!localExpanded && (
-              <div
-                ref={pipRef}
-                id="local-video-pip"
-                style={{ width: pipSize.w, height: pipSize.h }}
-                onClick={() => { if (pipResizing) { setPipResizing(false); } else { setShowPipMenu((v) => !v); } }}
-                className="absolute bottom-4 right-4 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-20 select-none cursor-default"
-              >
-              {!camOn && (
-                <div className="absolute inset-0 flex items-center justify-center text-zinc-500 pointer-events-none z-0">
-                  <VideoOff className="h-6 w-6" />
-                </div>
-              )}
-              <div className="absolute bottom-1.5 left-1.5 text-[10px] text-zinc-400 bg-zinc-900/60 px-1.5 py-0.5 rounded pointer-events-none z-0">
-                You {micOn ? "" : "🔇"}
-              </div>
-              {showPipMenu && (
-                <>
-                  <div className="absolute inset-0 bg-black/40 z-10" onClick={(e) => { e.stopPropagation(); setShowPipMenu(false); }} />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2 z-20">
-                    <button onClick={(e) => { e.stopPropagation(); setLocalExpanded(true); setShowPipMenu(false); }} className="h-8 px-3 text-xs font-medium bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700 whitespace-nowrap">Full Display</button>
-                    <button onClick={(e) => { e.stopPropagation(); setPipResizing(true); setShowPipMenu(false); }} className="h-8 px-3 text-xs font-medium bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700 whitespace-nowrap">Resize</button>
-                  </div>
-                </>
-              )}
-              {pipResizing && (
-                <>
-                  <div onMouseDown={(e) => handleResizeStart(e, "se")} className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-30 hover:bg-zinc-500/40 rounded-bl" />
-                  <div onMouseDown={(e) => handleResizeStart(e, "sw")} className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize z-30 hover:bg-zinc-500/40 rounded-br" />
-                  <div onMouseDown={(e) => handleResizeStart(e, "ne")} className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize z-30 hover:bg-zinc-500/40 rounded-bl" />
-                  <div onMouseDown={(e) => handleResizeStart(e, "nw")} className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-30 hover:bg-zinc-500/40 rounded-br" />
-                  <div onMouseDown={(e) => handleResizeStart(e, "e")} className="absolute top-0 bottom-0 right-0 w-1.5 cursor-e-resize z-30 hover:bg-zinc-500/30" />
-                  <div onMouseDown={(e) => handleResizeStart(e, "w")} className="absolute top-0 bottom-0 left-0 w-1.5 cursor-w-resize z-30 hover:bg-zinc-500/30" />
-                  <div onMouseDown={(e) => handleResizeStart(e, "n")} className="absolute left-0 right-0 top-0 h-1.5 cursor-n-resize z-30 hover:bg-zinc-500/30" />
-                  <div onMouseDown={(e) => handleResizeStart(e, "s")} className="absolute left-0 right-0 bottom-0 h-1.5 cursor-s-resize z-30 hover:bg-zinc-500/30" />
-                </>
-              )}
-              {pipResizing && (
-                <div className="absolute top-1 inset-x-1 flex justify-center z-30 pointer-events-none">
-                  <span className="text-[9px] text-zinc-500 bg-zinc-900/70 px-2 py-0.5 rounded">Drag edges to resize · click to close</span>
-                </div>
-              )}
-            </div>
-            )}
-          </>
-        ) : (
-        <div className="flex-1 relative">
-          <div className={cn(
-            "h-full grid gap-1 p-1",
-            localExpanded
-              ? remoteUsers.length === 0
-                ? "grid-cols-1"
-                : "grid-cols-2"
-              : remoteUsers.length === 0
-                ? "place-items-center"
-                : remoteUsers.length === 1
-                ? "grid-cols-1"
-                : "grid-cols-2"
-          )}>
-            {!localExpanded && remoteUsers.length === 0 && !joined && (
-              <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
-            )}
-            {localExpanded && (
-              <div
-                id="local-video-grid"
-                className="rounded-lg bg-zinc-800 w-full min-h-[300px] border border-zinc-700 overflow-hidden relative"
-              >
-                {!camOn && (
-                  <div className="absolute inset-0 flex items-center justify-center text-zinc-500 pointer-events-none">
-                    <VideoOff className="h-6 w-6" />
-                  </div>
-                )}
-                <div className="absolute top-0 inset-x-0 h-8 flex items-center justify-between px-2 bg-gradient-to-b from-black/50 to-transparent z-10">
-                  <span className="text-xs text-zinc-300">Your Camera</span>
-                  <button
-                    onClick={() => setLocalExpanded(false)}
-                    className="h-6 w-6 flex items-center justify-center rounded-md bg-black/40 hover:bg-black/60 text-zinc-400 hover:text-white text-sm"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="absolute bottom-2 left-2 text-xs text-zinc-400 bg-zinc-900/60 px-1.5 py-0.5 rounded pointer-events-none z-10">
-                  You {micOn ? "" : "🔇"}
-                </div>
-              </div>
-            )}
-            {remoteUsers.map((user) => (
-              <div
-                key={String(user.uid)}
-                id={`remote-${user.uid}`}
-                className="rounded-lg bg-zinc-800 w-full h-full min-h-[200px]"
+              <PipVideo
+                videoId="local-video-pip"
+                camOn={camOn}
+                micOn={micOn}
+                zClass="z-20"
+                onExpand={() => setLocalExpanded(true)}
               />
-            ))}
-          </div>
-
-          {/* Local video PIP (collapsed) */}
-          {!localExpanded && (
-            <div
-              ref={pipRef}
-              id="local-video-pip"
-              style={{ width: pipSize.w, height: pipSize.h }}
-              onClick={() => { if (pipResizing) { setPipResizing(false); } else { setShowPipMenu((v) => !v); } }}
-              className="absolute bottom-4 right-4 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10 select-none cursor-default"
-            >
-            {!camOn && (
-              <div className="absolute inset-0 flex items-center justify-center text-zinc-500 pointer-events-none z-0">
-                <VideoOff className="h-6 w-6" />
-              </div>
-            )}
-            <div className="absolute bottom-1.5 left-1.5 text-[10px] text-zinc-400 bg-zinc-900/60 px-1.5 py-0.5 rounded pointer-events-none z-0">
-              You {micOn ? "" : "🔇"}
-            </div>
-            {showPipMenu && (
-              <>
-                <div className="absolute inset-0 bg-black/40 z-10" onClick={(e) => { e.stopPropagation(); setShowPipMenu(false); }} />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2 z-20">
-                  <button onClick={(e) => { e.stopPropagation(); setLocalExpanded(true); setShowPipMenu(false); }} className="h-8 px-3 text-xs font-medium bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700 whitespace-nowrap">Full Display</button>
-                  <button onClick={(e) => { e.stopPropagation(); setPipResizing(true); setShowPipMenu(false); }} className="h-8 px-3 text-xs font-medium bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700 whitespace-nowrap">Resize</button>
-                </div>
-              </>
-            )}
-            {pipResizing && (
-              <>
-                <div onMouseDown={(e) => handleResizeStart(e, "se")} className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-30 hover:bg-zinc-500/40 rounded-bl" />
-                <div onMouseDown={(e) => handleResizeStart(e, "sw")} className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize z-30 hover:bg-zinc-500/40 rounded-br" />
-                <div onMouseDown={(e) => handleResizeStart(e, "ne")} className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize z-30 hover:bg-zinc-500/40 rounded-bl" />
-                <div onMouseDown={(e) => handleResizeStart(e, "nw")} className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-30 hover:bg-zinc-500/40 rounded-br" />
-                <div onMouseDown={(e) => handleResizeStart(e, "e")} className="absolute top-0 bottom-0 right-0 w-1.5 cursor-e-resize z-30 hover:bg-zinc-500/30" />
-                <div onMouseDown={(e) => handleResizeStart(e, "w")} className="absolute top-0 bottom-0 left-0 w-1.5 cursor-w-resize z-30 hover:bg-zinc-500/30" />
-                <div onMouseDown={(e) => handleResizeStart(e, "n")} className="absolute left-0 right-0 top-0 h-1.5 cursor-n-resize z-30 hover:bg-zinc-500/30" />
-                <div onMouseDown={(e) => handleResizeStart(e, "s")} className="absolute left-0 right-0 bottom-0 h-1.5 cursor-s-resize z-30 hover:bg-zinc-500/30" />
-              </>
-            )}
-            {pipResizing && (
-              <div className="absolute top-1 inset-x-1 flex justify-center z-30 pointer-events-none">
-                <span className="text-[9px] text-zinc-500 bg-zinc-900/70 px-2 py-0.5 rounded">Drag edges to resize · click to close</span>
-              </div>
             )}
           </div>
-        )}
-        </div>
-        )}
 
-        {sidePanel && (
-          <div className="w-72 border-l border-zinc-800 bg-zinc-900 flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-              <span className="text-sm font-medium capitalize">
-                {sidePanel === "join-requests" ? "Join Requests" : sidePanel}
-              </span>
-              <button onClick={() => setSidePanel(null)} className="text-zinc-400 hover:text-white text-xs">✕</button>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              {sidePanel === "chat" ? (
-                <ChatPanel messages={chatMessages} currentUserId={currentUserId} onSend={sendChatMessage} />
-              ) : sidePanel === "join-requests" ? (
-                <JoinRequestsPanel
-                  requests={pendingRequests}
-                  students={students}
-                  onRespond={handleRespond}
-                  isPending={respondMutation.isPending}
-                />
-              ) : (
-                <ParticipantsPanel participants={participants} />
+        ) : (
+        /* ── Grid mode ─────────────────────────────────────────────────── */
+          <div className="flex-1 relative overflow-hidden">
+            <div className={cn(
+              "h-full grid gap-1 p-1",
+              // On mobile always single column; on larger screens adapt to user count
+              localExpanded
+                ? "grid-cols-1 sm:grid-cols-2"
+                : remoteUsers.length === 0
+                  ? "place-items-center"
+                  : "grid-cols-1 sm:grid-cols-2",
+            )}>
+              {!localExpanded && remoteUsers.length === 0 && !joined && (
+                <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
               )}
+              {localExpanded && (
+                <LocalVideoGrid
+                  camOn={camOn}
+                  micOn={micOn}
+                  onCollapse={() => setLocalExpanded(false)}
+                />
+              )}
+              {remoteUsers.map((user) => (
+                <div
+                  key={String(user.uid)}
+                  id={`remote-${user.uid}`}
+                  className="rounded-lg bg-zinc-800 w-full h-full min-h-[160px]"
+                />
+              ))}
             </div>
+
+            {!localExpanded && (
+              <PipVideo
+                videoId="local-video-pip"
+                camOn={camOn}
+                micOn={micOn}
+                zClass="z-10"
+                onExpand={() => setLocalExpanded(true)}
+              />
+            )}
           </div>
         )}
 
+        {/* ── Side panel — full-width sheet on mobile, fixed sidebar on desktop ── */}
+        {sidePanel && (
+          <SidePanel
+            title={sidePanel === "join-requests" ? "Join Requests" : sidePanel}
+            onClose={() => setSidePanel(null)}
+          >
+            {sidePanel === "chat" ? (
+              <ChatPanel messages={chatMessages} currentUserId={currentUserId} onSend={sendChatMessage} />
+            ) : sidePanel === "join-requests" ? (
+              <JoinRequestsPanel
+                requests={pendingRequests}
+                students={students}
+                onRespond={handleRespond}
+                isPending={respondMutation.isPending}
+              />
+            ) : (
+              <ParticipantsPanel participants={participants} />
+            )}
+          </SidePanel>
+        )}
+
+        {/* ── Pending requests floating badge ── */}
         {pendingRequests.length > 0 && !sidePanel && (
           <div className="absolute top-3 right-4 z-10">
             <button
@@ -479,137 +445,105 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         )}
       </div>
 
+      {/* ── Reaction picker ── */}
       {showReactions && (
         <ReactionPicker onPick={sendReaction} onClose={() => setShowReactions(false)} />
       )}
 
-      {/* Controls bar */}
-      <div className="relative h-16 flex items-center justify-center gap-3 border-t border-zinc-800 bg-zinc-900 px-4">
+      {/* ── Controls bar ── */}
+      <div className="meeting-controls relative shrink-0 flex items-center justify-center flex-wrap gap-1 border-t border-zinc-800 bg-zinc-900 px-2 py-1">
+        {/* Connection status */}
         <div className={cn(
-          "absolute left-4 flex items-center gap-1.5 text-[11px]",
-          connected ? "text-emerald-400" : "text-zinc-500"
+          "meeting-status absolute left-3 flex items-center gap-1.5 text-[10px]",
+          connected ? "text-emerald-400" : "text-zinc-500",
         )}>
-          <span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-emerald-400" : "bg-zinc-500")} />
-          {connected ? "Connected" : "Connecting..."}
+          <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", connected ? "bg-emerald-400" : "bg-zinc-500")} />
+          <span className="meeting-status-label">{connected ? "Connected" : "Connecting..."}</span>
         </div>
 
-        <button
-          onClick={handleToggleMic}
-          className={cn(
-            "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            micOn ? "text-zinc-300 hover:bg-zinc-800" : "text-red-400 hover:bg-red-900/30"
-          )}
-        >
+        <ControlBtn onClick={handleToggleMic} active={!micOn} danger={!micOn} label={micOn ? "Mute" : "Unmute"}>
           {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-          {micOn ? "Mute" : "Unmute"}
-        </button>
+        </ControlBtn>
 
-        <button
-          onClick={handleToggleCam}
-          className={cn(
-            "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            camOn ? "text-zinc-300 hover:bg-zinc-800" : "text-red-400 hover:bg-red-900/30"
-          )}
-        >
+        <ControlBtn onClick={handleToggleCam} active={!camOn} danger={!camOn} label={camOn ? "Stop Video" : "Start Video"}>
           {camOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
-          {camOn ? "Stop Video" : "Start Video"}
-        </button>
+        </ControlBtn>
 
-        <button
+        <ControlBtn
           onClick={handleToggleHand}
-          className={cn(
-            "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            handRaised ? "text-amber-400 hover:bg-amber-900/30" : "text-zinc-300 hover:bg-zinc-800"
-          )}
+          active={handRaised}
+          label={handRaised ? "Lower Hand" : "Raise Hand"}
+          hideOnMobile
         >
           <Hand className="h-5 w-5" />
-          {handRaised ? "Lower Hand" : "Raise Hand"}
-        </button>
+        </ControlBtn>
 
-        <button
-          onClick={() => setShowReactions((v) => !v)}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] text-zinc-300 hover:bg-zinc-800 transition-colors"
-        >
+        <ControlBtn onClick={() => setShowReactions((v) => !v)} label="React" hideOnMobile>
           <Smile className="h-5 w-5" />
-          React
-        </button>
+        </ControlBtn>
 
-        <button
+        <ControlBtn
           onClick={() => isPresenting ? handleStopPresentation() : setShowPresModal(true)}
-          className={cn(
-            "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            isPresenting ? "text-primary bg-primary/10" : "text-zinc-300 hover:bg-zinc-800"
-          )}
+          active={isPresenting}
+          label={isPresenting ? "Stop" : "Present"}
         >
           <Monitor className="h-5 w-5" />
-          {isPresenting ? "Stop" : "Present"}
-        </button>
+        </ControlBtn>
 
-        <button
+        <ControlBtn
           onClick={() => setSidePanel((p) => p === "chat" ? null : "chat")}
-          className={cn(
-            "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            sidePanel === "chat" ? "text-primary bg-primary/10" : "text-zinc-300 hover:bg-zinc-800"
-          )}
+          active={sidePanel === "chat"}
+          label="Chat"
         >
           <MessageSquare className="h-5 w-5" />
-          Chat
-        </button>
+        </ControlBtn>
 
-        <button
+        <ControlBtn
           onClick={() => setIsFullscreen((v) => !v)}
-          className={cn(
-            "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            isFullscreen ? "text-primary bg-primary/10" : "text-zinc-300 hover:bg-zinc-800"
-          )}
+          active={isFullscreen}
+          label={isFullscreen ? "Exit Full" : "Fullscreen"}
+          hideOnMobile
         >
           {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-          {isFullscreen ? "Exit Full" : "Full Screen"}
-        </button>
+        </ControlBtn>
 
-        <button
+        <ControlBtn
           onClick={() => setSidePanel((p) => p === "participants" ? null : "participants")}
-          className={cn(
-            "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
-            sidePanel === "participants" ? "text-primary bg-primary/10" : "text-zinc-300 hover:bg-zinc-800"
-          )}
+          active={sidePanel === "participants"}
+          label={participants.length > 0 ? `${participants.length}` : "People"}
+          hideOnMobile
         >
           <Users className="h-5 w-5" />
-          {participants.length > 0 ? `${participants.length}` : "People"}
-        </button>
+        </ControlBtn>
 
-        <button
-          onClick={() => setSidePanel((p) => p === "join-requests" ? null : "join-requests")}
-          className={cn(
-            "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors relative",
-            sidePanel === "join-requests" ? "text-amber-400 bg-amber-900/20" : "text-zinc-300 hover:bg-zinc-800"
-          )}
-        >
-          <UserPlus className="h-5 w-5" />
-          Requests
+        <div className="relative">
+          <ControlBtn
+            onClick={() => setSidePanel((p) => p === "join-requests" ? null : "join-requests")}
+            active={sidePanel === "join-requests"}
+            label="Requests"
+            hideOnMobile
+          >
+            <UserPlus className="h-5 w-5" />
+          </ControlBtn>
           {pendingRequests.length > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 h-4 w-4 flex items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-zinc-950">
+            <span className="absolute -top-0.5 -right-0.5 h-4 w-4 flex items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-zinc-950 pointer-events-none">
               {pendingRequests.length}
             </span>
           )}
-        </button>
+        </div>
 
-        <button
-          onClick={handleLeave}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-        >
+        <ControlBtn onClick={handleLeave} label="Leave">
           <LogOut className="h-5 w-5" />
-          Leave
-        </button>
+        </ControlBtn>
 
-        <button
+        <ControlBtn
           onClick={handleEndMeeting}
           disabled={endMeetingMutation.isPending}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] text-red-400 hover:bg-red-900/30 transition-colors disabled:opacity-50"
+          danger
+          label={endMeetingMutation.isPending ? "Ending..." : "End"}
         >
           <LogOut className="h-5 w-5" />
-          {endMeetingMutation.isPending ? "Ending..." : "End"}
-        </button>
+        </ControlBtn>
       </div>
 
       <PresentationSelectorModal
