@@ -460,12 +460,15 @@ export default function PresentationBuilderPage(): React.JSX.Element {
       {/* Preview Modal */}
       {showPreview && slides.length > 0 && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
-          <div className={cn("relative w-full max-w-4xl mx-4 rounded-xl shadow-2xl overflow-hidden", ts.bg)} style={{ aspectRatio: "16/9" }}>
-            <div className="absolute top-0 inset-x-0 h-10 bg-zinc-900/80 flex items-center justify-between px-4 z-10">
-              <span className="text-xs text-zinc-300">Slide {previewSlide + 1} / {slides.length}</span>
-              <button onClick={() => setShowPreview(false)} className="text-zinc-300 hover:text-white text-xs">&times;</button>
+          <div
+            className="relative w-full max-w-4xl mx-4 rounded-xl shadow-2xl overflow-hidden bg-cover bg-center"
+            style={{ aspectRatio: "16/9", backgroundImage: `url(${ts.image})` }}
+          >
+            <div className="absolute top-0 inset-x-0 h-10 bg-zinc-900/60 flex items-center justify-between px-4 z-10">
+              <span className="text-xs text-white/80">Slide {previewSlide + 1} / {slides.length}</span>
+              <button onClick={() => setShowPreview(false)} className="text-white/80 hover:text-white text-xs">&times;</button>
             </div>
-            <div className={cn("h-full flex flex-col items-center justify-center p-8 md:p-16 text-center", ts.text, ts.font)}>
+            <div className="relative z-[5] h-full flex flex-col items-center justify-center p-8 md:p-16 text-center text-white drop-shadow-lg">
               {(() => {
                 const s = slides[previewSlide];
                 if (!s) return null;
@@ -482,16 +485,16 @@ export default function PresentationBuilderPage(): React.JSX.Element {
                 );
               })()}
             </div>
-            <div className="absolute bottom-0 inset-x-0 h-12 bg-zinc-900/80 flex items-center justify-between px-4">
-              <Button variant="ghost" size="sm" className="text-zinc-300 hover:text-white" onClick={() => setPreviewSlide((p) => Math.max(0, p - 1))} disabled={previewSlide === 0}>
+            <div className="absolute bottom-0 inset-x-0 h-12 bg-zinc-900/60 flex items-center justify-between px-4 z-10">
+              <Button variant="ghost" size="sm" className="text-white/80 hover:text-white" onClick={() => setPreviewSlide((p) => Math.max(0, p - 1))} disabled={previewSlide === 0}>
                 <ChevronLeft className="h-4 w-4" /> Previous
               </Button>
               <div className="flex gap-1">
                 {slides.map((_, i) => (
-                  <button key={i} onClick={() => setPreviewSlide(i)} className={cn("h-1.5 rounded-full transition-all", i === previewSlide ? "w-6 bg-white" : "w-1.5 bg-zinc-500")} />
+                  <button key={i} onClick={() => setPreviewSlide(i)} className={cn("h-1.5 rounded-full transition-all", i === previewSlide ? "w-6 bg-white" : "w-1.5 bg-white/40")} />
                 ))}
               </div>
-              <Button variant="ghost" size="sm" className="text-zinc-300 hover:text-white" onClick={() => setPreviewSlide((p) => Math.min(slides.length - 1, p + 1))} disabled={previewSlide === slides.length - 1}>
+              <Button variant="ghost" size="sm" className="text-white/80 hover:text-white" onClick={() => setPreviewSlide((p) => Math.min(slides.length - 1, p + 1))} disabled={previewSlide === slides.length - 1}>
                 Next <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

@@ -152,14 +152,16 @@ export default function PresentationViewerPage(): React.JSX.Element {
       {/* Slide */}
       <div
         className={cn(
-          "relative w-full overflow-hidden rounded-lg border shadow-lg",
+          "relative w-full overflow-hidden rounded-lg border shadow-lg bg-cover bg-center",
           isFullscreen ? "h-[100vh] rounded-none border-none shadow-none" : "max-w-5xl",
-          "flex-1",
-          ts.bg
+          "flex-1"
         )}
-        style={{ aspectRatio: isFullscreen ? undefined : "16/9" }}
+        style={{
+          aspectRatio: isFullscreen ? undefined : "16/9",
+          backgroundImage: `url(${ts.image})`,
+        }}
       >
-        <div className={cn("h-full flex flex-col items-center justify-center p-8 md:p-16 text-center", ts.text, ts.font)}>
+        <div className="relative z-[5] h-full flex flex-col items-center justify-center p-8 md:p-16 text-center text-white drop-shadow-lg">
           {!hideTitle && (
             <h2 className="text-2xl md:text-4xl font-bold mb-4 md:mb-6">{currentSlide.title}</h2>
           )}
