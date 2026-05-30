@@ -63,12 +63,13 @@ export class AgoraTokenService {
         channel,
         appId: this.appId || 'dev_app_id',
         uid,
+        classId: meeting.class_id,
         warning: 'Agora keys not configured — using mock token for dev',
       };
     }
 
     const token = this.buildRtcToken(channel, uid);
-    return { token, channel, appId: this.appId, uid };
+    return { token, channel, appId: this.appId, uid, classId: meeting.class_id };
   }
 
   // ── Agora RTC token builder (AccessToken2 spec) ───────────────────────────

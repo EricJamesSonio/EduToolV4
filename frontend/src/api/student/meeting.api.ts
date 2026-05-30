@@ -17,6 +17,7 @@ export interface MeetingTokenResponse {
   channel: string;
   appId: string;
   uid: number;
+  classId: string;
   warning?: string;
 }
 

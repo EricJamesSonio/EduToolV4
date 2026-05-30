@@ -48,6 +48,7 @@ class RoomState {
   chatHistory: ChatMessage[] = [];
   currentSlide = 0;    // lesson presentation sync
   isPresenting = false;
+  presentationId?: string;
 
   getParticipantList() {
     return Array.from(this.participants.values()).map((p) => ({
@@ -145,6 +146,7 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         chatHistory: room.chatHistory.slice(-50),
         currentSlide: room.currentSlide,
         isPresenting: room.isPresenting,
+        presentationId: room.presentationId,
       });
 
       // Notify others
@@ -343,7 +345,10 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 
   @SubscribeMessage('lesson:presentation_start')
-  handlePresentationStart(@ConnectedSocket() client: Socket) {
+  handlePresentationStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data?: { presentationId?: string },
+  ) {
     const meetingId = client.data?.meetingId;
     const auth: AuthPayload = client.data?.auth;
     if (!meetingId || auth?.role !== 'educator') return;
@@ -352,9 +357,11 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     if (!room) return;
 
     room.isPresenting = true;
+    room.presentationId = data?.presentationId ?? room.presentationId;
     this.server.to(meetingId).emit('lesson:presentation_started', {
       educatorId: auth.sub,
       currentSlide: room.currentSlide,
+      presentationId: room.presentationId,
     });
   }
 
@@ -368,6 +375,7 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     if (!room) return;
 
     room.isPresenting = false;
+    room.presentationId = undefined;
     this.server.to(meetingId).emit('lesson:presentation_stopped', {
       educatorId: auth.sub,
     });
