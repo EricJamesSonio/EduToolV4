@@ -15,6 +15,8 @@ import { useMeeting as useMeetingContext } from "@/hooks/meeting/MeetingContext"
 import { useChat } from "@/hooks/meeting/useChat";
 import { ChatPanel } from "@/components/meeting/ChatPanel";
 import { getAccessToken } from "@/api/client";
+import PresentationOverlay from "@/components/meeting/PresentationOverlay";
+import { useMeetingPresentation } from "@/hooks/meeting/useMeetingPresentation";
 
 const REACTIONS = ["👍", "👏", "❤️", "😂", "😮", "🎉"];
 
@@ -61,10 +63,12 @@ function ParticipantsPanel({ participants }: {
 export default function StudentMeetingRoomClient(): React.JSX.Element {
   const { meetingId } = useParams<{ meetingId: string }>();
   const searchParams = useSearchParams();
-  const classId = searchParams.get("classId") ?? "";
+  const urlClassId = searchParams.get("classId") ?? "";
   const router = useRouter();
 
   const { data: tokenData, isLoading: tokenLoading } = useMeetingToken(meetingId);
+  const meetingClassId = tokenData?.classId ?? "";
+  const classId = meetingClassId || urlClassId;
   const authToken = getAccessToken() ?? "";
   const meetingCtx = useMeetingContext();
   const { user: currentUser } = useAuth();
@@ -90,9 +94,11 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
 
   const { joined, localVideo, remoteUsers, toggleMic, toggleCamera } = meetingCtx;
   const {
-    connected, participants, chat, currentSlide, isPresenting,
+    connected, participants, chat, currentSlide, isPresenting, presentationId,
     sendChat, raiseHand, lowerHand, sendReaction,
   } = meetingCtx;
+
+  const { presentation, isLoading, isError } = useMeetingPresentation(classId, presentationId);
 
   const { messages: chatMessages, send: sendChatMessage } = useChat({
     chat,
@@ -115,7 +121,16 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
     if (el) {
       localVideo.play("local-video-pip");
     }
-  }, [localVideo]);
+  }, [localVideo, isPresenting]);
+
+  // Re-play remote video tracks when presentation mode toggles (DOM elements recreated)
+  useEffect(() => {
+    remoteUsers.forEach((user) => {
+      if (user.videoTrack) {
+        user.videoTrack.play(`remote-${user.uid}`);
+      }
+    });
+  }, [isPresenting, remoteUsers]);
 
   const handleToggleMic = async () => {
     await toggleMic();
@@ -163,7 +178,39 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
       isFullscreen ? "fixed inset-0 z-50" : "h-screen"
     )}>
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Remote users */}
+        {isPresenting ? (
+          <>
+            {presentationId ? (
+              <PresentationOverlay
+                presentation={presentation}
+                currentSlideIndex={currentSlide}
+                error={isError}
+                isLoading={isLoading}
+              />
+            ) : (
+              <div className="flex-1 flex items-center justify-center bg-zinc-950">
+                <p className="text-zinc-500 text-sm">Educator is preparing the presentation...</p>
+              </div>
+            )}
+            {/* Remote user (educator) PIP overlays */}
+            {remoteUsers.length > 0 && (
+              <div className="absolute bottom-4 left-4 flex gap-2 z-20">
+                {remoteUsers.map((user) => (
+                  <div
+                    key={String(user.uid)}
+                    id={`remote-${user.uid}`}
+                    className="w-52 h-36 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg"
+                  />
+                ))}
+              </div>
+            )}
+            {/* Local video PIP */}
+            <div
+              id="local-video-pip"
+              className="absolute bottom-4 right-4 w-52 h-36 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-20"
+            />
+          </>
+        ) : (
         <div className="flex-1 relative">
           <div className={cn(
             "h-full grid gap-1 p-1",
@@ -183,17 +230,12 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
             ))}
           </div>
 
-          {/* Local video PIP — id used by Agora to render directly */}
+          {/* Local video PIP */}
           <div
             id="local-video-pip"
             className="absolute bottom-4 right-4 w-52 h-36 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10"
           />
         </div>
-
-        {isPresenting && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-zinc-800/80 backdrop-blur-sm text-xs text-zinc-300 px-3 py-1.5 rounded-full border border-zinc-700 z-10">
-            📽 Educator is presenting · Slide {currentSlide + 1}
-          </div>
         )}
 
         {sidePanel && (

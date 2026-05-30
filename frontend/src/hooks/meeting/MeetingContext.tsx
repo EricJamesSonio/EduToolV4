@@ -32,12 +32,13 @@ interface MeetingContextValue {
   chat: ChatMessage[];
   currentSlide: number;
   isPresenting: boolean;
+  presentationId: string | null;
   sendChat: (message: string) => void;
   raiseHand: () => void;
   lowerHand: () => void;
   sendReaction: (emoji: string) => void;
   changeSlide: (slide: number) => void;
-  startPresentation: () => void;
+  startPresentation: (presentationId?: string) => void;
   stopPresentation: () => void;
 
   joinMeeting: (params: { classId: string; meetingId: string; role: "educator" | "student"; tokenData: MeetingTokenData; authToken: string }) => void;
@@ -75,7 +76,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
   } = useAgoraRTC(agoraProps);
 
   const {
-    connected, participants, chat, currentSlide, isPresenting,
+    connected, participants, chat, currentSlide, isPresenting, presentationId,
     sendChat, raiseHand, lowerHand, sendReaction,
     changeSlide, startPresentation, stopPresentation,
   } = useMeetingSocket(socketProps);
@@ -125,6 +126,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     chat,
     currentSlide,
     isPresenting,
+    presentationId,
     sendChat,
     raiseHand,
     lowerHand,

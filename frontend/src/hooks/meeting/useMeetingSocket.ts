@@ -18,12 +18,13 @@ interface UseMeetingSocketReturn {
   chat: ChatMessage[];
   currentSlide: number;
   isPresenting: boolean;
+  presentationId: string | null;
   sendChat: (message: string) => void;
   raiseHand: () => void;
   lowerHand: () => void;
   sendReaction: (emoji: string) => void;
   changeSlide: (slide: number) => void;
-  startPresentation: () => void;
+  startPresentation: (presentationId?: string) => void;
   stopPresentation: () => void;
 }
 
@@ -38,6 +39,7 @@ export const useMeetingSocket = ({
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPresenting, setIsPresenting] = useState(false);
+  const [presentationId, setPresentationId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!meetingId || !token) return;
@@ -78,6 +80,7 @@ export const useMeetingSocket = ({
         chatHistory: ChatMessage[];
         currentSlide: number;
         isPresenting: boolean;
+        presentationId?: string | null;
       }) => {
         if (!isActive) return;
 
@@ -85,6 +88,7 @@ export const useMeetingSocket = ({
         setChat(data.chatHistory || []);
         setCurrentSlide(data.currentSlide ?? 0);
         setIsPresenting(data.isPresenting ?? false);
+        setPresentationId(data.presentationId ?? null);
       }
     );
 
@@ -129,11 +133,12 @@ export const useMeetingSocket = ({
 
     socket.on(
       "lesson:presentation_started",
-      (data: { currentSlide: number }) => {
+      (data: { currentSlide: number; presentationId?: string }) => {
         if (!isActive) return;
 
         setIsPresenting(true);
         setCurrentSlide(data.currentSlide);
+        if (data.presentationId) setPresentationId(data.presentationId);
       }
     );
 
@@ -141,6 +146,7 @@ export const useMeetingSocket = ({
       if (!isActive) return;
 
       setIsPresenting(false);
+      setPresentationId(null);
     });
 
     return () => {
@@ -173,8 +179,8 @@ export const useMeetingSocket = ({
     socketRef.current?.emit("lesson:slide_change", { slide });
   }, []);
 
-  const startPresentation = useCallback((): void => {
-    socketRef.current?.emit("lesson:presentation_start");
+  const startPresentation = useCallback((presentationId?: string): void => {
+    socketRef.current?.emit("lesson:presentation_start", { presentationId });
   }, []);
 
   const stopPresentation = useCallback((): void => {
@@ -188,6 +194,7 @@ export const useMeetingSocket = ({
     chat,
     currentSlide,
     isPresenting,
+    presentationId,
     sendChat,
     raiseHand,
     lowerHand,
