@@ -242,6 +242,11 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     respondMutation.mutate({ reqId, status });
   };
 
+  const handleLeave = () => {
+    meetingCtx.leaveMeeting();
+    router.push(`/educator/classes/${classId}/meetings/${meetingId}`);
+  };
+
   const handleEndMeeting = () => {
     meetingCtx.leaveMeeting();
     endMeetingMutation.mutate(meetingId, {
@@ -590,9 +595,17 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         </button>
 
         <button
+          onClick={handleLeave}
+          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+        >
+          <LogOut className="h-5 w-5" />
+          Leave
+        </button>
+
+        <button
           onClick={handleEndMeeting}
           disabled={endMeetingMutation.isPending}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] text-red-400 hover:bg-red-900/30 transition-colors ml-2 disabled:opacity-50"
+          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] text-red-400 hover:bg-red-900/30 transition-colors disabled:opacity-50"
         >
           <LogOut className="h-5 w-5" />
           {endMeetingMutation.isPending ? "Ending..." : "End"}

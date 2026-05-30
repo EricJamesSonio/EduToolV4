@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Hand, MessageSquare,
@@ -35,6 +35,114 @@ function ReactionPicker({ onPick, onClose }: {
           {emoji}
         </button>
       ))}
+    </div>
+  );
+}
+
+function DraggableVideo({ children, className }: {
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{x: number; y: number} | null>(null);
+  const drag = useRef<{ox: number; oy: number} | null>(null);
+
+  console.log("DRAG: component render, ref:", ref.current ? "set" : "null");
+
+  useEffect(() => {
+    console.log("DRAG: useEffect run, ref:", ref.current ? "set" : "null");
+    const el = ref.current;
+    if (!el) { console.log("DRAG: ref null on mount"); return; }
+    console.log("DRAG: mounted, el:", el.id || el.className);
+
+    const onDown = (e: MouseEvent) => {
+      console.log("DRAG: mousedown", e.clientX, e.clientY);
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      drag.current = { ox: e.clientX - rect.left, oy: e.clientY - rect.top };
+      const parent = el.parentElement;
+      if (!parent) { console.log("DRAG: no parent"); return; }
+      const prect = parent.getBoundingClientRect();
+      const newPos = { x: rect.left - prect.left, y: rect.top - prect.top };
+      console.log("DRAG: setPos", newPos);
+      setPos(newPos);
+    };
+
+    const onMove = (e: MouseEvent) => {
+      if (!drag.current) return;
+      console.log("DRAG: mousemove", e.clientX, e.clientY);
+      e.preventDefault();
+      const parent = el.parentElement;
+      if (!parent) return;
+      const prect = parent.getBoundingClientRect();
+      const newPos = {
+        x: Math.max(0, Math.min(e.clientX - drag.current.ox - prect.left, prect.width - el.offsetWidth)),
+        y: Math.max(0, Math.min(e.clientY - drag.current.oy - prect.top, prect.height - el.offsetHeight)),
+      };
+      console.log("DRAG: setPos move", newPos);
+      setPos(newPos);
+    };
+
+    const onUp = () => { console.log("DRAG: mouseup"); drag.current = null; };
+
+    const onTouchDown = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      console.log("DRAG: touchstart", t.clientX, t.clientY);
+      const rect = el.getBoundingClientRect();
+      drag.current = { ox: t.clientX - rect.left, oy: t.clientY - rect.top };
+      const parent = el.parentElement;
+      if (!parent) return;
+      const prect = parent.getBoundingClientRect();
+      setPos({ x: rect.left - prect.left, y: rect.top - prect.top });
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!drag.current) return;
+      const t = e.touches[0];
+      if (!t) return;
+      console.log("DRAG: touchmove", t.clientX, t.clientY);
+      const parent = el.parentElement;
+      if (!parent) return;
+      const prect = parent.getBoundingClientRect();
+      setPos({
+        x: Math.max(0, Math.min(t.clientX - drag.current.ox - prect.left, prect.width - el.offsetWidth)),
+        y: Math.max(0, Math.min(t.clientY - drag.current.oy - prect.top, prect.height - el.offsetHeight)),
+      });
+    };
+
+    const onTouchEnd = () => { console.log("DRAG: touchend"); drag.current = null; };
+
+    el.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    el.addEventListener("touchstart", onTouchDown, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onTouchEnd);
+
+    return () => {
+      el.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      el.removeEventListener("touchstart", onTouchDown);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        position: "absolute",
+        cursor: "grab",
+        ...(pos === null
+          ? { right: 16, bottom: 16 }
+          : { left: pos.x, top: pos.y }),
+      }}
+    >
+      {children}
     </div>
   );
 }
@@ -114,23 +222,27 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   const [isFullscreen, setIsFullscreen] = useState(true);
   const [sidePanel, setSidePanel] = useState<"chat" | "participants" | null>(null);
 
-  // Re-play local video when track or mount state changes
-  useEffect(() => {
-    if (!localVideo) return;
+// Replace the existing localVideo useEffect
+useEffect(() => {
+  if (!localVideo) return;
+  const raf = requestAnimationFrame(() => {
     const el = document.getElementById("local-video-pip");
-    if (el) {
-      localVideo.play("local-video-pip");
-    }
-  }, [localVideo, isPresenting]);
+    if (el) localVideo.play("local-video-pip");
+  });
+  return () => cancelAnimationFrame(raf);
+}, [localVideo, isPresenting]);
 
   // Re-play remote video tracks when presentation mode toggles (DOM elements recreated)
-  useEffect(() => {
+useEffect(() => {
+  const raf = requestAnimationFrame(() => {
     remoteUsers.forEach((user) => {
       if (user.videoTrack) {
         user.videoTrack.play(`remote-${user.uid}`);
       }
     });
-  }, [isPresenting, remoteUsers]);
+  });
+  return () => cancelAnimationFrame(raf);
+}, [isPresenting, remoteUsers]);
 
   const handleToggleMic = async () => {
     await toggleMic();
@@ -178,39 +290,40 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
       isFullscreen ? "fixed inset-0 z-50" : "h-screen"
     )}>
       <div className="flex-1 flex overflow-hidden relative">
-        {isPresenting ? (
-          <>
-            {presentationId ? (
-              <PresentationOverlay
-                presentation={presentation}
-                currentSlideIndex={currentSlide}
-                error={isError}
-                isLoading={isLoading}
-              />
-            ) : (
-              <div className="flex-1 flex items-center justify-center bg-zinc-950">
-                <p className="text-zinc-500 text-sm">Educator is preparing the presentation...</p>
-              </div>
-            )}
-            {/* Remote user (educator) PIP overlays */}
-            {remoteUsers.length > 0 && (
-              <div className="absolute bottom-4 left-4 flex gap-2 z-20">
-                {remoteUsers.map((user) => (
-                  <div
-                    key={String(user.uid)}
-                    id={`remote-${user.uid}`}
-                    className="w-52 h-36 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg"
-                  />
-                ))}
-              </div>
-            )}
-            {/* Local video PIP */}
-            <div
-              id="local-video-pip"
-              className="absolute bottom-4 right-4 w-52 h-36 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-20"
-            />
-          </>
-        ) : (
+ {isPresenting ? (
+  <div className="flex-1 relative overflow-hidden">
+    {presentationId ? (
+      <PresentationOverlay
+        presentation={presentation}
+        currentSlideIndex={currentSlide}
+        error={isError}
+        isLoading={isLoading}
+      />
+    ) : (
+      <div className="flex-1 flex items-center justify-center bg-zinc-950">
+        <p className="text-zinc-500 text-sm">Educator is preparing the presentation...</p>
+      </div>
+    )}
+
+    {/* Remote user (educator) PIP overlays */}
+    {remoteUsers.map((user) => (
+      <DraggableVideo key={String(user.uid)} className="w-52 h-36 z-20">
+        <div
+          id={`remote-${user.uid}`}
+          className="w-full h-full rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg"
+        />
+      </DraggableVideo>
+    ))}
+
+    {/* Local video PIP */}
+    <DraggableVideo key={`local-pip-${isPresenting}`} className="w-52 h-36 z-20">
+      <div
+        id="local-video-pip"
+        className="w-full h-full rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg"
+      />
+    </DraggableVideo>
+  </div>
+) : (
         <div className="flex-1 relative">
           <div className={cn(
             "h-full grid gap-1 p-1",

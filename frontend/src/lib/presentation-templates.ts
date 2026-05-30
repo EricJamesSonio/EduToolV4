@@ -16,4 +16,21 @@ export const TEMPLATE_STYLES: Record<string, TemplateStyle> = {
     label: "Pink",
     image: "/templates/pink.png",
   },
+  bluegreen: {
+    label: "Blue-Green",
+    image: "/templates/blue-green.png",
+  },
+  purple: {
+    label: "Purple",
+    image: "/templates/purple.png",
+  },
+  red: {
+    label: "Red",
+    image: "/templates/red.png",
+  },
+  blueyellow: {
+    label: "Blue-Yellow",
+    image: "/templates/blue-yellow.png",
+  },
+
 };
