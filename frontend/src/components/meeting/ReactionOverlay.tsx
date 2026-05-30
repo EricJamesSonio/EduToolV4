@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 interface WalkingEmoji {
   id: string;
   emoji: string;
+  senderName: string;
   /** vertical % position (10–70) so it stays in upper area */
   top: number;
   /** size variant */
@@ -23,9 +24,9 @@ interface HandRaisePopup {
 }
 
 interface ReactionOverlayProps {
-  /** Call this with an emoji string whenever a reaction is received from socket */
-  incomingEmoji: { emoji: string; id: string } | null;
-  /** Call this with a name whenever someone raises their hand */
+  /** Reaction received from socket — id must be unique per event */
+  incomingEmoji: { emoji: string; id: string; senderName: string } | null;
+  /** Fires when someone raises their hand */
   incomingHandRaise: { name: string; userId: string } | null;
 }
 
@@ -43,20 +44,27 @@ export function ReactionOverlay({
 }: ReactionOverlayProps) {
   const [walkingEmojis, setWalkingEmojis] = useState<WalkingEmoji[]>([]);
   const [handPopups,    setHandPopups]    = useState<HandRaisePopup[]>([]);
-  const prevEmojiRef     = useRef<string | null>(null);
+  // Use a Set to hard-deduplicate by id — survives StrictMode double-fires
+  const seenEmojiIds     = useRef<Set<string>>(new Set());
   const prevHandRaiseRef = useRef<string | null>(null);
 
   // ── Spawn walking emoji ───────────────────────────────────────────────────
   useEffect(() => {
     if (!incomingEmoji) return;
-    if (prevEmojiRef.current === incomingEmoji.id) return;
-    prevEmojiRef.current = incomingEmoji.id;
+    if (seenEmojiIds.current.has(incomingEmoji.id)) return;
+    seenEmojiIds.current.add(incomingEmoji.id);
+    // Prune old ids so the Set doesn't grow unboundedly
+    if (seenEmojiIds.current.size > 100) {
+      const oldest = [...seenEmojiIds.current].slice(0, 50);
+      oldest.forEach((k) => seenEmojiIds.current.delete(k));
+    }
 
     const entry: WalkingEmoji = {
-      id:    incomingEmoji.id,
-      emoji: incomingEmoji.emoji,
-      top:   10 + Math.random() * 55,   // 10%–65% from top
-      size:  28 + Math.random() * 20,   // 28px–48px
+      id:         incomingEmoji.id,
+      emoji:      incomingEmoji.emoji,
+      senderName: incomingEmoji.senderName,
+      top:        10 + Math.random() * 55,   // 10%–65% from top
+      size:       28 + Math.random() * 20,   // 28px–48px
     };
 
     setWalkingEmojis((prev) => {
@@ -121,22 +129,45 @@ export function ReactionOverlay({
         aria-hidden
       >
         {walkingEmojis.map((e) => (
-          <span
+          <div
             key={e.id}
             style={{
-              position:    "absolute",
-              top:         `${e.top}%`,
-              left:        0,
-              fontSize:    `${e.size}px`,
-              lineHeight:  1,
-              animation:   `emoji-walk ${EMOJI_DURATION_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
-              userSelect:  "none",
-              willChange:  "transform, opacity",
-              filter:      "drop-shadow(0 2px 6px rgba(0,0,0,0.5))",
+              position:       "absolute",
+              top:            `${e.top}%`,
+              left:           0,
+              display:        "flex",
+              flexDirection:  "column",
+              alignItems:     "center",
+              gap:            "3px",
+              animation:      `emoji-walk ${EMOJI_DURATION_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+              userSelect:     "none",
+              willChange:     "transform, opacity",
             }}
           >
-            {e.emoji}
-          </span>
+            <span style={{
+              fontSize:   `${e.size}px`,
+              lineHeight: 1,
+              filter:     "drop-shadow(0 2px 6px rgba(0,0,0,0.5))",
+            }}>
+              {e.emoji}
+            </span>
+            <span style={{
+              fontSize:        "11px",
+              fontWeight:      600,
+              color:           "#ffffff",
+              background:      "rgba(0,0,0,0.55)",
+              borderRadius:    "999px",
+              padding:         "1px 7px",
+              whiteSpace:      "nowrap",
+              letterSpacing:   "0.01em",
+              backdropFilter:  "blur(4px)",
+              maxWidth:        "90px",
+              overflow:        "hidden",
+              textOverflow:    "ellipsis",
+            }}>
+              {e.senderName}
+            </span>
+          </div>
         ))}
       </div>
 

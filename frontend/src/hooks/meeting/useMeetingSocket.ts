@@ -16,6 +16,7 @@ export interface IncomingReaction {
   emoji: string;
   /** unique id so the overlay can deduplicate */
   id: string;
+  senderName: string;
 }
 
 export interface IncomingHandRaise {
@@ -159,14 +160,18 @@ export const useMeetingSocket = ({
 
     // ── Incoming reaction from server broadcast ───────────────────────────────
     // The server should broadcast a "reaction:received" event to all room members.
-    // Payload: { emoji: string, senderId: string }
+    // Payload: { emoji: string, senderId: string, senderName?: string }
     socket.on(
       "reaction:received",
-      (data: { emoji: string; senderId: string }) => {
+      (data: { emoji: string; senderId: string; senderName?: string }) => {
         if (!isActive) return;
+        const name = data.senderName
+          ?? prevParticipantsRef.current.find((p) => p.userId === data.senderId)?.name
+          ?? "Someone";
         setLatestReaction({
-          emoji: data.emoji,
-          id:    `${data.senderId}-${Date.now()}-${Math.random()}`,
+          emoji:      data.emoji,
+          id:         `${data.senderId}-${Date.now()}-${Math.random()}`,
+          senderName: name,
         });
       }
     );
@@ -174,11 +179,17 @@ export const useMeetingSocket = ({
     // Fallback: some backends echo the sender's own event as "reaction:send"
     socket.on(
       "reaction:send",
-      (data: { emoji: string; senderId?: string }) => {
+      (data: { emoji: string; senderId?: string; senderName?: string }) => {
         if (!isActive) return;
+        const name = data.senderName
+          ?? (data.senderId
+            ? prevParticipantsRef.current.find((p) => p.userId === data.senderId)?.name
+            : undefined)
+          ?? "Someone";
         setLatestReaction({
-          emoji: data.emoji,
-          id:    `echo-${Date.now()}-${Math.random()}`,
+          emoji:      data.emoji,
+          id:         `echo-${Date.now()}-${Math.random()}`,
+          senderName: name,
         });
       }
     );
@@ -226,10 +237,13 @@ export const useMeetingSocket = ({
 
   const sendReaction = useCallback((emoji: string): void => {
     socketRef.current?.emit("reaction:send", { emoji });
-    // Optimistically show the local user's own reaction immediately
+    // Optimistically show the local user's own reaction immediately.
+    // We pick "You" as the label — the server echo will overwrite with the
+    // real name for other participants.
     setLatestReaction({
       emoji,
-      id: `local-${Date.now()}-${Math.random()}`,
+      id:         `local-${Date.now()}-${Math.random()}`,
+      senderName: "You",
     });
   }, []);
 
