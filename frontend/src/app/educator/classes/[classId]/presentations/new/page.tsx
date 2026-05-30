@@ -45,8 +45,7 @@ interface WordSeg {
   end: number;
 }
 
-let slideIdCounter = 0;
-function newSlideId() { return `slide_${++slideIdCounter}`; }
+function newSlideId() { return crypto.randomUUID(); }
 
 function parseWords(text: string): WordSeg[] {
   const words: WordSeg[] = [];
@@ -114,7 +113,6 @@ export default function PresentationBuilderPage(): React.JSX.Element {
       setTitle(existingPres.title);
       setTemplate(existingPres.template);
       setPresentationId(existingPres.id);
-      slideIdCounter = 0;
       setSlides(existingPres.slides.map((s, i) => ({
         id: newSlideId(),
         slideNumber: i + 1,
@@ -250,8 +248,9 @@ export default function PresentationBuilderPage(): React.JSX.Element {
           const isSelected = selLo !== null && selHi !== null && idx >= selLo && idx <= selHi;
           const isPreview = previewLo !== null && previewHi !== null && idx >= previewLo && idx <= previewHi && !isSelected;
 
-          const slideIdx = !selMode ? getSlideIdxForWord(idx) : null;
+          const slideIdx = getSlideIdxForWord(idx);
           const color = slideIdx !== null ? SLIDE_COLORS[slideIdx % SLIDE_COLORS.length] : null;
+          const isSlideWord = !isSelected && !isPreview && color;
 
           return (
             <span
@@ -266,9 +265,9 @@ export default function PresentationBuilderPage(): React.JSX.Element {
                 selMode && isStarted && !isSelected && !isPreview && (endWordIdx === null ? "ring-2 ring-yellow-500 bg-yellow-100 dark:bg-yellow-900/30" : "bg-primary/25"),
                 selMode && isPreview && "bg-primary/10",
                 selMode && isSelected && "bg-primary/25 text-foreground",
-                !selMode && color && `${color.bg} ring-1 ${color.ring}`,
+                isSlideWord && `${color.bg} ring-1 ${color.ring}`,
               )}
-              title={!selMode && slideIdx !== null ? `Slide ${slideIdx + 1}` : undefined}
+              title={slideIdx !== null ? `Slide ${slideIdx + 1}` : undefined}
             >
               {selMode && isStarted && endWordIdx === null && (
                 <span className="inline-flex items-center gap-0.5 align-middle text-[9px] font-semibold text-yellow-600 dark:text-yellow-400 mr-0.5">

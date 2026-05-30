@@ -122,7 +122,7 @@ export default function PresentationViewerPage(): React.JSX.Element {
       <div className="w-full max-w-5xl flex items-center justify-between h-12 px-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.push(`/educator/classes/${classId}`)}
+            onClick={() => router.push(`/educator/classes/${classId}/lessons/${pres.lessonId}`)}
             className="text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />

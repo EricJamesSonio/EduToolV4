@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Hand, MessageSquare,
-  Users, LogOut, Smile, DoorOpen, UserPlus, Check, X,
-  Maximize, Minimize,
+  Users, LogOut, Smile, UserPlus, Check, X,
+  Maximize, Minimize, Monitor,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +20,10 @@ import {
   useRespondToJoinRequest, useEndMeeting,
 } from "@/hooks/educator/useMeeting";
 import type { EnrolledStudent } from "@/types/educator/meeting.types";
+import PresentationSelectorModal from "@/components/meeting/PresentationSelectorModal";
+import PresentationOverlay from "@/components/meeting/PresentationOverlay";
+import { useMeetingPresentation } from "@/hooks/meeting/useMeetingPresentation";
+import type { Presentation } from "@/types/educator/presentation.types";
 
 const REACTIONS = ["👍", "👏", "❤️", "😂", "😮", "🎉"];
 
@@ -149,7 +153,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const {
     connected, participants, chat, currentSlide, isPresenting,
     sendChat, raiseHand, lowerHand, sendReaction,
-    startPresentation, stopPresentation,
+    startPresentation, stopPresentation, changeSlide,
   } = meetingCtx;
 
   const { messages: chatMessages, send: sendChatMessage } = useChat({
@@ -167,6 +171,8 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const [handRaised, setHandRaised] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [sidePanel, setSidePanel] = useState<"chat" | "participants" | "join-requests" | null>(null);
+  const [showPresModal, setShowPresModal] = useState(false);
+  const { presentation, selectPresentation, clearPresentation } = useMeetingPresentation(classId);
   const [localExpanded, setLocalExpanded] = useState(false);
   const [pipSize, setPipSize] = useState({ w: 240, h: 160 });
   const [isFullscreen, setIsFullscreen] = useState(true);
@@ -215,7 +221,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     if (el) {
       localVideo.play(id);
     }
-  }, [localVideo, localExpanded]);
+  }, [localVideo, localExpanded, isPresenting]);
 
   const handleToggleMic = async () => {
     await toggleMic();
@@ -241,6 +247,16 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     endMeetingMutation.mutate(meetingId, {
       onSuccess: () => router.push(`/educator/classes/${classId}/meetings/${meetingId}`),
     });
+  };
+
+  const handleSelectPresentation = (pres: Presentation) => {
+    selectPresentation(pres);
+    startPresentation(pres.id);
+  };
+
+  const handleStopPresentation = () => {
+    clearPresentation();
+    stopPresentation();
   };
 
   if (tokenLoading) {
@@ -269,7 +285,60 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
       isFullscreen ? "fixed inset-0 z-50" : "h-screen"
     )}>
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Remote users + optional expanded local */}
+        {isPresenting ? (
+          <>
+            <PresentationOverlay
+              presentation={presentation}
+              currentSlideIndex={currentSlide}
+              onChangeSlide={changeSlide}
+            />
+            {/* PIP overlay on top of presentation */}
+            {!localExpanded && (
+              <div
+                ref={pipRef}
+                id="local-video-pip"
+                style={{ width: pipSize.w, height: pipSize.h }}
+                onClick={() => { if (pipResizing) { setPipResizing(false); } else { setShowPipMenu((v) => !v); } }}
+                className="absolute bottom-4 right-4 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-20 select-none cursor-default"
+              >
+              {!camOn && (
+                <div className="absolute inset-0 flex items-center justify-center text-zinc-500 pointer-events-none z-0">
+                  <VideoOff className="h-6 w-6" />
+                </div>
+              )}
+              <div className="absolute bottom-1.5 left-1.5 text-[10px] text-zinc-400 bg-zinc-900/60 px-1.5 py-0.5 rounded pointer-events-none z-0">
+                You {micOn ? "" : "🔇"}
+              </div>
+              {showPipMenu && (
+                <>
+                  <div className="absolute inset-0 bg-black/40 z-10" onClick={(e) => { e.stopPropagation(); setShowPipMenu(false); }} />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2 z-20">
+                    <button onClick={(e) => { e.stopPropagation(); setLocalExpanded(true); setShowPipMenu(false); }} className="h-8 px-3 text-xs font-medium bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700 whitespace-nowrap">Full Display</button>
+                    <button onClick={(e) => { e.stopPropagation(); setPipResizing(true); setShowPipMenu(false); }} className="h-8 px-3 text-xs font-medium bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700 whitespace-nowrap">Resize</button>
+                  </div>
+                </>
+              )}
+              {pipResizing && (
+                <>
+                  <div onMouseDown={(e) => handleResizeStart(e, "se")} className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-30 hover:bg-zinc-500/40 rounded-bl" />
+                  <div onMouseDown={(e) => handleResizeStart(e, "sw")} className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize z-30 hover:bg-zinc-500/40 rounded-br" />
+                  <div onMouseDown={(e) => handleResizeStart(e, "ne")} className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize z-30 hover:bg-zinc-500/40 rounded-bl" />
+                  <div onMouseDown={(e) => handleResizeStart(e, "nw")} className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-30 hover:bg-zinc-500/40 rounded-br" />
+                  <div onMouseDown={(e) => handleResizeStart(e, "e")} className="absolute top-0 bottom-0 right-0 w-1.5 cursor-e-resize z-30 hover:bg-zinc-500/30" />
+                  <div onMouseDown={(e) => handleResizeStart(e, "w")} className="absolute top-0 bottom-0 left-0 w-1.5 cursor-w-resize z-30 hover:bg-zinc-500/30" />
+                  <div onMouseDown={(e) => handleResizeStart(e, "n")} className="absolute left-0 right-0 top-0 h-1.5 cursor-n-resize z-30 hover:bg-zinc-500/30" />
+                  <div onMouseDown={(e) => handleResizeStart(e, "s")} className="absolute left-0 right-0 bottom-0 h-1.5 cursor-s-resize z-30 hover:bg-zinc-500/30" />
+                </>
+              )}
+              {pipResizing && (
+                <div className="absolute top-1 inset-x-1 flex justify-center z-30 pointer-events-none">
+                  <span className="text-[9px] text-zinc-500 bg-zinc-900/70 px-2 py-0.5 rounded">Drag edges to resize · click to close</span>
+                </div>
+              )}
+            </div>
+            )}
+          </>
+        ) : (
         <div className="flex-1 relative">
           <div className={cn(
             "h-full grid gap-1 p-1",
@@ -296,7 +365,6 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
                     <VideoOff className="h-6 w-6" />
                   </div>
                 )}
-                {/* Top bar with label + close */}
                 <div className="absolute top-0 inset-x-0 h-8 flex items-center justify-between px-2 bg-gradient-to-b from-black/50 to-transparent z-10">
                   <span className="text-xs text-zinc-300">Your Camera</span>
                   <button
@@ -320,7 +388,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
             ))}
           </div>
 
-          {/* Local video PIP (collapsed — resizable) */}
+          {/* Local video PIP (collapsed) */}
           {!localExpanded && (
             <div
               ref={pipRef}
@@ -337,45 +405,27 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
             <div className="absolute bottom-1.5 left-1.5 text-[10px] text-zinc-400 bg-zinc-900/60 px-1.5 py-0.5 rounded pointer-events-none z-0">
               You {micOn ? "" : "🔇"}
             </div>
-
-            {/* Click menu */}
             {showPipMenu && (
               <>
                 <div className="absolute inset-0 bg-black/40 z-10" onClick={(e) => { e.stopPropagation(); setShowPipMenu(false); }} />
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-2 z-20">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setLocalExpanded(true); setShowPipMenu(false); }}
-                    className="h-8 px-3 text-xs font-medium bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700 whitespace-nowrap"
-                  >
-                    Full Display
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setPipResizing(true); setShowPipMenu(false); }}
-                    className="h-8 px-3 text-xs font-medium bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700 whitespace-nowrap"
-                  >
-                    Resize
-                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setLocalExpanded(true); setShowPipMenu(false); }} className="h-8 px-3 text-xs font-medium bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700 whitespace-nowrap">Full Display</button>
+                  <button onClick={(e) => { e.stopPropagation(); setPipResizing(true); setShowPipMenu(false); }} className="h-8 px-3 text-xs font-medium bg-zinc-900/90 hover:bg-zinc-800 text-white rounded-lg border border-zinc-700 whitespace-nowrap">Resize</button>
                 </div>
               </>
             )}
-
-            {/* Resize handles (visible in resize mode) */}
             {pipResizing && (
               <>
-                {/* Corners */}
                 <div onMouseDown={(e) => handleResizeStart(e, "se")} className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-30 hover:bg-zinc-500/40 rounded-bl" />
                 <div onMouseDown={(e) => handleResizeStart(e, "sw")} className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize z-30 hover:bg-zinc-500/40 rounded-br" />
                 <div onMouseDown={(e) => handleResizeStart(e, "ne")} className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize z-30 hover:bg-zinc-500/40 rounded-bl" />
                 <div onMouseDown={(e) => handleResizeStart(e, "nw")} className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-30 hover:bg-zinc-500/40 rounded-br" />
-                {/* Edges */}
                 <div onMouseDown={(e) => handleResizeStart(e, "e")} className="absolute top-0 bottom-0 right-0 w-1.5 cursor-e-resize z-30 hover:bg-zinc-500/30" />
                 <div onMouseDown={(e) => handleResizeStart(e, "w")} className="absolute top-0 bottom-0 left-0 w-1.5 cursor-w-resize z-30 hover:bg-zinc-500/30" />
                 <div onMouseDown={(e) => handleResizeStart(e, "n")} className="absolute left-0 right-0 top-0 h-1.5 cursor-n-resize z-30 hover:bg-zinc-500/30" />
                 <div onMouseDown={(e) => handleResizeStart(e, "s")} className="absolute left-0 right-0 bottom-0 h-1.5 cursor-s-resize z-30 hover:bg-zinc-500/30" />
               </>
             )}
-
-            {/* Exit resize mode hint */}
             {pipResizing && (
               <div className="absolute top-1 inset-x-1 flex justify-center z-30 pointer-events-none">
                 <span className="text-[9px] text-zinc-500 bg-zinc-900/70 px-2 py-0.5 rounded">Drag edges to resize · click to close</span>
@@ -384,11 +434,6 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
           </div>
         )}
         </div>
-
-        {isPresenting && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-zinc-800/80 backdrop-blur-sm text-xs text-zinc-300 px-3 py-1.5 rounded-full border border-zinc-700 z-10">
-            📽 Presenting · Slide {currentSlide + 1}
-          </div>
         )}
 
         {sidePanel && (
@@ -485,13 +530,13 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         </button>
 
         <button
-          onClick={() => isPresenting ? stopPresentation() : startPresentation()}
+          onClick={() => isPresenting ? handleStopPresentation() : setShowPresModal(true)}
           className={cn(
             "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
             isPresenting ? "text-primary bg-primary/10" : "text-zinc-300 hover:bg-zinc-800"
           )}
         >
-          <DoorOpen className="h-5 w-5" />
+          <Monitor className="h-5 w-5" />
           {isPresenting ? "Stop" : "Present"}
         </button>
 
@@ -553,6 +598,13 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
           {endMeetingMutation.isPending ? "Ending..." : "End"}
         </button>
       </div>
+
+      <PresentationSelectorModal
+        open={showPresModal}
+        onClose={() => setShowPresModal(false)}
+        onSelect={handleSelectPresentation}
+        classId={classId}
+      />
     </div>
   );
 }
