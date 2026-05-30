@@ -47,7 +47,6 @@ export const presentationApi = {
   },
 
   getAll: async (classId: string): Promise<Presentation[]> => {
-  getAll: async (classId: string): Promise<Presentation[]> => {
     const { data } = await apiClient.get(`/educator/classes/${classId}/presentations`);
     const list = unwrap<Record<string, unknown>[]>(data);
     return list.map(mapPresentation);

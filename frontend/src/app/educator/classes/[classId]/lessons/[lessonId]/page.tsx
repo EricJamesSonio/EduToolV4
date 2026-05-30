@@ -10,6 +10,7 @@ import {
   useTriggerExtraction,
   useConceptBuild,
 } from "@/hooks/educator/useLessons";
+import { usePresentationByLesson } from "@/hooks/educator/usePresentations";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import { LessonForm } from "@/components/educator/lesson/LessonForm";
 import { ConceptBuildViewer } from "@/components/educator/lesson/ConceptBuildViewer";
@@ -48,6 +49,8 @@ export default function LessonDetailPage(): React.JSX.Element {
     isLoading,
     refetch,
   } = useLesson(classId, lessonId, isBuilding);
+
+  const { data: existingPresentation } = usePresentationByLesson(classId, lessonId);
 
   const { data: weeks } = useClassWeeks(classId);
   const { mutateAsync: updateLesson, isPending: isUpdating } =
@@ -146,16 +149,18 @@ export default function LessonDetailPage(): React.JSX.Element {
             </Button>
 
             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete
-                </Button>
-              </AlertDialogTrigger>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
+                  </Button>
+                }
+              />
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete this lesson?</AlertDialogTitle>
@@ -180,19 +185,35 @@ export default function LessonDetailPage(): React.JSX.Element {
                 </AlertDialogContent>
               </AlertDialog>
 
-              <Button
-                variant="default"
-                size="sm"
-                className="gap-1.5"
-                onClick={() =>
-                  router.push(
-                    `/educator/classes/${classId}/presentations/new?lessonId=${lessonId}`
-                  )
-                }
-              >
-                <Presentation className="h-3.5 w-3.5" />
-                Create Presentation
-              </Button>
+              {existingPresentation ? (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() =>
+                    router.push(
+                      `/educator/classes/${classId}/presentations/${existingPresentation.id}/view`
+                    )
+                  }
+                >
+                  <Presentation className="h-3.5 w-3.5" />
+                  View Presentation
+                </Button>
+              ) : (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() =>
+                    router.push(
+                      `/educator/classes/${classId}/presentations/new?lessonId=${lessonId}`
+                    )
+                  }
+                >
+                  <Presentation className="h-3.5 w-3.5" />
+                  Create Presentation
+                </Button>
+              )}
             </>
           }
         />

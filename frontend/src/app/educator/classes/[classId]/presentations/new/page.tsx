@@ -5,20 +5,29 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Eye, Wand2, Save, ChevronLeft, ChevronRight, Edit3, Crosshair, Check } from "lucide-react";
 import { useLesson } from "@/hooks/educator/useLessons";
-import { useCreatePresentation, useAutoGenerateSlides, useGenerateSlides } from "@/hooks/educator/usePresentations";
+import { usePresentation, useCreatePresentation, useUpdatePresentation, useAutoGenerateSlides, useGenerateSlides } from "@/hooks/educator/usePresentations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { TEMPLATE_STYLES } from "@/lib/presentation-templates";
 
 const TEMPLATES = [
-  { id: "minimal", label: "Minimal", desc: "Clean with lots of whitespace", colors: ["#f8f9fa", "#212529"] },
-  { id: "modern", label: "Modern", desc: "Bold headers with accent underlines", colors: ["#ffffff", "#0d6efd"] },
-  { id: "dark", label: "Dark Mode", desc: "Dark background, light text", colors: ["#1a1a2e", "#e94560"] },
-  { id: "academic", label: "Academic", desc: "Serif fonts, formal layout", colors: ["#fafafa", "#2d3436"] },
-  { id: "gradient", label: "Gradient", desc: "Color gradient backgrounds", colors: ["#667eea", "#764ba2"] },
-  { id: "professional", label: "Professional", desc: "Corporate-style clean design", colors: ["#ffffff", "#2563eb"] },
+  { id: "green", label: "Green", desc: "Calm natural theme" },
+  { id: "blue", label: "Blue", desc: "Cool ocean theme" },
+  { id: "pink", label: "Pink", desc: "Warm rose theme" },
+];
+
+const SLIDE_COLORS = [
+  { bg: "bg-amber-200 dark:bg-amber-900/50 hover:bg-amber-300 dark:hover:bg-amber-800/60", ring: "ring-amber-400" },
+  { bg: "bg-rose-200 dark:bg-rose-900/50 hover:bg-rose-300 dark:hover:bg-rose-800/60", ring: "ring-rose-400" },
+  { bg: "bg-sky-200 dark:bg-sky-900/50 hover:bg-sky-300 dark:hover:bg-sky-800/60", ring: "ring-sky-400" },
+  { bg: "bg-emerald-200 dark:bg-emerald-900/50 hover:bg-emerald-300 dark:hover:bg-emerald-800/60", ring: "ring-emerald-400" },
+  { bg: "bg-violet-200 dark:bg-violet-900/50 hover:bg-violet-300 dark:hover:bg-violet-800/60", ring: "ring-violet-400" },
+  { bg: "bg-orange-200 dark:bg-orange-900/50 hover:bg-orange-300 dark:hover:bg-orange-800/60", ring: "ring-orange-400" },
+  { bg: "bg-teal-200 dark:bg-teal-900/50 hover:bg-teal-300 dark:hover:bg-teal-800/60", ring: "ring-teal-400" },
+  { bg: "bg-pink-200 dark:bg-pink-900/50 hover:bg-pink-300 dark:hover:bg-pink-800/60", ring: "ring-pink-400" },
 ];
 
 interface SlideDraft {
@@ -26,6 +35,8 @@ interface SlideDraft {
   slideNumber: number;
   title: string;
   content: string;
+  charStart: number | null;
+  charEnd: number | null;
 }
 
 interface WordSeg {
@@ -52,16 +63,19 @@ export default function PresentationBuilderPage(): React.JSX.Element {
   const searchParams = useSearchParams();
   const router = useRouter();
   const lessonId = searchParams.get("lessonId") ?? "";
+  const editPresentationId = searchParams.get("presentationId");
 
   const { data: lesson, isLoading } = useLesson(classId, lessonId);
+  const { data: existingPres } = usePresentation(classId, editPresentationId ?? "");
   const { mutateAsync: createPresentation, isPending: isCreating } = useCreatePresentation(classId);
+  const { mutateAsync: updatePresentation } = useUpdatePresentation(classId);
   const { mutateAsync: autoGenerate, isPending: isAutoGenerating } = useAutoGenerateSlides(classId);
   const { mutateAsync: saveSlides } = useGenerateSlides(classId);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [title, setTitle] = useState("");
-  const [template, setTemplate] = useState("modern");
+  const [template, setTemplate] = useState("green");
   const [slides, setSlides] = useState<SlideDraft[]>([]);
   const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
   const [presentationId, setPresentationId] = useState<string | null>(null);
@@ -75,13 +89,46 @@ export default function PresentationBuilderPage(): React.JSX.Element {
 
   const words = useMemo(() => lesson?.detail ? parseWords(lesson.detail) : [], [lesson?.detail]);
 
+  const slideRanges = useMemo(() => {
+    if (!lesson?.detail) return [];
+    return slides.map((s) => {
+      if (s.charStart !== null && s.charEnd !== null) return { slideNumber: s.slideNumber, start: s.charStart, end: s.charEnd };
+      const idx = lesson.detail.indexOf(s.content);
+      if (idx !== -1) return { slideNumber: s.slideNumber, start: idx, end: idx + s.content.length };
+      return null;
+    });
+  }, [slides, lesson?.detail]);
+
+  function getSlideIdxForWord(wordIdx: number): number | null {
+    const seg = words[wordIdx];
+    if (!seg) return null;
+    for (let i = 0; i < slideRanges.length; i++) {
+      const r = slideRanges[i];
+      if (r && seg.start >= r.start && seg.end <= r.end) return i;
+    }
+    return null;
+  }
+
   useEffect(() => {
-    if (lesson) {
+    if (existingPres) {
+      setTitle(existingPres.title);
+      setTemplate(existingPres.template);
+      setPresentationId(existingPres.id);
+      slideIdCounter = 0;
+      setSlides(existingPres.slides.map((s, i) => ({
+        id: newSlideId(),
+        slideNumber: i + 1,
+        title: s.title ?? `Slide ${i + 1}`,
+        content: s.content,
+        charStart: null,
+        charEnd: null,
+      })));
+    } else if (lesson && !existingPres) {
       setTitle(lesson.title);
       setSlides([]);
       setPresentationId(null);
     }
-  }, [lesson]);
+  }, [lesson, existingPres]);
 
   const enterSelMode = useCallback(() => {
     setSelMode(true);
@@ -117,7 +164,7 @@ export default function PresentationBuilderPage(): React.JSX.Element {
     const num = slides.length + 1;
     setSlides((prev) => [
       ...prev,
-      { id: newSlideId(), slideNumber: num, title: `Slide ${num}`, content },
+      { id: newSlideId(), slideNumber: num, title: `Slide ${num}`, content, charStart: ws.start, charEnd: we.end },
     ]);
     cancelSel();
   }, [startWordIdx, endWordIdx, lesson, words, slides.length, cancelSel]);
@@ -149,11 +196,11 @@ export default function PresentationBuilderPage(): React.JSX.Element {
       const pres = await createPresentation({ lessonId: lesson.id, title: title || lesson.title, template });
       setPresentationId(pres.id);
       const result = await autoGenerate(pres.id);
-      setSlides(result.map((s, i) => ({ id: newSlideId(), slideNumber: i + 1, title: s.title ?? `Slide ${i + 1}`, content: s.content })));
+      setSlides(result.map((s, i) => ({ id: newSlideId(), slideNumber: i + 1, title: s.title ?? `Slide ${i + 1}`, content: s.content, charStart: null, charEnd: null })));
       toast.success("Slides generated!");
     } else {
       const result = await autoGenerate(presentationId);
-      setSlides(result.map((s, i) => ({ id: newSlideId(), slideNumber: i + 1, title: s.title ?? `Slide ${i + 1}`, content: s.content })));
+      setSlides(result.map((s, i) => ({ id: newSlideId(), slideNumber: i + 1, title: s.title ?? `Slide ${i + 1}`, content: s.content, charStart: null, charEnd: null })));
       toast.success("Slides re-generated!");
     }
   };
@@ -167,6 +214,11 @@ export default function PresentationBuilderPage(): React.JSX.Element {
         const pres = await createPresentation({ lessonId: lesson.id, title: title || lesson.title, template });
         presId = pres.id;
         setPresentationId(pres.id);
+      } else if (existingPres) {
+        await updatePresentation({
+          id: presId,
+          body: { title: title || undefined, template },
+        });
       }
       await saveSlides({
         id: presId,
@@ -198,6 +250,9 @@ export default function PresentationBuilderPage(): React.JSX.Element {
           const isSelected = selLo !== null && selHi !== null && idx >= selLo && idx <= selHi;
           const isPreview = previewLo !== null && previewHi !== null && idx >= previewLo && idx <= previewHi && !isSelected;
 
+          const slideIdx = !selMode ? getSlideIdxForWord(idx) : null;
+          const color = slideIdx !== null ? SLIDE_COLORS[slideIdx % SLIDE_COLORS.length] : null;
+
           return (
             <span
               key={idx}
@@ -207,11 +262,13 @@ export default function PresentationBuilderPage(): React.JSX.Element {
               className={cn(
                 "inline whitespace-pre-wrap rounded-sm transition-all",
                 selMode && "cursor-pointer",
-                isHovered && !isStarted && "bg-muted-foreground/10 ring-1 ring-muted-foreground/20",
-                isStarted && !isSelected && !isPreview && (endWordIdx === null ? "ring-2 ring-yellow-500 bg-yellow-100 dark:bg-yellow-900/30" : "bg-primary/25"),
-                isPreview && "bg-primary/10",
-                isSelected && "bg-primary/25 text-foreground",
+                selMode && isHovered && !isStarted && "bg-muted-foreground/10 ring-1 ring-muted-foreground/20",
+                selMode && isStarted && !isSelected && !isPreview && (endWordIdx === null ? "ring-2 ring-yellow-500 bg-yellow-100 dark:bg-yellow-900/30" : "bg-primary/25"),
+                selMode && isPreview && "bg-primary/10",
+                selMode && isSelected && "bg-primary/25 text-foreground",
+                !selMode && color && `${color.bg} ring-1 ${color.ring}`,
               )}
+              title={!selMode && slideIdx !== null ? `Slide ${slideIdx + 1}` : undefined}
             >
               {selMode && isStarted && endWordIdx === null && (
                 <span className="inline-flex items-center gap-0.5 align-middle text-[9px] font-semibold text-yellow-600 dark:text-yellow-400 mr-0.5">
@@ -237,6 +294,7 @@ export default function PresentationBuilderPage(): React.JSX.Element {
 
   const hasDetail = !!lesson.detail;
   const hasSelection = startWordIdx !== null && endWordIdx !== null;
+  const ts = TEMPLATE_STYLES[template] ?? TEMPLATE_STYLES.green;
 
   return (
     <div className="space-y-6">
@@ -267,15 +325,18 @@ export default function PresentationBuilderPage(): React.JSX.Element {
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Template</label>
           <div className="grid grid-cols-3 gap-2">
-            {TEMPLATES.map((t) => (
-              <button key={t.id} onClick={() => setTemplate(t.id)} className={cn("relative rounded-lg border-2 p-2 text-left transition-all", template === t.id ? "border-primary ring-1 ring-primary" : "border-border hover:border-muted-foreground/30")}>
-                <div className="flex gap-1 mb-1.5">
-                  {t.colors.map((c, i) => (<div key={i} className="h-2 flex-1 rounded" style={{ backgroundColor: c }} />))}
-                </div>
-                <p className="text-[11px] font-medium leading-tight">{t.label}</p>
-                <p className="text-[9px] text-muted-foreground leading-tight">{t.desc}</p>
-              </button>
-            ))}
+            {TEMPLATES.map((t) => {
+              const ts = TEMPLATE_STYLES[t.id];
+              return (
+                <button key={t.id} onClick={() => setTemplate(t.id)} className={cn("relative rounded-lg border-2 overflow-hidden text-left transition-all", template === t.id ? "border-primary ring-1 ring-primary" : "border-border hover:border-muted-foreground/30")}>
+                  <div className="h-12 bg-cover bg-center" style={{ backgroundImage: `url(${ts.image})` }} />
+                  <div className="p-1.5">
+                    <p className="text-[11px] font-medium leading-tight">{t.label}</p>
+                    <p className="text-[9px] text-muted-foreground leading-tight">{t.desc}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -312,13 +373,27 @@ export default function PresentationBuilderPage(): React.JSX.Element {
             {hasDetail ? renderWords() : <p className="text-muted-foreground text-center py-8">No lesson content yet.</p>}
           </div>
 
-          {/* Selection mode status bar */}
           {selMode && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
               <Crosshair className="h-3 w-3 shrink-0" />
               {startWordIdx === null && "Click any word to mark it as the start of the slide."}
-              {startWordIdx !== null && endWordIdx === null && "Now click another word to mark the end — everything between will be the slide content."}
+              {startWordIdx !== null && endWordIdx === null && "Now click another word to mark the end."}
               {startWordIdx !== null && endWordIdx !== null && "Selection complete — click Create Slide to confirm."}
+            </div>
+          )}
+
+          {/* Slide color legend */}
+          {slides.length > 0 && !selMode && (
+            <div className="flex flex-wrap gap-2">
+              {slides.map((s, i) => {
+                const c = SLIDE_COLORS[i % SLIDE_COLORS.length];
+                return (
+                  <span key={s.id} className={cn("inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium", c.bg)}>
+                    <span className="w-1.5 h-1.5 rounded-full" />
+                    Slide {i + 1}
+                  </span>
+                );
+              })}
             </div>
           )}
 
@@ -337,17 +412,17 @@ export default function PresentationBuilderPage(): React.JSX.Element {
             {slides.length === 0 ? (
               <div className="px-4 py-12 text-sm text-muted-foreground text-center">
                 <p>No slides yet.</p>
-                <p className="text-xs mt-1">Click <strong>Add Slide 1</strong> above, then click a word to start and another word to end.</p>
+                <p className="text-xs mt-1">Click <strong>Add Slide 1</strong> above, then click a word to start and another to end.</p>
               </div>
             ) : (
               slides.map((slide, i) => (
                 <div key={slide.id} className="px-3 py-2 group hover:bg-muted/40 transition-colors">
                   <div className="flex items-start gap-2">
-                    <div className="flex flex-col items-center gap-0.5 pt-1">
+                    <div className={cn("flex flex-col items-center gap-0.5 pt-1 px-1 rounded", SLIDE_COLORS[i % SLIDE_COLORS.length].bg)}>
                       <button onClick={() => moveSlide(i, "up")} disabled={i === 0} className="h-4 w-4 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20">
                         <ChevronLeft className="h-3 w-3 rotate-90" />
                       </button>
-                      <span className="text-[10px] font-mono text-muted-foreground">{slide.slideNumber}</span>
+                      <span className="text-[10px] font-mono font-bold">{slide.slideNumber}</span>
                       <button onClick={() => moveSlide(i, "down")} disabled={i === slides.length - 1} className="h-4 w-4 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20">
                         <ChevronRight className="h-3 w-3 rotate-90" />
                       </button>
@@ -385,29 +460,38 @@ export default function PresentationBuilderPage(): React.JSX.Element {
       {/* Preview Modal */}
       {showPreview && slides.length > 0 && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
-          <div className="relative w-full max-w-4xl mx-4 bg-white rounded-xl shadow-2xl overflow-hidden" style={{ aspectRatio: "16/9" }}>
-            <div className="absolute top-0 inset-x-0 h-10 bg-zinc-900 flex items-center justify-between px-4 z-10">
-              <span className="text-xs text-zinc-400">Slide {previewSlide + 1} / {slides.length}</span>
-              <button onClick={() => setShowPreview(false)} className="text-zinc-400 hover:text-white text-xs">&times;</button>
+          <div className={cn("relative w-full max-w-4xl mx-4 rounded-xl shadow-2xl overflow-hidden", ts.bg)} style={{ aspectRatio: "16/9" }}>
+            <div className="absolute top-0 inset-x-0 h-10 bg-zinc-900/80 flex items-center justify-between px-4 z-10">
+              <span className="text-xs text-zinc-300">Slide {previewSlide + 1} / {slides.length}</span>
+              <button onClick={() => setShowPreview(false)} className="text-zinc-300 hover:text-white text-xs">&times;</button>
             </div>
-            <div className="h-full flex flex-col items-center justify-center p-16 text-center">
-              {slides[previewSlide] && (
-                <>
-                  <h2 className="text-3xl font-bold mb-4 text-zinc-900">{slides[previewSlide].title}</h2>
-                  <p className="text-lg text-zinc-600 whitespace-pre-wrap max-w-2xl">{slides[previewSlide].content}</p>
-                </>
-              )}
+            <div className={cn("h-full flex flex-col items-center justify-center p-8 md:p-16 text-center", ts.text, ts.font)}>
+              {(() => {
+                const s = slides[previewSlide];
+                if (!s) return null;
+                const hideTitle = /^Slide \d+$/i.test(s.title);
+                return (
+                  <>
+                    {!hideTitle && (
+                      <h2 className="text-2xl md:text-4xl font-bold mb-4 md:mb-6">{s.title}</h2>
+                    )}
+                    <p className="text-base md:text-xl whitespace-pre-wrap max-w-3xl leading-relaxed">
+                      {s.content}
+                    </p>
+                  </>
+                );
+              })()}
             </div>
-            <div className="absolute bottom-0 inset-x-0 h-12 bg-zinc-900 flex items-center justify-between px-4">
-              <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-white" onClick={() => setPreviewSlide((p) => Math.max(0, p - 1))} disabled={previewSlide === 0}>
+            <div className="absolute bottom-0 inset-x-0 h-12 bg-zinc-900/80 flex items-center justify-between px-4">
+              <Button variant="ghost" size="sm" className="text-zinc-300 hover:text-white" onClick={() => setPreviewSlide((p) => Math.max(0, p - 1))} disabled={previewSlide === 0}>
                 <ChevronLeft className="h-4 w-4" /> Previous
               </Button>
               <div className="flex gap-1">
                 {slides.map((_, i) => (
-                  <button key={i} onClick={() => setPreviewSlide(i)} className={cn("h-1.5 rounded-full transition-all", i === previewSlide ? "w-6 bg-primary" : "w-1.5 bg-zinc-600")} />
+                  <button key={i} onClick={() => setPreviewSlide(i)} className={cn("h-1.5 rounded-full transition-all", i === previewSlide ? "w-6 bg-white" : "w-1.5 bg-zinc-500")} />
                 ))}
               </div>
-              <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-white" onClick={() => setPreviewSlide((p) => Math.min(slides.length - 1, p + 1))} disabled={previewSlide === slides.length - 1}>
+              <Button variant="ghost" size="sm" className="text-zinc-300 hover:text-white" onClick={() => setPreviewSlide((p) => Math.min(slides.length - 1, p + 1))} disabled={previewSlide === slides.length - 1}>
                 Next <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
