@@ -1,57 +1,78 @@
+// src/components/educator/presentation-builder/SlideOrganizer.tsx
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { SlideCard } from "./SlideCard";
-import { SlideDraft, FontSize } from "./types";
+import { SlideEditModal } from "./SlideEditModal";
+import { type SlideDraft, type FontSize, type FontFamily } from "./types";
 
 interface SlideOrganizerProps {
-  slides: SlideDraft[];
-  editingSlideId: string | null;
-  onEditOpen: (id: string) => void;
-  onEditClose: () => void;
-  onUpdate: (id: string, field: "title" | "content", value: string) => void;
-  onFontSize: (id: string, size: FontSize) => void;
-  onMove: (index: number, direction: "up" | "down") => void;
-  onDelete: (id: string) => void;
+  slides:       SlideDraft[];
+  onUpdate:     (id: string, field: "title" | "content", value: string) => void;
+  onFontSize:   (id: string, size: FontSize) => void;
+  onFontFamily: (id: string, family: FontFamily) => void;
+  onMove:       (index: number, direction: "up" | "down") => void;
+  onDelete:     (id: string) => void;
 }
 
 export function SlideOrganizer({
-  slides, editingSlideId, onEditOpen, onEditClose,
-  onUpdate, onFontSize, onMove, onDelete,
+  slides, onUpdate, onFontSize, onFontFamily, onMove, onDelete,
 }: SlideOrganizerProps) {
+  const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
+
+  const editingSlide = slides.find((s) => s.id === editingSlideId) ?? null;
+
+  function handleSave(patch: {
+    title: string; content: string; fontSize: FontSize; fontFamily: FontFamily;
+  }) {
+    if (!editingSlideId) return;
+    onUpdate(editingSlideId, "title",   patch.title);
+    onUpdate(editingSlideId, "content", patch.content);
+    onFontSize(editingSlideId,   patch.fontSize);
+    onFontFamily(editingSlideId, patch.fontFamily);
+  }
+
   return (
-    <Card size="sm" className="p-0 gap-0">
-      <CardHeader className="px-4 py-3 border-b">
-        <CardTitle className="text-sm">Slides ({slides.length})</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="divide-y divide-border max-h-[540px] overflow-y-auto">
+    <>
+      <div className="rounded-xl border bg-card flex flex-col" style={{ minHeight: 400 }}>
+        <div className="px-4 py-3 border-b flex items-center justify-between shrink-0">
+          <p className="text-sm font-semibold">Slides ({slides.length})</p>
+        </div>
+
+        <ScrollArea className="flex-1">
           {slides.length === 0 ? (
-            <div className="px-4 py-12 text-sm text-muted-foreground text-center">
-              <p>No slides yet.</p>
-              <p className="text-xs mt-1">
-                Click <strong>Add Slide 1</strong>, then click a word to start and another to end.
+            <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+              <p className="text-sm text-muted-foreground">No slides yet.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Select text from the lesson to create a slide, or use Auto-generate.
               </p>
             </div>
           ) : (
-            slides.map((slide, i) => (
-              <SlideCard
-                key={slide.id}
-                slide={slide}
-                index={i}
-                total={slides.length}
-                isEditing={editingSlideId === slide.id}
-                onEditOpen={() => onEditOpen(slide.id)}
-                onEditClose={onEditClose}
-                onUpdate={(field, value) => onUpdate(slide.id, field, value)}
-                onFontSize={(size) => onFontSize(slide.id, size)}
-                onMove={(dir) => onMove(i, dir)}
-                onDelete={() => onDelete(slide.id)}
-              />
-            ))
+            <div className="divide-y">
+              {slides.map((slide, index) => (
+                <SlideCard
+                  key={slide.id}
+                  slide={slide}
+                  index={index}
+                  total={slides.length}
+                  onEditOpen={() => setEditingSlideId(slide.id)}
+                  onMove={(dir) => onMove(index, dir)}
+                  onDelete={() => onDelete(slide.id)}
+                />
+              ))}
+            </div>
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </ScrollArea>
+      </div>
+
+      {editingSlide && (
+        <SlideEditModal
+          slide={editingSlide}
+          onSave={handleSave}
+          onClose={() => setEditingSlideId(null)}
+        />
+      )}
+    </>
   );
 }
