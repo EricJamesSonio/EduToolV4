@@ -11,6 +11,18 @@ interface UseMeetingSocketProps {
   token: string;
 }
 
+// ── New: incoming reaction & hand-raise payloads ──────────────────────────────
+export interface IncomingReaction {
+  emoji: string;
+  /** unique id so the overlay can deduplicate */
+  id: string;
+}
+
+export interface IncomingHandRaise {
+  userId: string;
+  name: string;
+}
+
 interface UseMeetingSocketReturn {
   socket: Socket | null;
   connected: boolean;
@@ -19,6 +31,10 @@ interface UseMeetingSocketReturn {
   currentSlide: number;
   isPresenting: boolean;
   presentationId: string | null;
+  /** Latest reaction received from ANY participant (including self) */
+  latestReaction: IncomingReaction | null;
+  /** Latest hand-raise event (fires when a participant raises their hand) */
+  latestHandRaise: IncomingHandRaise | null;
   sendChat: (message: string) => void;
   raiseHand: () => void;
   lowerHand: () => void;
@@ -34,12 +50,17 @@ export const useMeetingSocket = ({
 }: UseMeetingSocketProps): UseMeetingSocketReturn => {
   const socketRef = useRef<Socket | null>(null);
 
-  const [connected, setConnected] = useState(false);
-  const [participants, setParticipants] = useState<MeetingParticipant[]>([]);
-  const [chat, setChat] = useState<ChatMessage[]>([]);
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isPresenting, setIsPresenting] = useState(false);
-  const [presentationId, setPresentationId] = useState<string | null>(null);
+  const [connected,        setConnected]        = useState(false);
+  const [participants,     setParticipants]      = useState<MeetingParticipant[]>([]);
+  const [chat,             setChat]              = useState<ChatMessage[]>([]);
+  const [currentSlide,     setCurrentSlide]      = useState(0);
+  const [isPresenting,     setIsPresenting]      = useState(false);
+  const [presentationId,   setPresentationId]    = useState<string | null>(null);
+  const [latestReaction,   setLatestReaction]    = useState<IncomingReaction | null>(null);
+  const [latestHandRaise,  setLatestHandRaise]   = useState<IncomingHandRaise | null>(null);
+
+  // Track previous participants to detect hand-raise changes
+  const prevParticipantsRef = useRef<MeetingParticipant[]>([]);
 
   useEffect(() => {
     if (!meetingId || !token) return;
@@ -58,15 +79,11 @@ export const useMeetingSocket = ({
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      if (isActive) {
-        setConnected(true);
-      }
+      if (isActive) setConnected(true);
     });
 
     socket.on("disconnect", () => {
-      if (isActive) {
-        setConnected(false);
-      }
+      if (isActive) setConnected(false);
     });
 
     socket.on("connect_error", (err) => {
@@ -83,8 +100,8 @@ export const useMeetingSocket = ({
         presentationId?: string | null;
       }) => {
         if (!isActive) return;
-
         setParticipants(data.participants || []);
+        prevParticipantsRef.current = data.participants || [];
         setChat(data.chatHistory || []);
         setCurrentSlide(data.currentSlide ?? 0);
         setIsPresenting(data.isPresenting ?? false);
@@ -96,8 +113,8 @@ export const useMeetingSocket = ({
       "room:participant_joined",
       (data: { participants: MeetingParticipant[] }) => {
         if (!isActive) return;
-
         setParticipants(data.participants || []);
+        prevParticipantsRef.current = data.participants || [];
       }
     );
 
@@ -105,29 +122,69 @@ export const useMeetingSocket = ({
       "room:participant_left",
       (data: { participants: MeetingParticipant[] }) => {
         if (!isActive) return;
-
         setParticipants(data.participants || []);
+        prevParticipantsRef.current = data.participants || [];
       }
     );
 
     socket.on("chat:message", (msg: ChatMessage) => {
       if (!isActive) return;
-
       setChat((prev) => [...prev, msg]);
     });
 
+    // ── Hand raise: detect newly raised hands by diffing participants ─────────
     socket.on(
       "hand:update",
       (data: { participants: MeetingParticipant[] }) => {
         if (!isActive) return;
 
-        setParticipants(data.participants || []);
+        const incoming = data.participants || [];
+        const prev     = prevParticipantsRef.current;
+
+        // Find someone who just raised their hand (wasn't raised before, now is)
+        const newRaise = incoming.find((p) => {
+          if (!p.handRaised) return false;
+          const old = prev.find((o) => o.userId === p.userId);
+          return !old?.handRaised;
+        });
+
+        if (newRaise) {
+          setLatestHandRaise({ userId: newRaise.userId, name: newRaise.name });
+        }
+
+        prevParticipantsRef.current = incoming;
+        setParticipants(incoming);
+      }
+    );
+
+    // ── Incoming reaction from server broadcast ───────────────────────────────
+    // The server should broadcast a "reaction:received" event to all room members.
+    // Payload: { emoji: string, senderId: string }
+    socket.on(
+      "reaction:received",
+      (data: { emoji: string; senderId: string }) => {
+        if (!isActive) return;
+        setLatestReaction({
+          emoji: data.emoji,
+          id:    `${data.senderId}-${Date.now()}-${Math.random()}`,
+        });
+      }
+    );
+
+    // Fallback: some backends echo the sender's own event as "reaction:send"
+    socket.on(
+      "reaction:send",
+      (data: { emoji: string; senderId?: string }) => {
+        if (!isActive) return;
+        setLatestReaction({
+          emoji: data.emoji,
+          id:    `echo-${Date.now()}-${Math.random()}`,
+        });
       }
     );
 
     socket.on("lesson:slide_sync", (data: { slide: number }) => {
       if (!isActive) return;
-
       setCurrentSlide(data.slide);
     });
 
@@ -135,7 +192,6 @@ export const useMeetingSocket = ({
       "lesson:presentation_started",
       (data: { currentSlide: number; presentationId?: string }) => {
         if (!isActive) return;
-
         setIsPresenting(true);
         setCurrentSlide(data.currentSlide);
         if (data.presentationId) setPresentationId(data.presentationId);
@@ -144,17 +200,14 @@ export const useMeetingSocket = ({
 
     socket.on("lesson:presentation_stopped", () => {
       if (!isActive) return;
-
       setIsPresenting(false);
       setPresentationId(null);
     });
 
     return () => {
       isActive = false;
-
       socket.disconnect();
       socketRef.current = null;
-
       setConnected(false);
     };
   }, [meetingId, token]);
@@ -173,6 +226,11 @@ export const useMeetingSocket = ({
 
   const sendReaction = useCallback((emoji: string): void => {
     socketRef.current?.emit("reaction:send", { emoji });
+    // Optimistically show the local user's own reaction immediately
+    setLatestReaction({
+      emoji,
+      id: `local-${Date.now()}-${Math.random()}`,
+    });
   }, []);
 
   const changeSlide = useCallback((slide: number): void => {
@@ -195,6 +253,8 @@ export const useMeetingSocket = ({
     currentSlide,
     isPresenting,
     presentationId,
+    latestReaction,
+    latestHandRaise,
     sendChat,
     raiseHand,
     lowerHand,

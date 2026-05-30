@@ -24,6 +24,9 @@ import {
   type SidePanelType,
 } from "@/components/educator/meeting-room";
 
+// ── NEW: import the overlay ───────────────────────────────────────────────────
+import { ReactionOverlay } from "@/components/meeting/ReactionOverlay";
+
 export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const { classId, meetingId } = useParams<{ classId: string; meetingId: string }>();
   const router = useRouter();
@@ -63,6 +66,8 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     connected, participants, chat, currentSlide, isPresenting,
     sendChat, raiseHand, lowerHand, sendReaction,
     startPresentation, stopPresentation, changeSlide,
+    // ── NEW ──
+    latestReaction, latestHandRaise,
   } = meetingCtx;
 
   const { messages: chatMessages, send: sendChatMessage } = useChat({
@@ -127,14 +132,15 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     selectPresentation(pres);
     startPresentation(pres.id);
   };
-const handleShareScreen = async () => {
-  try {
-    await meetingCtx.shareScreen();
-    setShowPresModal(false);
-  } catch (err) {
-    console.error(err);
-  }
-};
+
+  const handleShareScreen = async () => {
+    try {
+      await meetingCtx.shareScreen();
+      setShowPresModal(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleStopPresentation = () => {
     clearPresentation();
@@ -192,6 +198,12 @@ const handleShareScreen = async () => {
             onCollapse={() => setLocalExpanded(false)}
           />
         )}
+
+        {/* ── Reaction & hand-raise overlay (sits above video, below side panel) ── */}
+        <ReactionOverlay
+          incomingEmoji={latestReaction ?? null}
+          incomingHandRaise={latestHandRaise ?? null}
+        />
 
         {/* Side panel */}
         {sidePanel && (

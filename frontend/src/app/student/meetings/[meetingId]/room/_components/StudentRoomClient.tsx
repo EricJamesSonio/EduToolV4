@@ -18,6 +18,9 @@ import {
   type SidePanelType,
 } from "@/components/student/meeting-room";
 
+// ── NEW: import the overlay ───────────────────────────────────────────────────
+import { ReactionOverlay } from "@/components/meeting/ReactionOverlay";
+
 export default function StudentMeetingRoomClient(): React.JSX.Element {
   const { meetingId } = useParams<{ meetingId: string }>();
   const searchParams  = useSearchParams();
@@ -56,6 +59,8 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   const {
     connected, participants, chat, currentSlide, isPresenting, presentationId,
     sendChat, raiseHand, lowerHand, sendReaction,
+    // ── NEW ──
+    latestReaction, latestHandRaise,
   } = meetingCtx;
 
   const { presentation, isLoading, isError } = useMeetingPresentation(classId, presentationId);
@@ -143,6 +148,12 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
         ) : (
           <VideoGrid joined={joined} remoteUsers={remoteUsers} />
         )}
+
+        {/* ── Reaction & hand-raise overlay ── */}
+        <ReactionOverlay
+          incomingEmoji={latestReaction ?? null}
+          incomingHandRaise={latestHandRaise ?? null}
+        />
 
         {sidePanel && (
           <SidePanel title={sidePanel} onClose={() => setSidePanel(null)}>

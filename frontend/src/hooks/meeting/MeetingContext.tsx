@@ -12,6 +12,8 @@ import type {
   MeetingParticipant,
   ChatMessage,
 } from "@/types/meeting/socket.types";
+// ── NEW ──────────────────────────────────────────────────────────────────────
+import type { IncomingReaction, IncomingHandRaise } from "@/hooks/meeting/useMeetingSocket";
 
 interface MeetingTokenData {
   token: string;
@@ -34,8 +36,6 @@ interface MeetingContextValue {
 
   toggleMic: () => Promise<void>;
   toggleCamera: () => Promise<void>;
-
-  // NEW
   shareScreen: () => Promise<void>;
 
   connected: boolean;
@@ -44,6 +44,10 @@ interface MeetingContextValue {
   currentSlide: number;
   isPresenting: boolean;
   presentationId: string | null;
+
+  // ── NEW: overlay data ─────────────────────────────────────────────────────
+  latestReaction: IncomingReaction | null;
+  latestHandRaise: IncomingHandRaise | null;
 
   sendChat: (message: string) => void;
   raiseHand: () => void;
@@ -71,19 +75,11 @@ const MeetingContext = createContext<MeetingContextValue | null>(null);
 
 export function useMeeting(): MeetingContextValue {
   const ctx = useContext(MeetingContext);
-
-  if (!ctx) {
-    throw new Error("useMeeting must be used within MeetingProvider");
-  }
-
+  if (!ctx) throw new Error("useMeeting must be used within MeetingProvider");
   return ctx;
 }
 
-export function MeetingProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function MeetingProvider({ children }: { children: React.ReactNode }) {
   const [meetingParams, setMeetingParams] = useState<{
     classId: string;
     meetingId: string;
@@ -93,44 +89,28 @@ export function MeetingProvider({
   } | null>(null);
 
   const [isMinimized, setIsMinimized] = useState(false);
-  const [leaving, setLeaving] = useState(false);
+  const [leaving,     setLeaving]     = useState(false);
 
   const agoraProps = meetingParams?.tokenData ?? {
-    appId: "",
-    channel: "",
-    token: "",
-    uid: 0,
+    appId: "", channel: "", token: "", uid: 0,
   };
 
   const socketProps = {
     meetingId: meetingParams?.meetingId ?? "",
-    token: meetingParams?.authToken ?? "",
+    token:     meetingParams?.authToken ?? "",
   };
 
   const {
-    joined,
-    localAudio,
-    localVideo,
-    remoteUsers,
-    toggleMic,
-    toggleCamera,
-    shareScreen,
+    joined, localAudio, localVideo, remoteUsers, toggleMic, toggleCamera, shareScreen,
   } = useAgoraRTC(agoraProps);
 
   const {
-    connected,
-    participants,
-    chat,
-    currentSlide,
-    isPresenting,
-    presentationId,
-    sendChat,
-    raiseHand,
-    lowerHand,
-    sendReaction,
-    changeSlide,
-    startPresentation,
-    stopPresentation,
+    connected, participants, chat, currentSlide, isPresenting, presentationId,
+    sendChat, raiseHand, lowerHand, sendReaction,
+    changeSlide, startPresentation, stopPresentation,
+    // ── NEW ──
+    latestReaction,
+    latestHandRaise,
   } = useMeetingSocket(socketProps);
 
   const joinMeeting = useCallback(
@@ -154,53 +134,29 @@ export function MeetingProvider({
     setMeetingParams(null);
   }, []);
 
-  const minimize = useCallback(() => {
-    setIsMinimized(true);
-  }, []);
-
-  const maximize = useCallback(() => {
-    setIsMinimized(false);
-  }, []);
+  const minimize = useCallback(() => setIsMinimized(true),  []);
+  const maximize = useCallback(() => setIsMinimized(false), []);
 
   const value: MeetingContextValue = {
     isInMeeting: !!meetingParams && !leaving,
     isMinimized,
-
     meetingId: meetingParams?.meetingId ?? "",
-    classId: meetingParams?.classId ?? "",
-    role: meetingParams?.role ?? "student",
+    classId:   meetingParams?.classId   ?? "",
+    role:      meetingParams?.role      ?? "student",
 
-    joined,
-    localAudio,
-    localVideo,
-    remoteUsers,
+    joined, localAudio, localVideo, remoteUsers,
+    toggleMic, toggleCamera, shareScreen,
 
-    toggleMic,
-    toggleCamera,
+    connected, participants, chat, currentSlide, isPresenting, presentationId,
 
-    // NEW
-    shareScreen,
+    // ── NEW ──
+    latestReaction,
+    latestHandRaise,
 
-    connected,
-    participants,
-    chat,
-    currentSlide,
-    isPresenting,
-    presentationId,
+    sendChat, raiseHand, lowerHand, sendReaction,
+    changeSlide, startPresentation, stopPresentation,
 
-    sendChat,
-    raiseHand,
-    lowerHand,
-    sendReaction,
-
-    changeSlide,
-    startPresentation,
-    stopPresentation,
-
-    joinMeeting,
-    leaveMeeting,
-    minimize,
-    maximize,
+    joinMeeting, leaveMeeting, minimize, maximize,
   };
 
   return (
