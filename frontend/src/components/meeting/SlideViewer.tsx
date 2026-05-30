@@ -17,22 +17,33 @@ interface Props {
 export default function SlideViewer({ slide, template, slideNumber, totalSlides, onNext, onPrev }: Props) {
   const cleanTitle = slide?.title?.replace(/^Slide\s+\d+\s*[-:.]?\s*/i, "")?.trim();
   const hasNav = !!onNext && !!onPrev;
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (!hasNav) return;
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-        e.preventDefault();
-        onNext!();
-      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-        e.preventDefault();
-        onPrev!();
-      } else if (e.key === " " || e.key === "Space") {
-        e.preventDefault();
-        onNext!();
-      }
-    },
-    [hasNav, onNext, onPrev],
-  );
+const handleKeyDown = useCallback(
+  (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement;
+
+    if (
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.isContentEditable
+    ) {
+      return;
+    }
+
+    if (!hasNav) return;
+
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      onNext?.();
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      onPrev?.();
+    } else if (e.key === " ") {
+      e.preventDefault();
+      onNext?.();
+    }
+  },
+  [hasNav, onNext, onPrev],
+);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);

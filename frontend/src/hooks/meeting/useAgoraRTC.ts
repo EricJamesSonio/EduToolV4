@@ -5,7 +5,9 @@ import type {
   ILocalAudioTrack,
   ILocalVideoTrack,
   IAgoraRTCRemoteUser,
+  ICameraVideoTrack,
 } from "agora-rtc-sdk-ng";
+
 
 interface UseAgoraRTCProps {
   appId: string;
@@ -17,7 +19,7 @@ interface UseAgoraRTCProps {
 export const useAgoraRTC = ({ appId, channel, token, uid }: UseAgoraRTCProps) => {
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const localAudioRef = useRef<ILocalAudioTrack | null>(null);
-  const localVideoRef = useRef<ILocalVideoTrack | null>(null);
+  const localVideoRef = useRef<ICameraVideoTrack | null>(null);
 
   const [localAudio, setLocalAudio] = useState<ILocalAudioTrack | null>(null);
   const [localVideo, setLocalVideo] = useState<ILocalVideoTrack | null>(null);
@@ -107,6 +109,59 @@ export const useAgoraRTC = ({ appId, channel, token, uid }: UseAgoraRTCProps) =>
     await localVideoRef.current.setEnabled(!localVideoRef.current.enabled);
   };
 
+const shareScreen = async () => {
+  const client = clientRef.current;
+
+  if (!client) return;
+
+  try {
+    const screenTrack = await AgoraRTC.createScreenVideoTrack(
+      {
+        encoderConfig: "1080p_1",
+      },
+      "disable"
+    );
+
+    if (localVideoRef.current) {
+      await client.unpublish(localVideoRef.current);
+      localVideoRef.current.stop();
+    }
+
+    await client.publish(screenTrack);
+
+    screenTrack.on("track-ended", async () => {
+      try {
+        const cameraTrack = await AgoraRTC.createCameraVideoTrack({
+          encoderConfig: {
+            width: 640,
+            height: 480,
+            frameRate: 24,
+            bitrateMin: 400,
+            bitrateMax: 800,
+          },
+        });
+
+        await client.unpublish(screenTrack);
+
+        screenTrack.close();
+
+        await client.publish(cameraTrack);
+
+        localVideoRef.current = cameraTrack;
+        setLocalVideo(cameraTrack);
+      } catch (err) {
+        console.error(err);
+      }
+    });
+
+    localVideoRef.current = screenTrack as unknown as ICameraVideoTrack;
+
+    setLocalVideo(screenTrack as unknown as ILocalVideoTrack);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
   return {
     client: clientRef.current,
     joined,
@@ -115,5 +170,6 @@ export const useAgoraRTC = ({ appId, channel, token, uid }: UseAgoraRTCProps) =>
     remoteUsers,
     toggleMic,
     toggleCamera,
+    shareScreen,
   };
 };

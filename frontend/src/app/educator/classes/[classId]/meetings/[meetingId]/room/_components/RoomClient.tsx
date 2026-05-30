@@ -127,6 +127,14 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     selectPresentation(pres);
     startPresentation(pres.id);
   };
+const handleShareScreen = async () => {
+  try {
+    await meetingCtx.shareScreen();
+    setShowPresModal(false);
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const handleStopPresentation = () => {
     clearPresentation();
@@ -252,6 +260,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         open={showPresModal}
         onClose={() => setShowPresModal(false)}
         onSelect={handleSelectPresentation}
+        onShareScreen={handleShareScreen}
         classId={classId}
       />
     </div>
