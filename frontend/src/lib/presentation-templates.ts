@@ -18,19 +18,19 @@ export const TEMPLATE_STYLES: Record<string, TemplateStyle> = {
   },
   bluegreen: {
     label: "Blue-Green",
-    image: "/templates/blue-green.png",
+    image: "/templates/blue-green.jpg",
   },
   purple: {
     label: "Purple",
-    image: "/templates/purple.png",
+    image: "/templates/purple.jpg",
   },
   red: {
     label: "Red",
-    image: "/templates/red.png",
+    image: "/templates/red.jpg",
   },
   blueyellow: {
     label: "Blue-Yellow",
-    image: "/templates/blue-yellow.png",
+    image: "/templates/blue-yellow.jpg",
   },
 
 };
