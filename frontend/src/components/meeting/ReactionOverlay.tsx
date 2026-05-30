@@ -48,55 +48,66 @@ export function ReactionOverlay({
   const seenEmojiIds     = useRef<Set<string>>(new Set());
   const prevHandRaiseRef = useRef<string | null>(null);
 
-  // ── Spawn walking emoji ───────────────────────────────────────────────────
-  useEffect(() => {
-    if (!incomingEmoji) return;
-    if (seenEmojiIds.current.has(incomingEmoji.id)) return;
-    seenEmojiIds.current.add(incomingEmoji.id);
-    // Prune old ids so the Set doesn't grow unboundedly
-    if (seenEmojiIds.current.size > 100) {
-      const oldest = [...seenEmojiIds.current].slice(0, 50);
-      oldest.forEach((k) => seenEmojiIds.current.delete(k));
-    }
+// Track whether this is the first render — skip stale prop on initial mount
+const isMountedReaction = useRef(false);
 
-    const entry: WalkingEmoji = {
-      id:         incomingEmoji.id,
-      emoji:      incomingEmoji.emoji,
-      senderName: incomingEmoji.senderName,
-      top:        10 + Math.random() * 55,   // 10%–65% from top
-      size:       48 + Math.random() * 24,   // 48px–72px
-    };
+useEffect(() => {
+  if (!isMountedReaction.current) {
+    // First render: mark mounted, ignore whatever prop value arrived
+    // (it may be a leftover from the previous session)
+    isMountedReaction.current = true;
+    return;
+  }
+  if (!incomingEmoji) return;
+  if (seenEmojiIds.current.has(incomingEmoji.id)) return;
+  seenEmojiIds.current.add(incomingEmoji.id);
+  if (seenEmojiIds.current.size > 100) {
+    const oldest = [...seenEmojiIds.current].slice(0, 50);
+    oldest.forEach((k) => seenEmojiIds.current.delete(k));
+  }
 
-    setWalkingEmojis((prev) => {
-      const next = [...prev, entry];
-      return next.length > MAX_WALKING_EMOJIS ? next.slice(-MAX_WALKING_EMOJIS) : next;
-    });
+  const entry: WalkingEmoji = {
+    id:         incomingEmoji.id,
+    emoji:      incomingEmoji.emoji,
+    senderName: incomingEmoji.senderName,
+    top:        10 + Math.random() * 55,
+    size:       48 + Math.random() * 24,
+  };
 
-    // auto-remove after animation completes
-    setTimeout(() => {
-      setWalkingEmojis((prev) => prev.filter((e) => e.id !== entry.id));
-    }, EMOJI_DURATION_MS + 200);
-  }, [incomingEmoji]);
+  setWalkingEmojis((prev) => {
+    const next = [...prev, entry];
+    return next.length > MAX_WALKING_EMOJIS ? next.slice(-MAX_WALKING_EMOJIS) : next;
+  });
 
-  // ── Spawn hand-raise popup ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!incomingHandRaise) return;
-    if (prevHandRaiseRef.current === incomingHandRaise.userId) return;
-    prevHandRaiseRef.current = incomingHandRaise.userId;
+  setTimeout(() => {
+    setWalkingEmojis((prev) => prev.filter((e) => e.id !== entry.id));
+  }, EMOJI_DURATION_MS + 200);
+}, [incomingEmoji]);
 
-    const popup: HandRaisePopup = {
-      id:   `${incomingHandRaise.userId}-${Date.now()}`,
-      name: incomingHandRaise.name,
-      left: 20 + Math.random() * 50,   // 20%–70% from left
-      top:  30 + Math.random() * 30,   // 30%–60% from top
-    };
+const isMountedHandRaise = useRef(false);
 
-    setHandPopups((prev) => [...prev, popup]);
+useEffect(() => {
+  if (!isMountedHandRaise.current) {
+    isMountedHandRaise.current = true;
+    return;
+  }
+  if (!incomingHandRaise) return;
+  if (prevHandRaiseRef.current === incomingHandRaise.userId) return;
+  prevHandRaiseRef.current = incomingHandRaise.userId;
 
-    setTimeout(() => {
-      setHandPopups((prev) => prev.filter((p) => p.id !== popup.id));
-    }, HAND_DURATION_MS + 300);
-  }, [incomingHandRaise]);
+  const popup: HandRaisePopup = {
+    id:   `${incomingHandRaise.userId}-${Date.now()}`,
+    name: incomingHandRaise.name,
+    left: 20 + Math.random() * 50,
+    top:  30 + Math.random() * 30,
+  };
+
+  setHandPopups((prev) => [...prev, popup]);
+
+  setTimeout(() => {
+    setHandPopups((prev) => prev.filter((p) => p.id !== popup.id));
+  }, HAND_DURATION_MS + 300);
+}, [incomingHandRaise]);
 
   return (
     <>

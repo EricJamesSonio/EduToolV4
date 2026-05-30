@@ -68,9 +68,16 @@ export const useMeetingSocket = ({
   useEffect(() => {
     if (!meetingId || !token) return;
 
-    let isActive = true;
+let isActive = true;
 
-    const socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
+// Reset ephemeral overlay state for the new session.
+// Without this, the last reaction/hand-raise from the PREVIOUS session
+// lingers in state and re-triggers ReactionOverlay on rejoin.
+setLatestReaction(null);
+setLatestHandRaise(null);
+prevParticipantsRef.current = [];
+
+const socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
       auth: { token },
       query: { meetingId },
       transports: ["websocket"],
@@ -217,12 +224,16 @@ export const useMeetingSocket = ({
       setPresentationId(null);
     });
 
-    return () => {
-      isActive = false;
-      socket.disconnect();
-      socketRef.current = null;
-      setConnected(false);
-    };
+return () => {
+  isActive = false;
+  if (selfEchoTimerRef.current) {       // ← ADD: cancel any pending self-echo
+    clearTimeout(selfEchoTimerRef.current);
+    selfEchoTimerRef.current = null;
+  }
+  socket.disconnect();
+  socketRef.current = null;
+  setConnected(false);
+};
   }, [meetingId, token]);
 
   const sendChat = useCallback((message: string): void => {
