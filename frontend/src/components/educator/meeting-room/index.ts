@@ -1,5 +1,5 @@
-export { ReactionPicker } from "./ReactionPicker";
-export { ParticipantsPanel } from "./ParticipantsPanel";
+export { ReactionPicker } from "./EducatorReactionPicker";
+export { ParticipantsPanel } from "./EducatorParticipantsPanel";
 export { JoinRequestsPanel } from "./JoinRequestsPanel";
 export { LocalVideoGrid } from "./LocalVideoGrid";
 export { ControlBtn } from "./ControlBtn";

@@ -1,6 +1,6 @@
-export { ReactionPicker } from "./ReactionPicker";
+export { ReactionPicker } from "./StudentReactionPicker";
 export { DraggableVideo } from "./DraggableVideo";
-export { ParticipantsPanel } from "./ParticipantsPanel";
+export { ParticipantsPanel } from "./StudentParticipantsPanel";
 export { SidePanel } from "./SidePanel";
 export { VideoGrid } from "./VideoGrid";
 export { PresentationView } from "./PresentationView";

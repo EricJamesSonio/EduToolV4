@@ -221,7 +221,13 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
                 isPending={respondMutation.isPending}
               />
             ) : (
-              <ParticipantsPanel participants={participants} />
+             <ParticipantsPanel
+  participants={participants}
+  remoteUsers={remoteUsers}
+  currentUserId={currentUserId}
+  currentUserName={currentUserName}
+  localVideo={localVideo}
+/>
             )}
           </SidePanel>
         )}

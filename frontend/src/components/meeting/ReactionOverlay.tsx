@@ -32,7 +32,7 @@ interface ReactionOverlayProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const EMOJI_DURATION_MS  = 3500;
+const EMOJI_DURATION_MS  = 7000;  // slower walk across screen
 const HAND_DURATION_MS   = 4000;
 const MAX_WALKING_EMOJIS = 12;
 
@@ -64,7 +64,7 @@ export function ReactionOverlay({
       emoji:      incomingEmoji.emoji,
       senderName: incomingEmoji.senderName,
       top:        10 + Math.random() * 55,   // 10%–65% from top
-      size:       28 + Math.random() * 20,   // 28px–48px
+      size:       48 + Math.random() * 24,   // 48px–72px
     };
 
     setWalkingEmojis((prev) => {
@@ -152,18 +152,19 @@ export function ReactionOverlay({
               {e.emoji}
             </span>
             <span style={{
-              fontSize:        "11px",
-              fontWeight:      600,
+              fontSize:        "14px",
+              fontWeight:      700,
               color:           "#ffffff",
-              background:      "rgba(0,0,0,0.55)",
+              background:      "rgba(0,0,0,0.65)",
               borderRadius:    "999px",
-              padding:         "1px 7px",
+              padding:         "3px 12px",
               whiteSpace:      "nowrap",
-              letterSpacing:   "0.01em",
-              backdropFilter:  "blur(4px)",
-              maxWidth:        "90px",
+              letterSpacing:   "0.02em",
+              backdropFilter:  "blur(6px)",
+              maxWidth:        "140px",
               overflow:        "hidden",
               textOverflow:    "ellipsis",
+              boxShadow:       "0 2px 8px rgba(0,0,0,0.4)",
             }}>
               {e.senderName}
             </span>

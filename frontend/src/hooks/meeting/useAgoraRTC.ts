@@ -8,7 +8,6 @@ import type {
   ICameraVideoTrack,
 } from "agora-rtc-sdk-ng";
 
-
 interface UseAgoraRTCProps {
   appId: string;
   channel: string;
@@ -54,7 +53,6 @@ export const useAgoraRTC = ({ appId, channel, token, uid }: UseAgoraRTCProps) =>
 
       camTrack.play("local-video-pip");
 
-      // Store in refs for reliable cleanup
       localAudioRef.current = micTrack;
       localVideoRef.current = camTrack;
 
@@ -65,19 +63,35 @@ export const useAgoraRTC = ({ appId, channel, token, uid }: UseAgoraRTCProps) =>
 
     init().catch(console.error);
 
+    // ✅ FIXED: always replace user with fresh object
     client.on("user-published", async (user, mediaType) => {
       await client.subscribe(user, mediaType);
-      if (mediaType === "video") user.videoTrack?.play(`remote-${user.uid}`);
-      if (mediaType === "audio") user.audioTrack?.play();
+
+      if (mediaType === "video") {
+        user.videoTrack?.play(`remote-${user.uid}`);
+      }
+
+      if (mediaType === "audio") {
+        user.audioTrack?.play();
+      }
+
       setRemoteUsers((prev) => {
         const exists = prev.find((u) => u.uid === user.uid);
-        if (exists) return prev;
+
+        if (exists) {
+          // 🔥 replace stale user (CRITICAL FIX)
+          return prev.map((u) => (u.uid === user.uid ? user : u));
+        }
+
         return [...prev, user];
       });
     });
 
     client.on("user-unpublished", (user) => {
-      setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid));
+      // Optional: keep user but remove track instead of full removal
+      setRemoteUsers((prev) =>
+        prev.map((u) => (u.uid === user.uid ? user : u))
+      );
     });
 
     client.on("user-left", (user) => {
@@ -85,13 +99,15 @@ export const useAgoraRTC = ({ appId, channel, token, uid }: UseAgoraRTCProps) =>
     });
 
     return () => {
-      // Use refs — always has the latest track references
       localAudioRef.current?.close();
       localVideoRef.current?.close();
+
       localAudioRef.current = null;
       localVideoRef.current = null;
+
       client.leave().catch(console.error);
       clientRef.current = null;
+
       setJoined(false);
       setLocalAudio(null);
       setLocalVideo(null);
@@ -109,58 +125,54 @@ export const useAgoraRTC = ({ appId, channel, token, uid }: UseAgoraRTCProps) =>
     await localVideoRef.current.setEnabled(!localVideoRef.current.enabled);
   };
 
-const shareScreen = async () => {
-  const client = clientRef.current;
+  const shareScreen = async () => {
+    const client = clientRef.current;
+    if (!client) return;
 
-  if (!client) return;
+    try {
+      const screenTrack = await AgoraRTC.createScreenVideoTrack(
+        { encoderConfig: "1080p_1" },
+        "disable"
+      );
 
-  try {
-    const screenTrack = await AgoraRTC.createScreenVideoTrack(
-      {
-        encoderConfig: "1080p_1",
-      },
-      "disable"
-    );
-
-    if (localVideoRef.current) {
-      await client.unpublish(localVideoRef.current);
-      localVideoRef.current.stop();
-    }
-
-    await client.publish(screenTrack);
-
-    screenTrack.on("track-ended", async () => {
-      try {
-        const cameraTrack = await AgoraRTC.createCameraVideoTrack({
-          encoderConfig: {
-            width: 640,
-            height: 480,
-            frameRate: 24,
-            bitrateMin: 400,
-            bitrateMax: 800,
-          },
-        });
-
-        await client.unpublish(screenTrack);
-
-        screenTrack.close();
-
-        await client.publish(cameraTrack);
-
-        localVideoRef.current = cameraTrack;
-        setLocalVideo(cameraTrack);
-      } catch (err) {
-        console.error(err);
+      // Unpublish camera
+      if (localVideoRef.current) {
+        await client.unpublish(localVideoRef.current);
+        localVideoRef.current.stop();
       }
-    });
 
-    localVideoRef.current = screenTrack as unknown as ICameraVideoTrack;
+      await client.publish(screenTrack);
 
-    setLocalVideo(screenTrack as unknown as ILocalVideoTrack);
-  } catch (err) {
-    console.error(err);
-  }
-};
+      screenTrack.on("track-ended", async () => {
+        try {
+          const cameraTrack = await AgoraRTC.createCameraVideoTrack({
+            encoderConfig: {
+              width: 640,
+              height: 480,
+              frameRate: 24,
+              bitrateMin: 400,
+              bitrateMax: 800,
+            },
+          });
+
+          await client.unpublish(screenTrack);
+          screenTrack.close();
+
+          await client.publish(cameraTrack);
+
+          localVideoRef.current = cameraTrack;
+          setLocalVideo(cameraTrack);
+        } catch (err) {
+          console.error(err);
+        }
+      });
+
+      localVideoRef.current = screenTrack as unknown as ICameraVideoTrack;
+      setLocalVideo(screenTrack as unknown as ILocalVideoTrack);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return {
     client: clientRef.current,

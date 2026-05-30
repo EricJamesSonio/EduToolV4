@@ -62,6 +62,8 @@ export const useMeetingSocket = ({
 
   // Track previous participants to detect hand-raise changes
   const prevParticipantsRef = useRef<MeetingParticipant[]>([]);
+  // Timer for self-echo fallback — cancelled if server echoes back first
+  const selfEchoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!meetingId || !token) return;
@@ -163,15 +165,16 @@ export const useMeetingSocket = ({
     // Payload: { emoji: string, senderId: string, senderName?: string }
     socket.on(
       "reaction:received",
-      (data: { emoji: string; senderId: string; senderName?: string }) => {
+      (data: { emoji: string; userId: string; name: string }) => {
         if (!isActive) return;
-        const name = data.senderName
-          ?? prevParticipantsRef.current.find((p) => p.userId === data.senderId)?.name
-          ?? "Someone";
+        if (selfEchoTimerRef.current) {
+          clearTimeout(selfEchoTimerRef.current);
+          selfEchoTimerRef.current = null;
+        }
         setLatestReaction({
           emoji:      data.emoji,
-          id:         `${data.senderId}-${Date.now()}-${Math.random()}`,
-          senderName: name,
+          id:         `${data.userId}-${Date.now()}-${Math.random()}`,
+          senderName: data.name,
         });
       }
     );
@@ -179,17 +182,16 @@ export const useMeetingSocket = ({
     // Fallback: some backends echo the sender's own event as "reaction:send"
     socket.on(
       "reaction:send",
-      (data: { emoji: string; senderId?: string; senderName?: string }) => {
+      (data: { emoji: string; userId?: string; name?: string }) => {
         if (!isActive) return;
-        const name = data.senderName
-          ?? (data.senderId
-            ? prevParticipantsRef.current.find((p) => p.userId === data.senderId)?.name
-            : undefined)
-          ?? "Someone";
+        if (selfEchoTimerRef.current) {
+          clearTimeout(selfEchoTimerRef.current);
+          selfEchoTimerRef.current = null;
+        }
         setLatestReaction({
           emoji:      data.emoji,
           id:         `echo-${Date.now()}-${Math.random()}`,
-          senderName: name,
+          senderName: data.name ?? "Someone",
         });
       }
     );
@@ -236,15 +238,23 @@ export const useMeetingSocket = ({
   }, []);
 
   const sendReaction = useCallback((emoji: string): void => {
+    const selfId = `self-${Date.now()}-${Math.random()}`;
     socketRef.current?.emit("reaction:send", { emoji });
-    // Optimistically show the local user's own reaction immediately.
-    // We pick "You" as the label — the server echo will overwrite with the
-    // real name for other participants.
-    setLatestReaction({
-      emoji,
-      id:         `local-${Date.now()}-${Math.random()}`,
-      senderName: "You",
-    });
+
+    // If the server echoes back to the sender, the socket listener will fire
+    // and seenEmojiIds in the overlay will block this self-id (different id anyway).
+    // We set a short grace period — if no echo arrives within 400ms we show it
+    // ourselves so the sender always sees their own reaction.
+    const timer = setTimeout(() => {
+      setLatestReaction({
+        emoji,
+        id:         selfId,
+        senderName: "You",
+      });
+    }, 400);
+
+    // Store timer so the socket listener can cancel it on echo arrival
+    selfEchoTimerRef.current = timer;
   }, []);
 
   const changeSlide = useCallback((slide: number): void => {

@@ -160,7 +160,13 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
             {sidePanel === "chat" ? (
               <ChatPanel messages={chatMessages} currentUserId={currentUserId} onSend={sendChatMessage} />
             ) : (
-              <ParticipantsPanel participants={participants} />
+              <ParticipantsPanel
+  participants={participants}
+  remoteUsers={remoteUsers}
+  currentUserId={currentUserId}
+  currentUserName={currentUserName}
+  localVideo={localVideo}
+/>
             )}
           </SidePanel>
         )}
