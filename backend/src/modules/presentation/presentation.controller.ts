@@ -1,11 +1,13 @@
 import {
   Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, Req, HttpCode, HttpStatus,
+  Body, Param, HttpCode, HttpStatus, UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
 import { PresentationService } from './presentation.service';
 import { CreatePresentationDto, UpdatePresentationDto, GenerateSlidesDto } from './dto/presentation.dto';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
 
+@UseGuards(AuthGuard)
 @Controller('educator/classes/:classId/presentations')
 export class PresentationController {
   constructor(private readonly service: PresentationService) {}
@@ -14,29 +16,35 @@ export class PresentationController {
   async create(
     @Param('classId') classId: string,
     @Body() body: any,
-    @Req() req: Request,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('sub') educatorId: string,
   ) {
     const parsed = CreatePresentationDto.parse(body);
-    const orgId = req['orgId'] as string;
-    const educatorId = req['userId'] as string;
     return this.service.create(orgId, classId, educatorId, parsed);
   }
 
   @Get()
   async findAll(
     @Param('classId') classId: string,
-    @Req() req: Request,
+    @CurrentUser('org_id') orgId: string,
   ) {
-    const orgId = req['orgId'] as string;
     return this.service.findAll(orgId, classId);
+  }
+
+  @Get('lesson/:lessonId')
+  async findByLesson(
+    @Param('classId') classId: string,
+    @Param('lessonId') lessonId: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.service.findByLesson(orgId, classId, lessonId);
   }
 
   @Get(':id')
   async findOne(
     @Param('id') id: string,
-    @Req() req: Request,
+    @CurrentUser('org_id') orgId: string,
   ) {
-    const orgId = req['orgId'] as string;
     return this.service.findOne(id, orgId);
   }
 
@@ -44,10 +52,9 @@ export class PresentationController {
   async update(
     @Param('id') id: string,
     @Body() body: any,
-    @Req() req: Request,
+    @CurrentUser('org_id') orgId: string,
   ) {
     const parsed = UpdatePresentationDto.parse(body);
-    const orgId = req['orgId'] as string;
     return this.service.update(id, orgId, parsed);
   }
 
@@ -55,9 +62,8 @@ export class PresentationController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @Param('id') id: string,
-    @Req() req: Request,
+    @CurrentUser('org_id') orgId: string,
   ) {
-    const orgId = req['orgId'] as string;
     await this.service.delete(id, orgId);
   }
 
@@ -65,19 +71,17 @@ export class PresentationController {
   async generateSlides(
     @Param('id') id: string,
     @Body() body: any,
-    @Req() req: Request,
+    @CurrentUser('org_id') orgId: string,
   ) {
     const parsed = GenerateSlidesDto.parse(body);
-    const orgId = req['orgId'] as string;
     return this.service.generateSlides(orgId, id, parsed.slides);
   }
 
   @Post(':id/auto-generate')
   async autoGenerate(
     @Param('id') id: string,
-    @Req() req: Request,
+    @CurrentUser('org_id') orgId: string,
   ) {
-    const orgId = req['orgId'] as string;
     return this.service.autoGenerate(orgId, id);
   }
 }

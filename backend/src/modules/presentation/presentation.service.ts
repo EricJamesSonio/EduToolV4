@@ -39,6 +39,10 @@ export class PresentationService {
     return this.repo.findAll(orgId, classId);
   }
 
+  async findByLesson(orgId: string, classId: string, lessonId: string) {
+    return this.repo.findByLesson(orgId, classId, lessonId);
+  }
+
   async findOne(id: string, orgId: string) {
     const presentation = await this.repo.findById(id, orgId);
     if (!presentation) throw new NotFoundException('Presentation not found');
