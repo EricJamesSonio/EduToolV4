@@ -15,6 +15,7 @@ interface Props {
 }
 
 export default function SlideViewer({ slide, template, slideNumber, totalSlides, onNext, onPrev }: Props) {
+  const cleanTitle = slide?.title?.replace(/^Slide\s+\d+\s*[-:.]?\s*/i, "")?.trim();
   const hasNav = !!onNext && !!onPrev;
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -49,9 +50,9 @@ export default function SlideViewer({ slide, template, slideNumber, totalSlides,
         <div className="absolute inset-0 flex flex-col items-center justify-center p-12">
           {slide ? (
             <>
-              {slide.title && (
+              {cleanTitle && (
                 <h1 className="text-4xl font-bold text-neutral-900 mb-6 text-center max-w-2xl">
-                  {slide.title}
+                  {cleanTitle}
                 </h1>
               )}
               <p className="text-xl text-neutral-800 text-center max-w-3xl leading-relaxed">
@@ -81,9 +82,7 @@ export default function SlideViewer({ slide, template, slideNumber, totalSlides,
         </button>
       )}
 
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/40 text-xs text-white/70 z-10">
-        Slide {slideNumber + 1} of {totalSlides}
-      </div>
+
     </div>
   );
 }
