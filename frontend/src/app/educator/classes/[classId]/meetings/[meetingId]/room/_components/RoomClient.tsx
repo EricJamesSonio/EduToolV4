@@ -1,3 +1,4 @@
+// src/app/educator/classes/[classId]/meetings/[meetingId]/room/_components/RoomClient.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -23,9 +24,10 @@ import {
   SidePanel, VideoGrid, PresentationView, ControlsBar,
   type SidePanelType,
 } from "@/components/educator/meeting-room";
-
-// ── NEW: import the overlay ───────────────────────────────────────────────────
 import { ReactionOverlay } from "@/components/meeting/ReactionOverlay";
+import { useMeetingAttendance } from "@/hooks/meeting/useMeetingAttendance";
+import { AttendanceSummaryPanel } from "@/components/educator/meeting-room/AttendanceSummaryPanel";
+import { saveAttendance } from "@/utils/meetingAttendanceStorage";
 
 export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const { classId, meetingId } = useParams<{ classId: string; meetingId: string }>();
@@ -66,9 +68,12 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     connected, participants, chat, currentSlide, isPresenting,
     sendChat, raiseHand, lowerHand, sendReaction,
     startPresentation, stopPresentation, changeSlide,
-    // ── NEW ──
     latestReaction, latestHandRaise,
   } = meetingCtx;
+
+  // ── Attendance tracking ───────────────────────────────────────────────────
+  const { records, formatDuration, flushSessions } = useMeetingAttendance(participants);
+  const [meetingEnded, setMeetingEnded] = useState(false);
 
   const { messages: chatMessages, send: sendChatMessage } = useChat({
     chat, sendChat, currentUserId, currentUserName,
@@ -109,19 +114,50 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     return () => cancelAnimationFrame(raf);
   }, [isPresenting, remoteUsers]);
 
+  // ── Shared exit: flush sessions, persist, then navigate ──────────────────
+  // flushSessions() does an async setState, so we capture the flushed totals
+  // by computing them inline here before calling it, then save immediately.
+  function finalizeAndSave() {
+    // Compute flushed records manually so we don't depend on async setState
+    const now = Date.now();
+    const flushedRecords = records.map((r) => {
+      const hasOpenSession = r.sessions.some((s) => s.leftAt === 0);
+      if (!hasOpenSession) return r;
+
+      const extra = r.sessions
+        .filter((s) => s.leftAt === 0)
+        .reduce((sum, s) => sum + Math.round((now - s.joinedAt) / 1000), 0);
+
+      return {
+        ...r,
+        totalSeconds: r.totalSeconds + extra,
+        sessions: r.sessions.map((s) =>
+          s.leftAt === 0 ? { ...s, leftAt: now } : s
+        ),
+      };
+    });
+
+    saveAttendance(meetingId, flushedRecords);
+    flushSessions();
+    setMeetingEnded(true);
+    setSidePanel("participants");
+  }
+
   // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleToggleMic    = async () => { await toggleMic();    setMicOn((v) => !v); };
-  const handleToggleCam    = async () => { await toggleCamera(); setCamOn((v) => !v); };
-  const handleToggleHand   = () => { handRaised ? lowerHand() : raiseHand(); setHandRaised((v) => !v); };
-  const handleTogglePanel  = (panel: NonNullable<SidePanelType>) => setSidePanel((p) => p === panel ? null : panel);
-  const handleRespond      = (reqId: string, status: "accepted" | "declined") => respondMutation.mutate({ reqId, status });
+  const handleToggleMic   = async () => { await toggleMic();    setMicOn((v) => !v); };
+  const handleToggleCam   = async () => { await toggleCamera(); setCamOn((v) => !v); };
+  const handleToggleHand  = () => { handRaised ? lowerHand() : raiseHand(); setHandRaised((v) => !v); };
+  const handleTogglePanel = (panel: NonNullable<SidePanelType>) => setSidePanel((p) => p === panel ? null : panel);
+  const handleRespond     = (reqId: string, status: "accepted" | "declined") => respondMutation.mutate({ reqId, status });
 
   const handleLeave = () => {
+    finalizeAndSave();
     meetingCtx.leaveMeeting();
     router.push(`/educator/classes/${classId}/meetings/${meetingId}`);
   };
 
   const handleEndMeeting = () => {
+    finalizeAndSave();
     meetingCtx.leaveMeeting();
     endMeetingMutation.mutate(meetingId, {
       onSuccess: () => router.push(`/educator/classes/${classId}/meetings/${meetingId}`),
@@ -174,7 +210,6 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
       "meeting-room flex flex-col bg-zinc-950 text-white overflow-hidden",
       isFullscreen ? "fixed inset-0 z-50" : "h-screen",
     )}>
-      {/* ── Main area ── */}
       <div className="flex-1 flex overflow-hidden relative min-h-0">
 
         {isPresenting ? (
@@ -199,20 +234,26 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
           />
         )}
 
-        {/* ── Reaction & hand-raise overlay (sits above video, below side panel) ── */}
         <ReactionOverlay
           incomingEmoji={latestReaction ?? null}
           incomingHandRaise={latestHandRaise ?? null}
         />
 
-        {/* Side panel */}
         {sidePanel && (
           <SidePanel
-            title={sidePanel === "join-requests" ? "Join Requests" : sidePanel}
+            title={
+              sidePanel === "join-requests"                  ? "Join Requests"
+              : sidePanel === "participants" && meetingEnded ? "Attendance Summary"
+              : sidePanel
+            }
             onClose={() => setSidePanel(null)}
           >
             {sidePanel === "chat" ? (
-              <ChatPanel messages={chatMessages} currentUserId={currentUserId} onSend={sendChatMessage} />
+              <ChatPanel
+                messages={chatMessages}
+                currentUserId={currentUserId}
+                onSend={sendChatMessage}
+              />
             ) : sidePanel === "join-requests" ? (
               <JoinRequestsPanel
                 requests={pendingRequests}
@@ -220,19 +261,23 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
                 onRespond={handleRespond}
                 isPending={respondMutation.isPending}
               />
+            ) : sidePanel === "participants" && meetingEnded ? (
+              <AttendanceSummaryPanel
+                records={records}
+                formatDuration={formatDuration}
+              />
             ) : (
-             <ParticipantsPanel
-  participants={participants}
-  remoteUsers={remoteUsers}
-  currentUserId={currentUserId}
-  currentUserName={currentUserName}
-  localVideo={localVideo}
-/>
+              <ParticipantsPanel
+                participants={participants}
+                remoteUsers={remoteUsers}
+                currentUserId={currentUserId}
+                currentUserName={currentUserName}
+                localVideo={localVideo}
+              />
             )}
           </SidePanel>
         )}
 
-        {/* Pending requests floating badge */}
         {pendingRequests.length > 0 && !sidePanel && (
           <div className="absolute top-3 right-4 z-10">
             <button
@@ -245,12 +290,10 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         )}
       </div>
 
-      {/* Reaction picker */}
       {showReactions && (
         <ReactionPicker onPick={sendReaction} onClose={() => setShowReactions(false)} />
       )}
 
-      {/* Controls bar */}
       <ControlsBar
         connected={connected}
         micOn={micOn}
