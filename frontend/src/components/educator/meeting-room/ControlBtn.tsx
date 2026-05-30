@@ -1,0 +1,34 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+
+interface ControlBtnProps {
+  onClick: () => void;
+  active?: boolean;
+  danger?: boolean;
+  disabled?: boolean;
+  label: string;
+  hideOnMobile?: boolean;
+  children: React.ReactNode;
+}
+
+export function ControlBtn({
+  onClick, active, danger, disabled, label, hideOnMobile = false, children,
+}: ControlBtnProps) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "meeting-ctrl-btn flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors disabled:opacity-50",
+        active  && !danger && "text-primary bg-primary/10",
+        danger  && "text-red-400 hover:bg-red-900/30",
+        !active && !danger && "text-zinc-300 hover:bg-zinc-800",
+        hideOnMobile && "meeting-ctrl-btn--hide-mobile",
+      )}
+    >
+      {children}
+      <span className="meeting-ctrl-label text-[10px] leading-none whitespace-nowrap">{label}</span>
+    </button>
+  );
+}
