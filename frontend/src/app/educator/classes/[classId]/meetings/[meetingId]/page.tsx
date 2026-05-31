@@ -1,12 +1,14 @@
+// src/app/educator/classes/[classId]/meetings/[meetingId]/page.tsx
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { format, isPast, isWithinInterval, addMinutes } from "date-fns";
 import {
   Calendar, Radio, Pencil, Video,
-  UserPlus, UserMinus, Check, X,
+  UserPlus, UserMinus, Check, X, Users,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +28,11 @@ import { WEEK_COLORS } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 import type { AxiosError } from "axios";
 import type { EnrolledStudent } from "@/types/educator/meeting.types";
+import {
+  loadAttendance,
+  formatDuration,
+  type SavedAttendance,
+} from "@/utils/meetingAttendanceStorage";
 
 interface Props {
   params: Promise<{ classId: string; meetingId: string }>;
@@ -43,6 +50,123 @@ function getMeetingStatus(startTime: string, status: string): "upcoming" | "live
   return "upcoming";
 }
 
+// ── Attendance card shown on ended meetings ───────────────────────────────────
+
+function AttendanceCard({ attendance }: { attendance: SavedAttendance }) {
+  const [open, setOpen] = useState(false);
+
+  const sorted = [...attendance.records].sort((a, b) => {
+    if (a.role !== b.role) return a.role === "educator" ? -1 : 1;
+    return b.totalSeconds - a.totalSeconds;
+  });
+
+  const avgSeconds = sorted.length > 0
+    ? Math.round(sorted.reduce((s, r) => s + r.totalSeconds, 0) / sorted.length)
+    : 0;
+
+  return (
+    <div className="rounded-lg border bg-card overflow-hidden">
+      {/* Header — always visible, clickable to expand */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="rounded-md bg-primary/10 p-2">
+            <Users className="h-4 w-4 text-primary" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold">Attendance Record</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {sorted.length} participant{sorted.length !== 1 ? "s" : ""} · avg {formatDuration(avgSeconds)}
+            </p>
+          </div>
+        </div>
+        {open
+          ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        }
+      </button>
+
+      {/* Expanded table */}
+      {open && (
+        <div className="border-t">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-primary text-primary-foreground">
+                <TableHead className="text-primary-foreground">Participant</TableHead>
+                <TableHead className="text-primary-foreground">Role</TableHead>
+                <TableHead className="text-primary-foreground">Sessions</TableHead>
+                <TableHead className="text-primary-foreground text-right">Total Time</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sorted.map((record) => (
+                <TableRow key={record.userId} className="bg-white">
+                  {/* Name */}
+                  <TableCell className="font-medium">{record.name}</TableCell>
+
+                  {/* Role badge */}
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-xs capitalize",
+                        record.role === "educator"
+                          ? "border-indigo-200 text-indigo-700 bg-indigo-50"
+                          : "border-green-200 text-green-700 bg-green-50"
+                      )}
+                    >
+                      {record.role}
+                    </Badge>
+                  </TableCell>
+
+                  {/* Session breakdown */}
+                  <TableCell>
+                    {record.sessions.length === 1 ? (
+                      <span className="text-sm text-muted-foreground">1 session</span>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {record.sessions.map((s, i) => {
+                          const elapsed = s.leftAt > 0
+                            ? Math.round((s.leftAt - s.joinedAt) / 1000)
+                            : Math.round((Date.now() - s.joinedAt) / 1000);
+                          return (
+                            <p key={i} className="text-xs text-muted-foreground">
+                              Session {i + 1}: {formatDuration(elapsed)}
+                            </p>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </TableCell>
+
+                  {/* Total */}
+                  <TableCell className="text-right">
+                    <span className={cn(
+                      "text-sm font-semibold",
+                      record.totalSeconds >= 60 ? "text-green-700" : "text-muted-foreground"
+                    )}>
+                      {formatDuration(record.totalSeconds)}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          {/* Footer */}
+          <div className="px-4 py-2.5 border-t bg-muted/20 text-xs text-muted-foreground">
+            Saved locally on {format(new Date(attendance.savedAt), "MMM d, yyyy · h:mm a")} · resets when browser data is cleared
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export default function MeetingDetailPage({ params }: Props) {
   const { classId, meetingId } = use(params);
   const router = useRouter();
@@ -55,6 +179,12 @@ export default function MeetingDetailPage({ params }: Props) {
   const students: EnrolledStudent[] = Array.isArray(studentsRaw) ? studentsRaw : [];
   const [showRemoveConfirm, setShowRemoveConfirm] = useState<string | null>(null);
   const [showAddInvite, setShowAddInvite]         = useState(false);
+
+  // Load saved attendance from localStorage (only present if educator ended the meeting)
+  const [savedAttendance, setSavedAttendance] = useState<SavedAttendance | null>(null);
+  useEffect(() => {
+    setSavedAttendance(loadAttendance(meetingId));
+  }, [meetingId]);
 
   if (isLoading) {
     return (
@@ -75,13 +205,11 @@ export default function MeetingDetailPage({ params }: Props) {
     );
   }
 
-  const computedStatus = getMeetingStatus(meeting.startTime, meeting.status);
-  const isLive         = computedStatus === "live";
-  const isEnded        = computedStatus === "ended";
-  const invitedIds     = new Set(meeting.invites.map((i) => i.studentId));
+  const computedStatus  = getMeetingStatus(meeting.startTime, meeting.status);
+  const isLive          = computedStatus === "live";
+  const isEnded         = computedStatus === "ended";
+  const invitedIds      = new Set(meeting.invites.map((i) => i.studentId));
   const pendingRequests = meeting.joinRequests.filter((r) => r.status === "pending");
-
-  // Students not yet invited (for add invite)
   const uninvitedStudents = students.filter((s) => !invitedIds.has(s.id));
 
   const handleRemoveInvite = (studentId: string) => {
@@ -187,10 +315,17 @@ export default function MeetingDetailPage({ params }: Props) {
         </div>
       </div>
 
+      {/* ── Attendance record (only for ended meetings that have saved data) ── */}
+      {isEnded && savedAttendance && (
+        <AttendanceCard attendance={savedAttendance} />
+      )}
+
       {/* Invited Students */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-muted-foreground">{invitedIds.size} student{invitedIds.size !== 1 ? "s" : ""} invited</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            {invitedIds.size} student{invitedIds.size !== 1 ? "s" : ""} invited
+          </p>
           {!isEnded && uninvitedStudents.length > 0 && (
             <Button
               size="sm"
@@ -204,7 +339,6 @@ export default function MeetingDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* Add invite list */}
         {showAddInvite && (
           <ScrollArea className="max-h-40 rounded-md border">
             <div className="p-2 space-y-1">
@@ -230,7 +364,6 @@ export default function MeetingDetailPage({ params }: Props) {
           </ScrollArea>
         )}
 
-        {/* Invited list table */}
         {invitedIds.size === 0 ? (
           <p className="text-sm text-muted-foreground">No students invited yet.</p>
         ) : (
@@ -273,7 +406,9 @@ export default function MeetingDetailPage({ params }: Props) {
       {/* Join Requests */}
       {pendingRequests.length > 0 && (
         <div className="space-y-3">
-          <p className="text-sm font-medium text-muted-foreground">{pendingRequests.length} pending request{pendingRequests.length !== 1 ? "s" : ""}</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            {pendingRequests.length} pending request{pendingRequests.length !== 1 ? "s" : ""}
+          </p>
           <Table>
             <TableHeader>
               <TableRow className="bg-primary text-primary-foreground">
@@ -321,7 +456,6 @@ export default function MeetingDetailPage({ params }: Props) {
         </div>
       )}
 
-      {/* Remove invite confirm */}
       <ConfirmDialog
         open={!!showRemoveConfirm}
         onOpenChange={(o) => { if (!o) setShowRemoveConfirm(null); }}

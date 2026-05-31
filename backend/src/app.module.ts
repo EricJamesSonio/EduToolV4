@@ -15,6 +15,7 @@ import { PlatformDomainModule } from './domains/platform/platform-domain.module'
 import { SchedulerModule } from './core/scheduler/scheduler.module';
 
 import { HealthModule } from './modules/health/health.module';
+import { UploadModule } from './modules/upload/upload.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { HealthModule } from './modules/health/health.module';
     PlatformDomainModule,
 
     HealthModule,
+    UploadModule,
   ],
 })
 export class AppModule {}

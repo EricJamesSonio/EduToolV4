@@ -37,15 +37,13 @@ export class UpdateEducatorDto {
   fullName?: string;
 
   @IsOptional()
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
-  emailName?: string;
-}
+  @IsEmail()
+  email?: string;
 
-export class UpdateEducatorStatusDto {
-  @IsEnum(EducatorStatus)
-  status!: EducatorStatus;
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  profileImage?: string;
 }
 
 // ── GET /educators ────────────────────────────────────────────────────────────

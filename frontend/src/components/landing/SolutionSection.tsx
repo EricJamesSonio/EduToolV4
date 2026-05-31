@@ -152,6 +152,7 @@ function VideoPreview({ src }: { src: string }) {
 
   const [inView, setInView] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const { playingRef } = usePlayerCtx();
 
@@ -175,6 +176,11 @@ function VideoPreview({ src }: { src: string }) {
 
     return () => obs.disconnect();
   }, []);
+
+  // Reset loaded state on src change
+  useEffect(() => {
+    setLoaded(false);
+  }, [src]);
 
   // Sync playing state with actual video events
   useEffect(() => {
@@ -218,10 +224,10 @@ function VideoPreview({ src }: { src: string }) {
   return (
     <div
       ref={containerRef}
-      className="w-full rounded-xl overflow-hidden border border-border bg-muted shadow-sm relative cursor-pointer"
+      className="w-full rounded-xl overflow-hidden border border-border bg-muted shadow-sm relative cursor-pointer aspect-video"
       onClick={handleClick}
     >
-      {inView ? (
+      {inView && (
         <video
           ref={videoRef}
           src={src}
@@ -229,14 +235,20 @@ function VideoPreview({ src }: { src: string }) {
           loop
           muted
           playsInline
-          className="w-full h-auto object-cover block"
+          className={`absolute inset-0 w-full h-full object-cover ${loaded ? "opacity-100" : "opacity-0"}`}
+          onLoadedData={() => setLoaded(true)}
         />
-      ) : (
-        <div className="w-full bg-muted min-h-[200px]" />
+      )}
+
+      {/* Loading skeleton */}
+      {(!loaded || !inView) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-muted">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
       )}
 
       {/* Play button overlay */}
-      {!playing && inView && (
+      {!playing && inView && loaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/10 transition-opacity">
           <div className="w-14 h-14 rounded-full bg-primary/80 flex items-center justify-center shadow-lg hover:bg-primary hover:scale-105 transition-all">
             <svg

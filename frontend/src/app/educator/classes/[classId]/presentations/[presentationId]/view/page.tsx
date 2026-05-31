@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Maximize, Minimize, ArrowLeft, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize, Minimize, ArrowLeft, Loader2, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { TEMPLATE_STYLES } from "@/lib/presentation-templates";
 import { presentationApi } from "@/api/educator/presentation.api";
 import type { Presentation } from "@/types/educator/presentation.types";
 
@@ -102,7 +103,7 @@ export default function PresentationViewerPage(): React.JSX.Element {
           <Button
             variant="default"
             size="sm"
-            onClick={() => router.push(`/educator/classes/${classId}/presentations/new?lessonId=${pres.lessonId}`)}
+            onClick={() => router.push(`/educator/classes/${classId}/presentations/new?lessonId=${pres.lessonId}&presentationId=${pres.id}`)}
           >
             Edit Presentation
           </Button>
@@ -112,6 +113,8 @@ export default function PresentationViewerPage(): React.JSX.Element {
   }
 
   const currentSlide = pres.slides[slide];
+  const ts = TEMPLATE_STYLES[pres.template] ?? TEMPLATE_STYLES.green;
+  const hideTitle = /^Slide \d+$/i.test(currentSlide.title ?? "");
 
   return (
     <div className="flex flex-col items-center">
@@ -119,7 +122,7 @@ export default function PresentationViewerPage(): React.JSX.Element {
       <div className="w-full max-w-5xl flex items-center justify-between h-12 px-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.push(`/educator/classes/${classId}`)}
+            onClick={() => router.push(`/educator/classes/${classId}/lessons/${pres.lessonId}`)}
             className="text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -130,6 +133,13 @@ export default function PresentationViewerPage(): React.JSX.Element {
           <span className="text-xs text-muted-foreground mr-2">
             {slide + 1} / {pres.slides.length}
           </span>
+          <button
+            onClick={() => router.push(`/educator/classes/${classId}/presentations/new?lessonId=${pres.lessonId}&presentationId=${pres.id}`)}
+            className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="Edit presentation"
+          >
+            <Edit3 className="h-4 w-4" />
+          </button>
           <button
             onClick={toggleFullscreen}
             className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -142,27 +152,24 @@ export default function PresentationViewerPage(): React.JSX.Element {
       {/* Slide */}
       <div
         className={cn(
-          "relative w-full overflow-hidden rounded-lg border bg-white shadow-lg",
+          "relative w-full overflow-hidden rounded-lg border shadow-lg bg-cover bg-center",
           isFullscreen ? "h-[100vh] rounded-none border-none shadow-none" : "max-w-5xl",
           "flex-1"
         )}
-        style={{ aspectRatio: isFullscreen ? undefined : "16/9" }}
+        style={{
+          aspectRatio: isFullscreen ? undefined : "16/9",
+          backgroundImage: `url(${ts.image})`,
+        }}
       >
-        {/* Slide content */}
-        <div className="h-full flex flex-col items-center justify-center p-8 md:p-16 text-center">
-          {currentSlide.title && (
-            <h2 className="text-2xl md:text-4xl font-bold mb-4 md:mb-6 text-zinc-900">
-              {currentSlide.title}
-            </h2>
+        <div className="relative z-[5] h-full flex flex-col items-center justify-center p-8 md:p-16 text-center text-white drop-shadow-lg">
+          {!hideTitle && (
+            <h2 className="text-2xl md:text-4xl font-bold mb-4 md:mb-6">{currentSlide.title}</h2>
           )}
           {currentSlide.content && (
-            <p className="text-base md:text-xl text-zinc-600 whitespace-pre-wrap max-w-3xl leading-relaxed">
-              {currentSlide.content}
-            </p>
+            <p className="text-base md:text-xl whitespace-pre-wrap max-w-3xl leading-relaxed">{currentSlide.content}</p>
           )}
         </div>
 
-        {/* Navigation arrows */}
         {slide > 0 && (
           <button
             onClick={() => goTo(slide - 1)}

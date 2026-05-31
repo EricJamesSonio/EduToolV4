@@ -1,179 +1,220 @@
+// src/app/educator/classes/[classId]/presentations/new/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, GripVertical, Trash2, Eye, Wand2, Save, ChevronLeft, ChevronRight, Maximize, Minimize, Edit3 } from "lucide-react";
+import { Loader2, Eye, Save, PaintBucket, Check } from "lucide-react";
 import { useLesson } from "@/hooks/educator/useLessons";
-import { useCreatePresentation, useAutoGenerateSlides, useGenerateSlides } from "@/hooks/educator/usePresentations";
+import {
+  usePresentation, useCreatePresentation, useUpdatePresentation,
+  useAutoGenerateSlides, useGenerateSlides,
+} from "@/hooks/educator/usePresentations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { TEMPLATE_STYLES } from "@/lib/presentation-templates";
+import {
+  TemplateSelector, SlideOrganizer, LessonContentPanel, PreviewModal,
+  type SlideDraft, type FontSize,
+} from "@/components/educator/presentation-builder";
+import { newSlideId, parseWords } from "@/components/educator/presentation-builder/utils";
+import { FONT_FAMILIES, type FontFamily } from "@/components/educator/presentation-builder/types";
 import { cn } from "@/lib/utils";
-import type { SlideAssignment } from "@/types/educator/presentation.types";
-
-const TEMPLATES = [
-  { id: "minimal", label: "Minimal", desc: "Clean with lots of whitespace", colors: ["#f8f9fa", "#212529"] },
-  { id: "modern", label: "Modern", desc: "Bold headers with accent underlines", colors: ["#ffffff", "#0d6efd"] },
-  { id: "dark", label: "Dark Mode", desc: "Dark background, light text", colors: ["#1a1a2e", "#e94560"] },
-  { id: "academic", label: "Academic", desc: "Serif fonts, formal layout", colors: ["#fafafa", "#2d3436"] },
-  { id: "gradient", label: "Gradient", desc: "Color gradient backgrounds", colors: ["#667eea", "#764ba2"] },
-  { id: "professional", label: "Professional", desc: "Corporate-style clean design", colors: ["#ffffff", "#2563eb"] },
-];
-
-interface SlideDraft {
-  id: string;
-  slideNumber: number;
-  title: string;
-  content: string;
-  lessonSection: string | null;
-}
-
-let slideIdCounter = 0;
-function newSlideId() { return `slide_${++slideIdCounter}`; }
 
 export default function PresentationBuilderPage(): React.JSX.Element {
-  const { classId } = useParams<{ classId: string }>();
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const lessonId = searchParams.get("lessonId") ?? "";
+  const { classId }        = useParams<{ classId: string }>();
+  const searchParams       = useSearchParams();
+  const router             = useRouter();
+  const lessonId           = searchParams.get("lessonId") ?? "";
+  const editPresentationId = searchParams.get("presentationId");
 
-  const { data: lesson, isLoading } = useLesson(classId, lessonId);
+  const { data: lesson, isLoading }  = useLesson(classId, lessonId);
+  const { data: existingPres }       = usePresentation(classId, editPresentationId ?? "");
   const { mutateAsync: createPresentation, isPending: isCreating } = useCreatePresentation(classId);
+  const { mutateAsync: updatePresentation }  = useUpdatePresentation(classId);
   const { mutateAsync: autoGenerate, isPending: isAutoGenerating } = useAutoGenerateSlides(classId);
-  const { mutateAsync: saveSlides } = useGenerateSlides(classId);
+  const { mutateAsync: saveSlides }  = useGenerateSlides(classId);
 
-  const [title, setTitle] = useState("");
-  const [template, setTemplate] = useState("modern");
-  const [slides, setSlides] = useState<SlideDraft[]>([]);
-  const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const [title,          setTitle]          = useState("");
+  const [template,       setTemplate]       = useState("green");
+  const [slides,         setSlides]         = useState<SlideDraft[]>([]);
   const [presentationId, setPresentationId] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewSlide, setPreviewSlide] = useState(0);
+  const [showPreview,    setShowPreview]    = useState(false);
+  const [previewSlide,   setPreviewSlide]   = useState(0);
+
+  // ── Active font: only affects NEW slides going forward ───────────────────
+  const [activeFont, setActiveFont] = useState<FontFamily>("default");
+
+  const [selMode,      setSelMode]      = useState(false);
+  const [startWordIdx, setStartWordIdx] = useState<number | null>(null);
+  const [endWordIdx,   setEndWordIdx]   = useState<number | null>(null);
+  const [hoverWordIdx, setHoverWordIdx] = useState<number | null>(null);
+
+  const words = useMemo(
+    () => (lesson?.detail ? parseWords(lesson.detail) : []),
+    [lesson?.detail],
+  );
+
+  const slideRanges = useMemo(() => {
+    if (!lesson?.detail) return [];
+    return slides.map((s) => {
+      if (s.charStart !== null && s.charEnd !== null)
+        return { slideNumber: s.slideNumber, start: s.charStart, end: s.charEnd };
+      const idx = lesson.detail.indexOf(s.content);
+      if (idx !== -1)
+        return { slideNumber: s.slideNumber, start: idx, end: idx + s.content.length };
+      return null;
+    });
+  }, [slides, lesson?.detail]);
 
   useEffect(() => {
-    if (lesson) setTitle(lesson.title);
-  }, [lesson]);
+    if (existingPres) {
+      setTitle(existingPres.title);
+      setTemplate(existingPres.template);
+      setPresentationId(existingPres.id);
+      setSlides(
+        existingPres.slides.map((s, i) => ({
+          id:          newSlideId(),
+          slideNumber: i + 1,
+          title:       s.title ?? `Slide ${i + 1}`,
+          content:     s.content,
+          charStart:   null,
+          charEnd:     null,
+          fontSize:    "md" as FontSize,
+          fontFamily:  "default" as FontFamily,
+        })),
+      );
+    } else if (lesson && !existingPres) {
+      setTitle(lesson.title);
+      setSlides([]);
+      setPresentationId(null);
+    }
+  }, [lesson, existingPres]);
 
-  const addSlide = useCallback((section?: { heading?: string; body: string }) => {
+  // ── Selection helpers ─────────────────────────────────────────────────────
+  const enterSelMode = useCallback(() => {
+    setSelMode(true); setStartWordIdx(null); setEndWordIdx(null); setHoverWordIdx(null);
+  }, []);
+
+  const cancelSel = useCallback(() => {
+    setSelMode(false); setStartWordIdx(null); setEndWordIdx(null); setHoverWordIdx(null);
+  }, []);
+
+  const handleWordClick = useCallback((idx: number) => {
+    if (startWordIdx === null) { setStartWordIdx(idx); }
+    else if (endWordIdx === null) {
+      setStartWordIdx(Math.min(startWordIdx, idx));
+      setEndWordIdx(Math.max(startWordIdx, idx));
+    }
+  }, [startWordIdx, endWordIdx]);
+
+  const confirmSelection = useCallback(() => {
+    if (startWordIdx === null || endWordIdx === null || !lesson?.detail) return;
+    const ws      = words[startWordIdx];
+    const we      = words[endWordIdx];
+    const content = lesson.detail.slice(ws.start, we.end).trim();
+    if (!content) { toast.error("Selected text is empty"); return; }
     const num = slides.length + 1;
     setSlides((prev) => [
       ...prev,
       {
-        id: newSlideId(),
-        slideNumber: num,
-        title: section?.heading ?? `Slide ${num}`,
-        content: section?.body ?? "",
-        lessonSection: section?.heading?.toLowerCase().replace(/\s+/g, "_") ?? null,
+        id: newSlideId(), slideNumber: num,
+        title: `Slide ${num}`, content,
+        charStart: ws.start, charEnd: we.end,
+        fontSize: "md", fontFamily: activeFont,  // ← inherit active font
       },
     ]);
-    setEditingSlideId(null);
-  }, [slides.length]);
+    cancelSel();
+  }, [startWordIdx, endWordIdx, lesson, words, slides.length, cancelSel, activeFont]);
 
+  // ── Slide mutations ───────────────────────────────────────────────────────
   const removeSlide = useCallback((id: string) => {
-    setSlides((prev) => {
-      const filtered = prev.filter((s) => s.id !== id);
-      return filtered.map((s, i) => ({ ...s, slideNumber: i + 1 }));
-    });
+    setSlides((prev) =>
+      prev.filter((s) => s.id !== id).map((s, i) => ({ ...s, slideNumber: i + 1 })),
+    );
   }, []);
 
   const moveSlide = useCallback((index: number, direction: "up" | "down") => {
     setSlides((prev) => {
       const next = [...prev];
-      const target = index + (direction === "up" ? -1 : 1);
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
+      const tgt  = index + (direction === "up" ? -1 : 1);
+      if (tgt < 0 || tgt >= next.length) return prev;
+      [next[index], next[tgt]] = [next[tgt], next[index]];
       return next.map((s, i) => ({ ...s, slideNumber: i + 1 }));
     });
   }, []);
 
-  const updateSlide = useCallback((id: string, field: "title" | "content", value: string) => {
-    setSlides((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
+  const updateSlide = useCallback(
+    (id: string, field: "title" | "content", value: string) => {
+      setSlides((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
+    }, [],
+  );
+
+  const updateFontSize = useCallback((id: string, fontSize: FontSize) => {
+    setSlides((prev) => prev.map((s) => (s.id === id ? { ...s, fontSize } : s)));
   }, []);
 
+  // Per-slide font change (from modal) — does NOT change activeFont
+  const updateFontFamily = useCallback((id: string, fontFamily: FontFamily) => {
+    setSlides((prev) => prev.map((s) => (s.id === id ? { ...s, fontFamily } : s)));
+  }, []);
+
+  // Apply to ALL slides explicitly
+  const applyFontToAll = useCallback((fontFamily: FontFamily) => {
+    setSlides((prev) => prev.map((s) => ({ ...s, fontFamily })));
+    setActiveFont(fontFamily);
+    const label = FONT_FAMILIES.find((f) => f.value === fontFamily)?.label ?? fontFamily;
+    toast.success(`"${label}" applied to all slides`);
+  }, []);
+
+  // ── Auto-generate ─────────────────────────────────────────────────────────
   const handleAutoGenerate = async () => {
     if (!lesson) return;
+    const genSlides = (result: Array<{ title?: string; content: string }>) =>
+      result.map((s, i) => ({
+        id: newSlideId(), slideNumber: i + 1,
+        title: s.title ?? `Slide ${i + 1}`, content: s.content,
+        charStart: null, charEnd: null,
+        fontSize: "md" as FontSize, fontFamily: activeFont as FontFamily,
+      }));
+
     if (!presentationId) {
-      const pres = await createPresentation({
-        lessonId: lesson.id,
-        title: title || lesson.title,
-        template,
-      });
+      const pres = await createPresentation({ lessonId: lesson.id, title: title || lesson.title, template });
       setPresentationId(pres.id);
-      const result = await autoGenerate(pres.id);
-      setSlides(result.map((s, i) => ({
-        id: newSlideId(),
-        slideNumber: i + 1,
-        title: s.title ?? `Slide ${i + 1}`,
-        content: s.content,
-        lessonSection: s.lessonSection,
-      })));
-      toast.success("Slides generated from lesson content!");
+      setSlides(genSlides(await autoGenerate(pres.id)));
     } else {
-      const result = await autoGenerate(presentationId);
-      setSlides(result.map((s, i) => ({
-        id: newSlideId(),
-        slideNumber: i + 1,
-        title: s.title ?? `Slide ${i + 1}`,
-        content: s.content,
-        lessonSection: s.lessonSection,
-      })));
-      toast.success("Slides re-generated!");
+      setSlides(genSlides(await autoGenerate(presentationId)));
     }
+    toast.success("Slides generated!");
   };
 
+  // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (slides.length === 0) { toast.error("Add at least one slide"); return; }
     try {
       let presId = presentationId;
       if (!presId) {
         if (!lesson) return;
-        const pres = await createPresentation({
-          lessonId: lesson.id,
-          title: title || lesson.title,
-          template,
-        });
+        const pres = await createPresentation({ lessonId: lesson.id, title: title || lesson.title, template });
         presId = pres.id;
         setPresentationId(pres.id);
+      } else if (existingPres) {
+        await updatePresentation({ id: presId, body: { title: title || undefined, template } });
       }
       await saveSlides({
-        id: presId,
-        body: { slides: slides.map((s) => ({
-          slideNumber: s.slideNumber,
-          title: s.title || undefined,
-          content: s.content,
-          lessonSection: s.lessonSection ?? undefined,
-        })) },
+        id:   presId,
+        body: { slides: slides.map((s) => ({ slideNumber: s.slideNumber, title: s.title || undefined, content: s.content })) },
       });
       toast.success("Presentation saved!");
       router.push(`/educator/classes/${classId}/presentations/${presId}/view`);
     } catch {
       toast.error("Failed to save presentation");
     }
-  };
-
-  const parseSections = (detail: string): { heading?: string; body: string }[] => {
-    const lines = detail.split("\n");
-    const sections: { heading?: string; body: string }[] = [];
-    let currentHeading: string | undefined;
-    let currentBody: string[] = [];
-    for (const line of lines) {
-      const m = line.match(/^#{2,4}\s+(.+)$/);
-      if (m) {
-        if (currentBody.length > 0 || currentHeading) {
-          sections.push({ heading: currentHeading, body: currentBody.join("\n").trim() });
-        }
-        currentHeading = m[1];
-        currentBody = [];
-      } else {
-        currentBody.push(line);
-      }
-    }
-    if (currentBody.length > 0 || currentHeading) {
-      sections.push({ heading: currentHeading, body: currentBody.join("\n").trim() });
-    }
-    return sections;
   };
 
   if (isLoading || !lesson) {
@@ -185,270 +226,145 @@ export default function PresentationBuilderPage(): React.JSX.Element {
     );
   }
 
-  const sections = lesson.detail ? parseSections(lesson.detail) : [];
+  const ts = TEMPLATE_STYLES[template] ?? TEMPLATE_STYLES.green;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Create Presentation</h1>
-          <p className="text-sm text-muted-foreground">From: {lesson.title}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setShowPreview((v) => !v)}
-            disabled={slides.length === 0}
-          >
-            {showPreview ? <Minimize className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            {showPreview ? "Close Preview" : "Preview"}
-          </Button>
-          <Button size="sm" className="gap-1.5" onClick={handleSave} disabled={slides.length === 0 || isCreating}>
-            {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-            Save & View
-          </Button>
-        </div>
-      </div>
-
-      {/* Title + Template */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2 space-y-1.5">
-          <label className="text-sm font-medium">Presentation Title</label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter presentation title" />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Template</label>
-          <div className="grid grid-cols-3 gap-2">
-            {TEMPLATES.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTemplate(t.id)}
-                className={cn(
-                  "relative rounded-lg border-2 p-2 text-left transition-all",
-                  template === t.id
-                    ? "border-primary ring-1 ring-primary"
-                    : "border-border hover:border-muted-foreground/30"
-                )}
-              >
-                <div className="flex gap-1 mb-1.5">
-                  {t.colors.map((c, i) => (
-                    <div key={i} className="h-2 flex-1 rounded" style={{ backgroundColor: c }} />
-                  ))}
-                </div>
-                <p className="text-[11px] font-medium leading-tight">{t.label}</p>
-                <p className="text-[9px] text-muted-foreground leading-tight">{t.desc}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Main area: lesson content + slides */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Lesson Content */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Lesson Content</h2>
-            <Button variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={() => addSlide()}>
-              <Plus className="h-3 w-3" /> Blank Slide
+    <div className="space-y-5">
+      <PageHeader
+        title="Presentation Builder"
+        breadcrumbs={[
+          { label: "Classes",          href: `/educator/classes` },
+          { label: lesson.title,       href: `/educator/classes/${classId}` },
+          { label: "New Presentation" },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5"
+              onClick={() => setShowPreview((v) => !v)} disabled={slides.length === 0}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              {showPreview ? "Close Preview" : "Preview"}
+            </Button>
+            <Button size="sm" className="gap-1.5"
+              onClick={handleSave} disabled={slides.length === 0 || isCreating}
+            >
+              {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              Save & View
             </Button>
           </div>
-          <div className="rounded-lg border bg-card divide-y divide-border max-h-[600px] overflow-y-auto">
-            {lesson.description && (
-              <div className="px-4 py-3 text-sm text-muted-foreground italic">
-                {lesson.description}
-              </div>
-            )}
-            {sections.length > 0 ? sections.map((sec, i) => (
-              <div key={i} className="px-4 py-3 group hover:bg-muted/40 transition-colors">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    {sec.heading && (
-                      <h3 className="text-sm font-semibold mb-1">{sec.heading}</h3>
-                    )}
-                    <p className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-4">
-                      {sec.body || "(empty)"}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => addSlide(sec)}
-                    className="shrink-0 h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-all"
-                    title="Assign to new slide"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            )) : (
-              <div className="px-4 py-6 text-sm text-muted-foreground text-center">
-                {lesson.detail ? (
-                  <div className="group relative">
-                    <p className="whitespace-pre-wrap text-xs">{lesson.detail}</p>
-                    <button
-                      onClick={() => addSlide({ body: lesson.detail! })}
-                      className="absolute top-0 right-0 h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-all"
-                      title="Assign all to slide"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <p>No lesson content. Add content to the lesson first.</p>
-                )}
-              </div>
-            )}
-            {!lesson.detail && !lesson.description && (
-              <div className="px-4 py-6 text-sm text-muted-foreground text-center">
-                No lesson content available.
-              </div>
-            )}
-          </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="gap-1.5 w-full"
-            onClick={handleAutoGenerate}
-            disabled={isAutoGenerating}
-          >
-            {isAutoGenerating ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Wand2 className="h-3.5 w-3.5" />
-            )}
-            Auto-Generate Slides
-          </Button>
-        </div>
+        }
+      />
 
-        {/* Slide Organizer */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Slides ({slides.length})</h2>
+      {/* Title + Template */}
+      <Card size="sm">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2 space-y-1.5">
+            <label className="text-sm font-medium">Presentation Title</label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter presentation title" />
           </div>
-          <div className="rounded-lg border bg-card divide-y divide-border max-h-[600px] overflow-y-auto">
-            {slides.length === 0 ? (
-              <div className="px-4 py-12 text-sm text-muted-foreground text-center">
-                <p>No slides yet.</p>
-                <p className="text-xs mt-1">Click a section&apos;s <Plus className="h-3 w-3 inline" /> button or use Auto-Generate.</p>
-              </div>
-            ) : (
-              slides.map((slide, i) => (
-                <div key={slide.id} className="px-3 py-2 group hover:bg-muted/40 transition-colors">
-                  <div className="flex items-start gap-2">
-                    <div className="flex flex-col items-center gap-0.5 pt-1">
-                      <button
-                        onClick={() => moveSlide(i, "up")}
-                        disabled={i === 0}
-                        className="h-4 w-4 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20"
-                      >
-                        <ChevronLeft className="h-3 w-3 rotate-90" />
-                      </button>
-                      <span className="text-[10px] font-mono text-muted-foreground">{slide.slideNumber}</span>
-                      <button
-                        onClick={() => moveSlide(i, "down")}
-                        disabled={i === slides.length - 1}
-                        className="h-4 w-4 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-20"
-                      >
-                        <ChevronRight className="h-3 w-3 rotate-90" />
-                      </button>
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      {editingSlideId === slide.id ? (
-                        <>
-                          <Input
-                            value={slide.title}
-                            onChange={(e) => updateSlide(slide.id, "title", e.target.value)}
-                            className="h-7 text-xs"
-                            placeholder="Slide title"
-                          />
-                          <Textarea
-                            value={slide.content}
-                            onChange={(e) => updateSlide(slide.id, "content", e.target.value)}
-                            className="min-h-[60px] text-xs"
-                            placeholder="Slide content"
-                          />
-                          <div className="flex gap-1">
-                            <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setEditingSlideId(null)}>Done</Button>
-                            <Button size="sm" variant="ghost" className="h-6 text-xs text-destructive" onClick={() => { removeSlide(slide.id); setEditingSlideId(null); }}>Delete</Button>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="flex items-center gap-1">
-                            <p className="text-xs font-medium truncate">{slide.title}</p>
-                            <button onClick={() => setEditingSlideId(slide.id)} className="h-5 w-5 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-all">
-                              <Edit3 className="h-3 w-3" />
-                            </button>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground line-clamp-2">{slide.content || "(empty)"}</p>
-                          {slide.lessonSection && (
-                            <span className="inline-block text-[9px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
-                              {slide.lessonSection}
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Template</label>
+            <TemplateSelector value={template} onChange={setTemplate} />
           </div>
         </div>
+      </Card>
+
+      {/* ── Font toolbar ─────────────────────────────────────────────────────
+          Selecting a font = sets activeFont for NEW slides only.
+          "Apply all" button = explicitly applies that font to every existing slide. */}
+      <Card size="sm">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <PaintBucket className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-sm font-medium">Default font for new slides</span>
+            {slides.length > 0 && (
+              <span className="text-xs text-muted-foreground ml-auto">
+                Click a font to set default · "Apply all" to update existing slides
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {FONT_FAMILIES.map((ff) => {
+              const isActive = activeFont === ff.value;
+              return (
+                <div key={ff.value} className="flex items-center gap-0.5">
+                  {/* Font selector button */}
+                  <button
+                    onClick={() => setActiveFont(ff.value)}
+                    title={`Set "${ff.label}" as default for new slides`}
+                    className={cn(
+                      "h-8 px-3 rounded-l-lg border text-xs transition-all",
+                      isActive
+                        ? "border-primary bg-primary/10 text-primary font-semibold"
+                        : "border-border text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/30",
+                    )}
+                    style={{ fontFamily: ff.stack }}
+                  >
+                    {isActive && <Check className="h-3 w-3 inline mr-1" />}
+                    {ff.label}
+                  </button>
+
+                  {/* Apply-to-all button — only show when slides exist */}
+                  {slides.length > 0 && (
+                    <button
+                      onClick={() => applyFontToAll(ff.value)}
+                      title={`Apply "${ff.label}" to ALL existing slides`}
+                      className={cn(
+                        "h-8 px-1.5 rounded-r-lg border-y border-r text-[10px] transition-all",
+                        isActive
+                          ? "border-primary bg-primary/5 text-primary hover:bg-primary/15"
+                          : "border-border text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/30",
+                      )}
+                    >
+                      All
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
+      {/* Main builder */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <LessonContentPanel
+          detail={lesson.detail}
+          description={lesson.description}
+          words={words}
+          slides={slides}
+          slideRanges={slideRanges}
+          selMode={selMode}
+          startWordIdx={startWordIdx}
+          endWordIdx={endWordIdx}
+          hoverWordIdx={hoverWordIdx}
+          onEnterSelMode={enterSelMode}
+          onCancelSel={cancelSel}
+          onConfirmSel={confirmSelection}
+          onWordClick={handleWordClick}
+          onWordHover={setHoverWordIdx}
+          onAutoGenerate={handleAutoGenerate}
+          isAutoGenerating={isAutoGenerating}
+          scrollRef={scrollRef}
+        />
+        <SlideOrganizer
+          slides={slides}
+          onUpdate={updateSlide}
+          onFontSize={updateFontSize}
+          onFontFamily={updateFontFamily}
+          onMove={moveSlide}
+          onDelete={removeSlide}
+        />
       </div>
 
-      {/* Preview Modal */}
       {showPreview && slides.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
-          <div className="relative w-full max-w-4xl mx-4 bg-white rounded-xl shadow-2xl overflow-hidden" style={{ aspectRatio: "16/9" }}>
-            <div className="absolute top-0 inset-x-0 h-10 bg-zinc-900 flex items-center justify-between px-4 z-10">
-              <span className="text-xs text-zinc-400">Slide {previewSlide + 1} / {slides.length}</span>
-              <button onClick={() => setShowPreview(false)} className="text-zinc-400 hover:text-white text-xs">✕</button>
-            </div>
-            <div className="h-full flex flex-col items-center justify-center p-16 text-center">
-              {slides[previewSlide] && (
-                <>
-                  <h2 className="text-3xl font-bold mb-4 text-zinc-900">{slides[previewSlide].title}</h2>
-                  <p className="text-lg text-zinc-600 whitespace-pre-wrap max-w-2xl">{slides[previewSlide].content}</p>
-                </>
-              )}
-            </div>
-            <div className="absolute bottom-0 inset-x-0 h-12 bg-zinc-900 flex items-center justify-between px-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-zinc-400 hover:text-white"
-                onClick={() => setPreviewSlide((p) => Math.max(0, p - 1))}
-                disabled={previewSlide === 0}
-              >
-                <ChevronLeft className="h-4 w-4" /> Previous
-              </Button>
-              <div className="flex gap-1">
-                {slides.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setPreviewSlide(i)}
-                    className={cn(
-                      "h-1.5 rounded-full transition-all",
-                      i === previewSlide ? "w-6 bg-primary" : "w-1.5 bg-zinc-600"
-                    )}
-                  />
-                ))}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-zinc-400 hover:text-white"
-                onClick={() => setPreviewSlide((p) => Math.min(slides.length - 1, p + 1))}
-                disabled={previewSlide === slides.length - 1}
-              >
-                Next <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+        <PreviewModal
+          slides={slides}
+          templateImage={ts.image}
+          currentSlide={previewSlide}
+          onClose={() => setShowPreview(false)}
+          onNavigate={setPreviewSlide}
+        />
       )}
     </div>
   );

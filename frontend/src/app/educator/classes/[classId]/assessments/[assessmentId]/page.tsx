@@ -178,16 +178,18 @@ export default function AssessmentDetailPage(): React.JSX.Element {
 
             {assessment.isPublished ? (
               <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button size="sm" variant="outline" className="gap-1.5" disabled={isUnpublishing}>
-                    {isUnpublishing ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <XCircle className="h-4 w-4" />
-                    )}
-                    Unpublish Scores
-                  </Button>
-                </AlertDialogTrigger>
+                <AlertDialogTrigger
+                  render={
+                    <Button size="sm" variant="outline" className="gap-1.5" disabled={isUnpublishing}>
+                      {isUnpublishing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+                      Unpublish Scores
+                    </Button>
+                  }
+                />
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Unpublish scores?</AlertDialogTitle>
@@ -205,16 +207,18 @@ export default function AssessmentDetailPage(): React.JSX.Element {
               </AlertDialog>
             ) : (
               <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button size="sm" variant="outline" className="gap-1.5" disabled={isPublishing}>
-                    {isPublishing ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    )}
-                    Publish Scores
-                  </Button>
-                </AlertDialogTrigger>
+                <AlertDialogTrigger
+                  render={
+                    <Button size="sm" variant="outline" className="gap-1.5" disabled={isPublishing}>
+                      {isPublishing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      )}
+                      Publish Scores
+                    </Button>
+                  }
+                />
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Publish scores?</AlertDialogTitle>
@@ -240,12 +244,14 @@ export default function AssessmentDetailPage(): React.JSX.Element {
             </Link>
 
             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button size="sm" variant="destructive" className="gap-1.5">
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
-              </AlertDialogTrigger>
+              <AlertDialogTrigger
+                render={
+                  <Button size="sm" variant="destructive" className="gap-1.5">
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </Button>
+                }
+              />
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete this assessment?</AlertDialogTitle>
@@ -293,6 +299,12 @@ export default function AssessmentDetailPage(): React.JSX.Element {
 
       {/* Info Card */}
       <div className="rounded-lg border bg-card divide-y divide-border">
+        <div className="flex items-center gap-6 px-6 py-4">
+          <span className="w-28 text-sm text-muted-foreground shrink-0">Week</span>
+          <span className="text-sm">
+            {assessment.weekNumber ? `Week ${assessment.weekNumber}` : "—"}
+          </span>
+        </div>
         <div className="flex items-center gap-6 px-6 py-4">
           <span className="w-28 text-sm text-muted-foreground shrink-0">Release Date</span>
           <span className="text-sm">

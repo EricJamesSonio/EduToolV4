@@ -11,6 +11,7 @@ export class AuthEntity {
   // Hydrated from Profile relation
   fullName?: string;
   metadata?: Record<string, any>;
+  profileImage?: string | null;
 }
 
 export class TokenPayload {

@@ -70,6 +70,7 @@ export interface Assessment {
   gradingMode?: GradingMode;
   showBreakdown?: boolean;
   manualMaxScore?: number | null;
+  weekNumber?: number;
   assignedStudentIds: string[] | null;
   submittedCount: number;
   pendingEssayCount: number;

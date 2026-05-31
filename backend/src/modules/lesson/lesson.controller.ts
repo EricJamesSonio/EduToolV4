@@ -51,7 +51,7 @@ export class LessonController {
   }
 
   @Get('week-structure')
-@Roles('educator')
+@Roles('educator', 'student')
 getWeekStructure(
   @Param('classId') classId: string,
   @CurrentUser('org_id') orgId: string,

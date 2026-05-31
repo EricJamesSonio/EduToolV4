@@ -106,6 +106,7 @@ export class AssessmentEducatorService {
       title: dto.title,
       totalItems: dto.totalItems,
       releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
+      weekNumber: dto.weekNumber,
       gradingMode: effectiveGradingMode,
       manualMaxScore: dto.manualMaxScore,
       showBreakdown: dto.showBreakdown,
@@ -173,7 +174,7 @@ export class AssessmentEducatorService {
   async findAll(classId: string, orgId: string, educatorId: string, query: QueryAssessmentDto) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
 
-    const assessments = await this.repo.findAll(classId, orgId, { termId: query.termId, type: query.type });
+    const assessments = await this.repo.findAll(classId, orgId, { termId: query.termId, type: query.type, weekNumber: query.weekNumber });
     if (!assessments.length) return [];
 
     const ids = assessments.map((a) => a.id);
@@ -256,6 +257,7 @@ export class AssessmentEducatorService {
       showBreakdown: dto.showBreakdown,
       gradingMode: dto.gradingMode,
       manualMaxScore: dto.manualMaxScore,
+      weekNumber: dto.weekNumber,
     });
 
     await this.auditLog.logActivityEvent({
@@ -675,6 +677,7 @@ export class AssessmentEducatorService {
       title: dto.title,
       totalItems: dto.totalItems,
       releaseDate: dto.releaseDate ? new Date(dto.releaseDate) : undefined,
+      weekNumber: dto.weekNumber,
       gradingMode: dto.gradingMode,
       manualMaxScore: dto.manualMaxScore,
       showBreakdown: dto.showBreakdown,

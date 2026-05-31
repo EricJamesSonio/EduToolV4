@@ -40,6 +40,12 @@ function mapSlide(raw: Record<string, unknown>): Slide {
 }
 
 export const presentationApi = {
+  getByLesson: async (classId: string, lessonId: string): Promise<Presentation | null> => {
+    const { data } = await apiClient.get(`/educator/classes/${classId}/presentations/lesson/${lessonId}`);
+    const raw = unwrap<Record<string, unknown> | null>(data);
+    return raw ? mapPresentation(raw) : null;
+  },
+
   getAll: async (classId: string): Promise<Presentation[]> => {
     const { data } = await apiClient.get(`/educator/classes/${classId}/presentations`);
     const list = unwrap<Record<string, unknown>[]>(data);

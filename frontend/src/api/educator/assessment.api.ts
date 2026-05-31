@@ -25,6 +25,7 @@ export interface CreateAssessmentRequest {
   manualInstructions?: string;
   releaseDate?: string;
   endDate?: string;
+  weekNumber?: number;
 }
 
 export interface UpdateAssessmentRequest {
@@ -34,6 +35,7 @@ export interface UpdateAssessmentRequest {
   manualMaxScore?: number;
   releaseDate?: string;
   endDate?: string;
+  weekNumber?: number;
 }
 
 export interface UpdateQuestionRequest {
@@ -111,6 +113,7 @@ function mapAssessment(raw: Record<string, unknown>): Assessment {
     status: deriveStatus(raw),
     gradingMode: (raw.grading_mode ?? raw.gradingMode ?? "system") as any,
     showBreakdown: (raw.show_breakdown ?? raw.showBreakdown ?? false) as boolean,
+    weekNumber: (raw.week_number ?? raw.weekNumber) as number | undefined,
     manualMaxScore: (raw.manual_max_score ?? raw.manualMaxScore ?? null) as number | null,
     assignedStudentIds: (raw.assigned_student_ids ?? raw.assignedStudentIds ?? null) as string[] | null,
     submittedCount: (raw.submitted_count ?? raw.submittedCount ?? 0) as number,
@@ -158,7 +161,7 @@ function mapSubmission(raw: Record<string, unknown>): Submission {
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 export const assessmentApi = {
-  getAll: async (classId: string, params?: { termId?: string; type?: string }): Promise<Assessment[]> => {
+  getAll: async (classId: string, params?: { termId?: string; type?: string; weekNumber?: number }): Promise<Assessment[]> => {
     const { data } = await apiClient.get(`/classes/${classId}/assessments`, { params });
     const list = unwrap<Record<string, unknown>[]>(data);
     return list.map(mapAssessment);

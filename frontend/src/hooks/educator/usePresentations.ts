@@ -10,6 +10,7 @@ import type {
 const KEY = {
   all: (classId: string) => ["educator", "presentations", classId] as const,
   one: (classId: string, id: string) => ["educator", "presentations", classId, id] as const,
+  byLesson: (classId: string, lessonId: string) => ["educator", "presentations", classId, "lesson", lessonId] as const,
 };
 
 export function usePresentations(classId: string) {
@@ -25,6 +26,14 @@ export function usePresentation(classId: string, id: string) {
     queryKey: KEY.one(classId, id),
     queryFn: () => presentationApi.getOne(classId, id),
     enabled: !!classId && !!id,
+  });
+}
+
+export function usePresentationByLesson(classId: string, lessonId: string) {
+  return useQuery({
+    queryKey: KEY.byLesson(classId, lessonId),
+    queryFn: () => presentationApi.getByLesson(classId, lessonId),
+    enabled: !!classId && !!lessonId,
   });
 }
 

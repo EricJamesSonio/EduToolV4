@@ -21,7 +21,7 @@ import { toast } from "sonner";
 
 export const useAssessments = (
   classId: string,
-  filters?: { termId?: string; type?: string },
+  filters?: { termId?: string; type?: string; weekNumber?: number },
 ): UseQueryResult<Assessment[], Error> => {
   return useQuery({
     queryKey: assessmentKeys.list({ classId, ...filters }),

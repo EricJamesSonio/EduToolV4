@@ -89,6 +89,7 @@ export class AssessmentCoreService {
   buildAssessmentListItem(assessment: any, submission: any | null) {
     return {
       id: assessment.id,
+      title: assessment.title,
       type: assessment.type,
       totalItems: assessment.total_items,
       releaseDate: assessment.release_date,
@@ -98,6 +99,8 @@ export class AssessmentCoreService {
       showBreakdown: assessment.show_breakdown ?? false,
       submissionStatus: submission?.status ?? 'not_started',
       submittedAt: submission?.submitted_at ?? null,
+      termId: assessment.term_id,
+      weekNumber: assessment.week_number,
     };
   }
 

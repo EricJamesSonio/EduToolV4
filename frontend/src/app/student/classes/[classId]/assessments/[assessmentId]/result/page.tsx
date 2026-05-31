@@ -1,11 +1,11 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Clock, FileText, Lock, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CheckCircle2, Clock, FileText, Lock, XCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
 import { useAssessmentResult, useStudentAssessment } from "@/hooks/student/useStudentAssessments";
 
@@ -35,22 +35,20 @@ export default function AssessmentResultPage(): React.JSX.Element {
     : "text-red-500";
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="gap-1.5 text-muted-foreground hover:text-foreground -ml-1"
-        onClick={() => router.push(`/student/classes/${classId}/assessments`)}
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Back to Assessments
-      </Button>
+    <div className="space-y-6">
+      <PageHeader
+        title="Assessment Result"
+        breadcrumbs={[
+          { label: "Assessments", href: `/student/classes/${classId}/assessments` },
+          { label: "Result" },
+        ]}
+      />
 
       {isLoading ? (
         <div className="space-y-4">
-          <Skeleton className="h-20 w-full rounded-xl" />
-          <Skeleton className="h-32 w-full rounded-xl" />
-          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-28 w-full rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
         </div>
       ) : result ? (
         <>
@@ -153,9 +151,12 @@ export default function AssessmentResultPage(): React.JSX.Element {
           {/* Full review — always for manual, only if published for system/hybrid */}
           {(isManual || canViewScore) && result.questions && result.questions.length > 0 && (
             <div className="space-y-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                {isManual ? 'Your Response' : 'Review'}
-              </h2>
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground/60" />
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  {isManual ? 'Your Response' : 'Review'}
+                </h2>
+              </div>
               {result.questions.map((q, i) => {
                 const isCorrect = q.isCorrect === true;
                 const isWrong = q.isCorrect === false;
@@ -164,7 +165,7 @@ export default function AssessmentResultPage(): React.JSX.Element {
                   <div
                     key={q.id}
                     className={cn(
-                      "rounded-xl border bg-card p-5 space-y-3",
+                      "rounded-xl border bg-card p-6 space-y-4",
                       isManualQuestion ? "border-l-4 border-l-blue-400 bg-blue-50/20" : isCorrect ? "border-emerald-200" : isWrong ? "border-red-200" : "border-border/60"
                     )}
                   >
@@ -184,17 +185,17 @@ export default function AssessmentResultPage(): React.JSX.Element {
                           {!isManualQuestion && isCorrect && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
                           {!isManualQuestion && isWrong && <XCircle className="h-3.5 w-3.5 text-red-500" />}
                         </div>
-                        <p className={cn("text-sm text-foreground leading-relaxed pt-1", isManualQuestion && "font-medium")}>
+                        <p className={cn("text-base text-foreground leading-relaxed pt-1", isManualQuestion && "font-medium")}>
                           {q.questionText}
                         </p>
                       </div>
                     </div>
 
                     {/* Student answer */}
-                    <div className="text-sm space-y-1">
+                    <div className="text-sm space-y-1.5">
                       <p className="text-xs text-muted-foreground font-medium">Your answer:</p>
                       <p className={cn(
-                        "rounded-md px-3 py-2 border text-sm whitespace-pre-wrap",
+                        "rounded-md px-4 py-3 border text-sm whitespace-pre-wrap",
                         isManualQuestion ? "bg-white border-blue-200 text-foreground" : isCorrect ? "bg-emerald-50 border-emerald-200 text-emerald-800" : isWrong ? "bg-red-50 border-red-200 text-red-800" : "bg-muted border-border"
                       )}>
                         {q.studentAnswer || "(no answer)"}
@@ -203,9 +204,9 @@ export default function AssessmentResultPage(): React.JSX.Element {
 
                     {/* Correct answer (only if wrong or different) */}
                     {!isManualQuestion && isWrong && q.correctAnswer && (
-                      <div className="text-sm space-y-1">
+                      <div className="text-sm space-y-1.5">
                         <p className="text-xs text-emerald-600 font-medium">Correct answer:</p>
-                        <p className="rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-emerald-800">
+                        <p className="rounded-md bg-emerald-50 border border-emerald-200 px-4 py-3 text-emerald-800">
                           {q.correctAnswer}
                         </p>
                       </div>

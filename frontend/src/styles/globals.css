@@ -22,6 +22,9 @@
 /* Responsive styles for all devices */
 @import "./responsive.css";
 
+/* Responsive styles specific to meeting room components */
+@import "./responsive-meeting.css";
+
 /* Error display in login forms */
 @import "./error-login.css";
 

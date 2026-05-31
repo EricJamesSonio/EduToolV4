@@ -5,6 +5,7 @@ import { useAgoraRTC } from "@/hooks/meeting/useAgoraRTC";
 import { useMeetingSocket } from "@/hooks/meeting/useMeetingSocket";
 import type { ILocalAudioTrack, ILocalVideoTrack, IAgoraRTCRemoteUser } from "agora-rtc-sdk-ng";
 import type { MeetingParticipant, ChatMessage } from "@/types/meeting/socket.types";
+import type { IncomingReaction, IncomingHandRaise } from "@/hooks/meeting/useMeetingSocket";
 
 interface MeetingTokenData {
   token: string;
@@ -19,28 +20,35 @@ interface MeetingContextValue {
   meetingId: string;
   classId: string;
   role: "educator" | "student";
-
   joined: boolean;
   localAudio: ILocalAudioTrack | null;
   localVideo: ILocalVideoTrack | null;
   remoteUsers: IAgoraRTCRemoteUser[];
   toggleMic: () => Promise<void>;
   toggleCamera: () => Promise<void>;
-
+  shareScreen: () => Promise<void>;
   connected: boolean;
   participants: MeetingParticipant[];
   chat: ChatMessage[];
   currentSlide: number;
   isPresenting: boolean;
+  presentationId: string | null;
+  latestReaction: IncomingReaction | null;
+  latestHandRaise: IncomingHandRaise | null;
   sendChat: (message: string) => void;
   raiseHand: () => void;
   lowerHand: () => void;
   sendReaction: (emoji: string) => void;
   changeSlide: (slide: number) => void;
-  startPresentation: () => void;
+  startPresentation: (presentationId?: string) => void;
   stopPresentation: () => void;
-
-  joinMeeting: (params: { classId: string; meetingId: string; role: "educator" | "student"; tokenData: MeetingTokenData; authToken: string }) => void;
+  joinMeeting: (params: {
+    classId: string;
+    meetingId: string;
+    role: "educator" | "student";
+    tokenData: MeetingTokenData;
+    authToken: string;
+  }) => void;
   leaveMeeting: () => void;
   minimize: () => void;
   maximize: () => void;
@@ -66,18 +74,26 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
-  const agoraProps = meetingParams?.tokenData ?? { appId: "", channel: "", token: "", uid: 0 };
-  const socketProps = { meetingId: meetingParams?.meetingId ?? "", token: meetingParams?.authToken ?? "" };
+  const agoraProps = meetingParams?.tokenData ?? {
+    appId: "", channel: "", token: "", uid: 0,
+  };
+
+  const socketProps = {
+    meetingId: meetingParams?.meetingId ?? "",
+    token:     meetingParams?.authToken ?? "",
+  };
 
   const {
     joined, localAudio, localVideo, remoteUsers,
-    toggleMic, toggleCamera,
+    toggleMic, toggleCamera, shareScreen,
   } = useAgoraRTC(agoraProps);
 
   const {
-    connected, participants, chat, currentSlide, isPresenting,
+    connected, participants, chat, currentSlide, isPresenting, presentationId,
     sendChat, raiseHand, lowerHand, sendReaction,
     changeSlide, startPresentation, stopPresentation,
+    latestReaction,   // ← plain destructure
+    latestHandRaise,
   } = useMeetingSocket(socketProps);
 
   const joinMeeting = useCallback((params: {
@@ -98,45 +114,29 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     setMeetingParams(null);
   }, []);
 
-  const minimize = useCallback(() => {
-    setIsMinimized(true);
-  }, []);
-
-  const maximize = useCallback(() => {
-    setIsMinimized(false);
-  }, []);
+  const minimize = useCallback(() => setIsMinimized(true), []);
+  const maximize = useCallback(() => setIsMinimized(false), []);
 
   const value: MeetingContextValue = {
     isInMeeting: !!meetingParams && !leaving,
     isMinimized,
     meetingId: meetingParams?.meetingId ?? "",
-    classId: meetingParams?.classId ?? "",
-    role: meetingParams?.role ?? "student",
+    classId:   meetingParams?.classId   ?? "",
+    role:      meetingParams?.role      ?? "student",
 
-    joined,
-    localAudio,
-    localVideo,
-    remoteUsers,
-    toggleMic,
-    toggleCamera,
+    joined, localAudio, localVideo, remoteUsers,
+    toggleMic, toggleCamera, shareScreen,
 
-    connected,
-    participants,
-    chat,
-    currentSlide,
-    isPresenting,
-    sendChat,
-    raiseHand,
-    lowerHand,
-    sendReaction,
-    changeSlide,
-    startPresentation,
-    stopPresentation,
+    connected, participants, chat, currentSlide, isPresenting, presentationId,
 
-    joinMeeting,
-    leaveMeeting,
-    minimize,
-    maximize,
+    // Gate overlay values — null when not in a session so stale data never leaks
+    latestReaction:  meetingParams ? latestReaction  : null,
+    latestHandRaise: meetingParams ? latestHandRaise : null,
+
+    sendChat, raiseHand, lowerHand, sendReaction,
+    changeSlide, startPresentation, stopPresentation,
+
+    joinMeeting, leaveMeeting, minimize, maximize,
   };
 
   return (

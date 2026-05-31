@@ -1,28 +1,33 @@
+// src/app/educator/classes/[classId]/lessons/new/page.tsx
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { LessonForm } from "@/components/educator/lesson/LessonForm";
 import { useCreateLesson } from "@/hooks/educator/useLessons";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import { CreateLessonRequest } from "@/api/educator/lesson.api";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import Link from "next/link";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Loader2 } from "lucide-react";
 
 export default function NewLessonPage(): React.JSX.Element {
-  const params = useParams();
-  const router = useRouter();
-  const classId = params.classId as string;
+  const params       = useParams();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const classId      = params.classId as string;
+
+  // ?week=N is set by WeekCalendar's "+ Add lesson" link
+  const preselectedWeek = searchParams.get("week")
+    ? Number(searchParams.get("week"))
+    : null;
 
   const { data: weeks, isLoading: weeksLoading } = useClassWeeks(classId);
-  const { mutateAsync: createLesson, isPending } = useCreateLesson(classId);
+  const { mutateAsync: createLesson, isPending }  = useCreateLesson(classId);
 
   async function handleSubmit(data: CreateLessonRequest): Promise<void> {
     const lesson = await createLesson(data);
     toast.success("Lesson saved. Concept extraction running...");
-    router.push(
-      `/educator/classes/${classId}/lessons/${lesson.id}?extracting=true`,
-    );
+    router.push(`/educator/classes/${classId}/lessons/${lesson.id}?extracting=true`);
   }
 
   if (weeksLoading) {
@@ -34,21 +39,22 @@ export default function NewLessonPage(): React.JSX.Element {
     );
   }
 
+  const availableWeeks = weeks ?? [{ label: "1", value: 1 }];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link
-          href={`/educator/classes/${classId}/lessons`}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <h1 className="text-xl font-semibold">New Lesson</h1>
-      </div>
+      <PageHeader
+        title="New Lesson"
+        breadcrumbs={[
+          { label: "Lessons", href: `/educator/classes/${classId}/lessons` },
+          { label: "New Lesson" },
+        ]}
+      />
 
       <LessonForm
         classId={classId}
-        availableWeeks={weeks ?? [{ label: "1", value: 1 }]}
+        availableWeeks={availableWeeks}
+        preselectedWeek={preselectedWeek}
         isLoading={isPending}
         onSubmit={handleSubmit}
       />

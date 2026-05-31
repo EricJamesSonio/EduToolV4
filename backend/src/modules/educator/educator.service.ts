@@ -126,8 +126,9 @@ export class EducatorService {
     }
 
     const updated = await this.educatorRepository.updateProfile(id, {
-      fullName: dto.fullName,
-      email: email,
+      fullName:     dto.fullName,
+      email:        dto.email,
+      profileImage: dto.profileImage,
     });
 
     return this.formatAccount(updated);
@@ -197,6 +198,7 @@ export class EducatorService {
       educatorId: meta?.educatorId ?? null,
       createdAt: account.created_at,
       personalEmail: (account.profile?.personal_email ?? null) as string | null,
+      profileImage: account.profile?.profile_image ?? null,
     };
   }
 }

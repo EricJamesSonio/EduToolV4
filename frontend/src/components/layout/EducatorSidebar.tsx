@@ -11,6 +11,7 @@ import {
   ActivitySquare,
   LayoutGrid,
   FileText,
+  Presentation,
   ClipboardCheck,
   CalendarCheck,
   BarChart2,
@@ -56,6 +57,7 @@ export function EducatorSidebar() {
           items: [
             { label: "Overview", href: `/educator/classes/${classId}`, icon: LayoutGrid, exact: true },
             { label: "Lessons", href: `/educator/classes/${classId}/lessons`, icon: FileText },
+            { label: "Presentations", href: `/educator/classes/${classId}/presentations`, icon: Presentation },
             { label: "Assessments", href: `/educator/classes/${classId}/assessments`, icon: ClipboardCheck },
             { label: "Attendance", href: `/educator/classes/${classId}/attendance`, icon: CalendarCheck },
             { label: "Grades", href: `/educator/classes/${classId}/grades`, icon: BarChart2 },

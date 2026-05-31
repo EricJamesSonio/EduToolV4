@@ -19,8 +19,9 @@ export interface CreateStudentResponse {
 }
 
 export interface UpdateStudentRequest {
-  fullName?: string;
-  email?:    string;
+  fullName?:     string;
+  email?:        string;
+  profileImage?: string;
 }
 
 export interface UpdateStudentStatusRequest {

@@ -40,6 +40,13 @@ export class PresentationRepository {
     });
   }
 
+  async findByLesson(orgId: string, classId: string, lessonId: string) {
+    return this.db.presentation.findFirst({
+      where: { org_id: orgId, class_id: classId, lesson_id: lessonId },
+      include: { slides: { orderBy: { slide_number: 'asc' } } },
+    });
+  }
+
   async update(
     id: string,
     data: { title?: string; template?: string; settings?: Record<string, any> },
@@ -64,7 +71,7 @@ export class PresentationRepository {
   ) {
     await this.db.slide.deleteMany({ where: { presentation_id: presentationId } });
     if (slides.length === 0) return [];
-    return this.db.slide.createManyAndReturn({
+    const created = await this.db.slide.createManyAndReturn({
       data: slides.map((s) => ({
         presentation_id: presentationId,
         slide_number: s.slideNumber,
@@ -72,7 +79,7 @@ export class PresentationRepository {
         content: s.content,
         lesson_section: s.lessonSection ?? null,
       })),
-      orderBy: { slide_number: 'asc' },
     });
+    return created.sort((a, b) => a.slide_number - b.slide_number);
   }
 }

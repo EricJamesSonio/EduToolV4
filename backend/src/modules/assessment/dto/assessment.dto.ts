@@ -124,6 +124,11 @@ export class CreateAssessmentDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  weekNumber?: number;
 }
 
 // ── PATCH /assessments/:id ────────────────────────────────────────────────────
@@ -161,6 +166,11 @@ export class UpdateAssessmentDto {
   @IsOptional()
   @IsString()
   manualInstructions?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  weekNumber?: number;
 }
 
 // ── PATCH /assessments/:id/questions/:questionId ──────────────────────────────
@@ -185,7 +195,12 @@ export class UpdateQuestionDto {
 
   @IsOptional()
   @IsString()
-  sectionType?: string;
+  type?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  weekNumber?: number;
 }
 
 // ── POST /assessments/:id/grade-visibility ────────────────────────────────────
@@ -205,6 +220,11 @@ export class QueryAssessmentDto {
   @IsOptional()
   @IsString()
   type?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  weekNumber?: number;
 }
 
 // ── POST /assessments/:id/publish ────────────────────────────────────────────

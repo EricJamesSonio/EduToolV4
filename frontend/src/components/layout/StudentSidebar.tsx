@@ -13,7 +13,6 @@ const TOP_LEVEL_GROUPS: NavGroup[] = [
   {
     items: [
       { label: "My Classes", href: "/student/classes",   icon: BookOpen },
-      { label: "Meetings",   href: "/student/meetings",  icon: Video },
       { label: "Transcript", href: "/student/transcript", icon: ScrollText },
     ],
   },
@@ -36,18 +35,18 @@ export function StudentSidebar() {
         {
           items: [
             { label: "My Classes", href: "/student/classes",   icon: BookOpen, exact: true },
-            { label: "Meetings",   href: "/student/meetings",  icon: Video },
             { label: "Transcript", href: "/student/transcript", icon: ScrollText },
           ],
         },
         {
           label: "Current Class",
           items: [
-            { label: "Overview",    href: `/student/classes/${classId}`,             icon: LayoutGrid,    exact: true },
-            { label: "Lessons",     href: `/student/classes/${classId}/lessons`,     icon: FileText },
-            { label: "Assessments", href: `/student/classes/${classId}/assessments`, icon: ClipboardCheck },
-            { label: "Attendance",  href: `/student/classes/${classId}/attendance`,  icon: CalendarCheck },
-            { label: "Grades",      href: `/student/classes/${classId}/grades`,      icon: BarChart2 },
+            { label: "Overview",    href: `/student/classes/${classId}`,                icon: LayoutGrid,    exact: true },
+            { label: "Lessons",     href: `/student/classes/${classId}/lessons`,        icon: FileText },
+            { label: "Meetings",    href: `/student/classes/${classId}/meetings`,       icon: Video },
+            { label: "Assessments", href: `/student/classes/${classId}/assessments`,    icon: ClipboardCheck },
+            { label: "Attendance",  href: `/student/classes/${classId}/attendance`,     icon: CalendarCheck },
+            { label: "Grades",      href: `/student/classes/${classId}/grades`,         icon: BarChart2 },
           ],
         },
         {
