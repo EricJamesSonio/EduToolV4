@@ -137,6 +137,7 @@ export class StudentRepository {
       personal_email?: string | null;
       levelId?: string;
       sectionId?: string;
+      profileImage?: string;
     },
   ) {
     return this.db.$transaction(async (tx) => {
@@ -159,6 +160,7 @@ export class StudentRepository {
         data: {
           ...(data.fullName ? { full_name: data.fullName } : {}),
           ...(data.personal_email !== undefined ? { personal_email: data.personal_email ?? null } : {}),
+          ...(data.profileImage !== undefined ? { profile_image: data.profileImage } : {}),
           metadata: {
             ...currentMeta,
             ...(data.levelId   !== undefined ? { levelId:   data.levelId   } : {}),

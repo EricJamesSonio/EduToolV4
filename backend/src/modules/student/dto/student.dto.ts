@@ -59,6 +59,11 @@ export class UpdateStudentDto {
   @IsOptional()
   @IsUUID()
   sectionId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  profileImage?: string;
 }
 
 export class UpdateStudentStatusDto {

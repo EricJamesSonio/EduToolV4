@@ -59,6 +59,7 @@ export class StudentService {
       sectionId:     (meta['sectionId'] ?? null) as string | null,
       createdAt:     account.created_at as Date,
       personalEmail: (account.profile?.personal_email ?? null) as string | null,
+      profileImage:  (account.profile?.profile_image ?? null) as string | null,
     };
   }
 
@@ -140,10 +141,11 @@ export class StudentService {
     }
 
     const updated = await this.studentRepository.updateProfile(id, {
-      fullName:  dto.fullName,
-      email:     dto.email,
-      levelId:   dto.levelId,
-      sectionId: dto.sectionId,
+      fullName:     dto.fullName,
+      email:        dto.email,
+      levelId:      dto.levelId,
+      sectionId:    dto.sectionId,
+      profileImage: dto.profileImage,
     });
 
     // ── Audit log ──────────────────────────────────────────────────────────
