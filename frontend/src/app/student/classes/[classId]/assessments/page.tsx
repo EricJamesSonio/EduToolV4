@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
-import { formatDate } from "@/utils/date.util";
+import { formatDateTime } from "@/utils/date.util";
 import { useStudentAssessments } from "@/hooks/student/useStudentAssessments";
 import type { StudentAssessmentItem } from "@/api/student/assessment.api";
 
@@ -122,13 +122,13 @@ function AssessmentRow({
           {item.releaseDate && (
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
               <Calendar className="h-3 w-3" />
-              Opens {formatDate(item.releaseDate)}
-            </span>
-          )}
-          {item.endDate && (
-            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              Due {formatDate(item.endDate)}
+              Opens {formatDateTime(item.releaseDate)}
+              </span>
+            )}
+            {item.endDate && (
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                Due {formatDateTime(item.endDate)}
             </span>
           )}
           {item.isPublished && (

@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
+import { formatDateTime } from "@/utils/date.util";
 import { useStudentAssessment } from "@/hooks/student/useStudentAssessments";
 import {
   useStartSubmission,
@@ -201,13 +202,13 @@ export default function AssessmentTakerPage(): React.JSX.Element {
               {assessment.releaseDate && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" />
-                  Released {new Date(assessment.releaseDate).toLocaleDateString()}
+                  Released {formatDateTime(assessment.releaseDate)}
                 </span>
               )}
               {assessment.endDate && (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" />
-                  Due {new Date(assessment.endDate).toLocaleDateString()}
+                  Due {formatDateTime(assessment.endDate)}
                 </span>
               )}
               <span className="text-xs text-muted-foreground">{assessment.totalItems} items</span>

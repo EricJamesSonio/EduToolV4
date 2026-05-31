@@ -1,16 +1,17 @@
 "use client";
 
-// filepath: frontend/src/app/educator/classes/[classId]/assessments/page.tsx
-
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import {
   useAssessments,
   useDeleteAssessment,
 } from "@/hooks/educator/useAssessments";
+import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
+import { educatorGradingSchemeApi } from "@/api/educator/grading-scheme.api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Loader2, Eye, Users, Trash2 } from "lucide-react";
 import type { AssessmentType } from "@/types/educator/assessment.types";
+import type { WeekSlot } from "@/types/educator/lesson.types";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-amber-50 text-amber-700 border-amber-200",
@@ -50,28 +52,90 @@ const STATUS_COLORS: Record<string, string> = {
   closed: "bg-zinc-100 text-zinc-600 border-zinc-200",
 };
 
-const TYPE_LABELS: Record<AssessmentType, string> = {
-  written_work: "Written Work",
-  performance_task: "Performance Task",
-  quarterly_assessment: "Quarterly Assessment",
-  exam: "Exam",
-  quiz: "Quiz",
-  project: "Project",
-  recitation: "Recitation",
-  attendance: "Attendance",
-  activity: "Activity",
-  custom: "Custom",
-  other: "Other",
+const TYPE_LABELS: Record<string, string> = {
+  written_work: "Written Work", performance_task: "Performance Task",
+  quarterly_assessment: "Quarterly Assessment", exam: "Exam", quiz: "Quiz",
+  assignment: "Assignment", project: "Project", recitation: "Recitation",
+  participation: "Participation", behavior: "Behavior",
+  attendance: "Attendance", activity: "Activity", custom: "Custom", other: "Other",
 };
 
 export default function AssessmentsPage(): React.JSX.Element {
   const params = useParams();
   const classId = params.classId as string;
 
+  // ── Filters state ────────────────────────────────────────────────────
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [semesterFilter, setSemesterFilter] = useState<string>("all");
+  const [termFilter, setTermFilter] = useState<string>("all");
+  const [weekFilter, setWeekFilter] = useState<string>("all");
+
+  // ── Data ─────────────────────────────────────────────────────────────
+  const { data: weeks = [] } = useClassWeeks(classId);
+
+  const { data: gradingScheme } = useQuery({
+    queryKey: ["grading-scheme", classId],
+    queryFn: () => educatorGradingSchemeApi.getForClass(classId),
+  });
+  const schemeTypes = gradingScheme?.components?.map((c) => c.type) ?? [];
+
+  // Build cascading filter groups from weeks data
+  const { semesterOptions, termOptions, weekOptions } = useMemo(() => {
+    const semesters = new Map<string, { label: string; index: number }>();
+    const terms = new Map<string, { label: string; semesterIndex: number }>();
+    const weeksMap = new Map<string, { label: string; value: number; termId: string }>();
+
+    for (const w of weeks) {
+      const semKey = `${w.semesterIndex}`;
+      if (!semesters.has(semKey)) {
+        semesters.set(semKey, { label: w.semesterName, index: w.semesterIndex });
+      }
+      if (!terms.has(w.termId)) {
+        terms.set(w.termId, { label: w.termName, semesterIndex: w.semesterIndex });
+      }
+      const weekKey = `${w.value}`;
+      if (!weeksMap.has(weekKey)) {
+        weeksMap.set(weekKey, { label: w.label, value: w.value, termId: w.termId });
+      }
+    }
+
+    const semesterOpts = Array.from(semesters.entries())
+      .map(([key, v]) => ({ value: key, label: v.label, index: v.index }))
+      .sort((a, b) => a.index - b.index);
+
+    const termOpts = Array.from(terms.entries())
+      .map(([key, v]) => ({ value: key, label: v.label, semesterIndex: v.semesterIndex }))
+      .sort((a, b) => a.semesterIndex - b.semesterIndex);
+
+    const weekOpts = Array.from(weeksMap.entries())
+      .map(([key, v]) => ({ value: key, label: v.label, weekValue: v.value, termId: v.termId }))
+      .sort((a, b) => a.weekValue - b.weekValue);
+
+    return { semesterOptions: semesterOpts, termOptions: termOpts, weekOptions: weekOpts };
+  }, [weeks]);
+
+  // Filtered term/week options based on higher-level selections
+  const filteredTermOptions = useMemo(() => {
+    if (semesterFilter === "all") return termOptions;
+    return termOptions.filter((t) => {
+      const sem = semesterOptions.find((s) => s.value === semesterFilter);
+      return sem && t.semesterIndex === sem.index;
+    });
+  }, [termOptions, semesterFilter, semesterOptions]);
+
+  const filteredWeekOptions = useMemo(() => {
+    if (termFilter === "all") return weekOptions;
+    return weekOptions.filter((w) => w.termId === termFilter);
+  }, [weekOptions, termFilter]);
+
+  // Determine selected termId and weekNumber for API call
+  const selectedTermId = termFilter !== "all" ? termFilter : undefined;
+  const selectedWeekNumber = weekFilter !== "all" ? parseInt(weekFilter, 10) : undefined;
 
   const { data: assessments, isLoading } = useAssessments(classId, {
     type: typeFilter === "all" ? undefined : typeFilter,
+    termId: selectedTermId,
+    weekNumber: selectedWeekNumber,
   });
   const { mutateAsync: deleteAssessment, isPending: isDeleting } =
     useDeleteAssessment(classId);
@@ -96,22 +160,62 @@ export default function AssessmentsPage(): React.JSX.Element {
       />
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
-        <Select
-          value={typeFilter}
-          onValueChange={(value) => setTypeFilter(value ?? "all")}
-        >
-          <SelectTrigger className="w-36">
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-40">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="quiz">Quiz</SelectItem>
-            <SelectItem value="activity">Activity</SelectItem>
-            <SelectItem value="exam">Exam</SelectItem>
-            <SelectItem value="custom">Custom</SelectItem>
+            {schemeTypes.length > 0
+              ? schemeTypes.map((t) => (
+                  <SelectItem key={t} value={t}>{TYPE_LABELS[t] ?? t.replace(/_/g, " ")}</SelectItem>
+                ))
+              : (["quiz","activity","exam","custom"] as const).map((t) => (
+                  <SelectItem key={t} value={t}>{TYPE_LABELS[t]}</SelectItem>
+                ))}
           </SelectContent>
         </Select>
+
+        <Select value={semesterFilter} onValueChange={(v) => { setSemesterFilter(v); setTermFilter("all"); setWeekFilter("all"); }}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Semester">{semesterFilter !== "all" ? semesterOptions.find(s => s.value === semesterFilter)?.label : ""}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Semesters</SelectItem>
+            {semesterOptions.map((s) => (
+              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {semesterFilter !== "all" && (
+          <Select value={termFilter} onValueChange={(v) => { setTermFilter(v); setWeekFilter("all"); }}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Term">{termFilter !== "all" ? filteredTermOptions.find(t => t.value === termFilter)?.label : ""}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Terms</SelectItem>
+              {filteredTermOptions.map((t) => (
+                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {termFilter !== "all" && (
+          <Select value={weekFilter} onValueChange={setWeekFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Week">{weekFilter !== "all" ? filteredWeekOptions.find(w => w.value === weekFilter)?.label : ""}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Weeks</SelectItem>
+              {filteredWeekOptions.map((w) => (
+                <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Table */}
@@ -136,6 +240,7 @@ export default function AssessmentsPage(): React.JSX.Element {
               <TableRow>
                 <TableHead className="px-4 py-3">Title</TableHead>
                 <TableHead className="px-4 py-3">Type</TableHead>
+                <TableHead className="px-4 py-3">Week</TableHead>
                 <TableHead className="px-4 py-3">Release Date</TableHead>
                 <TableHead className="px-4 py-3">End Date</TableHead>
                 <TableHead className="px-4 py-3">Status</TableHead>
@@ -152,13 +257,16 @@ export default function AssessmentsPage(): React.JSX.Element {
                     <Badge variant="outline">{TYPE_LABELS[a.type]}</Badge>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-muted-foreground">
+                    {a.weekNumber ? `Week ${a.weekNumber}` : "—"}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-muted-foreground">
                     {a.releaseDate
-                      ? format(new Date(a.releaseDate), "MMM d, yyyy")
+                      ? format(new Date(a.releaseDate), "MMM d, yyyy h:mm a")
                       : "—"}
                   </TableCell>
                   <TableCell className="px-4 py-3 text-muted-foreground">
                     {a.endDate
-                      ? format(new Date(a.endDate), "MMM d, yyyy")
+                      ? format(new Date(a.endDate), "MMM d, yyyy h:mm a")
                       : "—"}
                   </TableCell>
                   <TableCell className="px-4 py-3">

@@ -754,6 +754,7 @@ model Assessment {
   release_date   DateTime?
   end_date       DateTime?
   is_published   Boolean     @default(false)
+  week_number    Int?
   created_at     DateTime    @default(now())
   deleted_at     DateTime?
 

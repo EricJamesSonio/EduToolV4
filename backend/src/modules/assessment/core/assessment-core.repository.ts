@@ -18,6 +18,7 @@ export class AssessmentRepository {
     totalItems: number;
     releaseDate?: Date;
     endDate?: Date;
+    weekNumber?: number;
     gradingMode?: string;
     manualMaxScore?: number;
     showBreakdown?: boolean;
@@ -32,6 +33,7 @@ export class AssessmentRepository {
         title: data.title ?? null,
         total_items: data.totalItems,
         release_date: data.releaseDate ?? null,
+        week_number: data.weekNumber ?? null,
         is_published: false,
         grading_mode: data.gradingMode as any ?? 'system',
         manual_max_score: data.manualMaxScore ?? null,
@@ -40,13 +42,14 @@ export class AssessmentRepository {
     });
   }
 
-  async findAll(classId: string, orgId: string, filters: { termId?: string; type?: string }) {
+  async findAll(classId: string, orgId: string, filters: { termId?: string; type?: string; weekNumber?: number }) {
     return this.db.assessment.findMany({
       where: {
         class_id: classId,
         org_id: orgId,
         ...(filters.termId ? { term_id: filters.termId } : {}),
         ...(filters.type ? { type: filters.type } : {}),
+        ...(filters.weekNumber ? { week_number: filters.weekNumber } : {}),
       },
       orderBy: { created_at: 'asc' },
     });
@@ -56,7 +59,7 @@ export class AssessmentRepository {
     return this.db.assessment.findFirst({ where: { id, org_id: orgId } });
   }
 
-  async update(id: string, data: { releaseDate?: Date | null; endDate?: Date | null; type?: string; title?: string; isPublished?: boolean; showBreakdown?: boolean; gradingMode?: string; manualMaxScore?: number | null }) {
+  async update(id: string, data: { releaseDate?: Date | null; endDate?: Date | null; type?: string; title?: string; isPublished?: boolean; showBreakdown?: boolean; gradingMode?: string; manualMaxScore?: number | null; weekNumber?: number | null }) {
     return this.db.assessment.update({
       where: { id },
       data: {
@@ -68,6 +71,7 @@ export class AssessmentRepository {
         ...(data.showBreakdown !== undefined ? { show_breakdown: data.showBreakdown } : {}),
         ...(data.gradingMode !== undefined ? { grading_mode: data.gradingMode as any } : {}),
         ...(data.manualMaxScore !== undefined ? { manual_max_score: data.manualMaxScore } : {}),
+        ...(data.weekNumber !== undefined ? { week_number: data.weekNumber } : {}),
       },
     });
   }

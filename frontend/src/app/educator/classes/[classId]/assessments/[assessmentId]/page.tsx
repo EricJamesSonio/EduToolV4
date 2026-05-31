@@ -300,6 +300,12 @@ export default function AssessmentDetailPage(): React.JSX.Element {
       {/* Info Card */}
       <div className="rounded-lg border bg-card divide-y divide-border">
         <div className="flex items-center gap-6 px-6 py-4">
+          <span className="w-28 text-sm text-muted-foreground shrink-0">Week</span>
+          <span className="text-sm">
+            {assessment.weekNumber ? `Week ${assessment.weekNumber}` : "—"}
+          </span>
+        </div>
+        <div className="flex items-center gap-6 px-6 py-4">
           <span className="w-28 text-sm text-muted-foreground shrink-0">Release Date</span>
           <span className="text-sm">
             {assessment.releaseDate

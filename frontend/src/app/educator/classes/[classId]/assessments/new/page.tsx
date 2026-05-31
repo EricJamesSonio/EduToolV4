@@ -2,14 +2,15 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { assessmentKeys } from "@/hooks/queryKeys";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Check, Loader2, ChevronDown, ChevronUp, Sparkles, Pencil, BookOpen } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useLessons } from "@/hooks/educator/useLessons";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
-import {
-  useCreateAssessment,
+import { useCreateAssessment,
   useAssessment,
   useUpdateAssessment,
 } from "@/hooks/educator/useAssessments";
@@ -70,6 +71,7 @@ interface BuilderState {
   endDate: string;
   selectedStudentIds: string[];
   selectedTermId: string;
+  weekNumber: number;
 }
 
 interface TermOption {
@@ -120,16 +122,16 @@ function defaultSectionTitle(type: QuestionType): string {
 }
 
 const CIRCLE_COLORS = [
-  { fill: "bg-blue-500 text-white border-transparent", outline: "border-blue-500 text-blue-500 bg-background" },
-  { fill: "bg-emerald-500 text-white border-transparent", outline: "border-emerald-500 text-emerald-500 bg-background" },
-  { fill: "bg-purple-500 text-white border-transparent", outline: "border-purple-500 text-purple-500 bg-background" },
-  { fill: "bg-amber-500 text-white border-transparent", outline: "border-amber-500 text-amber-500 bg-background" },
-  { fill: "bg-teal-500 text-white border-transparent", outline: "border-teal-500 text-teal-500 bg-background" },
-  { fill: "bg-indigo-500 text-white border-transparent", outline: "border-indigo-500 text-indigo-500 bg-background" },
-  { fill: "bg-pink-500 text-white border-transparent", outline: "border-pink-500 text-pink-500 bg-background" },
-  { fill: "bg-cyan-500 text-white border-transparent", outline: "border-cyan-500 text-cyan-500 bg-background" },
-  { fill: "bg-orange-500 text-white border-transparent", outline: "border-orange-500 text-orange-500 bg-background" },
-  { fill: "bg-rose-500 text-white border-transparent", outline: "border-rose-500 text-rose-500 bg-background" },
+  { fill: "bg-blue-500 text-white border-transparent", outline: "border-blue-500 text-blue-500 bg-card" },
+  { fill: "bg-emerald-500 text-white border-transparent", outline: "border-emerald-500 text-emerald-500 bg-card" },
+  { fill: "bg-purple-500 text-white border-transparent", outline: "border-purple-500 text-purple-500 bg-card" },
+  { fill: "bg-amber-500 text-white border-transparent", outline: "border-amber-500 text-amber-500 bg-card" },
+  { fill: "bg-teal-500 text-white border-transparent", outline: "border-teal-500 text-teal-500 bg-card" },
+  { fill: "bg-indigo-500 text-white border-transparent", outline: "border-indigo-500 text-indigo-500 bg-card" },
+  { fill: "bg-pink-500 text-white border-transparent", outline: "border-pink-500 text-pink-500 bg-card" },
+  { fill: "bg-cyan-500 text-white border-transparent", outline: "border-cyan-500 text-cyan-500 bg-card" },
+  { fill: "bg-orange-500 text-white border-transparent", outline: "border-orange-500 text-orange-500 bg-card" },
+  { fill: "bg-rose-500 text-white border-transparent", outline: "border-rose-500 text-rose-500 bg-card" },
 ];
 
 function StepIndicator({ steps, current }: { steps: string[]; current: number }) {
@@ -146,7 +148,7 @@ function StepIndicator({ steps, current }: { steps: string[]; current: number })
                 "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-[3px] transition-colors",
                 done && c.fill,
                 active && c.outline,
-                !done && !active && "border-muted-foreground/30 text-muted-foreground/40 bg-background",
+                !done && !active && "border-muted-foreground/30 text-muted-foreground/40 bg-card",
               )}>
                 {done ? <Check className="h-4 w-4" /> : i + 1}
               </div>
@@ -434,7 +436,7 @@ function Step3({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Assessment Type <span className="text-destructive">*</span></label>
-          <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+          <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })} className="w-full rounded-md border bg-card px-3 py-2 text-sm">
             {schemeTypes.length > 0 ? schemeTypes.map((t) => (
               <option key={t} value={t}>{TYPE_LABELS[t] ?? t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</option>
             )) : (
@@ -449,13 +451,13 @@ function Step3({
           <input type="text" value={title}
             onChange={(e) => onChange({ title: e.target.value })}
             placeholder="e.g. Quiz 2"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+            className="w-full rounded-md border bg-card px-3 py-2 text-sm" />
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Total Items <span className="text-destructive">*</span></label>
           <input type="number" min={1} value={totalItems}
             onChange={(e) => onChange({ totalItems: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-            className={cn("w-full rounded-md border bg-background px-3 py-2 text-sm", totalErr && "border-destructive")} />
+            className={cn("w-full rounded-md border bg-card px-3 py-2 text-sm", totalErr && "border-destructive")} />
           {totalErr ? <p className="text-xs text-destructive">{totalErr}</p> : <p className="text-xs text-muted-foreground">System-generated items count. Concept build limit ({conceptItems.length}) only applies to AI sections.</p>}
         </div>
       </div>
@@ -513,7 +515,7 @@ function Step3({
             const selectedIndicesSet = new Set(sec.selectedItemIndices);
 
             return (
-              <div key={sec.id} className="rounded-lg border p-4 space-y-3">
+              <div key={sec.id} className="rounded-lg border bg-card p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <input type="text" value={sec.title} placeholder={defaultSectionTitle(sec.questionType)}
                     onChange={(e) => updateSection(si, { title: e.target.value })}
@@ -531,7 +533,7 @@ function Step3({
                       <label className="text-xs text-muted-foreground">Max Score</label>
                       <input type="number" min={1} value={sec.manualMaxScore ?? 1}
                         onChange={(e) => updateSection(si, { manualMaxScore: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-                        className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" />
+                        className="w-full rounded-md border bg-card px-3 py-1.5 text-sm" />
                     </div>
                   ) : (
                     <>
@@ -543,13 +545,13 @@ function Step3({
                         <label className="text-xs text-muted-foreground">Count</label>
                         <input type="number" min={1} max={totalItems - sec.from + 1} value={secCount}
                           onChange={(e) => setSectionCount(si, parseInt(e.target.value, 10) || 1)}
-                          className="w-full rounded-md border bg-background px-3 py-1.5 text-sm" />
+                          className="w-full rounded-md border bg-card px-3 py-1.5 text-sm" />
                       </div>
                     </>
                   )}
                   <div className="space-y-1 w-36">
                     <label className="text-xs text-muted-foreground">Type</label>
-                    <select value={sec.questionType} onChange={(e) => updateSection(si, { questionType: e.target.value as QuestionType })} className="w-full rounded-md border bg-background px-3 py-1.5 text-sm">
+                    <select value={sec.questionType} onChange={(e) => updateSection(si, { questionType: e.target.value as QuestionType })} className="w-full rounded-md border bg-card px-3 py-1.5 text-sm">
                       {Q_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
@@ -565,50 +567,65 @@ function Step3({
                       onChange={(e) => updateSection(si, { manualQuestionText: e.target.value })}
                       placeholder="Write the question or prompt students will respond to. This will be manually graded."
                       rows={4}
-                      className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none" />
+                      className="w-full rounded-md border bg-card px-3 py-2 text-sm resize-none" />
                   </div>
                 ) : (
                   <>
-                    <div className="rounded-lg border max-h-56 overflow-y-auto divide-y">
-                      {grouped.map((g) => {
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {grouped.map((g, gi) => {
                         if (!g.items.length) return null;
+                        const color = WEEK_COLORS[gi % WEEK_COLORS.length];
                         const allSelected = g.items.every((ci) => selectedIndicesSet.has(ci.index));
+                        const someSelected = g.items.some((ci) => selectedIndicesSet.has(ci.index));
                         return (
-                          <div key={g.section} className="px-3 py-2">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.section} ({g.items.length})</span>
-                              <label className="flex items-center gap-1 text-xs cursor-pointer">
-                                <input type="checkbox" checked={allSelected}
-                                  onChange={() => {
-                                    if (allSelected) {
-                                      updateSection(si, { selectedItemIndices: sec.selectedItemIndices.filter((idx) => !g.items.some((ci) => ci.index === idx)) });
-                                    } else {
-                                      const toAdd = g.items.filter((ci) => !selectedIndicesSet.has(ci.index)).map((ci) => ci.index);
-                                      updateSection(si, { selectedItemIndices: [...sec.selectedItemIndices, ...toAdd] });
-                                    }
-                                  }} className="rounded" />
-                                Select all
-                              </label>
-                            </div>
-                            <div className="space-y-0.5">
-                              {g.items.map((ci) => (
-                                <label key={ci.index} className={cn("flex items-start gap-2 py-0.5 px-1 rounded cursor-pointer text-xs hover:bg-muted/30", selectedIndicesSet.has(ci.index) && "bg-primary/5")}>
-                                  <input type="checkbox" className="mt-0.5 rounded"
-                                    checked={selectedIndicesSet.has(ci.index)}
+                          <div key={g.section} className={cn("rounded-lg border bg-card p-4 space-y-3", someSelected && "ring-1 ring-primary/20")}>
+                            <div className={cn("flex items-center justify-between -mx-4 -mt-4 mb-0 p-3 rounded-t-lg border-b", color)}>
+                              <span className="text-sm font-semibold">{g.section}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium opacity-80">{g.items.length} items</span>
+                                <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer">
+                                  <input type="checkbox" checked={allSelected}
                                     onChange={() => {
-                                      updateSection(si, {
-                                        selectedItemIndices: selectedIndicesSet.has(ci.index)
-                                          ? sec.selectedItemIndices.filter((idx) => idx !== ci.index)
-                                          : [...sec.selectedItemIndices, ci.index],
-                                      });
-                                    }} />
-                                  <div className="flex-1 min-w-0">
-                                    <span className="font-medium">{ci.name}</span>
-                                    {ci.definition && <span className="text-muted-foreground ml-1">— {ci.definition}</span>}
-                                  </div>
-                                  <span className={cn("text-[10px] uppercase shrink-0", ci.difficulty === "easy" ? "text-green-600" : ci.difficulty === "hard" ? "text-destructive" : "text-amber-600")}>{ci.difficulty}</span>
+                                      if (allSelected) {
+                                        updateSection(si, { selectedItemIndices: sec.selectedItemIndices.filter((idx) => !g.items.some((ci) => ci.index === idx)) });
+                                      } else {
+                                        const toAdd = g.items.filter((ci) => !selectedIndicesSet.has(ci.index)).map((ci) => ci.index);
+                                        updateSection(si, { selectedItemIndices: [...sec.selectedItemIndices, ...toAdd] });
+                                      }
+                                    }} className="rounded" />
+                                  Select all
                                 </label>
-                              ))}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              {g.items.map((ci) => {
+                                const isSelected = selectedIndicesSet.has(ci.index);
+                                const diffColor = ci.difficulty === "easy" ? "bg-green-100 text-green-700 border-green-200" : ci.difficulty === "hard" ? "bg-red-100 text-red-700 border-red-200" : "bg-amber-100 text-amber-700 border-amber-200";
+                                return (
+                                  <label key={ci.index} className={cn(
+                                    "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                                    isSelected ? "border-primary/40 bg-primary/5 shadow-sm" : "border-border hover:border-primary/30 hover:bg-muted/20",
+                                  )}>
+                                    <input type="checkbox" className="mt-1 rounded"
+                                      checked={isSelected}
+                                      onChange={() => {
+                                        updateSection(si, {
+                                          selectedItemIndices: isSelected
+                                            ? sec.selectedItemIndices.filter((idx) => idx !== ci.index)
+                                            : [...sec.selectedItemIndices, ci.index],
+                                        });
+                                      }} />
+                                    <div className="flex-1 min-w-0 space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium">{ci.name}</span>
+                                        <span className={cn("text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded border", diffColor)}>{ci.difficulty}</span>
+                                      </div>
+                                      {ci.definition && <p className="text-xs text-muted-foreground leading-relaxed">{ci.definition}</p>}
+                                    </div>
+                                    {isSelected && <Check className="h-4 w-4 text-primary shrink-0 mt-1" />}
+                                  </label>
+                                );
+                              })}
                             </div>
                           </div>
                         );
@@ -769,15 +786,13 @@ function Step4({ classId, previewId, onQuestionsReady }: { classId: string; prev
 
 // ─── Step 5: Final Review — full-page assessment summary ─────────────────────
 function Step5({
-  classId, previewId, questions, state, conceptItems, sectionNames, termInfo, onConfirm
+  classId, previewId, questions, state, conceptItems, sectionNames, termInfo, onNext
 }: {
   classId: string; previewId: string; questions: Question[];
   state: BuilderState; conceptItems: ConceptItemInfo[]; sectionNames: string[];
   termInfo: { termId: string; termName: string; semesterName: string } | null;
-  onConfirm: (assessmentId: string) => void;
+  onNext: () => void;
 }) {
-  const [confirming, setConfirming] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({});
   const [edits, setEdits] = useState<Record<string, { text: string; correctAnswer: string }>>(() =>
     Object.fromEntries(questions.map((q) => [q.id, { text: q.text, correctAnswer: q.correctAnswer ?? "" }]))
   );
@@ -800,20 +815,6 @@ function Step5({
   const manualSections = state.sections.filter((s) => s.questionType === 'manual');
   const aiItemCount = aiSections.reduce((s, sec) => s + (sec.to - sec.from + 1), 0);
   const manualScoreTotal = manualSections.reduce((s, sec) => s + (sec.manualMaxScore ?? 1), 0);
-
-  const toggleSection = (idx: number) => setExpandedSections((p) => ({ ...p, [idx]: !p[idx] }));
-
-  async function handleConfirm() {
-    setConfirming(true);
-    try {
-      const assessment = await assessmentApi.confirmPreview(classId, previewId);
-      toast.success("Assessment created with " + assessment.questions.length + " questions");
-      onConfirm(assessment.id);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to save assessment.");
-      setConfirming(false);
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -875,7 +876,6 @@ function Step5({
           )}
           {state.sections.map((sec, si) => {
             const group = groups[si];
-            const isExpanded = expandedSections[si] ?? false;
             const secQs = group?.questions ?? [];
 
             if (sec.questionType === 'manual') {
@@ -896,16 +896,6 @@ function Step5({
                     </p>
                   )}
                   {secQs.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-amber-600">1 manual question</span>
-                      {secQs[0]?.text && (
-                        <button onClick={() => toggleSection(si)} className="text-xs text-primary hover:underline ml-auto">
-                          {isExpanded ? "Hide question" : "Preview question"}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {isExpanded && secQs.length > 0 && (
                     <QuestionCard question={secQs[0]} index={-1} edits={edits} />
                   )}
                 </div>
@@ -918,7 +908,7 @@ function Step5({
             )];
 
             return (
-              <div key={sec.id} className="rounded-lg border p-4 space-y-2">
+              <div key={sec.id} className="rounded-lg border bg-card p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Section {si + 1}</span>
@@ -928,9 +918,7 @@ function Step5({
                     <span>Items <strong>{sec.from}–{sec.to}</strong></span>
                     <span>Count: <strong>{count}</strong></span>
                     {secQs.length > 0 && (
-                      <button onClick={() => toggleSection(si)} className="text-primary hover:underline">
-                        {isExpanded ? "Collapse" : `${secQs.length} question${secQs.length !== 1 ? "s" : ""}`}
-                      </button>
+                      <span>{secQs.length} question{secQs.length !== 1 ? "s" : ""}</span>
                     )}
                   </div>
                 </div>
@@ -941,30 +929,27 @@ function Step5({
                     ))}
                   </div>
                 )}
-                {isExpanded && (
-                  <div className="space-y-2 pt-2 border-t">
-                    {secQs.map((q, qi) => (
-                      <QuestionCard key={q.id} question={q} index={qi + 1} edits={edits} />
-                    ))}
-                    {secQs.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic">No questions generated for this section.</p>
-                    )}
-                  </div>
-                )}
+                <div className="space-y-2 pt-2 border-t">
+                  {secQs.map((q, qi) => (
+                    <QuestionCard key={q.id} question={q} index={qi + 1} edits={edits} />
+                  ))}
+                  {secQs.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic">No questions generated for this section.</p>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* ── Create Button ── */}
+      {/* ── Continue Button ── */}
       <div className="flex items-center gap-4 pt-2 border-t">
-        <Button onClick={handleConfirm} disabled={confirming || questions.length === 0} size="default">
-          {confirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {confirming ? "Creating..." : "Create Assessment"}
+        <Button onClick={onNext} disabled={questions.length === 0} size="default">
+          Continue to Dates
         </Button>
-        {questions.length === 0 && <p className="text-xs text-destructive">No questions to create.</p>}
-        <p className="text-xs text-muted-foreground">This will save the assessment and make it ready for publishing.</p>
+        {questions.length === 0 && <p className="text-xs text-destructive">No questions to review.</p>}
+        <p className="text-xs text-muted-foreground">Dates and student assignment will be set in the next step.</p>
       </div>
     </div>
   );
@@ -1026,7 +1011,7 @@ function ManualStep1({ type, title, manualInstructions, schemeTypes, onChange, o
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Assessment Type <span className="text-destructive">*</span></label>
             <select value={type} onChange={(e) => onChange({ type: e.target.value as AssessmentType })}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+              className="w-full rounded-md border bg-card px-3 py-2 text-sm">
               <option value="">Select type...</option>
               {schemeTypes.map((t) => <option key={t} value={t}>{TYPE_LABELS[t] ?? t.replace(/_/g, " ")}</option>)}
             </select>
@@ -1036,7 +1021,7 @@ function ManualStep1({ type, title, manualInstructions, schemeTypes, onChange, o
             <input type="text" value={title}
               onChange={(e) => onChange({ title: e.target.value })}
               placeholder="e.g. Quiz 2"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+              className="w-full rounded-md border bg-card px-3 py-2 text-sm" />
           </div>
         </div>
       </div>
@@ -1049,7 +1034,7 @@ function ManualStep1({ type, title, manualInstructions, schemeTypes, onChange, o
             onChange={(e) => onChange({ manualInstructions: e.target.value })}
             placeholder={`e.g., "This is the score based on your behavior as a student."\n\ne.g., "Create a website and submit the GitHub link."`}
             rows={8}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-none" />
+            className="w-full rounded-md border bg-card px-3 py-2 text-sm resize-none" />
         </div>
       </div>
 
@@ -1059,17 +1044,40 @@ function ManualStep1({ type, title, manualInstructions, schemeTypes, onChange, o
 }
 
 // ─── ManualStep2: Items + Dates + Assign (manual mode) ────────────────────────
-function ManualStep2({ classId, totalItems, releaseDate, endDate, selectedStudentIds, selectedTermId, termOptions, onChange, onCreate, isLoading }: {
-  classId: string; totalItems: number; releaseDate: string; endDate: string; selectedStudentIds: string[];
-  selectedTermId: string; termOptions: TermOption[];
+function ManualStep2({ classId, totalItems, weekNumber, releaseDate, endDate, selectedStudentIds, selectedTermId, onChange, onCreate, isLoading }: {
+  classId: string; totalItems: number; weekNumber: number; releaseDate: string; endDate: string; selectedStudentIds: string[];
+  selectedTermId: string;
   onChange: (u: Partial<BuilderState>) => void; onCreate: () => void; isLoading: boolean;
 }) {
-  const invalid = releaseDate && endDate && new Date(endDate) <= new Date(releaseDate);
+  const invalid = !releaseDate || !endDate || new Date(endDate) <= new Date(releaseDate);
+  const { data: weeks = [] } = useClassWeeks(classId);
   const { data: students } = useQuery({
     queryKey: ["class-students", classId],
     queryFn: () => educatorClassApi.getStudents(classId),
     enabled: !!classId,
   });
+
+  // Build semester/term/week groups from weeks data
+  const semesters = new Map<string, { label: string; index: number }>();
+  const termMap = new Map<string, { label: string; semesterIndex: number; weeks: { value: number; label: string }[] }>();
+  for (const w of weeks) {
+    const semKey = `${w.semesterIndex}`;
+    if (!semesters.has(semKey)) semesters.set(semKey, { label: w.semesterName, index: w.semesterIndex });
+    if (!termMap.has(w.termId)) termMap.set(w.termId, { label: w.termName, semesterIndex: w.semesterIndex, weeks: [] });
+    termMap.get(w.termId)!.weeks.push({ value: w.value, label: w.label });
+  }
+  const semesterOptions = Array.from(semesters.entries()).map(([k, v]) => ({ value: k, ...v })).sort((a, b) => a.index - b.index);
+
+  const [semesterFilter, setSemesterFilter] = useState("");
+
+  const filteredTerms = Array.from(termMap.entries())
+    .map(([id, v]) => ({ id, ...v }))
+    .filter((t) => !semesterFilter || t.semesterIndex === parseInt(semesterFilter))
+    .sort((a, b) => a.semesterIndex - b.semesterIndex);
+
+  const selectedWeek = weeks.find((w) => w.value === weekNumber && w.termId === selectedTermId);
+  const filteredWeeks = selectedTermId ? (termMap.get(selectedTermId)?.weeks ?? []) : [];
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border bg-card p-6 space-y-4">
@@ -1077,33 +1085,62 @@ function ManualStep2({ classId, totalItems, releaseDate, endDate, selectedStuden
           <label className="text-sm font-medium">Total Items / Max Score <span className="text-destructive">*</span></label>
           <input type="number" min={1} value={totalItems}
             onChange={(e) => onChange({ totalItems: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-            className="w-24 rounded-md border bg-background px-3 py-2 text-sm" />
+            className="w-24 rounded-md border bg-card px-3 py-2 text-sm" />
           <p className="text-xs text-muted-foreground">Maximum possible score for this manual assessment.</p>
         </div>
 
-        {termOptions.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Term <span className="text-destructive">*</span></label>
-            <select value={selectedTermId} onChange={(e) => onChange({ selectedTermId: e.target.value })}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm">
-              <option value="">Select term...</option>
-              {termOptions.map((t) => (
-                <option key={t.termId} value={t.termId}>{t.termName} ({t.semesterName})</option>
+            <label className="text-sm font-medium">Semester <span className="text-destructive">*</span></label>
+            <select value={semesterFilter} onChange={(e) => { setSemesterFilter(e.target.value); onChange({ selectedTermId: "", weekNumber: 0 }); }}
+              className="w-full rounded-md border bg-card px-3 py-2 text-sm">
+              <option value="">Select semester...</option>
+              {semesterOptions.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
           </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Term <span className="text-destructive">*</span></label>
+            <select value={selectedTermId} onChange={(e) => { onChange({ selectedTermId: e.target.value, weekNumber: 0 }); }}
+              className="w-full rounded-md border bg-card px-3 py-2 text-sm">
+              <option value="">Select term...</option>
+              {filteredTerms.map((t) => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Week <span className="text-destructive">*</span></label>
+            <select value={selectedTermId && weekNumber ? `${weekNumber}` : ""} onChange={(e) => {
+              const wn = parseInt(e.target.value, 10);
+              const w = weeks.find((x) => x.value === wn && x.termId === selectedTermId);
+              if (w) onChange({ weekNumber: wn, selectedTermId: w.termId });
+            }}
+              className="w-full rounded-md border bg-card px-3 py-2 text-sm">
+              <option value="">Select week...</option>
+              {filteredWeeks.map((w) => (
+                <option key={w.value} value={w.value}>{w.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {selectedWeek && (
+          <p className="text-xs text-muted-foreground">
+            Registered in: <strong>{selectedWeek.semesterName}</strong> — <strong>{selectedWeek.termName}</strong> — <strong>{selectedWeek.label}</strong>
+          </p>
         )}
       </div>
 
       <div className="rounded-xl border bg-card p-6 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Release Date</label>
-            <input type="datetime-local" value={releaseDate} onChange={(e) => onChange({ releaseDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+            <label className="text-sm font-medium">Release Date <span className="text-destructive">*</span></label>
+            <input type="datetime-local" value={releaseDate} onChange={(e) => onChange({ releaseDate: e.target.value })} className="w-full rounded-md border bg-card px-3 py-2 text-sm" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">End Date</label>
-            <input type="datetime-local" value={endDate} onChange={(e) => onChange({ endDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+            <label className="text-sm font-medium">End Date <span className="text-destructive">*</span></label>
+            <input type="datetime-local" value={endDate} onChange={(e) => onChange({ endDate: e.target.value })} className="w-full rounded-md border bg-card px-3 py-2 text-sm" />
             {invalid && <p className="text-xs text-destructive">End date must be after release date.</p>}
           </div>
         </div>
@@ -1137,7 +1174,8 @@ function ManualStep2({ classId, totalItems, releaseDate, endDate, selectedStuden
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Create Manual Assessment
         </Button>
-        <p className="text-xs text-muted-foreground">Leave dates blank to make it available immediately.</p>
+        {(!releaseDate || !endDate) && <p className="text-xs text-destructive">Release date and end date are required.</p>}
+        {releaseDate && endDate && invalid && <p className="text-xs text-destructive">End date must be after release date.</p>}
       </div>
     </div>
   );
@@ -1150,7 +1188,8 @@ function Step6({ classId, releaseDate, endDate, selectedStudentIds, termInfo, on
   onChange: (u: Partial<Pick<BuilderState, "releaseDate" | "endDate" | "selectedStudentIds">>) => void;
   onPublish: () => void; isLoading: boolean;
 }) {
-  const invalid = releaseDate && endDate && new Date(endDate) <= new Date(releaseDate);
+  const datesMissing = !releaseDate || !endDate;
+  const invalid = datesMissing || new Date(endDate) <= new Date(releaseDate);
   const { data: students } = useQuery({
     queryKey: ["class-students", classId],
     queryFn: () => educatorClassApi.getStudents(classId),
@@ -1167,12 +1206,12 @@ function Step6({ classId, releaseDate, endDate, selectedStudentIds, termInfo, on
       <div className="rounded-xl border bg-card p-6 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Release Date</label>
-            <input type="datetime-local" value={releaseDate} onChange={(e) => onChange({ releaseDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+            <label className="text-sm font-medium">Release Date <span className="text-destructive">*</span></label>
+            <input type="datetime-local" value={releaseDate} onChange={(e) => onChange({ releaseDate: e.target.value })} className="w-full rounded-md border bg-card px-3 py-2 text-sm" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">End Date</label>
-            <input type="datetime-local" value={endDate} onChange={(e) => onChange({ endDate: e.target.value })} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+            <label className="text-sm font-medium">End Date <span className="text-destructive">*</span></label>
+            <input type="datetime-local" value={endDate} onChange={(e) => onChange({ endDate: e.target.value })} className="w-full rounded-md border bg-card px-3 py-2 text-sm" />
             {invalid && <p className="text-xs text-destructive">End date must be after release date.</p>}
           </div>
         </div>
@@ -1204,7 +1243,8 @@ function Step6({ classId, releaseDate, endDate, selectedStudentIds, termInfo, on
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Publish Assessment
         </Button>
-        <p className="text-xs text-muted-foreground">Leave dates blank to make it available immediately.</p>
+        <p className="text-xs text-destructive">Release date and end date are required.</p>
+        {!datesMissing && invalid && <p className="text-xs text-destructive">End date must be after release date.</p>}
       </div>
     </div>
   );
@@ -1214,13 +1254,14 @@ function Step6({ classId, releaseDate, endDate, selectedStudentIds, termInfo, on
 export default function NewAssessmentPage() {
   const params = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const classId = params.classId as string;
 
   const [step, setStep] = useState(0);
   const [state, setState] = useState<BuilderState>({
     selectedLesson: null, type: "quiz", title: "Quiz", gradingMode: "system", showBreakdown: false, manualMaxScore: 0,
     totalItems: 1, sections: [], createdAssessmentId: null, previewId: null, generatedQuestions: [],
-    manualInstructions: "", releaseDate: "", endDate: "", selectedStudentIds: [], selectedTermId: "",
+    manualInstructions: "", releaseDate: "", endDate: "", selectedStudentIds: [], selectedTermId: "", weekNumber: 0,
   });
 
   const { mutateAsync: updateAssessment, isPending: isUpdating } = useUpdateAssessment(classId);
@@ -1233,6 +1274,17 @@ export default function NewAssessmentPage() {
     ?.map((c) => c.type) ?? [];
   const patch = useCallback((u: Partial<BuilderState>) => setState((p) => ({ ...p, ...u })), []);
   const next = () => setStep((s) => s + 1);
+
+  useEffect(() => {
+    if (schemeTypes.length > 0) {
+      setState((prev) => {
+        if (schemeTypes.includes(prev.type)) return prev;
+        const first = schemeTypes[0];
+        const label = TYPE_LABELS[first] ?? first.charAt(0).toUpperCase() + first.slice(1);
+        return { ...prev, type: first, title: label };
+      });
+    }
+  }, [schemeTypes]);
 
   const prevTypeRef = useRef(state.type);
   useEffect(() => {
@@ -1316,18 +1368,23 @@ export default function NewAssessmentPage() {
   }
 
   async function handlePublish() {
-    if (!state.createdAssessmentId) return;
+    if (!state.previewId) return;
     try {
-      await updateAssessment({ assessmentId: state.createdAssessmentId, data: { releaseDate: state.releaseDate || undefined, endDate: state.endDate || undefined, showBreakdown: state.showBreakdown } });
-      await assessmentApi.publish(classId, state.createdAssessmentId, state.selectedStudentIds.length > 0 ? { studentIds: state.selectedStudentIds } : undefined);
+      const assessment = await assessmentApi.confirmPreview(classId, state.previewId);
+      const assessmentId = assessment.id;
+      queryClient.setQueryData(assessmentKeys.detail(assessmentId), assessment);
+      await updateAssessment({ assessmentId, data: { releaseDate: state.releaseDate, endDate: state.endDate, showBreakdown: state.showBreakdown, weekNumber: state.weekNumber || undefined } });
+      const published = await assessmentApi.publish(classId, assessmentId, state.selectedStudentIds.length > 0 ? { studentIds: state.selectedStudentIds } : undefined);
+      if (published) queryClient.setQueryData(assessmentKeys.detail(assessmentId), (old: any) => old ? { ...old, isPublished: true } : old);
       toast.success("Assessment published!");
-      router.push(`/educator/classes/${classId}/assessments/${state.createdAssessmentId}`);
+      router.push(`/educator/classes/${classId}/assessments/${assessmentId}`);
     } catch { toast.error("Failed to publish."); }
   }
 
   async function handleCreateManual() {
     const termId = state.selectedTermId;
     if (!termId) { toast.error("Please select a term."); return; }
+    if (!state.weekNumber) { toast.error("Please select a week."); return; }
     try {
       const assessment = await assessmentApi.create(classId, {
         termId, type: state.type,
@@ -1338,8 +1395,10 @@ export default function NewAssessmentPage() {
         manualInstructions: state.manualInstructions,
         releaseDate: state.releaseDate || undefined,
         endDate: state.endDate || undefined,
+        weekNumber: state.weekNumber,
         ranges: [],
       });
+      queryClient.setQueryData(assessmentKeys.detail(assessment.id), assessment);
       toast.success("Manual assessment created!");
       router.push(`/educator/classes/${classId}/assessments/${assessment.id}`);
     } catch (err: any) {
@@ -1362,7 +1421,7 @@ export default function NewAssessmentPage() {
 
         {isSystem && step === 1 && (
           <div className="space-y-6">
-            <Step1 classId={classId} selected={state.selectedLesson} onSelect={(l) => patch({ selectedLesson: l })} onNext={next} />
+            <Step1 classId={classId} selected={state.selectedLesson} onSelect={(l) => patch({ selectedLesson: l, weekNumber: l.weekNumber })} onNext={next} />
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to grading mode</Button>
           </div>
         )}
@@ -1387,7 +1446,7 @@ export default function NewAssessmentPage() {
             <Step5 classId={classId} previewId={state.previewId} questions={state.generatedQuestions}
               state={state} conceptItems={cc.conceptItems} sectionNames={cc.sections}
               termInfo={getLessonTermInfo()}
-              onConfirm={(assessmentId) => { patch({ createdAssessmentId: assessmentId }); next(); }} />
+              onNext={next} />
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to generation</Button>
           </div>
         )}
@@ -1406,9 +1465,10 @@ export default function NewAssessmentPage() {
         )}
         {isManual && step === 2 && (
           <div className="space-y-6">
-            <ManualStep2 classId={classId} totalItems={state.totalItems} releaseDate={state.releaseDate}
-              endDate={state.endDate} selectedStudentIds={state.selectedStudentIds}
-              selectedTermId={state.selectedTermId} termOptions={termOptions}
+            <ManualStep2 classId={classId} totalItems={state.totalItems} weekNumber={state.weekNumber}
+              releaseDate={state.releaseDate} endDate={state.endDate}
+              selectedStudentIds={state.selectedStudentIds}
+              selectedTermId={state.selectedTermId}
               onChange={(u) => patch(u)} onCreate={handleCreateManual} isLoading={isUpdating} />
             <Button variant="ghost" size="sm" onClick={prev} className="text-xs">← Back to instructions</Button>
           </div>
