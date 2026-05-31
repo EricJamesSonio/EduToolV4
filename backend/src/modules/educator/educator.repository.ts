@@ -76,7 +76,7 @@ export class EducatorRepository {
 
   async updateProfile(
     accountId: string,
-    data: { fullName?: string; email?: string },
+    data: { fullName?: string; email?: string; profileImage?: string },
   ) {
     return this.db.$transaction(async (tx) => {
       if (data.email) {
@@ -86,10 +86,14 @@ export class EducatorRepository {
         });
       }
 
-      if (data.fullName) {
+      const updateData: Record<string, any> = {};
+      if (data.fullName) updateData.full_name = data.fullName;
+      if (data.profileImage !== undefined) updateData.profile_image = data.profileImage;
+
+      if (Object.keys(updateData).length > 0) {
         await tx.profile.update({
           where: { account_id: accountId },
-          data: { full_name: data.fullName },
+          data: updateData,
         });
       }
 

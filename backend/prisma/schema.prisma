@@ -115,6 +115,7 @@ model Profile {
   full_name      String
   metadata       Json?
   personal_email String?
+  profile_image  String?  @default("profile/default.png")
   created_at     DateTime @default(now())
 
   account Account @relation(fields: [account_id], references: [id])

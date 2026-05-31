@@ -47,6 +47,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       email: account.email,
       status: account.status,
       fullName: account.profile?.full_name,
+      profileImage: account.profile?.profile_image,
     };
   }
 }

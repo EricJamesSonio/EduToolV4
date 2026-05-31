@@ -173,6 +173,7 @@ export class AuthService {
       metadata: account.profile?.metadata ?? null,
       createdAt: account.created_at,
       personalEmail: account.profile?.personal_email ?? null,
+      profileImage: account.profile?.profile_image ?? null,
     };
   }
 

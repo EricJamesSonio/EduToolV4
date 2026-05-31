@@ -37,6 +37,11 @@ export class UpdateEducatorDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  profileImage?: string;
 }
 
 // ── GET /educators ────────────────────────────────────────────────────────────
