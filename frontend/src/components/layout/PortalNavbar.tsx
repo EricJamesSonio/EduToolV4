@@ -12,7 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getProfileImageUrl } from "@/utils/profile.util";
 import { LogOut, User } from "lucide-react";
 
 function getInitials(name: string): string {
@@ -49,6 +50,7 @@ export function PortalNavbar() {
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted transition-colors outline-none">
               <Avatar className="h-7 w-7">
+                <AvatarImage src={user?.profileImage ? getProfileImageUrl(user.profileImage) : undefined} alt={user?.fullName ?? ""} />
                 <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">
                   {user?.fullName ? getInitials(user.fullName) : "?"}
                 </AvatarFallback>

@@ -1,19 +1,26 @@
-// frontend/src/components/shared/ProfileContent.tsx
 "use client";
 
+import { useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/store/auth.store";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { getProfileImageUrl } from "@/utils/profile.util";
+import apiClient from "@/api/client";
+import { toast } from "sonner";
 import {
   Mail,
   ShieldCheck,
   CalendarDays,
   CircleUser,
   Building2,
+  Loader2,
+  Camera,
 } from "lucide-react";
 import type { AccountStatus, Role } from "@/types/auth.types";
 
@@ -91,6 +98,9 @@ function InfoRow({
 
 export function ProfileContent(): React.JSX.Element {
   const { user } = useAuth();
+  const setUser = useAuthStore((s) => s.setUser);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   if (!user) {
     return (
@@ -102,6 +112,32 @@ export function ProfileContent(): React.JSX.Element {
   }
 
   const initials = user.fullName ? getInitials(user.fullName) : "?";
+  const profileImageUrl = getProfileImageUrl(user.profileImage);
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const { data } = await apiClient.post<{ path: string }>(
+        "/uploads/profile",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+
+      setUser({ ...user, profileImage: data.path });
+      toast.success("Profile photo updated");
+    } catch {
+      toast.error("Failed to upload profile photo");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -111,11 +147,33 @@ export function ProfileContent(): React.JSX.Element {
       <Card className="border-border/60">
         <CardContent className="pt-6 pb-5 px-6">
           <div className="flex items-center gap-5">
-            <Avatar className="h-16 w-16 shrink-0">
-              <AvatarFallback className="text-xl font-semibold bg-primary/10 text-primary">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative shrink-0">
+              <Avatar className="h-16 w-16 shrink-0">
+                <AvatarImage src={profileImageUrl} alt={user.fullName ?? ""} />
+                <AvatarFallback className="text-xl font-semibold bg-primary/10 text-primary">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {uploading ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Camera className="h-3 w-3" />
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+            </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-semibold text-foreground truncate">
                 {user.fullName ?? "Unnamed User"}

@@ -18,6 +18,7 @@ export interface AuthUser {
   fullName: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
+  profileImage?: string | null;
 }
 
 export interface TokenPayload {
