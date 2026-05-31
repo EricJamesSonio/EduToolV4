@@ -8,6 +8,7 @@ function unwrap<T>(data: T | { data: T }): T {
 
 export interface StudentAssessmentItem {
   id: string;
+  title?: string;
   type: string;
   totalItems: number;
   releaseDate?: string;
@@ -15,6 +16,8 @@ export interface StudentAssessmentItem {
   isPublished: boolean;
   submissionStatus: "not_started" | "draft" | "submitted" | "graded" | "exempted" | string;
   submittedAt: string | null;
+  termId: string;
+  weekNumber?: number;
 }
 
 export interface StudentAssessmentDetail {

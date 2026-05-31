@@ -163,7 +163,7 @@ export default function AssessmentsPage(): React.JSX.Element {
       <div className="flex flex-wrap items-center gap-3">
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Type" />
+            <SelectValue placeholder="Type">{typeFilter === "all" ? "All Types" : TYPE_LABELS[typeFilter] ?? typeFilter.replace(/_/g, " ")}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
@@ -179,7 +179,7 @@ export default function AssessmentsPage(): React.JSX.Element {
 
         <Select value={semesterFilter} onValueChange={(v) => { setSemesterFilter(v); setTermFilter("all"); setWeekFilter("all"); }}>
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="Semester">{semesterFilter !== "all" ? semesterOptions.find(s => s.value === semesterFilter)?.label : ""}</SelectValue>
+            <SelectValue placeholder="Semester">{semesterFilter === "all" ? "All Semesters" : semesterOptions.find(s => s.value === semesterFilter)?.label}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Semesters</SelectItem>
@@ -192,7 +192,7 @@ export default function AssessmentsPage(): React.JSX.Element {
         {semesterFilter !== "all" && (
           <Select value={termFilter} onValueChange={(v) => { setTermFilter(v); setWeekFilter("all"); }}>
             <SelectTrigger className="w-44">
-              <SelectValue placeholder="Term">{termFilter !== "all" ? filteredTermOptions.find(t => t.value === termFilter)?.label : ""}</SelectValue>
+              <SelectValue placeholder="Term">{termFilter === "all" ? "All Terms" : filteredTermOptions.find(t => t.value === termFilter)?.label}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Terms</SelectItem>
@@ -206,7 +206,7 @@ export default function AssessmentsPage(): React.JSX.Element {
         {termFilter !== "all" && (
           <Select value={weekFilter} onValueChange={setWeekFilter}>
             <SelectTrigger className="w-44">
-              <SelectValue placeholder="Week">{weekFilter !== "all" ? filteredWeekOptions.find(w => w.value === weekFilter)?.label : ""}</SelectValue>
+              <SelectValue placeholder="Week">{weekFilter === "all" ? "All Weeks" : filteredWeekOptions.find(w => w.value === weekFilter)?.label}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Weeks</SelectItem>

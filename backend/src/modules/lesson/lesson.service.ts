@@ -302,10 +302,6 @@ async getWeekStructure(
   const cls = await this.classRepo.findById(classId, orgId);
   if (!cls) throw new NotFoundException('Class not found.');
 
-  if (cls.educator_id !== educatorId) {
-    throw new ForbiddenException('You do not own this class.');
-  }
-
   // ❗ strict: class MUST have schedule
   if (!cls.schedules || cls.schedules.length === 0) {
     throw new BadRequestException(
