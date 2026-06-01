@@ -325,10 +325,11 @@ function DefaultGradeTable({
   );
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow className="bg-primary text-primary-foreground">
-          <TableHead className="sticky left-0 bg-primary text-primary-foreground text-left min-w-[200px] z-10">Student</TableHead>
+    <div className="overflow-x-auto rounded-lg border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-primary text-primary-foreground">
+            <TableHead className="sticky left-0 bg-primary text-primary-foreground text-left min-w-[200px] z-10">Student</TableHead>
           {allAssessments.map((a) => (
             <TableHead key={a.id} className="text-center whitespace-nowrap text-primary-foreground">
               <div className="text-xs uppercase tracking-wide">{a.title ?? a.type}</div>
@@ -348,9 +349,9 @@ function DefaultGradeTable({
           return (
             <TableRow
               key={student.studentId}
-              className="bg-white hover:bg-muted/40"
+              className={cn(idx % 2 === 0 ? "bg-white" : "bg-muted/20", "hover:bg-muted/40")}
             >
-              <TableCell className="sticky left-0 bg-white px-4 py-3 z-10">
+              <TableCell className={cn("sticky left-0 px-4 py-3 z-10", idx % 2 === 0 ? "bg-white" : "bg-muted/20")}>
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                     {student.studentName.charAt(0).toUpperCase()}
@@ -425,6 +426,7 @@ function DefaultGradeTable({
         })}
       </TableBody>
     </Table>
+    </div>
   );
 }
 
@@ -538,10 +540,11 @@ function CleanGradeTable({
 
   return (
     <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="sticky left-0 bg-background text-left min-w-[200px] z-10">Student</TableHead>
+      <div className="overflow-x-auto rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="sticky left-0 bg-background text-left min-w-[200px] z-10">Student</TableHead>
             {allCategories.map((cat) => (
               <TableHead key={cat} className="text-center whitespace-nowrap uppercase">{cat}</TableHead>
             ))}
@@ -552,11 +555,11 @@ function CleanGradeTable({
           {students.map((student, idx) => {
             const isLocked = student.grade?.is_locked ?? false;
             return (
-              <TableRow
-                key={student.studentId}
-                className="bg-background hover:bg-muted/40"
-              >
-                <TableCell className="sticky left-0 bg-background px-4 py-3 z-10">
+            <TableRow
+              key={student.studentId}
+              className={cn(idx % 2 === 0 ? "bg-background" : "bg-muted/20", "hover:bg-muted/40")}
+            >
+              <TableCell className={cn("sticky left-0 px-4 py-3 z-10", idx % 2 === 0 ? "bg-background" : "bg-muted/20")}>
                   <div className="flex items-center gap-2.5">
                     <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                       {student.studentName.charAt(0).toUpperCase()}
@@ -619,6 +622,7 @@ function CleanGradeTable({
           })}
         </TableBody>
       </Table>
+      </div>
       <StudentCategoryDrillDown
         student={drillDown?.student ?? null}
         category={drillDown?.category ?? null}
@@ -762,7 +766,7 @@ export default function GradesPage() {
         actions={
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
               onClick={handleCompute}
               disabled={computeMutation.isPending || !activeTermId}

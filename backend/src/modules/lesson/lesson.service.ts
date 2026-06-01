@@ -394,21 +394,15 @@ async getWeekStructure(
     // class's actual semester date range
     if (classSemesterStart && classSemesterEnd) {
       const semTermDates = (sem.terms ?? [])
-        .map((t: any) => ({ id: t.id, name: t.name, dates: termDatesMap.get(t.id) }))
-        .filter((x: any) => x.dates) as Array<{ id: string; name: string; dates: { start: Date; end: Date } }>
+        .map((t: any) => termDatesMap.get(t.id))
+        .filter(Boolean) as Array<{ start: Date; end: Date }>
 
       const semStart = semTermDates.length > 0
-        ? new Date(Math.min(...semTermDates.map((d) => d.dates.start.getTime())))
+        ? new Date(Math.min(...semTermDates.map((d) => d.start.getTime())))
         : null
       const semEnd = semTermDates.length > 0
-        ? new Date(Math.max(...semTermDates.map((d) => d.dates.end.getTime())))
+        ? new Date(Math.max(...semTermDates.map((d) => d.end.getTime())))
         : null
-
-      const overlap = semStart && semEnd
-        ? !(semEnd < classSemesterStart || semStart > classSemesterEnd)
-        : false
-
-      console.log(`[DEBUG WEEK STRUCTURE] sem="${sem.name}" si=${si} foundTerms=${semTermDates.length} semStart=${semStart} semEnd=${semEnd} classStart=${classSemesterStart} classEnd=${classSemesterEnd} overlap=${overlap} skip=${!overlap}`)
 
       if (!semStart || !semEnd || semEnd < classSemesterStart || semStart > classSemesterEnd) continue
     }
