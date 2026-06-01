@@ -12,9 +12,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { ExcelTable, ExcelColumn } from "@/components/shared/ExcelTable";
 import { WEEK_COLORS } from "@/lib/palette";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClassGrades, useComputeGrades } from "@/hooks/educator/useGrades";
@@ -55,12 +53,14 @@ function ManualCell({
   category,
   isLocked,
   onCommit,
+  compact,
 }: {
   value: number | null;
   studentId: string;
   category: string;
   isLocked: boolean;
   onCommit: (studentId: string, category: string, value: number) => void;
+  compact?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value ?? ""));
@@ -85,7 +85,7 @@ function ManualCell({
 
   if (isLocked) {
     return (
-      <span className="text-xs text-muted-foreground tabular-nums">
+      <span className="tabular-nums text-muted-foreground leading-none">
         {value !== null ? fmt(value) : "—"}
       </span>
     );
@@ -93,7 +93,7 @@ function ManualCell({
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex items-center justify-center">
         <input
           ref={inputRef}
           type="number"
@@ -107,20 +107,19 @@ function ManualCell({
             if (e.key === "Escape") cancel();
             if (e.key === "Tab") { e.preventDefault(); commit(); }
           }}
-          className="w-14 rounded border border-primary px-1.5 py-0.5 text-xs tabular-nums focus:outline-none focus:ring-1 focus:ring-primary bg-background"
+          className="w-12 rounded border border-primary px-1 py-0 text-[11px] tabular-nums focus:outline-none focus:ring-1 focus:ring-primary bg-background text-center"
         />
       </div>
     );
   }
 
   return (
-    <button
+    <span
       onClick={() => { setDraft(String(value ?? "")); setEditing(true); }}
-      className="group relative min-w-[2.5rem] rounded px-2 py-0.5 text-xs tabular-nums hover:bg-primary/10 hover:text-primary transition-colors text-left"
+      className="cursor-pointer text-[11px] tabular-nums text-muted-foreground hover:text-foreground"
     >
-      {value !== null ? fmt(value) : <span className="text-muted-foreground/50">—</span>}
-      <span className="absolute -top-0.5 -right-0.5 hidden group-hover:block w-1.5 h-1.5 rounded-full bg-primary" />
-    </button>
+      {value !== null ? fmt(value) : "—"}
+    </span>
   );
 }
 
@@ -143,6 +142,7 @@ function StatusCell({
   status,
   totalItems,
   onStatusChange,
+  compact,
 }: {
   score: number | null;
   classId: string;
@@ -154,6 +154,7 @@ function StatusCell({
   status: string;
   totalItems: number;
   onStatusChange: () => void;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -195,21 +196,21 @@ function StatusCell({
 
   if (status === 'not_started' || (!submissionId && !score && score !== 0)) {
     return (
-      <div className="relative" ref={ref}>
+      <div className="relative flex justify-center" ref={ref}>
         <button
           onClick={() => setOpen(!open)}
-          className="text-xs text-muted-foreground/50 hover:text-foreground transition-colors w-6 h-6 rounded"
+          className="text-muted-foreground/50 hover:text-foreground transition-colors leading-none"
         >
           —
         </button>
         {open && (
-          <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-32 rounded-md border bg-popover shadow-md py-1">
+          <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-28 rounded border bg-popover shadow-md py-0.5">
             {STATUS_ACTIONS.map((action) => (
               <button
                 key={action.status}
                 onClick={() => handleAction(action.status)}
                 disabled={pending}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors disabled:opacity-50"
+                className="w-full text-left px-2 py-1 text-[11px] hover:bg-accent transition-colors disabled:opacity-50"
               >
                 {action.label}
               </button>
@@ -221,33 +222,30 @@ function StatusCell({
   }
 
   const isCustom = status === 'custom' && !isMissed && !isExempted;
-  const isMissedOrExempted = isMissed || isExempted || isCustom;
   const badgeLabel = isMissed ? "M" : isExempted ? "E" : isCustom ? "C" : null;
   const badgeClass = isMissed
-    ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+    ? "bg-red-100 text-red-700"
     : isExempted
-      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+      ? "bg-amber-100 text-amber-700"
       : isCustom
-        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+        ? "bg-amber-100 text-amber-700"
         : "";
 
   const currentLabel = isMissed ? "missed" : isExempted ? "exempted" : isCustom ? "custom" : null;
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative flex justify-center" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="text-xs tabular-nums text-muted-foreground hover:text-foreground transition-colors"
+        className="tabular-nums text-muted-foreground hover:text-foreground transition-colors text-[11px] leading-none"
       >
         {isCustom ? (
-          <span className="inline-flex items-center gap-1">
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-              C
-            </span>
-            <span className="text-xs">{fmt(score, 0)}/{totalItems}</span>
+          <span className="inline-flex items-center gap-0.5">
+            <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded text-[8px] font-bold bg-amber-100 text-amber-700">C</span>
+            <span>{fmt(score, 0)}/{totalItems}</span>
           </span>
         ) : isMissed || isExempted ? (
-          <span className={`inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold ${badgeClass}`}>
+          <span className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded text-[8px] font-bold ${badgeClass}`}>
             {badgeLabel}
           </span>
         ) : score !== null ? (
@@ -257,7 +255,7 @@ function StatusCell({
         )}
       </button>
       {open && (
-        <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-32 rounded-md border bg-popover shadow-md py-1">
+        <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-28 rounded border bg-popover shadow-md py-0.5">
           {STATUS_ACTIONS.filter(
             (a) => a.status !== currentLabel,
           ).map((action) => (
@@ -265,7 +263,7 @@ function StatusCell({
               key={action.status}
               onClick={() => handleAction(action.status)}
               disabled={pending}
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors disabled:opacity-50 whitespace-nowrap"
+              className="w-full text-left px-2 py-1 text-[11px] hover:bg-accent transition-colors disabled:opacity-50 whitespace-nowrap"
             >
               {action.label}
             </button>
@@ -276,7 +274,7 @@ function StatusCell({
   );
 }
 
-// ─── Default View Table ───────────────────────────────────────────────────────
+// ─── Default View Table (Excel-like, per-assessment columns) ─────────────────
 
 function DefaultGradeTable({
   classId,
@@ -296,7 +294,6 @@ function DefaultGradeTable({
   const { students } = termData;
   if (students.length === 0) return <EmptyState />;
 
-  // Collect unique assessments sorted by created_at
   const allAssessments = Array.from(
     new Map(
       students.flatMap((s) =>
@@ -313,7 +310,6 @@ function DefaultGradeTable({
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
   });
 
-  // Find actual manual categories from breakdown
   const manualCats = Array.from(
     new Set(
       students.flatMap((s) =>
@@ -324,110 +320,97 @@ function DefaultGradeTable({
     )
   );
 
-  return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-primary text-primary-foreground">
-            <TableHead className="sticky left-0 bg-primary text-primary-foreground text-left min-w-[200px] z-10">Student</TableHead>
-          {allAssessments.map((a) => (
-            <TableHead key={a.id} className="text-center whitespace-nowrap text-primary-foreground">
-              <div className="text-xs uppercase tracking-wide">{a.title ?? a.type}</div>
-              <div className="text-[10px] opacity-70 font-normal capitalize">{a.type}</div>
-            </TableHead>
-          ))}
-          {manualCats.map((cat) => (
-            <TableHead key={cat} className="text-center whitespace-nowrap uppercase text-primary-foreground">{cat}</TableHead>
-          ))}
-          <TableHead className="text-center whitespace-nowrap text-primary-foreground">Term Grade</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody className="divide-y">
-        {students.map((student, idx) => {
-          const isLocked = student.grade?.is_locked ?? false;
-          const isSaving = saving.has(student.studentId);
-          return (
-            <TableRow
-              key={student.studentId}
-              className={cn(idx % 2 === 0 ? "bg-white" : "bg-muted/20", "hover:bg-muted/40")}
-            >
-              <TableCell className={cn("sticky left-0 px-4 py-3 z-10", idx % 2 === 0 ? "bg-white" : "bg-muted/20")}>
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                    {student.studentName.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{student.studentName}</p>
-                    <p className="text-[10px] text-muted-foreground font-mono">{student.studentCode}</p>
-                  </div>
-                  {isSaving && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
-                  {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
-                </div>
-              </TableCell>
+  const columns: ExcelColumn<StudentGrade>[] = [
+    {
+      key: "student",
+      label: "Student",
+      width: 200,
+      sticky: true,
+      render: (student) => {
+        const isLocked = student.grade?.is_locked ?? false;
+        const isSaving = saving.has(student.studentId);
+        return (
+          <div className="flex items-center gap-1">
+            <div className="w-5 h-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
+              {student.studentName.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 leading-tight">
+              <p className="font-medium truncate text-[11px]">{student.studentName}</p>
+              <p className="text-[9px] text-muted-foreground font-mono leading-none">{student.studentCode}</p>
+            </div>
+            {isSaving && <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground shrink-0" />}
+            {isLocked && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />}
+          </div>
+        );
+      },
+    },
+    ...allAssessments.map((a) => ({
+      key: a.id,
+      label: a.title ?? a.type,
+      width: 80,
+      render: (student: StudentGrade) => {
+        const score = student.assessmentScores.find((s) => s.assessmentId === a.id);
+        return (
+          <div className="flex justify-center">
+            <StatusCell
+              score={score?.manualScore ?? score?.score ?? null}
+              classId={classId}
+              assessmentId={a.id}
+              submissionId={score?.submissionId}
+              studentId={student.studentId}
+              isMissed={score?.isMissed}
+              isExempted={score?.isExempted}
+              status={score?.status ?? 'not_started'}
+              totalItems={score?.totalItems ?? 0}
+              onStatusChange={onRefresh}
+              compact
+            />
+          </div>
+        );
+      },
+    })),
+    ...manualCats.map((cat) => ({
+      key: `manual_${cat}`,
+      label: cat,
+      width: 75,
+      render: (student: StudentGrade) => {
+        const breakdown = student.categoryBreakdown.find(
+          (c) => c.category.toLowerCase() === cat.toLowerCase()
+        );
+        return (
+          <ManualCell
+            value={breakdown?.manualScore ?? null}
+            studentId={student.studentId}
+            category={cat}
+            isLocked={student.grade?.is_locked ?? false}
+            onCommit={onManualCommit}
+            compact
+          />
+        );
+      },
+    })),
+    {
+      key: "termGrade",
+      label: "Grade",
+      width: 70,
+      render: (student) => (
+        student.grade ? (
+          <div className="flex items-center justify-center gap-1">
+            <span className={cn("text-[11px] font-bold tabular-nums", gradeColor(student.grade.final_score))}>
+              {fmt(student.grade.final_score)}
+            </span>
+            <span className="text-[9px] font-mono text-muted-foreground leading-none">
+              {student.grade.final_grade}
+            </span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground text-[11px]">—</span>
+        )
+      ),
+    },
+  ];
 
-              {/* Assessment scores with status badges */}
-              {allAssessments.map((a) => {
-                const score = student.assessmentScores.find((s) => s.assessmentId === a.id);
-                return (
-                  <TableCell key={a.id} className="text-center">
-                    <div className="flex items-center justify-center">
-                      <StatusCell
-                        score={score?.manualScore ?? score?.score ?? null}
-                        classId={classId}
-                        assessmentId={a.id}
-                        submissionId={score?.submissionId}
-                        studentId={student.studentId}
-                        isMissed={score?.isMissed}
-                        isExempted={score?.isExempted}
-                        status={score?.status ?? 'not_started'}
-                        totalItems={score?.totalItems ?? 0}
-                        onStatusChange={onRefresh}
-                      />
-                    </div>
-                  </TableCell>
-                );
-              })}
-
-              {/* Manual score cells */}
-              {manualCats.map((cat) => {
-                const breakdown = student.categoryBreakdown.find(
-                  (c) => c.category.toLowerCase() === cat.toLowerCase()
-                );
-                return (
-                  <TableCell key={cat} className="text-center">
-                    <ManualCell
-                      value={breakdown?.manualScore ?? null}
-                      studentId={student.studentId}
-                      category={cat}
-                      isLocked={isLocked}
-                      onCommit={onManualCommit}
-                    />
-                  </TableCell>
-                );
-              })}
-
-              {/* Term grade */}
-              <TableCell className="text-center">
-                {student.grade ? (
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className={cn("text-sm font-bold tabular-nums", gradeColor(student.grade.final_score))}>
-                      {fmt(student.grade.final_score)}%
-                    </span>
-                    <span className="text-[10px] font-mono text-muted-foreground">
-                      {student.grade.final_grade}
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
-    </div>
-  );
+  return <ExcelTable columns={columns} data={students} />;
 }
 
 // ─── Per-Student Category Drill-Down Modal ────────────────────────────────────
@@ -515,7 +498,7 @@ function StudentCategoryDrillDown({
   );
 }
 
-// ─── Clean View Table ─────────────────────────────────────────────────────────
+// ─── Clean View Table (Excel-like, per-category columns) ──────────────────────
 
 function CleanGradeTable({
   termData,
@@ -528,7 +511,6 @@ function CleanGradeTable({
   const [drillDown, setDrillDown] = useState<{ student: StudentGrade; category: string } | null>(null);
   if (students.length === 0) return <EmptyState />;
 
-  // Collect all category names from breakdowns, excluding empty manual categories
   const allCategories = Array.from(
     new Set(students.flatMap((s) => s.categoryBreakdown.map((c) => c.category)))
   ).filter((cat) => {
@@ -538,91 +520,83 @@ function CleanGradeTable({
     });
   });
 
+  const columns: ExcelColumn<StudentGrade>[] = [
+    {
+      key: "student",
+      label: "Student",
+      width: 200,
+      sticky: true,
+      render: (student) => {
+        const isLocked = student.grade?.is_locked ?? false;
+        return (
+          <div className="flex items-center gap-1">
+            <div className="w-5 h-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
+              {student.studentName.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 leading-tight">
+              <p className="font-medium truncate text-[11px]">{student.studentName}</p>
+              <p className="text-[9px] text-muted-foreground font-mono leading-none">{student.studentCode}</p>
+            </div>
+            {isLocked && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />}
+          </div>
+        );
+      },
+    },
+    ...allCategories.map((cat) => ({
+      key: cat,
+      label: cat,
+      width: 85,
+      render: (student: StudentGrade) => {
+        const bd = student.categoryBreakdown.find(
+          (c) => c.category.toLowerCase() === cat.toLowerCase()
+        );
+        const isManual = bd?.manualScore !== undefined && bd?.manualScore !== null;
+        if (isManual) {
+          return (
+            <ManualCell
+              value={bd?.manualScore ?? null}
+              studentId={student.studentId}
+              category={cat}
+              isLocked={student.grade?.is_locked ?? false}
+              onCommit={onManualCommit}
+              compact
+            />
+          );
+        }
+        return (
+          <span
+            onClick={() => setDrillDown({ student, category: cat })}
+            className="cursor-pointer underline underline-offset-2 decoration-dotted decoration-muted-foreground/40 text-[11px] tabular-nums text-foreground"
+          >
+            {bd ? `${fmt(bd.rawAverage)}` : "—"}
+          </span>
+        );
+      },
+    })),
+    {
+      key: "termGrade",
+      label: "Grade",
+      width: 70,
+      render: (student) => (
+        student.grade ? (
+          <div className="flex items-center justify-center gap-1">
+            <span className={cn("text-[11px] font-bold tabular-nums", gradeColor(student.grade.final_score))}>
+              {fmt(student.grade.final_score)}
+            </span>
+            <span className="text-[9px] font-mono text-muted-foreground leading-none">
+              {student.grade.final_grade}
+            </span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground text-[11px]">—</span>
+        )
+      ),
+    },
+  ];
+
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="sticky left-0 bg-background text-left min-w-[200px] z-10">Student</TableHead>
-            {allCategories.map((cat) => (
-              <TableHead key={cat} className="text-center whitespace-nowrap uppercase">{cat}</TableHead>
-            ))}
-            <TableHead className="text-center whitespace-nowrap">Term Grade</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody className="divide-y">
-          {students.map((student, idx) => {
-            const isLocked = student.grade?.is_locked ?? false;
-            return (
-            <TableRow
-              key={student.studentId}
-              className={cn(idx % 2 === 0 ? "bg-background" : "bg-muted/20", "hover:bg-muted/40")}
-            >
-              <TableCell className={cn("sticky left-0 px-4 py-3 z-10", idx % 2 === 0 ? "bg-background" : "bg-muted/20")}>
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                      {student.studentName.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{student.studentName}</p>
-                      <p className="text-[10px] text-muted-foreground font-mono">{student.studentCode}</p>
-                    </div>
-                    {isLocked && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
-                  </div>
-                </TableCell>
-
-                {allCategories.map((cat, ci) => {
-                  const bd = student.categoryBreakdown.find(
-                    (c) => c.category.toLowerCase() === cat.toLowerCase()
-                  );
-                  const isManual = bd?.manualScore !== undefined && bd?.manualScore !== null;
-                  return (
-                    <TableCell key={cat} className="text-center">
-                      {isManual ? (
-                        <ManualCell
-                          value={bd?.manualScore ?? null}
-                          studentId={student.studentId}
-                          category={cat}
-                          isLocked={isLocked}
-                          onCommit={onManualCommit}
-                        />
-                      ) : (
-                        <button
-                          onClick={() => setDrillDown({ student, category: cat })}
-                          className={cn(
-                            "text-xs tabular-nums transition-colors underline underline-offset-2 decoration-dotted",
-                            "text-muted-foreground hover:text-foreground decoration-muted-foreground/40",
-                            bd && "text-foreground"
-                          )}
-                        >
-                          {bd ? `${fmt(bd.rawAverage)}%` : "—"}
-                        </button>
-                      )}
-                    </TableCell>
-                  );
-                })}
-
-                <TableCell className="text-center">
-                  {student.grade ? (
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className={cn("text-sm font-bold tabular-nums", gradeColor(student.grade.final_score))}>
-                        {fmt(student.grade.final_score)}%
-                      </span>
-                      <span className="text-[10px] font-mono text-muted-foreground">
-                        {student.grade.final_grade}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-      </div>
+      <ExcelTable columns={columns} data={students} />
       <StudentCategoryDrillDown
         student={drillDown?.student ?? null}
         category={drillDown?.category ?? null}

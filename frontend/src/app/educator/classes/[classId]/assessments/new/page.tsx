@@ -1057,23 +1057,14 @@ function ManualStep2({ classId, totalItems, weekNumber, releaseDate, endDate, se
     enabled: !!classId,
   });
 
-  // Build semester/term/week groups from weeks data
-  const semesters = new Map<string, { label: string; index: number }>();
-  const termMap = new Map<string, { label: string; semesterIndex: number; weeks: { value: number; label: string }[] }>();
+  // Build term/week groups from weeks data
+  const termMap = new Map<string, { label: string; weeks: { value: number; label: string }[] }>();
   for (const w of weeks) {
-    const semKey = `${w.semesterIndex}`;
-    if (!semesters.has(semKey)) semesters.set(semKey, { label: w.semesterName, index: w.semesterIndex });
-    if (!termMap.has(w.termId)) termMap.set(w.termId, { label: w.termName, semesterIndex: w.semesterIndex, weeks: [] });
+    if (!termMap.has(w.termId)) termMap.set(w.termId, { label: w.termName, weeks: [] });
     termMap.get(w.termId)!.weeks.push({ value: w.value, label: w.label });
   }
-  const semesterOptions = Array.from(semesters.entries()).map(([k, v]) => ({ value: k, ...v })).sort((a, b) => a.index - b.index);
 
-  const [semesterFilter, setSemesterFilter] = useState("");
-
-  const filteredTerms = Array.from(termMap.entries())
-    .map(([id, v]) => ({ id, ...v }))
-    .filter((t) => !semesterFilter || t.semesterIndex === parseInt(semesterFilter))
-    .sort((a, b) => a.semesterIndex - b.semesterIndex);
+  const termOptions = Array.from(termMap.entries()).map(([id, v]) => ({ id, ...v }));
 
   const selectedWeek = weeks.find((w) => w.value === weekNumber && w.termId === selectedTermId);
   const filteredWeeks = selectedTermId ? (termMap.get(selectedTermId)?.weeks ?? []) : [];
@@ -1089,23 +1080,13 @@ function ManualStep2({ classId, totalItems, weekNumber, releaseDate, endDate, se
           <p className="text-xs text-muted-foreground">Maximum possible score for this manual assessment.</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Semester <span className="text-destructive">*</span></label>
-            <select value={semesterFilter} onChange={(e) => { setSemesterFilter(e.target.value); onChange({ selectedTermId: "", weekNumber: 0 }); }}
-              className="w-full rounded-md border bg-card px-3 py-2 text-sm">
-              <option value="">Select semester...</option>
-              {semesterOptions.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Term <span className="text-destructive">*</span></label>
             <select value={selectedTermId} onChange={(e) => { onChange({ selectedTermId: e.target.value, weekNumber: 0 }); }}
               className="w-full rounded-md border bg-card px-3 py-2 text-sm">
               <option value="">Select term...</option>
-              {filteredTerms.map((t) => (
+              {termOptions.map((t) => (
                 <option key={t.id} value={t.id}>{t.label}</option>
               ))}
             </select>
