@@ -4,7 +4,13 @@ import { Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/DataTable";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getProfileImageUrl } from "@/utils/profile.util";
 import type { Student } from "@/types/admin/student.types";
+
+function getInitials(name: string): string {
+  return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+}
 
 interface StudentTableProps {
   data: Student[];
@@ -13,6 +19,21 @@ interface StudentTableProps {
 
 export function StudentTable({ data, onView }: StudentTableProps): React.JSX.Element {
   const columns: ColumnDef<Student>[] = [
+    {
+      header: "",
+      id: "avatar",
+      cell: ({ row }) => (
+        <Avatar className="h-8 w-8">
+          <AvatarImage
+            src={getProfileImageUrl(row.original.profileImage)}
+            alt={row.original.fullName}
+          />
+          <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+            {getInitials(row.original.fullName)}
+          </AvatarFallback>
+        </Avatar>
+      ),
+    },
     {
       header: "Full Name",
       accessorKey: "fullName",

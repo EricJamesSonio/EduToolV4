@@ -11,8 +11,9 @@ export interface CreateEducatorResponse extends Educator {
 }
 
 export interface UpdateEducatorRequest {
-  fullName?: string;
-  email?:    string;
+  fullName?:     string;
+  email?:        string;
+  profileImage?: string;
 }
 
 interface ApiResponse<T> {

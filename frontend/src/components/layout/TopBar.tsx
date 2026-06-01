@@ -17,6 +17,13 @@ import { LogOut, User } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
+const PROFILE_ROUTES: Record<string, string> = {
+  student: "/student/profile",
+  educator: "/educator/profile",
+  admin: "/admin/profile",
+  platform_owner: "/admin/profile",
+};
+
 interface TopBarProps {
   className?: string;
 }
@@ -81,7 +88,7 @@ export function TopBar({ className }: TopBarProps) {
 
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <Link href="/profile" className="flex items-center cursor-pointer w-full">
+                <Link href={PROFILE_ROUTES[user?.role ?? ""] ?? "/"} className="flex items-center cursor-pointer w-full">
                   <User className="mr-2 h-4 w-4" />
                   My Profile
                 </Link>

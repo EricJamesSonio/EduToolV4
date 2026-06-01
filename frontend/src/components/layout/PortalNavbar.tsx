@@ -16,6 +16,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getProfileImageUrl } from "@/utils/profile.util";
 import { LogOut, User } from "lucide-react";
 
+const PROFILE_ROUTES: Record<string, string> = {
+  student: "/student/profile",
+  educator: "/educator/profile",
+  admin: "/admin/profile",
+  platform_owner: "/admin/profile",
+};
+
 function getInitials(name: string): string {
   return name
     .split(" ")
@@ -76,7 +83,7 @@ export function PortalNavbar() {
 
               <DropdownMenuGroup>
                 <DropdownMenuItem>
-                  <Link href="/profile" className="flex items-center cursor-pointer w-full">
+                  <Link href={PROFILE_ROUTES[user?.role ?? ""] ?? "/"} className="flex items-center cursor-pointer w-full">
                     <User className="mr-2 h-4 w-4" />
                     My Profile
                   </Link>
