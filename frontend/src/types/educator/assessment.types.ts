@@ -4,6 +4,7 @@ export type AssessmentType =
   | "written_work" | "performance_task" | "quarterly_assessment"
   | "exam" | "quiz" | "project" | "recitation"
   | "attendance" | "activity" | "custom" | "other";
+  
 
 export type GradingMode = "system" | "manual" | "hybrid";
 
@@ -77,4 +78,6 @@ export interface Assessment {
   questions: Question[];
   createdAt: string;
   updatedAt: string;
+  // In assessment.types.ts, add to Assessment interface:
+reopenedUntil?: string | null;
 }
