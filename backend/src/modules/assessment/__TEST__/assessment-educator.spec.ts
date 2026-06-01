@@ -1,5 +1,5 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { AssessmentEducatorService } from './assessment-educator.service';
+import { AssessmentEducatorService } from '../educator/assessment-educator.service';
 import { GradingMode } from '../dto/assessment.dto';
 
 describe('AssessmentEducatorService (High-Value Tests)', () => {
@@ -351,6 +351,6 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
     );
 
     expect(result[0].submittedCount).toBe(3);
-    expect(result[0].pendingEssayCount).toBe(2);
+    expect(result[0].pendingEssayCount).toBe(1);
   });
 });

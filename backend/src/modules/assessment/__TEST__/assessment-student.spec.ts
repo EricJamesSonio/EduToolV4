@@ -2,7 +2,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { AssessmentStudentService } from './assessment-student.service';
+import { AssessmentStudentService } from '../student/assessment-student.service';
 
 describe('AssessmentStudentService (High-Value Tests)', () => {
   let service: AssessmentStudentService;
@@ -50,14 +50,8 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
     );
   });
 
-  // ─────────────────────────────────────────────
-  // 1. SECURITY: ENROLLMENT GUARD
-  // ─────────────────────────────────────────────
-
   it('blocks access when student is not enrolled', async () => {
-    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue(
-      null,
-    );
+    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue(null);
 
     await expect(
       service.getAssessments(
@@ -69,9 +63,9 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
   });
 
   it('allows access when student is enrolled', async () => {
-    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue(
-      { id: 'enroll-1' },
-    );
+    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue({
+      id: 'enroll-1',
+    });
 
     core.findAssessmentsByClass.mockResolvedValue([]);
 
@@ -84,16 +78,12 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
     expect(result).toEqual([]);
   });
 
-  // ─────────────────────────────────────────────
-  // 2. REOPEN LOGIC (TIME-BASED ACCESS BUGS)
-  // ─────────────────────────────────────────────
-
   it('marks assessment as open when reopened window is active', async () => {
-    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue(
-      { id: 'enroll-1' },
-    );
+    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue({
+      id: 'enroll-1',
+    });
 
-    const future = new Date(Date.now() + 60_000).toISOString();
+    const future = new Date(Date.now() + 60_000);
 
     core.findAssessmentsByClass.mockResolvedValue([
       { id: 'a1' },
@@ -114,15 +104,15 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
     );
 
     expect(result[0].status).toBe('open');
-    expect(result[0].reopenedUntil).toBeDefined();
+    expect(result[0].reopenedUntil).toBe(future.toISOString());
   });
 
   it('does NOT override status when reopen expired', async () => {
-    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue(
-      { id: 'enroll-1' },
-    );
+    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue({
+      id: 'enroll-1',
+    });
 
-    const past = new Date(Date.now() - 60_000).toISOString();
+    const past = new Date(Date.now() - 60_000);
 
     core.findAssessmentsByClass.mockResolvedValue([
       { id: 'a1' },
@@ -145,14 +135,10 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
     expect(result[0].status).not.toBe('open');
   });
 
-  // ─────────────────────────────────────────────
-  // 3. DETAIL ACCESS BEFORE RELEASE
-  // ─────────────────────────────────────────────
-
   it('hides questions when assessment not released', async () => {
-    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue(
-      { id: 'enroll-1' },
-    );
+    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue({
+      id: 'enroll-1',
+    });
 
     core.findAssessmentOrThrow.mockResolvedValue({
       id: 'a1',
@@ -177,9 +163,9 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
   });
 
   it('loads questions when assessment is released', async () => {
-    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue(
-      { id: 'enroll-1' },
-    );
+    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue({
+      id: 'enroll-1',
+    });
 
     core.findAssessmentOrThrow.mockResolvedValue({
       id: 'a1',
@@ -207,14 +193,10 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
     expect(core.getQuestions).toHaveBeenCalled();
   });
 
-  // ─────────────────────────────────────────────
-  // 4. RESULT SECURITY (MOST CRITICAL)
-  // ─────────────────────────────────────────────
-
   it('throws when submission does not exist', async () => {
-    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue(
-      { id: 'enroll-1' },
-    );
+    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue({
+      id: 'enroll-1',
+    });
 
     core.findAssessmentOrThrow.mockResolvedValue({
       id: 'a1',
@@ -234,9 +216,9 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
   });
 
   it('prevents score leakage when grade is locked flag missing', async () => {
-    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue(
-      { id: 'enroll-1' },
-    );
+    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue({
+      id: 'enroll-1',
+    });
 
     core.findAssessmentOrThrow.mockResolvedValue({
       id: 'a1',
@@ -270,9 +252,9 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
   });
 
   it('passes correct lock state into result builder', async () => {
-    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue(
-      { id: 'enroll-1' },
-    );
+    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue({
+      id: 'enroll-1',
+    });
 
     core.findAssessmentOrThrow.mockResolvedValue({
       id: 'a1',
@@ -307,14 +289,10 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
     expect(result.locked).toBe(true);
   });
 
-  // ─────────────────────────────────────────────
-  // 5. DATA CONSISTENCY
-  // ─────────────────────────────────────────────
-
   it('maps submissions correctly into assessment list', async () => {
-    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue(
-      { id: 'enroll-1' },
-    );
+    enrollmentRepo.findOneByStudentAndClass.mockResolvedValue({
+      id: 'enroll-1',
+    });
 
     core.findAssessmentsByClass.mockResolvedValue([
       { id: 'a1' },
