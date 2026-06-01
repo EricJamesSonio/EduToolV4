@@ -70,7 +70,7 @@ export default function SubjectsPage(): React.JSX.Element {
 
       {/* Search + New Subject on one line */}
       {filters.selectedSchoolYearId && (
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <SubjectSearch
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -83,12 +83,14 @@ export default function SubjectsPage(): React.JSX.Element {
         </div>
       )}
 
-      {/* Tabs + Filters on one line */}
-      <div className="flex items-center justify-between gap-4">
-        <SubjectTabs
-          filters={filters}
-          onTabChange={filters.setActiveTab}
-        />
+      {/* Tabs */}
+      <SubjectTabs
+        filters={filters}
+        onTabChange={filters.setActiveTab}
+      />
+
+      {/* Filters */}
+      {filters.selectedSchoolYearId && (
         <SubjectFilters
           {...filters}
           programs={programs}
@@ -98,7 +100,7 @@ export default function SubjectsPage(): React.JSX.Element {
           programsLoading={programsLoading}
           levelsLoading={levelsLoading}
         />
-      </div>
+      )}
 
       {/* Table or empty state */}
       {filters.selectedSchoolYearId ? (
