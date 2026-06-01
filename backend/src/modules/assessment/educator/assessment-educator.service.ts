@@ -232,20 +232,53 @@ export class AssessmentEducatorService {
       }
     }
 
-    return assessments.map((a) => ({
-      ...a,
-      submittedCount: submittedMap.get(a.id) ?? 0,
-      pendingEssayCount: pendingByAssessment.get(a.id) ?? 0,
-    }));
+const activeReopens = await this.db.submission.findMany({
+  where: {
+    assessment_id: { in: ids },
+    reopened_until: { gt: new Date() },
+  },
+  select: { assessment_id: true, reopened_until: true },
+  orderBy: { reopened_until: 'desc' },
+});
+
+const reopenMap = new Map<string, Date>();
+for (const r of activeReopens) {
+  if (!reopenMap.has(r.assessment_id)) {
+    reopenMap.set(r.assessment_id, r.reopened_until!);
+  }
+}
+
+return assessments.map((a) => ({
+  ...a,
+  submittedCount: submittedMap.get(a.id) ?? 0,
+  pendingEssayCount: pendingByAssessment.get(a.id) ?? 0,
+  reopened_until: reopenMap.get(a.id) ?? null,
+}));
   }
 
-  async findOne(id: string, orgId: string, educatorId: string) {
-    const assessment = await this.core.findAssessmentOrThrow(id, orgId);
-    await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
-    const questions = await this.core.getQuestions(id);
-    const genStatus = this.generationStatuses.get(id) ?? null;
-    return { ...assessment, questions, generationStatus: genStatus?.status ?? 'completed' };
-  }
+async findOne(id: string, orgId: string, educatorId: string) {
+  const assessment = await this.core.findAssessmentOrThrow(id, orgId);
+  await this.assertEducatorOwnsClass(assessment.class_id, orgId, educatorId);
+  const questions = await this.core.getQuestions(id);
+  const genStatus = this.generationStatuses.get(id) ?? null;
+
+  // Check if any active reopened_until exists across all submissions
+  const activeReopen = await this.db.submission.findFirst({
+    where: {
+      assessment_id: id,
+      reopened_until: { gt: new Date() },
+    },
+    select: { reopened_until: true },
+    orderBy: { reopened_until: 'desc' },
+  });
+
+  return {
+    ...assessment,
+    questions,
+    generationStatus: genStatus?.status ?? 'completed',
+    reopenedUntil: activeReopen?.reopened_until ?? null,
+  };
+}
 
   async update(id: string, orgId: string, educatorId: string, dto: UpdateAssessmentDto) {
     const assessment = await this.core.findAssessmentOrThrow(id, orgId);

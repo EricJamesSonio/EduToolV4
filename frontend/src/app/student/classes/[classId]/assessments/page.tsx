@@ -30,7 +30,8 @@ function deriveStatus(a: StudentAssessmentItem): string {
   if (a.submissionStatus === "graded")    return "graded";
   if (a.submissionStatus === "exempted")  return "exempted";
   if (a.releaseDate && new Date(a.releaseDate) > now) return "not_yet_open";
-  if (a.endDate && new Date(a.endDate) < now)         return "missed";
+  if (a.reopenedUntil && new Date(a.reopenedUntil) > now) return "open"; // ← add before missed check
+  if (a.endDate && new Date(a.endDate) < now) return "missed";
   return "open";
 }
 
