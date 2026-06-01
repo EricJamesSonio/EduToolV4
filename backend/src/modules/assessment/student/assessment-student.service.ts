@@ -32,18 +32,39 @@ export class AssessmentStudentService {
     return enrollment;
   }
 
-  async getAssessments(classId: string, orgId: string, studentId: string) {
-    await this.assertStudentEnrolled(classId, studentId, orgId);
+async getAssessments(classId: string, orgId: string, studentId: string) {
+  await this.assertStudentEnrolled(classId, studentId, orgId);
 
-    const assessments = await this.core.findAssessmentsByClass(classId, orgId);
+  const assessments = await this.core.findAssessmentsByClass(classId, orgId);
+  if (!assessments.length) return [];
 
-    return Promise.all(
-      assessments.map(async (a) => {
-        const submission = await this.core.getSubmissionByStudent(a.id, studentId);
-        return this.core.buildAssessmentListItem(a, submission);
-      }),
-    );
-  }
+  const ids = assessments.map((a) => a.id);
+
+  // Get this student's submission per assessment
+  const submissions = await this.db.submission.findMany({
+    where: { assessment_id: { in: ids }, student_id: studentId },
+    select: { id: true, assessment_id: true, status: true, reopened_until: true },
+  });
+  const subMap = new Map(submissions.map((s) => [s.assessment_id, s]));
+
+  // Find active reopens for this student
+  const now = new Date();
+
+  return assessments.map((a) => {
+    const submission = subMap.get(a.id) ?? null;
+    const reopenedUntil = submission?.reopened_until;
+    const isReopened = !!reopenedUntil && now <= new Date(reopenedUntil);
+
+    const item = this.core.buildAssessmentListItem(a, submission);
+
+    // Override status if actively reopened
+    if (isReopened) {
+      return { ...item, status: 'open', reopenedUntil: reopenedUntil.toISOString() };
+    }
+
+    return item;
+  });
+}
 
   async getAssessmentDetail(
     classId: string,

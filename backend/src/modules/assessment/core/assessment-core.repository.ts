@@ -33,6 +33,7 @@ export class AssessmentRepository {
         title: data.title ?? null,
         total_items: data.totalItems,
         release_date: data.releaseDate ?? null,
+        end_date: data.endDate ?? null,
         week_number: data.weekNumber ?? null,
         is_published: false,
         grading_mode: data.gradingMode as any ?? 'system',

@@ -66,46 +66,43 @@ export class GradeService {
     return this.repo.findByClass(classId, orgId);
   }
 
-  async getGradesByClass(classId: string, orgId: string, educatorId: string) {
-    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-    const cls = await this.repo.findClassWithSubject(classId, orgId);
-    if (!cls) throw new NotFoundException('Class not found.');
+async getGradesByClass(classId: string, orgId: string, educatorId: string) {
+  console.log('[GradeService] getGradesByClass called — new path');
+  await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+  const cls = await this.repo.findClassWithSubject(classId, orgId);
+  if (!cls) throw new NotFoundException('Class not found.');
 
-    const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
-    const results: any[] = [];
-    for (const semester of semesters) {
-      const terms = await this.repo.findTermsBySemester(semester.id);
-      for (const term of terms) {
-        const termResult = await this.buildTermResult(
-          classId, term.id, term.name, orgId, cls,
-          { id: semester.id, name: semester.name },
-        );
-        results.push(termResult);
-      }
-    }
-    return results;
+  const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
+  console.log('[GradeService] terms from template:', terms.map((t) => ({ id: t.id, name: t.name })));
+
+  const results: any[] = [];
+
+  for (const term of terms) {
+    const termResult = await this.buildTermResult(
+      classId, term.id, term.name, orgId, cls,
+      { id: term.semesterIndex.toString(), name: term.semesterName },
+    );
+    results.push(termResult);
   }
 
-  async getGradesByTerm(classId: string, termId: string, orgId: string, educatorId: string) {
-    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-    const cls = await this.repo.findClassWithSubject(classId, orgId);
-    if (!cls) throw new NotFoundException('Class not found.');
+  return results;
+}
 
-    const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
-    let semesterInfo: { id: string; name: string } | undefined;
-    let termName = '';
-    for (const s of semesters) {
-      const terms = await this.repo.findTermsBySemester(s.id);
-      const found = terms.find((t: any) => t.id === termId);
-      if (found) {
-        termName = found.name;
-        semesterInfo = { id: s.id, name: s.name };
-        break;
-      }
-    }
+async getGradesByTerm(classId: string, termId: string, orgId: string, educatorId: string) {
+  await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+  const cls = await this.repo.findClassWithSubject(classId, orgId);
+  if (!cls) throw new NotFoundException('Class not found.');
 
-    return this.buildTermResult(classId, termId, termName, orgId, cls, semesterInfo);
-  }
+  const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
+  const term = terms.find((t) => t.id === termId);
+
+  return this.buildTermResult(
+    classId, termId,
+    term?.name ?? '',
+    orgId, cls,
+    term ? { id: term.semesterIndex.toString(), name: term.semesterName } : undefined,
+  );
+}
 
   async computeGrades(
     classId: string,
@@ -199,64 +196,81 @@ export class GradeService {
     return saved;
   }
 
-  private async buildTermResult(
-    classId: string,
-    termId: string,
-    termName: string,
-    orgId: string,
-    cls: any,
-    semesterInfo?: { id: string; name: string },
-  ) {
-    const enrolledStudentIds: string[] = cls.enrollments.map((e: any) => e.student_id);
+private async buildTermResult(
+  classId: string,
+  termId: string,
+  termName: string,
+  orgId: string,
+  cls: any,
+  semesterInfo?: { id: string; name: string },
+) {
+  const enrolledStudentIds: string[] = cls.enrollments.map((e: any) => e.student_id);
 
-    const [submissions, grades, manualScores, scheme, studentProfiles] = await Promise.all([
+  const [submissions, grades, manualScores, scheme, studentProfiles, termAssessments] =
+    await Promise.all([
       this.repo.findSubmissionsForTerm(classId, termId, orgId),
       this.repo.findByClassAndTerm(classId, termId, orgId),
       this.repo.findManualScores(classId, termId, orgId),
       this.repo.findGradingSchemeForClass(classId, orgId),
-      this.repo.findStudentProfiles(enrolledStudentIds),   // ← new
+      this.repo.findStudentProfiles(enrolledStudentIds),
+      this.repo.findAssessmentsForTerm(classId, termId, orgId), // was dropped before
     ]);
 
-    const categories = scheme ? componentsToCategories(scheme.components) : [];
-    const gradeMap = new Map(grades.map((g) => [g.student_id, g]));
+  const categories = scheme ? componentsToCategories(scheme.components) : [];
+  const gradeMap = new Map(grades.map((g) => [g.student_id, g]));
 
-    const students = enrolledStudentIds.map((studentId) => {
-      const profile = studentProfiles.get(studentId);   // ← new
-      const studentSubs = submissions.filter((s) => s.student_id === studentId);
-      const studentManuals = manualScores.filter((m) => m.student_id === studentId);
+  // Key: `${studentId}:${assessmentId}` → submission row
+  const subLookup = new Map<string, any>();
+  for (const s of submissions) {
+    subLookup.set(`${s.student_id}:${s.assessment_id}`, s);
+  }
 
-      const assessmentScores = studentSubs.map((s) => ({
-        assessmentId: s.assessment_id,
-        type: s.assessment.type,
-        score: s.score,
-        manualScore: s.manual_score,
-        totalItems: s.assessment.total_items,
-        status: s.status,
-      }));
+  const students = enrolledStudentIds.map((studentId) => {
+    const profile = studentProfiles.get(studentId);
+    const studentSubs = submissions.filter((s) => s.student_id === studentId);
+    const studentManuals = manualScores.filter((m) => m.student_id === studentId);
 
-      const categoryBreakdown = this.buildCategoryBreakdown(
-        studentSubs,
-        studentManuals,
-        categories,
-      );
-
+    // Build one entry per term assessment regardless of submission existence
+    const assessmentScores = termAssessments.map((a) => {
+      const s = subLookup.get(`${studentId}:${a.id}`);
       return {
-        studentId,
-        studentName: profile?.name ?? 'Unknown',    // ← new
-        studentCode: profile?.code ?? '',            // ← new
-        grade: gradeMap.get(studentId) ?? null,
-        assessmentScores,
-        categoryBreakdown,
+        assessmentId: a.id,
+        type: a.type,
+        title: a.title ?? null,
+        score: s?.score ?? null,
+        manualScore: s?.manual_score ?? null,
+        totalItems: a.total_items,
+        status: s?.status ?? 'not_started',
+        isMissed: s?.is_missed ?? false,
+        isExempted: s?.is_exempted ?? false,
+        created_at: a.created_at,
+        submissionId: s?.id ?? undefined,
       };
     });
 
+    const categoryBreakdown = this.buildCategoryBreakdown(
+      studentSubs,
+      studentManuals,
+      categories,
+    );
+
     return {
-      termId,
-      termName,
-      students,
-      ...(semesterInfo ? { semesterId: semesterInfo.id, semesterName: semesterInfo.name } : {}),
+      studentId,
+      studentName: profile?.name ?? 'Unknown',
+      studentCode: profile?.code ?? '',
+      grade: gradeMap.get(studentId) ?? null,
+      assessmentScores,
+      categoryBreakdown,
     };
-  }
+  });
+
+  return {
+    termId,
+    termName,
+    students,
+    ...(semesterInfo ? { semesterId: semesterInfo.id, semesterName: semesterInfo.name } : {}),
+  };
+}
 
   private computeWeightedScore(
     submissions: any[],

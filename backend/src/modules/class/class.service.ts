@@ -192,7 +192,7 @@ async create(orgId: string, dto: CreateClassDto) {
     )
   }
 
-  const semesterId = await this.resolveSemesterId(dto.schoolYearId, programId, orgId)
+  const semesterId = dto.semesterId ?? await this.resolveSemesterId(dto.schoolYearId, programId, orgId)
 
   const slots = this.parseSlots(dto.schedules)
   await this.assertNoEducatorConflict(dto.educatorId, orgId, slots)

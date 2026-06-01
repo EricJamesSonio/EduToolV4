@@ -7,7 +7,6 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { getProfileImageUrl } from "@/utils/profile.util";
@@ -68,26 +67,36 @@ const ROLE_STYLES: Record<Role, string> = {
   student:        "bg-sky-50    text-sky-700    border-sky-200",
 };
 
-function InfoRow({
-  icon: Icon,
-  label,
-  value,
-  children,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value?: string;
+const ICON_STYLES: Record<string, string> = {
+  mail:     "bg-blue-100 text-blue-600",
+  user:     "bg-violet-100 text-violet-600",
+  role:     "bg-teal-100 text-teal-600",
+  status:   "bg-amber-100 text-amber-600",
+  calendar: "bg-rose-100 text-rose-600",
+  building: "bg-slate-100 text-slate-600",
+};
+
+interface InfoRowProps {
+  icon:      React.ElementType;
+  label:     string;
+  value?:    string;
+  iconStyle: string;
   children?: React.ReactNode;
-}): React.JSX.Element {
+}
+
+function InfoRow({ icon: Icon, label, value, iconStyle, children }: InfoRowProps): React.JSX.Element {
   return (
-    <div className="flex items-start gap-3 py-3">
-      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
-        <Icon className="h-4 w-4 text-muted-foreground" />
+    <div className="flex items-center gap-4 py-4">
+      <div className={cn(
+        "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+        iconStyle,
+      )}>
+        <Icon className="h-5 w-5" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
         {children ?? (
-          <p className="text-sm font-medium text-foreground truncate">
+          <p className="text-sm font-semibold text-foreground">
             {value ?? "—"}
           </p>
         )}
@@ -140,102 +149,110 @@ export function ProfileContent(): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
       <PageHeader title="My Profile" />
 
-      {/* Avatar + name hero */}
-      <Card className="border-border/60">
-        <CardContent className="pt-6 pb-5 px-6">
-          <div className="flex items-center gap-5">
-            <div className="relative shrink-0">
-              <Avatar className="h-16 w-16 shrink-0">
-                <AvatarImage src={profileImageUrl} alt={user.fullName ?? ""} />
-                <AvatarFallback className="text-xl font-semibold bg-primary/10 text-primary">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {uploading ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Camera className="h-3 w-3" />
-                )}
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp"
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-foreground truncate">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Left: Avatar hero card */}
+        <div className="lg:col-span-2">
+          <Card className="border-border/60 h-full">
+            <CardContent className="flex flex-col items-center text-center pt-8 pb-6 px-6">
+              <div className="relative mb-5">
+                <Avatar className="h-28 w-28">
+                  <AvatarImage
+                    src={profileImageUrl}
+                    alt={user.fullName ?? ""}
+                  />
+                  <AvatarFallback className="text-3xl font-semibold bg-primary/10 text-primary">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+              </div>
+
+              <h2 className="text-xl font-bold text-foreground mb-1">
                 {user.fullName ?? "Unnamed User"}
               </h2>
-              <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <p className="text-sm text-muted-foreground mb-4">{user.email}</p>
+
+              <div className="flex items-center gap-2 flex-wrap justify-center">
                 <Badge
                   variant="outline"
-                  className={cn("text-[11px] font-medium capitalize", ROLE_STYLES[user.role])}
+                  className={cn("text-xs font-medium capitalize px-3 py-1", ROLE_STYLES[user.role])}
                 >
                   {formatRole(user.role)}
                 </Badge>
                 <Badge
                   variant="outline"
-                  className={cn("text-[11px] font-medium capitalize", STATUS_STYLES[user.status])}
+                  className={cn("text-xs font-medium capitalize px-3 py-1", STATUS_STYLES[user.status])}
                 >
                   {user.status}
                 </Badge>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Details */}
-      <Card className="border-border/60">
-        <CardContent className="px-6 py-2">
-          <InfoRow icon={Mail} label="Email address" value={user.email} />
-          <Separator />
-          <InfoRow icon={CircleUser} label="Full name" value={user.fullName ?? "—"} />
-          <Separator />
-          <InfoRow icon={ShieldCheck} label="Role">
-            <Badge
-              variant="outline"
-              className={cn("text-[11px] font-medium capitalize mt-0.5", ROLE_STYLES[user.role])}
-            >
-              {formatRole(user.role)}
-            </Badge>
-          </InfoRow>
-          <Separator />
-          <InfoRow icon={ShieldCheck} label="Account status">
-            <Badge
-              variant="outline"
-              className={cn("text-[11px] font-medium capitalize mt-0.5", STATUS_STYLES[user.status])}
-            >
-              {user.status}
-            </Badge>
-          </InfoRow>
-          <Separator />
-          <InfoRow
-            icon={CalendarDays}
-            label="Member since"
-            value={formatDate(user.createdAt)}
-          />
-          {user.orgId && (
-            <>
+        {/* Right: Details card */}
+        <div className="lg:col-span-3">
+          <Card className="border-border/60 h-full">
+            <CardContent className="px-6 py-2">
+              <InfoRow icon={Mail} label="Email address" value={user.email} iconStyle={ICON_STYLES.mail} />
               <Separator />
-              <InfoRow icon={Building2} label="Organization ID" value={user.orgId} />
-            </>
-          )}
-        </CardContent>
-      </Card>
+              <InfoRow icon={CircleUser} label="Full name" value={user.fullName ?? "—"} iconStyle={ICON_STYLES.user} />
+              <Separator />
+              <InfoRow icon={ShieldCheck} label="Role" iconStyle={ICON_STYLES.role}>
+                <Badge
+                  variant="outline"
+                  className={cn("text-xs font-medium capitalize mt-0.5", ROLE_STYLES[user.role])}
+                >
+                  {formatRole(user.role)}
+                </Badge>
+              </InfoRow>
+              <Separator />
+              <InfoRow icon={ShieldCheck} label="Account status" iconStyle={ICON_STYLES.status}>
+                <Badge
+                  variant="outline"
+                  className={cn("text-xs font-medium capitalize mt-0.5", STATUS_STYLES[user.status])}
+                >
+                  {user.status}
+                </Badge>
+              </InfoRow>
+              <Separator />
+              <InfoRow
+                icon={CalendarDays}
+                label="Member since"
+                value={formatDate(user.createdAt)}
+                iconStyle={ICON_STYLES.calendar}
+              />
+              {user.orgId && (
+                <>
+                  <Separator />
+                  <InfoRow icon={Building2} label="Organization ID" value={user.orgId} iconStyle={ICON_STYLES.building} />
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

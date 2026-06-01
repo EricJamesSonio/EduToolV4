@@ -120,16 +120,22 @@ function mapAssessment(raw: Record<string, unknown>): Assessment {
     pendingEssayCount: (raw.pending_essay_count ?? raw.pendingEssayCount ?? 0) as number,
     questions,
     isPublished: (raw.is_published ?? raw.isPublished ?? false) as boolean,
+    // In mapAssessment, add one line after isPublished:
+reopenedUntil: (raw.reopened_until ?? raw.reopenedUntil ?? null) as string | null,
     createdAt: (raw.created_at ?? raw.createdAt) as string,
     updatedAt: (raw.updated_at ?? raw.updatedAt ?? raw.createdAt) as string,
   };
 }
 
+// In assessment.api.ts, replace deriveStatus:
 function deriveStatus(raw: Record<string, unknown>): Assessment["status"] {
   const now = new Date();
   const release = raw.release_date ?? raw.releaseDate;
   const end = raw.end_date ?? raw.endDate;
+  const reopenedUntil = raw.reopened_until ?? raw.reopenedUntil;
+
   if (release && now < new Date(release as string)) return "upcoming";
+  if (reopenedUntil && now <= new Date(reopenedUntil as string)) return "open";
   if (end && now > new Date(end as string)) return "closed";
   return "open";
 }

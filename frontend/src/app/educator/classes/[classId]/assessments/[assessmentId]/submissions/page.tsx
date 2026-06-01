@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import {
   useAssessment,
@@ -14,16 +15,29 @@ import {
   useUnpublishAssessment,
 } from "@/hooks/educator/useAssessments";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Loader2, Users, CheckCircle2, Ban, XCircle, UserPlus, Clock } from "lucide-react";
+import {
+  Loader2, Users, CheckCircle2, Ban, XCircle, UserPlus, Clock,
+  FileText, Calendar, ListOrdered,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Submission, SubmissionStatus } from "@/types/educator/submission.types";
+import type { AssessmentType } from "@/types/educator/assessment.types";
+
+const TYPE_LABELS: Record<string, string> = {
+  written_work: "Written Work", performance_task: "Performance Task",
+  quarterly_assessment: "Quarterly Assessment", exam: "Exam", quiz: "Quiz",
+  assignment: "Assignment", project: "Project", recitation: "Recitation",
+  participation: "Participation", behavior: "Behavior",
+  attendance: "Attendance", activity: "Activity", custom: "Custom", other: "Other",
+};
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -167,110 +181,148 @@ export default function SubmissionsPage(): React.JSX.Element {
         }
       />
 
-      {/* Filter tabs */}
-      <div className="flex items-center gap-1 flex-wrap">
-        {([
-          { key: "all", label: "All", icon: Users },
-          { key: "submitted", label: "Submitted", icon: CheckCircle2 },
-          { key: "exempted", label: "Exempted", icon: Ban },
-          { key: "missed", label: "Missed", icon: XCircle },
-          { key: "not_assigned", label: "Not Assigned", icon: UserPlus },
-          { key: "not_started", label: "Not Started", icon: Clock },
-        ] as const).map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setFilter(key)}
-            className={cn(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-              filter === key
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            <Icon className="h-3.5 w-3.5" />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Table */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" />Loading submissions...
+      {/* Assessment details card */}
+      {assessment && (
+        <div className="w-full rounded-lg border border-border bg-card px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">{assessment.title}</h2>
+                <p className="text-xs text-muted-foreground">
+                  {assessment.termName} &middot; {assessment.lessonTitle}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <ListOrdered className="h-4 w-4" />
+                <span><strong className="text-foreground">{assessment.totalItems ?? assessment.questions.length}</strong> items</span>
+              </div>
+              <Badge variant="outline">{TYPE_LABELS[assessment.type] ?? assessment.type}</Badge>
+              {assessment.gradingMode && (
+                <Badge variant="secondary" className="capitalize">{assessment.gradingMode}</Badge>
+              )}
+              {assessment.releaseDate && (
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>Due {format(new Date(assessment.endDate ?? assessment.releaseDate), "MMM d, yyyy")}</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      ) : !filteredSubmissions?.length ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No submissions match this filter.</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="px-4 py-3">Student</TableHead>
-              <TableHead className="px-4 py-3">Status</TableHead>
-              <TableHead className="px-4 py-3">Score</TableHead>
-              <TableHead className="px-4 py-3">Published</TableHead>
-              <TableHead className="px-4 py-3">Essay</TableHead>
-              <TableHead className="px-4 py-3" />
-            </TableRow>
-          </TableHeader>
-          <TableBody className="divide-y">
-            {filteredSubmissions.map((sub) => (
-              <TableRow key={sub.id} className="hover:bg-muted/20">
-                <TableCell className="px-4 py-3">
-                  <p className="font-medium">{sub.studentName}</p>
-                  <p className="text-xs text-muted-foreground">{sub.studentCode}</p>
-                </TableCell>
-                <TableCell className="px-4 py-3">
-                  <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_STYLES[sub.status] ?? STATUS_STYLES.custom)}>
-                    {getStatusLabel(sub)}
-                  </span>
-                </TableCell>
-                <TableCell className="px-4 py-3">
-                  {(() => {
-                    if (sub.isExempted) return <span className="text-muted-foreground">&mdash;</span>;
-                    const earned = sub.manualScore ?? sub.manualSectionScore ?? sub.score;
-                    if (earned !== null) return `${earned} / ${sub.totalPoints}`;
-                    return <span className="text-muted-foreground">&mdash;</span>;
-                  })()}
-                </TableCell>
-                <TableCell className="px-4 py-3">
-                  <span className={cn("text-xs font-medium", sub.isPublished ? "text-green-600" : "text-muted-foreground")}>
-                    {sub.isPublished ? "Yes" : "No"}
-                  </span>
-                </TableCell>
-                <TableCell className="px-4 py-3">
-                  {hasManualQuestions ? (
-                    sub.manualSectionScore != null ? (
-                      <span className="text-xs text-green-600">Graded</span>
-                    ) : (
-                      <span className="text-xs text-amber-600">Pending</span>
-                    )
-                  ) : hasEssayQuestions ? (
-                    sub.essayGraded ? (
-                      <span className="text-xs text-green-600">Graded</span>
-                    ) : (
-                      <span className="text-xs text-amber-600">Pending</span>
-                    )
-                  ) : "—"}
-                </TableCell>
-                <TableCell className="px-4 py-3">
-                  <div className="flex items-center gap-1 justify-end">
-                    {(hasEssayQuestions || hasManualQuestions) && sub.status === "submitted" && (
-                      <Link href={`/educator/classes/${classId}/assessments/${assessmentId}/submissions/${sub.id}/review`}>
-                        <Button variant="ghost" size="sm">
-                          {hasManualQuestions && sub.manualSectionScore == null ? "Grade" : "Review"}
-                        </Button>
-                      </Link>
-                    )}
-                    {sub.status === "not_started" && (
-                      <Button variant="ghost" size="sm" onClick={() => setStatusTarget(sub)}>Set Status</Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
       )}
+
+      {/* Filter + Table card */}
+      <div className="w-full rounded-lg border border-border bg-card">
+        {/* Filter tabs */}
+        <div className="flex items-center gap-1 flex-wrap border-b border-border px-4 py-3">
+          {([
+            { key: "all", label: "All", icon: Users },
+            { key: "submitted", label: "Submitted", icon: CheckCircle2 },
+            { key: "exempted", label: "Exempted", icon: Ban },
+            { key: "missed", label: "Missed", icon: XCircle },
+            { key: "not_assigned", label: "Not Assigned", icon: UserPlus },
+            { key: "not_started", label: "Not Started", icon: Clock },
+          ] as const).map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                filter === key
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Table */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />Loading submissions...
+          </div>
+        ) : !filteredSubmissions?.length ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">No submissions match this filter.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="px-4 py-3">Student</TableHead>
+                <TableHead className="px-4 py-3">Status</TableHead>
+                <TableHead className="px-4 py-3">Score</TableHead>
+                <TableHead className="px-4 py-3">Published</TableHead>
+                <TableHead className="px-4 py-3">Essay</TableHead>
+                <TableHead className="px-4 py-3" />
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y">
+              {filteredSubmissions.map((sub, idx) => (
+                <TableRow key={sub.id} className={cn(idx % 2 === 0 ? "bg-white" : "bg-muted/20", "hover:bg-muted/40")}>
+                  <TableCell className="px-4 py-3">
+                    <p className="font-medium">{sub.studentName}</p>
+                    <p className="text-xs text-muted-foreground">{sub.studentCode}</p>
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border", STATUS_STYLES[sub.status] ?? STATUS_STYLES.custom)}>
+                      {getStatusLabel(sub)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    {(() => {
+                      if (sub.isExempted) return <span className="text-muted-foreground">&mdash;</span>;
+                      const earned = sub.manualScore ?? sub.manualSectionScore ?? sub.score;
+                      if (earned !== null) return `${earned} / ${sub.totalPoints}`;
+                      return <span className="text-muted-foreground">&mdash;</span>;
+                    })()}
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    <span className={cn("text-xs font-medium", sub.isPublished ? "text-green-600" : "text-muted-foreground")}>
+                      {sub.isPublished ? "Yes" : "No"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    {hasManualQuestions ? (
+                      sub.manualSectionScore != null ? (
+                        <span className="text-xs text-green-600">Graded</span>
+                      ) : (
+                        <span className="text-xs text-amber-600">Pending</span>
+                      )
+                    ) : hasEssayQuestions ? (
+                      sub.essayGraded ? (
+                        <span className="text-xs text-green-600">Graded</span>
+                      ) : (
+                        <span className="text-xs text-amber-600">Pending</span>
+                      )
+                    ) : "—"}
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    <div className="flex items-center gap-1 justify-end">
+                      {(hasEssayQuestions || hasManualQuestions) && sub.status === "submitted" && (
+                        <Link href={`/educator/classes/${classId}/assessments/${assessmentId}/submissions/${sub.id}/review`}>
+                          <Button variant="ghost" size="sm">
+                            {hasManualQuestions && sub.manualSectionScore == null ? "Grade" : "Review"}
+                          </Button>
+                        </Link>
+                      )}
+                      {sub.status === "not_started" && (
+                        <Button variant="ghost" size="sm" onClick={() => setStatusTarget(sub)}>Set Status</Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
 
       {/* Dialogs */}
       <Dialog open={!!statusTarget} onOpenChange={(o) => !o && setStatusTarget(null)}>

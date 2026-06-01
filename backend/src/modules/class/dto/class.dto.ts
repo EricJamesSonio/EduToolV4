@@ -32,7 +32,9 @@ export class CreateClassDto {
   @IsUUID()
   schoolYearId!: string;
 
-  // Removed semesterId — resolved automatically from schoolYearId in service
+  @IsOptional()
+  @IsUUID()
+  semesterId?: string
 
   @IsInt()
   @Min(0)

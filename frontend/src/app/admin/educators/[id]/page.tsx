@@ -3,22 +3,30 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, KeyRound, Trash2, Mail, Hash, User } from "lucide-react";
+import { ArrowLeft, KeyRound, Trash2, Mail, Hash, User, Pencil } from "lucide-react";
 import { useEducator, useDeleteEducator, useResetEducatorPassword } from "@/hooks/admin/useEducators";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EducatorCredentialsCard } from "@/components/admin/educator/EducatorCredentialsCard";
 import { EducatorClassAssignmentManager } from "@/components/admin/educator/EducatorClassAssignmentManager";
+import { EditEducatorDialog } from "@/components/admin/educator/EditEducatorDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getProfileImageUrl } from "@/utils/profile.util";
 import type { AxiosError } from "axios";
+
+function getInitials(name: string): string {
+  return name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+}
 
 export default function EducatorDetailPage(): React.JSX.Element {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
 
+  const [editOpen, setEditOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [newCredentials, setNewCredentials] = useState<{
@@ -99,12 +107,12 @@ export default function EducatorDetailPage(): React.JSX.Element {
         actions={
           <div className="flex items-center gap-2">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() => router.push("/admin/educators")}
+              onClick={() => setEditOpen(true)}
             >
-              <ArrowLeft className="mr-1.5 h-4 w-4" />
-              Back
+              <Pencil className="mr-1.5 h-4 w-4" />
+              Edit
             </Button>
             <Button
               variant="outline"
@@ -120,12 +128,22 @@ export default function EducatorDetailPage(): React.JSX.Element {
       />
 
       {/* Profile card */}
-      <div className="rounded-lg border bg-card p-5 space-y-4">
-        <h2 className="text-sm font-semibold">Profile</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <ProfileField icon={User}  iconClass="icon-people"    label="Full Name"   value={educator.fullName} />
-          <ProfileField icon={Hash}  iconClass="icon-credential" label="Educator ID" value={educator.educatorId ?? educator.educatorCode ?? ""} mono />
-          <ProfileField icon={Mail}  iconClass="icon-people"    label="Email"       value={educator.email} />
+      <div className="rounded-lg border bg-card p-5">
+        <div className="flex gap-6">
+          <Avatar className="h-20 w-20 shrink-0">
+            <AvatarImage
+              src={getProfileImageUrl(educator.profileImage)}
+              alt={educator.fullName}
+            />
+            <AvatarFallback className="text-2xl font-semibold bg-primary/10 text-primary">
+              {getInitials(educator.fullName)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0 space-y-4">
+            <ProfileField icon={User}  iconClass="icon-people"    label="Full Name"   value={educator.fullName} />
+            <ProfileField icon={Hash}  iconClass="icon-credential" label="Educator ID" value={educator.educatorId ?? educator.educatorCode ?? ""} mono />
+            <ProfileField icon={Mail}  iconClass="icon-people"    label="Email"       value={educator.email} />
+          </div>
         </div>
       </div>
 
@@ -159,6 +177,14 @@ export default function EducatorDetailPage(): React.JSX.Element {
           </Button>
         </div>
       </div>
+
+      {editOpen && (
+        <EditEducatorDialog
+          open={editOpen}
+          educator={educator}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
 
       {/* Reset password confirm */}
       <ConfirmDialog

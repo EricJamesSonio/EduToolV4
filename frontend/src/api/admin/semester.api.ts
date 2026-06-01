@@ -71,6 +71,14 @@ export const semesterApi = {
     return (Array.isArray(list) ? list : []).map(mapSemester);
   },
 
+  getByProgram: async (programId: string, schoolYearId: string): Promise<Semester[]> => {
+    const res = await client.get<ApiListResponse<SemesterResponse[]>>(`/programs/${programId}/semesters`, {
+      params: { schoolYearId },
+    });
+    const list = res.data.data ?? res.data;
+    return Array.isArray(list) ? list.map(mapSemester) : [];
+  },
+
   create: async (data: CreateSemesterRequest): Promise<Semester> => {
     const res = await client.post<ApiListResponse<SemesterResponse>>("/semester-settings", data);
     return mapSemester(res.data.data);  // ← unwrap

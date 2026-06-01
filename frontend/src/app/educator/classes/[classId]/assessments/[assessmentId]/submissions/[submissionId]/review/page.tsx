@@ -10,8 +10,9 @@ import {
 } from "@/hooks/educator/useAssessments";
 import { useSubmissionAnswers, useGradeEssay } from "@/hooks/educator/useSubmissions";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Loader2, Check, X } from "lucide-react";
+import { ArrowLeft, Loader2, Check, X, FileText } from "lucide-react";
 import type { SubmissionAnswerDetail } from "@/api/educator/submission.api";
 
 function typeLabel(type: string): string {
@@ -54,80 +55,101 @@ export default function SubmissionReviewPage() {
 
   if (!submission) {
     return (
-      <div className="max-w-3xl mx-auto py-12 text-center text-muted-foreground">
-        {!submissions ? <><Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />Loading submission...</> : "Submission not found."}
+      <div className="space-y-6">
+        <PageHeader title="Submission Review" breadcrumbs={[
+          { label: "Assessments", href: `/educator/classes/${classId}/assessments` },
+          { label: assessment?.title ?? "...", href: `/educator/classes/${classId}/assessments/${assessmentId}` },
+          { label: "Submissions", href: `/educator/classes/${classId}/assessments/${assessmentId}/submissions` },
+          { label: "Review" },
+        ]} />
+        <div className="flex items-center justify-center py-20 text-muted-foreground gap-2">
+          {!submissions ? <><Loader2 className="h-5 w-5 animate-spin" />Loading submission...</> : "Submission not found."}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 py-8">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href={`/educator/classes/${classId}/assessments`} className="hover:text-foreground">Assessments</Link>
-        <span>/</span>
-        <Link href={`/educator/classes/${classId}/assessments/${assessmentId}`} className="hover:text-foreground">{assessment?.title ?? "..."}</Link>
-        <span>/</span>
-        <Link href={`/educator/classes/${classId}/assessments/${assessmentId}/submissions`} className="hover:text-foreground">Submissions</Link>
-        <span>/</span>
-        <span className="text-foreground font-medium">Review</span>
+    <div className="space-y-6">
+      <PageHeader
+        title={`Review — ${submission.studentName}`}
+        breadcrumbs={[
+          { label: "Assessments", href: `/educator/classes/${classId}/assessments` },
+          { label: assessment?.title ?? "...", href: `/educator/classes/${classId}/assessments/${assessmentId}` },
+          { label: "Submissions", href: `/educator/classes/${classId}/assessments/${assessmentId}/submissions` },
+          { label: "Review" },
+        ]}
+        actions={
+          <Button variant="ghost" size="sm" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back
+          </Button>
+        }
+      />
+
+      {/* Student info + score summary card */}
+      <div className="w-full rounded-lg border border-border bg-card px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">{submission.studentName}</h2>
+              <p className="text-xs text-muted-foreground">
+                {submission.submittedAt
+                  ? `Submitted ${new Date(submission.submittedAt).toLocaleString()}`
+                  : "Not yet submitted"}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-6 flex-wrap text-sm">
+          <div>
+            <span className="text-muted-foreground">System Score: </span>
+            <span className="font-semibold">{submission.systemSectionScore ?? submission.score ?? "—"}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Manual Score: </span>
+            <span className="font-semibold">
+              {submission.manualSectionScore != null ? submission.manualSectionScore : "Pending"}
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Total: </span>
+            <span className="font-semibold">
+              {submission.score != null ? `${submission.score} / ${submission.totalPoints}` : "—"}
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold">Submission Review — {submission.studentName}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {submission.submittedAt
-              ? `Submitted ${new Date(submission.submittedAt).toLocaleString()}`
-              : "Not yet submitted"}
-          </p>
+      {/* Q&A card */}
+      <div className="w-full rounded-lg border border-border bg-card">
+        <div className="border-b border-border px-6 py-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Student Answers
+          </h3>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back
-        </Button>
+        {answersLoading ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" /> Loading answers...
+          </div>
+        ) : !answers?.length ? (
+          <p className="text-sm text-muted-foreground py-12 text-center">No answers submitted.</p>
+        ) : (
+          <div className="divide-y divide-border px-6 py-4 space-y-4">
+            {answers.map((a, i) => (
+              <AnswerCard key={a.question.id} answer={a} index={i}
+                manualScore={manualScore} setManualScore={setManualScore}
+                manualMax={manualMax} />
+            ))}
+          </div>
+        )}
       </div>
-
-      {/* Score summary */}
-      <div className="flex items-center gap-6 flex-wrap text-sm border rounded-lg px-5 py-3 bg-muted/20">
-        <div>
-          <span className="text-muted-foreground">System: </span>
-          <span className="font-semibold">{submission.systemSectionScore ?? submission.score ?? "—"}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Manual: </span>
-          <span className="font-semibold">
-            {submission.manualSectionScore != null ? submission.manualSectionScore : "Pending"}
-          </span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Total: </span>
-          <span className="font-semibold">
-            {submission.score != null ? `${submission.score} / ${submission.totalPoints}` : "—"}
-          </span>
-        </div>
-      </div>
-
-      {/* Q&A */}
-      {answersLoading ? (
-        <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
-          <Loader2 className="h-5 w-5 animate-spin" /> Loading answers...
-        </div>
-      ) : !answers?.length ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No answers submitted.</p>
-      ) : (
-        <div className="space-y-4">
-          {answers.map((a, i) => (
-            <AnswerCard key={a.question.id} answer={a} index={i}
-              manualScore={manualScore} setManualScore={setManualScore}
-              manualMax={manualMax} />
-          ))}
-        </div>
-      )}
 
       {/* Save button */}
       {hasManualQuestions && (
-        <div className="flex items-center justify-end gap-3 pt-4 border-t">
+        <div className="flex items-center justify-end gap-3">
           <Button variant="outline" size="sm" onClick={() => router.back()}>Cancel</Button>
           <Button size="sm" onClick={handleSave} disabled={isGrading || answersLoading}>
             {isGrading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -169,11 +191,11 @@ function AnswerCard({
       {/* Question text */}
       <p className="text-sm font-medium">{answer.question.questionText}</p>
 
-      {/* Choices (for MC) */}
+      {/* Choices (for MC / T/F) */}
       {answer.question.choices && answer.question.choices.length > 0 && (
         <div className="space-y-1">
           {answer.question.choices.map((choice, ci) => {
-            const label = String.fromCharCode(65 + ci); // A, B, C, D
+            const label = String.fromCharCode(65 + ci);
             const isCorrect = choice === answer.question.correctAnswer;
             const isSelected = choice === answer.answer;
             return (
@@ -196,7 +218,7 @@ function AnswerCard({
       <div className="space-y-1">
         <p className="text-xs text-muted-foreground font-medium">Student answer:</p>
         <div className={cn(
-          "rounded-md px-4 py-3 border text-sm whitespace-pre-wrap bg-white",
+          "rounded-md px-4 py-3 border text-sm whitespace-pre-wrap bg-card",
           isManual ? "border-amber-200" : "border-border"
         )}>
           {answer.answer || <span className="italic text-muted-foreground">(no answer)</span>}

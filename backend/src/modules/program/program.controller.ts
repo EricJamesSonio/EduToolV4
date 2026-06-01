@@ -87,6 +87,19 @@ export class ProgramController {
     return this.programService.findById(id, orgId)
   }
 
+  @Get(':id/semesters')
+  async getSemesters(
+    @Param('id') id: string,
+    @Query('schoolYearId') schoolYearId: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    if (!orgId) {
+      throw new BadRequestException('orgId is missing from user context')
+    }
+
+    return this.programService.getSemesters(id, schoolYearId, orgId)
+  }
+
   @Patch(':id')
   async update(
     @Param('id') id: string,

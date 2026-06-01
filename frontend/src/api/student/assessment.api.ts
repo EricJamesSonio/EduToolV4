@@ -18,6 +18,7 @@ export interface StudentAssessmentItem {
   submittedAt: string | null;
   termId: string;
   weekNumber?: number;
+  reopenedUntil?: string | null;
 }
 
 export interface StudentAssessmentDetail {

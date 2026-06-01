@@ -89,7 +89,7 @@ export function ProgramLevelsSection({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Layers className="h-5 w-5 text-primary" />
           <h3 className="font-semibold text-base">Levels</h3>
@@ -98,7 +98,7 @@ export function ProgramLevelsSection({
           </Badge>
         </div>
         {!showGenerate && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               size="sm"
               className="h-8 text-xs px-3"
@@ -123,7 +123,7 @@ export function ProgramLevelsSection({
       {/* Generate UI */}
       {showGenerate && (
         <div className="rounded-xl border bg-card p-6 space-y-4">
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
             <span className="text-sm text-muted-foreground">{cfg.label}:</span>
             <div className="flex items-center gap-2">
               <button
@@ -138,10 +138,10 @@ export function ProgramLevelsSection({
                 className="h-7 w-7 rounded border flex items-center justify-center text-sm hover:bg-muted disabled:opacity-40"
               >+</button>
             </div>
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded w-fit">
               {cfg.preview(genCount)}
             </span>
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2 sm:ml-auto">
               <Button
                 size="sm"
                 className="h-8 text-xs px-3"

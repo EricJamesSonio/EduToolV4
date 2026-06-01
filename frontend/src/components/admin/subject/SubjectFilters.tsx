@@ -6,9 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { WEEK_COLORS } from "@/lib/palette";
+
 import type { FiltersState, FiltersActions } from "./hooks/useSubjectFilters";
 import type { Program } from "@/types/admin/program.types";
 import type { Level } from "@/types/admin/level.types";
@@ -41,22 +39,24 @@ export function SubjectFilters({
   programsLoading,
   levelsLoading,
 }: SubjectFiltersProps) {
-const hasCourses = courses.length > 0;
-const hasStrands = strands.length > 0;
+  const selectedProgram = programs.find((p) => p.id === selectedProgramId);
+  const isCollege = selectedProgram?.type === "college";
+  const isSHS = selectedProgram?.type === "shs";
+  const hasSubGroups = isCollege || isSHS;
 
-// Levels are filtered based on the selected course or strand
-const visibleLevels = (() => {
-  if (selectedProgramId === "all") return [];
-  // If course is selected, levels are already course-scoped via the API
-  if (selectedCourseId !== "all") return levels;
-  // If strand is selected, levels are already strand-scoped via the API
-  if (selectedStrandId !== "all") return levels;
-  // Fallback: program-scoped levels
-  return levels.filter((l) => l.program_id === selectedProgramId);
-})();
+  const subGroupSatisfied =
+    !hasSubGroups ||
+    (isCollege ? selectedCourseId !== "all" : selectedStrandId !== "all");
 
-const showLevels =
-  selectedProgramId !== "all" && visibleLevels.length > 0;
+  const levelSelectEnabled = selectedProgramId !== "all" && subGroupSatisfied;
+
+  const visibleLevels = (() => {
+    if (!levelSelectEnabled) return [];
+    // Levels are already scoped by the API (course/strand/program)
+    return levels;
+  })();
+
+  const selectedLevelName = levels.find((l) => l.id === filterLevelId)?.name;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -100,17 +100,17 @@ const showLevels =
             </SelectContent>
           </Select>
 
-          {/* Course — shown only when the program has courses */}
-          {selectedProgramId !== "all" && hasCourses && (
+          {/* Course — college only */}
+          {isCollege && (
             <Select
               value={selectedCourseId}
               onValueChange={(v) => {
                 setSelectedCourseId(v ?? "all");
-                setSelectedStrandId("all"); // mutually exclusive with strand
+                setSelectedStrandId("all");
                 setFilterLevelId("all");
               }}
             >
-              <SelectTrigger className="w-40 h-9 text-sm">
+              <SelectTrigger className="w-44 h-9 text-sm">
                 <SelectValue placeholder="All Courses">
                   {selectedCourseId === "all"
                     ? "All Courses"
@@ -129,17 +129,17 @@ const showLevels =
             </Select>
           )}
 
-          {/* Strand — shown only when the program has strands */}
-          {selectedProgramId !== "all" && hasStrands && (
+          {/* Strand — SHS only */}
+          {isSHS && (
             <Select
               value={selectedStrandId}
               onValueChange={(v) => {
                 setSelectedStrandId(v ?? "all");
-                setSelectedCourseId("all"); // mutually exclusive with course
+                setSelectedCourseId("all");
                 setFilterLevelId("all");
               }}
             >
-              <SelectTrigger className="w-40 h-9 text-sm">
+              <SelectTrigger className="w-44 h-9 text-sm">
                 <SelectValue placeholder="All Strands">
                   {selectedStrandId === "all"
                     ? "All Strands"
@@ -158,47 +158,52 @@ const showLevels =
             </Select>
           )}
 
-          {/* Level — shown after course/strand is picked, or directly if program has neither */}
-          {showLevels && (
-            <Select
-              value={filterLevelId}
-              onValueChange={(v) => setFilterLevelId(v ?? "all")}
-            >
-              <SelectTrigger className="w-40 h-9 text-sm">
-                <SelectValue placeholder="All Levels">
-                  {filterLevelId === "all"
-                    ? "All Levels"
-                    : (visibleLevels.find((l) => l.id === filterLevelId)
-                        ?.name ?? "All Levels")}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {levelsLoading ? (
-                  <div className="p-2 text-sm text-muted-foreground">
-                    Loading levels...
-                  </div>
-                ) : (
-                  <>
-                    <SelectItem value="all">All Levels</SelectItem>
-                    {visibleLevels.map((level) => {
-                      const match = level.name.match(/^(\d+)/);
-                      const idx = match ? (parseInt(match[1]) - 1) % WEEK_COLORS.length : 0;
-                      return (
-                        <SelectItem key={level.id} value={level.id}>
-                          <div className="flex items-center gap-2">
-                            <span>{level.name}</span>
-                            <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", WEEK_COLORS[idx])}>
-                              {match?.[1] ?? ""}
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </>
-                )}
-              </SelectContent>
-            </Select>
-          )}
+          {/* Level — gated on program + sub-group */}
+          <Select
+            value={filterLevelId}
+            onValueChange={(v) => setFilterLevelId(v ?? "all")}
+            disabled={!levelSelectEnabled}
+          >
+            <SelectTrigger className="w-44 h-9 text-sm">
+              <SelectValue
+                placeholder={
+                  selectedProgramId === "all"
+                    ? "Select program first"
+                    : hasSubGroups && !subGroupSatisfied
+                      ? isCollege
+                        ? "Select course first"
+                        : "Select strand first"
+                      : "All Levels"
+                }
+              >
+                {filterLevelId === "all"
+                  ? selectedProgramId === "all"
+                    ? "Select program first"
+                    : hasSubGroups && !subGroupSatisfied
+                      ? isCollege
+                        ? "Select course first"
+                        : "Select strand first"
+                      : "All Levels"
+                  : (selectedLevelName ?? "All Levels")}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {levelsLoading ? (
+                <div className="p-2 text-sm text-muted-foreground">
+                  Loading levels...
+                </div>
+              ) : (
+                <>
+                  <SelectItem value="all">All Levels</SelectItem>
+                  {visibleLevels.map((level) => (
+                    <SelectItem key={level.id} value={level.id}>
+                      {level.name}
+                    </SelectItem>
+                  ))}
+                </>
+              )}
+            </SelectContent>
+          </Select>
         </>
       )}
     </div>

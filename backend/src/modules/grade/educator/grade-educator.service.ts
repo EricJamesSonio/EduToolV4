@@ -74,66 +74,50 @@ export class GradeEducatorService {
     return this.repo.findByClass(classId, orgId);
   }
 
-  async getGradesByClass(classId: string, orgId: string, educatorId: string) {
-    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-    const cls = await this.repo.findClassWithSubject(classId, orgId);
-    if (!cls) throw new NotFoundException('Class not found.');
+async getGradesByClass(classId: string, orgId: string, educatorId: string) {
+  await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+  const cls = await this.repo.findClassWithSubject(classId, orgId);
+  if (!cls) throw new NotFoundException('Class not found.');
 
-    const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
-    const results: any[] = [];
-    for (const semester of semesters) {
-      const terms = await this.repo.findTermsBySemester(semester.id);
-      for (const term of terms) {
-        const termResult = await this.buildTermResult(
-          classId, term.id, term.name, orgId, cls,
-          { id: semester.id, name: semester.name },
-        );
-        results.push(termResult);
-      }
-    }
-    return results;
+  const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
+  const results: any[] = [];
+
+  for (const term of terms) {
+    const termResult = await this.buildTermResult(
+      classId, term.id, term.name, orgId, cls,
+      { id: term.semesterIndex.toString(), name: term.semesterName },
+    );
+    results.push(termResult);
   }
 
-  async getTermOptions(classId: string, orgId: string, educatorId: string) {
-    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-    const cls = await this.repo.findClassWithSubject(classId, orgId);
-    if (!cls) return [];
-    const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
-    const options: { termId: string; termName: string; semesterName: string }[] = [];
-    for (const semester of semesters) {
-      const terms = await this.repo.findTermsBySemester(semester.id);
-      for (const term of terms) {
-        options.push({ termId: term.id, termName: term.name, semesterName: semester.name });
-      }
-    }
-    return options;
-  }
+  return results;
+}
 
-  async getGradesByTerm(
-    classId: string,
-    termId: string,
-    orgId: string,
-    educatorId: string,
-  ) {
-    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-    const cls = await this.repo.findClassWithSubject(classId, orgId);
-    if (!cls) throw new NotFoundException('Class not found.');
+async getTermOptions(classId: string, orgId: string, educatorId: string) {
+  await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+  const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
+  return terms.map((t) => ({
+    termId: t.id,
+    termName: t.name,
+    semesterName: t.semesterName,
+  }));
+}
 
-    const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
-    let semesterInfo: { id: string; name: string } | undefined;
-    let termName = '';
-    for (const s of semesters) {
-      const terms = await this.repo.findTermsBySemester(s.id);
-      const found = terms.find((t: any) => t.id === termId);
-      if (found) {
-        termName = found.name;
-        semesterInfo = { id: s.id, name: s.name };
-        break;
-      }
-    }
+  async getGradesByTerm(classId: string, termId: string, orgId: string, educatorId: string) {
+  await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+  const cls = await this.repo.findClassWithSubject(classId, orgId);
+  if (!cls) throw new NotFoundException('Class not found.');
 
-    return this.buildTermResult(classId, termId, termName, orgId, cls, semesterInfo);
-  }
+  const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
+  const term = terms.find((t) => t.id === termId);
+
+  return this.buildTermResult(
+    classId, termId,
+    term?.name ?? '',
+    orgId, cls,
+    term ? { id: term.semesterIndex.toString(), name: term.semesterName } : undefined,
+  );
+}
 
   /**
    * Recompute grade for a single student after submission.

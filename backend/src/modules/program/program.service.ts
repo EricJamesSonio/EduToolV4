@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common'
 import { ProgramRepository } from './program.repository'
+import { DatabaseService } from '@/core/database/database.provider'
 import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto'
 
 @Injectable()
 export class ProgramService {
-  constructor(private readonly programRepository: ProgramRepository) { }
+  constructor(
+    private readonly programRepository: ProgramRepository,
+    private readonly db: DatabaseService,
+  ) {}
 
   async create(orgId: string, dto: CreateProgramDto) {
     const nameTaken = await this.programRepository.findByNameAndYear(
@@ -67,6 +71,54 @@ export class ProgramService {
       name: dto.name,
       type: dto.type,
     })
+  }
+
+  async getSemesters(programId: string, schoolYearId: string, orgId: string) {
+    // Find the semester template assignment for this program
+    const assignment = await this.db.programSemesterAssignment.findFirst({
+      where: { program_id: programId, org_id: orgId },
+      include: {
+        template: {
+          include: {
+            semesters: { orderBy: { order_index: 'asc' as const } },
+          },
+        },
+      },
+    })
+
+    if (!assignment) return []
+
+    const templateSemesterNames = new Set(
+      assignment.template.semesters.map((s: { name: string }) => s.name),
+    )
+
+    // Find actual Semester records matching those names + school year
+    const semesters = await this.db.semester.findMany({
+      where: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        name: { in: [...templateSemesterNames] },
+      },
+      include: {
+        terms: { orderBy: { order_index: 'asc' as const } },
+      },
+      orderBy: { start_date: 'asc' as const },
+    })
+
+    return semesters.map((s) => ({
+      id: s.id,
+      school_year_id: s.school_year_id,
+      name: s.name,
+      start_date: s.start_date,
+      end_date: s.end_date,
+      terms: (s.terms ?? []).map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        order_index: t.order_index,
+        start_date: t.start_date,
+        end_date: t.end_date,
+      })),
+    }))
   }
 
   async remove(id: string, orgId: string) {

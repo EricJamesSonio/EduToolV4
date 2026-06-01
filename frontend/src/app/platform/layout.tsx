@@ -1,8 +1,9 @@
 "use client";
 
 import { useRoleGuard } from "@/hooks/useRole";
-import { PortalNavbar } from "@/components/layout/PortalNavbar";
 import { PlatformSidebar } from "@/components/layout/PlatformSidebar";
+import { AppShell } from "@/components/layout/AppShell";
+import { SidebarProvider } from "@/context/SidebarContext";
 
 export default function PlatformLayout({
   children,
@@ -12,12 +13,10 @@ export default function PlatformLayout({
   useRoleGuard(["platform_owner"]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <PortalNavbar />
-      <PlatformSidebar />
-      <main className="ml-56 pt-[76px] transition-all duration-200">
-        <div className="p-6">{children}</div>
-      </main>
-    </div>
+    <SidebarProvider>
+      <AppShell sidebar={<PlatformSidebar />}>
+        {children}
+      </AppShell>
+    </SidebarProvider>
   );
 }
