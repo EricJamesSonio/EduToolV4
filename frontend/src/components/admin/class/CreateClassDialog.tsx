@@ -16,6 +16,7 @@ import { courseApi }           from "@/api/admin/course.api";
 import { strandApi }           from "@/api/admin/strand.api";
 import { levelApi }            from "@/api/admin/level.api";
 import { sectionApi }          from "@/api/admin/section.api";
+import { semesterApi }         from "@/api/admin/semester.api";
 import { semesterTemplateApi } from "@/api/admin/semester-template.api";
 import type { Level }          from "@/types/admin/level.types";
 import type { Subject }        from "@/types/admin/subject.types";
@@ -42,6 +43,7 @@ export interface ScheduleSlotForm {
 
 export interface CreateClassForm {
   programId:  string;
+  semesterId: string;
   trackId:    string;
   levelId:    string;
   sectionId:  string;
@@ -53,6 +55,7 @@ export interface CreateClassForm {
 
 const EMPTY_DEFAULTS: CreateClassForm = {
   programId:  "",
+  semesterId: "",
   trackId:    "",
   levelId:    "",
   sectionId:  "",
@@ -104,6 +107,7 @@ export function CreateClassDialog({
   useClassDraftAutosave(formValues);
 
   const selectedProgramId  = formValues.programId;
+  const selectedSemesterId = formValues.semesterId;
   const selectedTrackId    = formValues.trackId;
   const selectedLevelId    = formValues.levelId;
   const selectedSectionId  = formValues.sectionId;
@@ -195,9 +199,16 @@ export function CreateClassDialog({
   const programMissingTemplate =
     !!selectedProgramId && !assignedProgramIds.has(selectedProgramId);
 
+  const { data: semesters = [] } = useQuery({
+    queryKey: ["admin", "semesters", "by-program", selectedProgramId, schoolYearId],
+    queryFn:  () => semesterApi.getByProgram(selectedProgramId!, schoolYearId!),
+    enabled:  !!schoolYearId && !!selectedProgramId && !programMissingTemplate,
+  });
+
   // ── Cascade resets ──────────────────────────────────────────────────────────
 
   useEffect(() => {
+    setValue("semesterId", "");
     setValue("trackId",   "");
     setValue("levelId",   "");
     setValue("sectionId", "");
@@ -228,6 +239,7 @@ export function CreateClassDialog({
         educatorId:   values.educatorId,
         sectionId:    values.sectionId || undefined,
         schoolYearId: schoolYearId!,
+        semesterId:   values.semesterId || undefined,
         capacity:     Number(values.capacity),
         schedules:    values.schedules.map((s) => ({
           weekday:   Number(s.weekday),
@@ -263,6 +275,7 @@ export function CreateClassDialog({
     mutation.isPending        ||
     !selectedProgramId        ||
     programMissingTemplate    || // ← block submit when template missing
+    !selectedSemesterId       ||
     (hasTrack && !selectedTrackId) ||
     !selectedLevelId          ||
     !selectedSectionId        ||
@@ -341,6 +354,46 @@ export function CreateClassDialog({
               </div>
             )}
 
+            {/* Semester */}
+            <div className="space-y-1.5">
+              <Label>Semester</Label>
+              <Select
+                value={selectedSemesterId}
+                onValueChange={(v) => setValue("semesterId", v ?? "")}
+                disabled={!selectedProgramId || programMissingTemplate}
+              >
+                <SelectTrigger>
+                  <span>
+                    {!selectedProgramId
+                      ? "Select a program first"
+                      : programMissingTemplate
+                        ? "No template assigned"
+                        : semesters.length === 0
+                          ? "No semesters available"
+                          : (semesters.find((s) => s.id === selectedSemesterId)?.name ?? "Select semester")}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  {semesters.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No semesters for this program
+                    </div>
+                  ) : (
+                    semesters.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <div className="flex flex-col">
+                          <span>{s.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(s.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – {new Date(s.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Course / Strand */}
             {hasTrack && (
               <div className="space-y-1.5">
@@ -348,12 +401,14 @@ export function CreateClassDialog({
                 <Select
                   value={selectedTrackId}
                   onValueChange={(v) => setValue("trackId", v ?? "")}
-                  disabled={!selectedProgramId || programMissingTemplate}
+                  disabled={!selectedProgramId || !selectedSemesterId || programMissingTemplate}
                 >
                   <SelectTrigger>
                     <span>
-                      {tracks.find((t) => t.id === selectedTrackId)?.name ??
-                        `Select ${isCourseTrack ? "course" : "strand"}`}
+                      {!selectedSemesterId
+                        ? "Select a semester first"
+                        : tracks.find((t) => t.id === selectedTrackId)?.name ??
+                          `Select ${isCourseTrack ? "course" : "strand"}`}
                     </span>
                   </SelectTrigger>
                   <SelectContent>
@@ -374,6 +429,7 @@ export function CreateClassDialog({
                 disabled={
                   !selectedProgramId ||
                   programMissingTemplate ||
+                  !selectedSemesterId ||
                   (hasTrack && !selectedTrackId)
                 }
               >
@@ -400,7 +456,7 @@ export function CreateClassDialog({
               <Select
                 value={selectedSectionId}
                 onValueChange={(v) => setValue("sectionId", v ?? "")}
-                disabled={!selectedLevelId || programMissingTemplate}
+                disabled={!selectedLevelId || !selectedSemesterId || programMissingTemplate}
               >
                 <SelectTrigger>
                   <span>
@@ -427,7 +483,7 @@ export function CreateClassDialog({
               <Select
                 value={selectedSubjectId}
                 onValueChange={(v) => setValue("subjectId", v ?? "")}
-                disabled={!selectedLevelId || programMissingTemplate}
+                disabled={!selectedLevelId || !selectedSemesterId || programMissingTemplate}
               >
                 <SelectTrigger>
                   <span>

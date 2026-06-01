@@ -675,7 +675,6 @@ export default function GradesPage() {
   const { data: allTerms, isLoading } = useClassGrades(classId);
 
   const [activeTermId, setActiveTermId] = useState<string | null>(null);
-  const [activeSemesterId, setActiveSemesterId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("default");
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
   const [locking, setLocking] = useState(false);
@@ -683,36 +682,14 @@ export default function GradesPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const qc = useQueryClient();
 
-  // Derive unique semesters from term data
-  const semesters = allTerms
-    ? Array.from(
-        new Map(
-          allTerms.map((t) => [
-            t.semesterId ?? "default",
-            { id: t.semesterId ?? "default", name: t.semesterName ?? "Default" },
-          ]),
-        ).values(),
-      )
-    : [];
-
-  const semesterTerms = allTerms?.filter(
-    (t) => (t.semesterId ?? "default") === (activeSemesterId ?? ""),
-  ) ?? [];
-
-  // Set initial active semester and term once data loads
+  // Set initial active term once data loads
   useEffect(() => {
-    if (semesters.length > 0 && !activeSemesterId) {
-      setActiveSemesterId(semesters[0].id);
+    if (allTerms && allTerms.length > 0 && !activeTermId) {
+      setActiveTermId(allTerms[0].termId);
     }
-  }, [semesters, activeSemesterId]);
+  }, [allTerms, activeTermId]);
 
-  useEffect(() => {
-    if (semesterTerms.length > 0 && !activeTermId) {
-      setActiveTermId(semesterTerms[0].termId);
-    }
-  }, [semesterTerms, activeTermId]);
-
-  const activeTerm = semesterTerms.find((t) => t.termId === activeTermId) ?? null;
+  const activeTerm = allTerms?.find((t) => t.termId === activeTermId) ?? null;
 
   const computeMutation = useComputeGrades(classId, activeTermId ?? "");
 
@@ -818,30 +795,10 @@ export default function GradesPage() {
         }
       />
 
-      {/* Semester tabs */}
-      {semesters.length > 1 && (
-        <div className="flex items-center gap-1">
-          {semesters.map((sem) => (
-            <button
-              key={sem.id}
-              onClick={() => { setActiveSemesterId(sem.id); setActiveTermId(null); }}
-              className={cn(
-                "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-                activeSemesterId === sem.id
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {sem.name}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Term tabs */}
-      {semesterTerms.length > 0 && (
+      {allTerms && allTerms.length > 0 && (
         <div className="flex items-center gap-2">
-          {semesterTerms.map((term, i) => {
+          {allTerms.map((term, i) => {
             const color = WEEK_COLORS[i % WEEK_COLORS.length];
             return (
               <button

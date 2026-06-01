@@ -66,7 +66,6 @@ export default function AssessmentsPage(): React.JSX.Element {
 
   // ── Filters state ────────────────────────────────────────────────────
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [semesterFilter, setSemesterFilter] = useState<string>("all");
   const [termFilter, setTermFilter] = useState<string>("all");
   const [weekFilter, setWeekFilter] = useState<string>("all");
 
@@ -80,18 +79,13 @@ export default function AssessmentsPage(): React.JSX.Element {
   const schemeTypes = gradingScheme?.components?.map((c) => c.type) ?? [];
 
   // Build cascading filter groups from weeks data
-  const { semesterOptions, termOptions, weekOptions } = useMemo(() => {
-    const semesters = new Map<string, { label: string; index: number }>();
-    const terms = new Map<string, { label: string; semesterIndex: number }>();
+  const { termOptions, weekOptions } = useMemo(() => {
+    const terms = new Map<string, { label: string }>();
     const weeksMap = new Map<string, { label: string; value: number; termId: string }>();
 
     for (const w of weeks) {
-      const semKey = `${w.semesterIndex}`;
-      if (!semesters.has(semKey)) {
-        semesters.set(semKey, { label: w.semesterName, index: w.semesterIndex });
-      }
       if (!terms.has(w.termId)) {
-        terms.set(w.termId, { label: w.termName, semesterIndex: w.semesterIndex });
+        terms.set(w.termId, { label: w.termName });
       }
       const weekKey = `${w.value}`;
       if (!weeksMap.has(weekKey)) {
@@ -99,30 +93,17 @@ export default function AssessmentsPage(): React.JSX.Element {
       }
     }
 
-    const semesterOpts = Array.from(semesters.entries())
-      .map(([key, v]) => ({ value: key, label: v.label, index: v.index }))
-      .sort((a, b) => a.index - b.index);
-
     const termOpts = Array.from(terms.entries())
-      .map(([key, v]) => ({ value: key, label: v.label, semesterIndex: v.semesterIndex }))
-      .sort((a, b) => a.semesterIndex - b.semesterIndex);
+      .map(([key, v]) => ({ value: key, label: v.label }));
 
     const weekOpts = Array.from(weeksMap.entries())
       .map(([key, v]) => ({ value: key, label: v.label, weekValue: v.value, termId: v.termId }))
       .sort((a, b) => a.weekValue - b.weekValue);
 
-    return { semesterOptions: semesterOpts, termOptions: termOpts, weekOptions: weekOpts };
+    return { termOptions: termOpts, weekOptions: weekOpts };
   }, [weeks]);
 
-  // Filtered term/week options based on higher-level selections
-  const filteredTermOptions = useMemo(() => {
-    if (semesterFilter === "all") return termOptions;
-    return termOptions.filter((t) => {
-      const sem = semesterOptions.find((s) => s.value === semesterFilter);
-      return sem && t.semesterIndex === sem.index;
-    });
-  }, [termOptions, semesterFilter, semesterOptions]);
-
+  // Filtered week options based on term selection
   const filteredWeekOptions = useMemo(() => {
     if (termFilter === "all") return weekOptions;
     return weekOptions.filter((w) => w.termId === termFilter);
@@ -177,45 +158,29 @@ export default function AssessmentsPage(): React.JSX.Element {
           </SelectContent>
         </Select>
 
-        <Select value={semesterFilter} onValueChange={(v) => { setSemesterFilter(v); setTermFilter("all"); setWeekFilter("all"); }}>
+        <Select value={termFilter} onValueChange={(v) => { setTermFilter(v); setWeekFilter("all"); }}>
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="Semester">{semesterFilter === "all" ? "All Semesters" : semesterOptions.find(s => s.value === semesterFilter)?.label}</SelectValue>
+            <SelectValue placeholder="Term">{termFilter === "all" ? "All Terms" : termOptions.find(t => t.value === termFilter)?.label}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Semesters</SelectItem>
-            {semesterOptions.map((s) => (
-              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            <SelectItem value="all">All Terms</SelectItem>
+            {termOptions.map((t) => (
+              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        {semesterFilter !== "all" && (
-          <Select value={termFilter} onValueChange={(v) => { setTermFilter(v); setWeekFilter("all"); }}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Term">{termFilter === "all" ? "All Terms" : filteredTermOptions.find(t => t.value === termFilter)?.label}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Terms</SelectItem>
-              {filteredTermOptions.map((t) => (
-                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {termFilter !== "all" && (
-          <Select value={weekFilter} onValueChange={setWeekFilter}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Week">{weekFilter === "all" ? "All Weeks" : filteredWeekOptions.find(w => w.value === weekFilter)?.label}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Weeks</SelectItem>
-              {filteredWeekOptions.map((w) => (
-                <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <Select value={weekFilter} onValueChange={setWeekFilter}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Week">{weekFilter === "all" ? "All Weeks" : filteredWeekOptions.find(w => w.value === weekFilter)?.label}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Weeks</SelectItem>
+            {filteredWeekOptions.map((w) => (
+              <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table */}
