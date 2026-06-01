@@ -368,10 +368,50 @@ async getWeekStructure(
     (a: any, b: any) => a.order_index - b.order_index,
   );
 
+  // ── Scope to the class's semester only ─────────────────────────
+  // Find which template semester matches the class's actual semester
+  // by checking date-range overlap between the class semester's period
+  // and the template terms' assigned date ranges.
+  let classSemesterStart: Date | null = null
+  let classSemesterEnd: Date | null = null
+  if (cls.semester_id) {
+    const actualSem = await this.classRepo['db'].semester.findUnique({
+      where: { id: cls.semester_id },
+      select: { start_date: true, end_date: true },
+    })
+    if (actualSem) {
+      classSemesterStart = actualSem.start_date
+      classSemesterEnd = actualSem.end_date
+    }
+  }
+
   let globalWeek = 1;
 
   for (let si = 0; si < semesters.length; si++) {
     const sem = semesters[si];
+
+    // Skip semesters whose term date ranges don't overlap with the
+    // class's actual semester date range
+    if (classSemesterStart && classSemesterEnd) {
+      const semTermDates = (sem.terms ?? [])
+        .map((t: any) => ({ id: t.id, name: t.name, dates: termDatesMap.get(t.id) }))
+        .filter((x: any) => x.dates) as Array<{ id: string; name: string; dates: { start: Date; end: Date } }>
+
+      const semStart = semTermDates.length > 0
+        ? new Date(Math.min(...semTermDates.map((d) => d.dates.start.getTime())))
+        : null
+      const semEnd = semTermDates.length > 0
+        ? new Date(Math.max(...semTermDates.map((d) => d.dates.end.getTime())))
+        : null
+
+      const overlap = semStart && semEnd
+        ? !(semEnd < classSemesterStart || semStart > classSemesterEnd)
+        : false
+
+      console.log(`[DEBUG WEEK STRUCTURE] sem="${sem.name}" si=${si} foundTerms=${semTermDates.length} semStart=${semStart} semEnd=${semEnd} classStart=${classSemesterStart} classEnd=${classSemesterEnd} overlap=${overlap} skip=${!overlap}`)
+
+      if (!semStart || !semEnd || semEnd < classSemesterStart || semStart > classSemesterEnd) continue
+    }
 
     // 🔥 ensure term order
     const terms = (sem.terms ?? []).sort(

@@ -112,10 +112,49 @@ export class AttendanceService {
 
     const semesters = assignment.template.semesters ?? [];
 
+    // ── Scope to the class's semester only ──────────────────────────────
+    // Find which template semester matches the class's actual semester
+    // by checking date-range overlap.
+    let classSemesterStart: Date | null = null
+    let classSemesterEnd: Date | null = null
+    if (cls.semester_id) {
+      const actualSem = await this.db.semester.findUnique({
+        where: { id: cls.semester_id },
+        select: { start_date: true, end_date: true },
+      })
+      if (actualSem) {
+        classSemesterStart = actualSem.start_date
+        classSemesterEnd = actualSem.end_date
+      }
+    }
+
     // =========================================================
     // 🔥 CORE LOOP (SYNCED WITH LESSON SYSTEM)
     // =========================================================
     for (const sem of semesters) {
+      // Skip semesters whose term date ranges don't overlap with the
+      // class's actual semester date range
+      if (classSemesterStart && classSemesterEnd) {
+        const semTermDates = (sem.terms ?? [])
+          .map((t: any) => ({ id: t.id, name: t.name, dates: termDatesMap.get(t.id) }))
+          .filter((x: any) => x.dates) as Array<{ id: string; name: string; dates: { start: Date; end: Date } }>
+
+        const semStart = semTermDates.length > 0
+          ? new Date(Math.min(...semTermDates.map((d) => d.dates.start.getTime())))
+          : null
+        const semEnd = semTermDates.length > 0
+          ? new Date(Math.max(...semTermDates.map((d) => d.dates.end.getTime())))
+          : null
+
+        const overlap = semStart && semEnd
+          ? !(semEnd < classSemesterStart || semStart > classSemesterEnd)
+          : false
+
+        console.log(`[DEBUG ATTENDANCE] sem="${sem.name}" si=${si} foundTerms=${semTermDates.length} semStart=${semStart} semEnd=${semEnd} classStart=${classSemesterStart} classEnd=${classSemesterEnd} overlap=${overlap} skip=${!overlap}`)
+
+        if (!semStart || !semEnd || semEnd < classSemesterStart || semStart > classSemesterEnd) continue
+      }
+
       const terms = sem.terms ?? [];
 
       for (const term of terms) {

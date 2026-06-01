@@ -80,16 +80,17 @@ export class GradeEducatorService {
     if (!cls) throw new NotFoundException('Class not found.');
 
     const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
+    const classSemester = semesters.find((s) => s.id === cls.semester_id);
+    if (!classSemester) return [];
+
+    const terms = await this.repo.findTermsBySemester(classSemester.id);
     const results: any[] = [];
-    for (const semester of semesters) {
-      const terms = await this.repo.findTermsBySemester(semester.id);
-      for (const term of terms) {
-        const termResult = await this.buildTermResult(
-          classId, term.id, term.name, orgId, cls,
-          { id: semester.id, name: semester.name },
-        );
-        results.push(termResult);
-      }
+    for (const term of terms) {
+      const termResult = await this.buildTermResult(
+        classId, term.id, term.name, orgId, cls,
+        { id: classSemester.id, name: classSemester.name },
+      );
+      results.push(termResult);
     }
     return results;
   }
@@ -99,12 +100,12 @@ export class GradeEducatorService {
     const cls = await this.repo.findClassWithSubject(classId, orgId);
     if (!cls) return [];
     const semesters = await this.repo.findSemestersBySchoolYear(cls.school_year_id);
+    const classSemester = semesters.find((s) => s.id === cls.semester_id);
+    if (!classSemester) return [];
+    const terms = await this.repo.findTermsBySemester(classSemester.id);
     const options: { termId: string; termName: string; semesterName: string }[] = [];
-    for (const semester of semesters) {
-      const terms = await this.repo.findTermsBySemester(semester.id);
-      for (const term of terms) {
-        options.push({ termId: term.id, termName: term.name, semesterName: semester.name });
-      }
+    for (const term of terms) {
+      options.push({ termId: term.id, termName: term.name, semesterName: classSemester.name });
     }
     return options;
   }
