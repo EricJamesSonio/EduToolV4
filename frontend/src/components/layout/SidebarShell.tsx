@@ -4,7 +4,7 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -56,7 +56,6 @@ function NavLink({
     ? "bg-muted text-foreground"
     : "text-muted-foreground hover:bg-muted/60 hover:text-foreground";
 
-  // ✅ FIX: Wrap Link with a DOM element (<span>) when using asChild
   const linkContent = (
     <Link
       href={item.href}
@@ -74,13 +73,13 @@ function NavLink({
 
   if (collapsed) {
     return (
-  <Tooltip>
-    <TooltipTrigger>
-      {linkContent}
-    </TooltipTrigger>
-    <TooltipContent side="right">{item.label}</TooltipContent>
-  </Tooltip>
-      );
+      <Tooltip>
+        <TooltipTrigger>
+          {linkContent}
+        </TooltipTrigger>
+        <TooltipContent side="right">{item.label}</TooltipContent>
+      </Tooltip>
+    );
   }
 
   return linkContent;
@@ -92,60 +91,84 @@ export function SidebarShell({
   footer,
   className,
 }: SidebarShellProps) {
-  const { collapsed, setCollapsed } = useSidebar();
+  const { collapsed, setCollapsed, isMobileOpen, setMobileOpen, isMobile } = useSidebar();
 
-  return (
-    <TooltipProvider delayDuration={200}>
-      <aside
-        className={cn(
-          "fixed left-0 top-[76px] bottom-0 z-40 flex flex-col border-r",
-          "bg-card text-foreground border-border",
-          "transition-all duration-200",
-          collapsed ? "w-14" : "w-56",
-          className
-        )}
-      >
-        {/* Header */}
-        {!collapsed && (
-          <div className="border-b border-border px-4 py-3 text-sm text-foreground">
-            {header}
-          </div>
-        )}
-
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-4">
-          {groups.map((group, gi) => (
-            <div key={gi} className="space-y-1">
-              {group.label && !collapsed && (
-                <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {group.label}
-                </p>
-              )}
-
-              {group.items.map((item) => (
-                <NavLink
-                  key={item.href}
-                  item={item}
-                  collapsed={collapsed}
-                />
-              ))}
-            </div>
-          ))}
-        </nav>
-
-        {/* Footer */}
-        {footer && (
-          <div
-            className={cn(
-              "border-t border-border p-2",
-              collapsed && "flex justify-center"
-            )}
+  const sidebarContent = (
+    <aside
+      className={cn(
+        "flex flex-col border-r",
+        "bg-card text-foreground border-border",
+        "transition-all duration-200",
+        isMobile
+          ? "fixed left-0 top-[76px] bottom-0 z-40 w-60"
+          : cn(
+              "fixed left-0 top-[76px] bottom-0 z-40",
+              collapsed ? "w-14" : "w-56"
+            ),
+        isMobile && !isMobileOpen && "-translate-x-full",
+        isMobile && isMobileOpen && "translate-x-0",
+        !isMobile && "translate-x-0",
+        className
+      )}
+    >
+      {/* Header */}
+      <div className={cn(
+        "border-b border-border px-4 py-3 flex items-center gap-2",
+        isMobile ? "flex" : collapsed ? "hidden" : "flex"
+      )}>
+        <div className="flex-1 min-w-0">
+          {header}
+        </div>
+        {isMobile && (
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
-            {footer}
-          </div>
+            <X className="h-4 w-4" />
+          </button>
         )}
+      </div>
 
-        {/* Toggle */}
+      {/* Header when collapsed on desktop */}
+      {!isMobile && collapsed && (
+        <div className="border-b border-border" />
+      )}
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-4">
+        {groups.map((group, gi) => (
+          <div key={gi} className="space-y-1">
+            {group.label && !collapsed && !isMobile && (
+              <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {group.label}
+              </p>
+            )}
+
+            {group.items.map((item) => (
+              <NavLink
+                key={item.href}
+                item={item}
+                collapsed={collapsed && !isMobile}
+              />
+            ))}
+          </div>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      {footer && (
+        <div
+          className={cn(
+            "border-t border-border p-2",
+            collapsed && !isMobile && "flex justify-center"
+          )}
+        >
+          {footer}
+        </div>
+      )}
+
+      {/* Collapse toggle — desktop only */}
+      {!isMobile && (
         <div className="border-t border-border p-2">
           <button
             onClick={() => setCollapsed((c) => !c)}
@@ -165,7 +188,21 @@ export function SidebarShell({
             )}
           </button>
         </div>
-      </aside>
+      )}
+    </aside>
+  );
+
+  return (
+    <TooltipProvider>
+      {/* Mobile backdrop */}
+      {isMobile && isMobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {sidebarContent}
     </TooltipProvider>
   );
 }
