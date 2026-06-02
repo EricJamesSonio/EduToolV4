@@ -16,11 +16,13 @@ import {
   OverrideGradeLockDto,
 } from './dto/grade-lock.dto'
 import { AuditLogService } from '../audit-log/audit-log.service'
+import { GradeLockValidator } from './grade-lock.validator'
 
 @Injectable()
 export class GradeLockService {
   constructor(
     private readonly repo: GradeLockRepository,
+    private readonly validator: GradeLockValidator,
     private readonly auditLogService: AuditLogService,  // ← INJECTED
   ) {}
 
@@ -149,6 +151,15 @@ export class GradeLockService {
       throw new ForbiddenException(
         `Cannot lock class after deadline (${deadline?.toISOString()})`,
       )
+    }
+
+    // Validate readiness before locking
+    const readiness = await this.validator.validateReadiness(classId, orgId)
+    if (!readiness.ready) {
+      throw new BadRequestException({
+        message: 'Grade readiness validation failed',
+        issues: readiness.issues,
+      })
     }
 
     const updated = await this.repo.setLocked(classId, userId)
