@@ -14,10 +14,11 @@ import {
   usePublishAssessment,
   useUnpublishAssessment,
 } from "@/hooks/educator/useAssessments";
+import { useClassGradeLock } from "@/hooks/educator/useGradeLock";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -25,7 +26,7 @@ import {
 import { PageHeader } from "@/components/shared/PageHeader";
 import {
   Loader2, Users, CheckCircle2, Ban, XCircle, UserPlus, Clock,
-  FileText, Calendar, ListOrdered,
+  FileText, Calendar, ListOrdered, Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Submission, SubmissionStatus } from "@/types/educator/submission.types";
@@ -127,8 +128,10 @@ export default function SubmissionsPage(): React.JSX.Element {
   const { data: submissions, isLoading } = useAssessmentSubmissions(classId, assessmentId);
   const { mutateAsync: publish, isPending: isPublishing } = usePublishAssessment(classId);
   const { mutateAsync: unpublish, isPending: isUnpublishing } = useUnpublishAssessment(classId);
+  const { data: lockInfo } = useClassGradeLock(classId);
 
   const [statusTarget, setStatusTarget] = useState<Submission | null>(null);
+  const [lockDialogOpen, setLockDialogOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "submitted" | "exempted" | "missed" | "not_assigned" | "not_started">("all");
 
   const isNotAssigned = (sub: Submission) => sub.id.startsWith("not_started_");
@@ -313,7 +316,10 @@ export default function SubmissionsPage(): React.JSX.Element {
                         </Link>
                       )}
                       {sub.status === "not_started" && (
-                        <Button variant="ghost" size="sm" onClick={() => setStatusTarget(sub)}>Set Status</Button>
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          if (lockInfo?.is_locked) { setLockDialogOpen(true); return; }
+                          setStatusTarget(sub);
+                        }}>Set Status</Button>
                       )}
                     </div>
                   </TableCell>
@@ -329,6 +335,25 @@ export default function SubmissionsPage(): React.JSX.Element {
         {statusTarget && (
           <SetStatusDialog submission={statusTarget} assessmentId={assessmentId} classId={classId} onClose={() => setStatusTarget(null)} />
         )}
+      </Dialog>
+
+      {/* Lock notice dialog */}
+      <Dialog open={lockDialogOpen} onOpenChange={setLockDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-muted-foreground" />
+              Grades Locked
+            </DialogTitle>
+            <DialogDescription>
+              Grades are currently locked. You cannot change submission statuses
+              until grades are unlocked. Unlock grades from the Grades page.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button onClick={() => setLockDialogOpen(false)}>Got it</Button>
+          </div>
+        </DialogContent>
       </Dialog>
     </div>
   );

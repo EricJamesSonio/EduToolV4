@@ -3,9 +3,12 @@
 
 import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ClipboardList, Clock, Calendar } from "lucide-react";
+import { ClipboardList, Clock, Calendar, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import {
@@ -20,6 +23,7 @@ import { WEEK_COLORS } from "@/lib/palette";
 import { formatDateTime } from "@/utils/date.util";
 import { useStudentAssessments } from "@/hooks/student/useStudentAssessments";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
+import { useStudentClassGradeLock } from "@/hooks/student/useGradeLock";
 import type { StudentAssessmentItem } from "@/api/student/assessment.api";
 
 // ── Status helpers ──────────────────────────────────────────────────────────
@@ -74,8 +78,17 @@ function getAction(
   status: string,
   a: StudentAssessmentItem,
   classId: string,
-  router: ReturnType<typeof useRouter>
+  router: ReturnType<typeof useRouter>,
+  gradesLocked?: boolean,
 ): React.ReactNode {
+  if (gradesLocked && (status === "open" || status === "not_yet_open")) {
+    return (
+      <Badge variant="secondary" className="gap-1.5 text-xs">
+        <Lock className="h-3 w-3" />
+        Grades Locked
+      </Badge>
+    );
+  }
   if (status === "open") {
     return (
       <Button
@@ -123,10 +136,12 @@ function AssessmentRow({
   item,
   classId,
   index,
+  gradesLocked,
 }: {
   item: StudentAssessmentItem;
   classId: string;
   index: number;
+  gradesLocked?: boolean;
 }) {
   const router = useRouter();
   const status = deriveStatus(item);
@@ -181,7 +196,7 @@ function AssessmentRow({
 
       {/* Action */}
       <div className="shrink-0">
-        {getAction(status, item, classId, router)}
+        {getAction(status, item, classId, router, gradesLocked)}
       </div>
     </div>
   );
@@ -216,6 +231,8 @@ export default function StudentAssessmentsPage(): React.JSX.Element {
   const assessments = raw ?? [];
 
   const { data: weeks = [] } = useClassWeeks(classId);
+  const { data: lockInfo } = useStudentClassGradeLock(classId);
+  const gradesLocked = lockInfo?.is_locked ?? false;
 
   // Unique types from assessments for type filter
   const uniqueTypes = useMemo(() => [...new Set(assessments.map(a => a.type))], [assessments]);
@@ -344,7 +361,7 @@ export default function StudentAssessmentsPage(): React.JSX.Element {
       {!isError && !isLoading && filteredAssessments.length > 0 && (
         <div className="space-y-2">
           {filteredAssessments.map((a, i) => (
-            <AssessmentRow key={a.id} item={a} classId={classId} index={i} />
+            <AssessmentRow key={a.id} item={a} classId={classId} index={i} gradesLocked={gradesLocked} />
           ))}
         </div>
       )}

@@ -9,10 +9,14 @@ import {
   useAssessmentSubmissions,
 } from "@/hooks/educator/useAssessments";
 import { useSubmissionAnswers, useGradeEssay } from "@/hooks/educator/useSubmissions";
+import { useClassGradeLock } from "@/hooks/educator/useGradeLock";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Loader2, Check, X, FileText } from "lucide-react";
+import { ArrowLeft, Loader2, Check, X, FileText, Lock } from "lucide-react";
 import type { SubmissionAnswerDetail } from "@/api/educator/submission.api";
 
 function typeLabel(type: string): string {
@@ -35,15 +39,18 @@ export default function SubmissionReviewPage() {
   const { data: submissions } = useAssessmentSubmissions(classId, assessmentId);
   const { data: answers, isLoading: answersLoading } = useSubmissionAnswers(assessmentId, submissionId);
   const { mutateAsync: gradeEssay, isPending: isGrading } = useGradeEssay(classId, assessmentId);
+  const { data: lockInfo } = useClassGradeLock(classId);
 
   const submission = submissions?.find((s) => s.id === submissionId);
   const [manualScore, setManualScore] = useState(submission?.manualSectionScore ?? 0);
+  const [lockDialogOpen, setLockDialogOpen] = useState(false);
 
   const hasManualQuestions = answers?.some((a) => a.question.type === 'manual');
   const manualMax = assessment?.manualMaxScore ?? submission?.totalPoints ?? 0;
 
   async function handleSave() {
     if (!submission) return;
+    if (lockInfo?.is_locked) { setLockDialogOpen(true); return; }
     try {
       await gradeEssay({ submissionId: submission.id, score: manualScore });
       toast.success("Manual score saved.");
@@ -157,6 +164,25 @@ export default function SubmissionReviewPage() {
           </Button>
         </div>
       )}
+
+      {/* Lock notice dialog */}
+      <Dialog open={lockDialogOpen} onOpenChange={setLockDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-muted-foreground" />
+              Grades Locked
+            </DialogTitle>
+            <DialogDescription>
+              Grades are currently locked. You cannot save manual scores
+              until grades are unlocked. Unlock grades from the Grades page.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button onClick={() => setLockDialogOpen(false)}>Got it</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
