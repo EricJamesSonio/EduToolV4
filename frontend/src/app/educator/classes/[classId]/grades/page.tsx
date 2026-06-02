@@ -2,10 +2,12 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import {
   Lock, Loader2, RefreshCw,
-  LayoutGrid, List, X, Search,
-  AlertTriangle,
+  LayoutGrid, List, X,
+  AlertTriangle, Clock, FileText,
+  Send, Ban, Unlock, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,6 +23,9 @@ import { useClassGrades, useComputeGrades } from "@/hooks/educator/useGrades";
 import type { TermGrades, StudentGrade, CategoryBreakdown } from "@/types/educator/grade.types";
 import { cn } from "@/lib/utils";
 import apiClient from "@/api/client";
+import { useClassGradeLock, useRequestUnlock } from "@/hooks/educator/useGradeLock";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -99,7 +104,10 @@ function ManualCell({
 
   if (isLocked) {
     return (
-      <span className="tabular-nums text-muted-foreground leading-none">
+      <span
+        className="tabular-nums text-muted-foreground leading-none cursor-default"
+        onClick={() => toast.error("Grades are locked. Unlock grades before making changes.")}
+      >
         {value !== null ? fmt(value) : "—"}
       </span>
     );
@@ -156,6 +164,7 @@ function StatusCell({
   status,
   totalItems,
   onStatusChange,
+  isLocked,
   compact,
 }: {
   score: number | null;
@@ -168,6 +177,7 @@ function StatusCell({
   status: string;
   totalItems: number;
   onStatusChange: () => void;
+  isLocked?: boolean;
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -192,6 +202,10 @@ function StatusCell({
   }, []);
 
   const toggleDropdown = () => {
+    if (isLocked) {
+      toast.error("Grades are locked. Unlock grades before making changes.");
+      return;
+    }
     if (!open && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
@@ -370,6 +384,7 @@ function DefaultGradeTable({
   onManualCommit,
   saving,
   refreshKey,
+  isLocked,
   onRefresh,
 }: {
   classId: string;
@@ -377,6 +392,7 @@ function DefaultGradeTable({
   onManualCommit: (studentId: string, category: string, value: number) => void;
   saving: Set<string>;
   refreshKey: number;
+  isLocked: boolean;
   onRefresh: () => void;
 }) {
   const { students } = termData;
@@ -415,7 +431,6 @@ function DefaultGradeTable({
       width: 200,
       sticky: true,
       render: (student) => {
-        const isLocked = student.grade?.is_locked ?? false;
         const isSaving = saving.has(student.studentId);
         return (
           <div className="flex items-center gap-1">
@@ -451,6 +466,7 @@ function DefaultGradeTable({
               status={score?.status ?? 'not_started'}
               totalItems={score?.totalItems ?? 0}
               onStatusChange={onRefresh}
+              isLocked={isLocked}
               compact
             />
           </div>
@@ -470,7 +486,7 @@ function DefaultGradeTable({
             value={breakdown?.manualScore ?? null}
             studentId={student.studentId}
             category={cat}
-            isLocked={student.grade?.is_locked ?? false}
+            isLocked={isLocked}
             onCommit={onManualCommit}
             compact
           />
@@ -591,9 +607,11 @@ function StudentCategoryDrillDown({
 function CleanGradeTable({
   termData,
   onManualCommit,
+  isLocked,
 }: {
   termData: TermGrades;
   onManualCommit: (studentId: string, category: string, value: number) => void;
+  isLocked: boolean;
 }) {
   const { students } = termData;
   const [drillDown, setDrillDown] = useState<{ student: StudentGrade; category: string } | null>(null);
@@ -614,9 +632,7 @@ function CleanGradeTable({
       label: "Student",
       width: 200,
       sticky: true,
-      render: (student) => {
-        const isLocked = student.grade?.is_locked ?? false;
-        return (
+      render: (student) => (
           <div className="flex items-center gap-1">
             <div className="w-5 h-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
               {student.studentName.charAt(0).toUpperCase()}
@@ -627,9 +643,8 @@ function CleanGradeTable({
             </div>
             {isLocked && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />}
           </div>
-        );
+        ),
       },
-    },
     ...allCategories.map((cat) => ({
       key: cat,
       label: cat,
@@ -645,7 +660,7 @@ function CleanGradeTable({
               value={bd?.manualScore ?? null}
               studentId={student.studentId}
               category={cat}
-              isLocked={student.grade?.is_locked ?? false}
+              isLocked={isLocked}
               onCommit={onManualCommit}
               compact
             />
@@ -744,11 +759,15 @@ export default function GradesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("default");
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
   const [locking, setLocking] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockConfirmOpen, setUnlockConfirmOpen] = useState(false);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
   const [readinessIssues, setReadinessIssues] = useState<ReadinessIssue[]>([]);
   const [readinessDialogOpen, setReadinessDialogOpen] = useState(false);
-  const [publishedSearch, setPublishedSearch] = useState("");
+  const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
+  const [unlockReason, setUnlockReason] = useState("");
+  const requestUnlockMutation = useRequestUnlock(classId);
   const qc = useQueryClient();
 
   // Set initial active term once data loads
@@ -793,6 +812,7 @@ export default function GradesPage() {
       toast.success("Grades locked successfully.");
       setLockDialogOpen(false);
       qc.invalidateQueries({ queryKey: ["grades", classId] });
+      qc.invalidateQueries({ queryKey: ["grade-lock", classId] });
     } catch (err: any) {
       const data = err?.response?.data;
       if (data?.issues) {
@@ -806,6 +826,21 @@ export default function GradesPage() {
     }
   };
 
+  const handleUnlockGrades = async () => {
+    setUnlocking(true);
+    try {
+      await apiClient.post(`/grade-lock/${classId}/unlock`, { reason: "Educator unlocked grades" });
+      toast.success("Grades unlocked successfully.");
+      setUnlockConfirmOpen(false);
+      qc.invalidateQueries({ queryKey: ["grades", classId] });
+      qc.invalidateQueries({ queryKey: ["grade-lock", classId] });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? "Failed to unlock grades.");
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
   const handleCompute = async () => {
     try {
       const res = await computeMutation.mutateAsync();
@@ -815,7 +850,21 @@ export default function GradesPage() {
     }
   };
 
-  const isClassLocked = activeTerm?.students.every((s) => s.grade?.is_locked) ?? false;
+  const { data: lockInfo, isLoading: lockInfoLoading } = useClassGradeLock(classId);
+  const isClassLocked = lockInfo?.is_locked ?? false;
+
+  const handleRequestUnlock = async () => {
+    if (!unlockReason.trim()) {
+      toast.error("Please provide a reason for the unlock request.");
+      return;
+    }
+    requestUnlockMutation.mutate(unlockReason.trim(), {
+      onSuccess: () => {
+        setUnlockDialogOpen(false);
+        setUnlockReason("");
+      },
+    });
+  };
 
   if (isLoading) {
     return (
@@ -850,6 +899,12 @@ export default function GradesPage() {
               }
               Compute
             </Button>
+            <Link href={`/educator/classes/${classId}/published-grades`}>
+              <Button size="sm" variant="outline" className="gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Published Grades
+              </Button>
+            </Link>
             {!isClassLocked && (
               <Button
                 size="sm"
@@ -862,10 +917,31 @@ export default function GradesPage() {
               </Button>
             )}
             {isClassLocked && (
-              <Badge variant="secondary" className="gap-1.5">
-                <Lock className="h-3 w-3" />
-                Locked
-              </Badge>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setUnlockConfirmOpen(true)}
+                  className="gap-1.5"
+                >
+                  <Unlock className="h-3.5 w-3.5" />
+                  Unlock Grades
+                </Button>
+                {!lockInfo?.hasPendingRequest && (
+                  <button
+                    onClick={() => setUnlockDialogOpen(true)}
+                    className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                  >
+                    Request admin unlock
+                  </button>
+                )}
+                {lockInfo?.hasPendingRequest && (
+                  <Badge variant="outline" className="gap-1.5 text-amber-600 border-amber-300">
+                    <Clock className="h-3 w-3" />
+                    Unlock Pending
+                  </Badge>
+                )}
+              </>
             )}
           </div>
         }
@@ -891,6 +967,30 @@ export default function GradesPage() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Grade lock info bar */}
+      {!lockInfoLoading && lockInfo && lockInfo.is_locked && (
+        <div className="flex items-center gap-3 rounded-xl border bg-muted/20 px-4 py-2.5 text-sm">
+          <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="font-medium">Grades Locked</span>
+          {lockInfo.setting && (
+            <span className="text-muted-foreground">
+              · Template: {lockInfo.setting.name}
+            </span>
+          )}
+          {lockInfo.deadline && (
+            <span className="text-muted-foreground">
+              · Deadline: {new Date(lockInfo.deadline).toLocaleDateString()}
+            </span>
+          )}
+          {lockInfo.hasPendingRequest && (
+            <Badge variant="outline" className="ml-auto gap-1.5 text-amber-600 border-amber-300">
+              <Clock className="h-3 w-3" />
+              Unlock Request Pending
+            </Badge>
+          )}
         </div>
       )}
 
@@ -935,12 +1035,14 @@ export default function GradesPage() {
               onManualCommit={handleManualCommit}
               saving={saving}
               refreshKey={refreshKey}
+              isLocked={isClassLocked}
               onRefresh={() => { setRefreshKey((k) => k + 1); qc.invalidateQueries({ queryKey: ["grades", classId] }); }}
             />
           ) : (
             <CleanGradeTable
               termData={activeTerm}
               onManualCommit={handleManualCommit}
+              isLocked={isClassLocked}
             />
           )}
         </>
@@ -950,77 +1052,6 @@ export default function GradesPage() {
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2 border rounded-xl bg-card">
           <LayoutGrid className="h-8 w-8 opacity-30" />
           <p className="text-sm">No terms found for this class.</p>
-        </div>
-      )}
-
-      {/* Published grades section */}
-      {activeTerm && isClassLocked && (
-        <div className="rounded-xl border bg-card overflow-hidden">
-          <div className="px-5 py-3 border-b bg-muted/30">
-            <h3 className="text-sm font-semibold tracking-tight flex items-center gap-2">
-              <Lock className="h-3.5 w-3.5" />
-              Published Grades — {activeTerm.termName}
-            </h3>
-          </div>
-          <div className="p-4">
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search students..."
-                value={publishedSearch}
-                onChange={(e) => setPublishedSearch(e.target.value)}
-                className="w-full rounded-lg border bg-background pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground text-xs">
-                    <th className="pb-2 font-medium">Student</th>
-                    <th className="pb-2 font-medium text-right">Score</th>
-                    <th className="pb-2 font-medium text-right">Grade</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...activeTerm.students]
-                    .filter((s) =>
-                      publishedSearch
-                        ? s.studentName.toLowerCase().includes(publishedSearch.toLowerCase())
-                        : true
-                    )
-                    .sort((a, b) => a.studentName.localeCompare(b.studentName))
-                    .map((student) => (
-                      <tr key={student.studentId} className="border-b last:border-0 hover:bg-muted/40 transition-colors">
-                        <td className="py-2.5 pr-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
-                              {student.studentName.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0 leading-tight">
-                              <p className="font-medium truncate text-sm">{student.studentName}</p>
-                              <p className="text-[10px] text-muted-foreground font-mono">{student.studentCode}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-4 text-right tabular-nums font-bold">
-                          {student.grade ? fmt(student.grade.final_score) : "—"}
-                        </td>
-                        <td className="py-2.5 px-4 text-right tabular-nums">
-                          {student.grade ? (
-                            <Badge variant="secondary" className="text-xs font-mono">
-                              {student.grade.final_grade}
-                            </Badge>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
       )}
 
@@ -1042,6 +1073,63 @@ export default function GradesPage() {
         onConfirm={handleLockGrades}
         isLoading={locking}
       />
+
+      {/* Unlock confirm dialog */}
+      <ConfirmDialog
+        open={unlockConfirmOpen}
+        onOpenChange={setUnlockConfirmOpen}
+        title="Unlock Grades"
+        message={
+          <span>
+            Unlocking grades will allow editing of scores and statuses again.
+            Are you sure you want to unlock grades for this class?
+          </span>
+        }
+        confirmLabel={unlocking ? "Unlocking..." : "Unlock Grades"}
+        onConfirm={handleUnlockGrades}
+        isLoading={unlocking}
+      />
+
+      {/* Request unlock dialog */}
+      <Dialog open={unlockDialogOpen} onOpenChange={setUnlockDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Request Unlock
+            </DialogTitle>
+            <DialogDescription>
+              Submit a reason for requesting grades to be unlocked. The admin will review your request.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label htmlFor="unlock-reason">Reason for unlock</Label>
+            <Textarea
+              id="unlock-reason"
+              placeholder="Explain why you need to edit grades after locking..."
+              value={unlockReason}
+              onChange={(e) => setUnlockReason(e.target.value)}
+              rows={4}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnlockDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRequestUnlock}
+              disabled={requestUnlockMutation.isPending || !unlockReason.trim()}
+            >
+              {requestUnlockMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              Submit Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Readiness validation dialog */}
       <Dialog open={readinessDialogOpen} onOpenChange={setReadinessDialogOpen}>

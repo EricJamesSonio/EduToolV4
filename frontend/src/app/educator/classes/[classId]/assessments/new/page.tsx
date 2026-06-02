@@ -1365,9 +1365,10 @@ export default function NewAssessmentPage() {
       if (published) queryClient.setQueryData(assessmentKeys.detail(assessmentId), (old: any) => old ? { ...old, isPublished: true } : old);
       queryClient.invalidateQueries({ queryKey: ["grades", classId] });
       toast.success("Assessment published!");
-      router.push(`/educator/classes/${classId}/assessments/${assessmentId}`);
+      await router.push(`/educator/classes/${classId}/assessments/${assessmentId}`);
+      return;
     } catch { toast.error("Failed to publish."); }
-    finally { submittingRef.current = false; }
+    submittingRef.current = false;
   }
 
   async function handleCreateManual() {
@@ -1392,11 +1393,12 @@ export default function NewAssessmentPage() {
       queryClient.setQueryData(assessmentKeys.detail(assessment.id), assessment);
       queryClient.invalidateQueries({ queryKey: ["grades", classId] });
       toast.success("Manual assessment created!");
-      router.push(`/educator/classes/${classId}/assessments/${assessment.id}`);
+      await router.push(`/educator/classes/${classId}/assessments/${assessment.id}`);
+      return;
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to create assessment.");
     }
-    finally { submittingRef.current = false; }
+    submittingRef.current = false;
   }
 
   return (
