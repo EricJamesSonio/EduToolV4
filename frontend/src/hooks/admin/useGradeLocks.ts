@@ -7,6 +7,7 @@ import type {
   GradeLockSetting,
   GradeLockResponse,
   AutoLockResponse,
+  UnlockRequest,
 } from "@/types/admin/grade-lock.types";
 import { toast } from "sonner";
 
@@ -140,6 +141,69 @@ export const useOverrideLock = (): UseMutationResult<void, Error, { classId: str
       },
       onError: (error: any) => {
         toast.error(error?.response?.data?.message || "Failed to override lock");
+      },
+    },
+  );
+};
+
+// Get unlock requests
+export const useUnlockRequests = (): UseQueryResult<UnlockRequest[], Error> => {
+  return useAsyncQuery<UnlockRequest[]>(
+    queryKeys.admin.gradeLock.unlockRequests(),
+    () => gradeLockApi.getUnlockRequests(),
+  );
+};
+
+// Grant unlock request
+export const useGrantUnlock = (): UseMutationResult<
+  GradeLockResponse,
+  Error,
+  { classId: string; reason: string; newDeadline?: string }
+> => {
+  return useMutationWithInvalidation<
+    GradeLockResponse,
+    Error,
+    { classId: string; reason: string; newDeadline?: string }
+  >(
+    ({ classId, reason, newDeadline }) =>
+      gradeLockApi.grantUnlock(classId, { reason, newDeadline }),
+    {
+      invalidateKeys: [
+        queryKeys.admin.gradeLock.list(),
+        queryKeys.admin.gradeLock.unlockRequests(),
+      ],
+      onSuccess: () => {
+        toast.success("Unlock granted successfully");
+      },
+      onError: (error: any) => {
+        toast.error(error?.response?.data?.message || "Failed to grant unlock");
+      },
+    },
+  );
+};
+
+// Deny unlock request
+export const useDenyUnlock = (): UseMutationResult<
+  { success: boolean },
+  Error,
+  { classId: string; reason: string }
+> => {
+  return useMutationWithInvalidation<
+    { success: boolean },
+    Error,
+    { classId: string; reason: string }
+  >(
+    ({ classId, reason }) => gradeLockApi.denyUnlock(classId, reason),
+    {
+      invalidateKeys: [
+        queryKeys.admin.gradeLock.list(),
+        queryKeys.admin.gradeLock.unlockRequests(),
+      ],
+      onSuccess: () => {
+        toast.success("Unlock request denied");
+      },
+      onError: (error: any) => {
+        toast.error(error?.response?.data?.message || "Failed to deny unlock request");
       },
     },
   );

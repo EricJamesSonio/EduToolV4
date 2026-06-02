@@ -69,6 +69,7 @@ export const queryKeys = {
       list: (filters?: Record<string, any>) => [...adminKeys.all, 'gradeLock', 'list', filters] as const,
       detail: (id: string) => [...adminKeys.all, 'gradeLock', 'detail', id] as const,
       overrides: () => [...adminKeys.all, 'gradeLock', 'overrides'] as const,
+      unlockRequests: () => [...adminKeys.all, 'gradeLock', 'unlockRequests'] as const,
     },
     gradingScales: {
       all: [...adminKeys.all, 'gradingScales'] as const,
