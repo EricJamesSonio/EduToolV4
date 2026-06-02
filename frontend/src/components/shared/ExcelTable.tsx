@@ -22,12 +22,12 @@ export function ExcelTable<T extends Record<string, any>>({
   if (data.length === 0) return null;
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto w-full">
       <table
         style={{
           borderCollapse: "collapse",
-          tableLayout: "fixed",
-          width: "auto",
+          tableLayout: "auto",
+          width: "100%",
         }}
       >
         <thead>
@@ -56,12 +56,8 @@ export function ExcelTable<T extends Record<string, any>>({
                 <td
                   key={col.key}
                   className={cn(
-                    "px-1.5 py-0.5 text-[11px] whitespace-nowrap border-[0.5px] border-muted/20",
-                    idx % 2 === 0 ? "bg-white" : "bg-muted/[0.06]",
-                    col.sticky && cn(
-                      "sticky left-0 z-10",
-                      idx % 2 === 0 ? "bg-white" : "bg-muted/[0.06]",
-                    ),
+                    "px-1.5 py-0.5 text-[11px] whitespace-nowrap border-[0.5px] border-muted/20 bg-white",
+                    col.sticky && "sticky left-0 z-10 bg-white",
                     "hover:bg-blue-100/60 cursor-default",
                   )}
                   style={col.sticky ? { left: 0 } : {}}

@@ -169,6 +169,7 @@ export class GradeRepository {
           select: {
             id: true,
             type: true,
+            title: true,
             total_items: true,
             term_id: true,
             grading_mode: true,

@@ -1244,6 +1244,7 @@ export default function NewAssessmentPage() {
     totalItems: 1, sections: [], createdAssessmentId: null, previewId: null, generatedQuestions: [],
     manualInstructions: "", releaseDate: "", endDate: "", selectedStudentIds: [], selectedTermId: "", weekNumber: 0,
   });
+  const submittingRef = useRef(false);
 
   const { mutateAsync: updateAssessment, isPending: isUpdating } = useUpdateAssessment(classId);
   const { data: weeks } = useClassWeeks(classId);
@@ -1315,6 +1316,7 @@ export default function NewAssessmentPage() {
   }, [isManual, step, state.selectedTermId, termOptions.length]);
 
   async function handleGenerate() {
+    if (submittingRef.current) return;
     if (!state.selectedLesson) return;
     const termId = getTermId();
     if (!termId) { toast.error("Could not determine term for this lesson's week."); return; }
@@ -1331,6 +1333,7 @@ export default function NewAssessmentPage() {
       .reduce((sum, r) => sum + (r.manualMaxScore ?? 1), 0);
     const derivedManualMaxScore = effectiveGradingMode === 'hybrid' ? manualScoreTotal : undefined;
 
+    submittingRef.current = true;
     try {
       // Send combined total (AI + manual) to API for scoring denominator
       const combinedTotal = hasManualSections ? state.totalItems + manualScoreTotal : state.totalItems;
@@ -1346,10 +1349,13 @@ export default function NewAssessmentPage() {
       patch({ previewId, gradingMode: effectiveGradingMode as GradingMode });
       next();
     } catch { toast.error("Failed to start question generation."); }
+    finally { submittingRef.current = false; }
   }
 
   async function handlePublish() {
+    if (submittingRef.current) return;
     if (!state.previewId) return;
+    submittingRef.current = true;
     try {
       const assessment = await assessmentApi.confirmPreview(classId, state.previewId);
       const assessmentId = assessment.id;
@@ -1357,15 +1363,19 @@ export default function NewAssessmentPage() {
       await updateAssessment({ assessmentId, data: { releaseDate: state.releaseDate, endDate: state.endDate, showBreakdown: state.showBreakdown, weekNumber: state.weekNumber || undefined } });
       const published = await assessmentApi.publish(classId, assessmentId, state.selectedStudentIds.length > 0 ? { studentIds: state.selectedStudentIds } : undefined);
       if (published) queryClient.setQueryData(assessmentKeys.detail(assessmentId), (old: any) => old ? { ...old, isPublished: true } : old);
+      queryClient.invalidateQueries({ queryKey: ["grades", classId] });
       toast.success("Assessment published!");
       router.push(`/educator/classes/${classId}/assessments/${assessmentId}`);
     } catch { toast.error("Failed to publish."); }
+    finally { submittingRef.current = false; }
   }
 
   async function handleCreateManual() {
+    if (submittingRef.current) return;
     const termId = state.selectedTermId;
     if (!termId) { toast.error("Please select a term."); return; }
     if (!state.weekNumber) { toast.error("Please select a week."); return; }
+    submittingRef.current = true;
     try {
       const assessment = await assessmentApi.create(classId, {
         termId, type: state.type,
@@ -1380,11 +1390,13 @@ export default function NewAssessmentPage() {
         ranges: [],
       });
       queryClient.setQueryData(assessmentKeys.detail(assessment.id), assessment);
+      queryClient.invalidateQueries({ queryKey: ["grades", classId] });
       toast.success("Manual assessment created!");
       router.push(`/educator/classes/${classId}/assessments/${assessment.id}`);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to create assessment.");
     }
+    finally { submittingRef.current = false; }
   }
 
   return (

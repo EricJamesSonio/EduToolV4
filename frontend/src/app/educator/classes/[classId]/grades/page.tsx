@@ -4,7 +4,8 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import {
   Lock, Loader2, RefreshCw,
-  LayoutGrid, List, X,
+  LayoutGrid, List, X, Search,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -12,6 +13,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ExcelTable, ExcelColumn } from "@/components/shared/ExcelTable";
 import { WEEK_COLORS } from "@/lib/palette";
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,6 +30,18 @@ interface PendingEdit {
   studentId: string;
   category: string;
   value: string;
+}
+
+interface ReadinessIssue {
+  type: "missing_submission" | "missing_category_assessment"
+  termId?: string
+  termName?: string
+  studentId?: string
+  studentName?: string
+  studentCode?: string
+  assessmentId?: string
+  assessmentTitle?: string
+  category?: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -126,9 +140,9 @@ function ManualCell({
 // ─── Status Cell ───────────────────────────────────────────────────────────────
 
 const STATUS_ACTIONS = [
-  { label: "Missed", status: "missed" as const },
-  { label: "Custom Score", status: "custom" as const },
-  { label: "Exempted", status: "exempted" as const },
+  { label: "Missed", status: "missed" as const, badge: "M", className: "bg-red-100 text-red-700 hover:bg-red-200" },
+  { label: "Custom Score", status: "custom" as const, badge: "C", className: "bg-amber-100 text-amber-700 hover:bg-amber-200" },
+  { label: "Exempted", status: "exempted" as const, badge: "E", className: "bg-amber-100 text-amber-700 hover:bg-amber-200" },
 ];
 
 function StatusCell({
@@ -158,27 +172,61 @@ function StatusCell({
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
+  const [customScoreOpen, setCustomScoreOpen] = useState(false);
+  const [customDraft, setCustomDraft] = useState("");
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; up: boolean } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
+    function handleScroll() { setOpen(false); }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("scroll", handleScroll, true);
+    };
   }, []);
 
-  const handleAction = async (newStatus: string) => {
+  const toggleDropdown = () => {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const up = spaceBelow < 140;
+      setDropdownPos({
+        top: up ? rect.top - 4 : rect.bottom + 4,
+        left: rect.left + rect.width / 2,
+        up,
+      });
+    }
+    setOpen(!open);
+  };
+
+  const handleStatusAction = async (newStatus: string) => {
     const effectiveId = submissionId || (studentId ? `not_started_${studentId}` : null);
     if (!effectiveId) return;
-    let body: any = { status: newStatus };
     if (newStatus === "custom") {
-      const raw = window.prompt("Enter custom score:");
-      if (raw === null) return;
-      const val = parseInt(raw, 10);
-      if (isNaN(val) || val < 0) { toast.error("Invalid score."); return; }
-      body = { status: "custom", manualScore: val };
+      setCustomDraft(String(score ?? ""));
+      setCustomScoreOpen(true);
+      return;
     }
+    await patchStatus(effectiveId, { status: newStatus });
+  };
+
+  const handleCustomConfirm = async () => {
+    const val = parseInt(customDraft, 10);
+    if (isNaN(val) || val < 0) { toast.error("Invalid score."); return; }
+    if (val > totalItems) { toast.error(`Score cannot exceed ${totalItems}.`); return; }
+    const effectiveId = submissionId || (studentId ? `not_started_${studentId}` : null);
+    if (!effectiveId) return;
+    await patchStatus(effectiveId, { status: "custom", manualScore: val });
+    setCustomScoreOpen(false);
+  };
+
+  const patchStatus = async (effectiveId: string, body: any) => {
     setPending(true);
     try {
       await apiClient.patch(
@@ -194,28 +242,60 @@ function StatusCell({
     }
   };
 
+  const dropdown = dropdownPos ? (
+    <div
+      style={{ top: dropdownPos.top, left: dropdownPos.left }}
+      className={`fixed z-50 -translate-x-1/2 w-32 rounded-lg border bg-popover shadow-lg py-1 ${dropdownPos.up ? "mb-1" : "mt-1"}`}>
+      {STATUS_ACTIONS.map((action) => (
+        <button
+          key={action.status}
+          onClick={() => { handleStatusAction(action.status); setOpen(false); }}
+          disabled={pending}
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50 hover:bg-muted"
+        >
+          <span className={`inline-flex items-center justify-center w-4 h-4 rounded text-[8px] font-bold shrink-0 ${action.className.split('hover')[0].trim()}`}>
+            {action.badge}
+          </span>
+          {action.label}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
   if (status === 'not_started' || (!submissionId && !score && score !== 0)) {
     return (
       <div className="relative flex justify-center" ref={ref}>
         <button
-          onClick={() => setOpen(!open)}
+          ref={btnRef}
+          onClick={toggleDropdown}
           className="text-muted-foreground/50 hover:text-foreground transition-colors leading-none"
         >
           —
         </button>
-        {open && (
-          <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-28 rounded border bg-popover shadow-md py-0.5">
-            {STATUS_ACTIONS.map((action) => (
-              <button
-                key={action.status}
-                onClick={() => handleAction(action.status)}
-                disabled={pending}
-                className="w-full text-left px-2 py-1 text-[11px] hover:bg-accent transition-colors disabled:opacity-50"
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
+        {open && dropdown}
+        {customScoreOpen && (
+          <Dialog open onOpenChange={(open) => { if (!open) setCustomScoreOpen(false); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Enter Custom Score</DialogTitle>
+                <DialogDescription>Score out of {totalItems}</DialogDescription>
+              </DialogHeader>
+              <input
+                type="number"
+                min={0}
+                max={totalItems}
+                value={customDraft}
+                onChange={(e) => setCustomDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleCustomConfirm(); }}
+                className="w-full rounded-md border bg-card px-3 py-2 text-sm"
+                autoFocus
+              />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCustomScoreOpen(false)}>Cancel</Button>
+                <Button onClick={handleCustomConfirm} disabled={pending}>Confirm</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     );
@@ -231,12 +311,11 @@ function StatusCell({
         ? "bg-amber-100 text-amber-700"
         : "";
 
-  const currentLabel = isMissed ? "missed" : isExempted ? "exempted" : isCustom ? "custom" : null;
-
   return (
     <div className="relative flex justify-center" ref={ref}>
       <button
-        onClick={() => setOpen(!open)}
+        ref={btnRef}
+        onClick={toggleDropdown}
         className="tabular-nums text-muted-foreground hover:text-foreground transition-colors text-[11px] leading-none"
       >
         {isCustom ? (
@@ -254,21 +333,30 @@ function StatusCell({
           "—"
         )}
       </button>
-      {open && (
-        <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-1 w-28 rounded border bg-popover shadow-md py-0.5">
-          {STATUS_ACTIONS.filter(
-            (a) => a.status !== currentLabel,
-          ).map((action) => (
-            <button
-              key={action.status}
-              onClick={() => handleAction(action.status)}
-              disabled={pending}
-              className="w-full text-left px-2 py-1 text-[11px] hover:bg-accent transition-colors disabled:opacity-50 whitespace-nowrap"
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
+      {open && dropdown}
+      {customScoreOpen && (
+        <Dialog open onOpenChange={(open) => { if (!open) setCustomScoreOpen(false); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Enter Custom Score</DialogTitle>
+              <DialogDescription>Score out of {totalItems}</DialogDescription>
+            </DialogHeader>
+            <input
+              type="number"
+              min={0}
+              max={totalItems}
+              value={customDraft}
+              onChange={(e) => setCustomDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleCustomConfirm(); }}
+              className="w-full rounded-md border bg-card px-3 py-2 text-sm"
+              autoFocus
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCustomScoreOpen(false)}>Cancel</Button>
+              <Button onClick={handleCustomConfirm} disabled={pending}>Confirm</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
@@ -658,6 +746,9 @@ export default function GradesPage() {
   const [locking, setLocking] = useState(false);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
+  const [readinessIssues, setReadinessIssues] = useState<ReadinessIssue[]>([]);
+  const [readinessDialogOpen, setReadinessDialogOpen] = useState(false);
+  const [publishedSearch, setPublishedSearch] = useState("");
   const qc = useQueryClient();
 
   // Set initial active term once data loads
@@ -701,8 +792,15 @@ export default function GradesPage() {
       await apiClient.post(`/grade-lock/${classId}/lock`);
       toast.success("Grades locked successfully.");
       setLockDialogOpen(false);
-    } catch {
-      toast.error("Failed to lock grades.");
+      qc.invalidateQueries({ queryKey: ["grades", classId] });
+    } catch (err: any) {
+      const data = err?.response?.data;
+      if (data?.issues) {
+        setReadinessIssues(data.issues);
+        setReadinessDialogOpen(true);
+      } else {
+        toast.error(data?.message ?? "Failed to lock grades.");
+      }
     } finally {
       setLocking(false);
     }
@@ -855,6 +953,77 @@ export default function GradesPage() {
         </div>
       )}
 
+      {/* Published grades section */}
+      {activeTerm && isClassLocked && (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="px-5 py-3 border-b bg-muted/30">
+            <h3 className="text-sm font-semibold tracking-tight flex items-center gap-2">
+              <Lock className="h-3.5 w-3.5" />
+              Published Grades — {activeTerm.termName}
+            </h3>
+          </div>
+          <div className="p-4">
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search students..."
+                value={publishedSearch}
+                onChange={(e) => setPublishedSearch(e.target.value)}
+                className="w-full rounded-lg border bg-background pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground text-xs">
+                    <th className="pb-2 font-medium">Student</th>
+                    <th className="pb-2 font-medium text-right">Score</th>
+                    <th className="pb-2 font-medium text-right">Grade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...activeTerm.students]
+                    .filter((s) =>
+                      publishedSearch
+                        ? s.studentName.toLowerCase().includes(publishedSearch.toLowerCase())
+                        : true
+                    )
+                    .sort((a, b) => a.studentName.localeCompare(b.studentName))
+                    .map((student) => (
+                      <tr key={student.studentId} className="border-b last:border-0 hover:bg-muted/40 transition-colors">
+                        <td className="py-2.5 pr-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                              {student.studentName.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0 leading-tight">
+                              <p className="font-medium truncate text-sm">{student.studentName}</p>
+                              <p className="text-[10px] text-muted-foreground font-mono">{student.studentCode}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-4 text-right tabular-nums font-bold">
+                          {student.grade ? fmt(student.grade.final_score) : "—"}
+                        </td>
+                        <td className="py-2.5 px-4 text-right tabular-nums">
+                          {student.grade ? (
+                            <Badge variant="secondary" className="text-xs font-mono">
+                              {student.grade.final_grade}
+                            </Badge>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Lock confirm dialog */}
       <ConfirmDialog
         open={lockDialogOpen}
@@ -873,6 +1042,60 @@ export default function GradesPage() {
         onConfirm={handleLockGrades}
         isLoading={locking}
       />
+
+      {/* Readiness validation dialog */}
+      <Dialog open={readinessDialogOpen} onOpenChange={setReadinessDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Cannot Lock Grades
+            </DialogTitle>
+            <DialogDescription>
+              The following issues must be resolved before grades can be locked.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {readinessIssues.map((issue, i) => (
+              <div key={i} className="rounded-lg border bg-card p-3 text-sm">
+                {issue.type === "missing_submission" && (
+                  <div className="flex items-start gap-2">
+                    <div className="mt-0.5 w-5 h-5 rounded bg-red-100 text-red-700 flex items-center justify-center text-[10px] font-bold shrink-0">M</div>
+                    <div>
+                      <p className="font-medium">
+                        {issue.studentName}
+                        <span className="font-normal text-muted-foreground"> — {issue.assessmentTitle}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {issue.termName}
+                        {issue.studentCode ? <> · {issue.studentCode}</> : null}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {issue.type === "missing_category_assessment" && (
+                  <div className="flex items-start gap-2">
+                    <div className="mt-0.5 w-5 h-5 rounded bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-bold shrink-0">!</div>
+                    <div>
+                      <p className="font-medium">
+                        No assessment for category: <span className="font-bold capitalize">{issue.category}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Add at least one assessment of this type to the grading scheme.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setReadinessDialogOpen(false)}>
+              Got it
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

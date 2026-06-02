@@ -40,7 +40,8 @@ private mapToResponse(subject: any) {
     sharings:      subject.sharings ?? [],
     createdAt:     subject.created_at ?? null,
     updatedAt:     subject.updated_at ?? null,
-  }
+  };
+}
 
   private validateSubjectScope(dto: CreateSubjectDto, programType: string): void {
     const type = dto.subjectType ?? 'major';

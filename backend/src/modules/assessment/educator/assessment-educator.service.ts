@@ -71,6 +71,8 @@ export class AssessmentEducatorService {
 
     if (isManual) {
       await this.creation.createManualQuestions(orgId, assessment.id, dto);
+      const questions = await this.core.getQuestions(assessment.id);
+      (assessment as any).questions = questions;
     } else {
       await this.creation.createManualSectionQuestions(orgId, assessment.id, dto);
       const aiRanges = (dto.ranges ?? []).filter((r) => r.questionType !== 'manual');
