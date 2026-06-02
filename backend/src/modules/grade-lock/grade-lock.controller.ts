@@ -24,6 +24,9 @@ import {
   LockClassDto,
   UnlockClassDto,
   OverrideGradeLockDto,
+  RequestUnlockDto,
+  GrantUnlockDto,
+  DenyUnlockDto,
   QueryGradeLockDto,
 } from './dto/grade-lock.dto'
 
@@ -146,5 +149,54 @@ export class GradeLockController {
   @HttpCode(HttpStatus.OK)
   autoLock(@CurrentUser() user: any) {
     return this.service.autoLockExpiredClasses(user.org_id)
+  }
+
+  // ─── Unlock Requests ─────────────────────────────────────────────────────────
+
+  @Get('unlock-requests')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  getUnlockRequests(@CurrentUser() user: any) {
+    return this.service.getUnlockRequests(user.org_id)
+  }
+
+  @Get(':classId/info')
+  @Roles('educator', 'admin')
+  @HttpCode(HttpStatus.OK)
+  getClassLockInfo(@CurrentUser() user: any, @Param('classId') classId: string) {
+    return this.service.getClassLockInfo(classId, user.org_id)
+  }
+
+  @Post(':classId/request-unlock')
+  @Roles('educator')
+  @HttpCode(HttpStatus.OK)
+  requestUnlock(
+    @Param('classId') classId: string,
+    @CurrentUser() user: any,
+    @Body() dto: RequestUnlockDto,
+  ) {
+    return this.service.requestUnlock(classId, user.id, user.org_id, dto)
+  }
+
+  @Post(':classId/grant-unlock')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  grantUnlock(
+    @Param('classId') classId: string,
+    @CurrentUser() user: any,
+    @Body() dto: GrantUnlockDto,
+  ) {
+    return this.service.grantUnlock(classId, user.id, user.org_id, dto)
+  }
+
+  @Post(':classId/deny-unlock')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  denyUnlock(
+    @Param('classId') classId: string,
+    @CurrentUser() user: any,
+    @Body() dto: DenyUnlockDto,
+  ) {
+    return this.service.denyUnlock(classId, user.id, user.org_id, dto.reason)
   }
 }

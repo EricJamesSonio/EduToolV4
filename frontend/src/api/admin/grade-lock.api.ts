@@ -4,6 +4,7 @@ import type {
   GradeLockSetting,
   GradeLockResponse,
   AutoLockResponse,
+  UnlockRequest,
 } from "@/types/admin/grade-lock.types"
 
 export interface CreateGradeLockSettingRequest {
@@ -136,5 +137,34 @@ assignSetting: async (
   return res.data.data
 },
 
+  // ─── Unlock Requests ──────────────────────
 
+  getUnlockRequests: async (): Promise<UnlockRequest[]> => {
+    const res = await client.get<ApiResponse<UnlockRequest[]>>(
+      "/grade-lock/unlock-requests"
+    )
+    return res.data.data ?? []
+  },
+
+  grantUnlock: async (
+    classId: string,
+    data: { reason: string; newDeadline?: string }
+  ): Promise<GradeLockResponse> => {
+    const res = await client.post<ApiResponse<GradeLockResponse>>(
+      `/grade-lock/${classId}/grant-unlock`,
+      data
+    )
+    return res.data.data
+  },
+
+  denyUnlock: async (
+    classId: string,
+    reason: string
+  ): Promise<{ success: boolean }> => {
+    const res = await client.post<ApiResponse<{ success: boolean }>>(
+      `/grade-lock/${classId}/deny-unlock`,
+      { reason }
+    )
+    return res.data.data
+  },
 }

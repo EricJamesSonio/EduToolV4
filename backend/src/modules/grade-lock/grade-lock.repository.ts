@@ -239,6 +239,59 @@ export class GradeLockRepository {
     })
   }
 
+  async findLockByClassIdWithSubject(classId: string) {
+    return this.db.gradeLock.findUnique({
+      where: { class_id: classId },
+      include: {
+        setting: true,
+        class: {
+          select: {
+            id: true,
+            educator_id: true,
+            school_year_id: true,
+            subject: { select: { id: true, name: true } },
+          },
+        },
+      },
+    })
+  }
+
+  async findUnlockRequests(orgId: string) {
+    const events = await this.db.gradeLockEvent.findMany({
+      where: {
+        org_id: orgId,
+        type: 'unlock_request',
+      },
+      include: {
+        class: {
+          select: {
+            id: true,
+            educator_id: true,
+            subject: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    })
+
+    const educatorIds = [...new Set(events.map((e) => e.actor_id).concat(events.map((e) => e.class.educator_id)))]
+    const profiles = await this.findProfilesByAccountIds(educatorIds)
+    const nameMap = new Map(profiles.map((p) => [p.account_id, p.full_name ?? 'Unknown']))
+
+    return events.map((e) => ({
+      id: e.id,
+      classId: e.class_id,
+      className: e.class.subject?.name ?? 'Unknown',
+      educatorId: e.class.educator_id,
+      educatorName: nameMap.get(e.class.educator_id) ?? 'Unknown',
+      requestedBy: e.actor_id,
+      requestedByName: nameMap.get(e.actor_id) ?? 'Unknown',
+      reason: e.reason,
+      metadata: e.metadata,
+      createdAt: e.created_at,
+    }))
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
   async findClassById(classId: string) {

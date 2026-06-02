@@ -106,6 +106,30 @@ export class OverrideGradeLockDto {
   reason: string
 }
 
+// ─── Unlock Requests ───────────────────────────────────────────────────────────
+
+export class RequestUnlockDto {
+  @IsString()
+  @IsNotEmpty()
+  reason: string
+}
+
+export class GrantUnlockDto {
+  @IsString()
+  @IsNotEmpty()
+  reason: string
+
+  @IsOptional()
+  @IsDateString()
+  newDeadline?: string
+}
+
+export class DenyUnlockDto {
+  @IsString()
+  @IsNotEmpty()
+  reason: string
+}
+
 // ─── Query ────────────────────────────────────────────────────────────────────
 
 export class QueryGradeLockDto {

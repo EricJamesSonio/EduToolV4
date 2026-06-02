@@ -182,14 +182,16 @@ export class AssessmentRepository {
     });
   }
 
-  async updateSubmissionStatus(id: string, data: { status: string; manualScore?: number; isExempted?: boolean; isMissed?: boolean; score?: number }) {
+  async updateSubmissionStatus(id: string, data: { status: string; manualScore?: number; score?: number }) {
+    const isMissed = data.status === 'missed';
+    const isExempted = data.status === 'exempted';
     return this.db.submission.update({
       where: { id },
       data: {
         status: data.status as any,
+        is_missed: isMissed,
+        is_exempted: isExempted,
         ...(data.manualScore !== undefined ? { manual_score: data.manualScore } : {}),
-        ...(data.isExempted !== undefined ? { is_exempted: data.isExempted } : {}),
-        ...(data.isMissed !== undefined ? { is_missed: data.isMissed } : {}),
         ...(data.score !== undefined ? { score: data.score } : {}),
       },
     });
