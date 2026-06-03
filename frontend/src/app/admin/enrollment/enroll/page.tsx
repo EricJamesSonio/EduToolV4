@@ -6,20 +6,14 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Search, ArrowLeft } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tabs, TabsList, TabsTrigger,
-} from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { DataTable } from "@/components/shared/DataTable";
-import type { ColumnDef } from "@tanstack/react-table";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import type { ColumnDef } from "@tanstack/react-table";
 
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { usePrograms } from "@/hooks/admin/useSchoolYears";
@@ -37,67 +31,51 @@ import { useSubjects } from "@/hooks/admin/useSubject";
 import { useEducators } from "@/hooks/admin/useEducators";
 import { useSemesters } from "@/hooks/admin/useSemester";
 
-import {
-  ArrowLeft, Search, GraduationCap, Users, UserRoundCheck, CheckSquare,
-  ChevronRight, BookOpen, Layers, CalendarDays, ChevronDown, ChevronUp,
-  UserPlus,
-} from "lucide-react";
-
-import type { Class, ClassSchedule } from "@/types/admin/class.types";
 import type { Subject } from "@/types/admin/subject.types";
 import type { Educator } from "@/types/admin/educator.types";
 import type { Semester } from "@/types/admin/semester.types";
-
-import {
-  PROGRAM_TYPE_LABELS, PROGRAM_TYPE_COLORS,
-} from "@/types/admin/program.types";
-import { cn } from "@/lib/utils";
-
 import type { Student } from "@/types/admin/student.types";
 import type {
-  StudentSchoolYearEnrollment,
   EnrollStudentProgramRequest,
 } from "@/types/admin/student-enrollment.types";
+import type { Class } from "@/types/admin/class.types";
+
+import {
+  EnrollmentBreadcrumb,
+  ProgramSelector,
+  CourseStrandSelector,
+  LevelSelector,
+  EnrollStudentPanel,
+  ClassEnrollmentPanel,
+  type ContextTableRow,
+} from "./_components";
 
 export default function EnrollWorkspacePage() {
   const router = useRouter();
   const params = useSearchParams();
   const schoolYearId = params.get("schoolYearId") ?? "";
 
-  // ── Context selectors ──────────────────────────────────
-
   const [programId, setProgramId] = useState("");
   const [courseId, setCourseId] = useState("");
   const [strandId, setStrandId] = useState("");
   const [levelId, setLevelId] = useState("");
-
-  // ── Enroll new students ────────────────────────────────
 
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [leftTab, setLeftTab] = useState<"all" | "pending" | "enroll">("all");
 
-  // ── Section assignment per row ────────────────────────
-
   const [sectionAssignments, setSectionAssignments] = useState<Record<string, string>>({});
 
-  // ── Class enrollment ──────────────────────────────────
-  // Which class row is expanded to show student checklist
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
-  // Per-class student selections: classId -> Set of studentIds
   const [classStudentSelections, setClassStudentSelections] = useState<Record<string, Set<string>>>({});
-  // Track which classes are currently being enrolled (loading state per class)
   const [enrollingClassIds, setEnrollingClassIds] = useState<Set<string>>(new Set());
-
-  // ── Mutations ─────────────────────────────────────────
 
   const bulkEnrollMutation = useBulkEnrollStudents(schoolYearId);
   const enrollInProgramMutation = useEnrollInProgram(schoolYearId);
   const updateProgEnrollMutation = useUpdateProgramEnrollment(schoolYearId);
   const enrollInClassMutation = useEnrollStudent();
 
-  // ── Handle class student toggle ───────────────────────
   const toggleClassStudent = useCallback((classId: string, studentId: string) => {
     setClassStudentSelections((prev) => {
       const current = new Set(prev[classId] ?? []);
@@ -116,7 +94,6 @@ export default function EnrollWorkspacePage() {
     });
   }, []);
 
-  // ── Handle enroll students into a specific class ──────
   const handleEnrollInClass = useCallback(async (cls: Class) => {
     const selections = classStudentSelections[cls.id];
     if (!selections || selections.size === 0) return;
@@ -131,7 +108,6 @@ export default function EnrollWorkspacePage() {
         )
       );
       toast.success(`${studentIds.length} student(s) enrolled in ${cls.subjectName ?? "class"}.`);
-      // Clear selections for this class and collapse
       setClassStudentSelections((prev) => ({ ...prev, [cls.id]: new Set() }));
       setExpandedClassId(null);
     } catch (err: unknown) {
@@ -145,8 +121,6 @@ export default function EnrollWorkspacePage() {
       });
     }
   }, [classStudentSelections, enrollInClassMutation]);
-
-  // ── Handle section assignment ─────────────────────────
 
   const handleAssignSection = useCallback(
     (programEnrollmentId: string, sectionId: string) => {
@@ -164,8 +138,6 @@ export default function EnrollWorkspacePage() {
     [updateProgEnrollMutation],
   );
 
-  // ── Data ──────────────────────────────────────────────
-
   const { data: schoolYears = [] } = useSchoolYears();
   const { data: programs = [], isLoading: progLoading } = usePrograms(schoolYearId || null);
   const { data: allLevels = [], isLoading: levelsLoading } = useLevelsByYear(schoolYearId);
@@ -178,37 +150,25 @@ export default function EnrollWorkspacePage() {
   const { data: educatorsRaw = [], isLoading: educatorsLoading } = useEducators();
   const { data: semestersRaw = [], isLoading: semestersLoading } = useSemesters();
 
-  const schoolYear  = schoolYears.find((sy) => sy.id === schoolYearId);
-  const program     = programs.find((p) => p.id === programId);
-  const isCollege   = program?.type === "college";
-  const isSHS       = program?.type === "shs";
-  const course      = program?.courses?.find((c) => c.id === courseId) ?? null;
-  const strand      = program?.strands?.find((s) => s.id === strandId) ?? null;
-  const level       = allLevels.find((l) => l.id === levelId) ?? null;
+  const schoolYear = schoolYears.find((sy) => sy.id === schoolYearId);
+  const program = programs.find((p) => p.id === programId);
+  const isCollege = program?.type === "college";
+  const isSHS = program?.type === "shs";
+  const course = program?.courses?.find((c) => c.id === courseId) ?? null;
+  const strand = program?.strands?.find((s) => s.id === strandId) ?? null;
+  const level = allLevels.find((l) => l.id === levelId) ?? null;
 
   const programLevels = useMemo(
     () => allLevels.filter((l) => l.program_id === programId),
     [allLevels, programId],
   );
 
-  // Reset downstream when program changes
   const handleProgramChange = useCallback((v: string) => {
     setProgramId(v);
     setCourseId("");
     setStrandId("");
     setLevelId("");
   }, []);
-
-  // ── Helper to format class schedules ────────────────
-  const formatSchedule = useCallback((schedules: ClassSchedule[]) => {
-    if (!schedules || schedules.length === 0) return "No schedule";
-    const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    return schedules.map(s =>
-      `${weekdays[s.weekday]} ${s.startTime}–${s.endTime}`
-    ).join(", ");
-  }, []);
-
-  // ── Lookup maps ────────────────────────────────────
 
   const subjectMap = useMemo(() => {
     const map = new Map<string, Subject>();
@@ -234,7 +194,6 @@ export default function EnrollWorkspacePage() {
     return map;
   }, [allStudents]);
 
-  // ── Filtered and enriched classes ────────────────────
   const filteredClasses = useMemo(() => {
     if (!schoolYearId || !programId) return [];
 
@@ -253,13 +212,11 @@ export default function EnrollWorkspacePage() {
 
     return classes.map(cls => ({
       ...cls,
-      subjectName: subjectMap.get(cls.subjectId)?.title ?? cls.subjectName,
-      educatorName: educatorMap.get(cls.educatorId)?.fullName ?? cls.educatorName,
-      semesterName: semesterMap.get(cls.semesterId)?.name ?? cls.semesterName,
+      subjectName: subjectMap.get(cls.subjectId)?.title ?? cls.subjectName ?? "Unnamed Subject",
+      educatorName: educatorMap.get(cls.educatorId)?.fullName ?? cls.educatorName ?? "No educator",
+      semesterName: semesterMap.get(cls.semesterId)?.name ?? cls.semesterName ?? "—",
     }));
   }, [classesRaw, schoolYearId, programId, courseId, strandId, levelId, subjectMap, educatorMap, semesterMap]);
-
-  // ── Eligible students (not yet enrolled in school year) ──────────────
 
   const enrolledIds = useMemo(
     () => new Set(enrollments.map((e) => e.student_id)),
@@ -282,8 +239,6 @@ export default function EnrollWorkspacePage() {
     );
   }, [eligible, search]);
 
-  // ── Selection helpers ─────────────────────────────────
-
   const toggleAll = useCallback(() => {
     if (selected.size === filtered.length && filtered.length > 0) {
       setSelected(new Set());
@@ -301,8 +256,6 @@ export default function EnrollWorkspacePage() {
     });
   }, []);
 
-  // ── All context enrollments ────────────────────────
-
   const allContextEnrollments = useMemo(() => {
     if (!programId) return [];
     return enrollments.filter((e) =>
@@ -314,8 +267,6 @@ export default function EnrollWorkspacePage() {
       ),
     );
   }, [enrollments, programId, courseId, strandId, levelId]);
-
-  // ── Pending section students ─────────────────────────
 
   const pendingSectionEnrollments = useMemo(() => {
     if (!programId) return [];
@@ -330,8 +281,6 @@ export default function EnrollWorkspacePage() {
     );
   }, [enrollments, programId, courseId, strandId, levelId]);
 
-  // ── Students eligible for class enrollment ────────────
-  // Students enrolled in the current program/level context
   const studentsEligibleForClassEnrollment = useMemo(() => {
     if (!programId || !levelId) return [];
 
@@ -359,21 +308,7 @@ export default function EnrollWorkspacePage() {
     return result;
   }, [programId, levelId, courseId, strandId, allContextEnrollments, studentMap]);
 
-  // ── Loading ───────────────────────────────────────────
-
   const pageLoading = progLoading || levelsLoading || studentsLoading || enrollLoading || classesLoading || subjectsLoading || educatorsLoading || semestersLoading;
-
-  // ── Table row type ────────────────────────────────
-
-  interface ContextTableRow {
-    id: string;
-    peId: string;
-    studentId: string | null;
-    studentName: string;
-    programName: string;
-    sectionId: string | null;
-    sectionName: string | null;
-  }
 
   const contextColumns: ColumnDef<ContextTableRow>[] = useMemo(() => [
     {
@@ -446,613 +381,6 @@ export default function EnrollWorkspacePage() {
     },
   ], [sections, sectionAssignments, updateProgEnrollMutation, handleAssignSection]);
 
-  return (
-    <div className="space-y-6 pb-10">
-      <button
-        onClick={() => router.push("/admin/enrollment")}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Enrollment
-      </button>
-
-      <PageHeader title="Enroll Students" />
-
-      {/* ── Breadcrumb ──────────────────────────────────── */}
-      {(programId || courseId || strandId || levelId) && (
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <button onClick={() => { setProgramId(""); setCourseId(""); setStrandId(""); setLevelId(""); }} className="hover:text-foreground transition-colors">
-            {schoolYear?.name ?? "School Year"}
-          </button>
-          {program && (
-            <>
-              <ChevronRight className="h-3.5 w-3.5" />
-              <button onClick={() => { setCourseId(""); setStrandId(""); setLevelId(""); }} className="hover:text-foreground transition-colors font-medium text-foreground">
-                {program.name}
-              </button>
-            </>
-          )}
-          {course && (
-            <>
-              <ChevronRight className="h-3.5 w-3.5" />
-              <button onClick={() => setLevelId("")} className="hover:text-foreground transition-colors font-medium text-foreground">
-                {course.code ?? course.name}
-              </button>
-            </>
-          )}
-          {strand && (
-            <>
-              <ChevronRight className="h-3.5 w-3.5" />
-              <button onClick={() => setLevelId("")} className="hover:text-foreground transition-colors font-medium text-foreground">
-                {strand.name}
-              </button>
-            </>
-          )}
-          {level && (
-            <>
-              <ChevronRight className="h-3.5 w-3.5" />
-              <span className="font-medium text-foreground">{level.name}</span>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ── Step 1: Program cards ── */}
-      {!programId && (
-        <div>
-          {progLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {programs.map((p) => {
-                const typeLabel = PROGRAM_TYPE_LABELS[p.type as keyof typeof PROGRAM_TYPE_LABELS] ?? p.type;
-                const typeColor = PROGRAM_TYPE_COLORS[p.type as keyof typeof PROGRAM_TYPE_COLORS] ?? "";
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => handleProgramChange(p.id)}
-                    className="rounded-xl border bg-card p-6 space-y-4 text-left transition-all hover:bg-muted/30"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="icon-container icon-edu shrink-0 mt-0.5">
-                        <GraduationCap className="h-4.5 w-4.5" />
-                      </div>
-                      <div className="space-y-1 min-w-0">
-                        <p className="font-semibold text-lg leading-tight">{p.name}</p>
-                        <Badge variant="outline" className={cn("text-xs border", typeColor)}>
-                          {typeLabel}
-                        </Badge>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Step 2: Course / Strand cards ── */}
-      {programId && !courseId && !strandId && (isCollege || isSHS) && (
-        <div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {(isCollege ? program?.courses : program?.strands)?.map((item) => {
-              const c = item as { id: string; name: string; code?: string | null };
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => {
-                    if (isCollege) setCourseId(c.id);
-                    else setStrandId(c.id);
-                    setLevelId("");
-                  }}
-                  className="rounded-xl border bg-card p-6 space-y-4 text-left transition-all hover:bg-muted/30"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="icon-container icon-edu shrink-0 mt-0.5">
-                      <BookOpen className="h-4.5 w-4.5" />
-                    </div>
-                    <div className="space-y-1 min-w-0">
-                      <p className="font-semibold text-lg leading-tight">{c.code ?? c.name}</p>
-                      {c.code && <p className="text-sm text-muted-foreground">{c.name}</p>}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Step 3: Level cards ── */}
-      {!!programId && !levelId && (isCollege ? !!courseId : isSHS ? !!strandId : true) && (
-        <div>
-          {levelsLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
-            </div>
-          ) : programLevels.length === 0 ? (
-            <div className="rounded-xl border bg-card px-6 py-12 text-center">
-              <Layers className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-sm font-medium text-muted-foreground">No levels available for this program.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {programLevels.map((l) => (
-                <button
-                  key={l.id}
-                  type="button"
-                  onClick={() => setLevelId(l.id)}
-                  className="rounded-xl border bg-card p-6 space-y-4 text-left transition-all hover:bg-muted/30"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="icon-container icon-edu shrink-0 mt-0.5">
-                      <Layers className="h-4.5 w-4.5" />
-                    </div>
-                    <div className="space-y-1 min-w-0">
-                      <p className="font-semibold text-lg leading-tight">{l.name}</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Search ──────────────────────────────────────── */}
-      {levelId && (
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, student ID, or email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-9"
-            />
-          </div>
-          {filtered.length > 0 && leftTab === "enroll" && (
-            <p className="text-xs text-muted-foreground">
-              {selected.size} of {filtered.length} selected
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* ── Two-column layout ───────────────────────────────── */}
-      {levelId && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {/* ═══ LEFT PANEL ═══ */}
-          <div className="rounded-lg border bg-card overflow-hidden">
-            <div className="flex items-center gap-2 px-5 py-3 border-b bg-muted/20">
-              <UserRoundCheck className="h-4 w-4 text-primary" />
-              <Tabs value={leftTab} onValueChange={(v) => setLeftTab(v as typeof leftTab)}>
-                <TabsList>
-                  <TabsTrigger value="all">All Students</TabsTrigger>
-                  <TabsTrigger value="pending">Pending Section</TabsTrigger>
-                  <TabsTrigger value="enroll">Enroll Student</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-
-            {/* ── All Students ── */}
-            {leftTab === "all" && (
-              <div className="p-4">
-                <DataTable
-                  columns={contextColumns}
-                  data={allContextEnrollments.map((enr) => {
-                    const pe = enr.programEnrollments.find(
-                      (pe) =>
-                        pe.program_id === programId &&
-                        (!courseId || pe.course?.id === courseId) &&
-                        (!strandId || pe.strand?.id === strandId) &&
-                        (!levelId || pe.level?.id === levelId),
-                    );
-                    const student = studentMap.get(enr.student_id);
-                    return {
-                      id: enr.id,
-                      peId: pe?.id ?? "",
-                      studentId: student?.studentId ?? null,
-                      studentName: student?.fullName ?? "Unknown Student",
-                      programName: pe?.program.name ?? "",
-                      sectionId: pe?.section?.id ?? null,
-                      sectionName: pe?.section?.name ?? null,
-                    };
-                  })}
-                  isLoading={pageLoading}
-                  emptyTitle="No students in this context"
-                  emptyDescription="No students are enrolled in this context yet."
-                />
-              </div>
-            )}
-
-            {/* ── Pending Section ── */}
-            {leftTab === "pending" && (
-              <div className="p-4 space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Students enrolled in a program who haven&apos;t been assigned to a section yet.
-                </p>
-                <DataTable
-                  columns={contextColumns}
-                  data={pendingSectionEnrollments.map((enr) => {
-                    const pe = enr.programEnrollments.find(
-                      (pe) =>
-                        pe.program_id === programId &&
-                        pe.section === null &&
-                        (!courseId || pe.course?.id === courseId) &&
-                        (!strandId || pe.strand?.id === strandId) &&
-                        (!levelId || pe.level?.id === levelId),
-                    );
-                    const student = studentMap.get(enr.student_id);
-                    return {
-                      id: enr.id,
-                      peId: pe?.id ?? "",
-                      studentId: student?.studentId ?? null,
-                      studentName: student?.fullName ?? "Unknown Student",
-                      programName: pe?.program.name ?? "",
-                      sectionId: null,
-                      sectionName: null,
-                    };
-                  })}
-                  isLoading={pageLoading}
-                  emptyTitle="All sections assigned"
-                  emptyDescription="No pending section assignments for this school year."
-                  className="rounded-lg border"
-                />
-              </div>
-            )}
-
-            {/* ── Enroll Student ── */}
-            {leftTab === "enroll" && (
-              <div>
-                {pageLoading ? (
-                  <div className="space-y-0 divide-y">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className="flex items-center gap-3 px-5 py-3">
-                        <Skeleton className="h-4 w-4 rounded" />
-                        <Skeleton className="h-4 w-20" />
-                        <Skeleton className="h-4 w-32" />
-                      </div>
-                    ))}
-                  </div>
-                ) : filtered.length === 0 ? (
-                  <div className="px-5 py-12 text-center space-y-2">
-                    <Users className="h-10 w-10 text-muted-foreground/30 mx-auto" />
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {search
-                        ? "No students match your search."
-                        : "All students are already enrolled in this school year."}
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Column headers */}
-                    <div className="flex items-center gap-3 px-5 py-2 border-b bg-muted/20 text-xs font-medium text-muted-foreground">
-                      <button
-                        onClick={toggleAll}
-                        className={cn(
-                          "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                          selected.size === filtered.length && filtered.length > 0
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-muted-foreground/40",
-                        )}
-                      >
-                        {selected.size === filtered.length && filtered.length > 0 && (
-                          <CheckSquare className="h-3 w-3" />
-                        )}
-                      </button>
-                      <span className="w-24">Student ID</span>
-                      <span className="flex-1">Name</span>
-                      <span className="w-20">Status</span>
-                    </div>
-
-                    {/* Rows */}
-                    <div className="max-h-80 overflow-y-auto divide-y">
-                      {filtered.map((student) => {
-                        const isSelected = selected.has(student.id);
-                        return (
-                          <button
-                            key={student.id}
-                            type="button"
-                            onClick={() => toggle(student.id)}
-                            className={cn(
-                              "w-full flex items-center gap-3 px-5 py-2.5 text-left transition-colors hover:bg-muted/30",
-                              isSelected && "bg-primary/5",
-                            )}
-                          >
-                            <div
-                              className={cn(
-                                "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                                isSelected
-                                  ? "border-primary bg-primary text-primary-foreground"
-                                  : "border-muted-foreground/40",
-                              )}
-                            >
-                              {isSelected && <CheckSquare className="h-3 w-3" />}
-                            </div>
-                            <span className="w-24 text-sm text-muted-foreground truncate">
-                              {student.studentId ?? "—"}
-                            </span>
-                            <span className="flex-1 text-sm font-medium truncate">
-                              {student.fullName}
-                            </span>
-                            <span className="w-20">
-                              <Badge
-                                variant={student.status === "active" ? "default" : "secondary"}
-                                className="text-[10px] capitalize"
-                              >
-                                {student.status}
-                              </Badge>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-
-                {/* Actions */}
-                {filtered.length > 0 && (
-                  <div className="flex items-center justify-between px-5 py-3 border-t">
-                    <p className="text-xs text-muted-foreground">
-                      {selected.size > 0
-                        ? `${selected.size} student${selected.size > 1 ? "s" : ""} selected`
-                        : "Select students to enroll"}
-                    </p>
-                    <Button
-                      size="sm"
-                      onClick={() => setConfirmOpen(true)}
-                      disabled={selected.size === 0 || bulkEnrollMutation.isPending}
-                    >
-                      {bulkEnrollMutation.isPending
-                        ? "Enrolling..."
-                        : `Enroll ${selected.size > 0 ? `(${selected.size})` : ""}`}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* ═══ RIGHT PANEL: Classes ═══ */}
-          <div className="rounded-lg border bg-card overflow-hidden">
-            <div className="flex items-center gap-2 px-5 py-3 border-b bg-muted/20">
-              <CalendarDays className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold">Classes</span>
-              <Badge variant="secondary" className="text-xs ml-auto">
-                {filteredClasses.length}
-              </Badge>
-            </div>
-
-            <div className="p-4 space-y-3">
-              <p className="text-xs text-muted-foreground">
-                Select a class to enroll students from this program and level into it.
-              </p>
-
-              {classesLoading ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-14 w-full rounded-lg" />
-                  ))}
-                </div>
-              ) : filteredClasses.length === 0 ? (
-                <div className="py-12 text-center space-y-2">
-                  <CalendarDays className="h-10 w-10 text-muted-foreground/30 mx-auto" />
-                  <p className="text-sm font-medium text-muted-foreground">No classes found</p>
-                  <p className="text-xs text-muted-foreground">No classes are available for this program and level.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {filteredClasses.map((cls) => {
-                    const isExpanded = expandedClassId === cls.id;
-                    const selections = classStudentSelections[cls.id] ?? new Set<string>();
-                    const isFull = cls.enrolledCount >= cls.capacity;
-                    const isEnrolling = enrollingClassIds.has(cls.id);
-                    const eligibleStudentIds = studentsEligibleForClassEnrollment.map((s) => s.id);
-                    const allSelected =
-                      eligibleStudentIds.length > 0 &&
-                      eligibleStudentIds.every((id) => selections.has(id));
-
-                    return (
-                      <div
-                        key={cls.id}
-                        className="rounded-lg border bg-card overflow-hidden"
-                      >
-                        {/* ── Class row header ── */}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExpandedClassId(isExpanded ? null : cls.id)
-                          }
-                          className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
-                        >
-                          {/* Subject + semester */}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">
-                              {cls.subjectName ?? "Unnamed Subject"}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {cls.semesterName ?? "—"} &middot;{" "}
-                              {cls.educatorName ?? "No educator"}
-                            </p>
-                          </div>
-
-                          {/* Section */}
-                          <Badge variant="outline" className="text-xs shrink-0">
-                            {cls.sectionName ?? "No Section"}
-                          </Badge>
-
-                          {/* Schedule */}
-                          <span className="text-xs text-muted-foreground shrink-0 hidden sm:block">
-                            {formatSchedule(cls.schedules)}
-                          </span>
-
-                          {/* Capacity bar */}
-                          <div className="flex items-center gap-2 shrink-0">
-                            <div className="space-y-1 text-right">
-                              <p
-                                className={cn(
-                                  "text-xs font-medium",
-                                  isFull ? "text-destructive" : "text-muted-foreground",
-                                )}
-                              >
-                                {cls.enrolledCount}/{cls.capacity}
-                              </p>
-                              <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
-                                <div
-                                  className={cn(
-                                    "h-full transition-all",
-                                    isFull ? "bg-destructive" : "bg-primary",
-                                  )}
-                                  style={{
-                                    width: `${Math.min((cls.enrolledCount / cls.capacity) * 100, 100)}%`,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Expand icon */}
-                          {isExpanded ? (
-                            <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                          )}
-                        </button>
-
-                        {/* ── Expanded student checklist ── */}
-                        {isExpanded && (
-                          <div className="border-t bg-muted/10">
-                            {studentsEligibleForClassEnrollment.length === 0 ? (
-                              <div className="px-5 py-8 text-center space-y-1">
-                                <Users className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-                                <p className="text-sm text-muted-foreground font-medium">
-                                  No eligible students
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Enroll students into this program and level first.
-                                </p>
-                              </div>
-                            ) : (
-                              <>
-                                {/* Checklist header */}
-                                <div className="flex items-center gap-3 px-4 py-2 border-b bg-muted/20 text-xs font-medium text-muted-foreground">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      toggleAllClassStudents(cls.id, eligibleStudentIds)
-                                    }
-                                    className={cn(
-                                      "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                                      allSelected
-                                        ? "border-primary bg-primary text-primary-foreground"
-                                        : "border-muted-foreground/40",
-                                    )}
-                                  >
-                                    {allSelected && <CheckSquare className="h-3 w-3" />}
-                                  </button>
-                                  <span className="w-24">Student ID</span>
-                                  <span className="flex-1">Name</span>
-                                </div>
-
-                                {/* Student rows */}
-                                <div className="max-h-60 overflow-y-auto divide-y">
-                                  {studentsEligibleForClassEnrollment.map((student) => {
-                                    const isChecked = selections.has(student.id);
-                                    return (
-                                      <button
-                                        key={student.id}
-                                        type="button"
-                                        onClick={() =>
-                                          toggleClassStudent(cls.id, student.id)
-                                        }
-                                        className={cn(
-                                          "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/30",
-                                          isChecked && "bg-primary/5",
-                                        )}
-                                      >
-                                        <div
-                                          className={cn(
-                                            "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                                            isChecked
-                                              ? "border-primary bg-primary text-primary-foreground"
-                                              : "border-muted-foreground/40",
-                                          )}
-                                        >
-                                          {isChecked && (
-                                            <CheckSquare className="h-3 w-3" />
-                                          )}
-                                        </div>
-                                        <span className="w-24 text-sm text-muted-foreground truncate">
-                                          {student.studentId ?? "—"}
-                                        </span>
-                                        <span className="flex-1 text-sm font-medium truncate">
-                                          {student.fullName}
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-
-                                {/* Enroll action footer */}
-                                <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/10">
-                                  <p className="text-xs text-muted-foreground">
-                                    {selections.size > 0
-                                      ? `${selections.size} student${selections.size > 1 ? "s" : ""} selected`
-                                      : "Select students to enroll in this class"}
-                                  </p>
-                                  <Button
-                                    size="sm"
-                                    disabled={selections.size === 0 || isEnrolling || isFull}
-                                    onClick={() => handleEnrollInClass(cls)}
-                                  >
-                                    {isEnrolling ? (
-                                      "Enrolling..."
-                                    ) : isFull ? (
-                                      "Class Full"
-                                    ) : (
-                                      <>
-                                        <UserPlus className="h-3.5 w-3.5 mr-1.5" />
-                                        {`Enroll${selections.size > 0 ? ` (${selections.size})` : ""}`}
-                                      </>
-                                    )}
-                                  </Button>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Confirm enroll dialog ──────────────────────── */}
-      {confirmOpen && (
-        <ConfirmDialog
-          open
-          title="Enroll students?"
-          message={`Are you sure you want to enroll ${selected.size} student${selected.size > 1 ? "s" : ""} into ${program?.name ?? "this school year"}?`}
-          confirmLabel="Enroll"
-          isLoading={bulkEnrollMutation.isPending}
-          onConfirm={handleEnroll}
-          onOpenChange={(o) => { if (!o) setConfirmOpen(false); }}
-        />
-      )}
-    </div>
-  );
-
-  // ── Enroll new students handler ───────────────────────
   async function handleEnroll() {
     const students = allStudents.filter((s) => selected.has(s.id));
     if (students.length === 0) return;
@@ -1085,4 +413,135 @@ export default function EnrollWorkspacePage() {
       toast.error(e?.response?.data?.message ?? "Failed to enroll some students.");
     }
   }
+
+  const breadcrumbItems = [
+    ...(schoolYear
+      ? [{ label: schoolYear.name, onClick: () => { setProgramId(""); setCourseId(""); setStrandId(""); setLevelId(""); } }]
+      : []),
+    ...(program ? [{ label: program.name, onClick: () => { setCourseId(""); setStrandId(""); setLevelId(""); } }] : []),
+    ...(course ? [{ label: course.code ?? course.name, onClick: () => setLevelId("") }] : []),
+    ...(strand ? [{ label: strand.name, onClick: () => setLevelId("") }] : []),
+    ...(level ? [{ label: level.name }] : []),
+  ];
+
+  return (
+    <div className="space-y-6 pb-10">
+      <button
+        onClick={() => router.push("/admin/enrollment")}
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Enrollment
+      </button>
+
+      <PageHeader title="Enroll Students" />
+
+      <EnrollmentBreadcrumb items={breadcrumbItems} />
+
+      {!programId && (
+        <ProgramSelector
+          programs={programs}
+          isLoading={progLoading}
+          onSelect={handleProgramChange}
+        />
+      )}
+
+      {programId && !courseId && !strandId && (isCollege || isSHS) && (
+        <CourseStrandSelector
+          items={(isCollege ? program?.courses : program?.strands)?.map((item) => ({
+            id: item.id,
+            name: item.name,
+            code: "code" in item ? (item as { code?: string | null }).code : null,
+          })) ?? []}
+          isCollege={isCollege}
+          onSelect={(id) => {
+            if (isCollege) setCourseId(id);
+            else setStrandId(id);
+            setLevelId("");
+          }}
+        />
+      )}
+
+      {!!programId && !levelId && (isCollege ? !!courseId : isSHS ? !!strandId : true) && (
+        <LevelSelector
+          levels={programLevels}
+          isLoading={levelsLoading}
+          onSelect={setLevelId}
+        />
+      )}
+
+      {levelId && (
+        <>
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, student ID, or email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+            {filtered.length > 0 && leftTab === "enroll" && (
+              <p className="text-xs text-muted-foreground">
+                {selected.size} of {filtered.length} selected
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <EnrollStudentPanel
+              leftTab={leftTab}
+              onTabChange={setLeftTab}
+              contextColumns={contextColumns}
+              allContextEnrollments={allContextEnrollments}
+              pendingSectionEnrollments={pendingSectionEnrollments}
+              programId={programId}
+              courseId={courseId}
+              strandId={strandId}
+              levelId={levelId}
+              studentMap={studentMap}
+              pageLoading={pageLoading}
+              sections={sections}
+              sectionAssignments={sectionAssignments}
+              onSectionAssign={handleAssignSection}
+              updateProgEnrollPending={updateProgEnrollMutation.isPending}
+              search={search}
+              filtered={filtered}
+              selected={selected}
+              onToggleAll={toggleAll}
+              onToggle={toggle}
+              onConfirmEnroll={() => setConfirmOpen(true)}
+              bulkEnrollPending={bulkEnrollMutation.isPending}
+            />
+
+            <ClassEnrollmentPanel
+              classes={filteredClasses}
+              isLoading={classesLoading}
+              expandedClassId={expandedClassId}
+              onToggleExpand={(id) => setExpandedClassId(expandedClassId === id ? null : id)}
+              eligibleStudents={studentsEligibleForClassEnrollment}
+              classStudentSelections={classStudentSelections}
+              onToggleStudent={toggleClassStudent}
+              onToggleAllStudents={toggleAllClassStudents}
+              onEnrollInClass={handleEnrollInClass}
+              enrollingClassIds={enrollingClassIds}
+            />
+          </div>
+        </>
+      )}
+
+      {confirmOpen && (
+        <ConfirmDialog
+          open
+          title="Enroll students?"
+          message={`Are you sure you want to enroll ${selected.size} student${selected.size > 1 ? "s" : ""} into ${program?.name ?? "this school year"}?`}
+          confirmLabel="Enroll"
+          isLoading={bulkEnrollMutation.isPending}
+          onConfirm={handleEnroll}
+          onOpenChange={(o) => { if (!o) setConfirmOpen(false); }}
+        />
+      )}
+    </div>
+  );
 }

@@ -14,6 +14,9 @@ import { educatorApi } from "@/api/admin/educator.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { semesterApi } from "@/api/admin/semester.api";
 import { sectionApi } from "@/api/admin/section.api";
+import { programApi } from "@/api/admin/program.api";
+import { levelApi } from "@/api/admin/level.api";
+import { semesterTemplateApi } from "@/api/admin/semester-template.api";
 import type { SchoolYear } from "@/types/admin/school-year.types";
 
 import type { Class } from "@/types/admin/class.types";
@@ -92,6 +95,25 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
   const { data: semestersRaw } = useQuery({
     queryKey: ["admin", "semesters"],
     queryFn: () => semesterApi.getAll(),
+  });
+
+  // ── Pre-fetch for CreateClassDialog ──────────────────────────────────────────
+  const { data: programsRaw } = useQuery({
+    queryKey: ["admin", "programs", selectedSchoolYearId],
+    queryFn: () => programApi.getAll(selectedSchoolYearId!),
+    enabled: !!selectedSchoolYearId,
+  });
+
+  const { data: levelsRaw } = useQuery({
+    queryKey: ["admin", "levels", "school-year", selectedSchoolYearId],
+    queryFn: () => levelApi.getBySchoolYear(selectedSchoolYearId!),
+    enabled: !!selectedSchoolYearId,
+  });
+
+  const { data: templateAssignmentsRaw } = useQuery({
+    queryKey: ["admin", "semester-template-assignments", selectedSchoolYearId],
+    queryFn: () => semesterTemplateApi.getAssignmentsBySchoolYear(selectedSchoolYearId!),
+    enabled: !!selectedSchoolYearId,
   });
 
   // ===== Maps =====

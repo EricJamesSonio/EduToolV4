@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Plus, Library } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,79 +8,55 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { GradingSchemeTemplateCard } from "@/components/educator/grading-scheme/GradingSchemeTemplateCard";
-import { NewTemplateDialog } from "@/components/educator/grading-scheme/NewTemplateDialog";
+import { TemplateFormDialog } from "@/components/educator/grading-scheme/TemplateFormDialog";
 import { ApplyToClassDialog } from "@/components/educator/grading-scheme/ApplyToClassDialog";
 
-import { useQueryClient } from "@tanstack/react-query";
+import {
+  useEducatorTemplateLibrary,
+  useDeleteTemplate,
+} from "@/hooks/educator/useGradingSchemeTemplates";
 
-import type { GradingScheme } from "@/types/admin/grading-scheme.types";
-import type { AxiosError } from "axios";
+import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
 
 export default function GradingSchemeLibraryPage() {
-  const queryClient = useQueryClient();
+  const { data: library, isLoading } = useEducatorTemplateLibrary();
 
-  /**
-   * IMPORTANT:
-   * Backend DOES NOT provide a library endpoint yet.
-   * So we only use cached/react-created templates if they exist.
-   */
-  const cached = queryClient.getQueryData<GradingScheme[]>([
-    "grading-scheme",
-    "educator-library",
-  ]);
-
-  const library = useMemo(() => cached ?? [], [cached]);
+  const deleteMutation = useDeleteTemplate();
 
   const [showNew, setShowNew] = useState(false);
-  const [editScheme, setEditScheme] = useState<GradingScheme | null>(null);
-  const [deleteScheme, setDeleteScheme] = useState<GradingScheme | null>(null);
-  const [applyScheme, setApplyScheme] = useState<GradingScheme | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [editTemplate, setEditTemplate] = useState<GradingSchemeTemplate | null>(null);
+  const [deleteTemplate, setDeleteTemplate] = useState<GradingSchemeTemplate | null>(null);
+  const [applyTemplate, setApplyTemplate] = useState<GradingSchemeTemplate | null>(null);
 
-  const handleEdit = (scheme: GradingScheme) => {
-    setEditScheme(scheme);
+  const handleEdit = (scheme: GradingSchemeTemplate) => {
+    setEditTemplate(scheme);
     setShowNew(true);
   };
 
   const handleNewOpenChange = (open: boolean) => {
     setShowNew(open);
-    if (!open) setEditScheme(null);
+    if (!open) setEditTemplate(null);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deleteScheme) return;
+    if (!deleteTemplate) return;
 
-    setIsDeleting(true);
-
-    try {
-      /**
-       * BACKEND DOES NOT HAVE DELETE ENDPOINT YET
-       * So we only do local cache removal.
-       */
-      toast.info("Delete not supported yet in backend.");
-
-      queryClient.setQueryData<GradingScheme[]>(
-        ["grading-scheme", "educator-library"],
-        (prev) => (prev ?? []).filter((s) => s.id !== deleteScheme.id)
-      );
-
-      setDeleteScheme(null);
-    } catch (err: unknown) {
-      const axiosErr = err as AxiosError<{ message: string }>;
-      toast.error(
-        axiosErr?.response?.data?.message ??
-          "Failed to delete template."
-      );
-    } finally {
-      setIsDeleting(false);
-    }
+    deleteMutation.mutate(deleteTemplate.id, {
+      onSuccess: () => {
+        toast.success("Template deleted.");
+        setDeleteTemplate(null);
+      },
+      onError: () => {
+        toast.error("Failed to delete template.");
+      },
+    });
   };
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Grading Scheme Library"
-        description="Templates are created from class schemes and stored in cache until backend exposes a template endpoint."
+        description="Create and manage reusable grading scheme templates."
         actions={
           <Button onClick={() => setShowNew(true)} className="gap-1.5">
             <Plus className="h-4 w-4" />
@@ -89,12 +65,20 @@ export default function GradingSchemeLibraryPage() {
         }
       />
 
-      {/* EMPTY STATE WHEN NO CACHED DATA */}
-      {library.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-20 w-full animate-pulse rounded-xl bg-muted"
+            />
+          ))}
+        </div>
+      ) : !library || library.length === 0 ? (
         <EmptyState
           icon={Library}
           title="No Templates Available"
-          description="Create a grading scheme from a class to start building reusable templates."
+          description="Create a grading scheme template to start building reusable schemes."
         />
       ) : (
         <div className="space-y-2">
@@ -103,44 +87,44 @@ export default function GradingSchemeLibraryPage() {
               key={scheme.id}
               scheme={scheme}
               onEdit={handleEdit}
-              onDelete={setDeleteScheme}
-              onApplyToClass={setApplyScheme}
+              onDelete={setDeleteTemplate}
+              onApplyToClass={(templateId) => {
+                const found = library.find((s) => s.id === templateId);
+                if (found) setApplyTemplate(found);
+              }}
             />
           ))}
         </div>
       )}
 
-      {/* NEW / EDIT TEMPLATE */}
-      <NewTemplateDialog
+      <TemplateFormDialog
         open={showNew}
         onOpenChange={handleNewOpenChange}
-        editScheme={editScheme}
+        editTemplate={editTemplate}
       />
 
-      {/* APPLY TO CLASS */}
       <ApplyToClassDialog
-        open={!!applyScheme}
+        open={!!applyTemplate}
         onOpenChange={(o) => {
-          if (!o) setApplyScheme(null);
+          if (!o) setApplyTemplate(null);
         }}
-        scheme={applyScheme}
+        scheme={applyTemplate}
       />
 
-      {/* DELETE CONFIRM */}
       <ConfirmDialog
-        open={!!deleteScheme}
+        open={!!deleteTemplate}
         onOpenChange={(o) => {
-          if (!o) setDeleteScheme(null);
+          if (!o) setDeleteTemplate(null);
         }}
         title="Delete template?"
         message={
-          deleteScheme
-            ? `Delete "${deleteScheme.name}"? This is a local-only action for now.`
+          deleteTemplate
+            ? `Delete "${deleteTemplate.name}"? This cannot be undone.`
             : "Delete this template?"
         }
         confirmLabel="Delete"
         destructive
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         onConfirm={handleDeleteConfirm}
       />
     </div>
