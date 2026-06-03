@@ -26,7 +26,7 @@ import { schoolYearApi } from "@/api/admin/school-year.api";
 
 import { toArray } from "@/utils/classes.utils";
 
-import type { GradingScheme } from "@/types/admin/grading-scheme.types";
+import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
 import type { EducatorClass } from "@/types/educator/class.types";
 import type { AxiosError } from "axios";
 
@@ -38,7 +38,7 @@ interface EnrichedClass extends EducatorClass {
 interface ApplyToClassDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  scheme: GradingScheme | null;
+  scheme: GradingSchemeTemplate | null;
 }
 
 export function ApplyToClassDialog({
@@ -113,10 +113,7 @@ export function ApplyToClassDialog({
     try {
       await educatorGradingSchemeApi.applyTemplateToClass({
         classId: selectedClassId,
-
-        // backend supports templateId (required for template apply)
-        templateId: scheme.templateId ?? scheme.id,
-
+        templateId: scheme.id,
         name: scheme.name,
       });
 

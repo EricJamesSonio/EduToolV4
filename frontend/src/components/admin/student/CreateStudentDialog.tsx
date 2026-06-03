@@ -80,7 +80,7 @@ export function CreateStudentDialog({
 
       const payload: CreateStudentRequest = {
         fullName: values.fullName,
-        email: fullEmail,
+        emailName: values.email,
         studentId: values.studentId,
       };
 

@@ -45,16 +45,10 @@ export function CreateEducatorDialog({
     e.preventDefault();
     setError(null);
 
-    const fullEmail = buildFullEmail(
-      email,
-      emailExtension,
-      "educator"
-    );
-
     createMutation.mutate(
       {
         fullName,
-        email: fullEmail,
+        emailName: email,
       },
       {
         onSuccess: (result) => {

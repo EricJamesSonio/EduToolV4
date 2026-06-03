@@ -4,16 +4,14 @@ import { Pencil, Trash2, BookMarked } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import type { GradingScheme } from "@/types/admin/grading-scheme.types";
+import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
 
 interface GradingSchemeTemplateCardProps {
-  // ⚠️ still GradingScheme type, but treated as TEMPLATE SOURCE
-  scheme: GradingScheme;
+  scheme: GradingSchemeTemplate;
 
-  onEdit: (scheme: GradingScheme) => void;
-  onDelete: (scheme: GradingScheme) => void;
+  onEdit: (scheme: GradingSchemeTemplate) => void;
+  onDelete: (scheme: GradingSchemeTemplate) => void;
 
-  // FIXED: should be templateId + classId, NOT full scheme
   onApplyToClass: (templateId: string) => void;
 }
 
@@ -28,7 +26,6 @@ const components = Array.isArray(scheme?.components)
   : [];
 
   const totalWeight = components
-    .filter((c) => !c.isOptional)
     .reduce((sum, c) => sum + c.weight, 0);
 
   return (
