@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WEEKDAY_LABELS } from "@/utils/classes.utils";
-import type { CreateClassForm } from "./CreateClassDialog";
+import type { CreateClassForm } from "./CreateClassDialog.types";
 
 export function ScheduleSlotFields() {
   const { register, watch, setValue, control } = useFormContext<CreateClassForm>();

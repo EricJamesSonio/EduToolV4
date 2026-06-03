@@ -1,25 +1,13 @@
 "use client";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useForm, FormProvider } from "react-hook-form";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { AxiosError } from "axios";
-import { AlertTriangle, ArrowRight } from "lucide-react";
 
-import { classApi }            from "@/api/admin/class.api";
+import { classApi } from "@/api/admin/class.api";
 import type { CreateClassRequest, ScheduleSlot } from "@/api/admin/class.api";
-import { subjectApi }          from "@/api/admin/subject.api";
-import { educatorApi }         from "@/api/admin/educator.api";
-import { programApi }          from "@/api/admin/program.api";
-import { courseApi }           from "@/api/admin/course.api";
-import { strandApi }           from "@/api/admin/strand.api";
-import { levelApi }            from "@/api/admin/level.api";
-import { sectionApi }          from "@/api/admin/section.api";
-import { semesterApi }         from "@/api/admin/semester.api";
-import { semesterTemplateApi } from "@/api/admin/semester-template.api";
-import type { Level }          from "@/types/admin/level.types";
-import type { Subject }        from "@/types/admin/subject.types";
 
 import { Modal } from "@/components/shared/Modal";
 import { Button }   from "@/components/ui/button";
@@ -28,50 +16,15 @@ import { Label }    from "@/components/ui/label";
 import { Badge }    from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { ScheduleSlotFields } from "./ScheduleSlotFields";
-import { toArray } from "@/utils/classes.utils";
+import { useCreateClassData } from "./hooks/useCreateClassData";
+import { SemesterTemplateWarning } from "./SemesterTemplateWarning";
+import type { CreateClassForm, CreateClassDialogProps } from "./CreateClassDialog.types";
+import { EMPTY_DEFAULTS } from "./CreateClassDialog.types";
 import {
   loadClassDraft,
   clearClassDraft,
-  useClassDraftAutosave,
+  saveClassDraft,
 } from "@/components/admin/class/hooks//useClassDraft";
-
-export interface ScheduleSlotForm {
-  weekday:   string;
-  startTime: string;
-  endTime:   string;
-}
-
-export interface CreateClassForm {
-  programId:  string;
-  semesterId: string;
-  trackId:    string;
-  levelId:    string;
-  sectionId:  string;
-  subjectId:  string;
-  educatorId: string;
-  capacity:   string;
-  schedules:  ScheduleSlotForm[];
-}
-
-const EMPTY_DEFAULTS: CreateClassForm = {
-  programId:  "",
-  semesterId: "",
-  trackId:    "",
-  levelId:    "",
-  sectionId:  "",
-  subjectId:  "",
-  educatorId: "",
-  capacity:   "30",
-  schedules:  [{ weekday: "1", startTime: "08:00", endTime: "09:00" }],
-};
-
-interface CreateClassDialogProps {
-  open:              boolean;
-  onClose:           () => void;
-  defaultSubjectId?: string;
-  schoolYearId:      string | null;
-  schoolYearName:    string | null;
-}
 
 export function CreateClassDialog({
   open,
@@ -104,7 +57,7 @@ export function CreateClassDialog({
   } = methods;
 
   const formValues = watch();
-  useClassDraftAutosave(formValues);
+  useEffect(() => { saveClassDraft(formValues); }, [formValues]);
 
   const selectedProgramId  = formValues.programId;
   const selectedSemesterId = formValues.semesterId;
@@ -114,96 +67,17 @@ export function CreateClassDialog({
   const selectedSubjectId  = formValues.subjectId;
   const selectedEducatorId = formValues.educatorId;
 
-  // ── Data queries ────────────────────────────────────────────────────────────
-
-  const { data: programsRaw } = useQuery({
-    queryKey: ["admin", "programs", schoolYearId],
-    queryFn:  () => programApi.getAll(schoolYearId!),
-    enabled:  !!schoolYearId,
-  });
-  const programs = toArray<{ id: string; name: string }>(programsRaw);
-
-  const { data: coursesRaw } = useQuery({
-    queryKey: ["admin", "courses", schoolYearId, selectedProgramId],
-    queryFn:  () => courseApi.getAll({ schoolYearId: schoolYearId!, programId: selectedProgramId! }),
-    enabled:  !!schoolYearId && !!selectedProgramId,
-  });
-
-  const { data: strandsRaw } = useQuery({
-    queryKey: ["admin", "strands", selectedProgramId],
-    queryFn:  () => strandApi.getAll({ program_id: selectedProgramId! }),
-    enabled:  !!selectedProgramId,
-  });
-
-  const courses       = toArray<{ id: string; name: string }>(coursesRaw);
-  const strands       = toArray<{ id: string; name: string }>(strandsRaw);
-  const tracks        = courses.length > 0 ? courses : strands;
-  const hasTrack      = tracks.length > 0;
-  const isCourseTrack = courses.length > 0;
-
-  const { data: levelsRaw } = useQuery({
-    queryKey: ["admin", "levels", "school-year", schoolYearId],
-    queryFn:  () => levelApi.getBySchoolYear(schoolYearId!),
-    enabled:  !!schoolYearId,
-  });
-  const levels = useMemo<Level[]>(() => {
-    const all = toArray<Level>(levelsRaw);
-    if (!selectedProgramId) return [];
-    return all.filter((l) => l.program_id === selectedProgramId);
-  }, [levelsRaw, selectedProgramId]);
-
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections", schoolYearId, selectedLevelId],
-    queryFn:  () => sectionApi.getAll(schoolYearId!, selectedLevelId!),
-    enabled:  !!schoolYearId && !!selectedLevelId,
-  });
-  const sections = toArray<{ id: string; name: string }>(sectionsRaw);
-
-  const { data: subjectsRaw } = useQuery({
-    queryKey: [
-      "admin", "subjects", selectedLevelId,
-      isCourseTrack ? selectedTrackId : undefined,
-      !isCourseTrack ? selectedTrackId : undefined,
-    ],
-    queryFn: () => subjectApi.getAll({
-      levelId: selectedLevelId!,
-      ...(selectedTrackId && isCourseTrack  ? { courseId: selectedTrackId } : {}),
-      ...(selectedTrackId && !isCourseTrack ? { strandId: selectedTrackId } : {}),
-    }),
-    enabled: !!selectedLevelId,
-  });
-  const subjects = toArray<Subject>(subjectsRaw);
-
-  const { data: educatorsRaw } = useQuery({
-    queryKey: ["admin", "educators", "all"],
-    queryFn:  () => educatorApi.getAll(),
-  });
-  const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
-
-  // ── Semester template assignment check ─────────────────────────────────────
-  // Fired as soon as schoolYearId is available; result is cached so selecting
-  // a program costs zero extra network round-trips.
-  const { data: templateAssignments = [] } = useQuery({
-    queryKey: ["admin", "semester-template-assignments", schoolYearId],
-    queryFn:  () => semesterTemplateApi.getAssignmentsBySchoolYear(schoolYearId!),
-    enabled:  !!schoolYearId,
-  });
-
-  // Build a Set of program IDs that already have a template assigned
-  const assignedProgramIds = useMemo(
-    () => new Set(templateAssignments.map((a) => a.program_id)),
-    [templateAssignments],
+  const {
+    programs, tracks, hasTrack, isCourseTrack, levels, sections, subjects, educators,
+    programMissingTemplate, semesters,
+  } = useCreateClassData(
+    schoolYearId,
+    selectedProgramId,
+    selectedSemesterId,
+    selectedTrackId,
+    selectedLevelId,
+    open,
   );
-
-  // True when the user has picked a program that has no semester template assignment
-  const programMissingTemplate =
-    !!selectedProgramId && !assignedProgramIds.has(selectedProgramId);
-
-  const { data: semesters = [] } = useQuery({
-    queryKey: ["admin", "semesters", "by-program", selectedProgramId, schoolYearId],
-    queryFn:  () => semesterApi.getByProgram(selectedProgramId!, schoolYearId!),
-    enabled:  !!schoolYearId && !!selectedProgramId && !programMissingTemplate,
-  });
 
   // ── Cascade resets ──────────────────────────────────────────────────────────
 
@@ -274,7 +148,7 @@ export function CreateClassDialog({
   const isSubmitDisabled =
     mutation.isPending        ||
     !selectedProgramId        ||
-    programMissingTemplate    || // ← block submit when template missing
+    programMissingTemplate    ||
     !selectedSemesterId       ||
     (hasTrack && !selectedTrackId) ||
     !selectedLevelId          ||
@@ -297,7 +171,6 @@ export function CreateClassDialog({
         <FormProvider {...methods}>
           <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
 
-            {/* School Year — read-only */}
             <div className="space-y-1.5">
               <Label>School Year</Label>
               <Input
@@ -306,7 +179,6 @@ export function CreateClassDialog({
               />
             </div>
 
-            {/* Program */}
             <div className="space-y-1.5">
               <Label>Program</Label>
               <Select
@@ -327,34 +199,8 @@ export function CreateClassDialog({
               </Select>
             </div>
 
-            {/* ── Semester template warning — shown immediately after program select ── */}
-            {programMissingTemplate && (
-              <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-4 py-3 flex items-start gap-3">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                    No semester template assigned
-                  </p>
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                    This program doesn&apos;t have a semester template yet. Classes can&apos;t be
-                    created until one is assigned.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleDiscard();
-                      router.push("/admin/semester-settings");
-                    }}
-                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-amber-800 dark:text-amber-300 hover:underline"
-                  >
-                    Go to Semester Settings
-                    <ArrowRight className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
-            )}
+            {programMissingTemplate && <SemesterTemplateWarning onDiscard={() => { handleDiscard(); router.push("/admin/semester-settings"); }} />}
 
-            {/* Semester */}
             <div className="space-y-1.5">
               <Label>Semester</Label>
               <Select
@@ -394,7 +240,6 @@ export function CreateClassDialog({
               </Select>
             </div>
 
-            {/* Course / Strand */}
             {hasTrack && (
               <div className="space-y-1.5">
                 <Label>{isCourseTrack ? "Course" : "Strand"}</Label>
@@ -420,7 +265,6 @@ export function CreateClassDialog({
               </div>
             )}
 
-            {/* Level */}
             <div className="space-y-1.5">
               <Label>Level</Label>
               <Select
@@ -450,7 +294,6 @@ export function CreateClassDialog({
               </Select>
             </div>
 
-            {/* Section */}
             <div className="space-y-1.5">
               <Label>Section</Label>
               <Select
@@ -477,7 +320,6 @@ export function CreateClassDialog({
               </Select>
             </div>
 
-            {/* Subject */}
             <div className="space-y-1.5">
               <Label>Subject</Label>
               <Select
@@ -507,7 +349,6 @@ export function CreateClassDialog({
               </Select>
             </div>
 
-            {/* Educator */}
             <div className="space-y-1.5">
               <Label>Educator</Label>
               <Select
@@ -529,7 +370,6 @@ export function CreateClassDialog({
               </Select>
             </div>
 
-            {/* Capacity */}
             <div className="space-y-1.5">
               <Label>Capacity</Label>
               <Input
@@ -546,7 +386,6 @@ export function CreateClassDialog({
               )}
             </div>
 
-            {/* Schedule */}
             <ScheduleSlotFields />
 
             <div className="flex justify-end gap-2 pt-1">

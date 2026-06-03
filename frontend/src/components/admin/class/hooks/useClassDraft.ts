@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
-import type { CreateClassForm } from "@/components/admin/class/CreateClassDialog";
+import type { CreateClassForm } from "@/components/admin/class/CreateClassDialog.types";
 import { createStandardMutationOptions } from "@/lib/error-handling";
 import { QUERY_CONFIGS } from "@/lib/query-client";
 
