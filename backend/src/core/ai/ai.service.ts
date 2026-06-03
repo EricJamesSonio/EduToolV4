@@ -1,252 +1,42 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { AiClientService } from './ai-client.service';
+import { parseJson } from './json-parser.util';
+import { validateConceptBuild } from './concept-validator.util';
+import { buildChunkPrompt } from './prompt-builder.util';
+import {
+  TOKEN_COST,
+  SAFE_OUTPUT_BUDGET,
+  ENVELOPE_OVERHEAD,
+  CONCEPT_SYSTEM,
+  CONCEPT_BUILD_SYSTEM,
+  QUESTION_SYSTEM,
+  CONCEPT_EXTRACT_PROMPT_VERSION,
+  CONCEPT_BUILD_PROMPT_VERSION,
+} from './constants';
+import type {
+  ConceptBuild,
+  ConceptItem,
+  ConceptExtractResult,
+  QuestionBlueprint,
+  GeneratedQuestion,
+  GenerationProgress,
+} from './types';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface ConceptSection {
-  name: string;
-  summary?: string;
-  questionCapacity: number;
-}
-
-export interface ConceptItem {
-  name: string;
-  section: string;
-  definition: string;
-  properties: string[];
-  difficulty: 'easy' | 'medium' | 'hard';
-}
-
-export interface ConceptBuild {
-  sections: string[];
-  keywords: string[];
-  questionCapacity: Record<string, number>;
-  concepts: ConceptItem[];
-}
-
-export interface ConceptExtractResult {
-  conceptBuild: ConceptBuild;
-  rawResponse: string;
-  rawRequest: string;
-  promptVersion: string;
-}
-
-export interface QuestionBlueprint {
-  type: 'identification' | 'true_false' | 'multiple_choice' | 'essay' | 'enumeration';
-  sections: string[];
-  numbers: string; // e.g. "1-5"
-  count: number;
-}
-
-export interface GeneratedQuestion {
-  number: number;
-  type: string;
-  section: string;
-  question: string;
-  answer?: string;
-  choices?: string[];
-  correct_answer?: string;
-}
-
-export interface GenerationProgress {
-  status: 'generating' | 'completed' | 'failed';
-  message: string;
-  chunksTotal: number;
-  chunksDone: number;
-  currentChunk?: string;
-  error?: string;
-}
-
-// ── Token budget constants (matching Python pipeline) ─────────────────────────
-
-const TOKEN_COST: Record<string, number> = {
-  identification: 120,
-  true_false: 80,
-  multiple_choice: 280,
-  enumeration: 150,
-  essay: 100,
-};
-const SAFE_OUTPUT_BUDGET = 1000;
-const ENVELOPE_OVERHEAD = 20;
-
-// ── Prompt versions ───────────────────────────────────────────────────────────
-
-const CONCEPT_EXTRACT_PROMPT_VERSION = 'concept-extract-v1';
-const CONCEPT_BUILD_PROMPT_VERSION = 'concept-build-v1';
-
-// ── System prompts ────────────────────────────────────────────────────────────
-
-const CONCEPT_SYSTEM = `You are an educational content analyzer. Return ONLY valid JSON exactly matching the requested schema. No markdown.`;
-
-const CONCEPT_BUILD_SYSTEM = `You are a curriculum design expert. Return ONLY valid JSON exactly matching the requested schema. No markdown.`;
-
-const QUESTION_SYSTEM = `You are an assessment question generator. Return ONLY valid JSON. All strings must be properly closed. No markdown. No explanation. No trailing commas.`;
+export type {
+  ConceptSection,
+  ConceptItem,
+  ConceptBuild,
+  ConceptExtractResult,
+  QuestionBlueprint,
+  GeneratedQuestion,
+  GenerationProgress,
+} from './types';
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly apiKey: string;
-  private readonly model: string;
-  private readonly apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
-  constructor(private readonly config: ConfigService) {
-    this.apiKey = this.config.get<string>('OPENROUTER_API_KEY') ?? '';
-    this.model = this.config.get<string>('AI_MODEL') ?? 'qwen/qwen3-235b-a22b:free';
-  }
-
-  // ── Core caller ─────────────────────────────────────────────────────────────
-
-  async callAi(
-    systemPrompt: string,
-    userPrompt: string,
-    maxTokens = 2000,
-    temperature = 0.3,
-    signal?: AbortSignal,
-  ): Promise<string> {
-    this.logger.log(`[AI] Calling model: ${this.model} | max_tokens: ${maxTokens} | temp: ${temperature}`);
-
-    const response = await fetch(this.apiUrl, {
-      signal,
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'EduTool AI',
-      },
-      body: JSON.stringify({
-        model: this.model,
-        max_tokens: maxTokens,
-        temperature,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenRouter API error ${response.status}: ${errorText.slice(0, 500)}`);
-    }
-
-    const data = await response.json();
-
-    if (data.error) {
-      throw new Error(`OpenRouter error: ${data.error?.message ?? JSON.stringify(data.error)}`);
-    }
-
-    const content: string = data?.choices?.[0]?.message?.content ?? '';
-    this.logger.log(`[AI] Response received (${content.length} chars)`);
-    return content;
-  }
-
-  // ── JSON parser (handles markdown fences + truncated JSON repair) ──────────
-
-  parseJson<T = any>(raw: string): T {
-    let text = raw.trim();
-
-    // Strip ```json ... ``` or ``` ... ``` fences
-    if (text.startsWith('```')) {
-      const lines = text.split('\n').slice(1);
-      if (lines.at(-1)?.trim() === '```') lines.pop();
-      text = lines.join('\n').trim();
-    }
-
-    try {
-      return JSON.parse(text) as T;
-    } catch {
-      // Fallback: extract first { ... }
-      const start = text.indexOf('{');
-      const end = text.lastIndexOf('}') + 1;
-      if (start !== -1 && end > start) {
-        try {
-          return JSON.parse(text.slice(start, end)) as T;
-        } catch {
-          // try repairing truncated JSON
-        }
-      }
-
-      // Last resort: repair truncated JSON by closing unclosed brackets/strings
-      if (start !== -1) {
-        const repaired = this.repairTruncatedJson(text.slice(start));
-        try {
-          const result = JSON.parse(repaired) as T;
-          this.logger.warn(`[Parse] Repaired truncated JSON successfully (${text.length} → ${repaired.length} chars)`);
-          return result;
-        } catch {
-          // fall through to error
-        }
-      }
-
-      throw new Error(`Could not parse AI response as JSON. Raw (first 500): ${text.slice(0, 500)}`);
-    }
-  }
-
-  private repairTruncatedJson(s: string): string {
-    // Close unclosed strings
-    let result = s;
-    const stack: string[] = [];
-    let inString = false;
-    let escape = false;
-    for (let i = 0; i < result.length; i++) {
-      const ch = result[i];
-      if (escape) { escape = false; continue; }
-      if (ch === '\\' && inString) { escape = true; continue; }
-      if (ch === '"') { inString = !inString; continue; }
-      if (inString) continue;
-      if (ch === '{' || ch === '[') stack.push(ch);
-      else if (ch === '}') { if (stack.length && stack[stack.length - 1] === '{') stack.pop(); }
-      else if (ch === ']') { if (stack.length && stack[stack.length - 1] === '[') stack.pop(); }
-    }
-    // Close unclosed string
-    if (inString) result += '"';
-    // Close unclosed brackets in reverse order
-    for (let i = stack.length - 1; i >= 0; i--) {
-      result += stack[i] === '{' ? '}' : ']';
-    }
-    return result;
-  }
-
-  // ── Validation ───────────────────────────────────────────────────────────────
-
-  private validateConceptBuild(build: ConceptBuild): void {
-    if (!build.sections.length) {
-      throw new Error('Validation failed: at least one section is required');
-    }
-    if (!build.concepts.length) {
-      throw new Error('Validation failed: at least one concept is required');
-    }
-
-    for (const sec of build.sections) {
-      if (!sec.trim()) {
-        throw new Error('Validation failed: section name cannot be empty');
-      }
-    }
-
-    for (const cap of Object.values(build.questionCapacity)) {
-      if (typeof cap !== 'number' || cap <= 0) {
-        throw new Error('Validation failed: question capacities must be positive numbers');
-      }
-    }
-
-    const seenNames = new Set<string>();
-    for (const c of build.concepts) {
-      if (!c.name.trim()) {
-        throw new Error('Validation failed: concept name cannot be empty');
-      }
-      if (seenNames.has(c.name)) {
-        throw new Error(`Validation failed: duplicate concept "${c.name}"`);
-      }
-      seenNames.add(c.name);
-
-      if (!build.sections.includes(c.section)) {
-        throw new Error(
-          `Validation failed: concept "${c.name}" references unknown section "${c.section}"`,
-        );
-      }
-    }
-  }
+  constructor(private readonly aiClient: AiClientService) {}
 
   // ── Concept extraction (lightweight, called on lesson create/update) ────────
 
@@ -278,10 +68,9 @@ Rules:
 - Do NOT create duplicate concept names
 - Return JSON ONLY. Start with { end with }`;
 
-    const raw = await this.callAi(CONCEPT_SYSTEM, prompt, 2000, 0.2);
-    const parsed = this.parseJson<any>(raw);
+    const raw = await this.aiClient.callAi(CONCEPT_SYSTEM, prompt, 2000, 0.2);
+    const parsed = parseJson<any>(raw);
 
-    // Normalise + apply defaults (mirrors parse_concept_response)
     const sections: string[] = parsed.sections ?? [];
     const keywords: string[] = parsed.keywords ?? [];
     const concepts: ConceptItem[] = (parsed.concepts ?? []).map((c: any, i: number) => ({
@@ -303,7 +92,7 @@ Rules:
 
     const conceptBuild: ConceptBuild = { sections, keywords, questionCapacity, concepts };
 
-    this.validateConceptBuild(conceptBuild);
+    validateConceptBuild(conceptBuild);
 
     this.logger.log(
       `[Concept] Extracted ${sections.length} sections, ${concepts.length} concepts`,
@@ -353,8 +142,8 @@ Rules:
 - concept names must be unique — no duplicates
 - Return JSON ONLY. Start with { end with }`;
 
-    const raw = await this.callAi(CONCEPT_BUILD_SYSTEM, prompt, 2500, 0.2);
-    const parsed = this.parseJson<any>(raw);
+    const raw = await this.aiClient.callAi(CONCEPT_BUILD_SYSTEM, prompt, 2500, 0.2);
+    const parsed = parseJson<any>(raw);
 
     const sections: string[] = parsed.sections ?? [];
     const keywords: string[] = parsed.keywords ?? [];
@@ -377,7 +166,7 @@ Rules:
 
     const conceptBuild: ConceptBuild = { sections, keywords, questionCapacity, concepts };
 
-    this.validateConceptBuild(conceptBuild);
+    validateConceptBuild(conceptBuild);
 
     this.logger.log(
       `[ConceptBuild] Built ${sections.length} sections, ${concepts.length} concepts`,
@@ -400,7 +189,6 @@ Rules:
     signal?: AbortSignal,
     conceptBuild?: ConceptBuild,
   ): Promise<GeneratedQuestion[]> {
-    // 1. Expand each blueprint into token-safe chunks
     const allChunks: QuestionBlueprint[] = [];
     for (const bp of blueprints) {
       allChunks.push(...this.splitByTokenBudget(bp));
@@ -409,12 +197,10 @@ Rules:
     const total = allChunks.length;
     this.logger.log(`[Generate] ${blueprints.length} blueprints → ${total} chunks`);
 
-    // Compress lesson to concept summary if available (avoids sending full lesson per chunk)
     const compressedLesson = conceptBuild
       ? this.compressLesson(lessonDetail, conceptBuild)
       : lessonDetail;
 
-    // 2. Process chunks sequentially (free model can't handle concurrent requests)
     const CHUNK_DELAY_MS = 1000;
     const allQuestions: GeneratedQuestion[] = [];
 
@@ -434,7 +220,7 @@ Rules:
       });
 
       try {
-        const result = await this.generateChunk(compressedLesson, chunk);
+        const result = await this.generateChunk(compressedLesson, chunk, 4, undefined, signal);
         allQuestions.push(...result);
       } catch (err) {
         this.logger.error(`[Generate] Chunk ${chunk.numbers} failed: ${err}`);
@@ -449,7 +235,6 @@ Rules:
         throw new Error(`Question generation failed:\nChunk ${chunk.numbers}: ${err}`);
       }
 
-      // Pause between chunks (not after the last one)
       if (i < total - 1) {
         await new Promise((res) => setTimeout(res, CHUNK_DELAY_MS));
       }
@@ -538,18 +323,18 @@ ${sections}
       1200,
     );
 
-    const prompt = this.buildChunkPrompt(lessonDetail, type, sections, numbers, count, numList);
+    const prompt = buildChunkPrompt(lessonDetail, type, sections, numbers, count, numList);
 
     let lastError: unknown;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       if (signal?.aborted) throw new Error('Generation cancelled by user');
       try {
-        const raw = await this.callAi(QUESTION_SYSTEM, prompt, maxTokens, 0.5, signal);
+        const raw = await this.aiClient.callAi(QUESTION_SYSTEM, prompt, maxTokens, 0.5, signal);
         if (!raw?.trim()) throw new Error('Empty response from AI');
 
         let data: { questions: any[] } | null = null;
         try {
-          data = this.parseJson<{ questions: any[] }>(raw);
+          data = parseJson<{ questions: any[] }>(raw);
         } catch (parseErr) {
           this.logger.warn(`[Chunk ${numbers}] Attempt ${attempt}/${maxRetries} parse failed. Full raw (${raw.length} chars): ${raw}`);
           throw parseErr;
@@ -579,62 +364,5 @@ ${sections}
     }
 
     throw new Error(`Chunk ${numbers} failed after ${maxRetries} attempts: ${lastError}`);
-  }
-
-  // ── Private: prompt builders ─────────────────────────────────────────────────
-
-  private buildChunkPrompt(
-    lessonDetail: string,
-    type: string,
-    sections: string[],
-    numbers: string,
-    count: number,
-    numList: number[],
-  ): string {
-    const exampleAndRules: Record<string, { example: string; rules: string }> = {
-      identification: {
-        example: `{"number": N, "type": "identification", "section": "...", "question": "...", "answer": "short correct answer"}`,
-        rules: '"answer" must be a short specific correct answer, not empty',
-      },
-      multiple_choice: {
-        example: `{"number": N, "type": "multiple_choice", "section": "...", "question": "...", "choices": ["Option A", "Option B", "Option C", "Option D"], "correct_answer": "Option A"}`,
-        rules: '"choices" must be exactly 4 options. "correct_answer" must exactly match one of the 4 choices',
-      },
-      true_false: {
-        example: `{"number": N, "type": "true_false", "section": "...", "question": "...", "answer": "True"}`,
-        rules: '"answer" must be exactly "True" or "False" — nothing else',
-      },
-      essay: {
-        example: `{"number": N, "type": "essay", "section": "...", "question": "..."}`,
-        rules: 'Essay questions have no answer field',
-      },
-      enumeration: {
-        example: `{"number": N, "type": "enumeration", "section": "...", "question": "List the ...", "answer": "item1, item2, item3"}`,
-        rules: '"answer" must be a comma-separated list of correct items',
-      },
-    };
-
-    const { example, rules } = exampleAndRules[type] ?? exampleAndRules.identification;
-
-    return `Generate exactly ${count} ${type} questions from the lesson below.
-Use ONLY content from these sections: ${sections.join(', ')}
-Number the questions: ${JSON.stringify(numList)}
-
-=== LESSON ===
-${lessonDetail}
-=== END LESSON ===
-
-Each question MUST be a JSON object in this exact format:
-${example}
-
-IMPORTANT RULES:
-- Every item in "questions" must be a JSON object — NOT a plain string
-- Generate exactly ${count} questions numbered ${numList[0]} to ${numList.at(-1)}
-- Use ONLY the sections listed above
-- Do NOT repeat questions
-- ${rules}
-
-Return ONLY valid JSON. Start with { and end with }. No markdown. No explanation:
-{"questions": [/* exactly ${count} question objects here */]}`;
   }
 }

@@ -111,8 +111,8 @@ export class EducatorService {
     }
 
     let email = account.email;
-    if (dto.emailName) {
-      email = await this.buildOrgEmail(orgId, dto.emailName);
+    if (dto.email) {
+      email = dto.email;
     }
 
     // Guard: new email must be unique within org
@@ -127,7 +127,7 @@ export class EducatorService {
 
     const updated = await this.educatorRepository.updateProfile(id, {
       fullName:     dto.fullName,
-      email:        dto.email,
+      email,
       profileImage: dto.profileImage,
     });
 

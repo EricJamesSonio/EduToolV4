@@ -46,6 +46,13 @@ export class UpdateEducatorDto {
   profileImage?: string;
 }
 
+// ── PATCH /educators/:id/status ────────────────────────────────────────────────
+
+export class UpdateEducatorStatusDto {
+  @IsEnum(EducatorStatus)
+  status!: EducatorStatus;
+}
+
 // ── GET /educators ────────────────────────────────────────────────────────────
 
 export class QueryEducatorDto {
