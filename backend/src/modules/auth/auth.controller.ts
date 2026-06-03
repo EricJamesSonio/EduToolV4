@@ -11,6 +11,7 @@ import {
   Req,
   UnauthorizedException,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto, RefreshTokenDto } from './dto/auth.dto';
@@ -20,12 +21,30 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly jwtService: JwtService,
+  ) { }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const tokens = await this.authService.login(dto);
+
+    // Set refresh token as HTTP-only cookie — NOT accessible to JS
+    res.cookie('refreshToken', tokens.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+
+    // Only return access token in body (refresh token is cookie-only)
+    return { accessToken: tokens.accessToken };
   }
 
   @Post('refresh')
@@ -66,14 +85,29 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AuthGuard)
-  async logout(@CurrentUser('id') accountId: string, @Res({ passthrough: true }) res: Response) {
-    await this.authService.logout(accountId);
-
-    // Clear refresh token cookie
-    res.clearCookie('refreshToken', {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    // ALWAYS clear the refresh token cookie — even if access token is expired
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
       path: '/',
-    });
+    };
+
+    res.clearCookie('refreshToken', cookieOptions);
+
+    // Also try to clear the server-side refresh token hash
+    const refreshToken = req.cookies?.refreshToken ?? this.getCookie(req, 'refreshToken');
+    if (refreshToken) {
+      try {
+        const payload = this.jwtService.decode(refreshToken) as { sub: string } | null;
+        if (payload?.sub) {
+          await this.authService.logout(payload.sub);
+        }
+      } catch {
+        // Cookie is already cleared — that's sufficient
+      }
+    }
   }
 
   @Get('me')
