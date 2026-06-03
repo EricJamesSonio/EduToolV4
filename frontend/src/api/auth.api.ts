@@ -1,4 +1,3 @@
-// frontend/src/api/auth.api.ts
 import client from "./client";
 import type { AuthUser } from "@/types/auth.types";
 
@@ -9,18 +8,16 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   accessToken: string;
-  refreshToken: string;
 }
 
 export interface RefreshResponse {
   accessToken: string;
-  refreshToken: string;
 }
 
 export const authApi = {
   login: async (data: LoginRequest): Promise<LoginResponse> => {
     const res = await client.post<{ success: boolean; data: LoginResponse }>("/auth/login", data);
-    return res.data.data; // unwrap the ResponseInterceptor wrapper
+    return res.data.data;
   },
 
   getMe: async (accessToken?: string): Promise<AuthUser> => {
@@ -29,14 +26,12 @@ export const authApi = {
         ? { Authorization: `Bearer ${accessToken}` }
         : undefined,
     });
-    return res.data.data; // unwrap
+    return res.data.data;
   },
 
-  refresh: async (refreshToken: string): Promise<RefreshResponse> => {
-    const res = await client.post<{ success: boolean; data: RefreshResponse }>("/auth/refresh", {
-      refreshToken,
-    });
-    return res.data.data; // unwrap
+  refresh: async (): Promise<RefreshResponse> => {
+    const res = await client.post<{ success: boolean; data: RefreshResponse }>("/auth/refresh");
+    return res.data.data;
   },
 
   logout: async (): Promise<void> => {

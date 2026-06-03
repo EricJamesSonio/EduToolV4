@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { getAccessToken } from "@/api/client";
+import { useAuthStore } from "@/store/auth.store";
 import { useAuth } from "@/hooks/useAuth";
 import { useMeeting as useMeetingContext } from "@/hooks/meeting/MeetingContext";
 import { useChat } from "@/hooks/meeting/useChat";
@@ -38,7 +38,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const { data: tokenData, isLoading: tokenLoading } = useMeetingToken(meetingId);
 
   const students: EnrolledStudent[] = Array.isArray(studentsRaw) ? studentsRaw : [];
-  const authToken                   = getAccessToken() ?? "";
+  const authToken                   = useAuthStore.getState().accessToken ?? "";
   const meetingCtx                  = useMeetingContext();
   const { user: currentUser }       = useAuth();
   const currentUserId               = currentUser?.id ?? "";
