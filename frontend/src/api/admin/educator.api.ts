@@ -2,8 +2,8 @@ import client from "@/api/client";
 import type { Educator } from "@/types/admin/educator.types";
 
 export interface CreateEducatorRequest {
-  fullName: string;
-  email:    string;
+  fullName:  string;
+  emailName: string;
 }
 
 export interface CreateEducatorResponse extends Educator {

@@ -3,7 +3,7 @@ import type { Student, StudentStatus, BulkImportResult } from "@/types/admin/stu
 
 export interface CreateStudentRequest {
   fullName:  string;
-  email:     string;
+  emailName: string;
   studentId: string;
 }
 

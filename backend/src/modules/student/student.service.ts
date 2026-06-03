@@ -23,6 +23,7 @@ import { hashPassword } from '@/commons/utils/hash.util';
 import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '../enrollment/enrollment.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { OrganizationService } from '../organization/organization.service';
 
 const IRREVERSIBLE_STATUSES: StudentStatus[] = [
   StudentStatus.DROPPED,
@@ -38,6 +39,7 @@ export class StudentService {
     private readonly classRepository: ClassRepository,
     private readonly enrollmentRepo: EnrollmentRepository,
     private readonly auditLogService: AuditLogService,   // ← INJECTED
+    private readonly organizationService: OrganizationService,
   ) {}
 
   private extractMeta(account: Record<string, any>): Record<string, any> {
@@ -63,8 +65,27 @@ export class StudentService {
     };
   }
 
+  private async buildOrgEmail(orgId: string, emailName: string) {
+    const org = await this.organizationService.getOwn(orgId);
+    const extension = org?.emailExtension?.trim();
+    if (!extension) {
+      throw new BadRequestException(
+        'Set the organization email extension before creating student accounts.',
+      );
+    }
+
+    const localPart = emailName.trim().replace(/^@+/, '');
+    if (!localPart || localPart.includes('@')) {
+      throw new BadRequestException('Email name must not include an email extension.');
+    }
+
+    return `${localPart}${extension.startsWith('@') ? extension : `@${extension}`}`.toLowerCase();
+  }
+
   async create(orgId: string, dto: CreateStudentDto) {
-    const emailTaken = await this.studentRepository.findByEmail(dto.email, orgId);
+    const email = await this.buildOrgEmail(orgId, dto.emailName);
+
+    const emailTaken = await this.studentRepository.findByEmail(email, orgId);
     if (emailTaken) {
       throw new ConflictException(
         'An account with this email already exists in the organization.',
@@ -83,7 +104,7 @@ export class StudentService {
 
     const account = await this.studentRepository.create({
       orgId,
-      email:          dto.email,
+      email,
       hashedPassword,
       status:         StudentStatus.PENDING,
       fullName:       dto.fullName,

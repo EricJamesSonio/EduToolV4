@@ -7,6 +7,10 @@ import type {
   CreateGradingSchemeDto,
   UpdateGradingSchemeDto,
 } from '@/types/admin/grading-scheme.types'
+import type {
+  GradingSchemeTemplate,
+  CreateGradingSchemeTemplateDto,
+} from '@/types/admin/grading-scheme-template.types'
 import type { GradingScale } from '@/types/admin/grading-scale.types'
 
 const unwrap = <T>(res: any): T => res.data?.data ?? res.data
@@ -72,5 +76,36 @@ export const educatorGradingSchemeApi = {
       if (error?.response?.status === 404) return null
       throw error
     }
+  },
+
+  // ── Template Library ─────────────────────────────────────────────────────
+
+  getTemplates: async (programType?: string): Promise<GradingSchemeTemplate[]> => {
+    const res = await client.get(`/grading-scheme-templates`, {
+      params: programType ? { programType } : undefined,
+    })
+    return unwrap<GradingSchemeTemplate[]>(res)
+  },
+
+  getTemplate: async (templateId: string): Promise<GradingSchemeTemplate> => {
+    const res = await client.get(`/grading-scheme-templates/${templateId}`)
+    return unwrap<GradingSchemeTemplate>(res)
+  },
+
+  createTemplate: async (data: CreateGradingSchemeTemplateDto): Promise<GradingSchemeTemplate> => {
+    const res = await client.post(`/grading-scheme-templates`, data)
+    return unwrap<GradingSchemeTemplate>(res)
+  },
+
+  updateTemplate: async (
+    templateId: string,
+    data: Partial<CreateGradingSchemeTemplateDto>,
+  ): Promise<GradingSchemeTemplate> => {
+    const res = await client.patch(`/grading-scheme-templates/${templateId}`, data)
+    return unwrap<GradingSchemeTemplate>(res)
+  },
+
+  deleteTemplate: async (templateId: string): Promise<void> => {
+    await client.delete(`/grading-scheme-templates/${templateId}`)
   },
 }
