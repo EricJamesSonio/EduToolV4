@@ -46,3 +46,29 @@ export const useSetManualScore = (classId: string, termId: string, studentId: st
     },
   });
 };
+
+// Publish a single student's grades for a specific term
+export const usePublishStudent = (classId: string) => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ termId, studentId }: { termId: string; studentId: string }) =>
+      gradeApi.publishStudent(classId, termId, studentId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [GRADES_KEY, classId] });
+    },
+  });
+};
+
+// Unlock a single student's grades for a specific term
+export const useUnlockStudent = (classId: string) => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ termId, studentId }: { termId: string; studentId: string }) =>
+      gradeApi.unlockStudent(classId, termId, studentId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [GRADES_KEY, classId] });
+    },
+  });
+};

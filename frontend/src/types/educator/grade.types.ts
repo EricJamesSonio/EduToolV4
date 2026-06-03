@@ -24,6 +24,8 @@ export interface CategoryBreakdown {
   rawAverage: number;
   manualScore: number | null;
   weightedScore: number;
+  isAllExempted?: boolean;
+  effectiveWeight?: number | null;
 }
 
 export interface StudentGrade {

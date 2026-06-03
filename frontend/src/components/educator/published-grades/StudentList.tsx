@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Search, Users } from "lucide-react"
+import { Search, Users, CheckCircle2, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export interface StudentSummary {
   studentId: string
   studentName: string
   studentCode: string
+  publishedTermIds: string[]
 }
 
 export function StudentList({
@@ -62,26 +63,34 @@ export function StudentList({
             No students match your search.
           </div>
         ) : (
-          filtered.map((s) => (
-            <button
-              key={s.studentId}
-              onClick={() => onSelect(s.studentId)}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50",
-                selectedId === s.studentId && "bg-primary/5 border-l-2 border-l-primary",
-              )}
-            >
-              <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                {s.studentName.charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0 leading-tight">
-                <p className="font-medium text-sm truncate">{s.studentName}</p>
-                <p className="text-[11px] text-muted-foreground font-mono">
-                  {s.studentCode}
-                </p>
-              </div>
-            </button>
-          ))
+          filtered.map((s) => {
+            const isPublished = s.publishedTermIds.length > 0
+            return (
+              <button
+                key={s.studentId}
+                onClick={() => onSelect(s.studentId)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50",
+                  selectedId === s.studentId && "bg-primary/5 border-l-2 border-l-primary",
+                )}
+              >
+                <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                  {s.studentName.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1 leading-tight">
+                  <p className="font-medium text-sm truncate">{s.studentName}</p>
+                  <p className="text-[11px] text-muted-foreground font-mono">
+                    {s.studentCode}
+                  </p>
+                </div>
+                {isPublished ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" aria-label="Published" />
+                ) : (
+                  <Clock className="h-4 w-4 text-amber-400 shrink-0" aria-label="Draft" />
+                )}
+              </button>
+            )
+          })
         )}
       </div>
     </div>
