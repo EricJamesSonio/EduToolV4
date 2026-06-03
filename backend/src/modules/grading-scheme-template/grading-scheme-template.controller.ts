@@ -20,7 +20,7 @@ export class GradingSchemeTemplateController {
   constructor(private readonly service: GradingSchemeTemplateService) {}
 
   @Get()
-  @Roles('admin')
+  @Roles('admin', 'educator')
   async findAll(
     @CurrentUser('org_id') orgId: string,
     @Query('programType') programType?: string,
@@ -29,7 +29,7 @@ export class GradingSchemeTemplateController {
   }
 
   @Get(':id')
-  @Roles('admin')
+  @Roles('admin', 'educator')
   async findOne(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
@@ -38,7 +38,7 @@ export class GradingSchemeTemplateController {
   }
 
   @Post()
-  @Roles('admin')
+  @Roles('admin', 'educator')
   async create(
     @CurrentUser('org_id') orgId: string,
     @Body() dto: CreateGradingSchemeTemplateDto,
@@ -47,7 +47,7 @@ export class GradingSchemeTemplateController {
   }
 
   @Patch(':id')
-  @Roles('admin')
+  @Roles('admin', 'educator')
   async update(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
@@ -57,7 +57,7 @@ export class GradingSchemeTemplateController {
   }
 
   @Delete(':id')
-  @Roles('admin')
+  @Roles('admin', 'educator')
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @Param('id') id: string,

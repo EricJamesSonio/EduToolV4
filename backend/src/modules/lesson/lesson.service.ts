@@ -6,13 +6,12 @@ import {
 } from '@nestjs/common';
 import { LessonRepository } from './lesson.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import { NotificationService } from '../notification/notification.service';
-import { CreateLessonDto, UpdateLessonDto, QueryLessonDto } from './dto/lesson.dto';
 import { ClassRepository } from '../class/class.repository';
-import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
-import { SemesterTemplateRepository } from '../semester-template/semester-template.repository';
-import { AiService, ConceptExtractResult } from '@/core/ai/ai.service';
 import { AttendanceRepository } from '../attendance/attendance.repository';
+import { LessonConceptService } from './lesson-concept.service';
+import { LessonWeekStructureService } from './lesson-week-structure.service';
+import { LessonStudentService } from './lesson-student.service';
+import { CreateLessonDto, UpdateLessonDto, QueryLessonDto } from './dto/lesson.dto';
 
 const MIN_DETAIL_WORDS = 10;
 
@@ -25,12 +24,11 @@ export class LessonService {
   constructor(
     private readonly lessonRepo: LessonRepository,
     private readonly classRepo: ClassRepository,
-    private readonly enrollmentRepo: EnrollmentRepository,
     private readonly auditLog: AuditLogService,
-    private readonly notificationService: NotificationService,
-    private readonly aiService: AiService,
-    private readonly semesterTemplateRepo: SemesterTemplateRepository,
-    private readonly attendanceRepo: AttendanceRepository, 
+    private readonly attendanceRepo: AttendanceRepository,
+    private readonly conceptService: LessonConceptService,
+    private readonly weekStructureService: LessonWeekStructureService,
+    private readonly studentService: LessonStudentService,
   ) {}
 
   async create(
@@ -80,7 +78,7 @@ export class LessonService {
       metadata: { lessonId: lesson.id, title: lesson.title },
     });
 
-    this.triggerConceptExtraction(lesson.id, orgId, educatorId, dto.detail).catch(() => {});
+    this.conceptService.triggerConceptExtraction(lesson.id, orgId, educatorId, dto.detail).catch(() => {});
 
     return lesson;
   }
@@ -143,13 +141,13 @@ export class LessonService {
       }
     }
 
-  const updated = await this.lessonRepo.update(id, {
-    title: dto.title,
-    description: dto.description,
-    detail: dto.detail,
-    weekNumber: dto.weekNumber,
-    subIndex: dto.subIndex,
-  });
+    const updated = await this.lessonRepo.update(id, {
+      title: dto.title,
+      description: dto.description,
+      detail: dto.detail,
+      weekNumber: dto.weekNumber,
+      subIndex: dto.subIndex,
+    });
 
     await this.auditLog.logActivityEvent({
       orgId,
@@ -183,15 +181,7 @@ export class LessonService {
   }
 
   async getConcept(id: string, orgId: string, educatorId: string) {
-    const lesson = await this.lessonRepo.findById(id, orgId);
-    if (!lesson) throw new NotFoundException('Lesson not found.');
-    const cls = await this.classRepo.findById(lesson.class_id, orgId);
-    if (cls?.educator_id !== educatorId) {
-      throw new ForbiddenException('You do not own this class.');
-    }
-    const concept = await this.lessonRepo.findConcept(id);
-    if (!concept) throw new NotFoundException('No concept build found for this lesson.');
-    return concept;
+    return this.conceptService.getConcept(id, orgId, educatorId);
   }
 
   async reExtractConcept(
@@ -200,28 +190,7 @@ export class LessonService {
     educatorId: string,
     detail: string,
   ) {
-    const lesson = await this.lessonRepo.findById(id, orgId);
-    if (!lesson) throw new NotFoundException('Lesson not found.');
-    const cls = await this.classRepo.findById(lesson.class_id, orgId);
-    if (cls?.educator_id !== educatorId) {
-      throw new ForbiddenException('You do not own this class.');
-    }
-    if (countWords(detail) < MIN_DETAIL_WORDS) {
-      throw new BadRequestException('Lesson detail must be at least 10 words.');
-    }
-
-    this.triggerConceptExtraction(id, orgId, educatorId, detail).catch(() => {});
-
-    await this.auditLog.logActivityEvent({
-      orgId,
-      actorId: educatorId,
-      action: 'concept_extraction_requested',
-      entityType: 'class',
-      entityId: lesson.class_id,
-      metadata: { lessonId: id },
-    });
-
-    return { success: true, message: 'Concept extraction started.' };
+    return this.conceptService.reExtractConcept(id, orgId, educatorId, detail);
   }
 
   async conceptBuild(
@@ -230,44 +199,7 @@ export class LessonService {
     educatorId: string,
     detail: string,
   ) {
-    const lesson = await this.lessonRepo.findById(id, orgId);
-    if (!lesson) throw new NotFoundException('Lesson not found.');
-    const cls = await this.classRepo.findById(lesson.class_id, orgId);
-    if (cls?.educator_id !== educatorId) {
-      throw new ForbiddenException('You do not own this class.');
-    }
-    if (countWords(detail) < MIN_DETAIL_WORDS) {
-      throw new BadRequestException('Lesson detail must be at least 10 words.');
-    }
-
-    const result = await this.aiService.buildConcepts(detail);
-
-    await this.lessonRepo.upsertConcept({
-      orgId,
-      lessonId: id,
-      content: result.conceptBuild as any,
-      rawResponse: result.rawResponse,
-      rawRequest: result.rawRequest,
-      promptVersion: result.promptVersion,
-    });
-
-    await this.notificationService.createNotification({
-      orgId,
-      accountId: educatorId,
-      type: 'concept_build_completed',
-      payload: { lessonId: id },
-    });
-
-    await this.auditLog.logActivityEvent({
-      orgId,
-      actorId: educatorId,
-      action: 'concept_build_completed',
-      entityType: 'class',
-      entityId: lesson.class_id,
-      metadata: { lessonId: id },
-    });
-
-    return result.conceptBuild;
+    return this.conceptService.conceptBuild(id, orgId, educatorId, detail);
   }
 
   async getStudentLessons(
@@ -276,8 +208,7 @@ export class LessonService {
     orgId: string,
     weekNumber?: number,
   ) {
-    await this.assertStudentEnrolled(classId, studentId, orgId);
-    return this.lessonRepo.findAllForStudent(classId, orgId, weekNumber);
+    return this.studentService.getStudentLessons(classId, studentId, orgId, weekNumber);
   }
 
   async getStudentLesson(
@@ -286,287 +217,52 @@ export class LessonService {
     studentId: string,
     orgId: string,
   ) {
-    await this.assertStudentEnrolled(classId, studentId, orgId);
-    const lesson = await this.lessonRepo.findByIdForStudent(lessonId, orgId);
-    if (!lesson || lesson.class_id !== classId) {
-      throw new NotFoundException('Lesson not found.');
-    }
-    return lesson;
+    return this.studentService.getStudentLesson(classId, lessonId, studentId, orgId);
   }
 
-async getWeekStructure(
-  classId: string,
-  orgId: string,
-  educatorId: string,
-) {
-  const cls = await this.classRepo.findById(classId, orgId);
-  if (!cls) throw new NotFoundException('Class not found.');
-
-  // ❗ strict: class MUST have schedule
-  if (!cls.schedules || cls.schedules.length === 0) {
-    throw new BadRequestException(
-      'Class has no schedule configured.',
-    );
-  }
-
-  const classWeekday = cls.schedules[0].weekday;
-
-  const subject = await this.classRepo['db'].subject.findFirst({
-    where: { id: cls.subject_id },
-    select: { program_id: true },
-  });
-
-  if (!subject?.program_id) {
-    throw new BadRequestException(
-      'Class subject is not linked to a program.',
-    );
-  }
-
-  const assignment =
-    await this.semesterTemplateRepo.findAssignmentByProgram(
-      subject.program_id,
-      orgId,
-    );
-
-  if (!assignment) {
-    throw new BadRequestException(
-      'No semester template assigned to this program.',
-    );
-  }
-
-  // 🔥 map term date ranges
-  const termDatesMap = new Map<string, { start: Date; end: Date }>();
-
-  for (const td of (assignment as any).termDates ?? []) {
-    termDatesMap.set(td.term_id, {
-      start: new Date(td.start_date),
-      end: new Date(td.end_date),
-    });
-  }
-
-  type WeekSlot = {
-    label: string;
-
-    value: number;
-    globalWeek: number;
-
-    termWeek: number;
-    semesterWeek: number;
-
-    termName: string;
-    termId: string;
-    semesterName: string;
-    semesterIndex: number;
-
-    date: string;
-  };
-
-  const result: WeekSlot[] = [];
-
-  // 🔥 ensure semester order
-  const semesters = (assignment.template.semesters ?? []).sort(
-    (a: any, b: any) => a.order_index - b.order_index,
-  );
-
-  // ── Scope to the class's semester only ─────────────────────────
-  // Find which template semester matches the class's actual semester
-  // by checking date-range overlap between the class semester's period
-  // and the template terms' assigned date ranges.
-  let classSemesterStart: Date | null = null
-  let classSemesterEnd: Date | null = null
-  if (cls.semester_id) {
-    const actualSem = await this.classRepo['db'].semester.findUnique({
-      where: { id: cls.semester_id },
-      select: { start_date: true, end_date: true },
-    })
-    if (actualSem) {
-      classSemesterStart = actualSem.start_date
-      classSemesterEnd = actualSem.end_date
-    }
-  }
-
-  let globalWeek = 1;
-
-  for (let si = 0; si < semesters.length; si++) {
-    const sem = semesters[si];
-
-    // Skip semesters whose term date ranges don't overlap with the
-    // class's actual semester date range
-    if (classSemesterStart && classSemesterEnd) {
-      const semTermDates = (sem.terms ?? [])
-        .map((t: any) => termDatesMap.get(t.id))
-        .filter(Boolean) as Array<{ start: Date; end: Date }>
-
-      const semStart = semTermDates.length > 0
-        ? new Date(Math.min(...semTermDates.map((d) => d.start.getTime())))
-        : null
-      const semEnd = semTermDates.length > 0
-        ? new Date(Math.max(...semTermDates.map((d) => d.end.getTime())))
-        : null
-
-      if (!semStart || !semEnd || semEnd < classSemesterStart || semStart > classSemesterEnd) continue
-    }
-
-    // 🔥 ensure term order
-    const terms = (sem.terms ?? []).sort(
-      (a: any, b: any) => a.order_index - b.order_index,
-    );
-
-    let semesterWeek = 1;
-
-    for (const term of terms) {
-      const dates = termDatesMap.get(term.id);
-
-      if (!dates) {
-        throw new BadRequestException(
-          `Term "${term.name}" in semester "${sem.name}" has no date range configured.`,
-        );
-      }
-
-      const occurrences = this.getWeekdayOccurrences(
-        dates.start,
-        dates.end,
-        classWeekday,
-      );
-
-      let termWeek = 1;
-
-      for (const date of occurrences) {
-        result.push({
-          // 🔥 keep simple + predictable
-          label: String(globalWeek),
-
-          value: globalWeek,
-          globalWeek,
-
-          termWeek,
-          semesterWeek,
-
-          termName: term.name,
-          termId: term.id,
-          semesterName: sem.name,
-          semesterIndex: si + 1,
-
-          date: date.toISOString(),
-        });
-
-        globalWeek++;
-        termWeek++;
-        semesterWeek++;
-      }
-    }
-  }
-
-  return result;
-}
-
-private getWeekdayOccurrences(
-  start: Date,
-  end: Date,
-  weekday: number, // 0=Sunday, 1=Monday, etc.
-): Date[] {
-  const dates: Date[] = [];
-
-  const current = new Date(start);
-
-  // Move to first matching weekday
-  const diff = (weekday - current.getDay() + 7) % 7;
-  current.setDate(current.getDate() + diff);
-
-  while (current <= end) {
-    dates.push(new Date(current));
-    current.setDate(current.getDate() + 7);
-  }
-
-  return dates;
-}
-
-  private async assertStudentEnrolled(
+  async getWeekStructure(
     classId: string,
-    studentId: string,
     orgId: string,
+    _educatorId?: string,
   ) {
-    const enrollment = await this.enrollmentRepo.findOneByStudentAndClass(
-      classId,
-      studentId,
-      orgId,
+    return this.weekStructureService.getWeekStructure(classId, orgId);
+  }
+
+  async syncLessonsFromAttendance(classId: string, orgId: string) {
+    const sessions = await this.attendanceRepo.findSessionsByClass(classId);
+
+    if (!sessions.length) return;
+
+    const existingLessons = await this.lessonRepo.findAll(classId, orgId);
+
+    const lessonMap = new Map(
+      existingLessons.map((l) => [
+        `${l.week_number}-${l.sub_index}`,
+        l,
+      ]),
     );
-    if (!enrollment) {
-      throw new ForbiddenException('You are not enrolled in this class.');
+
+    for (const session of sessions) {
+      const key = `${session.week_number}-${session.sub_index}`;
+
+      const existing = lessonMap.get(key);
+
+      if (!existing) {
+        await this.lessonRepo.create({
+          orgId,
+          classId,
+          title: `Lesson Week ${session.week_number}`,
+          description: `Auto-generated from attendance session`,
+          detail: `Auto-generated lesson aligned with attendance schedule.`,
+          weekNumber: session.week_number,
+          subIndex: session.sub_index,
+        });
+      } else {
+        await this.lessonRepo.update(existing.id, {
+          weekNumber: session.week_number,
+          subIndex: session.sub_index,
+        });
+      }
     }
   }
-
-  private async triggerConceptExtraction(
-    lessonId: string,
-    orgId: string,
-    educatorId: string,
-    detail: string,
-  ) {
-    const result = await this.aiService.extractConcepts(detail);
-
-    await this.lessonRepo.upsertConcept({
-      orgId,
-      lessonId,
-      content: result.conceptBuild as any,
-      rawResponse: result.rawResponse,
-      rawRequest: result.rawRequest,
-      promptVersion: result.promptVersion,
-    });
-
-    await this.notificationService.createNotification({
-      orgId,
-      accountId: educatorId,
-      type: 'concept_extraction_completed',
-      payload: { lessonId },
-    });
-
-    await this.auditLog.logActivityEvent({
-      orgId,
-      actorId: educatorId,
-      action: 'concept_extraction_completed',
-      entityType: 'class',
-      entityId: lessonId,
-      metadata: { lessonId },
-    });
-  }
-
-async syncLessonsFromAttendance(classId: string, orgId: string) {
-const sessions = await this.attendanceRepo.findSessionsByClass(classId);
-
-  if (!sessions.length) return;
-
-  // Get all existing lessons
-  const existingLessons = await this.lessonRepo.findAll(classId, orgId);
-
-  const lessonMap = new Map(
-    existingLessons.map((l) => [
-      `${l.week_number}-${l.sub_index}`,
-      l,
-    ]),
-  );
-
-  for (const session of sessions) {
-    const key = `${session.week_number}-${session.sub_index}`;
-
-    const existing = lessonMap.get(key);
-
-    if (!existing) {
-      await this.lessonRepo.create({
-        orgId,
-        classId,
-        title: `Lesson Week ${session.week_number}`,
-        description: `Auto-generated from attendance session`,
-        detail: `Auto-generated lesson aligned with attendance schedule.`,
-        weekNumber: session.week_number,
-        subIndex: session.sub_index,
-      });
-    } else {
-      // OPTIONAL: keep lesson aligned (safe overwrite mode)
-      await this.lessonRepo.update(existing.id, {
-        weekNumber: session.week_number,
-        subIndex: session.sub_index,
-      });
-    }
-  }
-}
 }
