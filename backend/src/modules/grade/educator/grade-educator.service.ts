@@ -55,6 +55,28 @@ export class GradeEducatorService {
     return this.repo.unlockByClass(classId, orgId);
   }
 
+  async publishByStudent(
+    classId: string,
+    termId: string,
+    studentId: string,
+    orgId: string,
+    educatorId: string,
+  ) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    return this.repo.publishByStudent(studentId, termId, orgId);
+  }
+
+  async unlockByStudent(
+    classId: string,
+    termId: string,
+    studentId: string,
+    orgId: string,
+    educatorId: string,
+  ) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    return this.repo.unlockByStudent(studentId, termId, orgId);
+  }
+
   async registerAssessmentForAllStudents(assessmentId: string, classId: string, orgId: string) {
     return this.repo.registerAssessmentForAllStudents(assessmentId, classId, orgId);
   }
@@ -327,11 +349,33 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
         }
       }
 
+      // Compute total active weight (sum of weights of categories with at least one valid score)
+      const totalActiveWeight = categories.reduce((sum, cat) => {
+        if (cat.type === 'manual') {
+          return studentManuals.some(
+            (m) => m.category.toLowerCase() === cat.name.toLowerCase(),
+          )
+            ? sum + cat.weight
+            : sum;
+        }
+        const catAssessments = allAssessments.filter((a) => a.type === cat.type);
+        const hasActive = catAssessments.some((a) =>
+          studentSubs.some(
+            (s) =>
+              s.assessment_id === a.id &&
+              s.status !== 'exempted' &&
+              !s.is_exempted,
+          ),
+        );
+        return hasActive ? sum + cat.weight : sum;
+      }, 0);
+
       const categoryBreakdown = this.core.buildCategoryBreakdown(
         studentSubs,
         studentManuals,
         allAssessments,
         categories,
+        totalActiveWeight,
       );
 
       return {

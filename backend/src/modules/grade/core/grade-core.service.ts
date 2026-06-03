@@ -120,17 +120,23 @@ export class GradeCoreService {
     studentManualScores: any[],
     allAssessments: any[],
     categories: SchemeCategory[],
+    totalActiveWeight: number,
   ) {
     return categories.map((category) => {
       let rawAverage = 0;
       let manualScore: number | null = null;
+      let isAllExempted = false;
 
       if (category.type === 'manual') {
         const manual = studentManualScores.find(
           (m) => m.category.toLowerCase() === category.name.toLowerCase(),
         );
         manualScore = manual?.score ?? null;
-        rawAverage = manualScore ?? 0;
+        if (manualScore != null) {
+          rawAverage = manualScore;
+        } else {
+          isAllExempted = true;
+        }
       } else {
         const categoryAssessments = allAssessments.filter(
           (a) => a.type === category.type,
@@ -138,6 +144,7 @@ export class GradeCoreService {
         if (categoryAssessments.length > 0) {
           if (category.maxScore != null && category.maxScore > 0) {
             let totalRawScore = 0;
+            let hasActive = false;
             for (const assessment of categoryAssessments) {
               const sub = studentSubmissions.find(
                 (s) => s.assessment_id === assessment.id,
@@ -146,21 +153,33 @@ export class GradeCoreService {
               if (sub.status === 'exempted' || sub.is_exempted) continue;
               if (sub.is_missed) continue;
               totalRawScore += this.mergeHybridScores(sub);
+              hasActive = true;
             }
-            rawAverage = (totalRawScore / category.maxScore) * 100;
+            if (hasActive) {
+              rawAverage = (totalRawScore / category.maxScore) * 100;
+            } else if (categoryAssessments.length > 0) {
+              isAllExempted = true;
+            }
           } else {
             const percentages: number[] = [];
+            let anyNonExemptedFound = false;
+
             for (const assessment of categoryAssessments) {
               const sub = studentSubmissions.find(
                 (s) => s.assessment_id === assessment.id,
               );
               if (!sub) {
-                percentages.push(0);
-              } else if (sub.status === 'exempted' || sub.is_exempted) {
+                // No submission at all — cannot contribute a score
                 continue;
-              } else if (sub.is_missed) {
+              }
+              if (sub.status === 'exempted' || sub.is_exempted) {
+                continue;
+              }
+              if (sub.is_missed) {
+                anyNonExemptedFound = true;
                 percentages.push(0);
               } else {
+                anyNonExemptedFound = true;
                 const rawScore = this.mergeHybridScores(sub);
                 const effectiveTotal =
                   assessment.grading_mode === 'manual'
@@ -173,21 +192,36 @@ export class GradeCoreService {
                 percentages.push(pct);
               }
             }
-            if (percentages.length > 0) {
+
+            if (anyNonExemptedFound) {
               rawAverage =
                 percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+            } else if (categoryAssessments.length > 0) {
+              isAllExempted = true;
             }
           }
+        } else {
+          // No assessments of this type — treat as non-contributing
+          isAllExempted = true;
         }
       }
+
+      const effectiveWeight =
+        totalActiveWeight > 0 && !isAllExempted
+          ? Math.round((category.weight / totalActiveWeight) * 10000) / 100
+          : null;
 
       return {
         category: category.name,
         type: category.type,
         weight: category.weight,
-        rawAverage: Math.round(rawAverage * 100) / 100,
+        rawAverage: isAllExempted ? null : Math.round(rawAverage * 100) / 100,
         manualScore,
-        weightedScore: Math.round(rawAverage * category.weight * 100) / 100,
+        weightedScore: isAllExempted
+          ? null
+          : Math.round(rawAverage * category.weight * 100) / 100,
+        isAllExempted,
+        effectiveWeight,
       };
     });
   }

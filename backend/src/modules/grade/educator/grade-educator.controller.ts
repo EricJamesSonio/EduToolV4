@@ -86,4 +86,30 @@ export class GradeEducatorController {
       dto,
     );
   }
+
+  // PATCH /classes/:classId/grades/:termId/students/:studentId/publish
+  @Patch(':termId/students/:studentId/publish')
+  @Roles('educator', 'admin')
+  publishByStudent(
+    @Param('classId') classId: string,
+    @Param('termId') termId: string,
+    @Param('studentId') studentId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.service.publishByStudent(classId, termId, studentId, orgId, educatorId);
+  }
+
+  // PATCH /classes/:classId/grades/:termId/students/:studentId/unlock
+  @Patch(':termId/students/:studentId/unlock')
+  @Roles('educator', 'admin')
+  unlockByStudent(
+    @Param('classId') classId: string,
+    @Param('termId') termId: string,
+    @Param('studentId') studentId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.service.unlockByStudent(classId, termId, studentId, orgId, educatorId);
+  }
 }
