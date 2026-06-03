@@ -97,6 +97,20 @@ export class GradeRepository {
     });
   }
 
+  async publishByStudent(studentId: string, termId: string, orgId: string) {
+    return this.db.grade.updateMany({
+      where: { student_id: studentId, term_id: termId, org_id: orgId },
+      data: { is_locked: true, locked_at: new Date() },
+    });
+  }
+
+  async unlockByStudent(studentId: string, termId: string, orgId: string) {
+    return this.db.grade.updateMany({
+      where: { student_id: studentId, term_id: termId, org_id: orgId },
+      data: { is_locked: false, locked_at: null },
+    });
+  }
+
   // ───────── ASSESSMENTS (for computation) ─────────
 
   async findAssessmentsForTerm(classId: string, termId: string, orgId: string) {

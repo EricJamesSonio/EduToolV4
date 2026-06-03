@@ -430,22 +430,22 @@ function DefaultGradeTable({
       label: "Student",
       width: 200,
       sticky: true,
-      render: (student) => {
-        const isSaving = saving.has(student.studentId);
-        return (
-          <div className="flex items-center gap-1">
-            <div className="w-5 h-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
-              {student.studentName.charAt(0).toUpperCase()}
+        render: (student) => {
+          const isSaving = saving.has(student.studentId);
+          return (
+            <div className="flex items-center gap-1">
+              <div className="w-5 h-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-bold text-primary shrink-0">
+                {student.studentName.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 leading-tight">
+                <p className="font-medium truncate text-[11px]">{student.studentName}</p>
+                <p className="text-[9px] text-muted-foreground font-mono leading-none">{student.studentCode}</p>
+              </div>
+              {isSaving && <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground shrink-0" />}
+              {isLocked && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />}
             </div>
-            <div className="min-w-0 leading-tight">
-              <p className="font-medium truncate text-[11px]">{student.studentName}</p>
-              <p className="text-[9px] text-muted-foreground font-mono leading-none">{student.studentCode}</p>
-            </div>
-            {isSaving && <Loader2 className="h-2.5 w-2.5 animate-spin text-muted-foreground shrink-0" />}
-            {isLocked && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />}
-          </div>
-        );
-      },
+          );
+        },
     },
     ...allAssessments.map((a) => ({
       key: a.id,
@@ -902,18 +902,18 @@ export default function GradesPage() {
             <Link href={`/educator/classes/${classId}/published-grades`}>
               <Button size="sm" variant="outline" className="gap-1.5">
                 <Users className="h-3.5 w-3.5" />
-                Published Grades
+                View Grades
               </Button>
             </Link>
             {!isClassLocked && (
               <Button
                 size="sm"
-                variant="destructive"
+                variant="default"
                 onClick={() => setLockDialogOpen(true)}
                 className="gap-1.5"
               >
                 <Lock className="h-3.5 w-3.5" />
-                Lock Grades
+                Publish All
               </Button>
             )}
             {isClassLocked && (
@@ -1059,17 +1059,17 @@ export default function GradesPage() {
       <ConfirmDialog
         open={lockDialogOpen}
         onOpenChange={setLockDialogOpen}
-        title="Lock Grades"
+        title="Publish All Grades"
         destructive
         message={
           <span>
-            Locking grades will publish final scores to all students and prevent
+            Publishing will make final scores visible to all students and prevent
             further edits. This action requires admin override to undo.
             <br /><br />
-            Are you sure you want to lock grades for this class?
+            Are you sure you want to publish all grades for this class?
           </span>
         }
-        confirmLabel={locking ? "Locking..." : "Lock Grades"}
+        confirmLabel={locking ? "Publishing..." : "Publish All"}
         onConfirm={handleLockGrades}
         isLoading={locking}
       />

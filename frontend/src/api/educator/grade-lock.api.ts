@@ -21,4 +21,8 @@ export const educatorGradeLockApi = {
     )
     return res.data.data
   },
+
+  lockClass: async (classId: string): Promise<void> => {
+    await client.post(`/grade-lock/${classId}/lock`)
+  },
 }

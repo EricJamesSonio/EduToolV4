@@ -248,10 +248,28 @@ private async buildTermResult(
       };
     });
 
+    const totalActiveWeight = categories.reduce((sum, cat) => {
+      if (cat.type === 'manual') {
+        return studentManuals.some(
+          (m) => m.category.toLowerCase() === cat.name.toLowerCase(),
+        )
+          ? sum + cat.weight
+          : sum;
+      }
+      const hasActive = studentSubs.some(
+        (s) =>
+          s.assessment.type === cat.type &&
+          s.status !== 'exempted' &&
+          !s.is_exempted,
+      );
+      return hasActive ? sum + cat.weight : sum;
+    }, 0);
+
     const categoryBreakdown = this.buildCategoryBreakdown(
       studentSubs,
       studentManuals,
       categories,
+      totalActiveWeight,
     );
 
     return {
@@ -293,9 +311,20 @@ private async buildTermResult(
         }
       } else {
         const categorySubs = submissions.filter(
-          (s) => s.assessment.type === category.type,
+          (s) =>
+            s.assessment.type === category.type &&
+            !s.is_exempted &&
+            s.status !== 'exempted',
         );
-        if (categorySubs.length === 0) continue;
+        if (categorySubs.length === 0) {
+          const anyExempted = submissions.some(
+            (s) =>
+              s.assessment.type === category.type &&
+              (s.is_exempted || s.status === 'exempted'),
+          );
+          if (!anyExempted) continue;
+          continue;
+        }
 
         const percentages = categorySubs.map((s) => {
           const rawScore = s.manual_score ?? s.score ?? 0;
@@ -316,23 +345,35 @@ private async buildTermResult(
     submissions: any[],
     manualScores: any[],
     categories: SchemeCategory[],
+    totalActiveWeight: number,
   ) {
     return categories.map((category) => {
       let rawAverage = 0;
       let manualScore: number | null = null;
+      let isAllExempted = false;
 
       if (category.type === 'manual') {
         const manual = manualScores.find(
           (m) => m.category.toLowerCase() === category.name.toLowerCase(),
         );
         manualScore = manual?.score ?? null;
-        rawAverage = manualScore ?? 0;
+        if (manualScore != null) {
+          rawAverage = manualScore;
+        } else {
+          isAllExempted = true;
+        }
       } else {
         const categorySubs = submissions.filter(
           (s) => s.assessment.type === category.type,
         );
-        if (categorySubs.length > 0) {
-          const percentages = categorySubs.map((s) => {
+
+        const nonExemptedSubs = categorySubs.filter(
+          (s) => !s.is_exempted && s.status !== 'exempted',
+        );
+        const exemptedCount = categorySubs.length - nonExemptedSubs.length;
+
+        if (nonExemptedSubs.length > 0) {
+          const percentages = nonExemptedSubs.map((s) => {
             const rawScore = s.manual_score ?? s.score ?? 0;
             return s.assessment.total_items > 0
               ? (rawScore / s.assessment.total_items) * 100
@@ -340,14 +381,28 @@ private async buildTermResult(
           });
           rawAverage = percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
         }
+
+        if (exemptedCount > 0 && nonExemptedSubs.length === 0) {
+          isAllExempted = true;
+        }
       }
+
+      const effectiveWeight =
+        totalActiveWeight > 0 && !isAllExempted
+          ? Math.round((category.weight / totalActiveWeight) * 10000) / 100
+          : null;
 
       return {
         category: category.name,
+        type: category.type,
         weight: category.weight,
-        rawAverage: Math.round(rawAverage * 100) / 100,
+        rawAverage: isAllExempted ? null : Math.round(rawAverage * 100) / 100,
         manualScore,
-        weightedScore: Math.round(rawAverage * category.weight * 100) / 100,
+        weightedScore: isAllExempted
+          ? null
+          : Math.round(rawAverage * category.weight * 100) / 100,
+        isAllExempted,
+        effectiveWeight,
       };
     });
   }

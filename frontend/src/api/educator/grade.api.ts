@@ -60,4 +60,24 @@ export const gradeApi = {
     );
     return data.data;
   },
+
+  publishStudent: async (
+    classId: string,
+    termId: string,
+    studentId: string,
+  ): Promise<void> => {
+    await apiClient.patch(
+      `/classes/${classId}/grades/${termId}/students/${studentId}/publish`,
+    );
+  },
+
+  unlockStudent: async (
+    classId: string,
+    termId: string,
+    studentId: string,
+  ): Promise<void> => {
+    await apiClient.patch(
+      `/classes/${classId}/grades/${termId}/students/${studentId}/unlock`,
+    );
+  },
 };
