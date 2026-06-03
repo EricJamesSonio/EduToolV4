@@ -64,14 +64,9 @@ export function ClassCard({ item, colorIndex = 0 }: ClassCardProps) {
       </div>
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          {cls.schoolYearId && (
-            <span className="text-xs text-muted-foreground">{cls.schoolYearId}</span>
-          )}
-          {cls.capacity > 0 && (
-            <span className="text-xs text-muted-foreground">Cap: {cls.capacity}</span>
-          )}
-        </div>
+        {cls.capacity > 0 && (
+          <span className="text-xs text-muted-foreground">Cap: {cls.capacity}</span>
+        )}
         <Button variant="outline" size="sm">
           <Eye className="mr-1.5 h-3.5 w-3.5" />
           View

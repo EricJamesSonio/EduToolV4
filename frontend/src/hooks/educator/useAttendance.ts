@@ -32,6 +32,38 @@ const attendanceKeys = {
 };
 
 // ======================================================
+// GET ATTENDANCE GRID (Excel-like)
+// ======================================================
+export const useAttendanceGrid = (classId: string) => {
+  return useQuery({
+    queryKey: attendanceKeys.class(classId),
+    queryFn: () => attendanceApi.getAttendanceGrid(classId),
+    enabled: !!classId,
+  });
+};
+
+// ======================================================
+// SAVE ALL DIRTY CELLS (one bulkSet per session)
+// ======================================================
+export const useSaveAttendanceGrid = (classId: string) => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (
+      batches: { sessionId: string; records: AttendanceRecordInput[] }[],
+    ) =>
+      Promise.all(
+        batches.map((b) =>
+          attendanceApi.bulkSet(classId, b.sessionId, b.records),
+        ),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: attendanceKeys.class(classId) });
+    },
+  });
+};
+
+// ======================================================
 // GET WEEKLY SESSIONS
 // ======================================================
 export const useAttendanceSessions = (
