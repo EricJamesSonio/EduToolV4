@@ -5,20 +5,22 @@ import { GradeRepository } from '@/modules/grade/grade.repository';
 import { ClassRepository } from '@/modules/class/class.repository';
 import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
 
+type TermGradeEntry = {
+  termId: string;
+  termName: string;
+  orderIndex: number;
+  finalScore: number | null;
+  finalGrade: string | null;
+  isReleased: boolean;
+};
+
 type TranscriptEntry = {
   classId: string;
   subject: { id: string | null; name: string };
   educator: string;
   schoolYear: { id: string | null; name: string; status: string };
-  semester: { id: string | null; name: string };
-  termGrades: {
-    termId: string;
-    termName: string;
-    orderIndex: number;
-    finalScore: number | null;
-    finalGrade: string | null;
-    isReleased: boolean;
-  }[];
+  semesterName: string;
+  termGrades: TermGradeEntry[];
 };
 
 @Injectable()
@@ -42,7 +44,7 @@ export class TranscriptStudentService {
       enrollments.map(async (enrollment) => {
         const cls = enrollment.class;
 
-        const [subject, educatorProfile, semester, schoolYear, grades] =
+        const [subject, educatorProfile, schoolYear, grades, templateTerms] =
           await Promise.all([
             this.db.subject.findFirst({
               where: { id: cls.subject_id, org_id: orgId },
@@ -52,15 +54,12 @@ export class TranscriptStudentService {
               where: { account: { id: cls.educator_id } },
               select: { full_name: true },
             }),
-            this.db.semester.findUnique({
-              where: { id: cls.semester_id },
-              include: { terms: { orderBy: { order_index: 'asc' } } },
-            }),
             this.db.schoolYear.findFirst({
               where: { id: cls.school_year_id, org_id: orgId },
               select: { id: true, name: true, status: true },
             }),
             this.gradeRepo.findByClass(cls.id, orgId),
+            this.gradeRepo.findTemplateTermsByClass(cls.id, orgId),
           ]);
 
         const gradeByTerm = new Map(
@@ -69,40 +68,55 @@ export class TranscriptStudentService {
             .map((g) => [g.term_id, g]),
         );
 
-        const termGrades = (semester?.terms ?? []).map((term) => {
-          const grade = gradeByTerm.get(term.id) ?? null;
-          return {
-            termId: term.id,
-            termName: term.name,
-            orderIndex: term.order_index,
+        // Group template terms by semester
+        const semMap = new Map<string, TermGradeEntry[]>();
+
+        for (const tt of templateTerms) {
+          const grade = gradeByTerm.get(tt.id) ?? null;
+          const entry: TermGradeEntry = {
+            termId: tt.id,
+            termName: tt.name,
+            orderIndex: 0,
             finalScore: grade?.final_score ?? null,
             finalGrade: grade?.is_locked ? grade.final_grade : null,
             isReleased: grade?.is_locked ?? false,
           };
-        });
 
-        return {
-          classId: cls.id,
-          subject: {
-            id: subject?.id ?? null,
-            name: subject?.name ?? 'Unknown Subject',
-          },
-          educator: educatorProfile?.full_name ?? 'Unknown Educator',
-          schoolYear: {
-            id: schoolYear?.id ?? null,
-            name: schoolYear?.name ?? 'Unknown',
-            status: schoolYear?.status ?? 'unknown',
-          },
-          semester: {
-            id: semester?.id ?? null,
-            name: semester?.name ?? 'Unknown Semester',
-          },
-          termGrades,
-        };
+          const semKey = tt.semesterName;
+          if (!semMap.has(semKey)) {
+            semMap.set(semKey, []);
+          }
+          semMap.get(semKey)!.push(entry);
+        }
+
+        // Flatten: create one TranscriptEntry per semester with its term grades
+        const semEntries: TranscriptEntry[] = [];
+        for (const [semName, termGrades] of semMap) {
+          termGrades.sort((a, b) => a.orderIndex - b.orderIndex);
+          semEntries.push({
+            classId: cls.id,
+            subject: {
+              id: subject?.id ?? null,
+              name: subject?.name ?? 'Unknown Subject',
+            },
+            educator: educatorProfile?.full_name ?? 'Unknown Educator',
+            schoolYear: {
+              id: schoolYear?.id ?? null,
+              name: schoolYear?.name ?? 'Unknown',
+              status: schoolYear?.status ?? 'unknown',
+            },
+            semesterName: semName,
+            termGrades,
+          });
+        }
+
+        return semEntries;
       }),
     );
 
-    return this.groupTranscript(classEntries);
+    // Flatten nested arrays
+    const flat = classEntries.flat();
+    return this.groupTranscript(flat);
   }
 
   private groupTranscript(entries: TranscriptEntry[]) {
@@ -125,7 +139,7 @@ export class TranscriptStudentService {
 
     for (const entry of entries) {
       const syId = entry.schoolYear.id ?? 'unknown';
-      const semId = entry.semester.id ?? 'unknown';
+      const semId = entry.semesterName;
 
       if (!schoolYearMap.has(syId)) {
         schoolYearMap.set(syId, {
@@ -141,7 +155,7 @@ export class TranscriptStudentService {
       if (!sy.semesters.has(semId)) {
         sy.semesters.set(semId, {
           semesterId: semId,
-          semesterName: entry.semester.name,
+          semesterName: semId,
           classes: [],
         });
       }

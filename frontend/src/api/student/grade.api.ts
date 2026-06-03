@@ -6,11 +6,17 @@ function unwrap<T>(data: T | { data: T }): T {
     : (data as T);
 }
 
+import type { CategoryBreakdown } from "@/types/educator/grade.types";
+
 export interface StudentTermGrade {
   termId: string;
-  finalScore: number;
-  finalGrade: string | null; // null until class is locked
+  termName: string;
+  semesterName?: string;
+  semesterIndex?: number;
+  finalScore: number | null;
+  finalGrade: string | null;
   isReleased: boolean;
+  categoryBreakdown: CategoryBreakdown[];
 }
 
 export const studentGradeApi = {

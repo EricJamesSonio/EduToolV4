@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { useStudentGrades } from "@/hooks/student/useStudentGrades";
 import type { StudentTermGrade } from "@/api/student/grade.api";
 
@@ -21,6 +22,11 @@ function gradeColor(score: number): string {
 
 // ── Term card ─────────────────────────────────────────────────────────────────
 
+function fmt(n: number | null | undefined, dp = 1): string {
+  if (n == null) return "\u2014";
+  return n.toFixed(dp);
+}
+
 function TermGradeCard({
   grade,
   index,
@@ -31,23 +37,19 @@ function TermGradeCard({
   const isReleased = grade.isReleased;
   const score = grade.finalScore ?? 0;
   const color = gradeColor(score);
+  const termColor = WEEK_COLORS[index % WEEK_COLORS.length];
 
   return (
-    <div className="rounded-lg border border-border/60 bg-card p-5 space-y-4">
+    <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
+      <div className={termColor + " flex items-center justify-between gap-3 px-5 py-3 border-b"}>
         <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-            <span className="text-xs font-bold text-primary">{index + 1}</span>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Term
-            </p>
-            <p className="text-sm font-semibold text-foreground">
-              {grade.termId.slice(-8).toUpperCase()}
-            </p>
-          </div>
+          <p className="text-sm font-semibold">{grade.termName}</p>
+          {grade.semesterName && (
+            <Badge variant="outline" className="text-[10px] bg-background/60">
+              {grade.semesterName}
+            </Badge>
+          )}
         </div>
 
         {isReleased ? (
@@ -59,7 +61,7 @@ function TermGradeCard({
               <Badge
                 variant="outline"
                 className={cn(
-                  "text-[11px] font-semibold border-0 bg-muted mt-0.5",
+                  "text-[11px] font-semibold border-0 bg-background/60 mt-0.5",
                   color
                 )}
               >
@@ -75,25 +77,70 @@ function TermGradeCard({
         )}
       </div>
 
-      {/* Progress bar — only if released */}
-      {isReleased && (
-        <div className="space-y-1.5">
-          <Progress value={score} className="h-2" />
-          <div className="flex justify-between text-[11px] text-muted-foreground">
-            <span>0%</span>
-            <span>100%</span>
+      <div className="p-5 space-y-4">
+        {/* Progress bar — only if released */}
+        {isReleased && (
+          <div className="space-y-1.5">
+            <Progress value={score} className="h-2" />
+            <div className="flex justify-between text-[11px] text-muted-foreground">
+              <span>0%</span>
+              <span>100%</span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Not released placeholder */}
-      {!isReleased && (
-        <div className="rounded-md bg-muted/50 px-4 py-3 text-center">
-          <p className="text-xs text-muted-foreground">
-            Your grade will appear here once your educator computes and locks it.
-          </p>
-        </div>
-      )}
+        {/* Not released placeholder */}
+        {!isReleased && (
+          <div className="rounded-md bg-muted/50 px-4 py-3 text-center">
+            <p className="text-xs text-muted-foreground">
+              Your grade will appear here once your educator computes and locks it.
+            </p>
+          </div>
+        )}
+
+        {/* Category breakdown */}
+        {grade.categoryBreakdown?.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Category Breakdown
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {grade.categoryBreakdown.map((cat, ci) => {
+                const catColor = WEEK_COLORS[ci % WEEK_COLORS.length];
+                return (
+                  <div
+                    key={cat.category}
+                    className={cn("flex items-center justify-between rounded-lg border px-3 py-2", catColor)}
+                  >
+                    <span className="text-sm capitalize">{cat.category}</span>
+                    <div className="text-right">
+                        {cat.isAllExempted ? (
+                        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                          Exempted
+                        </Badge>
+                      ) : (
+                        <>
+                          <span className="text-sm font-semibold tabular-nums">
+                            {fmt(cat.rawAverage)}%
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-2">
+                            (w{fmt(cat.weightedScore)})
+                          </span>
+                          {cat.effectiveWeight != null && Math.abs(cat.effectiveWeight - cat.weight * 100) > 0.01 && (
+                            <span className="text-[10px] text-muted-foreground block mt-0.5">
+                              redistributed: {fmt(cat.effectiveWeight, 1)}%
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

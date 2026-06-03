@@ -25,13 +25,23 @@ import {
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 
+  // GET /classes/:classId/attendance/grid
+  @Get('grid')
+  @Roles('admin', 'educator')
+  getAttendanceGrid(
+    @Param('classId') classId: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    return this.attendanceService.getAttendanceGrid(classId, orgId);
+  }
+
   // GET /classes/:classId/attendance/sessions
   @Get('sessions')
   @Roles('admin', 'educator')
   getSessions(
     @Param('classId') classId: string,
     @Query() query: GetSessionsQueryDto,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.attendanceService.getSessions(classId, orgId, query.weekNumber);
   }
@@ -42,7 +52,7 @@ export class AttendanceController {
   getSession(
     @Param('classId') classId: string,
     @Param('sessionId') sessionId: string,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.attendanceService.getSession(classId, sessionId, orgId);
   }
@@ -54,7 +64,7 @@ export class AttendanceController {
     @Param('classId') classId: string,
     @Param('sessionId') sessionId: string,
     @Body() dto: BulkSetAttendanceDto,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') actorId: string,
   ) {
     return this.attendanceService.bulkSetAttendance(
@@ -74,7 +84,7 @@ export class AttendanceController {
     @Param('sessionId') sessionId: string,
     @Param('recordId') recordId: string,
     @Body() dto: UpdateAttendanceRecordDto,
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') actorId: string,
   ) {
     return this.attendanceService.updateRecord(

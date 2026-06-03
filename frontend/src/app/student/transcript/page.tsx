@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
 import { useTranscript } from "@/hooks/student/useTranscript";
 import type {
   TranscriptYear,
@@ -84,42 +85,78 @@ function SubjectRows({ cls }: { cls: TranscriptClass }) {
     (a, b) => a.orderIndex - b.orderIndex
   );
 
+  const releasedScores = sorted
+    .filter((tg) => tg.isReleased && tg.finalScore != null)
+    .map((tg) => tg.finalScore as number);
+
+  const overallAvg =
+    releasedScores.length > 0
+      ? releasedScores.reduce((a, b) => a + b, 0) / releasedScores.length
+      : null;
+
+  const avgColor =
+    overallAvg != null
+      ? overallAvg >= 90
+        ? "text-emerald-600"
+        : overallAvg >= 75
+          ? "text-blue-600"
+          : "text-red-500"
+      : "";
+
   return (
     <>
-      {sorted.map((tg, i) => (
-        <tr
-          key={tg.termId}
-          className="border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors"
-        >
-          {/* Subject name — only on first term row */}
-          {i === 0 ? (
-            <td
-              className="px-4 py-2.5 text-sm font-medium text-foreground align-top"
-              rowSpan={sorted.length}
-            >
-              {cls.subject.name}
+      {sorted.map((tg, i) => {
+        const termColor = WEEK_COLORS[i % WEEK_COLORS.length];
+        return (
+          <tr
+            key={tg.termId}
+            className="border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors"
+          >
+            {/* Subject name — only on first term row */}
+            {i === 0 ? (
+              <td
+                className="px-4 py-2.5 text-sm font-medium text-foreground align-top"
+                rowSpan={overallAvg != null ? sorted.length + 1 : sorted.length}
+              >
+                {cls.subject.name}
+              </td>
+            ) : null}
+
+            <td className={cn("px-4 py-2.5 text-sm font-medium", termColor)}>
+              {tg.termName}
             </td>
-          ) : null}
 
-          <td className="px-4 py-2.5 text-sm text-muted-foreground">
-            {tg.termName}
-          </td>
+            <td className="px-4 py-2.5 text-sm text-center">
+              {tg.isReleased && tg.finalScore != null ? (
+                <span className="font-medium tabular-nums">
+                  {tg.finalScore.toFixed(2)}
+                </span>
+              ) : (
+                <span className="text-muted-foreground/50">—</span>
+              )}
+            </td>
 
-          <td className="px-4 py-2.5 text-sm text-center">
-            {tg.isReleased && tg.finalScore != null ? (
-              <span className="font-medium tabular-nums">
-                {tg.finalScore.toFixed(2)}
-              </span>
-            ) : (
-              <span className="text-muted-foreground/50">—</span>
-            )}
-          </td>
+            <td className="px-4 py-2.5 text-center">
+              {gradeStatusBadge(tg.isReleased, tg.finalGrade)}
+            </td>
+          </tr>
+        );
+      })}
 
-          <td className="px-4 py-2.5 text-center">
-            {gradeStatusBadge(tg.isReleased, tg.finalGrade)}
+      {/* Overall average row */}
+      {overallAvg != null && (
+        <tr className="border-t border-border/60 bg-muted/20">
+          <td className="px-4 py-2 text-xs font-semibold text-muted-foreground">
+            Overall Average
           </td>
+          <td className="px-4 py-2 text-center">
+            <span className={cn("font-bold tabular-nums text-sm", avgColor)}>
+              {overallAvg.toFixed(2)}
+            </span>
+          </td>
+          <td className="px-4 py-2" />
         </tr>
-      ))}
+      )}
     </>
   );
 }
@@ -133,7 +170,7 @@ function SemesterSection({
 }) {
   return (
     <div className="space-y-1">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1 pt-1">
+      <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 px-1 pt-1">
         {semester.semesterName}
       </p>
 
@@ -141,19 +178,19 @@ function SemesterSection({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/40 border-b border-border/60">
-              <th className="px-4 py-2 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wide w-[35%]">
+              <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide w-[35%] text-blue-600">
                 Subject
               </th>
 
-              <th className="px-4 py-2 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wide w-[25%]">
+              <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide w-[25%] text-emerald-600">
                 Term
               </th>
 
-              <th className="px-4 py-2 text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wide w-[20%]">
+              <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wide w-[20%] text-amber-600">
                 Score
               </th>
 
-              <th className="px-4 py-2 text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wide w-[20%]">
+              <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wide w-[20%] text-purple-600">
                 Grade
               </th>
             </tr>
@@ -199,7 +236,7 @@ function SchoolYearAccordion({
           )}
         </span>
 
-        <span className="flex-1 text-sm font-semibold text-foreground">
+        <span className="flex-1 text-sm font-semibold text-purple-600">
           {year.schoolYearName}
         </span>
 

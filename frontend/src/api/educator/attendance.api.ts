@@ -47,7 +47,36 @@ export interface SessionWithRecords extends AttendanceSession {
   students: SessionStudent[];
 }
 
+export interface AttendanceGridStudent {
+  id: string;
+  name: string;
+  code: string;
+}
+
+export interface AttendanceGridSession {
+  id: string;
+  date: string;
+  weekNumber: number;
+  subIndex: number;
+  records: Record<string, string>; // studentId → status
+}
+
+export interface AttendanceGridData {
+  students: AttendanceGridStudent[];
+  sessions: AttendanceGridSession[];
+}
+
 export const attendanceApi = {
+  // ======================================================
+  // GET ATTENDANCE GRID (Excel-like)
+  // ======================================================
+  getAttendanceGrid: async (
+    classId: string,
+  ): Promise<AttendanceGridData> => {
+    const res = await client.get(`/classes/${classId}/attendance/grid`);
+    return res.data.data ?? res.data;
+  },
+
   // ======================================================
   // GET WEEK GROUPED SESSIONS
   // ======================================================

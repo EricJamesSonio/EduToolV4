@@ -188,6 +188,69 @@ export class AttendanceService {
   }
 
   // =========================================================
+  // ATTENDANCE GRID (Excel-like spreadsheet)
+  // =========================================================
+  async getAttendanceGrid(classId: string, orgId: string) {
+    await this.assertClassExists(classId, orgId);
+
+    // All enrolled students
+    const enrollments = await this.db.enrollment.findMany({
+      where: { class_id: classId, status: 'active' },
+      select: { student_id: true },
+    });
+
+    const studentIds = enrollments.map((e) => e.student_id);
+
+    const accounts = await this.db.account.findMany({
+      where: { id: { in: studentIds } },
+      include: {
+        profile: { select: { full_name: true } },
+      },
+    });
+
+    const accountsMap = new Map(accounts.map((a) => [a.id, a]));
+
+    const students = enrollments.map((e) => {
+      const acc = accountsMap.get(e.student_id);
+      return {
+        id: e.student_id,
+        name:
+          acc?.profile?.full_name ??
+          acc?.email?.split('@')[0] ??
+          'Unknown',
+        code: acc?.email?.split('@')[0] ?? e.student_id.slice(0, 8),
+      };
+    });
+
+    // All sessions
+    const sessions = await this.attendanceRepo.findSessionsByClass(classId);
+
+    // Fetch records for all sessions in batch
+    const allRecords = await this.db.attendanceRecord.findMany({
+      where: { session_id: { in: sessions.map((s) => s.id) } },
+    });
+
+    // Build a lookup: sessionId → { studentId → status }
+    const recordsBySession = new Map<string, Map<string, string>>();
+    for (const r of allRecords) {
+      if (!recordsBySession.has(r.session_id)) {
+        recordsBySession.set(r.session_id, new Map());
+      }
+      recordsBySession.get(r.session_id)!.set(r.student_id, r.status);
+    }
+
+    const sessionList = sessions.map((s) => ({
+      id: s.id,
+      date: s.date,
+      weekNumber: s.week_number,
+      subIndex: s.sub_index,
+      records: Object.fromEntries(recordsBySession.get(s.id) ?? new Map()),
+    }));
+
+    return { students, sessions: sessionList };
+  }
+
+  // =========================================================
   // GET SESSIONS
   // =========================================================
   async getSessions(classId: string, orgId: string, weekNumber?: number) {
