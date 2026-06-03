@@ -2,34 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { analyticsApi } from "@/api/admin/analytics.api";
 import { organizationApi } from "@/api/admin/organization.api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import {
   Users,
   UserSquare2,
   GraduationCap,
   AlertTriangle,
   ArrowRight,
-  Building2,
 } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 import type { EnrollmentBreakdownRow } from "@/types/admin/analytics.types";
@@ -89,88 +74,7 @@ function StatCard({ label, value, icon: Icon, iconColor, isLoading, warning, act
   );
 }
 
-function OrgSetupModal({
-  open,
-  onSuccess,
-  onSkip,
-}: {
-  open: boolean;
-  onSuccess: () => void;
-  onSkip: () => void;
-}) {
-  const { register, handleSubmit, formState: { errors } } = useForm<{
-    name: string;
-    description: string;
-  }>({ defaultValues: { name: "", description: "" } });
 
-  const mutation = useMutation({
-    mutationFn: organizationApi.createOrg,
-    onSuccess: () => { toast.success("Organization created! Welcome to EduTool."); onSuccess(); },
-    onError: () => toast.error("Failed to create organization."),
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={() => { }}>
-      <DialogContent className="sm:max-w-md" showCloseButton={false}>
-        <DialogHeader>
-          <div className="icon-container icon-action mb-2">
-            <Building2 className="h-5 w-5" />
-          </div>
-          <DialogTitle className="text-lg">Set up your organization</DialogTitle>
-          <DialogDescription>
-            Before you get started, give your school a name. You can update this later from the
-            Organization settings.
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          onSubmit={handleSubmit((v) =>
-            mutation.mutate({ name: v.name, description: v.description || undefined })
-          )}
-          className="space-y-4 mt-2"
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor="org-name">School / Organization Name</Label>
-            <Input
-              id="org-name"
-              placeholder="e.g. St. Mary's Academy"
-              {...register("name", {
-                required: "Name is required",
-                minLength: { value: 2, message: "At least 2 characters" },
-              })}
-            />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="org-desc">
-              Description{" "}
-              <span className="text-muted-foreground font-normal">(optional)</span>
-            </Label>
-            <Textarea
-              id="org-desc"
-              placeholder="A brief description of your school..."
-              rows={3}
-              {...register("description")}
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={mutation.isPending}>
-            {mutation.isPending ? "Creating..." : "Create Organization"}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full text-muted-foreground"
-            onClick={onSkip}
-            disabled={mutation.isPending}
-          >
-            Not now
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 const enrollmentColumns: ColumnDef<EnrollmentBreakdownRow>[] = [
   {
@@ -216,8 +120,6 @@ const enrollmentColumns: ColumnDef<EnrollmentBreakdownRow>[] = [
 
 export default function AdminDashboardPage(): React.JSX.Element {
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const [showSetup, setShowSetup] = useState(false);
   const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
 
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
@@ -248,23 +150,8 @@ export default function AdminDashboardPage(): React.JSX.Element {
     enabled: !!org && !!selectedYearId,
   });
 
-  useEffect(() => {
-    if (!orgLoading && org === null) setShowSetup(true);
-  }, [org, orgLoading]);
-
-  const handleOrgCreated = () => {
-    setShowSetup(false);
-    queryClient.invalidateQueries({ queryKey: ["admin", "organization"] });
-    queryClient.invalidateQueries({ queryKey: ["admin", "analytics"] });
-  };
-
   return (
     <div className="space-y-8">
-      <OrgSetupModal
-        open={showSetup}
-        onSuccess={handleOrgCreated}
-        onSkip={() => setShowSetup(false)}
-      />
 
       <PageHeader
         title="Dashboard"

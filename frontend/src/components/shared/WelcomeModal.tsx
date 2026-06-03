@@ -71,7 +71,10 @@ export function WelcomeModal({ role }: WelcomeModalProps) {
         className="sm:max-w-[600px] p-0 gap-0 overflow-hidden"
         showCloseButton={false}
       >
-        <div className="relative min-h-[280px] sm:min-h-[300px]">
+        {/* Preload robot image */}
+        <img src="/robot.png" alt="" className="hidden" fetchPriority="high" />
+
+        <div className="relative h-[300px] sm:h-[320px]">
           {/* ─── Background image — same on all screens ────── */}
           <div
             className="absolute inset-0"
@@ -85,7 +88,7 @@ export function WelcomeModal({ role }: WelcomeModalProps) {
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-background/20 to-background" />
 
           {/* ─── Content — right side, takes more space on mobile ─── */}
-          <div className="relative z-10 ml-auto flex w-full max-w-[65%] min-h-[280px] flex-col justify-center gap-4 px-4 py-6 sm:max-w-[55%] sm:min-h-[300px] sm:gap-5 sm:px-8 sm:py-8">
+          <div className="relative z-10 ml-auto flex h-full w-full max-w-[65%] flex-col justify-center gap-4 px-4 py-6 sm:max-w-[55%] sm:gap-5 sm:px-8 sm:py-8">
             {/* Header */}
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
