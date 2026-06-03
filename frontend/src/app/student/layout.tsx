@@ -2,6 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useRoleGuard } from "@/hooks/useRole";
+import { BackButtonGuard } from "@/components/shared/BackButtonGuard";
+import { WelcomeModal } from "@/components/shared/WelcomeModal";
 import { StudentSidebar } from "@/components/layout/StudentSidebar";
 import { AppShell } from "@/components/layout/AppShell";
 import { SidebarProvider } from "@/context/SidebarContext";
@@ -27,6 +29,8 @@ export default function StudentLayout({
       <SidebarProvider>
         <AppShell sidebar={<StudentSidebar />}>
           {children}
+          <BackButtonGuard />
+          <WelcomeModal role="student" />
         </AppShell>
       </SidebarProvider>
       <MeetingMiniPlayer />

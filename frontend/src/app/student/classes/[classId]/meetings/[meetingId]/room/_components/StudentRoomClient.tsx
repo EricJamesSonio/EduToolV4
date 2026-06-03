@@ -10,7 +10,7 @@ import { useMeetingToken } from "@/hooks/student/useStudentMeetings";
 import { useMeeting as useMeetingContext } from "@/hooks/meeting/MeetingContext";
 import { useChat } from "@/hooks/meeting/useChat";
 import { ChatPanel } from "@/components/meeting/ChatPanel";
-import { getAccessToken } from "@/api/client";
+import { useAuthStore } from "@/store/auth.store";
 import { useMeetingPresentation } from "@/hooks/meeting/useMeetingPresentation";
 import {
   ReactionPicker, ParticipantsPanel, SidePanel,
@@ -30,7 +30,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   const { data: tokenData, isLoading: tokenLoading } = useMeetingToken(meetingId);
   const meetingClassId = tokenData?.classId ?? "";
   const classId        = meetingClassId || urlClassId;
-  const authToken      = getAccessToken() ?? "";
+  const authToken      = useAuthStore.getState().accessToken ?? "";
   const meetingCtx     = useMeetingContext();
   const { user: currentUser } = useAuth();
   const currentUserId   = currentUser?.id ?? "";

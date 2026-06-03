@@ -1,4 +1,3 @@
-// frontend/src/context/AuthContext.tsx
 "use client";
 
 import React, {
@@ -11,10 +10,9 @@ import React, {
 import { useRouter } from "next/navigation";
 
 import { authApi } from "@/api/auth.api";
-import { saveTokens, clearTokens } from "@/api/client";
 import { useAuthStore } from "@/store/auth.store";
 import { getRoleHomePath } from "@/utils/role.util";
-import type { AuthUser, AuthTokens } from "@/types/auth.types";
+import type { AuthUser } from "@/types/auth.types";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -28,65 +26,73 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const router = useRouter();
-  const { user, accessToken, setUser, setTokens, setLoading, clearAuth } =
+  const { user, accessToken, setUser, setAccessToken, setLoading, clearAuth } =
     useAuthStore();
 
-useEffect(() => {
-  const bootstrap = async (): Promise<void> => {
-    // Wait for persist rehydration to complete before reading accessToken
-    await useAuthStore.persist.rehydrate();
+  // ─── Bootstrap on mount ───────────────────────────────────────────────────
+  // Try to use the refresh token cookie to obtain a fresh access token.
+  // This replaces the old localStorage-based bootstrap.
+  useEffect(() => {
+    const bootstrap = async (): Promise<void> => {
+      const token = useAuthStore.getState().accessToken;
 
-    const token = useAuthStore.getState().accessToken;
+      // If we already have an access token in memory, just verify it
+      if (token) {
+        try {
+          const me = await authApi.getMe();
+          setUser(me);
+        } catch {
+          clearAuth();
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
 
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+      // No token in memory — try to refresh via cookie
+      try {
+        const { accessToken: newToken } = await authApi.refresh();
+        setAccessToken(newToken);
 
-    try {
-      const me = await authApi.getMe();
-      setUser(me);
-    } catch {
-      clearAuth();
-      clearTokens();
-    } finally {
-      setLoading(false);
-    }
-  };
+        const me = await authApi.getMe(newToken);
+        setUser(me);
+      } catch {
+        clearAuth();
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  bootstrap();
-}, []); // eslint-disable-line react-hooks/exhaustive-deps
+    bootstrap();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = useCallback(
     async (email: string, password: string): Promise<void> => {
-      const tokens: AuthTokens = await authApi.login({ email, password });
+      // Login sets the refresh token as an HTTP-only cookie on the backend.
+      // The response only contains the access token.
+      const { accessToken: newToken } = await authApi.login({ email, password });
 
-      // Save to localStorage first
-      saveTokens(tokens.accessToken, tokens.refreshToken);
-      setTokens(tokens.accessToken, tokens.refreshToken);
+      setAccessToken(newToken);
 
       // Pass token explicitly to avoid race condition where
-      // interceptor hasn't picked up the newly saved localStorage token yet
-      const me = await authApi.getMe(tokens.accessToken);
+      // the interceptor hasn't picked up the new token yet
+      const me = await authApi.getMe(newToken);
       setUser(me);
 
       router.push(getRoleHomePath(me.role));
     },
-    [router, setTokens, setUser]
+    [router, setUser, setAccessToken]
   );
 
-// Replace logout:
-const logout = useCallback(async (): Promise<void> => {
-  try {
-    await authApi.logout();
-  } catch {
-    // Swallow — we clear local state regardless
-  } finally {
-    clearAuth();
-    clearTokens();
-    // Don't navigate here — let the caller (LogoutButton) handle navigation
-  }
-}, [clearAuth]);
+  const logout = useCallback(async (): Promise<void> => {
+    try {
+      await authApi.logout();
+    } catch {
+      // Swallow — we clear local state regardless
+    } finally {
+      clearAuth();
+    }
+  }, [clearAuth]);
 
   const value: AuthContextValue = {
     user,

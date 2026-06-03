@@ -1,27 +1,31 @@
 "use client";
 
+import { useState } from "react";
 import { LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/context/SidebarContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { queryClient } from "@/lib/query-client.config";
 import { useAuth } from "@/hooks/useAuth";
 
 export function LogoutButton(): React.JSX.Element {
-  const router = useRouter();
   const { collapsed } = useSidebar();
   const { logout } = useAuth();
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   async function handleLogout(): Promise<void> {
+    setIsLoggingOut(true);
     queryClient.clear();
     await logout();
-    router.replace("/login");
+    // Replace history entry so back button can't return to the authenticated page
+    window.location.replace("/login");
   }
 
   const button = (
     <button
-      onClick={handleLogout}
+      onClick={() => setShowConfirm(true)}
       className={cn(
         "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
         "text-muted-foreground hover:bg-destructive/10 hover:text-destructive",
@@ -33,14 +37,27 @@ export function LogoutButton(): React.JSX.Element {
     </button>
   );
 
-  if (collapsed) {
-    return (
-      <Tooltip>
-        <TooltipTrigger render={button} />
-        <TooltipContent side="right">Log out</TooltipContent>
-      </Tooltip>
-    );
-  }
+  return (
+    <>
+      {collapsed ? (
+        <Tooltip>
+          <TooltipTrigger render={button} />
+          <TooltipContent side="right">Log out</TooltipContent>
+        </Tooltip>
+      ) : (
+        button
+      )}
 
-  return button;
+      <ConfirmDialog
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        title="Logout?"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        destructive
+        isLoading={isLoggingOut}
+        onConfirm={handleLogout}
+      />
+    </>
+  );
 }
