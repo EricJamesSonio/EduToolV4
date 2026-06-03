@@ -12,7 +12,6 @@ export default function AttendancePage() {
     <div className="space-y-6">
       <PageHeader
         title="Attendance"
-        description="Click a cell to cycle: P → A → L → E → P"
       />
 
       <AttendanceGrid classId={classId} />

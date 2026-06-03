@@ -18,18 +18,18 @@ const STATUS_LABEL: Record<AttendanceStatus, string> = {
   excused: "E",
 }
 
-const STATUS_COLOR: Record<AttendanceStatus, string> = {
-  present: "bg-emerald-500 text-white",
-  absent: "bg-red-500 text-white",
-  late: "bg-amber-500 text-white",
-  excused: "bg-blue-500 text-white",
-}
-
 const STATUS_CHIP: Record<AttendanceStatus, string> = {
   present: "bg-emerald-500 hover:bg-emerald-600 text-white",
   absent: "bg-red-500 hover:bg-red-600 text-white",
   late: "bg-amber-500 hover:bg-amber-600 text-white",
   excused: "bg-blue-500 hover:bg-blue-600 text-white",
+}
+
+const STATUS_COLOR: Record<AttendanceStatus, string> = {
+  present: "bg-emerald-500 text-white",
+  absent: "bg-red-500 text-white",
+  late: "bg-amber-500 text-white",
+  excused: "bg-blue-500 text-white",
 }
 
 const EMPTY_CELL = "bg-muted/40 text-muted-foreground/40"
@@ -50,8 +50,6 @@ function formatTime(iso: string): string {
     return iso
   }
 }
-
-const ALL_STATUSES: AttendanceStatus[] = ["present", "absent", "late", "excused"]
 
 function CellPopover({
   current,

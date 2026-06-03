@@ -8,7 +8,6 @@ import { LogoutButton } from "./LogoutButton";
 import {
   BookOpen,
   Library,
-  ActivitySquare,
   LayoutGrid,
   FileText,
   Presentation,
@@ -25,7 +24,6 @@ const TOP_LEVEL_GROUPS: NavGroup[] = [
     items: [
       { label: "My Classes", href: "/educator/classes", icon: BookOpen },
       { label: "Grading Scheme Library", href: "/educator/grading-scheme-library", icon: Library },
-      { label: "Activity Log", href: "/educator/activity-log", icon: ActivitySquare },
     ],
   },
   {
@@ -49,7 +47,6 @@ export function EducatorSidebar() {
           items: [
             { label: "My Classes", href: "/educator/classes", icon: BookOpen, exact: true },
             { label: "Grading Scheme Library", href: "/educator/grading-scheme-library", icon: Library },
-            { label: "Activity Log", href: "/educator/activity-log", icon: ActivitySquare },
           ],
         },
         {
