@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Building2, BookOpen } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { organizationApi } from "@/api/admin/organization.api";
 
 /**
@@ -106,14 +106,9 @@ function WelcomeView({ onSetup, onDismiss }: { onSetup: () => void; onDismiss: (
         ))}
       </ul>
 
-      <Link
-        href="/admin/help"
-        onClick={onDismiss}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline underline-offset-3 hover:text-primary/80"
-      >
-        <BookOpen className="h-4 w-4" />
-        Read the Help page
-      </Link>
+      <p className="text-sm text-muted-foreground">
+        Each page has a help guide — look for the <span className="italic">Help</span> icon.
+      </p>
 
       <div className="flex gap-2">
         <Button onClick={onSetup}>

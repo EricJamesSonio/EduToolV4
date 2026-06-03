@@ -11,7 +11,8 @@ export default function PlatformLayout({
 }: {
   children: React.ReactNode;
 }) {
-  useRoleGuard(["platform_owner"]);
+  const canRender = useRoleGuard(["platform_owner"]);
+  if (!canRender) return null;
 
   return (
     <SidebarProvider>

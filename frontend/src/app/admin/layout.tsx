@@ -7,7 +7,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { SidebarProvider } from "@/context/SidebarContext";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  useRoleGuard(["admin"]);
+  const canRender = useRoleGuard(["admin"]);
+  if (!canRender) return null;
   return (
     <SidebarProvider>
       <AppShell sidebar={<AdminSidebar />}>

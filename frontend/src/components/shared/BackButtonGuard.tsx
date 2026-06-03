@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useAuthStore } from "@/store/auth.store";
+import { queryClient } from "@/lib/query-client.config";
+import { useAuth } from "@/hooks/useAuth";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 /**
@@ -11,11 +12,14 @@ import { ConfirmDialog } from "./ConfirmDialog";
  *   1. The navigation is intercepted (guard state restored immediately)
  *   2. A confirmation dialog appears
  *   3. "Stay" → close dialog, stay on page
- *   4. "Leave" → clear auth store, replace history with /login (no back-trace)
+ *   4. "Leave" → full logout (backend cookie + local state) and hard redirect
+ *
+ * Reuses the same logout function as LogoutButton so both paths behave identically.
  *
  * Usage:  <BackButtonGuard />  (one instance per authenticated layout)
  */
 export function BackButtonGuard() {
+  const { logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const guardedRef = useRef(true);
@@ -43,9 +47,10 @@ export function BackButtonGuard() {
 
   const handleConfirm = useCallback(async () => {
     setIsLoggingOut(true);
-    useAuthStore.getState().clearAuth();
+    queryClient.clear();
+    await logout();
     window.location.replace("/login");
-  }, []);
+  }, [logout]);
 
   return (
     <ConfirmDialog
@@ -54,12 +59,12 @@ export function BackButtonGuard() {
       title="Leave the page?"
       message={
         <>
-          <p className="mb-1">
+          <span className="mb-1 block">
             Going back will log you out of your account.
-          </p>
-          <p className="text-muted-foreground text-sm">
+          </span>
+          <span className="text-muted-foreground text-sm">
             You will need to sign in again to continue.
-          </p>
+          </span>
         </>
       }
       confirmLabel="Leave &amp; Logout"

@@ -22,7 +22,8 @@ export default function EducatorLayout({
 }: {
   children: React.ReactNode;
 }) {
-  useRoleGuard(["educator"]);
+  const canRender = useRoleGuard(["educator"]);
+  if (!canRender) return null;
 
   return (
     <MeetingProvider>

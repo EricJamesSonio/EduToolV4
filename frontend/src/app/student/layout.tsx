@@ -22,7 +22,8 @@ export default function StudentLayout({
 }: {
   children: React.ReactNode;
 }) {
-  useRoleGuard(["student"]);
+  const canRender = useRoleGuard(["student"]);
+  if (!canRender) return null;
 
   return (
     <MeetingProvider>

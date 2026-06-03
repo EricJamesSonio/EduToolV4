@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useLayoutEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/store/auth.store";
 import type { Role } from "@/types/auth.types";
 
 /**
@@ -21,23 +21,49 @@ export function useRole() {
  * Redirects to /login if the user's role is not in the allowed list.
  * Also redirects if the user is not yet loaded (after loading completes).
  *
+ * Returns `true` when it is safe to render protected children (authenticated
+ * and authorised).  Return `false` during loading so the layout can avoid
+ * flashing protected content to unauthorised users.
+ *
  * @param allowedRoles  Roles permitted to access the current route
  */
-export function useRoleGuard(allowedRoles: Role[]) {
+export function useRoleGuard(allowedRoles: Role[]): boolean {
   const { user, isLoading } = useAuth();
-  const router = useRouter();
 
-  useEffect(() => {
+  /* Redirect BEFORE browser paints — this ensures the protected page is
+     never visible to unauthorised users or visitors with expired tokens. */
+  useLayoutEffect(() => {
     if (isLoading) return;
 
     if (!user) {
-      router.replace("/login");
+      window.location.replace("/login");
       return;
     }
 
     if (!allowedRoles.includes(user.role)) {
-      // Redirect to their own portal home instead of a generic 403
-      router.replace("/login");
+      window.location.replace("/login");
     }
-  }, [user, isLoading, router, allowedRoles]);
+  }, [user, isLoading, allowedRoles]);
+
+  /* Handle bfcache restore — when user presses back after logout the
+     component is not remounted so the effect above is skipped.  The
+     pageshow event fires even on persisted (cached) restores. */
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      const currentUser = useAuthStore.getState().user;
+      if (!currentUser) {
+        window.location.replace("/login");
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
+  /* Prevent rendering children until we are certain the user is
+     authenticated and has the correct role.                          */
+  if (isLoading) return false;
+  if (!user) return false;
+  if (!allowedRoles.includes(user.role)) return false;
+  return true;
 }
