@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EducatorTable } from "@/components/admin/educator/EducatorTable";
 import { CreateEducatorDialog } from "@/components/admin/educator/CreateEducatorDialog";
+import { BulkCreateEducatorDialog } from "@/components/admin/educator/BulkCreateEducatorDialog";
 import { EducatorCredentialsCard } from "@/components/admin/educator/EducatorCredentialsCard";
 import type { AxiosError } from "axios";
 
@@ -24,6 +25,7 @@ export default function EducatorsPage(): React.JSX.Element {
   const router = useRouter();
   const [search, setSearch]                   = useState("");
   const [createOpen, setCreateOpen]           = useState(false);
+  const [bulkOpen, setBulkOpen]               = useState(false);
   const [resetTarget, setResetTarget]         = useState<Educator | null>(null);
   const [newCredentials, setNewCredentials]   = useState<{
     fullName: string; email: string; educatorCode: string; password: string;
@@ -66,10 +68,16 @@ export default function EducatorsPage(): React.JSX.Element {
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_educators" />
             {hasEmailExtension ? (
-              <Button onClick={() => setCreateOpen(true)} size="sm">
-                <UserPlus className="mr-1.5 h-4 w-4" />
-                New Educator
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setBulkOpen(true)}>
+                  <Users className="mr-1.5 h-4 w-4" />
+                  Bulk Create
+                </Button>
+                <Button onClick={() => setCreateOpen(true)} size="sm">
+                  <UserPlus className="mr-1.5 h-4 w-4" />
+                  New Educator
+                </Button>
+              </div>
             ) : (
               <Button
                 onClick={handleSetupEmail}
@@ -145,6 +153,13 @@ export default function EducatorsPage(): React.JSX.Element {
         <CreateEducatorDialog
           open={createOpen}
           onClose={() => setCreateOpen(false)}
+        />
+      )}
+
+      {bulkOpen && hasEmailExtension && (
+        <BulkCreateEducatorDialog
+          open={bulkOpen}
+          onClose={() => setBulkOpen(false)}
         />
       )}
 

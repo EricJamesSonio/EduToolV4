@@ -62,9 +62,9 @@ export const educatorApi = {
     return res.data.data;
   },
 
-  bulkCreate: async (names: string[]): Promise<BulkCreateEducatorResult[]> => {
+  bulkCreate: async (entries: { fullName: string; id: string }[]): Promise<BulkCreateEducatorResult[]> => {
     const res = await client.post<ApiResponse<BulkCreateEducatorResult[]>>(
-      "/educators/bulk", { names }
+      "/educators/bulk", { entries }
     );
     return res.data.data;
   },
