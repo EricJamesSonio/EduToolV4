@@ -77,6 +77,19 @@ export class EducatorRepository {
     });
   }
 
+  async findEmailsInBatch(emails: string[], orgId: string): Promise<string[]> {
+    const results = await this.db.account.findMany({
+      where: {
+        email: { in: emails },
+        org_id: orgId,
+        role: 'educator',
+        deleted_at: null,
+      },
+      select: { email: true },
+    });
+    return results.map((r) => r.email);
+  }
+
   async updateProfile(
     accountId: string,
     data: { fullName?: string; email?: string; profileImage?: string },

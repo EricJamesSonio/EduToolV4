@@ -10,6 +10,13 @@ export interface CreateEducatorResponse extends Educator {
   plainPassword: string; // show once
 }
 
+export interface BulkCreateEducatorResult {
+  fullName:     string;
+  email:        string;
+  educatorId:   string;
+  plainPassword: string;
+}
+
 export interface UpdateEducatorRequest {
   fullName?:     string;
   email?:        string;
@@ -51,6 +58,13 @@ export const educatorApi = {
   resetPassword: async (id: string): Promise<{ id: string; plainPassword: string }> => {
     const res = await client.post<ApiResponse<{ id: string; plainPassword: string }>>(
       `/educators/${id}/reset-password`
+    );
+    return res.data.data;
+  },
+
+  bulkCreate: async (names: string[]): Promise<BulkCreateEducatorResult[]> => {
+    const res = await client.post<ApiResponse<BulkCreateEducatorResult[]>>(
+      "/educators/bulk", { names }
     );
     return res.data.data;
   },

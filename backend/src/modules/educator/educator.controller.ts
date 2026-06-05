@@ -18,6 +18,7 @@ import {
   UpdateEducatorDto,
   QueryEducatorDto,
   UpdateEducatorStatusDto,
+  BulkCreateEducatorDto,
 } from './dto/educator.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -41,6 +42,21 @@ export class EducatorController {
     @Body() dto: CreateEducatorDto,
   ) {
     return this.educatorService.create(orgId, dto);
+  }
+
+  /**
+   * POST /educators/bulk  @Roles(ADMIN)
+   * Takes an array of names, sanitizes, generates emailNames, builds emails,
+   * checks duplicates, and creates all educator accounts.
+   */
+  @Post('bulk')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async bulkCreate(
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: BulkCreateEducatorDto,
+  ) {
+    return this.educatorService.bulkCreate(orgId, dto.names);
   }
 
   /**

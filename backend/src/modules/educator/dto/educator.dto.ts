@@ -6,6 +6,9 @@ import {
   MinLength,
   MaxLength,
   IsEnum,
+  IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
 } from 'class-validator';
 
 export enum EducatorStatus {
@@ -63,4 +66,16 @@ export class QueryEducatorDto {
   @IsOptional()
   @IsEnum(EducatorStatus)
   status?: EducatorStatus;
+}
+
+// ── POST /educators/bulk ───────────────────────────────────────────────────────
+
+export class BulkCreateEducatorDto {
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  @MinLength(2, { each: true })
+  @MaxLength(150, { each: true })
+  names: string[];
 }

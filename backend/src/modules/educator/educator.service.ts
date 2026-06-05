@@ -95,6 +95,88 @@ export class EducatorService {
     return `${localPart}@${domain}`.toLowerCase();
   }
 
+  // ── POST /educators/bulk ─────────────────────────────────────────────────────
+
+  async bulkCreate(orgId: string, names: string[]) {
+    const sanitized = names.map((n) => this.sanitizeName(n)).filter(Boolean);
+    if (sanitized.length === 0) {
+      throw new BadRequestException('No valid names provided.');
+    }
+
+    // Build emails for all names first
+    const entries: Array<{ fullName: string; emailName: string }> = [];
+    const usedEmailNames = new Set<string>();
+
+    for (const fullName of sanitized) {
+      const emailName = this.generateEmailName(fullName, usedEmailNames);
+      usedEmailNames.add(emailName);
+      entries.push({ fullName, emailName });
+    }
+
+    // Build full emails (this does I/O per call — accept the cost for simplicity)
+    const withEmails = await Promise.all(
+      entries.map(async (e) => ({
+        ...e,
+        email: await this.buildOrgEmail(orgId, e.emailName),
+      })),
+    );
+
+    // Check for existing emails in batch
+    const allEmails = withEmails.map((e) => e.email);
+    const existing = await this.educatorRepository.findEmailsInBatch(allEmails, orgId);
+    const existingSet = new Set(existing);
+
+    if (existingSet.size > 0) {
+      throw new ConflictException(
+        `Emails already exist: ${Array.from(existingSet).join(', ')}. Remove duplicates and retry.`,
+      );
+    }
+
+    // Create all accounts
+    const created: Array<{
+      fullName: string; email: string; educatorId: string; plainPassword: string;
+    }> = [];
+
+    for (const { fullName, email } of withEmails) {
+      const educatorId = generateEducatorId();
+      const plainPassword = generateSystemPassword();
+      const hashedPassword = await hashPassword(plainPassword);
+
+      await this.educatorRepository.create({
+        orgId,
+        email,
+        hashedPassword,
+        fullName,
+        educatorId,
+      });
+
+      created.push({ fullName, email, educatorId, plainPassword });
+    }
+
+    return created;
+  }
+
+  private sanitizeName(name: string): string {
+    return name
+      .replace(/[^a-zA-Z\s]/g, '') // strip symbols and numbers
+      .replace(/\s+/g, ' ')        // collapse whitespace
+      .trim();
+  }
+
+  private generateEmailName(fullName: string, used: Set<string>): string {
+    let candidate = fullName.toLowerCase().replace(/\s+/g, '');
+    if (!candidate) {
+      candidate = 'educator';
+    }
+    let emailName = candidate;
+    let counter = 1;
+    while (used.has(emailName)) {
+      emailName = `${candidate}${counter}`;
+      counter++;
+    }
+    return emailName;
+  }
+
   // ── GET /educators/:id ──────────────────────────────────────────────────────
 
   async findById(id: string, orgId: string) {
