@@ -61,7 +61,7 @@ export function CourseDialog({
 
     if (isEdit) {
       updateMutation.mutate(
-        { id: course!.id, data: { name: values.name, code: values.code || undefined }, schoolYearId, programId },
+        { id: course!.id, data: { name: values.name, code: values.code || undefined }, schoolYearId },
         { onSuccess, onError }
       );
     } else {

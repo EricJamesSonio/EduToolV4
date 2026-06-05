@@ -60,7 +60,10 @@ export function SectionsPanel({
     return true;
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: qKey });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: qKey });
+    queryClient.invalidateQueries({ queryKey: ["admin", "sections"] });
+  };
 
   const createMutation = useMutation({
     mutationFn: (vals: SectionFormValues) =>

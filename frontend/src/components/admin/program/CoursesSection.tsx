@@ -36,7 +36,7 @@ export function CoursesSection({
 
   const handleDelete = () => {
     if (!deleteTarget) return;
-    deleteMutation.mutate({ id: deleteTarget.id, schoolYearId, programId: program.id }, {
+    deleteMutation.mutate({ id: deleteTarget.id, schoolYearId }, {
       onSuccess: () => { toast.success("Course deleted."); setDeleteTarget(null); },
       onError: (err) => {
         const axiosErr = err as AxiosError<{ message: string }>;

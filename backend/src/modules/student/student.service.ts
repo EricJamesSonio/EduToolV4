@@ -79,7 +79,13 @@ export class StudentService {
       throw new BadRequestException('Email name must not include an email extension.');
     }
 
-    return `${localPart}${extension.startsWith('@') ? extension : `@${extension}`}`.toLowerCase();
+    const base = extension.replace(/^@/, '').replace(/\.(student|educator)\./g, '.').trim();
+    const dotIdx = base.indexOf('.');
+    const domain = dotIdx >= 0
+      ? `${base.slice(0, dotIdx)}.student${base.slice(dotIdx)}`
+      : `student.${base}`;
+
+    return `${localPart}@${domain}`.toLowerCase();
   }
 
   async create(orgId: string, dto: CreateStudentDto) {

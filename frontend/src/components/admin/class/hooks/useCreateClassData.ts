@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { educatorApi }          from "@/api/admin/educator.api";
 import { subjectApi }          from "@/api/admin/subject.api";
-import { educatorApi }         from "@/api/admin/educator.api";
 import { programApi }          from "@/api/admin/program.api";
 import { courseApi }           from "@/api/admin/course.api";
 import { strandApi }           from "@/api/admin/strand.api";
@@ -13,6 +13,7 @@ import { semesterTemplateApi } from "@/api/admin/semester-template.api";
 import type { Level }          from "@/types/admin/level.types";
 import type { Subject }        from "@/types/admin/subject.types";
 import { toArray }             from "@/utils/classes.utils";
+import { queryKeys }           from "@/hooks/queryKeys.factory";
 
 export function useCreateClassData(
   schoolYearId: string | null,
@@ -22,6 +23,12 @@ export function useCreateClassData(
   selectedLevelId: string,
   isEnabled: boolean,
 ) {
+  const { data: educatorsRaw } = useQuery({
+    queryKey: queryKeys.admin.educators.list({}),
+    queryFn:  () => educatorApi.getAll(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
   const { data: programsRaw } = useQuery({
     queryKey: ["admin", "programs", schoolYearId],
     queryFn:  () => programApi.getAll(schoolYearId!),
@@ -55,8 +62,19 @@ export function useCreateClassData(
   const levels = useMemo<Level[]>(() => {
     const all = toArray<Level>(levelsRaw);
     if (!selectedProgramId) return [];
-    return all.filter((l) => l.program_id === selectedProgramId);
-  }, [levelsRaw, selectedProgramId]);
+
+    let result = all.filter((l) => l.program_id === selectedProgramId);
+
+    if (hasTrack && selectedTrackId && isCourseTrack) {
+      result = result.filter((l) => !l.course_id || l.course_id === selectedTrackId);
+    } else if (hasTrack && selectedTrackId && !isCourseTrack) {
+      result = result.filter((l) => !l.strand_id || l.strand_id === selectedTrackId);
+    } else if (hasTrack && !selectedTrackId) {
+      result = result.filter((l) => isCourseTrack ? !l.course_id : !l.strand_id);
+    }
+
+    return result;
+  }, [levelsRaw, selectedProgramId, hasTrack, isCourseTrack, selectedTrackId]);
 
   const { data: sectionsRaw } = useQuery({
     queryKey: ["admin", "sections", schoolYearId, selectedLevelId],
@@ -79,12 +97,6 @@ export function useCreateClassData(
     enabled: !!selectedLevelId,
   });
   const subjects = toArray<Subject>(subjectsRaw);
-
-  const { data: educatorsRaw } = useQuery({
-    queryKey: ["admin", "educators", "all"],
-    queryFn:  () => educatorApi.getAll(),
-  });
-  const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
   const { data: templateAssignments = [] } = useQuery({
     queryKey: ["admin", "semester-template-assignments", schoolYearId],
@@ -116,10 +128,10 @@ export function useCreateClassData(
     levels,
     sections,
     subjects,
-    educators,
     templateAssignments,
     assignedProgramIds,
     programMissingTemplate,
     semesters,
+    educators,
   };
 }

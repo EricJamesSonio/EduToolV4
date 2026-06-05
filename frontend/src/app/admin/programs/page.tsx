@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { programApi } from "@/api/admin/program.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
+import { usePrograms } from "@/hooks/admin/usePrograms";
 import type { Program } from "@/types/admin/program.types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
@@ -45,18 +46,14 @@ export default function ProgramsPage(): React.JSX.Element {
     setSelectedSchoolYearId(active?.id ?? schoolYears[0].id);
   }, [schoolYears, searchParams]);
 
-  const { data: programs, isLoading: programsLoading } = useQuery({
-    queryKey: ["admin", "programs", selectedSchoolYearId],
-    queryFn: () => selectedSchoolYearId ? programApi.getAll(selectedSchoolYearId) : Promise.resolve([]),
-    enabled: !!selectedSchoolYearId,
-  });
+  const { data: programs, isLoading: programsLoading } = usePrograms(selectedSchoolYearId ?? undefined);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => programApi.delete(id),
     onSuccess: () => {
       toast.success("Program deleted.");
       if (selectedSchoolYearId) {
-        queryClient.invalidateQueries({ queryKey: ["admin", "programs", selectedSchoolYearId] });
+        queryClient.invalidateQueries({ queryKey: ["admin", "programs", "list", { schoolYearId: selectedSchoolYearId }] });
       }
       setDeleteTarget(null);
     },

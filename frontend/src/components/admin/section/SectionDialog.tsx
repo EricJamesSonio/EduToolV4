@@ -106,10 +106,24 @@ export function SectionDialog({
     : false;
 
   const filteredLevels = useMemo(() => {
-    return selectedProgramId
-      ? levels.filter((l) => l.program_id === selectedProgramId)
-      : [];
-  }, [levels, selectedProgramId]);
+    if (!selectedProgramId) return [];
+
+    let result = levels.filter((l) => l.program_id === selectedProgramId);
+
+    if (needsSubGroup) {
+      if (selectedProgram?.type === "college") {
+        result = selectedCourseId
+          ? result.filter((l) => !l.course_id || l.course_id === selectedCourseId)
+          : result.filter((l) => !l.course_id);
+      } else if (selectedProgram?.type === "shs") {
+        result = selectedStrandId
+          ? result.filter((l) => !l.strand_id || l.strand_id === selectedStrandId)
+          : result.filter((l) => !l.strand_id);
+      }
+    }
+
+    return result;
+  }, [levels, selectedProgramId, needsSubGroup, selectedProgram?.type, selectedCourseId, selectedStrandId]);
 
   const selectedLevel = filteredLevels.find((l) => l.id === selectedLevelId);
 

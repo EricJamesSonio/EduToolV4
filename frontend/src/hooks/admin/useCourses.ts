@@ -9,6 +9,11 @@ import type {
   GetCoursesQuery,
 } from "@/api/admin/course.api";
 import { toast } from "sonner";
+import type { QueryClient } from "@tanstack/react-query";
+
+const refetchProgramQueries = (queryClient: QueryClient) => {
+  queryClient.refetchQueries({ queryKey: queryKeys.admin.programs.all, type: 'all' }).catch(() => {});
+};
 
 // Fetch multiple courses
 export const useCourses = (query: GetCoursesQuery): UseQueryResult<Course[], Error> => {
@@ -41,7 +46,8 @@ export const useCreateCourse = (): UseMutationResult<Course, Error, CreateCourse
     (data) => courseApi.create(data),
     {
       invalidateKeys: [queryKeys.admin.courses.list()],
-      onSuccess: (newCourse) => {
+      onSuccess: (newCourse, variables) => {
+        refetchProgramQueries(queryClient);
         queryClient.setQueryData(queryKeys.admin.courses.detail(newCourse.id), newCourse);
         toast.success("Course created successfully");
       },
@@ -56,11 +62,11 @@ export const useCreateCourse = (): UseMutationResult<Course, Error, CreateCourse
 export const useUpdateCourse = (): UseMutationResult<
   Course,
   Error,
-  { id: string; data: UpdateCourseRequest }
+  { id: string; data: UpdateCourseRequest; schoolYearId: string }
 > => {
   const queryClient = useQueryClient();
 
-  return useMutationWithInvalidation<Course, Error, { id: string; data: UpdateCourseRequest }>(
+  return useMutationWithInvalidation<Course, Error, { id: string; data: UpdateCourseRequest; schoolYearId: string }>(
     ({ id, data }) => courseApi.update(id, data),
     {
       invalidateKeys: [queryKeys.admin.courses.list()],
@@ -81,7 +87,8 @@ export const useUpdateCourse = (): UseMutationResult<
         }
         toast.error("Failed to update course");
       },
-      onSuccess: () => {
+      onSuccess: (data, variables) => {
+        refetchProgramQueries(queryClient);
         toast.success("Course updated successfully");
       },
     },
@@ -89,14 +96,14 @@ export const useUpdateCourse = (): UseMutationResult<
 };
 
 // Delete course
-export const useDeleteCourse = (): UseMutationResult<void, Error, string> => {
+export const useDeleteCourse = (): UseMutationResult<void, Error, { id: string; schoolYearId: string }> => {
   const queryClient = useQueryClient();
 
-  return useMutationWithInvalidation<void, Error, string>(
-    (id) => courseApi.remove(id),
+  return useMutationWithInvalidation<void, Error, { id: string; schoolYearId: string }>(
+    ({ id }) => courseApi.remove(id),
     {
       invalidateKeys: [queryKeys.admin.courses.list()],
-      onMutate: async (id) => {
+      onMutate: async ({ id }) => {
         await queryClient.cancelQueries({ queryKey: queryKeys.admin.courses.detail(id) });
 
         const previousCourse = queryClient.getQueryData(queryKeys.admin.courses.detail(id));
@@ -107,11 +114,12 @@ export const useDeleteCourse = (): UseMutationResult<void, Error, string> => {
       },
       onError: (err, variables, context: any) => {
         if (context?.previousCourse) {
-          queryClient.setQueryData(queryKeys.admin.courses.detail(variables), context.previousCourse);
+          queryClient.setQueryData(queryKeys.admin.courses.detail(variables.id), context.previousCourse);
         }
         toast.error("Failed to delete course");
       },
-      onSuccess: () => {
+      onSuccess: (data, variables) => {
+        refetchProgramQueries(queryClient);
         toast.success("Course deleted successfully");
       },
     },

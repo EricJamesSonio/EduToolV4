@@ -68,8 +68,8 @@ export function CreateClassDialog({
   const selectedEducatorId = formValues.educatorId;
 
   const {
-    programs, tracks, hasTrack, isCourseTrack, levels, sections, subjects, educators,
-    programMissingTemplate, semesters,
+    programs, tracks, hasTrack, isCourseTrack, levels, sections, subjects,
+    programMissingTemplate, semesters, educators,
   } = useCreateClassData(
     schoolYearId,
     selectedProgramId,
@@ -363,9 +363,15 @@ export function CreateClassDialog({
                   </span>
                 </SelectTrigger>
                 <SelectContent>
-                  {educators.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>{e.fullName}</SelectItem>
-                  ))}
+                  {educators.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No educators available
+                    </div>
+                  ) : (
+                    educators.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>{e.fullName}</SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

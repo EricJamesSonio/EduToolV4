@@ -74,9 +74,9 @@ export const useCreateEducator =
     >(
       (data) => educatorApi.create(data),
       {
-        // 🔥 FIX: invalidate ALL educator lists properly
+        // 🔥 FIX: invalidate ALL educator caches (list, detail, all variants)
         invalidateKeys: [
-          queryKeys.admin.educators.list({}),
+          queryKeys.admin.educators.all,
         ],
 
         onSuccess: (newEducator) => {
@@ -124,7 +124,7 @@ export const useUpdateEducator =
         educatorApi.update(id, data),
       {
         invalidateKeys: [
-          queryKeys.admin.educators.list({}),
+          queryKeys.admin.educators.all,
         ],
 
         onMutate: async ({ id, data }) => {
@@ -195,7 +195,7 @@ export const useDeleteEducator =
       (id) => educatorApi.delete(id),
       {
         invalidateKeys: [
-          queryKeys.admin.educators.list({}),
+          queryKeys.admin.educators.all,
         ],
 
         onMutate: async (id) => {

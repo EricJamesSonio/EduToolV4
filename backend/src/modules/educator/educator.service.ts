@@ -86,7 +86,13 @@ export class EducatorService {
       throw new BadRequestException('Email name must not include an email extension.');
     }
 
-    return `${localPart}${extension.startsWith('@') ? extension : `@${extension}`}`.toLowerCase();
+    const base = extension.replace(/^@/, '').replace(/\.(student|educator)\./g, '.').trim();
+    const dotIdx = base.indexOf('.');
+    const domain = dotIdx >= 0
+      ? `${base.slice(0, dotIdx)}.educator${base.slice(dotIdx)}`
+      : `educator.${base}`;
+
+    return `${localPart}@${domain}`.toLowerCase();
   }
 
   // ── GET /educators/:id ──────────────────────────────────────────────────────

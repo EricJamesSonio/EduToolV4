@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 
 import { useClassFilters } from "@/hooks/admin/useClassFilters";
 import { toArray } from "@/utils/classes.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 
 import { ClassesFilterBar } from "@/components/admin/class/ClassesFilterBar";
 import { ClassesTable } from "@/components/admin/class/ClassesTable";
@@ -88,8 +89,9 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
   });
 
   const { data: educatorsRaw } = useQuery({
-    queryKey: ["admin", "educators", "all"],
+    queryKey: queryKeys.admin.educators.list(),
     queryFn: () => educatorApi.getAll(),
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: semestersRaw } = useQuery({
