@@ -24,6 +24,7 @@ import {
   UpdateStudentStatusDto,
   QueryStudentDto,
   AddEnrollmentDto,
+  BulkCreateStudentDto,
 } from './dto/student.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -42,6 +43,21 @@ export class StudentController {
     @Body() dto: CreateStudentDto,
   ) {
     return this.studentService.create(orgId, dto);
+  }
+
+  /**
+   * POST /students/bulk  @Roles(ADMIN)
+   * Takes an array of names, sanitizes, generates emailNames and student IDs,
+   * builds emails, checks duplicates, and creates all student accounts.
+   */
+  @Post('bulk')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async bulkCreate(
+    @CurrentUser('org_id') orgId: string,
+    @Body() dto: BulkCreateStudentDto,
+  ) {
+    return this.studentService.bulkCreate(orgId, dto.entries);
   }
 
   @Get('credentials-csv')

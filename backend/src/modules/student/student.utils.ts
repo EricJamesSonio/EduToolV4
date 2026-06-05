@@ -13,6 +13,18 @@ export function generateSystemPassword(): string {
 }
 
 /**
+ * Generates a system student ID.
+ * Format: STU-XXXXXXXX (8 random alphanumeric chars)
+ */
+export function generateStudentId(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const random = Array.from({ length: 8 }, () =>
+    chars.charAt(Math.floor(Math.random() * chars.length)),
+  ).join('');
+  return `STU-${random}`;
+}
+
+/**
  * RFC 4180-compliant CSV parser.
  * Handles quoted fields, embedded commas, and escaped quotes ("").
  * Strips BOM if present (common in Excel exports).

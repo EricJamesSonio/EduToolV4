@@ -56,7 +56,7 @@ export class EducatorController {
     @CurrentUser('org_id') orgId: string,
     @Body() dto: BulkCreateEducatorDto,
   ) {
-    return this.educatorService.bulkCreate(orgId, dto.names);
+    return this.educatorService.bulkCreate(orgId, dto.entries);
   }
 
   /**

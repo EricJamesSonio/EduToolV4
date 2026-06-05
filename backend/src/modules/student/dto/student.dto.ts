@@ -6,8 +6,12 @@ import {
   IsUUID,
   MinLength,
   MaxLength,
+  IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
+  ValidateNested,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export enum StudentStatus {
   ACTIVE = 'active',
@@ -124,4 +128,27 @@ export class QueryStudentDto {
 export class AddEnrollmentDto {
   @IsUUID()
   classId!: string;
+}
+
+// ── POST /students/bulk ────────────────────────────────────────────────────────
+
+export class BulkCreateStudentDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BulkStudentEntry)
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  entries: BulkStudentEntry[];
+}
+
+export class BulkStudentEntry {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(150)
+  fullName: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  id: string;
 }

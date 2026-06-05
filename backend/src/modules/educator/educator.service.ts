@@ -97,25 +97,26 @@ export class EducatorService {
 
   // ── POST /educators/bulk ─────────────────────────────────────────────────────
 
-  async bulkCreate(orgId: string, names: string[]) {
-    const sanitized = names.map((n) => this.sanitizeName(n)).filter(Boolean);
+  async bulkCreate(orgId: string, entries: Array<{ fullName: string; id: string }>) {
+    const sanitized = entries.map((e) => ({
+      fullName: this.sanitizeName(e.fullName),
+      id: e.id.trim(),
+    })).filter((e) => e.fullName.length >= 2 && e.id.length >= 1);
+
     if (sanitized.length === 0) {
-      throw new BadRequestException('No valid names provided.');
+      throw new BadRequestException('No valid entries provided.');
     }
 
-    // Build emails for all names first
-    const entries: Array<{ fullName: string; emailName: string }> = [];
+    // Build emails for all entries
     const usedEmailNames = new Set<string>();
-
-    for (const fullName of sanitized) {
-      const emailName = this.generateEmailName(fullName, usedEmailNames);
+    const withEmailName = sanitized.map((e) => {
+      const emailName = this.generateEmailName(e.fullName, usedEmailNames);
       usedEmailNames.add(emailName);
-      entries.push({ fullName, emailName });
-    }
+      return { ...e, emailName };
+    });
 
-    // Build full emails (this does I/O per call — accept the cost for simplicity)
     const withEmails = await Promise.all(
-      entries.map(async (e) => ({
+      withEmailName.map(async (e) => ({
         ...e,
         email: await this.buildOrgEmail(orgId, e.emailName),
       })),
@@ -124,11 +125,9 @@ export class EducatorService {
     // Check for existing emails in batch
     const allEmails = withEmails.map((e) => e.email);
     const existing = await this.educatorRepository.findEmailsInBatch(allEmails, orgId);
-    const existingSet = new Set(existing);
-
-    if (existingSet.size > 0) {
+    if (existing.length > 0) {
       throw new ConflictException(
-        `Emails already exist: ${Array.from(existingSet).join(', ')}. Remove duplicates and retry.`,
+        `Emails already exist: ${existing.join(', ')}. Remove duplicates and retry.`,
       );
     }
 
@@ -137,8 +136,7 @@ export class EducatorService {
       fullName: string; email: string; educatorId: string; plainPassword: string;
     }> = [];
 
-    for (const { fullName, email } of withEmails) {
-      const educatorId = generateEducatorId();
+    for (const { fullName, email, id } of withEmails) {
       const plainPassword = generateSystemPassword();
       const hashedPassword = await hashPassword(plainPassword);
 
@@ -147,10 +145,10 @@ export class EducatorService {
         email,
         hashedPassword,
         fullName,
-        educatorId,
+        educatorId: id,
       });
 
-      created.push({ fullName, email, educatorId, plainPassword });
+      created.push({ fullName, email, educatorId: id, plainPassword });
     }
 
     return created;

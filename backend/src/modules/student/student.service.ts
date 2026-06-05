@@ -13,6 +13,7 @@ import {
   UpdateStudentStatusDto,
   QueryStudentDto,
   StudentStatus,
+  BulkCreateStudentDto,
 } from './dto/student.dto';
 import {
   generateSystemPassword,
@@ -86,6 +87,82 @@ export class StudentService {
       : `student.${base}`;
 
     return `${localPart}@${domain}`.toLowerCase();
+  }
+
+  // ── POST /students/bulk ──────────────────────────────────────────────────────
+
+  async bulkCreate(orgId: string, entries: Array<{ fullName: string; id: string }>) {
+    const sanitized = entries.map((e) => ({
+      fullName: this.sanitizeName(e.fullName),
+      id: e.id.trim(),
+    })).filter((e) => e.fullName.length >= 2 && e.id.length >= 1);
+
+    if (sanitized.length === 0) {
+      throw new BadRequestException('No valid entries provided.');
+    }
+
+    const usedEmailNames = new Set<string>();
+    const withEmailName = sanitized.map((e) => {
+      const emailName = this.generateEmailName(e.fullName, usedEmailNames);
+      usedEmailNames.add(emailName);
+      return { ...e, emailName };
+    });
+
+    const withEmails = await Promise.all(
+      withEmailName.map(async (e) => ({
+        ...e,
+        email: await this.buildOrgEmail(orgId, e.emailName),
+      })),
+    );
+
+    const allEmails = withEmails.map((e) => e.email);
+    const existing = await this.studentRepository.findEmailsInBatch(allEmails, orgId);
+    if (existing.length > 0) {
+      throw new ConflictException(
+        `Emails already exist: ${existing.join(', ')}. Remove duplicates and retry.`,
+      );
+    }
+
+    const created: Array<{
+      fullName: string; email: string; studentId: string; plainPassword: string;
+    }> = [];
+
+    for (const { fullName, email, id } of withEmails) {
+      const plainPassword = generateSystemPassword();
+      const hashedPassword = await hashPassword(plainPassword);
+
+      await this.studentRepository.create({
+        orgId,
+        email,
+        hashedPassword,
+        status: StudentStatus.PENDING,
+        fullName,
+        studentId: id,
+      });
+
+      created.push({ fullName, email, studentId: id, plainPassword });
+    }
+
+    return created;
+  }
+
+  private sanitizeName(name: string): string {
+    return name
+      .replace(/[^a-zA-Z\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private generateEmailName(fullName: string, used: Set<string>): string {
+    let candidate = fullName.toLowerCase().replace(/\s+/g, '');
+    if (!candidate) candidate = 'student';
+    let emailName = candidate;
+    let counter = 1;
+    while (used.has(emailName)) {
+      emailName = `${candidate}${counter}`;
+      counter++;
+    }
+    return emailName;
   }
 
   async create(orgId: string, dto: CreateStudentDto) {

@@ -9,7 +9,9 @@ import {
   IsArray,
   ArrayMinSize,
   ArrayMaxSize,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export enum EducatorStatus {
   ACTIVE = 'active',
@@ -72,10 +74,21 @@ export class QueryEducatorDto {
 
 export class BulkCreateEducatorDto {
   @IsArray()
-  @IsString({ each: true })
+  @ValidateNested({ each: true })
+  @Type(() => BulkEducatorEntry)
   @ArrayMinSize(1)
   @ArrayMaxSize(200)
-  @MinLength(2, { each: true })
-  @MaxLength(150, { each: true })
-  names: string[];
+  entries: BulkEducatorEntry[];
+}
+
+export class BulkEducatorEntry {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(150)
+  fullName: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  id: string;
 }
