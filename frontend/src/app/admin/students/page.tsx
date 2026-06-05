@@ -21,12 +21,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { StudentFilterBar }    from "@/components/admin/student/StudentFilterBar";
 import { StudentTable }        from "@/components/admin/student/StudentTable";
 import { CreateStudentDialog } from "@/components/admin/student/CreateStudentDialog";
+import { BulkCreateStudentDialog } from "@/components/admin/student/BulkCreateStudentDialog";
 import { useOrganization } from "@/hooks/admin/useOrganization";
 
 function StudentsPageInner(): React.JSX.Element {
   const router       = useRouter();
   const queryClient  = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const [bulkOpen, setBulkOpen]     = useState(false);
   const [filters, setFilters]       = useState<GetStudentsQuery>({});
 
   const { data: org, isLoading: orgLoading } = useOrganization();
@@ -113,6 +115,10 @@ function StudentsPageInner(): React.JSX.Element {
             >
               Import CSV
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setBulkOpen(true)}>
+              <Users className="mr-1.5 h-4 w-4" />
+              Bulk Create
+            </Button>
 
             {/* Email Extension Guard */}
             {!hasEmailExtension ? (
@@ -189,6 +195,13 @@ function StudentsPageInner(): React.JSX.Element {
           onCreated={() => {
             queryClient.invalidateQueries({ queryKey: ["admin", "students"] });
           }}
+        />
+      )}
+
+      {bulkOpen && hasEmailExtension && (
+        <BulkCreateStudentDialog
+          open={bulkOpen}
+          onClose={() => setBulkOpen(false)}
         />
       )}
     </div>
