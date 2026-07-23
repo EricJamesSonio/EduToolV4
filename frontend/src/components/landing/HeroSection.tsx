@@ -14,11 +14,13 @@ export function HeroSection() {
   return (
     <section
       id="home"
-      className="page-container min-h-screen flex items-start pt-20 md:pt-28 lg:pt-32"
+      className="page-container relative min-h-screen flex items-start pt-20 md:pt-28 lg:pt-32"
     >
-      {/* Decorative blobs */}
-      <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] bg-accent/5 rounded-full blur-3xl pointer-events-none"></div>
+      {/* Decorative blobs (clipped to prevent horizontal overflow) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] bg-accent/5 rounded-full blur-3xl"></div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-16 items-center relative">
         {/* LEFT SIDE */}
@@ -28,12 +30,12 @@ export function HeroSection() {
           className={`space-y-10 text-center lg:text-left ${leftSideInView ? "animate-fade-in-up" : ""}`}
         >
           <div className="space-y-6">
-            <h1 className="text-5xl md:text-6xl">
+            <h1 className="cursor-default select-none text-5xl md:text-6xl">
               The All-in-One{" "}
               <span className="gradient-text">School Management</span> Platform
             </h1>
 
-            <p className="text-muted-foreground max-w-xl mx-auto lg:mx-0">
+            <p className="cursor-default select-none text-muted-foreground max-w-xl mx-auto lg:mx-0">
               Manage schools, students, teachers, grading, and assessments — all
               from one powerful and simple dashboard.
             </p>
@@ -70,7 +72,7 @@ export function HeroSection() {
               "Automated grading",
               "Video meetings",
             ].map((item) => (
-              <span key={item} className="flex items-center gap-2">
+              <span key={item} className="cursor-default select-none flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary/50"></span>
                 {item}
               </span>
