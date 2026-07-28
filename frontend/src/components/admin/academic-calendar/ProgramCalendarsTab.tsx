@@ -24,7 +24,7 @@ export function ProgramCalendarsTab({ schoolYearId, schoolYearStart, schoolYearE
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <CalendarDays className="h-10 w-10 text-muted-foreground/30 mb-3" />
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground not-interactive">
           Select a school year to manage program calendars.
         </p>
       </div>
@@ -43,7 +43,7 @@ export function ProgramCalendarsTab({ schoolYearId, schoolYearStart, schoolYearE
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <BookOpen className="h-10 w-10 text-muted-foreground/30 mb-3" />
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground not-interactive">
           No programs found for this school year.
         </p>
       </div>
@@ -52,7 +52,7 @@ export function ProgramCalendarsTab({ schoolYearId, schoolYearStart, schoolYearE
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground not-interactive">
         Define break periods per program — terms are auto-generated and stored for use in semester settings.
       </p>
       {programs.map((program) => (

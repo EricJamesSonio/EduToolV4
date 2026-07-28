@@ -105,7 +105,7 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
                   tabIndex={lockStart ? -1 : undefined}
                 />
                 {lockStart && (
-                  <p className="text-[10px] text-muted-foreground/60">Locked to calendar start</p>
+                  <p className="text-[10px] text-muted-foreground/60 not-interactive">Locked to calendar start</p>
                 )}
               </div>
               <div className="space-y-1">
@@ -119,7 +119,7 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
                   tabIndex={lockEnd ? -1 : undefined}
                 />
                 {lockEnd && (
-                  <p className="text-[10px] text-muted-foreground/60">Locked to calendar end</p>
+                  <p className="text-[10px] text-muted-foreground/60 not-interactive">Locked to calendar end</p>
                 )}
               </div>
             </div>
