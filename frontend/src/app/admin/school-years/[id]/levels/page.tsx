@@ -135,7 +135,7 @@ export default function SchoolYearLevelsPage({
             <ChevronLeft className="h-4 w-4" />
           </Link>
           <div>
-            <h1 className="text-2xl font-semibold">Levels</h1>
+            <h1 className="text-2xl font-semibold not-interactive">Levels</h1>
             {schoolYear && (
               <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-2">
                 {schoolYear.name}
@@ -150,7 +150,7 @@ export default function SchoolYearLevelsPage({
       {isEnded && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          This school year has ended. Levels are read-only.
+          <span className="not-interactive">This school year has ended. Levels are read-only.</span>
         </div>
       )}
 
