@@ -46,7 +46,7 @@ export default function ProgramDetailPage({
   if (!program) {
     return (
       <div className="rounded-lg border bg-card px-6 py-12 text-center">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground not-interactive">
           Program not found.
         </p>
       </div>
@@ -77,12 +77,12 @@ export default function ProgramDetailPage({
       {/* INFO CARD */}
       <div className="rounded-lg border bg-card divide-y divide-border">
         <div className="flex items-center gap-6 px-6 py-4">
-          <span className="w-28 text-sm text-muted-foreground shrink-0">Name</span>
+          <span className="w-28 text-sm text-muted-foreground shrink-0 not-interactive">Name</span>
           <span className="text-sm font-medium">{program.name}</span>
         </div>
 
         <div className="flex items-center gap-6 px-6 py-4">
-          <span className="w-28 text-sm text-muted-foreground shrink-0">Type</span>
+          <span className="w-28 text-sm text-muted-foreground shrink-0 not-interactive">Type</span>
           <Badge variant="outline" className="border-border text-muted-foreground">
             {PROGRAM_TYPE_LABELS[program.type] ?? program.type}
           </Badge>
@@ -90,7 +90,7 @@ export default function ProgramDetailPage({
 
         {showCourses && (
           <div className="flex items-center gap-6 px-6 py-4">
-            <span className="w-28 text-sm text-muted-foreground shrink-0">Courses</span>
+            <span className="w-28 text-sm text-muted-foreground shrink-0 not-interactive">Courses</span>
             <span className="text-sm text-foreground">
               {program.courses?.length ?? 0}
             </span>
@@ -99,7 +99,7 @@ export default function ProgramDetailPage({
 
         {showStrands && (
           <div className="flex items-center gap-6 px-6 py-4">
-            <span className="w-28 text-sm text-muted-foreground shrink-0">Strands</span>
+            <span className="w-28 text-sm text-muted-foreground shrink-0 not-interactive">Strands</span>
             <span className="text-sm text-foreground">
               {program.strands?.length ?? 0}
             </span>
