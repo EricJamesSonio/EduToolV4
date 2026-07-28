@@ -42,6 +42,18 @@ export interface SeedOrganizationRequest {
 }
 
 export const organizationApi = {
+  uploadOrgLogo: async (file: File): Promise<{ logoUrl: string }> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await client.post<{ success: boolean; data: { logoUrl: string } }>(
+      "/uploads/organization-logo",
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
+    return res.data.data;
+  },
+
+
   getOrg: async (): Promise<Organization | null> => {
     try {
       const res = await client.get<{ success: boolean; data: Organization }>("/organization")
