@@ -3,7 +3,7 @@ import "../styles/globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "EduTool",
+  title: "Relief-ED",
   description: "Academic management platform",
 };
 
