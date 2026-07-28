@@ -27,7 +27,7 @@ export function EnrollmentTab({ schoolYearId, isEnded }: Props) {
 
       {/* Summary cards */}
       <div>
-        <h2 className="text-sm font-semibold mb-3">Enrollment Summary</h2>
+        <h2 className="text-sm font-semibold mb-3 not-interactive">Enrollment Summary</h2>
         {isLoading ? (
           <div className="grid grid-cols-3 gap-3">
             {[1, 2, 3].map((i) => (
@@ -37,23 +37,23 @@ export function EnrollmentTab({ schoolYearId, isEnded }: Props) {
         ) : (
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
-              <p className="text-xs text-muted-foreground">Total Students</p>
-              <p className="text-2xl font-semibold">{enrollments.length}</p>
-              <p className="text-xs text-muted-foreground">in this school year</p>
+              <p className="text-xs text-muted-foreground not-interactive">Total Students</p>
+              <p className="text-2xl font-semibold not-interactive">{enrollments.length}</p>
+              <p className="text-xs text-muted-foreground not-interactive">in this school year</p>
             </div>
             <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
-              <p className="text-xs text-muted-foreground">Active</p>
-              <p className="text-2xl font-semibold text-green-600 dark:text-green-400">
+              <p className="text-xs text-muted-foreground not-interactive">Active</p>
+              <p className="text-2xl font-semibold text-green-600 dark:text-green-400 not-interactive">
                 {activeCount}
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground not-interactive">
                 {pendingCount > 0 ? `${pendingCount} pending` : "no pending"}
               </p>
             </div>
             <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
-              <p className="text-xs text-muted-foreground">Program Enrollments</p>
-              <p className="text-2xl font-semibold">{totalProgEnrollments}</p>
-              <p className="text-xs text-muted-foreground">across all programs</p>
+              <p className="text-xs text-muted-foreground not-interactive">Program Enrollments</p>
+              <p className="text-2xl font-semibold not-interactive">{totalProgEnrollments}</p>
+              <p className="text-xs text-muted-foreground not-interactive">across all programs</p>
             </div>
           </div>
         )}
@@ -65,10 +65,10 @@ export function EnrollmentTab({ schoolYearId, isEnded }: Props) {
           <BookOpen className="h-8 w-8" />
           <Users className="h-8 w-8" />
         </div>
-        <p className="text-sm font-medium text-muted-foreground">
+        <p className="text-sm font-medium text-muted-foreground not-interactive">
           Enroll students from the Programs tab
         </p>
-        <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+        <p className="text-xs text-muted-foreground max-w-sm mx-auto not-interactive">
           Navigate to a program, then drill down to a level or course to view
           and enroll students directly into their academic scope.
         </p>

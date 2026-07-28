@@ -18,8 +18,8 @@ function ToggleRow({ label, description, checked, disabled, onChange }: ToggleRo
   return (
     <div className="flex items-start justify-between gap-4 py-3">
       <div className="space-y-0.5">
-        <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-sm font-medium not-interactive">{label}</p>
+        <p className="text-xs text-muted-foreground not-interactive">{description}</p>
       </div>
       <button
         type="button"
@@ -68,7 +68,7 @@ export function OrgEnrollmentSettingCard() {
     <div className="rounded-lg border bg-card">
       <div className="flex items-center gap-2 px-5 py-4 border-b">
         <Settings className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-semibold">Enrollment Settings</span>
+        <span className="text-sm font-semibold not-interactive">Enrollment Settings</span>
       </div>
 
       <div className="px-5 divide-y">
