@@ -61,10 +61,10 @@ export function TemplateLibrary({
     return (
       <div className="rounded-xl border border-dashed bg-card px-6 py-16 text-center">
         <Layers className="h-10 w-10 text-muted-foreground/25 mx-auto mb-3" />
-        <p className="text-sm font-medium text-muted-foreground">
+        <p className="text-sm font-medium text-muted-foreground not-interactive">
           No templates yet
         </p>
-        <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+        <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto not-interactive">
           Create your first semester template to define reusable semester and
           term structures for each program type.
         </p>
@@ -93,7 +93,7 @@ export function TemplateLibrary({
             <div className="flex items-center gap-2">
               <Badge
                 variant="outline"
-                className={cn("text-xs border px-2 py-0.5", typeColor)}
+                className={cn("text-xs border px-2 py-0.5 not-interactive", typeColor)}
               >
                 {PROGRAM_TYPE_LABELS[type as ProgramType] ?? type}
               </Badge>
