@@ -3,6 +3,12 @@
 ───────────────────────────────────────── */
 @layer utilities {
 
+  /* ── Display-only text (prevents text cursor + selection) ── */
+  .not-interactive {
+    cursor: default;
+    user-select: none;
+  }
+
   /* ── Shadows using design token ── */
   .shadow-xs {
     box-shadow: var(--shadow-xs);
