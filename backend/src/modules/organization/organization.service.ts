@@ -53,6 +53,7 @@ async create(adminId: string, dto: CreateOrganizationDto) {
       id: org.id,
       name: org.name,
       description: org.description,
+      logoUrl: org.logo_url ?? null,
       emailExtension: org.email_extension ?? null,
     }
   }

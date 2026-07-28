@@ -25,7 +25,7 @@ export class AnalyticsController {
 
   @Get('overview')
   async getOverview(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query('schoolYearId') schoolYearId?: string,
   ) {
     return this.analyticsService.getOverview(orgId, schoolYearId);
@@ -35,7 +35,7 @@ export class AnalyticsController {
 
   @Get('enrollment')
   async getEnrollment(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
   ) {
     return this.analyticsService.getEnrollmentBreakdown(orgId);
   }
@@ -44,7 +44,7 @@ export class AnalyticsController {
 
   @Get('grades')
   async getGrades(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query() query: GradeAnalyticsQueryDto,
     @Query('schoolYearId') schoolYearId?: string,
   ) {
@@ -55,7 +55,7 @@ export class AnalyticsController {
 
   @Get('educators')
   async getEducators(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query('schoolYearId') schoolYearId?: string,
   ) {
     return this.analyticsService.getEducatorLoad(orgId, schoolYearId);
@@ -65,7 +65,7 @@ export class AnalyticsController {
 
   @Get('alerts')
   async getAlerts(
-    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('org_id') orgId: string,
     @Query('schoolYearId') schoolYearId?: string,
   ) {
     return this.analyticsService.getAlerts(orgId, schoolYearId);

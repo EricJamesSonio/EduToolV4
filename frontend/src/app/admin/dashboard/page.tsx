@@ -39,12 +39,12 @@ function StatCard({ label, value, icon: Icon, iconColor, isLoading, warning, act
       warning && value && value > 0 && "border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20"
     )}>
       <div className="space-y-1">
-        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="text-sm text-muted-foreground not-interactive">{label}</p>
         {isLoading ? (
           <Skeleton className="h-8 w-16" />
         ) : (
           <p className={cn(
-            "text-3xl font-bold tracking-tight",
+            "text-3xl font-bold tracking-tight not-interactive",
             warning && value && value > 0 && "text-amber-600"
           )}>
             {value ?? 0}
@@ -205,7 +205,7 @@ export default function AdminDashboardPage(): React.JSX.Element {
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-base font-semibold">Enrollment Breakdown</h2>
+        <h2 className="text-base font-semibold not-interactive">Enrollment Breakdown</h2>
         <DataTable
           columns={enrollmentColumns}
           data={enrollment ?? []}

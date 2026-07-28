@@ -217,7 +217,7 @@ export function GradeLockHierarchyFilter({
 
       </div>
 
-      <div className="text-sm text-muted-foreground">
+      <div className="text-sm text-muted-foreground not-interactive">
         Showing {filteredCount} class{filteredCount !== 1 ? "es" : ""}
       </div>
 

@@ -30,4 +30,21 @@ export class UploadService {
 
     return profile?.profile_image ?? null;
   }
+
+  async saveOrganizationLogo(orgId: string, relativePath: string): Promise<string> {
+    const org = await this.db.organization.findUnique({
+      where: { id: orgId },
+    });
+
+    if (!org) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    await this.db.organization.update({
+      where: { id: orgId },
+      data: { logo_url: relativePath },
+    });
+
+    return relativePath;
+  }
 }

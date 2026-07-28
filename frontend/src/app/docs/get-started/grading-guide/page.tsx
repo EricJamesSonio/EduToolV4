@@ -10,7 +10,7 @@ export default function GradingGuidePage() {
         </h1>
         <p className="text-lg text-muted-foreground">
           Configure grading schemes, scales, and grade locks. Everything you
-          need to know about EduTools flexible grading system.
+           need to know about Relief-ED's flexible grading system.
         </p>
       </div>
 

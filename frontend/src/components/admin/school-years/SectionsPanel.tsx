@@ -114,7 +114,7 @@ export function SectionsPanel({
       <div className="border-t">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-2.5">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide not-interactive">
             Sections
             {visibleSections.length > 0 && (
               <span className="ml-1.5 font-normal normal-case">
@@ -141,7 +141,7 @@ export function SectionsPanel({
             ))}
           </div>
         ) : visibleSections.length === 0 ? (
-          <p className="px-6 pb-3 text-xs text-muted-foreground">No sections yet.</p>
+          <p className="px-6 pb-3 text-xs text-muted-foreground not-interactive">No sections yet.</p>
         ) : (
           <div className="px-6 pb-3 space-y-1">
             {visibleSections.map((sec) => (

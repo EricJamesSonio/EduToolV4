@@ -52,7 +52,7 @@ function SharingsSection({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">Shared To</h2>
+        <h2 className="text-base font-semibold not-interactive">Shared To</h2>
         <Button size="sm" variant="outline" onClick={() => setShareOpen(true)}>
           <Share2 className="mr-1.5 h-3.5 w-3.5" /> Share
         </Button>
@@ -60,7 +60,7 @@ function SharingsSection({
 
       {sharings.length === 0 ? (
         <div className="rounded-lg border border-dashed px-4 py-6 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground not-interactive">
             Not shared to any courses or levels yet.
           </p>
           <Button size="sm" variant="outline" className="mt-3" onClick={() => setShareOpen(true)}>
@@ -208,7 +208,7 @@ export default function SubjectDetailPage({
 
   if (!subject) {
     return (
-      <p className="text-sm text-muted-foreground py-12 text-center">
+      <p className="text-sm text-muted-foreground py-12 text-center not-interactive">
         Subject not found.
       </p>
     );
@@ -253,24 +253,24 @@ export default function SubjectDetailPage({
       {isLocked && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          This subject is locked and read-only. It will auto-unlock at the start of a new school year.
+          <span className="not-interactive">This subject is locked and read-only. It will auto-unlock at the start of a new school year.</span>
         </div>
       )}
 
       {/* Info card */}
       <div className="rounded-lg border bg-card divide-y">
         <div className="flex items-center gap-4 px-4 py-3">
-          <span className="w-36 text-sm text-muted-foreground shrink-0">Name</span>
+          <span className="w-36 text-sm text-muted-foreground shrink-0 not-interactive">Name</span>
           <span className="text-sm font-medium">{subject.title}</span>
         </div>
         <div className="flex items-center gap-4 px-4 py-3">
-          <span className="w-36 text-sm text-muted-foreground shrink-0">Type</span>
+          <span className="w-36 text-sm text-muted-foreground shrink-0 not-interactive">Type</span>
           <Badge variant="secondary" className="font-normal capitalize">
             {subject.subjectType}
           </Badge>
         </div>
         <div className="flex items-center gap-4 px-4 py-3">
-          <span className="w-36 text-sm text-muted-foreground shrink-0">Level</span>
+          <span className="w-36 text-sm text-muted-foreground shrink-0 not-interactive">Level</span>
           {levelDisplayName ? (
             <Badge variant="secondary" className="font-normal">
               {levelDisplayName}
@@ -280,7 +280,7 @@ export default function SubjectDetailPage({
           )}
         </div>
         <div className="flex items-center gap-4 px-4 py-3">
-          <span className="w-36 text-sm text-muted-foreground shrink-0">Educator</span>
+          <span className="w-36 text-sm text-muted-foreground shrink-0 not-interactive">Educator</span>
           <span className="text-sm">
             {subject.educatorName ?? (
               <span className="text-muted-foreground">Unassigned</span>
@@ -288,7 +288,7 @@ export default function SubjectDetailPage({
           </span>
         </div>
         <div className="flex items-center gap-4 px-4 py-3">
-          <span className="w-36 text-sm text-muted-foreground shrink-0">Lock Status</span>
+          <span className="w-36 text-sm text-muted-foreground shrink-0 not-interactive">Lock Status</span>
           <span className="text-sm">{isLocked ? "Locked" : "Unlocked"}</span>
         </div>
       </div>
@@ -304,7 +304,7 @@ export default function SubjectDetailPage({
 
       {/* Linked Classes */}
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">Linked Classes</h2>
+        <h2 className="text-base font-semibold not-interactive">Linked Classes</h2>
         <Button
           size="sm"
           variant="outline"

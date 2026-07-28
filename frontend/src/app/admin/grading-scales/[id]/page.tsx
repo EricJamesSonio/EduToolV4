@@ -95,7 +95,7 @@ const [initialised, setInitialised] = useState(false)
           <ArrowLeft className="mr-1.5 h-4 w-4" />
           Back
         </Button>
-        <p className="text-sm text-muted-foreground">Grading scale not found.</p>
+        <p className="text-sm text-muted-foreground not-interactive">Grading scale not found.</p>
       </div>
     );
   }

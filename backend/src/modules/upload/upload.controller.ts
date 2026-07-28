@@ -20,11 +20,15 @@ import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 import { UploadService } from './upload.service';
 
-const UPLOADS_DIR = join(process.cwd(), 'uploads', 'profiles');
+const PROFILE_UPLOADS_DIR = join(process.cwd(), 'uploads', 'profiles');
+const ORG_LOGO_UPLOADS_DIR = join(process.cwd(), 'uploads', 'organizations');
 
 // Ensure directory exists on module load
-if (!existsSync(UPLOADS_DIR)) {
-  mkdirSync(UPLOADS_DIR, { recursive: true });
+if (!existsSync(PROFILE_UPLOADS_DIR)) {
+  mkdirSync(PROFILE_UPLOADS_DIR, { recursive: true });
+}
+if (!existsSync(ORG_LOGO_UPLOADS_DIR)) {
+  mkdirSync(ORG_LOGO_UPLOADS_DIR, { recursive: true });
 }
 
 const ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
@@ -39,7 +43,7 @@ export class UploadController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+        destination: (_req, _file, cb) => cb(null, PROFILE_UPLOADS_DIR),
         filename: (_req, file, cb) => {
           const ext = extname(file.originalname).toLowerCase();
           cb(null, `${uuid()}${ext}`);
@@ -68,5 +72,41 @@ export class UploadController {
     const relativePath = `profiles/${file.filename}`;
     const saved = await this.uploadService.saveProfileImage(accountId, relativePath);
     return { path: saved };
+  }
+
+  @Post('organization-logo')
+  @Roles('admin')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => cb(null, ORG_LOGO_UPLOADS_DIR),
+        filename: (_req, file, cb) => {
+          const ext = extname(file.originalname).toLowerCase();
+          cb(null, `${uuid()}${ext}`);
+        },
+      }),
+      fileFilter: (_req, file, cb) => {
+        const ext = extname(file.originalname).toLowerCase();
+        if (!ALLOWED_EXTENSIONS.includes(ext)) {
+          cb(new BadRequestException('Only image files (PNG, JPG, GIF, WEBP) are allowed'), false);
+          return;
+        }
+        cb(null, true);
+      },
+      limits: { fileSize: 2 * 1024 * 1024 },
+    }),
+  )
+  async uploadOrganizationLogo(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 })],
+      }),
+    )
+    file: Express.Multer.File,
+    @CurrentUser('org_id') orgId: string,
+  ) {
+    const relativePath = `organizations/${file.filename}`;
+    const saved = await this.uploadService.saveOrganizationLogo(orgId, relativePath);
+    return { logoUrl: saved };
   }
 }

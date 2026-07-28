@@ -104,7 +104,7 @@ export function HolidayBaseTab({ year }: HolidayBaseTabProps) {
       {/* Info banner */}
       <div className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-950/20">
         <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-        <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+        <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed not-interactive">
           This is the <strong>org-wide Holiday Base Calendar</strong> — reused across all school years.
           Configure which holidays apply once here. When you save, all existing program academic
           calendars are automatically updated to reflect the changes.
@@ -113,7 +113,7 @@ export function HolidayBaseTab({ year }: HolidayBaseTabProps) {
 
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <p className="text-sm font-medium">
+        <p className="text-sm font-medium not-interactive">
           {isLoading ? "Loading…" : `${enabledCount} of ${holidays.length} holidays enabled`}
         </p>
 

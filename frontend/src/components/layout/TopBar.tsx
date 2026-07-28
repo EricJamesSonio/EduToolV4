@@ -50,9 +50,9 @@ export function TopBar({ className }: TopBarProps) {
       {/* Logo / App name */}
       <div className="flex items-center gap-2">
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
-          <span className="text-xs font-bold text-primary-foreground">E</span>
+          <span className="text-xs font-bold text-primary-foreground">R</span>
         </div>
-        <span className="text-sm font-semibold tracking-tight">EduTool</span>
+        <span className="text-sm font-semibold tracking-tight">Relief-ED</span>
       </div>
 
       {/* Right: notifications + user menu */}

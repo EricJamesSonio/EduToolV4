@@ -46,11 +46,11 @@ export function EnrolledStudentTable({
         const student = studentMap?.get(row.original.student_id);
         return (
           <div className="min-w-0">
-            <p className="text-sm font-medium truncate">
+            <p className="text-sm font-medium truncate not-interactive">
               {student?.fullName ?? row.original.student_id}
             </p>
             {student && (
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground truncate not-interactive">
                 {student.studentId}
               </p>
             )}
@@ -64,7 +64,7 @@ export function EnrolledStudentTable({
       cell: ({ row }) => (
         <span
           className={cn(
-            "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize",
+            "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize not-interactive",
             STATUS_CLASS[row.original.status] ?? "bg-muted text-muted-foreground",
           )}
         >
@@ -79,7 +79,7 @@ export function EnrolledStudentTable({
         const progs = row.original.programEnrollments;
         if (!progs?.length) {
           return (
-            <span className="text-xs text-muted-foreground italic">
+            <span className="text-xs text-muted-foreground italic not-interactive">
               No program assigned
             </span>
           );
@@ -102,7 +102,7 @@ export function EnrolledStudentTable({
       accessorKey: "enrolled_at",
       header: "Enrolled",
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground not-interactive">
           {formatDate(row.original.enrolled_at)}
         </span>
       ),

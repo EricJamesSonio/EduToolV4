@@ -155,7 +155,7 @@ export class ExportService {
       educatorProfile?.full_name ?? '',
       subjectRecord?.name ?? '',
       schoolYear?.name ?? '',
-      org?.name ?? 'EduTool',
+      org?.name ?? 'Relief-ED',
     );
   }
 

@@ -18,7 +18,7 @@ const resources: ResourceCard[] = [
     icon: <BookOpen className="h-5 w-5" />,
     title: "Getting Started",
     description:
-      "Set up your school structure, configure programs and levels, and get EduTool ready in minutes.",
+      "Set up your school structure, configure programs and levels, and get Relief-ED ready in minutes.",
     slug: "getting-started",
     color: "bg-blue-500/10 text-blue-500",
   },
@@ -68,9 +68,9 @@ export function ResourcesSection() {
         <div className="flex justify-center">
           <div className="section-accent"></div>
         </div>
-        <h2 className="font-bold">Learn & Get Started</h2>
-        <p className="text-lg text-muted-foreground">
-          Everything you need to master EduTool and manage your school
+        <h2 className="font-bold not-interactive">Learn & Get Started</h2>
+        <p className="text-lg text-muted-foreground not-interactive">
+          Everything you need to master Relief-ED and manage your school
           effectively.
         </p>
       </div>

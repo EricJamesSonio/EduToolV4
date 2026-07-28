@@ -29,7 +29,7 @@ export function TermDateRow({
 
   return (
     <div className="grid grid-cols-[1fr_auto_auto] gap-2 p-2 border rounded">
-      <Label className="text-[10px]">
+      <Label className="text-[10px] not-interactive">
         {term.semesterName} · {term.name}
       </Label>
 

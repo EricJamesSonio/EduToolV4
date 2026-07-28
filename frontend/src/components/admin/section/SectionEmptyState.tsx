@@ -19,10 +19,10 @@ export function SectionEmptyState({
     return (
       <div className="rounded-lg border bg-card px-6 py-16 text-center">
         <CalendarDays className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-        <p className="text-sm font-medium text-muted-foreground">
+        <p className="text-sm font-medium text-muted-foreground not-interactive">
           No school year selected
         </p>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-xs text-muted-foreground mt-1 not-interactive">
           Please select a school year to view sections.
         </p>
       </div>
@@ -34,11 +34,11 @@ export function SectionEmptyState({
     <div className="rounded-lg border bg-card px-6 py-16 text-center">
       <Layers className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
 
-      <p className="text-sm font-medium text-muted-foreground">
+      <p className="text-sm font-medium text-muted-foreground not-interactive">
         {isFiltered ? "No matching sections" : "No sections yet"}
       </p>
 
-      <p className="text-xs text-muted-foreground mt-1">
+      <p className="text-xs text-muted-foreground mt-1 not-interactive">
         {isFiltered
           ? "Try adjusting your filters."
           : "This school year doesn’t have any sections yet."}

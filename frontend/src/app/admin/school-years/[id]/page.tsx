@@ -49,7 +49,7 @@ export default function SchoolYearDetailPage({
   if (!schoolYear) {
     return (
       <div className="rounded-lg border bg-card px-6 py-12 text-center">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground not-interactive">
           School year not found.
         </p>
       </div>
@@ -78,24 +78,24 @@ export default function SchoolYearDetailPage({
       {/* INFO CARD */}
       <div className="rounded-lg border bg-card divide-y divide-border">
         <div className="flex items-center gap-6 px-6 py-4">
-          <span className="w-28 text-sm text-muted-foreground shrink-0">Name</span>
+          <span className="w-28 text-sm text-muted-foreground shrink-0 not-interactive">Name</span>
           <span className="text-sm font-medium">{schoolYear.name}</span>
         </div>
 
         <div className="flex items-center gap-6 px-6 py-4">
-          <span className="w-28 text-sm text-muted-foreground shrink-0">Status</span>
+          <span className="w-28 text-sm text-muted-foreground shrink-0 not-interactive">Status</span>
           <StatusBadge status={schoolYear.status} />
         </div>
 
         <div className="flex items-center gap-6 px-6 py-4">
-          <span className="w-28 text-sm text-muted-foreground shrink-0">Start Date</span>
+          <span className="w-28 text-sm text-muted-foreground shrink-0 not-interactive">Start Date</span>
           <span className="text-sm">
             {schoolYear.start_date ? new Date(schoolYear.start_date).toLocaleDateString() : "—"}
           </span>
         </div>
 
         <div className="flex items-center gap-6 px-6 py-4">
-          <span className="w-28 text-sm text-muted-foreground shrink-0">End Date</span>
+          <span className="w-28 text-sm text-muted-foreground shrink-0 not-interactive">End Date</span>
           <span className="text-sm">
             {schoolYear.end_date ? new Date(schoolYear.end_date).toLocaleDateString() : "—"}
           </span>
@@ -106,7 +106,7 @@ export default function SchoolYearDetailPage({
       {isEnded && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          This school year has ended and is read-only.
+          <span className="not-interactive">This school year has ended and is read-only.</span>
         </div>
       )}
 
@@ -114,7 +114,7 @@ export default function SchoolYearDetailPage({
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold text-base">Programs</h3>
+          <h3 className="font-semibold text-base not-interactive">Programs</h3>
           <Badge variant="secondary" className="text-xs font-normal">
             {programs.length}
           </Badge>
@@ -123,7 +123,7 @@ export default function SchoolYearDetailPage({
         {programs.length === 0 ? (
           <div className="rounded-lg border bg-card px-6 py-10 text-center space-y-3">
             <BookOpen className="h-10 w-10 text-muted-foreground/30 mx-auto" />
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground not-interactive">
               No programs for this school year.
             </p>
             <Button size="sm" onClick={() => router.push(`/admin/programs?schoolYearId=${id}`)}>

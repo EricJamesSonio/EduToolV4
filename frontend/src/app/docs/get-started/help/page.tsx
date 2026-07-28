@@ -9,8 +9,8 @@ export default function HelpPage() {
           Help and FAQ
         </h1>
         <p className="text-lg text-muted-foreground">
-          Find answers to common questions. We are here to help you succeed with
-          EduTool.
+           Find answers to common questions. We are here to help you succeed with
+           Relief-ED.
         </p>
       </div>
 
@@ -20,7 +20,7 @@ export default function HelpPage() {
             In-App Help
           </h3>
           <p className="text-sm text-muted-foreground">
-            Look for help icons throughout EduTool for contextual guidance and
+            Look for help icons throughout Relief-ED for contextual guidance and
             tooltips.
           </p>
           <p className="text-xs text-muted-foreground">
@@ -46,10 +46,10 @@ export default function HelpPage() {
         </h2>
         <div className="space-y-3">
           {[
-            { q: "What makes EduTool different from other school management systems?", a: "EduTool is built for flexibility. Unlike rigid systems, EduTool lets you define your own programs, levels, and structures. It is equally suited for SHS schools, colleges, or custom educational setups." },
-            { q: "Is EduTool a cloud-based system?", a: "Yes, EduTool is fully cloud-based and multi-tenant. Your school data is secure, isolated, and accessible from anywhere with an internet connection." },
-            { q: "How many students can I enroll?", a: "There is no hard limit. EduTool scales to thousands of students. Performance is optimized for large schools." },
-            { q: "Can I integrate EduTool with other systems?", a: "Yes, EduTool provides API endpoints for integration. Contact support to discuss your specific needs." },
+            { q: "What makes Relief-ED different from other school management systems?", a: "Relief-ED is built for flexibility. Unlike rigid systems, Relief-ED lets you define your own programs, levels, and structures. It is equally suited for SHS schools, colleges, or custom educational setups." },
+            { q: "Is Relief-ED a cloud-based system?", a: "Yes, Relief-ED is fully cloud-based and multi-tenant. Your school data is secure, isolated, and accessible from anywhere with an internet connection." },
+            { q: "How many students can I enroll?", a: "There is no hard limit. Relief-ED scales to thousands of students. Performance is optimized for large schools." },
+            { q: "Can I integrate Relief-ED with other systems?", a: "Yes, Relief-ED provides API endpoints for integration. Contact support to discuss your specific needs." },
           ].map((item, idx) => (
             <details
               key={idx}
@@ -79,7 +79,7 @@ export default function HelpPage() {
             { q: "How do I reset a student password?", a: "Go to the student profile and click 'Reset Password'. An automated email with reset instructions will be sent to the student." },
             { q: "Can I export student data?", a: "Yes, you can export student lists and enrollment data as CSV from the Students page. Advanced reports are available in Analytics." },
             { q: "What happens if an educator leaves? Can I transfer their classes?", a: "Yes. Go to the educator profile and reassign classes to another educator. Grades and attendance records remain intact." },
-            { q: "How do I set up custom email addresses for students?", a: "Configure your email extension in Organization Settings (e.g., @myschool.edu). EduTool will auto-generate emails when you create students." },
+            { q: "How do I set up custom email addresses for students?", a: "Configure your email extension in Organization Settings (e.g., @myschool.edu). Relief-ED will auto-generate emails when you create students." },
             { q: "Can I have multiple admins for my school?", a: "Yes, you can create additional admin accounts with the same permissions. Go to Admin Settings, Manage Admins." },
           ].map((item, idx) => (
             <details

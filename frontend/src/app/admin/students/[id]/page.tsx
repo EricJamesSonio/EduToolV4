@@ -120,7 +120,7 @@ export default function StudentDetailPage({
   // ── Not found ────────────────────────────────────────────────────────────
   if (!student) {
     return (
-      <p className="text-sm text-muted-foreground py-12 text-center">
+      <p className="text-sm text-muted-foreground py-12 text-center not-interactive">
         Student not found.
       </p>
     );

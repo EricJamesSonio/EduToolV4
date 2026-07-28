@@ -91,7 +91,7 @@ export default function EducatorDetailPage(): React.JSX.Element {
           <ArrowLeft className="mr-1.5 h-4 w-4" />
           Back
         </Button>
-        <p className="text-sm text-muted-foreground">Educator not found.</p>
+        <p className="text-sm text-muted-foreground not-interactive">Educator not found.</p>
       </div>
     );
   }
@@ -154,12 +154,12 @@ export default function EducatorDetailPage(): React.JSX.Element {
 
       {/* Danger zone */}
       <div className="rounded-lg border border-destructive/20 bg-card p-5 space-y-3">
-        <h2 className="text-sm font-semibold text-destructive">Danger Zone</h2>
+        <h2 className="text-sm font-semibold text-destructive not-interactive">Danger Zone</h2>
         <Separator className="bg-destructive/10" />
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <p className="text-sm font-medium">Remove Educator</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm font-medium not-interactive">Remove Educator</p>
+            <p className="text-xs text-muted-foreground not-interactive">
               {hasActiveClasses
                 ? "This educator has active class assignments. Reassign or remove all classes first."
                 : "Permanently removes this educator from the organization."}
@@ -232,7 +232,7 @@ function ProfileField({
         <Icon className="h-4 w-4" />
       </div>
       <div className="space-y-0.5">
-        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground not-interactive">{label}</p>
         {mono
           ? <Badge variant="outline" className="font-mono text-xs">{value}</Badge>
           : <p className="text-sm font-medium">{value}</p>}

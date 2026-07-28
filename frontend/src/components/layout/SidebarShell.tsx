@@ -139,7 +139,7 @@ export function SidebarShell({
         {groups.map((group, gi) => (
           <div key={gi} className="space-y-1">
             {group.label && !collapsed && !isMobile && (
-              <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground not-interactive">
                 {group.label}
               </p>
             )}

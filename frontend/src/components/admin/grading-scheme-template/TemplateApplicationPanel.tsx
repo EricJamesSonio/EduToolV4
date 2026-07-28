@@ -42,7 +42,7 @@ export function TemplateApplicationPanel({
   return (
     <div className="space-y-1.5">
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide not-interactive">
           School Year
         </p>
         <Select value={selectedYearId} onValueChange={(v) => onYearChange(v ?? "")}>
@@ -68,7 +68,7 @@ export function TemplateApplicationPanel({
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground">
+        <p className="text-xs font-medium text-muted-foreground not-interactive">
           Apply Templates
         </p>
         <TemplateAssignmentPanel

@@ -27,9 +27,9 @@ export function StudentEnrollmentsList({
       <div className="flex items-center justify-between px-5 py-4 border-b">
         <div className="flex items-center gap-2">
           <GraduationCap className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Enrollments</h2>
+          <h2 className="text-sm font-semibold not-interactive">Enrollments</h2>
           {!isLoading && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground not-interactive">
               ({enrollments.length})
             </span>
           )}

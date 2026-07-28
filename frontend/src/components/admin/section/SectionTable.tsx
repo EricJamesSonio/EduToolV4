@@ -56,7 +56,7 @@ export function SectionTable({
       header: "Name",
       accessorKey: "name",
       cell: ({ getValue }) => (
-        <span className="font-medium">{getValue<string>()}</span>
+        <span className="font-medium not-interactive">{getValue<string>()}</span>
       ),
     },
     {
@@ -69,7 +69,7 @@ export function SectionTable({
         const strand = section.strand_id ? strandMap[section.strand_id] : null;
 
         if (!levelInfo) {
-          return <span className="text-muted-foreground text-xs">—</span>;
+          return <span className="text-muted-foreground text-xs not-interactive">—</span>;
         }
 
         const programType = programTypeMap[levelInfo.programId];
@@ -83,7 +83,7 @@ export function SectionTable({
             <Badge
               variant="outline"
               className={cn(
-                "text-xs border px-2 py-0.5 w-fit font-normal",
+                "text-xs border px-2 py-0.5 w-fit font-normal not-interactive",
                 programColor
               )}
             >
@@ -91,13 +91,13 @@ export function SectionTable({
             </Badge>
 
             {course && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground not-interactive">
                 {course.code ? `${course.code} – ${course.name}` : course.name}
               </span>
             )}
 
             {strand && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground not-interactive">
                 {strand.name}
               </span>
             )}
@@ -105,7 +105,7 @@ export function SectionTable({
             <Badge
               variant="outline"
               className={cn(
-                "text-xs border px-2 py-0.5 w-fit font-normal",
+                "text-xs border px-2 py-0.5 w-fit font-normal not-interactive",
                 (() => {
                   const match = levelInfo.name.match(/^(\d+)/);
                   const idx = match ? (parseInt(match[1]) - 1) % WEEK_COLORS.length : 0;
@@ -123,7 +123,7 @@ export function SectionTable({
       header: "Capacity",
       accessorKey: "capacity",
       cell: ({ getValue }) => (
-        <span className="text-sm">{getValue<number>()}</span>
+        <span className="text-sm not-interactive">{getValue<number>()}</span>
       ),
     },
     {
@@ -136,7 +136,7 @@ export function SectionTable({
 
         return (
           <div className="flex items-center gap-2">
-            <span className="text-sm tabular-nums">
+            <span className="text-sm tabular-nums not-interactive">
               {count} / {section.capacity}
             </span>
             <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">

@@ -27,9 +27,9 @@ export function AnalyticsPreviewSection() {
         <div className="flex justify-center">
           <div className="section-accent" />
         </div>
-        <h2 className="font-bold">Trusted by Schools Worldwide</h2>
-        <p className="text-lg text-muted-foreground">
-          EduTool powers modern education systems across thousands of schools.
+        <h2 className="font-bold not-interactive">Trusted by Schools Worldwide</h2>
+        <p className="text-lg text-muted-foreground not-interactive">
+          Relief-ED powers modern education systems across thousands of schools.
           Track real platform impact, user adoption, and engagement in real time.
         </p>
       </div>
@@ -40,7 +40,7 @@ export function AnalyticsPreviewSection() {
       {/* Dashboard Mockup */}
       <div className="card-landing rounded-xl overflow-hidden">
         <div className="bg-gradient-to-r from-secondary/80 to-secondary/40 border-b border-border/60 px-6 py-4 flex items-center justify-between">
-          <h3 className="font-heading font-semibold text-xl">
+          <h3 className="font-heading font-semibold text-xl not-interactive">
             Platform Analytics Overview
           </h3>
           <div className="flex gap-1.5">
@@ -58,21 +58,21 @@ export function AnalyticsPreviewSection() {
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center mx-auto">
                   <BarChart3 className="h-8 w-8 text-primary/40" />
                 </div>
-                <p className="text-muted-foreground text-sm font-medium">
+                <p className="text-muted-foreground text-sm font-medium not-interactive">
                   Global Platform Adoption Growth
                 </p>
                 <div className="flex gap-6 justify-center">
                   <div className="text-left">
-                    <p className="text-xs text-muted-foreground">2024</p>
-                    <p className="text-sm font-semibold">820 Schools</p>
+                    <p className="text-xs text-muted-foreground not-interactive">2024</p>
+                    <p className="text-sm font-semibold not-interactive">820 Schools</p>
                   </div>
                   <div className="text-left">
-                    <p className="text-xs text-muted-foreground">2025</p>
-                    <p className="text-sm font-semibold">1,240 Schools</p>
+                    <p className="text-xs text-muted-foreground not-interactive">2025</p>
+                    <p className="text-sm font-semibold not-interactive">1,240 Schools</p>
                   </div>
                   <div className="text-left">
-                    <p className="text-xs text-muted-foreground">Growth</p>
-                    <p className="text-sm font-semibold text-emerald-600">+52%</p>
+                    <p className="text-xs text-muted-foreground not-interactive">Growth</p>
+                    <p className="text-sm font-semibold text-emerald-600 not-interactive">+52%</p>
                   </div>
                 </div>
               </div>
@@ -83,9 +83,9 @@ export function AnalyticsPreviewSection() {
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-green-500/10 flex items-center justify-center mx-auto">
                   <TrendingUp className="h-8 w-8 text-emerald-500/40" />
                 </div>
-                <p className="text-muted-foreground text-sm font-medium">Satisfaction Score</p>
-                <p className="text-3xl font-bold text-emerald-600">96%</p>
-                <p className="text-xs text-muted-foreground">Based on 12,000+ reviews</p>
+                <p className="text-muted-foreground text-sm font-medium not-interactive">Satisfaction Score</p>
+                <p className="text-3xl font-bold text-emerald-600 not-interactive">96%</p>
+                <p className="text-xs text-muted-foreground not-interactive">Based on 12,000+ reviews</p>
               </div>
             </div>
           </div>
@@ -100,12 +100,12 @@ export function AnalyticsPreviewSection() {
                   className="bg-gradient-to-br from-secondary/50 to-secondary/20 rounded-xl p-4 space-y-3 border border-border/40"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider not-interactive">
                       {stat.label}
                     </span>
                     <Icon className="h-4 w-4 text-muted-foreground/40" />
                   </div>
-                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="text-2xl font-bold not-interactive">{stat.value}</p>
                   <div className="w-full h-1.5 bg-border/50 rounded-full overflow-hidden">
                     <div className={`h-full ${stat.color} rounded-full`} style={{ width: stat.barWidth }} />
                   </div>
@@ -115,9 +115,9 @@ export function AnalyticsPreviewSection() {
           </div>
 
           {/* Callout */}
-          <div className="bg-primary/5 border border-primary/10 rounded-xl px-5 py-3 text-sm text-muted-foreground">
+          <div className="bg-primary/5 border border-primary/10 rounded-xl px-5 py-3 text-sm text-muted-foreground not-interactive">
             <span className="font-medium text-foreground">Insight:</span>{" "}
-            Schools using EduTool report faster grading workflows and higher
+            Schools using Relief-ED report faster grading workflows and higher
             administrative efficiency within the first 30 days.
           </div>
         </div>

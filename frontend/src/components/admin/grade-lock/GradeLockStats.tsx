@@ -65,12 +65,12 @@ export function GradeLockStats({
           key={label}
           className="rounded-xl border bg-card p-4 transition-colors hover:bg-muted/20"
         >
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground not-interactive">
             {label}
           </p>
 
           <p
-            className={`mt-2 text-2xl font-semibold tracking-tight ${valueClass}`}
+            className={`mt-2 text-2xl font-semibold tracking-tight not-interactive ${valueClass}`}
           >
             {value}
           </p>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 const plans = [
   {
     name: "Free",
-    description: "Explore EduTool and evaluate its capabilities.",
+    description: "Explore Relief-ED and evaluate its capabilities.",
     price: "$0",
     period: "forever",
     features: [
@@ -61,10 +61,10 @@ export function PricingSection() {
         <div className="flex justify-center">
           <div className="section-accent"></div>
         </div>
-        <h2 className="font-bold">
+        <h2 className="font-bold not-interactive">
           Simple, Transparent Pricing
         </h2>
-        <p className="text-lg text-muted-foreground">
+        <p className="text-lg text-muted-foreground not-interactive">
           Choose the plan that fits your school. No hidden fees, no surprises.
         </p>
       </div>
@@ -85,17 +85,17 @@ export function PricingSection() {
             )}
 
             <div className="space-y-2 mb-6">
-              <h3 className="font-heading font-semibold text-xl text-foreground">
+              <h3 className="font-heading font-semibold text-xl text-foreground not-interactive">
                 {plan.name}
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground not-interactive">
                 {plan.description}
               </p>
             </div>
 
             <div className="mb-6">
-              <span className="text-4xl font-bold text-foreground">{plan.price}</span>
-              <span className="text-sm text-muted-foreground ml-1">/{plan.period}</span>
+              <span className="text-4xl font-bold text-foreground not-interactive">{plan.price}</span>
+              <span className="text-sm text-muted-foreground ml-1 not-interactive">/{plan.period}</span>
             </div>
 
             <ul className="space-y-3 mb-8 flex-1">
@@ -111,7 +111,7 @@ export function PricingSection() {
                 return (
                   <li key={feature} className="flex items-start gap-3 text-sm">
                     <Check className={`h-4 w-4 shrink-0 mt-0.5 ${textColors[i % textColors.length]}`} />
-                    <span className={textColors[i % textColors.length]}>{feature}</span>
+                    <span className={`${textColors[i % textColors.length]} not-interactive`}>{feature}</span>
                   </li>
                 );
               })}

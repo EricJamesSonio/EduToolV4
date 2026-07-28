@@ -21,35 +21,35 @@ export function ClassesTable({ data, onArchive }: ClassesTableProps): React.JSX.
       header: "Title",
       accessorFn: (row) => row.title ?? row.subjectName ?? row.subjectId,
       cell: ({ getValue }) => (
-        <span className="font-medium">{getValue<string>()}</span>
+        <span className="font-medium not-interactive">{getValue<string>()}</span>
       ),
     },
     {
       header: "Section",
       accessorFn: (row) => row.sectionName ?? "—",
       cell: ({ getValue }) => (
-        <span className="text-sm text-muted-foreground">{getValue<string>()}</span>
+        <span className="text-sm text-muted-foreground not-interactive">{getValue<string>()}</span>
       ),
     },
     {
       header: "Semester",
       accessorFn: (row) => row.semesterName ?? "—",
       cell: ({ getValue }) => (
-        <span className="text-sm text-muted-foreground">{getValue<string>()}</span>
+        <span className="text-sm text-muted-foreground not-interactive">{getValue<string>()}</span>
       ),
     },
     {
       header: "Educator",
       accessorFn: (row) => row.educatorName ?? "—",
       cell: ({ getValue }) => (
-        <span className="text-sm text-muted-foreground">{getValue<string>()}</span>
+        <span className="text-sm text-muted-foreground not-interactive">{getValue<string>()}</span>
       ),
     },
     {
       header: "Schedule",
       accessorFn: (row) => formatSchedule(row.schedules),
       cell: ({ getValue }) => (
-        <span className="text-sm text-muted-foreground tabular-nums">
+        <span className="text-sm text-muted-foreground tabular-nums not-interactive">
           {getValue<string>()}
         </span>
       ),
@@ -63,7 +63,7 @@ export function ClassesTable({ data, onArchive }: ClassesTableProps): React.JSX.
         const pct = Math.min((count / cls.capacity) * 100, 100);
         return (
           <div className="flex items-center gap-2">
-            <span className="text-sm tabular-nums">
+            <span className="text-sm tabular-nums not-interactive">
               {count} / {cls.capacity}
             </span>
             <div className="w-14 h-1.5 rounded-full bg-muted overflow-hidden">
@@ -103,7 +103,7 @@ export function ClassesTable({ data, onArchive }: ClassesTableProps): React.JSX.
                 Archive
               </Button>
             ) : (
-              <Badge variant="secondary" className="text-xs font-normal">
+              <Badge variant="secondary" className="text-xs font-normal not-interactive">
                 Archived
               </Badge>
             )}

@@ -309,23 +309,23 @@ export default function EnrollmentPage() {
             ) : (
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
-                  <p className="text-xs text-muted-foreground">Total Students</p>
-                  <p className="text-2xl font-semibold">{enrollments.length}</p>
-                  <p className="text-xs text-muted-foreground">in this school year</p>
+                  <p className="text-xs text-muted-foreground not-interactive">Total Students</p>
+                  <p className="text-2xl font-semibold not-interactive">{enrollments.length}</p>
+                  <p className="text-xs text-muted-foreground not-interactive">in this school year</p>
                 </div>
                 <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
-                  <p className="text-xs text-muted-foreground">Active</p>
-                  <p className="text-2xl font-semibold text-green-600 dark:text-green-400">
+                  <p className="text-xs text-muted-foreground not-interactive">Active</p>
+                  <p className="text-2xl font-semibold text-green-600 dark:text-green-400 not-interactive">
                     {activeCount}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground not-interactive">
                     {pendingCount > 0 ? `${pendingCount} pending` : "no pending"}
                   </p>
                 </div>
                 <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
-                  <p className="text-xs text-muted-foreground">Program Enrollments</p>
-                  <p className="text-2xl font-semibold">{totalProgramEnrollments}</p>
-                  <p className="text-xs text-muted-foreground">across all programs</p>
+                  <p className="text-xs text-muted-foreground not-interactive">Program Enrollments</p>
+                  <p className="text-2xl font-semibold not-interactive">{totalProgramEnrollments}</p>
+                  <p className="text-xs text-muted-foreground not-interactive">across all programs</p>
                 </div>
               </div>
             )}

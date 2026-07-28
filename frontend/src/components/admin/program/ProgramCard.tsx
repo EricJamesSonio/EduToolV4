@@ -30,7 +30,7 @@ export function ProgramCard({ program, onDelete }: ProgramCardProps): React.JSX.
           <GraduationCap className="h-4.5 w-4.5" />
         </div>
         <div className="space-y-1">
-          <h3 className="font-semibold text-lg leading-tight">{program.name}</h3>
+          <h3 className="font-semibold text-lg leading-tight not-interactive">{program.name}</h3>
           <div className="flex items-center gap-2">
             <Badge
               variant="outline"
@@ -39,12 +39,12 @@ export function ProgramCard({ program, onDelete }: ProgramCardProps): React.JSX.
               {label}
             </Badge>
             {courseCount > 0 && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground not-interactive">
                 {courseCount} {courseCount === 1 ? "course" : "courses"}
               </span>
             )}
             {strandCount > 0 && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground not-interactive">
                 {strandCount} {strandCount === 1 ? "strand" : "strands"}
               </span>
             )}

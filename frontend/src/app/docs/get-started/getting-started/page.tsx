@@ -8,10 +8,10 @@ export default function GettingStartedPage() {
           2 min read
         </span>
         <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-          Getting Started with EduTool
+          Getting Started with Relief-ED
         </h1>
         <p className="text-lg text-muted-foreground">
-          Set up your school structure and configure EduTool in minutes. This
+          Set up your school structure and configure Relief-ED in minutes. This
           guide walks you through the initial setup process.
         </p>
       </div>
@@ -41,13 +41,13 @@ export default function GettingStartedPage() {
           Understanding the Multi-Tenant Model
         </h2>
         <p className="text-muted-foreground mb-4">
-          EduTool is built on a three-tier system. Understanding this helps you
+          Relief-ED is built on a three-tier system. Understanding this helps you
           set up your organization correctly:
         </p>
 
         <div className="space-y-3 mb-8">
           {[
-            { role: "Platform Owner", desc: "Manages the entire EduTool system and creates school admin accounts" },
+            { role: "Platform Owner", desc: "Manages the entire Relief-ED system and creates school admin accounts" },
             { role: "School Admin", desc: "Has full control over one organization (your school). Creates educators and students, configures academic structure." },
             { role: "Educators & Students", desc: "Use the system within their specific school. All data is isolated and scoped to your organization." },
           ].map((item) => (

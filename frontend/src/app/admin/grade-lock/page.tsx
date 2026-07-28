@@ -177,7 +177,7 @@ export default function GradeLockPage(): React.ReactElement {
       <div className="rounded-lg border p-4 space-y-2 bg-muted/30">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Layers className="h-4 w-4" />
-          Global Grade Lock Templates
+          <span className="not-interactive">Global Grade Lock Templates</span>
         </div>
 
         {templates.length > 0 ? (
@@ -211,7 +211,7 @@ export default function GradeLockPage(): React.ReactElement {
             ))}
           </div>
         ) : (
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground not-interactive">
             No templates configured yet.
           </div>
         )}
@@ -221,7 +221,7 @@ export default function GradeLockPage(): React.ReactElement {
       {activeTemplate?.lock_deadline && (
         <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-sm">
           <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-muted-foreground">Global Rule:</span>
+          <span className="text-muted-foreground not-interactive">Global Rule:</span>
           <span className="font-medium">
             {format(
               new Date(activeTemplate.lock_deadline),

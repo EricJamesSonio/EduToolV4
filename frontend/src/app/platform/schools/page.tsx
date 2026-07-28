@@ -14,6 +14,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { platformApi, type SchoolOrg } from "@/api/platform.api";
+import { getOrgLogoUrl } from "@/utils/org.util";
 
 const adminStatusBadge: Record<string, string> = {
   active:
@@ -39,11 +40,25 @@ function SchoolDetailDialog({
         className="bg-card rounded-xl border shadow-lg w-full max-w-md p-6 space-y-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold">{school.name}</h2>
-          <p className="text-sm text-muted-foreground">
-            {school.description ?? "No description provided."}
-          </p>
+        <div className="flex items-start gap-4">
+          <div className="h-14 w-14 rounded-lg border border-border bg-muted flex items-center justify-center overflow-hidden shrink-0">
+            {school.logoUrl ? (
+              <img
+                src={getOrgLogoUrl(school.logoUrl)}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="text-xs text-muted-foreground">Logo</div>
+            )}
+          </div>
+
+          <div className="space-y-1 min-w-0">
+            <h2 className="text-lg font-semibold">{school.name}</h2>
+            <p className="text-sm text-muted-foreground">
+              {school.description ?? "No description provided."}
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 rounded-lg border bg-muted/30 p-4 text-sm">
@@ -125,6 +140,7 @@ export default function PlatformSchoolsPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12"></TableHead>
               <TableHead>School Name</TableHead>
               <TableHead>Email Extension</TableHead>
               <TableHead>Admin</TableHead>
@@ -135,7 +151,7 @@ export default function PlatformSchoolsPage() {
             {isLoading ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center text-muted-foreground py-8"
                 >
                   Loading...
@@ -144,7 +160,7 @@ export default function PlatformSchoolsPage() {
             ) : schools.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center text-muted-foreground py-8"
                 >
                   No schools found
@@ -157,6 +173,19 @@ export default function PlatformSchoolsPage() {
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => setSelected(school)}
                 >
+                  <TableCell>
+                    <div className="h-8 w-8 rounded border border-border bg-muted flex items-center justify-center overflow-hidden">
+                      {school.logoUrl ? (
+                        <img
+                          src={getOrgLogoUrl(school.logoUrl)}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-[10px] text-muted-foreground">Logo</div>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="font-medium">{school.name}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {school.emailExtension ?? "—"}

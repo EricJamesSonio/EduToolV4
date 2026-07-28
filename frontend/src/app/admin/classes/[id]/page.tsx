@@ -150,7 +150,7 @@ const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClas
 
   if (!enrichedCls) {
     return (
-      <p className="text-sm text-muted-foreground py-12 text-center">
+      <p className="text-sm text-muted-foreground py-12 text-center not-interactive">
         Class not found.
       </p>
     );
@@ -190,11 +190,11 @@ const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClas
       {isArchived && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          This class is archived and read-only.
+          <span className="not-interactive">This class is archived and read-only.</span>
         </div>
       )}
 
-      <div className="text-sm text-muted-foreground -mt-4">
+      <div className="text-sm text-muted-foreground -mt-4 not-interactive">
         {[enrichedCls.semesterName, enrichedCls.sectionName].filter(Boolean).join(" · ")}
       </div>
 

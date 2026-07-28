@@ -153,7 +153,7 @@ export function GradingScaleRangeEditor({
       {/* Header */}
       <div className="grid grid-cols-[80px_80px_120px_1fr_80px_32px] gap-2 px-1">
         {["Min %", "Max %", "Grade", "Remark", "Status", ""].map((h) => (
-          <span key={h} className="text-xs font-medium text-muted-foreground">
+          <span key={h} className="text-xs font-medium text-muted-foreground not-interactive">
             {h}
           </span>
         ))}
@@ -286,7 +286,7 @@ export function GradingScaleRangeEditor({
       {/* Visual 0–100 coverage bar */}
       {ranges.length > 0 && (
         <div className="space-y-1 pt-1">
-          <p className="text-xs text-muted-foreground">Coverage preview</p>
+          <p className="text-xs text-muted-foreground not-interactive">Coverage preview</p>
           <div className="relative h-5 w-full rounded overflow-hidden bg-muted">
             {[...ranges]
               .sort((a, b) => a.minPercent - b.minPercent)
@@ -309,7 +309,7 @@ export function GradingScaleRangeEditor({
                 </div>
               ))}
           </div>
-          <div className="flex justify-between text-[10px] text-muted-foreground">
+          <div className="flex justify-between text-[10px] text-muted-foreground not-interactive">
             <span>0</span>
             <span>50</span>
             <span>100</span>

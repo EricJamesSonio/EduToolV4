@@ -27,7 +27,7 @@ export function PageHeader({
 
       {/* HEADER (THEME-BASED, NOT HARD-CODED) */}
       <div className="w-full rounded-lg border border-border bg-card px-6 py-4">
-        <h1 className="text-center font-bold tracking-wide">
+        <h1 className="text-center font-bold tracking-wide not-interactive">
           {title}
         </h1>
       </div>
@@ -72,7 +72,7 @@ export function PageHeader({
 
           {/* Description */}
           {description && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground not-interactive">
               {description}
             </p>
           )}

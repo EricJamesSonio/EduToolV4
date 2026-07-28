@@ -90,7 +90,7 @@ export function GradingSchemeEditor() {
       {isLocked && (
         <div className="flex items-center gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
           <Lock className="h-4 w-4 shrink-0" />
-          <span>
+          <span className="not-interactive">
             <strong>Locked</strong> — this grading scheme is locked because enrolled students
             exist in one or more classes. Remove all enrolled students first to make changes.
           </span>
@@ -100,9 +100,9 @@ export function GradingSchemeEditor() {
       {/* Column headers — only when rows exist */}
       {rows.length > 0 && (
         <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-0.5">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Category Name</span>
-          <span className="w-[140px] text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</span>
-          <span className="w-[96px] text-xs font-medium text-muted-foreground uppercase tracking-wide">Weight</span>
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide not-interactive">Category Name</span>
+          <span className="w-[140px] text-xs font-medium text-muted-foreground uppercase tracking-wide not-interactive">Type</span>
+          <span className="w-[96px] text-xs font-medium text-muted-foreground uppercase tracking-wide not-interactive">Weight</span>
           <span className="w-8" />
         </div>
       )}
@@ -122,10 +122,10 @@ export function GradingSchemeEditor() {
 
         {rows.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed py-10 text-center">
-            <p className="text-sm font-medium text-muted-foreground">
+            <p className="text-sm font-medium text-muted-foreground not-interactive">
               No grading scheme configured yet
             </p>
-            <p className="text-xs text-muted-foreground max-w-xs">
+            <p className="text-xs text-muted-foreground max-w-xs not-interactive">
               Click <strong>Add Category</strong> below to define how grades are weighted for this school.
             </p>
           </div>
@@ -149,17 +149,17 @@ export function GradingSchemeEditor() {
       {/* Total weight + save */}
       <div className="flex items-center justify-between border-t pt-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Total:</span>
+          <span className="text-sm text-muted-foreground not-interactive">Total:</span>
           <span
             className={cn(
-              "text-sm font-semibold tabular-nums",
+              "text-sm font-semibold tabular-nums not-interactive",
               totalWeight === 100 ? "text-green-600" : "text-destructive"
             )}
           >
             {totalWeight}% / 100%
           </span>
           {rows.length > 0 && totalWeight !== 100 && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground not-interactive">
               (must equal 100% to save)
             </span>
           )}

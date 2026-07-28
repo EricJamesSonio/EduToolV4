@@ -70,7 +70,7 @@ function ProgramTableRowActions({
           <AlertTriangle className="h-3 w-3 mr-1" />
           No Calendar
         </Badge>
-        <span className="text-[10px] text-muted-foreground">Set up calendar first</span>
+        <span className="text-[10px] text-muted-foreground not-interactive">Set up calendar first</span>
       </div>
     )
   }
@@ -206,7 +206,7 @@ export function ProgramAssignmentTable({
 
   if (programTypes.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground not-interactive">
         No programs found for this school year.
       </p>
     );
@@ -242,7 +242,7 @@ export function ProgramAssignmentTable({
                     ) : (
                       <Circle className="h-4 w-4 text-muted-foreground/30 shrink-0" />
                     )}
-                    <span className="text-sm font-medium">{prog.name}</span>
+                    <span className="text-sm font-medium not-interactive">{prog.name}</span>
                   </div>
                 );
               },
@@ -271,7 +271,7 @@ export function ProgramAssignmentTable({
               <div className="flex items-center gap-2">
                 <Badge
                   variant="outline"
-                  className={cn("text-xs border px-2 py-0.5", typeColor)}
+                  className={cn("text-xs border px-2 py-0.5 not-interactive", typeColor)}
                 >
                   {PROGRAM_TYPE_LABELS[type as ProgramType] ?? type}
                 </Badge>
@@ -291,7 +291,7 @@ export function ProgramAssignmentTable({
               {typePrograms.some((p) => !p.semesterAssignment) && (
                 <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
                   <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
-                  <p className="text-[11px] text-amber-700">
+                  <p className="text-[11px] text-amber-700 not-interactive">
                     Some programs don&apos;t have a template assigned yet.
                   </p>
                 </div>

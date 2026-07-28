@@ -59,12 +59,12 @@ export function SemesterTemplateStep({
       </div>
 
       {!seedSemesterTemplates ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground not-interactive">
           Semester templates will not be created. Enable above to include them.
         </p>
       ) : (
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground not-interactive">
             Select which semester templates to create. Each includes quarters/terms for enrollment periods:
           </p>
           {applicableTemplates.map((template) => {
@@ -99,8 +99,8 @@ export function SemesterTemplateStep({
                     className="h-4 w-4 rounded border-gray-300 cursor-pointer"
                   />
                   <div className="flex-1 text-left">
-                    <div className="text-sm font-medium">{template.name}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
+                    <div className="text-sm font-medium not-interactive">{template.name}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5 not-interactive">
                       {programLabel} • {template.semesters.length} semester(s) • {totalTerms} term(s)
                     </div>
                   </div>
@@ -114,12 +114,12 @@ export function SemesterTemplateStep({
                   <div className="px-3 pb-3 border-t border-muted-foreground/10 bg-muted/20 space-y-2">
                     {template.semesters.map((semester, semIdx) => (
                       <div key={`${template.programType}-sem-${semIdx}`} className="text-xs">
-                        <div className="font-semibold text-foreground mb-1">{semester.name}</div>
+                        <div className="font-semibold text-foreground mb-1 not-interactive">{semester.name}</div>
                         <div className="flex gap-2 flex-wrap">
                           {semester.terms.map((term) => (
                             <span
                               key={`${template.programType}-term-${term.order_index}`}
-                              className="inline-block bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded border border-blue-200 dark:border-blue-800"
+                              className="inline-block bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded border border-blue-200 dark:border-blue-800 not-interactive"
                             >
                               {term.name}
                             </span>

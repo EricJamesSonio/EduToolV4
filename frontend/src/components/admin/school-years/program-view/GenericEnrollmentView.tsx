@@ -61,14 +61,14 @@ export function GenericEnrollmentView({
     <div className="rounded-lg border bg-card overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
         <Users className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-semibold">Levels</span>
+        <span className="text-sm font-semibold not-interactive">Levels</span>
         <Badge variant="secondary" className="text-xs font-normal">
           {programStudents.length} total students
         </Badge>
       </div>
       <div className="divide-y">
         {programLevels.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-muted-foreground">No levels found.</p>
+          <p className="px-4 py-6 text-sm text-muted-foreground not-interactive">No levels found.</p>
         ) : programLevels.map((level) => (
           <CountRow
             key={level.id}

@@ -75,10 +75,10 @@ export function AdminSidebar(): React.JSX.Element {
     <SidebarShell
       header={
         <div className="space-y-0.5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-foreground">
+          <p className="text-xs font-semibold uppercase tracking-widest text-foreground not-interactive">
             Admin Portal
           </p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground not-interactive">
             System Management
           </p>
         </div>

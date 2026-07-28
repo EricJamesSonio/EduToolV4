@@ -181,10 +181,10 @@ export function TemplateAssignmentPanel({
             ?? "bg-slate-500/10 text-slate-600 border-slate-200";
           return (
             <div className="flex flex-col gap-1">
-              <span className="font-medium text-sm">{row.original.name}</span>
+              <span className="font-medium text-sm not-interactive">{row.original.name}</span>
               <Badge
                 variant="outline"
-                className={cn("text-xs border px-2 py-0.5 w-fit font-normal", color)}
+                className={cn("text-xs border px-2 py-0.5 w-fit font-normal not-interactive", color)}
               >
                 {PROGRAM_TYPE_LABELS[row.original.type as keyof typeof PROGRAM_TYPE_LABELS]
                   ?? row.original.type}
@@ -197,7 +197,7 @@ export function TemplateAssignmentPanel({
         accessorKey: "classCount",
         header: "Classes",
         cell: ({ row }: any) => (
-          <span className="text-sm">{row.original.classCount}</span>
+          <span className="text-sm not-interactive">{row.original.classCount}</span>
         ),
       },
       {
@@ -276,7 +276,7 @@ export function TemplateAssignmentPanel({
           return (
             <Badge
               variant="outline"
-              className={cn("text-xs border px-2 py-0.5 w-fit font-normal", color)}
+              className={cn("text-xs border px-2 py-0.5 w-fit font-normal not-interactive", color)}
             >
               {PROGRAM_TYPE_LABELS[row.original.programType as keyof typeof PROGRAM_TYPE_LABELS]
                 ?? row.original.program}

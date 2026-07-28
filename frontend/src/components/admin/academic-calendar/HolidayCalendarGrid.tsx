@@ -289,7 +289,7 @@ export function HolidayCalendarGrid({
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <p className="text-base font-semibold text-primary-foreground">
+        <p className="text-base font-semibold text-primary-foreground not-interactive">
           {MONTH_NAMES[month]} {year}
         </p>
         <button
@@ -301,7 +301,7 @@ export function HolidayCalendarGrid({
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 px-5 py-2 border-b bg-muted/10 text-xs text-muted-foreground">
+      <div className="flex items-center gap-4 px-5 py-2 border-b bg-muted/10 text-xs text-muted-foreground not-interactive">
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Enabled holiday
         </span>
@@ -318,7 +318,7 @@ export function HolidayCalendarGrid({
         {WEEKDAY_HEADERS.map((d) => (
           <div
             key={d}
-            className="py-2 text-center text-xs font-semibold text-primary"
+            className="py-2 text-center text-xs font-semibold text-primary not-interactive"
           >
             {d}
           </div>

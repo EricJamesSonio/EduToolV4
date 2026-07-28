@@ -32,12 +32,12 @@ export function StudentDetailHeader({
           Back to Students
         </button>
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight not-interactive">
             {student.fullName}
           </h1>
           <StatusBadge status={student.status} />
         </div>
-        <p className="text-sm text-muted-foreground font-mono">
+        <p className="text-sm text-muted-foreground font-mono not-interactive">
           {student.studentId}
         </p>
       </div>

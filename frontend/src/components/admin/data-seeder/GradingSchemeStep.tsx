@@ -47,12 +47,12 @@ export function GradingSchemeStep({
       </div>
 
       {!seedGradingSchemes ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground not-interactive">
           Grading scheme templates will not be created. Enable above to include them.
         </p>
       ) : (
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground not-interactive">
             Select which grading scheme templates to create for your programs:
           </p>
           {applicableSchemes.map((scheme) => {
@@ -84,7 +84,7 @@ export function GradingSchemeStep({
                     >
                       {scheme.name}
                     </label>
-                    <p className="text-xs text-muted-foreground mb-3">
+                    <p className="text-xs text-muted-foreground mb-3 not-interactive">
                       For: <span className="font-medium">{programLabel}</span>
                     </p>
                     <div className="grid grid-cols-2 gap-2">
@@ -93,8 +93,8 @@ export function GradingSchemeStep({
                           key={comp.name}
                           className="bg-muted/50 rounded px-2 py-1.5 text-xs border border-muted-foreground/10"
                         >
-                          <div className="font-medium text-foreground truncate">{comp.name}</div>
-                          <div className="text-muted-foreground text-xs mt-0.5">
+                          <div className="font-medium text-foreground truncate not-interactive">{comp.name}</div>
+                          <div className="text-muted-foreground text-xs mt-0.5 not-interactive">
                             {comp.weight}% • {comp.type}
                           </div>
                         </div>

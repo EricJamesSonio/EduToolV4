@@ -58,7 +58,7 @@ export function Pagination({
       )}
     >
       {/* Result count */}
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground not-interactive">
         {total === 0 ? (
           "No results"
         ) : (
@@ -78,7 +78,7 @@ export function Pagination({
         {/* Page size selector */}
         {onLimitChange && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">
+            <span className="text-sm text-muted-foreground whitespace-nowrap not-interactive">
               Rows per page
             </span>
             <Select
@@ -118,7 +118,7 @@ export function Pagination({
             p === "ellipsis" ? (
               <span
                 key={`ellipsis-${i}`}
-                className="px-1 text-sm text-muted-foreground"
+                className="px-1 text-sm text-muted-foreground not-interactive"
               >
                 …
               </span>

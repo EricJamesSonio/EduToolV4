@@ -79,10 +79,10 @@ export function CalendarTab({ schoolYearId }: CalendarTabProps): React.JSX.Eleme
       accessorKey: "start_date",
       header: "Date",
       cell: ({ row }) => (
-        <span className="text-sm">
+        <span className="text-sm not-interactive">
           {formatDate(row.original.start_date)}
           {row.original.start_date !== row.original.end_date && (
-            <span className="text-muted-foreground">
+            <span className="text-muted-foreground not-interactive">
               {" "}– {formatDate(row.original.end_date)}
             </span>
           )}
@@ -93,7 +93,7 @@ export function CalendarTab({ schoolYearId }: CalendarTabProps): React.JSX.Eleme
       accessorKey: "type",
       header: "Type",
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground not-interactive">
           {EVENT_TYPE_LABELS[row.original.type]}
         </span>
       ),
@@ -102,14 +102,14 @@ export function CalendarTab({ schoolYearId }: CalendarTabProps): React.JSX.Eleme
       accessorKey: "title",
       header: "Title",
       cell: ({ row }) => (
-        <span className="font-medium text-sm">{row.original.title}</span>
+        <span className="font-medium text-sm not-interactive">{row.original.title}</span>
       ),
     },
     {
       accessorKey: "description",
       header: "Notes",
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground not-interactive">
           {row.original.description ?? "—"}
         </span>
       ),

@@ -58,8 +58,8 @@ export function GradingSchemeTemplateList({
   if (templates.length === 0) {
     return (
       <div className="rounded-lg border border-dashed px-4 py-8 text-center">
-        <p className="text-sm font-medium text-muted-foreground">No templates yet</p>
-        <p className="text-xs text-muted-foreground mt-1">Create your first grading scheme template</p>
+        <p className="text-sm font-medium text-muted-foreground not-interactive">No templates yet</p>
+        <p className="text-xs text-muted-foreground mt-1 not-interactive">Create your first grading scheme template</p>
         <Button size="sm" variant="outline" className="mt-3" onClick={onCreateClick}>
           <Plus className="h-3.5 w-3.5 mr-1.5" /> New Template
         </Button>
@@ -88,9 +88,9 @@ export function GradingSchemeTemplateList({
                 )}
               />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{template.name}</p>
+                <p className="text-sm font-medium truncate not-interactive">{template.name}</p>
               </div>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground not-interactive">
                 {template.components?.length ?? 0} component{(template.components?.length ?? 0) !== 1 ? "s" : ""}
               </span>
               <DropdownMenu>
@@ -126,7 +126,7 @@ export function GradingSchemeTemplateList({
             {expanded === template.id && (
               <div className="border-t px-4 py-3 bg-muted/20 space-y-2">
                 {template.components?.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">No components</p>
+                  <p className="text-xs text-muted-foreground italic not-interactive">No components</p>
                 ) : (
                   template.components?.map((comp, idx) => {
                     const dots  = ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500", "bg-orange-500", "bg-rose-500"];
@@ -137,9 +137,9 @@ export function GradingSchemeTemplateList({
                       <div key={idx} className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           <div className={cn("h-1.5 w-1.5 rounded-full", dots[i])} />
-                          <span className={cn("font-medium", texts[i])}>{comp.name}</span>
+                          <span className={cn("font-medium not-interactive", texts[i])}>{comp.name}</span>
                         </div>
-                        <span className={cn("rounded-sm px-1.5 py-0.5 font-semibold", bgs[i], texts[i])}>{comp.weight}%</span>
+                        <span className={cn("rounded-sm px-1.5 py-0.5 font-semibold not-interactive", bgs[i], texts[i])}>{comp.weight}%</span>
                       </div>
                     );
                   })

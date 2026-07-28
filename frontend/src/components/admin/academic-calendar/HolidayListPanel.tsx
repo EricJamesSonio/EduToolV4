@@ -121,10 +121,10 @@ export function HolidayListPanel({
       {/* Regular national holidays */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground not-interactive">
             Regular National Holidays
           </p>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground not-interactive">
             ({holidays.filter((h) => h.isDefault && enabledKeys.has(h.key)).length}/{regularHolidays.length} enabled)
           </span>
         </div>
@@ -138,10 +138,10 @@ export function HolidayListPanel({
       {/* Special / optional holidays */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground not-interactive">
             Special &amp; Optional Holidays
           </p>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground not-interactive">
             ({holidays.filter((h) => !h.isDefault && enabledKeys.has(h.key)).length}/{specialHolidays.length} enabled)
           </span>
         </div>
@@ -155,7 +155,7 @@ export function HolidayListPanel({
       {/* Custom holidays */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground not-interactive">
             Custom Holidays ({customHolidays.length})
           </p>
           <button
@@ -210,7 +210,7 @@ export function HolidayListPanel({
         )}
 
         {customHolidays.length === 0 && !addingCustom ? (
-          <p className="text-xs text-muted-foreground py-2">
+          <p className="text-xs text-muted-foreground py-2 not-interactive">
             No custom holidays added yet.
           </p>
         ) : (
@@ -221,12 +221,12 @@ export function HolidayListPanel({
                 className="flex items-center gap-3 px-4 py-3 rounded-lg border bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{ch.title}</p>
+                  <p className="text-sm font-medium truncate not-interactive">{ch.title}</p>
                   {ch.description && (
-                    <p className="text-xs text-muted-foreground truncate">{ch.description}</p>
+                    <p className="text-xs text-muted-foreground truncate not-interactive">{ch.description}</p>
                   )}
                 </div>
-                <span className="text-xs text-muted-foreground shrink-0">
+                <span className="text-xs text-muted-foreground shrink-0 not-interactive">
                   {formatDate(ch.date)}
                 </span>
                 <button

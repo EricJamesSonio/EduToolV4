@@ -87,7 +87,7 @@ export function ProgramDetailView({
           <GraduationCap className="h-4 w-4" />
         </div>
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold">{activeProgram.name}</h2>
+          <h2 className="text-xl font-semibold not-interactive">{activeProgram.name}</h2>
           <Badge className={cn("text-xs border", typeColor)}>{typeLabel}</Badge>
         </div>
       </div>

@@ -43,13 +43,13 @@ export function TemplateCard({
         />
 
         <div className="min-w-0 flex-1">
-          <span className="truncate text-sm font-medium text-foreground">
+          <span className="truncate text-sm font-medium text-foreground not-interactive">
             {template.name}
           </span>
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground not-interactive">
             {template.semesters.length} sem
             {template.semesters.length !== 1 ? "s" : ""}
           </span>
@@ -105,12 +105,12 @@ export function TemplateCard({
                     key={sem.id ?? sem.order_index}
                     className={cn("rounded-lg border", cardBg[siMod], "p-4")}
                   >
-                    <p className={cn("mb-3 text-sm font-medium", textClr[siMod])}>
+                    <p className={cn("mb-3 text-sm font-medium not-interactive", textClr[siMod])}>
                       {sem.name}
                     </p>
 
                     {sem.terms.length === 0 ? (
-                      <p className="text-xs italic text-muted-foreground">
+                      <p className="text-xs italic text-muted-foreground not-interactive">
                         No terms
                       </p>
                     ) : (
@@ -120,7 +120,7 @@ export function TemplateCard({
                           .map((term, ti) => (
                             <div
                               key={term.id ?? term.order_index}
-                              className="flex items-center gap-2 text-xs text-muted-foreground"
+                              className="flex items-center gap-2 text-xs text-muted-foreground not-interactive"
                             >
                               <div className={cn("h-1.5 w-1.5 shrink-0 rounded-full", dotClr[(siMod * 10 + ti) % 10])} />
                               {term.name}

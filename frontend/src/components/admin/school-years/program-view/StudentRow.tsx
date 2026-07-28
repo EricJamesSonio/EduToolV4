@@ -46,10 +46,10 @@ export function StudentRow({
           </div>
           <div className="min-w-0">
             {/* ↓ show fullName instead of student_id */}
-            <p className="text-sm font-medium truncate">{studentName}</p>
+            <p className="text-sm font-medium truncate not-interactive">{studentName}</p>
             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
               {pe?.level && (
-                <span className="text-xs text-muted-foreground">{pe.level.name}</span>
+                <span className="text-xs text-muted-foreground not-interactive">{pe.level.name}</span>
               )}
               {pe?.course && (
                 <Badge variant="outline" className="text-xs font-normal py-0 px-1.5">
@@ -66,7 +66,7 @@ export function StudentRow({
                   {pe.section.name}
                 </Badge>
               ) : (
-                <span className="text-xs text-amber-600 dark:text-amber-400 italic">
+                <span className="text-xs text-amber-600 dark:text-amber-400 italic not-interactive">
                   No section
                 </span>
               )}

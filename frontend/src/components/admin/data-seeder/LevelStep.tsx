@@ -57,7 +57,7 @@ function CountStepper({
       >
         <Minus className="h-3 w-3" />
       </button>
-      <span className="w-7 text-center text-sm font-semibold tabular-nums">{value}</span>
+      <span className="w-7 text-center text-sm font-semibold tabular-nums not-interactive">{value}</span>
       <button
         type="button"
         disabled={value >= max}
@@ -141,7 +141,7 @@ function ProgramLevelsPanel({
 
         {/* Count stepper always visible in header */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Levels:</span>
+          <span className="text-xs text-muted-foreground not-interactive">Levels:</span>
           <CountStepper
             value={config.count}
             min={min}
@@ -157,7 +157,7 @@ function ProgramLevelsPanel({
       {/* Level names grid */}
       {open && (
         <div className="px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-3">
+          <p className="text-xs text-muted-foreground mb-3 not-interactive">
             Click the <Pencil className="inline h-3 w-3" /> icon to rename a level. Use + / − to add or remove levels.
           </p>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
@@ -179,7 +179,7 @@ function ProgramLevelsPanel({
                     className="h-6 text-xs px-1 border-0 shadow-none focus-visible:ring-0 p-0"
                   />
                 ) : (
-                  <span className="flex-1 text-xs font-medium truncate">{name}</span>
+                  <span className="flex-1 text-xs font-medium truncate not-interactive">{name}</span>
                 )}
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   {editingIndex !== i && (

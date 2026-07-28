@@ -93,13 +93,13 @@ function SectionRow({
             className="h-6 text-xs px-1 border-0 shadow-none focus-visible:ring-0 p-0"
           />
         ) : (
-          <span className="text-xs font-medium truncate block">{section.name}</span>
+          <span className="text-xs font-medium truncate block not-interactive">{section.name}</span>
         )}
       </div>
 
       {/* Capacity */}
       <div className="flex items-center gap-1 shrink-0">
-        <span className="text-xs text-muted-foreground">Cap:</span>
+        <span className="text-xs text-muted-foreground not-interactive">Cap:</span>
         <Input
           type="number"
           min={1}
@@ -200,7 +200,7 @@ function LevelSectionsPanel({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-medium text-muted-foreground">{levelName}</span>
+        <span className="text-xs font-medium text-muted-foreground not-interactive">{levelName}</span>
         <button
           type="button"
           onClick={addSection}
@@ -277,7 +277,7 @@ function EntitySectionsPanel({
       {/* Per-level section lists */}
       {open && (
         <div className="px-4 py-3 space-y-4">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground not-interactive">
             Each level gets its own sections. Click <Pencil className="inline h-3 w-3" /> to rename,
             edit the cap number directly, or use + / − to add or remove sections per level.
           </p>

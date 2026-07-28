@@ -114,9 +114,9 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
             {getStatusIcon()}
           </div>
           <div className="flex-1 space-y-1">
-            <h3 className="font-semibold text-lg leading-tight">{year.name}</h3>
+            <h3 className="font-semibold text-lg leading-tight not-interactive">{year.name}</h3>
             {(year.start_date || year.end_date) && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground not-interactive">
                 {year.start_date ? formatDate(year.start_date) : "—"}
                 {" "}–{" "}
                 {year.end_date ? formatDate(year.end_date) : "—"}

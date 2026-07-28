@@ -169,7 +169,7 @@ export function GradingScaleAssignmentSection({
         header: "Program",
         cell: ({ row }) => (
           <div className="space-y-1">
-            <span className="font-medium text-sm">{row.original.name}</span>
+            <span className="font-medium text-sm not-interactive">{row.original.name}</span>
             <Badge
               variant="outline"
               className={cn(
@@ -191,12 +191,12 @@ export function GradingScaleAssignmentSection({
           row.original.assignedScaleName ? (
             <div className="flex items-center gap-2">
               <Check className="h-4 w-4 text-emerald-600" />
-              <span className="text-sm font-medium">
+              <span className="text-sm font-medium not-interactive">
                 {row.original.assignedScaleName}
               </span>
             </div>
           ) : (
-            <span className="text-sm text-muted-foreground">Not assigned</span>
+              <span className="text-sm text-muted-foreground not-interactive">Not assigned</span>
           ),
       },
       {
@@ -240,7 +240,7 @@ export function GradingScaleAssignmentSection({
   return (
     <>
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Assign to Programs</h2>
+        <h2 className="text-lg font-semibold not-interactive">Assign to Programs</h2>
 
         <div className="rounded-lg border p-4 bg-muted/30">
           <SchoolYearSelector
@@ -290,8 +290,8 @@ export function GradingScaleAssignmentSection({
             </DialogHeader>
 
             <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-              <p className="text-xs text-muted-foreground">Program</p>
-              <p className="font-medium text-sm">{assignTarget.name}</p>
+              <p className="text-xs text-muted-foreground not-interactive">Program</p>
+              <p className="font-medium text-sm not-interactive">{assignTarget.name}</p>
               <Badge
                 variant="outline"
                 className={cn(
@@ -306,7 +306,7 @@ export function GradingScaleAssignmentSection({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Select Scale</label>
+              <label className="text-sm font-medium not-interactive">Select Scale</label>
               <Select
                 value={selectedScaleId}
                 onValueChange={(v) => setSelectedScaleId(v ?? "")}
@@ -316,7 +316,7 @@ export function GradingScaleAssignmentSection({
                 </SelectTrigger>
                 <SelectContent>
                   {compatibleScales.length === 0 ? (
-                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                    <div className="px-3 py-2 text-xs text-muted-foreground not-interactive">
                       No scales available for this program type
                     </div>
                   ) : (
@@ -339,9 +339,9 @@ export function GradingScaleAssignmentSection({
 
             {selectedScale && (
               <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                <p className="text-xs text-muted-foreground">Scale Details</p>
-                <p className="font-medium text-sm">{selectedScale.name}</p>
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground not-interactive">Scale Details</p>
+                <p className="font-medium text-sm not-interactive">{selectedScale.name}</p>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground not-interactive">
                   <span>{selectedScale.ranges.length} grade ranges</span>
                   <span>Passing: {passingThreshold(selectedScale)}</span>
                 </div>
@@ -349,7 +349,7 @@ export function GradingScaleAssignmentSection({
             )}
 
             <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
-              <p className="text-xs text-blue-900">
+              <p className="text-xs text-blue-900 not-interactive">
                 Are you sure you want to assign this grading scale to{" "}
                 <span className="font-medium">{assignTarget.name}</span>?
               </p>

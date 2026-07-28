@@ -17,10 +17,10 @@ export function WorkflowSection() {
         <div className="flex justify-center">
           <div className="section-accent"></div>
         </div>
-        <h2 className="font-bold">
+        <h2 className="font-bold not-interactive">
           Get Your School Running in Minutes
         </h2>
-        <p className="text-lg text-muted-foreground">
+        <p className="text-lg text-muted-foreground not-interactive">
           From organization creation to full operation — a simple workflow designed for school administrators
         </p>
       </div>
@@ -34,14 +34,14 @@ export function WorkflowSection() {
           {steps.map((step, index) => (
             <div key={index} className="relative flex items-start gap-6 group">
               {/* Step Number */}
-              <div className="relative z-10 flex-shrink-0 w-14 h-14 bg-gradient-to-br from-primary to-accent text-white rounded-2xl flex items-center justify-center font-heading font-bold text-lg shadow-sm group-hover:shadow-md transition-shadow duration-200">
+              <div className="relative z-10 flex-shrink-0 w-14 h-14 bg-gradient-to-br from-primary to-accent text-white rounded-2xl flex items-center justify-center font-heading font-bold text-lg shadow-sm group-hover:shadow-md transition-shadow duration-200 not-interactive">
                 {String(index + 1).padStart(2, "0")}
               </div>
 
               {/* Step Content */}
               <div className="flex-grow pt-3">
-                <p className="font-semibold text-foreground group-hover:text-primary transition-colors duration-200">{step}</p>
-                <p className="text-base text-muted-foreground mt-0.5">
+                <p className="font-semibold text-foreground group-hover:text-primary transition-colors duration-200 not-interactive">{step}</p>
+                <p className="text-base text-muted-foreground mt-0.5 not-interactive">
                   {index === 0 && "Set up your institution profile, add school details, and configure preferences"}
                   {index === 1 && "Define programs like College, SHS, Elementary with custom levels and sections"}
                   {index === 2 && "Create educator accounts and assign them to classes and subjects"}
