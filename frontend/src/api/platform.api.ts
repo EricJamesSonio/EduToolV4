@@ -27,6 +27,7 @@ export interface SchoolOrg {
   id: string;
   name: string;
   description: string | null;
+  logoUrl: string | null;
   emailExtension: string | null;
   admin: {
     id: string;
