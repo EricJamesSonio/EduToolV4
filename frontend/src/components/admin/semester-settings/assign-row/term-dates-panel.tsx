@@ -64,18 +64,18 @@ export function TermDatesPanel({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CalendarRange className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-semibold">{templateName}</span>
+          <span className="text-sm font-semibold not-interactive">{templateName}</span>
         </div>
 
         <div className="flex items-center gap-2">
           {panelMode === "view" && !isValid && (
-            <div className="flex items-center gap-1 text-xs text-amber-600">
+            <div className="flex items-center gap-1 text-xs text-amber-600 not-interactive">
               <AlertCircle className="h-3 w-3" />
               Dates not set
             </div>
           )}
           {panelMode === "edit" && !isValid && (
-            <div className="flex items-center gap-1 text-xs text-amber-600">
+            <div className="flex items-center gap-1 text-xs text-amber-600 not-interactive">
               <AlertCircle className="h-3 w-3" />
               Missing dates
             </div>
@@ -101,7 +101,7 @@ export function TermDatesPanel({
         <div className="space-y-4">
           {Object.entries(grouped).map(([semName, terms]) => (
             <div key={semName} className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground not-interactive">
                 {semName}
               </p>
               <div className="space-y-2">
@@ -114,13 +114,13 @@ export function TermDatesPanel({
                       key={term.id}
                       className="flex items-center justify-between px-3 py-2 rounded bg-background border"
                     >
-                      <span className="text-sm text-muted-foreground">{term.name}</span>
+                      <span className="text-sm text-muted-foreground not-interactive">{term.name}</span>
                       {hasDate ? (
-                        <span className="text-sm tabular-nums font-medium">
+                        <span className="text-sm tabular-nums font-medium not-interactive">
                           {formatDate(d.startDate)} → {formatDate(d.endDate)}
                         </span>
                       ) : (
-                        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 not-interactive">
                           Not set
                         </Badge>
                       )}
@@ -143,7 +143,7 @@ export function TermDatesPanel({
         <div className="space-y-4">
           {Object.entries(grouped).map(([semName, terms]) => (
             <div key={semName} className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground not-interactive">
                 {semName}
               </p>
               <div className="space-y-3">
@@ -174,7 +174,7 @@ export function TermDatesPanel({
           {onSmartDateConfig && (
             <div className="flex items-center gap-2 pt-2">
               <Separator className="flex-1" />
-              <span className="text-[11px] text-muted-foreground shrink-0">or</span>
+              <span className="text-[11px] text-muted-foreground shrink-0 not-interactive">or</span>
               <Separator className="flex-1" />
               <Button
                 size="sm"
