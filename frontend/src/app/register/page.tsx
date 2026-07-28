@@ -116,9 +116,9 @@ function RegisterPageContent() {
         <div className="text-center space-y-2">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm">
-              <img src="/edutool.png" alt="EduTool" className="w-full h-full object-cover" />
+              <img src="/edutool.png" alt="Relief-ED" className="w-full h-full object-cover" />
             </div>
-            <span className="font-heading font-bold text-xl">EduTool</span>
+            <span className="font-heading font-bold text-xl">Relief-ED</span>
           </Link>
           <h1 className="text-2xl font-bold text-foreground">
             {step === "form" && "Create Your Account"}
