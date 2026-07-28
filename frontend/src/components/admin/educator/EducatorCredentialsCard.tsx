@@ -60,7 +60,7 @@ export function EducatorCredentialsCard({
     <Modal open={open} onClose={onClose} title={title} size="md">
 
         <div className="space-y-4 py-2">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground not-interactive">
             Save these credentials now — the password will not be shown again.
           </p>
 
@@ -72,7 +72,7 @@ export function EducatorCredentialsCard({
             <CredentialRow label="Educator ID" value={credentials.educatorCode} mono />
             <Separator />
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide not-interactive">
                 Password
               </span>
               <Badge variant="secondary" className="font-mono text-sm px-3 py-1 select-all">
@@ -104,10 +104,10 @@ function CredentialRow({
 }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide not-interactive">
         {label}
       </span>
-      <span className={`text-sm font-medium truncate max-w-[240px] ${mono ? "font-mono" : ""}`}>
+      <span className={`text-sm font-medium truncate max-w-[240px] not-interactive ${mono ? "font-mono" : ""}`}>
         {value}
       </span>
     </div>

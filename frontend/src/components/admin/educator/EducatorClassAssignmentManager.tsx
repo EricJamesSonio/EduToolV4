@@ -100,7 +100,7 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
       id: "title",
       header: "Class",
       cell: ({ row }) => (
-        <span className="font-medium">
+        <span className="font-medium not-interactive">
           {row.original.subjectName ?? row.original.title ?? "—"}
         </span>
       ),
@@ -109,7 +109,7 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
       id: "section",
       header: "Section / Level",
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground not-interactive">
           {row.original.sectionName ?? "—"}
         </span>
       ),
@@ -118,7 +118,7 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
       id: "schedule",
       header: "Schedule",
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground not-interactive">
           {formatSchedule(row.original)}
         </span>
       ),
@@ -150,7 +150,7 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Assigned Classes</h2>
+        <h2 className="text-sm font-semibold not-interactive">Assigned Classes</h2>
         <Button size="sm" variant="outline" onClick={() => setAssignOpen(true)}>
           <Plus className="h-4 w-4" />
           Assign to Class
@@ -187,7 +187,7 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
                 ))}
               </div>
             ) : available.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-6">
+              <p className="text-center text-sm text-muted-foreground py-6 not-interactive">
                 No available classes.
               </p>
             ) : (
@@ -198,10 +198,10 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
                     className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/50"
                   >
                     <div>
-                      <p className="text-sm font-medium">
+                      <p className="text-sm font-medium not-interactive">
                         {cls.subjectName ?? cls.title ?? "Unnamed"}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground not-interactive">
                         {cls.sectionName}
                       </p>
                     </div>
