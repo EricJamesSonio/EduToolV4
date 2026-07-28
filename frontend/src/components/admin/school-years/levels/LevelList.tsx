@@ -36,7 +36,7 @@ export function LevelList({
   return (
     <div className="divide-y">
       {levels.length === 0 && !showGenerate && (
-        <p className={cn("py-3 text-xs text-muted-foreground", indented ? "pl-10" : "px-4")}>
+        <p className={cn("py-3 text-xs text-muted-foreground not-interactive", indented ? "pl-10" : "px-4")}>
           No levels yet.
         </p>
       )}
