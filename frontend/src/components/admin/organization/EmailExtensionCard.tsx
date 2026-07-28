@@ -217,13 +217,13 @@ export function EmailExtensionCard(): React.JSX.Element {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 not-interactive">
             <AtSign className="h-4 w-4" />
 
             Email Extension
           </CardTitle>
 
-          <CardDescription>
+          <CardDescription className="not-interactive">
             Set a default email domain for your organization.
             When creating educators or students, they can type
             their username and the extension is applied automatically.
@@ -248,7 +248,7 @@ export function EmailExtensionCard(): React.JSX.Element {
             <div className="flex items-center gap-3">
               <div className="flex-1 rounded-md border bg-muted/40 px-3 py-2 text-sm font-mono">
                 {currentExtension ?? (
-                  <span className="italic text-muted-foreground">
+                  <span className="italic text-muted-foreground not-interactive">
                     No extension set
                   </span>
                 )}
@@ -283,7 +283,7 @@ export function EmailExtensionCard(): React.JSX.Element {
                 <Label>Domain</Label>
 
                 <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-sm text-muted-foreground">
+                  <span className="font-mono text-sm text-muted-foreground not-interactive">
                     @
                   </span>
 
@@ -304,9 +304,9 @@ export function EmailExtensionCard(): React.JSX.Element {
                 </div>
 
                 {extension && !validationError && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground not-interactive">
                     Preview:{" "}
-                    <span className="font-mono text-foreground">
+                    <span className="font-mono text-foreground not-interactive">
                       username@{extension}
                     </span>
                   </p>
