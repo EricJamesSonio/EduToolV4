@@ -45,10 +45,10 @@ export function AssignmentSection({
       {/* Header with School Year Selector */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-base font-semibold tracking-tight">
+          <h2 className="text-base font-semibold tracking-tight not-interactive">
             Assign to Programs
           </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-sm text-muted-foreground mt-0.5 not-interactive">
             Select a school year to assign semester templates and configure term
             dates for its programs.
           </p>
@@ -64,9 +64,9 @@ export function AssignmentSection({
 
       {/* School Year Date Range Hint */}
       {selectedSchoolYear?.start_date && selectedSchoolYear?.end_date && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground not-interactive">
           School year range:{" "}
-          <span className="font-medium text-foreground">
+          <span className="font-medium text-foreground not-interactive">
             {new Date(selectedSchoolYear.start_date).toLocaleDateString()} –{" "}
             {new Date(selectedSchoolYear.end_date).toLocaleDateString()}
           </span>
@@ -76,7 +76,7 @@ export function AssignmentSection({
 
       {/* Programs Assignment Table */}
       {!selectedYearId ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground not-interactive">
           Select a school year to view programs.
         </p>
       ) : (
