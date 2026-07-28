@@ -96,9 +96,9 @@ export default function EducatorsPage(): React.JSX.Element {
       {/* Alert when no email extension */}
       {!hasEmailExtension && !orgLoading && (
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            You need to set up an email extension before creating educators. Go to{" "}
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+            <span className="not-interactive">You need to set up an email extension before creating educators. Go to{" "}</span>
             <button
               onClick={handleSetupEmail}
               className="underline font-semibold hover:opacity-80"
