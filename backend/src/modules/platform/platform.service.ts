@@ -311,6 +311,7 @@ async getSchools(query: { search?: string; page?: number; limit?: number }) {
       id: org.id,
       name: org.name,
       description: org.description ?? null,
+      logoUrl: org.logo_url ?? null,
       emailExtension: org.email_extension ?? null,
       admin: admin
         ? {
