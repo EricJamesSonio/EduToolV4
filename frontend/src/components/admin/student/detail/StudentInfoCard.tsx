@@ -27,8 +27,8 @@ function InfoRow({ icon, label, value }: InfoRowProps): React.JSX.Element {
     <div className="flex items-start gap-3 py-3 border-b last:border-0">
       <div className="text-muted-foreground mt-0.5 shrink-0">{icon}</div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-        <div className="text-sm font-medium break-all">{value}</div>
+        <p className="text-xs text-muted-foreground mb-0.5 not-interactive">{label}</p>
+        <div className="text-sm font-medium break-all not-interactive">{value}</div>
       </div>
     </div>
   );
@@ -81,7 +81,7 @@ export function StudentInfoCard({
             label="Enrollments"
             value={
               allProgramEnrollments.length === 0 ? (
-                <span className="text-muted-foreground font-normal">
+                <span className="text-muted-foreground font-normal not-interactive">
                   Not enrolled in any program yet.
                 </span>
               ) : (
@@ -93,10 +93,10 @@ export function StudentInfoCard({
                     >
                       <div className="flex items-center gap-2">
                         <BookOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-sm font-semibold">{pe.program.name}</span>
+                        <span className="text-sm font-semibold not-interactive">{pe.program.name}</span>
                         <Badge
                           variant={pe.status === "active" ? "default" : "secondary"}
-                          className="text-xs ml-auto"
+                          className="text-xs ml-auto not-interactive"
                         >
                           {pe.status}
                         </Badge>
@@ -104,13 +104,13 @@ export function StudentInfoCard({
 
                       <div className="flex flex-wrap gap-x-4 gap-y-1 pl-5 text-xs text-muted-foreground">
                         {pe.level && (
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 not-interactive">
                             <Layers className="h-3 w-3" />
                             {pe.level.name}
                           </span>
                         )}
                         {pe.course && (
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 not-interactive">
                             <BookOpen className="h-3 w-3" />
                             {pe.course.code
                               ? `${pe.course.code} – ${pe.course.name}`
@@ -118,13 +118,13 @@ export function StudentInfoCard({
                           </span>
                         )}
                         {pe.strand && (
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 not-interactive">
                             <BookOpen className="h-3 w-3" />
                             {pe.strand.name}
                           </span>
                         )}
                         {pe.section && (
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 not-interactive">
                             <Users className="h-3 w-3" />
                             {pe.section.name}
                           </span>
