@@ -10,7 +10,7 @@ export default function EnrollStudentsPage() {
         </h1>
         <p className="text-lg text-muted-foreground">
           Learn the step-by-step process to add students to programs, levels,
-          sections, and classes in EduTool.
+           sections, and classes in Relief-ED.
         </p>
       </div>
 
