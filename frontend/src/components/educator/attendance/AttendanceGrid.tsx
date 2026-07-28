@@ -1,53 +1,65 @@
-"use client"
+"use client";
 
-import { useState, useMemo, useCallback, useRef, useEffect } from "react"
-import { format } from "date-fns"
-import { Loader2, Save, Check } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-import { WEEK_COLORS } from "@/lib/palette"
-import { useAttendanceGrid, useSaveAttendanceGrid } from "@/hooks/educator/useAttendance"
-import type { AttendanceGridData, AttendanceGridSession } from "@/api/educator/attendance.api"
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { format } from "date-fns";
+import { Loader2, Save, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { WEEK_COLORS } from "@/lib/palette";
+import {
+  useAttendanceGrid,
+  useSaveAttendanceGrid,
+} from "@/hooks/educator/useAttendance";
+import type {
+  AttendanceGridData,
+  AttendanceGridSession,
+} from "@/api/educator/attendance.api";
 
-type AttendanceStatus = "present" | "absent" | "late" | "excused"
+type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = {
   present: "P",
   absent: "A",
   late: "L",
   excused: "E",
-}
+};
 
 const STATUS_CHIP: Record<AttendanceStatus, string> = {
   present: "bg-emerald-500 hover:bg-emerald-600 text-white",
   absent: "bg-red-500 hover:bg-red-600 text-white",
   late: "bg-amber-500 hover:bg-amber-600 text-white",
   excused: "bg-blue-500 hover:bg-blue-600 text-white",
-}
+};
 
 const STATUS_COLOR: Record<AttendanceStatus, string> = {
   present: "bg-emerald-500 text-white",
   absent: "bg-red-500 text-white",
   late: "bg-amber-500 text-white",
   excused: "bg-blue-500 text-white",
-}
+};
 
-const EMPTY_CELL = "bg-muted/40 text-muted-foreground/40"
+const EMPTY_CELL =
+  "bg-card text-muted-foreground/50 border border-dashed border-border/70";
 
-const ALL_STATUSES: AttendanceStatus[] = ["present", "absent", "late", "excused"]
+const ALL_STATUSES: AttendanceStatus[] = [
+  "present",
+  "absent",
+  "late",
+  "excused",
+];
 
 function formatTime(iso: string): string {
   try {
-    const d = new Date(iso)
-    if (isNaN(d.getTime())) return iso
-    const hours = d.getHours()
-    const minutes = d.getMinutes()
-    const ampm = hours >= 12 ? "PM" : "AM"
-    const h = hours % 12 || 12
-    const m = minutes.toString().padStart(2, "0")
-    return `${h}:${m} ${ampm}`
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    const hours = d.getHours();
+    const minutes = d.getMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const h = hours % 12 || 12;
+    const m = minutes.toString().padStart(2, "0");
+    return `${h}:${m} ${ampm}`;
   } catch {
-    return iso
+    return iso;
   }
 }
 
@@ -56,21 +68,21 @@ function CellPopover({
   onSelect,
   onClose,
 }: {
-  current: AttendanceStatus | null
-  onSelect: (s: AttendanceStatus) => void
-  onClose: () => void
+  current: AttendanceStatus | null;
+  onSelect: (s: AttendanceStatus) => void;
+  onClose: () => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose()
+        onClose();
       }
-    }
-    document.addEventListener("mousedown", handleClick)
-    return () => document.removeEventListener("mousedown", handleClick)
-  }, [onClose])
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
 
   return (
     <div
@@ -83,7 +95,9 @@ function CellPopover({
           onClick={() => onSelect(s)}
           className={cn(
             "flex items-center justify-center h-7 w-7 rounded text-xs font-bold transition-colors",
-            current === s ? STATUS_COLOR[s] : "text-muted-foreground hover:bg-muted"
+            current === s
+              ? STATUS_COLOR[s]
+              : "text-muted-foreground hover:bg-muted",
           )}
           title={s}
         >
@@ -91,7 +105,7 @@ function CellPopover({
         </button>
       ))}
     </div>
-  )
+  );
 }
 
 function Cell({
@@ -99,30 +113,30 @@ function Cell({
   enabled,
   onSelect,
 }: {
-  status: AttendanceStatus | null
-  enabled: boolean
-  onSelect: (status: AttendanceStatus) => void
+  status: AttendanceStatus | null;
+  enabled: boolean;
+  onSelect: (status: AttendanceStatus) => void;
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false);
 
   if (!enabled) {
     return (
-      <div className="flex items-center justify-center h-8 w-full rounded text-[11px] font-bold tabular-nums bg-muted/20 text-muted-foreground/30 cursor-not-allowed">
+      <div className="flex items-center justify-center h-8 w-full rounded text-[11px] font-bold tabular-nums bg-card border border-border/40 text-muted-foreground/25 cursor-not-allowed">
         —
       </div>
-    )
+    );
   }
 
   const className = status
     ? cn(
         "flex items-center justify-center h-8 w-full rounded text-[11px] font-bold tabular-nums transition-colors relative",
-        STATUS_CHIP[status]
+        STATUS_CHIP[status],
       )
     : cn(
         "flex items-center justify-center h-8 w-full rounded text-[11px] font-bold tabular-nums transition-colors relative",
         EMPTY_CELL,
-        "hover:bg-muted/60 hover:text-muted-foreground/60"
-      )
+        "hover:bg-muted/60 hover:text-muted-foreground/60",
+      );
 
   return (
     <div className="relative inline-flex w-full">
@@ -133,89 +147,94 @@ function Cell({
         <CellPopover
           current={status}
           onSelect={(s) => {
-            onSelect(s)
-            setOpen(false)
+            onSelect(s);
+            setOpen(false);
           }}
           onClose={() => setOpen(false)}
         />
       )}
     </div>
-  )
+  );
 }
 
 interface Props {
-  classId: string
+  classId: string;
 }
 
 export function AttendanceGrid({ classId }: Props) {
-  const { data, isLoading } = useAttendanceGrid(classId)
-  const mutation = useSaveAttendanceGrid(classId)
-  const [dirty, setDirty] = useState<Set<string>>(new Set())
-  const [local, setLocal] = useState<Record<string, AttendanceStatus>>({})
+  const { data, isLoading } = useAttendanceGrid(classId);
+  const mutation = useSaveAttendanceGrid(classId);
+  const [dirty, setDirty] = useState<Set<string>>(new Set());
+  const [local, setLocal] = useState<Record<string, AttendanceStatus>>({});
 
-  const { students, sessions } = data ?? { students: [], sessions: [] }
+  const { students, sessions } = data ?? { students: [], sessions: [] };
 
   // Group sessions by week number
   const weekGroups = useMemo(() => {
-    const map = new Map<number, AttendanceGridSession[]>()
+    const map = new Map<number, AttendanceGridSession[]>();
     for (const s of sessions) {
-      if (!map.has(s.weekNumber)) map.set(s.weekNumber, [])
-      map.get(s.weekNumber)!.push(s)
+      if (!map.has(s.weekNumber)) map.set(s.weekNumber, []);
+      map.get(s.weekNumber)!.push(s);
     }
-    return Array.from(map.entries()).sort(([a], [b]) => a - b)
-  }, [sessions])
+    return Array.from(map.entries()).sort(([a], [b]) => a - b);
+  }, [sessions]);
 
   const getStatus = useCallback(
     (studentId: string, sessionId: string): AttendanceStatus | null => {
-      const key = `${sessionId}_${studentId}`
-      if (local[key] !== undefined) return local[key]
-      const session = sessions.find((s) => s.id === sessionId)
-      if (!session) return null
-      const raw = session.records[studentId]
+      const key = `${sessionId}_${studentId}`;
+      if (local[key] !== undefined) return local[key];
+      const session = sessions.find((s) => s.id === sessionId);
+      if (!session) return null;
+      const raw = session.records[studentId];
       if (
         raw === "present" ||
         raw === "absent" ||
         raw === "late" ||
         raw === "excused"
       )
-        return raw as AttendanceStatus
-      return null
+        return raw as AttendanceStatus;
+      return null;
     },
-    [sessions, local]
-  )
+    [sessions, local],
+  );
 
   const handleCellSelect = useCallback(
     (studentId: string, sessionId: string, status: AttendanceStatus) => {
-      const key = `${sessionId}_${studentId}`
-      setLocal((prev) => ({ ...prev, [key]: status }))
-      setDirty((prev) => new Set(prev).add(key))
+      const key = `${sessionId}_${studentId}`;
+      setLocal((prev) => ({ ...prev, [key]: status }));
+      setDirty((prev) => new Set(prev).add(key));
     },
-    []
-  )
+    [],
+  );
 
   const handleSave = async () => {
-    const bySession = new Map<string, { studentId: string; status: AttendanceStatus }[]>()
+    const bySession = new Map<
+      string,
+      { studentId: string; status: AttendanceStatus }[]
+    >();
     for (const key of dirty) {
-      const [sessionId, studentId] = key.split("_")
-      const status = local[key]
-      if (!status) continue
-      if (!bySession.has(sessionId)) bySession.set(sessionId, [])
-      bySession.get(sessionId)!.push({ studentId, status })
+      const [sessionId, studentId] = key.split("_");
+      const status = local[key];
+      if (!status) continue;
+      if (!bySession.has(sessionId)) bySession.set(sessionId, []);
+      bySession.get(sessionId)!.push({ studentId, status });
     }
 
-    const batches = Array.from(bySession.entries()).map(([sessionId, records]) => ({
-      sessionId,
-      records,
-    }))
+    const batches = Array.from(bySession.entries()).map(
+      ([sessionId, records]) => ({
+        sessionId,
+        records,
+      }),
+    );
 
     try {
-      await mutation.mutateAsync(batches)
-      setDirty(new Set())
-      setLocal({})
+      await mutation.mutateAsync(batches);
+      setDirty(new Set());
+      setLocal({});
     } catch {
       // error handled by toast in page
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -223,7 +242,7 @@ export function AttendanceGrid({ classId }: Props) {
         <Loader2 className="h-4 w-4 animate-spin" />
         Loading attendance grid...
       </div>
-    )
+    );
   }
 
   if (students.length === 0 || sessions.length === 0) {
@@ -234,10 +253,10 @@ export function AttendanceGrid({ classId }: Props) {
           Generate sessions first by visiting the Lessons page.
         </p>
       </div>
-    )
+    );
   }
 
-  const totalCols = sessions.length + 1 // +1 for student name column
+  const totalCols = sessions.length + 1; // +1 for student name column
 
   return (
     <div className="space-y-4">
@@ -272,39 +291,39 @@ export function AttendanceGrid({ classId }: Props) {
       </div>
 
       {/* Scrollable table */}
-      <div className="overflow-auto rounded-lg border border-border/60">
+      <div className="overflow-auto rounded-lg border border-border/60 bg-card">
         <table className="w-full text-sm border-collapse">
           {/* Column headers */}
           <thead>
-            {/* Week group headers */}
-            <tr className="bg-muted/30">
-              <th className="sticky left-0 z-10 bg-muted/30 px-3 py-1.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider min-w-[140px] border-r border-border/40">
+            {/* Week group header row */}
+            <tr className="bg-card">
+              <th className="sticky left-0 z-10 bg-card px-3 py-1.5 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider min-w-[140px] border-r border-b border-border/40">
                 Student
               </th>
               {weekGroups.map(([weekNum, weekSessions]) => {
-                const colorIdx = (weekNum - 1) % WEEK_COLORS.length
+                const colorIdx = (weekNum - 1) % WEEK_COLORS.length;
                 return (
                   <th
                     key={weekNum}
                     colSpan={weekSessions.length}
                     className={cn(
-                      "px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider border-r border-border/40 last:border-r-0",
-                      WEEK_COLORS[colorIdx]
+                      "px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wider border-r border-b border-border/40 last:border-r-0",
+                      WEEK_COLORS[colorIdx],
                     )}
                   >
                     Week {weekNum}
                   </th>
-                )
+                );
               })}
             </tr>
 
-            {/* Session date headers */}
-            <tr className="bg-muted/20">
-              <th className="sticky left-0 z-10 bg-muted/20 px-3 py-1.5 border-r border-border/40" />
+            {/* Session date header row */}
+            <tr className="bg-card">
+              <th className="sticky left-0 z-10 bg-card px-3 py-1.5 border-r border-b border-border/40" />
               {sessions.map((s) => (
                 <th
                   key={s.id}
-                  className="px-1.5 py-1 text-center text-[10px] font-medium text-muted-foreground border-r border-border/40 last:border-r-0 min-w-[44px]"
+                  className="px-1.5 py-1 text-center text-[10px] font-medium text-muted-foreground border-r border-b border-border/40 last:border-r-0 min-w-[44px]"
                 >
                   <div>{format(new Date(s.date), "MMM d")}</div>
                   <div className="text-[9px] text-muted-foreground/60">
@@ -322,13 +341,13 @@ export function AttendanceGrid({ classId }: Props) {
                 key={student.id}
                 className="border-t border-border/30 hover:bg-muted/10 transition-colors"
               >
-                <td className="sticky left-0 z-10 bg-card px-3 py-1.5 text-xs font-medium text-foreground truncate max-w-[140px] border-r border-border/40">
+                <td className="sticky left-0 z-10 bg-card px-3 py-1.5 text-xs font-medium text-foreground truncate max-w-[140px] border-r border-border/40 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]">
                   {student.name}
                 </td>
                 {sessions.map((s) => {
-                  const status = getStatus(student.id, s.id)
-                  const date = new Date(s.date)
-                  const isFuture = date > new Date()
+                  const status = getStatus(student.id, s.id);
+                  const date = new Date(s.date);
+                  const isFuture = date > new Date();
                   return (
                     <td
                       key={s.id}
@@ -337,10 +356,12 @@ export function AttendanceGrid({ classId }: Props) {
                       <Cell
                         status={status}
                         enabled={!isFuture}
-                        onSelect={(st) => handleCellSelect(student.id, s.id, st)}
+                        onSelect={(st) =>
+                          handleCellSelect(student.id, s.id, st)
+                        }
                       />
                     </td>
-                  )
+                  );
                 })}
               </tr>
             ))}
@@ -348,5 +369,5 @@ export function AttendanceGrid({ classId }: Props) {
         </table>
       </div>
     </div>
-  )
+  );
 }
