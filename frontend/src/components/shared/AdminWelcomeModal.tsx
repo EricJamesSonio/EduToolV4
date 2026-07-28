@@ -135,7 +135,7 @@ function SetupView({ onSuccess, onBack }: { onSuccess: () => void; onBack: () =>
   const mutation = useMutation({
     mutationFn: organizationApi.createOrg,
     onSuccess: () => {
-      toast.success("Organization created! Welcome to EduTool.");
+      toast.success("Organization created! Welcome to Relief-ED.");
       queryClient.invalidateQueries({ queryKey: ["admin", "organization"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "analytics"] });
       onSuccess();
