@@ -29,7 +29,7 @@ export class CreateOrganizationDto {
   @IsOptional()
   @IsString()
   @Matches(/^@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
-    message: 'emailExtension must be a valid domain like @edutool.ph',
+    message: 'emailExtension must be a valid domain like @relief-ed.ph',
   })
   emailExtension?: string
 }
@@ -49,7 +49,7 @@ export class UpdateOrganizationDto {
   @IsOptional()
   @IsString()
   @Matches(/^@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
-    message: 'emailExtension must be a valid domain like @edutool.ph',
+    message: 'emailExtension must be a valid domain like @relief-ed.ph',
   })
   emailExtension?: string
 }
