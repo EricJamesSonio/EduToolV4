@@ -61,7 +61,7 @@ export function ClassesTable({
   if (classes.length === 0) {
     return (
       <div className="rounded-lg border bg-muted/30 p-8 text-center">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground not-interactive">
           No classes found for this school year. Create classes first.
         </p>
       </div>

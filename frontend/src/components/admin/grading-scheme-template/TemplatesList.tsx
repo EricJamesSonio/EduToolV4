@@ -19,7 +19,7 @@ export function TemplatesList({
   onEditClick,
 }: TemplatesListProps): React.JSX.Element {
   if (isLoading) {
-    return <div>Loading templates...</div>;
+    return <div className="not-interactive">Loading templates...</div>;
   }
 
   if (templates.length === 0) {
@@ -46,13 +46,13 @@ export function TemplatesList({
           className="flex items-center justify-between p-3 rounded-md border hover:bg-muted/50 transition-colors"
         >
           <div className="flex-1">
-            <p className="text-sm font-medium">{template.name}</p>
+            <p className="text-sm font-medium not-interactive">{template.name}</p>
             {template.program_type && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground not-interactive">
                 Type: {template.program_type}
               </p>
             )}
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1 not-interactive">
               {template.components?.length ?? 0} components
             </p>
           </div>
