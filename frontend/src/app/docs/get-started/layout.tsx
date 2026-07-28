@@ -38,11 +38,11 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
             <div className="w-11 h-11 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200">
               <img
                 src="/edutool.png"
-                alt="EduTool logo"
+                alt="Relief-ED logo"
                 className="w-full h-full object-cover"
               />
             </div>
-            <span className="font-heading font-bold text-xl tracking-tight">EduTool</span>
+            <span className="font-heading font-bold text-xl tracking-tight">Relief-ED</span>
           </Link>
 
           <div className="flex items-center gap-4">
@@ -77,7 +77,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         >
           <div className="sticky top-[76px] bg-card border-b border-border px-6 py-4">
             <h2 className="font-heading font-bold text-lg text-foreground">
-              EduTool Docs
+              Relief-ED Docs
             </h2>
             <p className="text-xs text-muted-foreground">
               Learning Center
@@ -118,7 +118,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         >
           <div className="flex items-center justify-between border-b border-border px-6 py-4">
             <h2 className="font-heading font-bold text-lg text-foreground">
-              EduTool Docs
+              Relief-ED Docs
             </h2>
             <button
               onClick={() => setSidebarOpen(false)}
