@@ -131,7 +131,7 @@ export function StudentListPanel({
       <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-semibold">{title}</span>
+          <span className="text-sm font-semibold not-interactive">{title}</span>
           <Badge variant="secondary" className="text-xs font-normal">
             {filteredStudents.length}
             {sectionFilter !== "all" && ` / ${students.length}`}
@@ -176,7 +176,7 @@ export function StudentListPanel({
       {/* Student rows */}
       {filteredStudents.length === 0 ? (
         <div className="px-4 py-8 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground not-interactive">
             {sectionFilter !== "all"
               ? "No students in this section."
               : "No students enrolled yet."}
