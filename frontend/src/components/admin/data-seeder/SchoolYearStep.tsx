@@ -110,7 +110,7 @@ export function SchoolYearStep({
           )}
 
           {schoolYears.length === 0 && !showCreate && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground not-interactive">
               No school years found. Create one below to proceed.
             </p>
           )}

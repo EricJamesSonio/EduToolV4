@@ -27,7 +27,7 @@ function Card({ id, icon: Icon, title, children }: { id: string; icon: React.Com
           <Icon className="h-4.5 w-4.5" />
         </div>
         <div>
-          <h3 className="font-semibold text-lg leading-tight">{title}</h3>
+          <h3 className="font-semibold text-lg leading-tight not-interactive">{title}</h3>
         </div>
       </div>
       {children}
@@ -221,7 +221,7 @@ export function SeederCard() {
           {/* Summary + Apply */}
           <Card id="summary" icon={Database} title="Summary">
             <div className="flex flex-row items-center justify-between">
-              <p className="text-sm text-muted-foreground">{summaryText}</p>
+              <p className="text-sm text-muted-foreground not-interactive">{summaryText}</p>
               <Button
                 onClick={handleSeed}
                 disabled={

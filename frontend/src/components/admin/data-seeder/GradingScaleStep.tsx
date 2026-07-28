@@ -39,9 +39,9 @@ function RangePreview({ preset }: { preset: GradingScalePreset }) {
                 <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0">
                   {range.gradeValue}
                 </Badge>
-                <span className="text-muted-foreground">{range.label}</span>
+                <span className="text-muted-foreground not-interactive">{range.label}</span>
               </div>
-              <span className="font-mono text-muted-foreground tabular-nums">
+              <span className="font-mono text-muted-foreground tabular-nums not-interactive">
                 {range.minScore}–{range.maxScore}%
               </span>
             </div>
@@ -164,16 +164,16 @@ export function GradingScaleStep({
       </div>
 
       {!seedGradingScale ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground not-interactive">
           Grading scale seeding is disabled. Configure manually later in the Grading Scales section.
         </p>
       ) : programs.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground not-interactive">
           Select programs above to configure their grading scales.
         </p>
       ) : (
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground not-interactive">
             Assign one grading scale per program. Each scale will be saved and applied to that program &apos;s levels.
           </p>
           {programs.map((prog) => (

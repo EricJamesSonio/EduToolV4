@@ -117,7 +117,7 @@ export function SubjectStep({
                   />
                   <SubjectTypeTag type={isMinor ? "minor" : "major"} />
                   {isMinor && (COLLEGE_GE_LEVEL[subjectName] ?? SHS_MINOR_LEVEL[subjectName]) && (
-                    <span className="text-[10px] text-muted-foreground shrink-0">
+                    <span className="text-[10px] text-muted-foreground shrink-0 not-interactive">
                       {COLLEGE_GE_LEVEL[subjectName] ?? SHS_MINOR_LEVEL[subjectName]}
                     </span>
                   )}
@@ -132,7 +132,7 @@ export function SubjectStep({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 not-interactive">
         <span className="flex items-center gap-1">
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
             major
