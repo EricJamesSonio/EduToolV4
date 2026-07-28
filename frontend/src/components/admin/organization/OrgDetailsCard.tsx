@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { ImageIcon } from "lucide-react";
 import { organizationApi } from "@/api/admin/organization.api";
+import { getOrgLogoUrl } from "@/utils/org.util";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +21,9 @@ interface OrgForm {
 
 export function OrgDetailsCard() {
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   const { data: org, isLoading } = useQuery({
     queryKey: ["admin", "organization"],
@@ -43,6 +48,10 @@ export function OrgDetailsCard() {
     }
   }, [org, reset]);
 
+  useEffect(() => {
+    setLogoError(false);
+  }, [org?.logoUrl]);
+
   const updateMutation = useMutation({
     mutationFn: (values: OrgForm) =>
       organizationApi.updateOrg({
@@ -63,6 +72,27 @@ export function OrgDetailsCard() {
 
   const onSubmit = (values: OrgForm) => updateMutation.mutate(values);
 
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      await organizationApi.uploadOrgLogo(file);
+      toast.success("Organization logo updated.");
+      queryClient.invalidateQueries({ queryKey: ["admin", "organization"] });
+    } catch {
+      toast.error("Failed to upload logo.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function showLogoPlaceholder(): boolean {
+    return !org?.logoUrl || logoError;
+  }
+
   return (
     <div className="rounded-lg border border-border bg-card p-6 space-y-6">
 
@@ -75,6 +105,7 @@ export function OrgDetailsCard() {
 
       {isLoading ? (
         <div className="space-y-4">
+          <Skeleton className="h-44 w-full rounded-lg" />
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-4 w-24" />
@@ -82,6 +113,53 @@ export function OrgDetailsCard() {
         </div>
       ) : (
         <>
+          {/* Logo — TOP of the card */}
+          <div className="space-y-3">
+            <Label className="text-sm text-foreground">
+              Organization Logo
+            </Label>
+
+            <div className="w-full h-44 rounded-lg border border-border bg-muted flex flex-col items-center justify-center gap-2 overflow-hidden">
+              {showLogoPlaceholder() ? (
+                <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                  <ImageIcon className="h-10 w-10" />
+                  <span className="text-xs">No logo</span>
+                </div>
+              ) : (
+                <img
+                  src={getOrgLogoUrl(org!.logoUrl!)}
+                  alt="Organization logo"
+                  className="h-full w-full object-contain p-2"
+                  onError={() => setLogoError(true)}
+                />
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                className="hidden"
+                onChange={handleLogoUpload}
+              />
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? "Uploading..." : "Upload Logo"}
+              </Button>
+
+              <p className="text-xs text-muted-foreground">
+                PNG, JPG, GIF or WEBP. Max 2MB.
+              </p>
+            </div>
+          </div>
+
           {/* Name */}
           <div className="space-y-1.5">
             <Label htmlFor="org-name" className="text-sm text-foreground">
