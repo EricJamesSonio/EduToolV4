@@ -134,9 +134,9 @@ export function SubjectsSection({
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
           <div className="flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-semibold">Subjects</span>
+            <span className="text-sm font-semibold not-interactive">Subjects</span>
             {filterLevelId !== "all" && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground not-interactive">
                 — {programLevels.find((l) => l.id === filterLevelId)?.name}
               </span>
             )}

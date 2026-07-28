@@ -112,7 +112,7 @@ export function LevelWithSectionsList({
       <div className="rounded-lg border bg-card overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
           <Layers className="h-4 w-4" />
-          <span className="text-sm font-semibold">
+          <span className="text-sm font-semibold not-interactive">
             Levels & Sections
           </span>
           <Badge>{levels.length}</Badge>

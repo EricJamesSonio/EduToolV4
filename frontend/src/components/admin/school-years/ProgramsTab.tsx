@@ -59,7 +59,7 @@ export function ProgramsTab({ schoolYearId, isEnded }: ProgramsTabProps): React.
     return (
       <div className="rounded-lg border bg-card px-6 py-12 text-center">
         <BookOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-        <p className="text-sm font-medium text-muted-foreground">
+        <p className="text-sm font-medium text-muted-foreground not-interactive">
           No programs for this school year
         </p>
         <p className="text-xs text-muted-foreground mt-1">

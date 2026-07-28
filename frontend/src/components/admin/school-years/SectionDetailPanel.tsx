@@ -62,8 +62,8 @@ function StudentsTab({
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center px-6">
         <Users className="h-10 w-10 text-muted-foreground/30 mb-3" />
-        <p className="text-sm font-medium text-muted-foreground">No students enrolled</p>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-sm font-medium text-muted-foreground not-interactive">No students enrolled</p>
+        <p className="text-xs text-muted-foreground mt-1 not-interactive">
           Students assigned to this section will appear here.
         </p>
       </div>
@@ -78,13 +78,13 @@ function StudentsTab({
           className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 shrink-0">
-            <span className="text-xs font-semibold text-primary">
+            <span className="text-xs font-semibold text-primary not-interactive">
               {student.fullName.charAt(0).toUpperCase()}
             </span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium truncate">{student.fullName}</p>
-            <p className="text-xs text-muted-foreground">{student.studentId}</p>
+            <p className="text-sm font-medium truncate not-interactive">{student.fullName}</p>
+            <p className="text-xs text-muted-foreground not-interactive">{student.studentId}</p>
           </div>
           <Badge
             variant="secondary"
@@ -131,8 +131,8 @@ function ClassesTab({
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center px-6">
         <BookOpen className="h-10 w-10 text-muted-foreground/30 mb-3" />
-        <p className="text-sm font-medium text-muted-foreground">No classes assigned</p>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-sm font-medium text-muted-foreground not-interactive">No classes assigned</p>
+        <p className="text-xs text-muted-foreground mt-1 not-interactive">
           Classes assigned to this section will appear here.
         </p>
       </div>
@@ -150,23 +150,23 @@ function ClassesTab({
             <BookOpen className="h-3.5 w-3.5 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium truncate">{cls.subjectName ?? cls.title}</p>
+            <p className="text-sm font-medium truncate not-interactive">{cls.subjectName ?? cls.title}</p>
             <div className="flex items-center gap-3 mt-0.5 flex-wrap">
               {cls.educatorName && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <span className="text-xs text-muted-foreground flex items-center gap-1 not-interactive">
                   <GraduationCap className="h-3 w-3" />
                   {cls.educatorName}
                 </span>
               )}
               {cls.schedules.length > 0 && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <span className="text-xs text-muted-foreground flex items-center gap-1 not-interactive">
                   <Clock className="h-3 w-3" />
                   {cls.schedules.map((s) => WEEKDAY_SHORT[s.weekday]).join(", ")}
                 </span>
               )}
             </div>
           </div>
-          <span className="text-xs text-muted-foreground shrink-0">
+          <span className="text-xs text-muted-foreground shrink-0 not-interactive">
             {cls.enrolledCount}/{cls.capacity}
           </span>
         </div>
@@ -229,8 +229,8 @@ function WeeklyScheduleTab({
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center px-6">
         <CalendarDays className="h-10 w-10 text-muted-foreground/30 mb-3" />
-        <p className="text-sm font-medium text-muted-foreground">No schedule yet</p>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-sm font-medium text-muted-foreground not-interactive">No schedule yet</p>
+        <p className="text-xs text-muted-foreground mt-1 not-interactive">
           Schedules are set when classes are created for this section.
         </p>
       </div>
@@ -242,7 +242,7 @@ function WeeklyScheduleTab({
       {activeDays.map((day) => (
         <div key={day}>
           <div className="flex items-center gap-2 mb-2.5">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground not-interactive">
               {WEEKDAY_LABELS[day]}
             </span>
             <div className="flex-1 h-px bg-border" />
@@ -255,15 +255,15 @@ function WeeklyScheduleTab({
               >
                 <div className="flex items-center gap-1 shrink-0 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" />
-                  <span className="font-medium tabular-nums">{formatTime(entry.startTime)}</span>
+                  <span className="font-medium tabular-nums not-interactive">{formatTime(entry.startTime)}</span>
                   <ChevronRight className="h-3 w-3" />
-                  <span className="font-medium tabular-nums">{formatTime(entry.endTime)}</span>
+                  <span className="font-medium tabular-nums not-interactive">{formatTime(entry.endTime)}</span>
                 </div>
                 <div className="w-px h-4 bg-border shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{entry.subjectName}</p>
+                  <p className="text-sm font-medium truncate not-interactive">{entry.subjectName}</p>
                   {entry.educatorName && (
-                    <p className="text-xs text-muted-foreground truncate">{entry.educatorName}</p>
+                    <p className="text-xs text-muted-foreground truncate not-interactive">{entry.educatorName}</p>
                   )}
                 </div>
               </div>
@@ -320,11 +320,11 @@ export function SectionDetailPanel({
           {/* Title + badges + View Subjects */}
           <div className="flex items-start justify-between gap-3 pb-4">
             <div>
-              <SheetTitle className="text-base font-semibold leading-tight">
+              <SheetTitle className="text-base font-semibold leading-tight not-interactive">
                 {section?.name ?? "Section"}
               </SheetTitle>
               {levelName && (
-                <p className="text-xs text-muted-foreground mt-0.5">{levelName}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 not-interactive">{levelName}</p>
               )}
             </div>
 
