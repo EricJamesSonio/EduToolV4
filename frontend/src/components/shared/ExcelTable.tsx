@@ -36,7 +36,7 @@ export function ExcelTable<T extends Record<string, any>>({
               <th
                 key={col.key}
                 className={cn(
-                  "bg-primary text-primary-foreground text-left text-[11px] font-semibold uppercase tracking-wide px-1.5 py-1 border-[0.5px] border-white/15",
+                  "bg-primary text-primary-foreground text-left text-[11px] font-semibold uppercase tracking-wide px-1.5 py-1 border-[0.5px] border-white/15 not-interactive",
                   col.sticky && "sticky left-0 z-10",
                 )}
                 style={{
