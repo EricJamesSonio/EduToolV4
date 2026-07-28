@@ -73,6 +73,7 @@ model Organization {
   id          String  @id @default(uuid())
   name        String
   description String?
+  logo_url    String?
 
   email_extension String? @unique
 
