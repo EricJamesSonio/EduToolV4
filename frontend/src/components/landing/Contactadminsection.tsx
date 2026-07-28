@@ -25,11 +25,11 @@ export function ContactAdminSection() {
         <div className="flex justify-center">
           <div className="section-accent"></div>
         </div>
-        <h2 className="font-bold">
+        <h2 className="font-bold not-interactive">
           Ready to Manage Your Institution?
         </h2>
-        <p className="text-lg text-muted-foreground">
-          Get a dedicated admin account and take control of your educational operations with EduTool.
+        <p className="text-lg text-muted-foreground not-interactive">
+           Get a dedicated admin account and take control of your educational operations with Relief-ED.
         </p>
       </div>
 
@@ -43,8 +43,8 @@ export function ContactAdminSection() {
                 <Icon className="h-5 w-5" />
               </div>
               <div className="space-y-2">
-                <h3 className="font-heading font-semibold text-xl">{method.title}</h3>
-                <p className="text-base text-muted-foreground">{method.desc}</p>
+                <h3 className="font-heading font-semibold text-xl not-interactive">{method.title}</h3>
+                <p className="text-base text-muted-foreground not-interactive">{method.desc}</p>
                 <a
                   href={method.href}
                   className="inline-flex items-center text-primary hover:text-accent transition-colors text-sm font-medium gap-1.5"
@@ -60,12 +60,12 @@ export function ContactAdminSection() {
 
       {/* Info Box */}
       <div className="card-landing p-8 max-w-2xl mx-auto space-y-5">
-        <h3 className="font-heading font-semibold text-lg">What to Include in Your Request</h3>
+        <h3 className="font-heading font-semibold text-lg not-interactive">What to Include in Your Request</h3>
         <ul className="space-y-3">
           {checklist.map((item, index) => (
             <li key={index} className="flex gap-3 text-sm text-muted-foreground">
               <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-              <span>{item}</span>
+              <span className="not-interactive">{item}</span>
             </li>
           ))}
         </ul>
@@ -73,7 +73,7 @@ export function ContactAdminSection() {
 
       {/* CTA */}
       <div className="text-center space-y-5 max-w-xl mx-auto">
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground not-interactive">
           Our team will review your request and contact you within 24-48 hours to set up your admin account.
         </p>
         <Button size="lg" className="gap-2 shadow-sm">

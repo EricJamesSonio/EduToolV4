@@ -21,9 +21,9 @@ export function Footer() {
               <div className="w-9 h-9 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center shadow-sm">
                 <GraduationCap className="h-5 w-5 text-white" />
               </div>
-              <span className="font-heading font-bold text-lg tracking-tight">EduTool</span>
+              <span className="font-heading font-bold text-lg tracking-tight not-interactive">Relief-ED</span>
             </div>
-            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed not-interactive">
               Flexible school management for modern educational institutions.
             </p>
             <div className="flex items-center gap-3">
@@ -42,7 +42,7 @@ export function Footer() {
           {/* Link Columns */}
           {Object.entries(footerLinks).map(([title, links]) => (
             <div key={title} className="space-y-4">
-              <h4 className="font-heading font-semibold text-sm">{title}</h4>
+              <h4 className="font-heading font-semibold text-sm not-interactive">{title}</h4>
               <ul className="space-y-3 text-sm">
                 {links.map((link) => (
                   <li key={link}>
@@ -61,7 +61,7 @@ export function Footer() {
 
         {/* Bottom Section */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p>© 2026 EduTool. All rights reserved.</p>
+          <p className="not-interactive">© 2026 Relief-ED. All rights reserved.</p>
           <div className="flex items-center gap-6">
             {["Privacy Policy", "Terms of Service", "Cookies"].map((item) => (
               <a key={item} href="#" className="hover:text-foreground transition-colors duration-200">

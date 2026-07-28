@@ -21,10 +21,10 @@ export function FeaturesSection() {
         <div className="flex justify-center">
           <div className="section-accent"></div>
         </div>
-        <h2 className="font-bold">
+        <h2 className="font-bold not-interactive">
           Everything Schools Need in One Platform
         </h2>
-        <p className="text-lg text-muted-foreground">
+        <p className="text-lg text-muted-foreground not-interactive">
           Comprehensive tools designed specifically for modern educational institutions
         </p>
       </div>
@@ -41,8 +41,8 @@ export function FeaturesSection() {
               <div className={`icon-container ${feature.color}`}>
                 <Icon className="h-5 w-5" />
               </div>
-              <h3 className="font-heading font-semibold text-xl">{feature.title}</h3>
-              <p className="text-base text-muted-foreground leading-relaxed">
+              <h3 className="font-heading font-semibold text-xl not-interactive">{feature.title}</h3>
+              <p className="text-base text-muted-foreground leading-relaxed not-interactive">
                 {feature.description}
               </p>
             </div>

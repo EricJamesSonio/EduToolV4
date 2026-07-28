@@ -17,7 +17,7 @@ const solutionsByRole = {
       eyebrow: "School setup",
       heading: "Set Up Your School in Minutes, Not Weeks",
       body:
-        "Stop wasting hours configuring programs, subjects, and levels. EduTool lets you structure your academic system exactly how your school operates—quickly and without frustration.",
+        "Stop wasting hours configuring programs, subjects, and levels. Relief-ED lets you structure your academic system exactly how your school operates—quickly and without frustration.",
       points: [
         "Supports K–12, college, and custom programs",
         "Flexible academic hierarchy that adapts to your system",
@@ -317,15 +317,15 @@ export function SolutionSection() {
             <div className="section-accent" />
           </div>
 
-          <h2 className="font-bold">
+          <h2 className="font-bold not-interactive">
             {role === "admin" && "Run Your School Without the Chaos"}
             {role === "educator" &&
               "Teach, Grade, and Manage Classes with Ease"}
             {role === "student" && "Stay on Top of Your Learning"}
           </h2>
 
-          <p className="text-lg text-muted-foreground">
-            See how EduTool works for your role—whether you're managing,
+          <p className="text-lg text-muted-foreground not-interactive">
+            See how Relief-ED works for your role—whether you're managing,
             teaching, or learning.
           </p>
         </div>
@@ -369,15 +369,15 @@ export function SolutionSection() {
                 >
                   {/* TEXT */}
                   <div className="flex-[0.9] space-y-6 flex flex-col justify-center">
-                    <p className="text-xs font-semibold tracking-widest uppercase text-primary">
+                    <p className="text-xs font-semibold tracking-widest uppercase text-primary not-interactive">
                       {item.eyebrow}
                     </p>
 
-                    <h3 className="font-semibold">
+                    <h3 className="font-semibold not-interactive">
                       {item.heading}
                     </h3>
 
-                    <p className="text-muted-foreground leading-relaxed text-lg">
+                    <p className="text-muted-foreground leading-relaxed text-lg not-interactive">
                       {item.body}
                     </p>
 
@@ -397,7 +397,7 @@ export function SolutionSection() {
                             className="flex items-center gap-3 text-base"
                           >
                             <span className="w-2 h-2 rounded-full bg-foreground/60 flex-shrink-0" />
-                            <span className={`${textColors[i % textColors.length]} font-medium`}>
+                            <span className={`${textColors[i % textColors.length]} font-medium not-interactive`}>
                               {point}
                             </span>
                           </li>
