@@ -51,7 +51,7 @@ export function StrandsSection({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Layers className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold text-base">Strands</h3>
+          <h3 className="font-semibold text-base not-interactive">Strands</h3>
           <Badge variant="secondary" className="text-xs font-normal">
             {strands.length}
           </Badge>
@@ -70,7 +70,7 @@ export function StrandsSection({
 
       {strands.length === 0 ? (
         <div className="rounded-xl border bg-card px-6 py-10 text-center">
-          <p className="text-sm text-muted-foreground">No strands yet.</p>
+          <p className="text-sm text-muted-foreground not-interactive">No strands yet.</p>
           {!isEnded && (
             <button
               onClick={() => setDialog({ mode: "create" })}
@@ -89,7 +89,7 @@ export function StrandsSection({
                   <Layers className="h-4.5 w-4.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-lg leading-tight truncate">{strand.name}</h3>
+                  <h3 className="font-semibold text-lg leading-tight truncate not-interactive">{strand.name}</h3>
                 </div>
                 {!isEnded && (
                   <div className="flex items-center gap-1 shrink-0">

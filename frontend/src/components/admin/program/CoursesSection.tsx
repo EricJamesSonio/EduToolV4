@@ -51,7 +51,7 @@ export function CoursesSection({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold text-base">Courses</h3>
+          <h3 className="font-semibold text-base not-interactive">Courses</h3>
           <Badge variant="secondary" className="text-xs font-normal">
             {courses.length}
           </Badge>
@@ -70,7 +70,7 @@ export function CoursesSection({
 
       {courses.length === 0 ? (
         <div className="rounded-xl border bg-card px-6 py-10 text-center">
-          <p className="text-sm text-muted-foreground">No courses yet.</p>
+          <p className="text-sm text-muted-foreground not-interactive">No courses yet.</p>
           {!isEnded && (
             <button
               onClick={() => setDialog({ mode: "create" })}
@@ -89,7 +89,7 @@ export function CoursesSection({
                   <BookOpen className="h-4.5 w-4.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-lg leading-tight truncate">{course.name}</h3>
+                  <h3 className="font-semibold text-lg leading-tight truncate not-interactive">{course.name}</h3>
                   {course.code && (
                     <Badge variant="outline" className="text-xs font-mono mt-1">
                       {course.code}

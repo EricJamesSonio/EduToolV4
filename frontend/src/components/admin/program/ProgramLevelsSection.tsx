@@ -92,7 +92,7 @@ export function ProgramLevelsSection({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Layers className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold text-base">Levels</h3>
+          <h3 className="font-semibold text-base not-interactive">Levels</h3>
           <Badge variant="secondary" className="text-xs font-normal">
             {levels.length}
           </Badge>
@@ -124,21 +124,21 @@ export function ProgramLevelsSection({
       {showGenerate && (
         <div className="rounded-xl border bg-card p-6 space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
-            <span className="text-sm text-muted-foreground">{cfg.label}:</span>
+            <span className="text-sm text-muted-foreground not-interactive">{cfg.label}:</span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setGenCount((c) => Math.max(cfg.min, c - 1))}
                 disabled={genCount <= cfg.min}
                 className="h-7 w-7 rounded border flex items-center justify-center text-sm hover:bg-muted disabled:opacity-40"
               >−</button>
-              <span className="w-6 text-center text-sm font-medium">{genCount}</span>
+              <span className="w-6 text-center text-sm font-medium not-interactive">{genCount}</span>
               <button
                 onClick={() => setGenCount((c) => Math.min(cfg.max, c + 1))}
                 disabled={genCount >= cfg.max}
                 className="h-7 w-7 rounded border flex items-center justify-center text-sm hover:bg-muted disabled:opacity-40"
               >+</button>
             </div>
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded w-fit">
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded w-fit not-interactive">
               {cfg.preview(genCount)}
             </span>
             <div className="flex items-center gap-2 sm:ml-auto">
@@ -167,7 +167,7 @@ export function ProgramLevelsSection({
       {/* Level cards */}
       {levels.length === 0 ? (
         <div className="rounded-xl border bg-card px-6 py-10 text-center">
-          <p className="text-sm text-muted-foreground">No levels yet.</p>
+          <p className="text-sm text-muted-foreground not-interactive">No levels yet.</p>
         </div>
       ) : (
         <div className={`grid gap-4 ${cardGridClass(levels.length)}`}>
@@ -186,7 +186,7 @@ export function ProgramLevelsSection({
                     <Layers className="h-4.5 w-4.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-lg leading-tight truncate">{level.name}</h3>
+                    <h3 className="font-semibold text-lg leading-tight truncate not-interactive">{level.name}</h3>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <button
