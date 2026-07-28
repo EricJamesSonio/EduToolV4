@@ -13,6 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+
+import { EmailExtensionSection } from "./EmailExtensionSection";
 
 interface OrgForm {
   name: string;
@@ -61,7 +64,6 @@ export function OrgDetailsCard() {
     onSuccess: (updated) => {
       toast.success("Organization updated.");
       queryClient.invalidateQueries({ queryKey: ["admin", "organization"] });
-
       reset({
         name: updated.name,
         description: updated.description ?? "",
@@ -93,79 +95,75 @@ export function OrgDetailsCard() {
     return !org?.logoUrl || logoError;
   }
 
-  return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-6">
-
-      {/* Title */}
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">
-          Details
-        </h2>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-44 w-full rounded-lg" />
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-24 w-full" />
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-6 lg:p-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8">
+          <Skeleton className="aspect-square w-full rounded-xl" />
+          <div className="space-y-4">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-10 w-full" />
+          </div>
         </div>
-      ) : (
-        <>
-          {/* Logo — TOP of the card */}
-          <div className="space-y-3">
-            <Label className="text-sm text-foreground">
-              Organization Logo
-            </Label>
+      </div>
+    );
+  }
 
-            <div className="w-full h-44 rounded-lg border border-border bg-muted flex flex-col items-center justify-center gap-2 overflow-hidden">
-              {showLogoPlaceholder() ? (
-                <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                  <ImageIcon className="h-10 w-10" />
-                  <span className="text-xs">No logo</span>
-                </div>
-              ) : (
-                <img
-                  src={getOrgLogoUrl(org!.logoUrl!)}
-                  alt="Organization logo"
-                  className="h-full w-full object-contain p-2"
-                  onError={() => setLogoError(true)}
-                />
-              )}
-            </div>
+  return (
+    <div className="rounded-lg border border-border bg-card p-6 lg:p-8 space-y-8">
+      <h2 className="text-lg font-semibold text-foreground">
+        Organization Details
+      </h2>
 
-            <div className="flex items-center gap-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp"
-                className="hidden"
-                onChange={handleLogoUpload}
+      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8">
+        {/* LEFT: Identity — logo + name */}
+        <div className="flex flex-col gap-4">
+          <div className="mx-auto lg:mx-0 w-full max-w-[220px] aspect-square rounded-xl border border-border bg-muted flex items-center justify-center overflow-hidden">
+            {showLogoPlaceholder() ? (
+              <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                <ImageIcon className="h-10 w-10" />
+                <span className="text-xs">No logo</span>
+              </div>
+            ) : (
+              <img
+                src={getOrgLogoUrl(org!.logoUrl!)}
+                alt="Organization logo"
+                className="h-full w-full object-contain p-4"
+                onError={() => setLogoError(true)}
               />
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={uploading}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {uploading ? "Uploading..." : "Upload Logo"}
-              </Button>
-
-              <p className="text-xs text-muted-foreground">
-                PNG, JPG, GIF or WEBP. Max 2MB.
-              </p>
-            </div>
+            )}
           </div>
 
-          {/* Name */}
-          <div className="space-y-1.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            className="hidden"
+            onChange={handleLogoUpload}
+          />
+
+          <div className="mx-auto lg:mx-0 w-full max-w-[220px] space-y-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full"
+            >
+              {uploading ? "Uploading..." : "Upload Logo"}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              PNG, JPG, GIF or WEBP. Max 2MB.
+            </p>
+          </div>
+
+          <div className="mx-auto lg:mx-0 w-full max-w-[220px] space-y-1.5 pt-2">
             <Label htmlFor="org-name" className="text-sm text-foreground">
               Organization Name
             </Label>
-
             <Input
               id="org-name"
               placeholder="e.g. St. Mary's Academy"
@@ -175,21 +173,21 @@ export function OrgDetailsCard() {
                 maxLength: { value: 100, message: "Max 100 characters" },
               })}
             />
-
             {errors.name && (
               <p className="text-sm text-destructive">
                 {errors.name.message}
               </p>
             )}
           </div>
+        </div>
 
-          {/* Description */}
+        {/* RIGHT: Settings — description + email extension */}
+        <div className="space-y-6">
           <div className="space-y-1.5">
             <Label htmlFor="org-desc" className="text-sm text-foreground">
               Description{" "}
               <span className="text-muted-foreground">(optional)</span>
             </Label>
-
             <Textarea
               id="org-desc"
               placeholder="A brief description of your school..."
@@ -198,7 +196,6 @@ export function OrgDetailsCard() {
                 maxLength: { value: 500, message: "Max 500 characters" },
               })}
             />
-
             {errors.description && (
               <p className="text-sm text-destructive">
                 {errors.description.message}
@@ -206,9 +203,8 @@ export function OrgDetailsCard() {
             )}
           </div>
 
-          {/* Save button */}
           {isDirty && (
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end">
               <Button
                 onClick={handleSubmit(onSubmit)}
                 disabled={updateMutation.isPending}
@@ -217,8 +213,12 @@ export function OrgDetailsCard() {
               </Button>
             </div>
           )}
-        </>
-      )}
+
+          <Separator />
+
+          <EmailExtensionSection />
+        </div>
+      </div>
     </div>
   );
 }
