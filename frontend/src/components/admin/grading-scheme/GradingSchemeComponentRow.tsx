@@ -102,7 +102,7 @@ export function GradingSchemeComponentRow({
             onChange(index, "weight", raw === "" ? 0 : Math.min(100, Number(raw)));
           }}
         />
-        <span className="text-sm text-muted-foreground">%</span>
+        <span className="text-sm text-muted-foreground not-interactive">%</span>
       </div>
 
       {/* Delete */}
