@@ -153,7 +153,7 @@ export function SemesterTermEditor({
   return (
     <div className="space-y-2">
       {terms.length === 0 && (
-        <p className="text-xs text-muted-foreground py-1">
+        <p className="text-xs text-muted-foreground py-1 not-interactive">
           No terms yet. Add at least one term.
         </p>
       )}
@@ -162,7 +162,7 @@ export function SemesterTermEditor({
       {terms.length > 0 && (
         <div className="grid grid-cols-[28px_1fr_140px_140px_28px] gap-1.5">
           {["", "Term Name", "Start Date", "End Date", ""].map((h, i) => (
-            <span key={i} className="text-[10px] text-muted-foreground pl-0.5">
+            <span key={i} className="text-[10px] text-muted-foreground pl-0.5 not-interactive">
               {h}
             </span>
           ))}
@@ -237,7 +237,7 @@ export function SemesterTermEditor({
             </div>
 
             {rowErrors.length > 0 && (
-              <p className="text-xs text-destructive pl-7">
+              <p className="text-xs text-destructive pl-7 not-interactive">
                 {rowErrors.join(" · ")}
               </p>
             )}

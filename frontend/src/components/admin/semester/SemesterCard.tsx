@@ -42,15 +42,15 @@ export function SemesterCard({ semester, onEdit, onDelete }: SemesterCardProps) 
             )}
           </button>
           <div className="min-w-0">
-            <p className="font-medium text-base truncate">{semester.name}</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="font-medium text-base truncate not-interactive">{semester.name}</p>
+            <p className="text-sm text-muted-foreground not-interactive">
               {formatDate(semester.startDate)} → {formatDate(semester.endDate)}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <Badge variant="secondary" className="text-xs font-normal">
+          <Badge variant="secondary" className="text-xs font-normal not-interactive">
             {semester.terms.length} term{semester.terms.length !== 1 ? "s" : ""}
           </Badge>
           <Button
@@ -84,13 +84,13 @@ export function SemesterCard({ semester, onEdit, onDelete }: SemesterCardProps) 
                 key={term.id}
                 className="flex items-center justify-between text-sm rounded-md bg-muted/40 px-3 py-1.5"
               >
-                <span className="font-medium text-sm">
-                  <span className="text-muted-foreground text-xs mr-2">
+                <span className="font-medium text-sm not-interactive">
+                  <span className="text-muted-foreground text-xs mr-2 not-interactive">
                     {term.orderIndex}.
                   </span>
                   {term.name}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground not-interactive">
                   {formatDate(term.startDate)} → {formatDate(term.endDate)}
                 </span>
               </div>
@@ -100,7 +100,7 @@ export function SemesterCard({ semester, onEdit, onDelete }: SemesterCardProps) 
 
       {expanded && semester.terms.length === 0 && (
         <div className="border-t px-4 py-3">
-          <p className="text-xs text-muted-foreground">No terms defined.</p>
+          <p className="text-xs text-muted-foreground not-interactive">No terms defined.</p>
         </div>
       )}
     </div>
