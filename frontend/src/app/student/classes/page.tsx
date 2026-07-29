@@ -14,7 +14,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ClassCard } from "@/components/student/class/ClassCard";
 import { ClassCardSkeleton } from "@/components/student/class/ClassCardSkeleton";
-import { useStudentClasses } from "@/hooks/student/useStudentClassess";
+import { useStudentClasses } from "@/hooks/student/useStudentClasses";
 import { useStudentSemesters } from "@/hooks/student/useStudentSemesters";
 import type { StudentSemesterItem } from "@/api/student/semester.api";
 
