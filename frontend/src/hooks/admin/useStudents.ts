@@ -6,7 +6,7 @@ import {
 } from "@/hooks/hook-factory.utils";
 
 import { studentApi } from "@/api/admin/student.api";
-import { studentKeys } from "@/hooks/queryKeys";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 
 import { toast } from "sonner";
 
@@ -32,10 +32,10 @@ export const useStudents = (
   query?: GetStudentsQuery,
 ) => {
   return useAsyncQuery<Student[]>(
-    studentKeys.list(query),
+    queryKeys.admin.students.list(query),
     () => studentApi.getAll(query),
     {
-      staleTime: 1000 * 60,
+      meta: { preset: 'list', feature: 'students' },
     },
   );
 };
@@ -45,11 +45,11 @@ export const useStudents = (
 
 export const useStudent = (id: string) => {
   return useAsyncQuery<Student>(
-    studentKeys.detail(id),
+    queryKeys.admin.students.detail(id),
     () => studentApi.getOne(id),
     {
+      meta: { preset: 'detail', feature: 'students' },
       enabled: !!id,
-      staleTime: 1000 * 60 * 5,
     },
   );
 };
@@ -66,12 +66,12 @@ export const useCreateStudent = () => {
 
     {
       invalidateKeys: [
-        studentKeys.lists(),
+        queryKeys.admin.students.all,
       ],
 
       onSuccess: (newStudent) => {
         queryClient.setQueryData(
-          studentKeys.detail(newStudent.id),
+          queryKeys.admin.students.detail(newStudent.id),
           newStudent,
         );
 
@@ -105,16 +105,16 @@ export const useUpdateStudent = () => {
       data: UpdateStudentRequest;
     }) => {
       await queryClient.cancelQueries({
-        queryKey: studentKeys.detail(id),
+        queryKey: queryKeys.admin.students.detail(id),
       });
 
       const previous =
         queryClient.getQueryData<Student>(
-          studentKeys.detail(id),
+          queryKeys.admin.students.detail(id),
         );
 
       queryClient.setQueryData<Student>(
-        studentKeys.detail(id),
+        queryKeys.admin.students.detail(id),
         (old) =>
           old ? { ...old, ...data } : old,
       );
@@ -124,11 +124,11 @@ export const useUpdateStudent = () => {
           await studentApi.update(id, data);
 
         queryClient.invalidateQueries({
-          queryKey: studentKeys.detail(id),
+          queryKey: queryKeys.admin.students.detail(id),
         });
 
         queryClient.invalidateQueries({
-          queryKey: studentKeys.lists(),
+          queryKey: queryKeys.admin.students.all,
         });
 
         toast.success(
@@ -139,7 +139,7 @@ export const useUpdateStudent = () => {
       } catch (err) {
         if (previous) {
           queryClient.setQueryData(
-            studentKeys.detail(id),
+            queryKeys.admin.students.detail(id),
             previous,
           );
         }
@@ -169,16 +169,16 @@ export const useUpdateStudentStatus = () => {
       data: UpdateStudentStatusRequest;
     }) => {
       await queryClient.cancelQueries({
-        queryKey: studentKeys.detail(id),
+        queryKey: queryKeys.admin.students.detail(id),
       });
 
       const previous =
         queryClient.getQueryData<Student>(
-          studentKeys.detail(id),
+          queryKeys.admin.students.detail(id),
         );
 
       queryClient.setQueryData<Student>(
-        studentKeys.detail(id),
+        queryKeys.admin.students.detail(id),
         (old) =>
           old
             ? {
@@ -196,11 +196,11 @@ export const useUpdateStudentStatus = () => {
           );
 
         queryClient.invalidateQueries({
-          queryKey: studentKeys.detail(id),
+          queryKey: queryKeys.admin.students.detail(id),
         });
 
         queryClient.invalidateQueries({
-          queryKey: studentKeys.lists(),
+          queryKey: queryKeys.admin.students.all,
         });
 
         toast.success(
@@ -211,7 +211,7 @@ export const useUpdateStudentStatus = () => {
       } catch (err) {
         if (previous) {
           queryClient.setQueryData(
-            studentKeys.detail(id),
+            queryKeys.admin.students.detail(id),
             previous,
           );
         }
@@ -257,7 +257,7 @@ export const useBulkImportStudents =
 
       {
         invalidateKeys: [
-          studentKeys.lists(),
+          queryKeys.admin.students.all,
         ],
 
         onSuccess: (result) => {
