@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import {
   Select,
   SelectContent,
@@ -40,35 +41,32 @@ function hasStrands(type: ProgramType): boolean  { return USES_STRANDS.has(type)
 
 export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.Element {
 
-  const { data: schoolYears = [], isLoading: loadingSY } = useQuery({
-    queryKey: ["school-years"],
-    queryFn:  schoolYearApi.getAll,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: schoolYears = [], isLoading: loadingSY } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    schoolYearApi.getAll,
+    { meta: { preset: 'list' } },
+  );
 
-  const { data: programs = [], isLoading: loadingPrograms } = useQuery({
-    queryKey: ["programs", value.schoolYearId],
-    queryFn:  () => programApi.getAll(value.schoolYearId!),
-    enabled:  !!value.schoolYearId,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: programs = [], isLoading: loadingPrograms } = useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId: value.schoolYearId }),
+    () => programApi.getAll(value.schoolYearId!),
+    { enabled:  !!value.schoolYearId, meta: { preset: 'list' } },
+  );
 
   const selectedProgram = programs.find((p) => p.id === value.programId);
   const programType     = selectedProgram?.type;
 
-  const { data: courses = [], isLoading: loadingCourses } = useQuery({
-    queryKey: ["courses", value.schoolYearId, value.programId],
-    queryFn:  () => courseApi.getAll({ schoolYearId: value.schoolYearId!, programId: value.programId }),
-    enabled:  !!value.schoolYearId && !!value.programId && !!programType && hasCourses(programType),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: courses = [], isLoading: loadingCourses } = useAsyncQuery(
+    queryKeys.admin.courses.list({ schoolYearId: value.schoolYearId, programId: value.programId }),
+    () => courseApi.getAll({ schoolYearId: value.schoolYearId!, programId: value.programId }),
+    { enabled:  !!value.schoolYearId && !!value.programId && !!programType && hasCourses(programType), meta: { preset: 'list' } },
+  );
 
-  const { data: strands = [], isLoading: loadingStrands } = useQuery({
-    queryKey: ["strands", value.programId],
-    queryFn:  () => strandApi.getAll({ program_id: value.programId }),
-    enabled:  !!value.programId && !!programType && hasStrands(programType),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: strands = [], isLoading: loadingStrands } = useAsyncQuery(
+    queryKeys.admin.strands.list({ program_id: value.programId }),
+    () => strandApi.getAll({ program_id: value.programId }),
+    { enabled:  !!value.programId && !!programType && hasStrands(programType), meta: { preset: 'list' } },
+  );
 
   const levelsEnabled = (() => {
     if (!value.schoolYearId || !value.programId || !programType) return false;
@@ -77,25 +75,29 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
     return true;
   })();
 
-  const { data: levels = [], isLoading: loadingLevels } = useQuery({
-    queryKey: ["levels", value.schoolYearId, value.programId],
-    queryFn:  () => levelApi.getBySchoolYear(value.schoolYearId!),
-    enabled:  levelsEnabled,
-    staleTime: 5 * 60 * 1000,
-    select: (all) => all.filter((l) => l.program_id === value.programId),
-  });
-
-  const { data: sections = [], isLoading: loadingSections } = useQuery({
-    queryKey: ["sections", value.schoolYearId, value.levelId],
-    queryFn:  () => sectionApi.getAll(value.schoolYearId!, value.levelId),
-    enabled:  !!value.schoolYearId && !!value.levelId,
-    staleTime: 5 * 60 * 1000,
-    select: (all) => {
-      if (value.courseId) return all.filter((s) => s.course_id === value.courseId);
-      if (value.strandId) return all.filter((s) => s.strand_id === value.strandId);
-      return all;
+  const { data: levels = [], isLoading: loadingLevels } = useAsyncQuery(
+    queryKeys.admin.levels.list({ schoolYearId: value.schoolYearId, programId: value.programId }),
+    () => levelApi.getBySchoolYear(value.schoolYearId!),
+    {
+      enabled:  levelsEnabled,
+      meta: { preset: 'list' },
+      select: (all: Level[]) => all.filter((l) => l.program_id === value.programId),
     },
-  });
+  );
+
+  const { data: sections = [], isLoading: loadingSections } = useAsyncQuery(
+    queryKeys.admin.sections.list({ schoolYearId: value.schoolYearId, levelId: value.levelId }),
+    () => sectionApi.getAll(value.schoolYearId!, value.levelId),
+    {
+      enabled:  !!value.schoolYearId && !!value.levelId,
+      meta: { preset: 'list' },
+      select: (all: any[]) => {
+        if (value.courseId) return all.filter((s) => s.course_id === value.courseId);
+        if (value.strandId) return all.filter((s) => s.strand_id === value.strandId);
+        return all;
+      },
+    },
+  );
 
   // ── Derived labels for trigger display ───────────────────────────────────
   const selectedSY      = schoolYears.find((s) => s.id === value.schoolYearId);
