@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import {
   useAssessments,
   useDeleteAssessment,
@@ -72,10 +73,10 @@ export default function AssessmentsPage(): React.JSX.Element {
   // ── Data ─────────────────────────────────────────────────────────────
   const { data: weeks = [] } = useClassWeeks(classId);
 
-  const { data: gradingScheme } = useQuery({
-    queryKey: ["grading-scheme", classId],
-    queryFn: () => educatorGradingSchemeApi.getForClass(classId),
-  });
+  const { data: gradingScheme } = useAsyncQuery(
+    queryKeys.educator.gradingSchemes.detail(classId),
+    () => educatorGradingSchemeApi.getForClass(classId),
+  );
   const schemeTypes = gradingScheme?.components?.map((c) => c.type) ?? [];
 
   // Build cascading filter groups from weeks data
