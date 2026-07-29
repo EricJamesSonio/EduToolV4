@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { Search } from "lucide-react";
@@ -35,34 +36,35 @@ export function EnrollStudentDialog({
   open,
   onClose,
 }: EnrollStudentDialogProps): React.JSX.Element {
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
 
-  const { data: studentsRaw, isLoading } = useQuery({
-    queryKey: ["admin", "students", "search", search],
-    queryFn: () => studentApi.getAll({ search: search || undefined }),
-    enabled: search.length >= 2,
-  });
+  const { data: studentsRaw, isLoading } = useAsyncQuery(
+    queryKeys.admin.students.list({ search: search || undefined }),
+    () => studentApi.getAll({ search: search || undefined }),
+    { enabled: search.length >= 2 },
+  );
   const students = toArray<StudentOption>(studentsRaw);
 
-  const enrollMutation = useMutation({
-    mutationFn: (studentId: string) => classApi.enroll(classId, studentId),
-    onSuccess: (result) => {
-      if ("overflow" in result && result.overflow) {
-        toast.warning(result.message);
-      } else {
-        toast.success("Student enrolled.");
-      }
-      queryClient.invalidateQueries({
-        queryKey: ["admin", "classes", classId, "enrollments"],
-      });
-      queryClient.invalidateQueries({ queryKey: ["admin", "classes", classId] });
-      onClose();
+  const enrollMutation = useMutationWithInvalidation(
+    (studentId: string) => classApi.enroll(classId, studentId),
+    {
+      invalidateKeys: [
+        queryKeys.admin.classes.enrolled(classId),
+        queryKeys.admin.classes.detail(classId),
+      ],
+      onSuccess: (result) => {
+        if ("overflow" in result && result.overflow) {
+          toast.warning(result.message);
+        } else {
+          toast.success("Student enrolled.");
+        }
+        onClose();
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to enroll student.");
+      },
     },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to enroll student.");
-    },
-  });
+  );
 
   return (
     <Modal
