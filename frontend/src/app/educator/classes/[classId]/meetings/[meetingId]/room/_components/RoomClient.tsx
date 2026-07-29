@@ -273,6 +273,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
                 currentUserId={currentUserId}
                 currentUserName={currentUserName}
                 localVideo={localVideo}
+                role="educator"
               />
             )}
           </SidePanel>
