@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ClassInfoCard } from "@/components/student/class/overview/ClassInfoCard";
 import { UpcomingAssessmentsCard } from "@/components/student/class/overview/UpcomingAssessmentsCard";
 import { GradeSummaryCard } from "@/components/student/class/overview/GradeSummaryCard";
-import { useStudentClass } from "@/hooks/student/useStudentClassess";
+import { useStudentClass } from "@/hooks/student/useStudentClasses";
 import { useStudentAssessments } from "@/hooks/student/useStudentAssessments";
 import { useStudentGrades } from "@/hooks/student/useStudentGrades";
 
