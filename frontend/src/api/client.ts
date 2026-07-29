@@ -11,10 +11,34 @@ const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // required for HTTP-only cookies
+  withCredentials: true,
 });
 
-// ─── Request interceptor ──────────────────────────────────────────────────────
+const pendingRequests = new Map<string, Promise<unknown>>();
+const callLog = new Map<string, number[]>();
+
+function getRequestKey(config: InternalAxiosRequestConfig): string {
+  return `${config.method}:${config.url}:${JSON.stringify(config.params ?? {})}`;
+}
+
+function trackCall(endpoint: string): void {
+  const now = Date.now();
+  const calls = callLog.get(endpoint) ?? [];
+  const recent = calls.filter(t => now - t < 5000);
+  recent.push(now);
+  callLog.set(endpoint, recent);
+
+  if (recent.length > 3) {
+    console.warn(`[API] ⚠️ Overfetch: ${endpoint} called ${recent.length}x in 5s`);
+  }
+
+  if (recent.length > 5 && process.env.NODE_ENV === 'development') {
+    throw new Error(
+      `[API] 🚨 Overfetch critical: ${endpoint} called ${recent.length}x in 5s. ` +
+      `Fix caching or reduce polling.`
+    );
+  }
+}
 
 apiClient.interceptors.request.use(
   (config) => {
@@ -24,18 +48,40 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    if (process.env.NODE_ENV === 'development') {
+      const endpoint = `${config.method?.toUpperCase()} ${config.url}`;
+      trackCall(endpoint);
+
+      const key = getRequestKey(config);
+      const existing = pendingRequests.get(key);
+      if (existing) {
+        console.log(`[API] ${endpoint} → DEDUPED`);
+        return existing as unknown as InternalAxiosRequestConfig;
+      }
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// ─── Response interceptor ─────────────────────────────────────────────────────
-
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (process.env.NODE_ENV === 'development') {
+      const config = response.config;
+      const key = getRequestKey(config as InternalAxiosRequestConfig);
+      pendingRequests.delete(key);
+    }
+    return response;
+  },
 
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig;
+
+    if (process.env.NODE_ENV === 'development' && originalRequest) {
+      const key = getRequestKey(originalRequest);
+      pendingRequests.delete(key);
+    }
 
     const is401 = error.response?.status === 401;
     const alreadyRetried = originalRequest?._retry;
@@ -46,13 +92,10 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Cookie is sent automatically (withCredentials: true)
         const { data } = await apiClient.post<{ accessToken: string }>("/auth/refresh");
 
-        // Store new access token in memory
         useAuthStore.getState().setAccessToken(data.accessToken);
 
-        // Retry original request
         originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
         return apiClient(originalRequest);
       } catch {
