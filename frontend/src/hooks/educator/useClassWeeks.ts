@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import apiClient from "@/api/client";
 import type { WeekSlot } from "@/types/educator/lesson.types";
 
@@ -21,15 +22,14 @@ async function fetchWeekStructure(classId: string): Promise<WeekSlot[]> {
 }
 
 export function useClassWeeks(classId: string) {
-  const query = useQuery({
-    queryKey: ["class-week-structure", classId],
-    queryFn: () => fetchWeekStructure(classId),
-    enabled: !!classId,
-    staleTime: 5 * 60 * 1000,
-  });
+  const query = useAsyncQuery<WeekSlot[]>(
+    queryKeys.educator.lessons.weekStructure(classId),
+    () => fetchWeekStructure(classId),
+    { enabled: !!classId },
+  );
 
   return {
     ...query,
-    data: query.data ?? [], // 🔥 always safe
+    data: query.data ?? [],
   };
 }
