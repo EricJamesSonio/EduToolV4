@@ -1,7 +1,8 @@
 "use client";
 import { useEffect } from "react";
 import { useForm, FormProvider } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { AxiosError } from "axios";
@@ -33,7 +34,6 @@ export function CreateClassDialog({
   schoolYearId,
   schoolYearName,
 }: CreateClassDialogProps): React.JSX.Element {
-  const queryClient = useQueryClient();
   const router      = useRouter();
 
   const draft    = loadClassDraft();
@@ -106,8 +106,8 @@ export function CreateClassDialog({
 
   // ── Submit ──────────────────────────────────────────────────────────────────
 
-  const mutation = useMutation({
-    mutationFn: (values: CreateClassForm) => {
+  const mutation = useMutationWithInvalidation(
+    (values: CreateClassForm) => {
       const payload: CreateClassRequest = {
         subjectId:    values.subjectId,
         educatorId:   values.educatorId,
@@ -123,17 +123,19 @@ export function CreateClassDialog({
       };
       return classApi.create(payload);
     },
-    onSuccess: () => {
-      toast.success("Class created.");
-      clearClassDraft();
-      queryClient.invalidateQueries({ queryKey: ["admin", "classes"] });
-      reset(EMPTY_DEFAULTS);
-      onClose();
+    {
+      invalidateKeys: [queryKeys.admin.classes.list()],
+      onSuccess: () => {
+        toast.success("Class created.");
+        clearClassDraft();
+        reset(EMPTY_DEFAULTS);
+        onClose();
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to create class.");
+      },
     },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to create class.");
-    },
-  });
+  );
 
   function handleClose(): void {
     onClose();
