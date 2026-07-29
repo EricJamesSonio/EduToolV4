@@ -25,7 +25,8 @@ import {
   useTemplateAssignments,
 } from "@/hooks/admin/useSemesterTemplate";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import clientApi from "@/api/client";
 import { TemplateFormDialog } from "@/components/admin/semester-settings/TemplateFormDialog";
 import { TemplateLibrary } from "@/components/admin/semester-settings/TemplateLibrary";
