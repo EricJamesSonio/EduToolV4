@@ -1,5 +1,3 @@
-// ===== File: frontend/src/hooks/admin/useOrganization.ts =====
-
 import {
   type UseMutationResult,
   type UseQueryResult,
@@ -16,10 +14,6 @@ import { organizationApi } from "@/api/admin/organization.api";
 import type { Organization } from "@/types/admin/organization.types";
 import type { UpdateOrganizationRequest } from "@/api/admin/organization.api";
 
-// ======================================================
-// FETCH ORGANIZATION
-// ======================================================
-
 export const useOrganization = (): UseQueryResult<
   Organization | null,
   Error
@@ -28,13 +22,7 @@ export const useOrganization = (): UseQueryResult<
     queryKeys.admin.organization.detail(),
     () => organizationApi.getOrg(),
     {
-      // ✅ IMPORTANT FIX:
-      // Keep data fresh so UI always reflects latest mutation
-      staleTime: 0,
-
-      // Optional: improves UX consistency after tab switch / refocus
-      refetchOnMount: true,
-      refetchOnWindowFocus: true,
+      meta: { preset: 'static', feature: 'organization' },
     }
   );
 };
