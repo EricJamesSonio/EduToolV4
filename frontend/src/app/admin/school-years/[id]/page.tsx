@@ -2,7 +2,8 @@
 
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Pencil, Plus } from "lucide-react";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { programApi } from "@/api/admin/program.api";
@@ -25,16 +26,16 @@ export default function SchoolYearDetailPage({
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
 
-  const { data: schoolYear, isLoading } = useQuery({
-    queryKey: ["admin", "school-years", id],
-    queryFn: () => schoolYearApi.getById(id),
-  });
+  const { data: schoolYear, isLoading } = useAsyncQuery(
+    queryKeys.admin.schoolYears.detail(id),
+    () => schoolYearApi.getById(id),
+  );
 
-  const { data: programs = [] } = useQuery({
-    queryKey: ["admin", "programs", id],
-    queryFn: () => programApi.getAll(id),
-    enabled: !!schoolYear,
-  });
+  const { data: programs = [] } = useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId: id }),
+    () => programApi.getAll(id),
+    { enabled: !!schoolYear },
+  );
 
   if (isLoading) {
     return (
