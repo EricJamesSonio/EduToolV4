@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -119,10 +120,10 @@ export default function EducatorActivityLogPage() {
   const { data: classesRaw }         = useEducatorClasses();
 
   // Subject lookup for class display names
-  const { data: subjectsRaw } = useQuery({
-    queryKey: ["admin", "subjects"],
-    queryFn:  () => subjectApi.getAll(),
-  });
+  const { data: subjectsRaw } = useAsyncQuery(
+    queryKeys.admin.subjects.list(),
+    () => subjectApi.getAll(),
+  );
 
   // Build class map: classId → subject name (or subject_id fallback)
   const subjectMap = useMemo(() => {
