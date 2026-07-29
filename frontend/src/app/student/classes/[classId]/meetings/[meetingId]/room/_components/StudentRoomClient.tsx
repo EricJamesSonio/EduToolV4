@@ -166,6 +166,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   currentUserId={currentUserId}
   currentUserName={currentUserName}
   localVideo={localVideo}
+  role="student"
 />
             )}
           </SidePanel>
