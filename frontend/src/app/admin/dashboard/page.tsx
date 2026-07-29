@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { analyticsApi } from "@/api/admin/analytics.api";
 import { organizationApi } from "@/api/admin/organization.api";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -132,23 +133,23 @@ export default function AdminDashboardPage(): React.JSX.Element {
     }
   }, [schoolYears, selectedYearId]);
 
-  const { data: org, isLoading: orgLoading } = useQuery({
-    queryKey: ["admin", "organization"],
-    queryFn: organizationApi.getOrg,
-    retry: false,
-  });
+  const { data: org, isLoading: orgLoading } = useAsyncQuery(
+    queryKeys.admin.organization.detail(),
+    organizationApi.getOrg,
+    { retry: false },
+  );
 
-  const { data: overview, isLoading: overviewLoading } = useQuery({
-    queryKey: ["admin", "analytics", "overview", selectedYearId],
-    queryFn: () => analyticsApi.getOverview(selectedYearId ?? undefined),
-    enabled: !!org && !!selectedYearId,
-  });
+  const { data: overview, isLoading: overviewLoading } = useAsyncQuery(
+    queryKeys.admin.analytics.detail("overview"),
+    () => analyticsApi.getOverview(selectedYearId ?? undefined),
+    { enabled: !!org && !!selectedYearId },
+  );
 
-  const { data: enrollment, isLoading: enrollmentLoading } = useQuery({
-    queryKey: ["admin", "analytics", "enrollment", selectedYearId],
-    queryFn: () => analyticsApi.getEnrollmentBreakdown(selectedYearId ?? undefined),
-    enabled: !!org && !!selectedYearId,
-  });
+  const { data: enrollment, isLoading: enrollmentLoading } = useAsyncQuery(
+    queryKeys.admin.analytics.detail("enrollment"),
+    () => analyticsApi.getEnrollmentBreakdown(selectedYearId ?? undefined),
+    { enabled: !!org && !!selectedYearId },
+  );
 
   return (
     <div className="space-y-8">
