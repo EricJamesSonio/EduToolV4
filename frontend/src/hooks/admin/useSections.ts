@@ -1,35 +1,16 @@
-// ===== File: frontend/src/hooks/admin/useSections.ts
-
 import {
   useAsyncQuery,
   useMutationWithInvalidation,
 } from "@/hooks/hook-factory.utils";
-
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { sectionApi } from "@/api/admin/section.api";
-
 import type {
   CreateSectionRequest,
   UpdateSectionRequest,
 } from "@/api/admin/section.api";
-
 import type {
   Section,
 } from "@/types/admin/section.types";
-
-
-const sectionKeys = {
-  all: ["sections"] as const,
-
-  list: (
-    schoolYearId: string,
-    levelId?: string,
-  ) =>
-    [
-      "sections",
-      schoolYearId,
-      levelId,
-    ] as const,
-};
 
 
 // ── GET sections ─────────────────────────────────────
@@ -39,16 +20,8 @@ export const useSections = (
   levelId?: string,
 ) => {
   return useAsyncQuery<Section[]>(
-    sectionKeys.list(
-      schoolYearId,
-      levelId,
-    ),
-
-    () =>
-      sectionApi.getAll(
-        schoolYearId,
-        levelId,
-      ),
+    queryKeys.admin.sections.list({ schoolYearId, levelId }),
+    () => sectionApi.getAll(schoolYearId, levelId),
 
     {
       enabled:
@@ -72,7 +45,7 @@ export const useCreateSection =
 
       {
         invalidateKeys: [
-          sectionKeys.all,
+          queryKeys.admin.sections.all,
         ],
       },
     );
@@ -98,7 +71,7 @@ export const useUpdateSection =
 
       {
         invalidateKeys: [
-          sectionKeys.all,
+          queryKeys.admin.sections.all,
         ],
       },
     );
@@ -115,7 +88,7 @@ export const useDeleteSection =
 
       {
         invalidateKeys: [
-          sectionKeys.all,
+          queryKeys.admin.sections.all,
         ],
       },
     );

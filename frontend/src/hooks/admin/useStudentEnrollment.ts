@@ -19,14 +19,7 @@ import type {
 } from "@/types/admin/student-enrollment.types";
 
 
-const enrollmentKeys = {
-  bySchoolYear: (schoolYearId: string) =>
-    [
-      "admin",
-      "school-year-enrollments",
-      schoolYearId,
-    ] as const,
-};
+import { queryKeys } from "@/hooks/queryKeys.factory"
 
 
 // ── QUERY ─────────────────────────────────────────────
@@ -37,14 +30,8 @@ export const useSchoolYearEnrollments = (
   return useAsyncQuery<
     StudentSchoolYearEnrollment[]
   >(
-    enrollmentKeys.bySchoolYear(
-      schoolYearId,
-    ),
-
-    () =>
-      studentEnrollmentApi.getBySchoolYear(
-        schoolYearId,
-      ),
+    queryKeys.admin.studentEnrollment.list({ schoolYearId }),
+    () => studentEnrollmentApi.getBySchoolYear(schoolYearId),
 
     {
       enabled: !!schoolYearId,
@@ -122,9 +109,7 @@ export const useUpdateSchoolYearEnrollment =
 
       {
         invalidateKeys: [
-          enrollmentKeys.bySchoolYear(
-            schoolYearId,
-          ),
+          queryKeys.admin.studentEnrollment.list({ schoolYearId }),
         ],
       },
     );
@@ -204,9 +189,7 @@ export const useUpdateProgramEnrollment =
 
       {
         invalidateKeys: [
-          enrollmentKeys.bySchoolYear(
-            schoolYearId,
-          ),
+          queryKeys.admin.studentEnrollment.list({ schoolYearId }),
         ],
       },
     );
@@ -226,9 +209,7 @@ export const useRemoveProgramEnrollment =
 
       {
         invalidateKeys: [
-          enrollmentKeys.bySchoolYear(
-            schoolYearId,
-          ),
+          queryKeys.admin.studentEnrollment.list({ schoolYearId }),
         ],
       },
     );

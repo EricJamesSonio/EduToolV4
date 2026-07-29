@@ -1,10 +1,5 @@
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  UseQueryResult,
-  UseMutationResult,
-} from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { subjectApi } from "@/api/admin/subject.api";
 import type {
   GetSubjectsQuery,
@@ -14,126 +9,77 @@ import type {
 } from "@/api/admin/subject.api";
 import type { Subject, SubjectSharing } from "@/types/admin/subject.types";
 
-export const useSubjects = (
-  query?: GetSubjectsQuery,
-): UseQueryResult<Subject[], Error> => {
-  return useQuery({
-    queryKey: ["subjects", query],
-    queryFn: () => subjectApi.getAll(query),
-  });
+export const useSubjects = (query?: GetSubjectsQuery) => {
+  return useAsyncQuery<Subject[]>(
+    queryKeys.admin.subjects.list(query),
+    () => subjectApi.getAll(query),
+  );
 };
 
-export const useSubject = (id: string): UseQueryResult<Subject, Error> => {
-  return useQuery({
-    queryKey: ["subjects", id],
-    queryFn: () => subjectApi.getOne(id),
-    enabled: !!id,
-  });
+export const useSubject = (id: string) => {
+  return useAsyncQuery<Subject>(
+    queryKeys.admin.subjects.detail(id),
+    () => subjectApi.getOne(id),
+    { enabled: !!id },
+  );
 };
 
-export const useCreateSubject = (): UseMutationResult<
-  Subject,
-  Error,
-  CreateSubjectRequest
-> => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: subjectApi.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subjects"] });
+export const useCreateSubject = () => {
+  return useMutationWithInvalidation<Subject, Error, CreateSubjectRequest>(
+    subjectApi.create,
+    { invalidateKeys: [queryKeys.admin.subjects.all] },
+  );
+};
+
+export const useUpdateSubject = () => {
+  return useMutationWithInvalidation<Subject, Error, { id: string; data: UpdateSubjectRequest }>(
+    ({ id, data }: { id: string; data: UpdateSubjectRequest }) => subjectApi.update(id, data),
+    { invalidateKeys: [queryKeys.admin.subjects.all] },
+  );
+};
+
+export const useLockSubject = () => {
+  return useMutationWithInvalidation<{ success: true }, Error, string>(
+    subjectApi.lock,
+    { invalidateKeys: [queryKeys.admin.subjects.all] },
+  );
+};
+
+export const useUnlockSubject = () => {
+  return useMutationWithInvalidation<{ success: true }, Error, string>(
+    subjectApi.unlock,
+    { invalidateKeys: [queryKeys.admin.subjects.all] },
+  );
+};
+
+export const useSubjectSharings = (subjectId: string) => {
+  return useAsyncQuery<SubjectSharing[]>(
+    [...queryKeys.admin.subjects.all, 'sharings', subjectId] as const,
+    () => subjectApi.getSharings(subjectId),
+    { enabled: !!subjectId },
+  );
+};
+
+export const useShareSubject = () => {
+  return useMutationWithInvalidation<SubjectSharing, Error, { id: string; data: ShareSubjectRequest }>(
+    ({ id, data }: { id: string; data: ShareSubjectRequest }) => subjectApi.share(id, data),
+    {
+      invalidateKeys: (result, variables) => [
+        queryKeys.admin.subjects.detail(variables.id),
+        [...queryKeys.admin.subjects.all, 'sharings', variables.id] as const,
+      ],
     },
-  });
+  );
 };
 
-export const useUpdateSubject = (): UseMutationResult<
-  Subject,
-  Error,
-  { id: string; data: UpdateSubjectRequest }
-> => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateSubjectRequest }) =>
-      subjectApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subjects"] });
+export const useUnshareSubject = () => {
+  return useMutationWithInvalidation<{ success: true }, Error, { id: string; sharingId: string }>(
+    ({ id, sharingId }: { id: string; sharingId: string }) => subjectApi.unshare(id, sharingId),
+    {
+      invalidateKeys: (result, variables) => [
+        queryKeys.admin.subjects.detail(variables.id),
+        [...queryKeys.admin.subjects.all, 'sharings', variables.id] as const,
+      ],
     },
-  });
-};
-
-export const useLockSubject = (): UseMutationResult<
-  { success: true },
-  Error,
-  string
-> => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: subjectApi.lock,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subjects"] });
-    },
-  });
-};
-
-export const useUnlockSubject = (): UseMutationResult<
-  { success: true },
-  Error,
-  string
-> => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: subjectApi.unlock,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subjects"] });
-    },
-  });
-};
-
-// ---------------------------------------------------------------------------
-// Sharing hooks
-// ---------------------------------------------------------------------------
-
-export const useSubjectSharings = (
-  subjectId: string,
-): UseQueryResult<SubjectSharing[], Error> => {
-  return useQuery({
-    queryKey: ["subjects", subjectId, "sharings"],
-    queryFn: () => subjectApi.getSharings(subjectId),
-    enabled: !!subjectId,
-  });
-};
-
-export const useShareSubject = (): UseMutationResult<
-  SubjectSharing,
-  Error,
-  { id: string; data: ShareSubjectRequest }
-> => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ShareSubjectRequest }) =>
-      subjectApi.share(id, data),
-    onSuccess: (_result, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["subjects", variables.id] });
-      queryClient.invalidateQueries({
-        queryKey: ["subjects", variables.id, "sharings"],
-      });
-    },
-  });
-};
-
-export const useUnshareSubject = (): UseMutationResult<
-  { success: true },
-  Error,
-  { id: string; sharingId: string }
-> => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, sharingId }: { id: string; sharingId: string }) =>
-      subjectApi.unshare(id, sharingId),
-    onSuccess: (_result, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["subjects", variables.id] });
-      queryClient.invalidateQueries({
-        queryKey: ["subjects", variables.id, "sharings"],
-      });
-    },
-  });
+  );
 };

@@ -1,30 +1,16 @@
-// ===== File: frontend/src/hooks/admin/usePrograms.ts
-
 import {
   useAsyncQuery,
   useMutationWithInvalidation,
 } from "@/hooks/hook-factory.utils";
-
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { programApi } from "@/api/admin/program.api";
-
 import type {
   CreateProgramRequest,
   UpdateProgramRequest,
 } from "@/api/admin/program.api";
-
 import type {
   Program,
 } from "@/types/admin/program.types";
-
-const programKeys = {
-  all: ["programs"] as const,
-
-  list: (schoolYearId?: string) =>
-    ["programs", schoolYearId] as const,
-
-  detail: (id: string) =>
-    ["admin", "programs", id] as const,
-};
 
 
 // ── GET programs by school year ─────────────────────────
@@ -33,14 +19,8 @@ export const usePrograms = (
   schoolYearId?: string,
 ) => {
   return useAsyncQuery<Program[]>(
-    programKeys.list(
-      schoolYearId,
-    ),
-
-    () =>
-      programApi.getAll(
-        schoolYearId!,
-      ),
+    queryKeys.admin.programs.list({ schoolYearId }),
+    () => programApi.getAll(schoolYearId!),
 
     {
       enabled: !!schoolYearId,
@@ -68,9 +48,7 @@ export const useCreateProgram = () => {
         // invalidate only affected bucket
         return {
           invalidateKeys: [
-            programKeys.list(
-              variables.schoolYearId,
-            ),
+            queryKeys.admin.programs.list({ schoolYearId: variables.schoolYearId }),
           ],
         };
       },
@@ -98,7 +76,7 @@ export const useUpdateProgram =
 
       {
         invalidateKeys: [
-          programKeys.all,
+          queryKeys.admin.programs.all,
         ],
       },
     );
@@ -115,7 +93,7 @@ export const useDeleteProgram =
 
       {
         invalidateKeys: [
-          programKeys.all,
+          queryKeys.admin.programs.all,
         ],
       },
     );
@@ -128,10 +106,8 @@ export const useProgramDetail = (
   id: string,
 ) => {
   return useAsyncQuery<Program>(
-    programKeys.detail(id),
-
-    () =>
-      programApi.getOne(id),
+    queryKeys.admin.programs.detail(id),
+    () => programApi.getOne(id),
 
     {
       enabled: !!id,

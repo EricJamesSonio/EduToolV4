@@ -1,31 +1,23 @@
-// ===== File: frontend/src/hooks/admin/useSemesters.ts
-
 import {
   useAsyncQuery,
   useMutationWithInvalidation,
 } from "@/hooks/hook-factory.utils";
-
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import {
   semesterApi,
   type CreateSemesterRequest,
   type UpdateSemesterRequest,
 } from "@/api/admin/semester.api";
-
 import type {
   Semester,
 } from "@/types/admin/semester.types";
-
-
-const semesterKeys = {
-  all: ["semesters"] as const,
-};
 
 
 // ── GET all semesters ─────────────────────────────
 
 export const useSemesters = () => {
   return useAsyncQuery<Semester[]>(
-    semesterKeys.all,
+    queryKeys.admin.semesters.list(),
     semesterApi.getAll,
   );
 };
@@ -45,7 +37,7 @@ export const useCreateSemester =
 
       {
         invalidateKeys: [
-          semesterKeys.all,
+          queryKeys.admin.semesters.all,
         ],
       },
     );
@@ -71,7 +63,7 @@ export const useUpdateSemester =
 
       {
         invalidateKeys: [
-          semesterKeys.all,
+          queryKeys.admin.semesters.all,
         ],
       },
     );
@@ -88,7 +80,7 @@ export const useDeleteSemester =
 
       {
         invalidateKeys: [
-          semesterKeys.all,
+          queryKeys.admin.semesters.all,
         ],
       },
     );

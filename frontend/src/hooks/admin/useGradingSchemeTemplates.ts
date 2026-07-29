@@ -12,15 +12,7 @@ import type {
   ApplyTemplateToClassDto,
 } from '@/types/admin/grading-scheme-template.types'
 
-const gradingSchemeTemplateKeys = {
-  all: ['grading-scheme-templates'] as const,
-
-  list: (programType?: string) =>
-    ['grading-scheme-templates', 'list', programType] as const,
-
-  detail: (templateId: string) =>
-    ['grading-scheme-templates', 'detail', templateId] as const,
-}
+import { queryKeys } from "@/hooks/queryKeys.factory"
 
 
 // Query: Get all templates
@@ -29,7 +21,7 @@ export const useGradingSchemeTemplates = (
   programType?: string,
 ) => {
   return useAsyncQuery(
-    gradingSchemeTemplateKeys.list(programType),
+    queryKeys.admin.gradingSchemeTemplates.list({ programType }),
     () =>
       adminGradingSchemeTemplateApi.getAll(
         programType,
@@ -44,9 +36,7 @@ export const useGradingSchemeTemplate = (
   templateId: string,
 ) => {
   return useAsyncQuery(
-    gradingSchemeTemplateKeys.detail(
-      templateId,
-    ),
+    queryKeys.admin.gradingSchemeTemplates.detail(templateId),
 
     () =>
       adminGradingSchemeTemplateApi.getById(
@@ -74,7 +64,7 @@ export const useCreateGradingSchemeTemplate =
 
       {
         invalidateKeys: [
-          gradingSchemeTemplateKeys.all,
+          queryKeys.admin.gradingSchemeTemplates.all,
         ],
       },
     )
@@ -100,7 +90,7 @@ export const useUpdateGradingSchemeTemplate =
 
       {
         invalidateKeys: [
-          gradingSchemeTemplateKeys.all,
+          queryKeys.admin.gradingSchemeTemplates.all,
         ],
       },
     )
@@ -119,7 +109,7 @@ export const useDeleteGradingSchemeTemplate =
 
       {
         invalidateKeys: [
-          gradingSchemeTemplateKeys.all,
+          queryKeys.admin.gradingSchemeTemplates.all,
         ],
       },
     )
@@ -140,7 +130,7 @@ export const useApplyTemplateToClass =
 
       {
         invalidateKeys: [
-          ['grading-schemes'],
+          queryKeys.admin.gradingSchemes.all,
         ],
       },
     )
@@ -163,8 +153,8 @@ export const useApplyTemplateToProgram =
 
       {
         invalidateKeys: [
-          ['grading-schemes'],
-          gradingSchemeTemplateKeys.all,
+          queryKeys.admin.gradingSchemes.all,
+          queryKeys.admin.gradingSchemeTemplates.all,
         ],
       },
     )
