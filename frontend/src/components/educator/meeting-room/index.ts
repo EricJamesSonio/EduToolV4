@@ -1,9 +1,9 @@
-export { ReactionPicker } from "./EducatorReactionPicker";
-export { ParticipantsPanel } from "./EducatorParticipantsPanel";
+export { MeetingReactionPicker as ReactionPicker } from "@/components/meeting/MeetingReactionPicker";
+export { ParticipantsPanel } from "@/components/meeting/ParticipantsPanel";
 export { JoinRequestsPanel } from "./JoinRequestsPanel";
 export { LocalVideoGrid } from "./LocalVideoGrid";
 export { ControlBtn } from "./ControlBtn";
-export { SidePanel } from "./SidePanel";
+export { MeetingSidePanel as SidePanel } from "@/components/meeting/MeetingSidePanel";
 export { VideoGrid } from "./VideoGrid";
 export { PresentationView } from "./PresentationView";
 export { ControlsBar } from "./ControlsBar";
