@@ -8,13 +8,17 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { GradingSchemeTemplateCard } from "@/components/educator/grading-scheme/GradingSchemeTemplateCard";
-import { TemplateFormDialog } from "@/components/educator/grading-scheme/TemplateFormDialog";
+import { TemplateFormDialog } from "@/components/shared/grading-scheme/TemplateFormDialog";
 import { ApplyToClassDialog } from "@/components/educator/grading-scheme/ApplyToClassDialog";
 
 import {
   useEducatorTemplateLibrary,
   useDeleteTemplate,
+  useCreateTemplate,
+  useUpdateTemplate,
 } from "@/hooks/educator/useGradingSchemeTemplates";
+
+import type { CreateGradingSchemeTemplateDto } from "@/types/admin/grading-scheme-template.types";
 
 import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
 
@@ -22,6 +26,8 @@ export default function GradingSchemeLibraryPage() {
   const { data: library, isLoading } = useEducatorTemplateLibrary();
 
   const deleteMutation = useDeleteTemplate();
+  const createMutation = useCreateTemplate();
+  const updateMutation = useUpdateTemplate();
 
   const [showNew, setShowNew] = useState(false);
   const [editTemplate, setEditTemplate] = useState<GradingSchemeTemplate | null>(null);
@@ -36,6 +42,30 @@ export default function GradingSchemeLibraryPage() {
   const handleNewOpenChange = (open: boolean) => {
     setShowNew(open);
     if (!open) setEditTemplate(null);
+  };
+
+  const handleSaveTemplate = (dto: CreateGradingSchemeTemplateDto) => {
+    if (editTemplate) {
+      updateMutation.mutate(
+        { templateId: editTemplate.id, data: dto },
+        {
+          onSuccess: () => {
+            toast.success("Template updated.");
+            setShowNew(false);
+            setEditTemplate(null);
+          },
+          onError: () => toast.error("Failed to update template."),
+        }
+      );
+    } else {
+      createMutation.mutate(dto, {
+        onSuccess: () => {
+          toast.success("Template created.");
+          setShowNew(false);
+        },
+        onError: () => toast.error("Failed to create template."),
+      });
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -100,7 +130,10 @@ export default function GradingSchemeLibraryPage() {
       <TemplateFormDialog
         open={showNew}
         onOpenChange={handleNewOpenChange}
-        editTemplate={editTemplate}
+        template={editTemplate}
+        onSave={handleSaveTemplate}
+        isSaving={createMutation.isPending || updateMutation.isPending}
+        showProgramType
       />
 
       <ApplyToClassDialog
