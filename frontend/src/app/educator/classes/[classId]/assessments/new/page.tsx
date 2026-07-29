@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { assessmentKeys } from "@/hooks/queryKeys";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
@@ -150,10 +150,10 @@ export default function NewAssessmentPage() {
     try {
       const assessment = await assessmentApi.confirmPreview(classId, state.previewId);
       const assessmentId = assessment.id;
-      queryClient.setQueryData(assessmentKeys.detail(assessmentId), assessment);
+      queryClient.setQueryData(queryKeys.educator.assessments.detail(assessmentId), assessment);
       await updateAssessment({ assessmentId, data: { releaseDate: state.releaseDate, endDate: state.endDate, showBreakdown: state.showBreakdown, weekNumber: state.weekNumber || undefined } });
       const published = await assessmentApi.publish(classId, assessmentId, state.selectedStudentIds.length > 0 ? { studentIds: state.selectedStudentIds } : undefined);
-      if (published) queryClient.setQueryData(assessmentKeys.detail(assessmentId), (old: any) => old ? { ...old, isPublished: true } : old);
+      if (published) queryClient.setQueryData(queryKeys.educator.assessments.detail(assessmentId), (old: any) => old ? { ...old, isPublished: true } : old);
       queryClient.invalidateQueries({ queryKey: ["grades", classId] });
       toast.success("Assessment published!");
       await router.push(`/educator/classes/${classId}/assessments/${assessmentId}`);
@@ -181,7 +181,7 @@ export default function NewAssessmentPage() {
         weekNumber: state.weekNumber,
         ranges: [],
       });
-      queryClient.setQueryData(assessmentKeys.detail(assessment.id), assessment);
+      queryClient.setQueryData(queryKeys.educator.assessments.detail(assessment.id), assessment);
       queryClient.invalidateQueries({ queryKey: ["grades", classId] });
       toast.success("Manual assessment created!");
       await router.push(`/educator/classes/${classId}/assessments/${assessment.id}`);
