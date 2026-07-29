@@ -1,7 +1,9 @@
 "use client";
 
 import { use, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import Link from "next/link";
 import { ChevronLeft, AlertTriangle, Layers } from "lucide-react";
@@ -25,23 +27,23 @@ export default function SchoolYearLevelsPage({
   const [deleteTarget, setDeleteTarget] = useState<Level | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const { data: schoolYear, isLoading: syLoading } = useQuery({
-    queryKey: ["admin", "school-years", id],
-    queryFn: () => schoolYearApi.getById(id),
-  });
+  const { data: schoolYear, isLoading: syLoading } = useAsyncQuery(
+    queryKeys.admin.schoolYears.detail(id),
+    () => schoolYearApi.getById(id),
+  );
 
-  const { data: levels, isLoading: levelsLoading } = useQuery({
-    queryKey: ["admin", "levels", id],
-    queryFn: () => levelApi.getBySchoolYear(id),
-  });
+  const { data: levels, isLoading: levelsLoading } = useAsyncQuery(
+    queryKeys.admin.levels.list({ schoolYearId: id }),
+    () => levelApi.getBySchoolYear(id),
+  );
 
-  const { data: programs, isLoading: programsLoading } = useQuery({
-    queryKey: ["admin", "programs", id],
-    queryFn: () => programApi.getAll(id),
-  });
+  const { data: programs, isLoading: programsLoading } = useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId: id }),
+    () => programApi.getAll(id),
+  );
 
   const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ["admin", "levels", id] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.levels.list({ schoolYearId: id }) });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) =>

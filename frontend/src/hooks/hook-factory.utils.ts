@@ -1,18 +1,14 @@
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  type QueryKey,
-  type UseQueryOptions,
-  type UseMutationOptions,
-} from '@tanstack/react-query';
-
+import { useQuery, useMutation, useQueryClient, type QueryKey, type UseQueryOptions, type UseMutationOptions } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
+import { useAppQuery } from '@/hooks/useAppQuery';
+import { QUERY_PRESETS } from '@/lib/query-client.config';
 
-/**
- * Hook Factory Utilities
- * Provides reusable patterns for common React Query operations
- */
+type PresetKey = keyof typeof QUERY_PRESETS;
+
+interface AppMeta {
+  preset?: PresetKey;
+  feature?: string;
+}
 
 export function useAsyncQuery<
   TData = unknown,
@@ -23,12 +19,19 @@ export function useAsyncQuery<
   options?: Omit<
     UseQueryOptions<TData, TError, TData, QueryKey>,
     'queryKey' | 'queryFn'
-  >,
+  > & { meta?: AppMeta },
 ) {
-  return useQuery({
-    queryKey,
-    queryFn,
+  const preset = options?.meta?.preset ?? 'list';
+  if (process.env.NODE_ENV === 'development' && !options?.meta?.preset) {
+    console.warn(
+      `[useAsyncQuery] Missing meta.preset for key "${JSON.stringify(queryKey)}". ` +
+      `Defaulting to "list". Add meta: { preset: 'static' | 'user' | 'list' | 'detail' | 'realtime' }.`
+    );
+  }
+
+  return useAppQuery(queryKey, queryFn, {
     ...options,
+    meta: { preset, feature: options?.meta?.feature ?? 'unknown' },
   });
 }
 
@@ -41,12 +44,7 @@ export function useAsyncMutation<
 >(
   mutationFn: (variables: TVariables) => Promise<TData>,
   options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      TVariables,
-      TContext
-    >,
+    UseMutationOptions<TData, TError, TVariables, TContext>,
     'mutationFn'
   >,
 ) {
@@ -56,10 +54,6 @@ export function useAsyncMutation<
   });
 }
 
-
-/**
- * Paginated Query
- */
 
 export function usePaginatedQuery<
   TData = unknown,
@@ -80,19 +74,27 @@ export function usePaginatedQuery<
   > & {
     page?: number;
     pageSize?: number;
+    meta?: AppMeta;
   } = {},
 ) {
-  return useQuery({
-    queryKey: [...queryKey, page, pageSize],
-    queryFn: () => queryFn(page, pageSize),
-    ...options,
-  });
+  const preset = options?.meta?.preset ?? 'list';
+  if (process.env.NODE_ENV === 'development' && !options?.meta?.preset) {
+    console.warn(
+      `[usePaginatedQuery] Missing meta.preset for key "${JSON.stringify(queryKey)}". ` +
+      `Defaulting to "list".`
+    );
+  }
+
+  return useAppQuery(
+    [...queryKey, page, pageSize],
+    () => queryFn(page, pageSize),
+    {
+      ...options,
+      meta: { preset, feature: options?.meta?.feature ?? 'unknown' },
+    },
+  );
 }
 
-
-/**
- * Filtered Query
- */
 
 export function useFilteredQuery<
   TData = unknown,
@@ -109,19 +111,27 @@ export function useFilteredQuery<
     'queryKey' | 'queryFn'
   > & {
     filters?: TFilters;
+    meta?: AppMeta;
   } = {},
 ) {
-  return useQuery({
-    queryKey: [...queryKey, filters],
-    queryFn: () => queryFn(filters),
-    ...options,
-  });
+  const preset = options?.meta?.preset ?? 'list';
+  if (process.env.NODE_ENV === 'development' && !options?.meta?.preset) {
+    console.warn(
+      `[useFilteredQuery] Missing meta.preset for key "${JSON.stringify(queryKey)}". ` +
+      `Defaulting to "list".`
+    );
+  }
+
+  return useAppQuery(
+    [...queryKey, filters],
+    () => queryFn(filters),
+    {
+      ...options,
+      meta: { preset, feature: options?.meta?.feature ?? 'unknown' },
+    },
+  );
 }
 
-
-/**
- * Dependent Query
- */
 
 export function useDependentQuery<
   TData = unknown,
@@ -132,19 +142,22 @@ export function useDependentQuery<
   options?: Omit<
     UseQueryOptions<TData, TError, TData, QueryKey>,
     'queryKey' | 'queryFn'
-  >,
+  > & { meta?: AppMeta },
 ) {
-  return useQuery({
-    queryKey,
-    queryFn,
+  const preset = options?.meta?.preset ?? 'list';
+  if (process.env.NODE_ENV === 'development' && !options?.meta?.preset) {
+    console.warn(
+      `[useDependentQuery] Missing meta.preset for key "${JSON.stringify(queryKey)}". ` +
+      `Defaulting to "list".`
+    );
+  }
+
+  return useAppQuery(queryKey, queryFn, {
     ...options,
+    meta: { preset, feature: options?.meta?.feature ?? 'unknown' },
   });
 }
 
-
-/**
- * Mutation with cache invalidation
- */
 
 export function useMutationWithInvalidation<
   TData = unknown,
@@ -159,12 +172,7 @@ export function useMutationWithInvalidation<
     invalidateKeys,
     ...options
   }: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      TVariables,
-      TContext
-    >,
+    UseMutationOptions<TData, TError, TVariables, TContext>,
     'mutationFn'
   > & {
     invalidateKeys?: QueryKey[];
@@ -174,29 +182,16 @@ export function useMutationWithInvalidation<
 
   return useMutation({
     mutationFn,
-
     ...options,
-
     onSuccess: (data, variables, context) => {
       invalidateKeys?.forEach((key) => {
-        queryClient.invalidateQueries({
-          queryKey: key,
-        });
+        queryClient.invalidateQueries({ queryKey: key });
       });
-
-      options.onSuccess?.(
-        data,
-        variables,
-        context
-      );
+      options.onSuccess?.(data, variables, context);
     },
   });
 }
 
-
-/**
- * Batch Mutation
- */
 
 export function useBatchMutation<
   TData = unknown,
@@ -211,15 +206,8 @@ export function useBatchMutation<
   {
     onBatchSuccess,
     ...options
-  }: UseMutationOptions<
-    TData,
-    TError,
-    TVariables,
-    TContext
-  > & {
-    onBatchSuccess?: (
-      results: TData[]
-    ) => void;
+  }: UseMutationOptions<TData, TError, TVariables, TContext> & {
+    onBatchSuccess?: (results: TData[]) => void;
   } = {},
 ) {
   const mutation = useMutation({
@@ -235,9 +223,7 @@ export function useBatchMutation<
         mutation.mutateAsync(v),
       ),
     );
-
     onBatchSuccess?.(results);
-
     return results;
   };
 
@@ -247,10 +233,6 @@ export function useBatchMutation<
   };
 }
 
-
-/**
- * Optimistic Updates
- */
 
 type OptimisticContext<T> = {
   previousData?: T;
@@ -263,21 +245,14 @@ export function useMutationWithOptimisticUpdate<
   TCache = unknown,
 >(
   queryKey: QueryKey,
-
   mutationFn: (
     variables: TVariables
   ) => Promise<TData>,
-
   {
     updateFn,
     ...options
   }: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      TVariables,
-      OptimisticContext<TCache>
-    >,
+    UseMutationOptions<TData, TError, TVariables, OptimisticContext<TCache>>,
     'mutationFn'
   > & {
     updateFn?: (
@@ -290,70 +265,24 @@ export function useMutationWithOptimisticUpdate<
 
   return useMutation({
     mutationFn,
-
     onMutate: async (newData) => {
-      await queryClient.cancelQueries({
-        queryKey,
-      });
-
-      const previousData =
-        queryClient.getQueryData<TCache>(
-          queryKey,
-        );
-
+      await queryClient.cancelQueries({ queryKey });
+      const previousData = queryClient.getQueryData<TCache>(queryKey);
       if (updateFn) {
-        queryClient.setQueryData<TCache>(
-          queryKey,
-          (old) =>
-            updateFn(
-              old,
-              newData,
-            ),
-        );
+        queryClient.setQueryData<TCache>(queryKey, (old) => updateFn(old, newData));
       }
-
-      return {
-        previousData,
-      };
+      return { previousData };
     },
-
-    onError: (
-      error,
-      variables,
-      context,
-    ) => {
-      if (
-        context?.previousData
-      ) {
-        queryClient.setQueryData(
-          queryKey,
-          context.previousData,
-        );
+    onError: (error, variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKey, context.previousData);
       }
-
-      options.onError?.(
-        error,
-        variables,
-        context,
-      );
+      options.onError?.(error, variables, context);
     },
-
-    onSuccess: (
-      data,
-      variables,
-      context,
-    ) => {
-      queryClient.invalidateQueries({
-        queryKey,
-      });
-
-      options.onSuccess?.(
-        data,
-        variables,
-        context,
-      );
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey });
+      options.onSuccess?.(data, variables, context);
     },
-
     ...options,
   });
 }

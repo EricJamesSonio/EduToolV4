@@ -15,10 +15,16 @@ import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 
 import { GradingSchemeTemplateList } from "@/components/admin/grading-scheme-template/GradingSchemeTemplateList";
 import { TemplateAssignmentPanel } from "@/components/admin/grading-scheme-template/TemplateAssignmentPanel";
-import { TemplateFormDialog } from "@/components/admin/grading-scheme-template/TemplateFormDialog";
+import { TemplateFormDialog } from "@/components/shared/grading-scheme/TemplateFormDialog";
 
-import { useGradingSchemeTemplates } from "@/hooks/admin/useGradingSchemeTemplates";
+import {
+  useGradingSchemeTemplates,
+  useCreateGradingSchemeTemplate,
+  useUpdateGradingSchemeTemplate,
+} from "@/hooks/admin/useGradingSchemeTemplates";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
+
+import type { CreateGradingSchemeTemplateDto } from "@/types/admin/grading-scheme-template.types";
 
 import clientApi from "@/api/client";
 import { classApi } from "@/api/admin/class.api";
@@ -75,6 +81,26 @@ export default function GradingSchemesPage(): React.JSX.Element {
 
   const [editTarget, setEditTarget] =
     useState<GradingSchemeTemplate | null>(null);
+
+  const createMutation = useCreateGradingSchemeTemplate();
+  const updateMutation = useUpdateGradingSchemeTemplate();
+
+  const handleSaveTemplate = (dto: CreateGradingSchemeTemplateDto) => {
+    if (editTarget) {
+      updateMutation.mutate(
+        { templateId: editTarget.id, data: dto },
+        {
+          onSuccess: () => { setEditTarget(null); },
+        }
+      );
+    } else {
+      createMutation.mutate(dto, {
+        onSuccess: () => { setCreateOpen(false); },
+      });
+    }
+  };
+
+  const isTemplateSaving = createMutation.isPending || updateMutation.isPending;
 
   // ================= AUTO SELECT =================
   useEffect(() => {
@@ -230,18 +256,18 @@ export default function GradingSchemesPage(): React.JSX.Element {
       {/* ================= DIALOGS ================= */}
       <TemplateFormDialog
         open={createOpen}
-        onClose={() =>
-          setCreateOpen(false)
-        }
+        onOpenChange={(o) => { if (!o) setCreateOpen(false); }}
+        onSave={handleSaveTemplate}
+        isSaving={isTemplateSaving}
       />
 
       {editTarget && (
         <TemplateFormDialog
           open={!!editTarget}
-          onClose={() =>
-            setEditTarget(null)
-          }
+          onOpenChange={(o) => { if (!o) setEditTarget(null); }}
           template={editTarget}
+          onSave={handleSaveTemplate}
+          isSaving={isTemplateSaving}
         />
       )}
     </div>

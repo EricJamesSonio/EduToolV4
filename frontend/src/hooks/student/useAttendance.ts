@@ -1,12 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { studentAttendanceApi } from "@/api/student/attendance.api";
-import { QUERY_CONFIGS } from "@/lib/query-client";
 
 export const useStudentAttendance = (classId: string) => {
-  return useQuery({
-    queryKey: ["student", "attendance", classId],
-    queryFn: () => studentAttendanceApi.getOwn(classId),
-    enabled: !!classId,
-    ...QUERY_CONFIGS.detail,
-  });
+  return useAsyncQuery(
+    queryKeys.student.attendance.list(classId),
+    () => studentAttendanceApi.getOwn(classId),
+    { enabled: !!classId },
+  );
 };

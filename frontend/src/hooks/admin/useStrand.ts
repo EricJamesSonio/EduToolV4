@@ -1,12 +1,9 @@
-// frontend/src/hooks/admin/useStrands.ts
-
 import {
   useAsyncQuery,
   useMutationWithInvalidation,
 } from "@/hooks/hook-factory.utils";
-
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { strandApi } from "@/api/admin/strand.api";
-
 import type { Strand } from "@/types/admin/strand.types";
 import type {
   CreateStrandRequest,
@@ -15,27 +12,14 @@ import type {
 } from "@/api/admin/strand.api";
 
 
-const strandKeys = {
-  all: ["strands"] as const,
-
-  list: (query?: GetStrandsQuery) =>
-    ["strands", query] as const,
-
-  detail: (id: string) =>
-    ["strands", id] as const,
-};
-
-
 // ── GET list ───────────────────────────────────────
 
 export const useStrands = (
   query?: GetStrandsQuery,
 ) => {
   return useAsyncQuery<Strand[]>(
-    strandKeys.list(query),
-
-    () =>
-      strandApi.getAll(query),
+    queryKeys.admin.strands.list(query),
+    () => strandApi.getAll(query),
   );
 };
 
@@ -46,10 +30,8 @@ export const useStrand = (
   id: string,
 ) => {
   return useAsyncQuery<Strand>(
-    strandKeys.detail(id),
-
-    () =>
-      strandApi.getOne(id),
+    queryKeys.admin.strands.detail(id),
+    () => strandApi.getOne(id),
 
     {
       enabled: !!id,
@@ -68,7 +50,7 @@ export const useCreateStrand =
 
       {
         invalidateKeys: [
-          strandKeys.all,
+          queryKeys.admin.strands.all,
         ],
       },
     );
@@ -91,7 +73,7 @@ export const useUpdateStrand =
 
       {
         invalidateKeys: [
-          strandKeys.all,
+          queryKeys.admin.strands.all,
         ],
       },
     );
@@ -108,7 +90,7 @@ export const useDeleteStrand =
 
       {
         invalidateKeys: [
-          strandKeys.all,
+          queryKeys.admin.strands.all,
         ],
       },
     );

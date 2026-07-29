@@ -48,7 +48,7 @@ export const useGradingScaleAssignments = (
   schoolYearId: string | null,
 ): UseQueryResult<GradingScaleAssignment[], Error> => {
   return useAsyncQuery<GradingScaleAssignment[]>(
-    ["admin", "gradingScales", "assignments", schoolYearId] as const,
+    schoolYearId ? queryKeys.admin.gradingScales.assignments(schoolYearId) : [...queryKeys.admin.gradingScales.all, 'assignments'] as const,
     () => gradingScaleApi.getAssignments(schoolYearId!),
     { enabled: !!schoolYearId },
   );

@@ -1,14 +1,14 @@
-// src/components/educator/meeting-room/ReactionPicker.tsx
 "use client";
 
 import { ReactionPicker as BaseReactionPicker } from "@/components/meeting/ReactionPicker";
-import { REACTIONS } from "./types";
 
-interface ReactionPickerProps {
+const REACTIONS = ["👍", "👏", "❤️", "😂", "😮", "🎉"] as const;
+
+interface MeetingReactionPickerProps {
   onPick: (emoji: string) => void;
   onClose: () => void;
 }
 
-export function ReactionPicker({ onPick, onClose }: ReactionPickerProps) {
+export function MeetingReactionPicker({ onPick, onClose }: MeetingReactionPickerProps) {
   return <BaseReactionPicker reactions={REACTIONS} onPick={onPick} onClose={onClose} />;
 }

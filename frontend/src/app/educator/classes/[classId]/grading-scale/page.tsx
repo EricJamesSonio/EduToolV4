@@ -3,7 +3,8 @@
 // frontend/src/app/educator/classes/[classId]/grading-scale/page.tsx
 
 import { use } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import {
   ShieldCheck, TrendingUp, TrendingDown,
   Lock, Info,
@@ -116,11 +117,11 @@ interface Props {
 export default function GradingScalePage({ params }: Props) {
   const { classId } = use(params);
 
-  const { data: scale, isLoading } = useQuery({
-    queryKey: ["educator", "grading-scale", classId],
-    queryFn:  () => educatorGradingSchemeApi.getScaleForClass(classId),
-    enabled:  !!classId,
-  });
+  const { data: scale, isLoading } = useAsyncQuery(
+    queryKeys.educator.gradingScale.detail(classId),
+    () => educatorGradingSchemeApi.getScaleForClass(classId),
+    { enabled: !!classId },
+  );
 
   // Sort ranges highest → lowest for display
   const sortedRanges = scale

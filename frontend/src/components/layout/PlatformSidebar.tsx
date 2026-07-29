@@ -1,8 +1,9 @@
 "use client";
 
 import { SidebarShell } from "./SidebarShell";
+import { LogoutButton } from "./LogoutButton";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, LogOut, ClipboardList } from "lucide-react";
+import { Users, ClipboardList } from "lucide-react";
 
 const GROUPS = [
   {
@@ -17,7 +18,7 @@ const GROUPS = [
         href: "/platform/requests",
         icon: ClipboardList,
       },
-            {
+      {
         label: "Schools",
         href: "/platform/schools",
         icon: ClipboardList,
@@ -27,7 +28,7 @@ const GROUPS = [
 ];
 
 export function PlatformSidebar(): React.JSX.Element {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   return (
     <SidebarShell
@@ -38,15 +39,7 @@ export function PlatformSidebar(): React.JSX.Element {
         </div>
       }
       groups={GROUPS}
-      footer={
-        <button
-          onClick={() => void logout()}
-          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-        >
-          <LogOut className="h-4 w-4 shrink-0" />
-          <span>Log out</span>
-        </button>
-      }
+      footer={<LogoutButton />}
     />
   );
 }

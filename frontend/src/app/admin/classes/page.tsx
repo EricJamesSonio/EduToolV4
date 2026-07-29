@@ -2,7 +2,8 @@
 "use client";
 
 import { Suspense, useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
@@ -53,10 +54,10 @@ function ClassesPageInner(): React.JSX.Element {
   const filters = useClassFilters();
 
   // ===== School Years =====
-  const { data: schoolYearsRaw, isLoading: isSchoolYearsLoading } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: () => schoolYearApi.getAll(),
-  });
+  const { data: schoolYearsRaw, isLoading: isSchoolYearsLoading } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    () => schoolYearApi.getAll(),
+  );
 
 const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
 
@@ -67,56 +68,56 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
 
 
   // ===== Queries scoped to School Year =====
-  const { data: classesRaw, isLoading } = useQuery({
-    queryKey: ["admin", "classes", selectedSchoolYearId, filters.query],
-    queryFn: () =>
+  const { data: classesRaw, isLoading } = useAsyncQuery(
+    queryKeys.admin.classes.list({ schoolYearId: selectedSchoolYearId, ...filters.query }),
+    () =>
       classApi.getAll({
         ...filters.query,
         schoolYearId: selectedSchoolYearId!,
       }),
-    enabled: !!selectedSchoolYearId,
-  });
+    { enabled: !!selectedSchoolYearId },
+  );
 
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections", selectedSchoolYearId],
-    queryFn: () => sectionApi.getAll(selectedSchoolYearId!),
-    enabled: !!selectedSchoolYearId,
-  });
+  const { data: sectionsRaw } = useAsyncQuery(
+    queryKeys.admin.sections.list({ schoolYearId: selectedSchoolYearId }),
+    () => sectionApi.getAll(selectedSchoolYearId!),
+    { enabled: !!selectedSchoolYearId },
+  );
 
-  const { data: subjectsRaw } = useQuery({
-    queryKey: ["admin", "subjects"],
-    queryFn: () => subjectApi.getAll(),
-  });
+  const { data: subjectsRaw } = useAsyncQuery(
+    queryKeys.admin.subjects.list(),
+    () => subjectApi.getAll(),
+  );
 
-  const { data: educatorsRaw } = useQuery({
-    queryKey: queryKeys.admin.educators.list(),
-    queryFn: () => educatorApi.getAll(),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: educatorsRaw } = useAsyncQuery(
+    queryKeys.admin.educators.list(),
+    () => educatorApi.getAll(),
+    { staleTime: 5 * 60 * 1000 },
+  );
 
-  const { data: semestersRaw } = useQuery({
-    queryKey: ["admin", "semesters"],
-    queryFn: () => semesterApi.getAll(),
-  });
+  const { data: semestersRaw } = useAsyncQuery(
+    queryKeys.admin.semesters.list(),
+    () => semesterApi.getAll(),
+  );
 
   // ── Pre-fetch for CreateClassDialog ──────────────────────────────────────────
-  const { data: programsRaw } = useQuery({
-    queryKey: ["admin", "programs", selectedSchoolYearId],
-    queryFn: () => programApi.getAll(selectedSchoolYearId!),
-    enabled: !!selectedSchoolYearId,
-  });
+  const { data: programsRaw } = useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId: selectedSchoolYearId }),
+    () => programApi.getAll(selectedSchoolYearId!),
+    { enabled: !!selectedSchoolYearId },
+  );
 
-  const { data: levelsRaw } = useQuery({
-    queryKey: ["admin", "levels", "school-year", selectedSchoolYearId],
-    queryFn: () => levelApi.getBySchoolYear(selectedSchoolYearId!),
-    enabled: !!selectedSchoolYearId,
-  });
+  const { data: levelsRaw } = useAsyncQuery(
+    queryKeys.admin.levels.list({ schoolYearId: selectedSchoolYearId }),
+    () => levelApi.getBySchoolYear(selectedSchoolYearId!),
+    { enabled: !!selectedSchoolYearId },
+  );
 
-  const { data: templateAssignmentsRaw } = useQuery({
-    queryKey: ["admin", "semester-template-assignments", selectedSchoolYearId],
-    queryFn: () => semesterTemplateApi.getAssignmentsBySchoolYear(selectedSchoolYearId!),
-    enabled: !!selectedSchoolYearId,
-  });
+  const { data: templateAssignmentsRaw } = useAsyncQuery(
+    queryKeys.admin.semesterTemplateAssignments.list(selectedSchoolYearId!),
+    () => semesterTemplateApi.getAssignmentsBySchoolYear(selectedSchoolYearId!),
+    { enabled: !!selectedSchoolYearId },
+  );
 
   // ===== Maps =====
   const subjectMap = useMemo(() => {
@@ -189,7 +190,7 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
     mutationFn: (id: string) => classApi.archive(id),
     onSuccess: () => {
       toast.success("Class archived.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "classes"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.classes.all });
       setArchiveTarget(null);
     },
     onError: (err: AxiosError<{ message: string }>) => {

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { studentApi } from "@/api/admin/student.api";
@@ -32,14 +33,13 @@ export function EnrollStudentInClassDialog({
   programIds,
   onClose,
 }: Props): React.JSX.Element {
-  const queryClient = useQueryClient();
   const [selectedClassId, setSelectedClassId] = useState("");
 
-  const { data: classesRaw, isLoading: classesLoading } = useQuery({
-    queryKey: ["admin", "classes"],
-    queryFn: () => classApi.getAll(),
-    enabled: open,
-  });
+  const { data: classesRaw, isLoading: classesLoading } = useAsyncQuery(
+    queryKeys.admin.classes.list(),
+    () => classApi.getAll(),
+    { enabled: open },
+  );
 
   const programSet = new Set(programIds);
 
@@ -47,23 +47,23 @@ export function EnrollStudentInClassDialog({
     (c) => c.status !== "archived" && c.programId && programSet.has(c.programId),
   );
 
-  const mutation = useMutation({
-    mutationFn: () => studentApi.addEnrollment(studentId, selectedClassId),
-    onSuccess: (data) => {
-      if (data.overflow) {
-        toast.warning(data.message ?? "Class is at capacity but student was enrolled.");
-      } else {
-        toast.success("Student enrolled successfully.");
-      }
-      queryClient.invalidateQueries({
-        queryKey: ["admin", "students", studentId, "enrollments"],
-      });
-      handleClose();
+  const mutation = useMutationWithInvalidation(
+    () => studentApi.addEnrollment(studentId, selectedClassId),
+    {
+      invalidateKeys: [queryKeys.admin.students.enrollments(studentId)],
+      onSuccess: (data) => {
+        if (data.overflow) {
+          toast.warning(data.message ?? "Class is at capacity but student was enrolled.");
+        } else {
+          toast.success("Student enrolled successfully.");
+        }
+        handleClose();
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to enroll student.");
+      },
     },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to enroll student.");
-    },
-  });
+  );
 
   function handleClose() {
     setSelectedClassId("");

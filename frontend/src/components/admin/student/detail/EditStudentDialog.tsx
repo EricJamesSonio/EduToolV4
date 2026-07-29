@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useForm }     from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast }       from "sonner";
 import type { AxiosError } from "axios";
 
@@ -38,7 +39,6 @@ export function EditStudentDialog({
   student,
   onClose,
 }: Props): React.JSX.Element {
-  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageUploading, setImageUploading] = useState(false);
 
@@ -58,19 +58,23 @@ export function EditStudentDialog({
     reset({ fullName: student.fullName, email: student.email });
   }, [student, reset]);
 
-  const mutation = useMutation({
-    mutationFn: (data: UpdateStudentRequest) =>
+  const mutation = useMutationWithInvalidation(
+    (data: UpdateStudentRequest) =>
       studentApi.update(student.id, data),
-    onSuccess: () => {
-      toast.success("Student updated.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "students", student.id] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "students"] });
-      onClose();
+    {
+      invalidateKeys: [
+        queryKeys.admin.students.detail(student.id),
+        queryKeys.admin.students.list(),
+      ],
+      onSuccess: () => {
+        toast.success("Student updated.");
+        onClose();
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to update student.");
+      },
     },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to update student.");
-    },
-  });
+  );
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -89,8 +93,6 @@ export function EditStudentDialog({
 
       await studentApi.update(student.id, { profileImage: data.path });
       toast.success("Profile photo updated");
-      queryClient.invalidateQueries({ queryKey: ["admin", "students", student.id] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "students"] });
     } catch {
       toast.error("Failed to upload profile photo");
     } finally {

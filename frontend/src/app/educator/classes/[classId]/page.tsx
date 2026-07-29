@@ -1,7 +1,8 @@
 "use client";
 
 import { use, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { useRouter } from "next/navigation";
 import {
   BookOpen, Users, CalendarCheck,
@@ -68,53 +69,53 @@ export default function EducatorClassOverviewPage({
   const router = useRouter();
   const base   = `/educator/classes/${id}`;
 
-  const { data: cls, isLoading: clsLoading } = useQuery({
-    queryKey: ["educator", "classes", id],
-    queryFn:  () => classApi.getOne(id),
-  });
+  const { data: cls, isLoading: clsLoading } = useAsyncQuery(
+    queryKeys.educator.classes.detail(id),
+    () => classApi.getOne(id),
+  );
 
-  const { data: enrollmentsRaw, isLoading: enrollmentsLoading } = useQuery({
-    queryKey: ["educator", "classes", id, "enrollments"],
-    queryFn:  () => classApi.getEnrollments(id),
-    enabled:  !!id,
-  });
+  const { data: enrollmentsRaw, isLoading: enrollmentsLoading } = useAsyncQuery(
+    queryKeys.educator.classes.detail(id),
+    () => classApi.getEnrollments(id),
+    { enabled: !!id },
+  );
 
   const enrollments = toArray<EnrollmentResponse>(enrollmentsRaw).filter(
     (e) => e.status === "active",
   );
 
-  const { data: subjectsRaw } = useQuery({
-    queryKey: ["admin", "subjects"],
-    queryFn:  () => subjectApi.getAll(),
-  });
+  const { data: subjectsRaw } = useAsyncQuery(
+    queryKeys.admin.subjects.list(),
+    () => subjectApi.getAll(),
+  );
 
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections", cls?.schoolYearId],
-    queryFn:  () => sectionApi.getAll(cls!.schoolYearId),
-    enabled:  !!cls?.schoolYearId,
-  });
+  const { data: sectionsRaw } = useAsyncQuery(
+    queryKeys.admin.sections.list({ schoolYearId: cls!.schoolYearId }),
+    () => sectionApi.getAll(cls!.schoolYearId),
+    { enabled: !!cls?.schoolYearId },
+  );
 
-  const { data: semestersRaw } = useQuery({
-    queryKey: ["admin", "semesters"],
-    queryFn:  () => semesterApi.getAll(),
-  });
+  const { data: semestersRaw } = useAsyncQuery(
+    queryKeys.admin.semesters.list(),
+    () => semesterApi.getAll(),
+  );
 
-  const { data: schoolYearsRaw } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn:  () => schoolYearApi.getAll(),
-  });
+  const { data: schoolYearsRaw } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    () => schoolYearApi.getAll(),
+  );
 
   // Courses and strands — scoped to this class's school year
-  const { data: coursesRaw } = useQuery({
-    queryKey: ["admin", "courses", cls?.schoolYearId],
-    queryFn:  () => courseApi.getAll({ schoolYearId: cls!.schoolYearId }),
-    enabled:  !!cls?.schoolYearId,
-  });
+  const { data: coursesRaw } = useAsyncQuery(
+    queryKeys.admin.courses.list({ schoolYearId: cls!.schoolYearId }),
+    () => courseApi.getAll({ schoolYearId: cls!.schoolYearId }),
+    { enabled: !!cls?.schoolYearId },
+  );
 
-  const { data: strandsRaw } = useQuery({
-    queryKey: ["admin", "strands"],
-    queryFn:  () => strandApi.getAll(),
-  });
+  const { data: strandsRaw } = useAsyncQuery(
+    queryKeys.admin.strands.list(),
+    () => strandApi.getAll(),
+  );
 
   // ── Maps ────────────────────────────────────────────────────────────────────
 

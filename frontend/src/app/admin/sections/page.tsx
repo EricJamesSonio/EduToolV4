@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -66,11 +68,11 @@ export default function SectionsPage(): React.JSX.Element {
     isLoading: levelsLoading,
   } = useEnrichedLevels(schoolYearId);
 
-  const { data: programs = [] } = useQuery({
-    queryKey: ["admin", "programs", schoolYearId ?? "all"], // ✅ consistent
-    queryFn: () => programApi.getAll(schoolYearId!),
-    enabled: !!schoolYearId,
-  });
+  const { data: programs = [] } = useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId }),
+    () => programApi.getAll(schoolYearId!),
+    { enabled: !!schoolYearId },
+  );
 
   const isLoading = sectionsLoading || levelsLoading;
 
@@ -88,14 +90,11 @@ export default function SectionsPage(): React.JSX.Element {
 
   // 🔥 FIXED: full invalidation set
   function handleSaved(): void {
-    const key = schoolYearId ?? "all";
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.sections.list({ schoolYearId }) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.levels.list({ schoolYearId }) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.programs.list({ schoolYearId }) });
 
-    queryClient.invalidateQueries({ queryKey: ["admin", "sections", key] });
-    queryClient.invalidateQueries({ queryKey: ["admin", "levels", key] });
-    queryClient.invalidateQueries({ queryKey: ["admin", "programs", key] });
-
-    // optional but safe
-    queryClient.invalidateQueries({ queryKey: ["admin", "enrichedLevels", key] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.enrichedLevels.list({ schoolYearId }) });
   }
 
   return (

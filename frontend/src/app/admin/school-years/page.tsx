@@ -2,7 +2,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
@@ -18,10 +19,10 @@ import { SchoolYearCard } from "@/components/admin/school-years/SchoolYearCard";
 export default function SchoolYearsPage(): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
 
-  const { data: schoolYears, isLoading } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: schoolYearApi.getAll,
-  });
+  const { data: schoolYears, isLoading } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    schoolYearApi.getAll,
+  );
 
   const hasActive = schoolYears?.some((y) => y.status === "active") ?? false;
 

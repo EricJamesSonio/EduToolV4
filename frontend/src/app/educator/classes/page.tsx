@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { BookOpen, Clock, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
@@ -129,38 +130,38 @@ export default function EducatorClassesPage(): React.JSX.Element {
 
   const { data: classesRaw, isLoading: classesLoading } = useEducatorClasses();
 
-  const { data: subjectsRaw } = useQuery({
-    queryKey: ["admin", "subjects"],
-    queryFn:  () => subjectApi.getAll(),
-  });
+  const { data: subjectsRaw } = useAsyncQuery(
+    queryKeys.admin.subjects.list(),
+    () => subjectApi.getAll(),
+  );
 
-  const { data: semestersRaw } = useQuery({
-    queryKey: ["admin", "semesters"],
-    queryFn:  () => semesterApi.getAll(),
-  });
+  const { data: semestersRaw } = useAsyncQuery(
+    queryKeys.admin.semesters.list(),
+    () => semesterApi.getAll(),
+  );
 
-  const { data: schoolYearsRaw } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn:  () => schoolYearApi.getAll(),
-  });
+  const { data: schoolYearsRaw } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    () => schoolYearApi.getAll(),
+  );
 
   const activeSchoolYearId = useMemo(() => {
     const arr = toArray<{ id: string; status: string }>(schoolYearsRaw);
     return arr.find((sy) => sy.status === "active")?.id ?? null;
   }, [schoolYearsRaw]);
 
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections", activeSchoolYearId],
-    queryFn:  () => sectionApi.getAll(activeSchoolYearId!),
-    enabled:  !!activeSchoolYearId,
-  });
+  const { data: sectionsRaw } = useAsyncQuery(
+    queryKeys.admin.sections.list({ schoolYearId: activeSchoolYearId! }),
+    () => sectionApi.getAll(activeSchoolYearId!),
+    { enabled: !!activeSchoolYearId },
+  );
 
   // Courses and strands — needed to resolve course/strand name from subject
-  const { data: coursesRaw } = useQuery({
-    queryKey: ["admin", "courses", activeSchoolYearId],
-    queryFn:  () => courseApi.getAll({ schoolYearId: activeSchoolYearId! }),
-    enabled:  !!activeSchoolYearId,
-  });
+  const { data: coursesRaw } = useAsyncQuery(
+    queryKeys.admin.courses.list({ schoolYearId: activeSchoolYearId! }),
+    () => courseApi.getAll({ schoolYearId: activeSchoolYearId! }),
+    { enabled: !!activeSchoolYearId },
+  );
 
   const { data: strandsRaw } = useQuery({
     queryKey: ["admin", "strands"],

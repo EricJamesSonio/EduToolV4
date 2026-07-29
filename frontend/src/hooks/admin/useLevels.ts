@@ -4,39 +4,22 @@ import {
   useAsyncQuery,
   useMutationWithInvalidation,
 } from "@/hooks/hook-factory.utils";
-
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import {
   levelApi,
   type UpdateDefaultLevelsRequest,
 } from "@/api/admin/level.api";
-
 import type {
   Level,
   LevelDefault,
 } from "@/types/admin/level.types";
-
-const levelKeys = {
-  all: ["levels"] as const,
-
-  defaults: () =>
-    ["levels", "defaults"] as const,
-
-  byYear: (schoolYearId: string) =>
-    ["levels", schoolYearId] as const,
-
-  byCourse: (schoolYearId: string, courseId: string) =>
-    ["levels", schoolYearId, "course", courseId] as const,
-
-  byStrand: (schoolYearId: string, strandId: string) =>
-    ["levels", schoolYearId, "strand", strandId] as const,
-};
 
 
 // ── GET default levels ─────────────────────────────────────
 
 export const useDefaultLevels = () => {
   return useAsyncQuery<LevelDefault[]>(
-    levelKeys.defaults(),
+    queryKeys.admin.levels.enriched(),
     levelApi.getDefaults,
   );
 };
@@ -54,7 +37,7 @@ export const useUpdateDefaultLevels =
 
       {
         invalidateKeys: [
-          levelKeys.all,
+          queryKeys.admin.levels.all,
         ],
       },
     );
@@ -67,14 +50,8 @@ export const useLevelsByYear = (
   schoolYearId: string,
 ) => {
   return useAsyncQuery<Level[]>(
-    levelKeys.byYear(
-      schoolYearId,
-    ),
-
-    () =>
-      levelApi.getBySchoolYear(
-        schoolYearId,
-      ),
+    queryKeys.admin.levels.list({ schoolYearId }),
+    () => levelApi.getBySchoolYear(schoolYearId),
 
     {
       enabled: !!schoolYearId,
@@ -101,7 +78,7 @@ export const useUpdateLevel = () => {
 
     {
       invalidateKeys: [
-        levelKeys.all,
+        queryKeys.admin.levels.all,
       ],
     },
   );
@@ -115,7 +92,7 @@ export const useLevelsByProgram = (
   schoolYearId: string,
 ) => {
   return useAsyncQuery<Level[]>(
-    levelKeys.byYear(schoolYearId),
+    queryKeys.admin.levels.list({ schoolYearId }),
     () => levelApi.getBySchoolYear(schoolYearId, programId),
     { enabled: !!schoolYearId && !!programId },
   );
@@ -129,7 +106,7 @@ export const useLevelsByCourse = (
   courseId: string,
 ) => {
   return useAsyncQuery<Level[]>(
-    levelKeys.byCourse(schoolYearId, courseId),
+    [...queryKeys.admin.levels.all, 'byCourse', schoolYearId, courseId] as const,
     () => levelApi.getByCourse(schoolYearId, courseId),
     { enabled: !!schoolYearId && !!courseId },
   );
@@ -143,7 +120,7 @@ export const useLevelsByStrand = (
   strandId: string,
 ) => {
   return useAsyncQuery<Level[]>(
-    levelKeys.byStrand(schoolYearId, strandId),
+    [...queryKeys.admin.levels.all, 'byStrand', schoolYearId, strandId] as const,
     () => levelApi.getByStrand(schoolYearId, strandId),
     { enabled: !!schoolYearId && !!strandId },
   );

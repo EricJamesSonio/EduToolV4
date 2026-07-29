@@ -1,7 +1,9 @@
 "use client";
 
 import { use, useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { Pencil, Archive, AlertTriangle } from "lucide-react";
@@ -42,43 +44,43 @@ export default function ClassDetailPage({
     studentName: string;
   } | null>(null);
 
-  const { data: cls, isLoading: clsLoading } = useQuery({
-    queryKey: ["admin", "classes", id],
-    queryFn: () => classApi.getOne(id),
-  });
+  const { data: cls, isLoading: clsLoading } = useAsyncQuery(
+    queryKeys.admin.classes.detail(id),
+    () => classApi.getOne(id),
+  );
 
-  const { data: enrollmentsRaw, isLoading: enrollmentsLoading } = useQuery({
-    queryKey: ["admin", "classes", id, "enrollments"],
-    queryFn: () => classApi.getEnrollments(id),
-    enabled: !!id,
-  });
+  const { data: enrollmentsRaw, isLoading: enrollmentsLoading } = useAsyncQuery(
+    queryKeys.admin.classes.enrolled(id),
+    () => classApi.getEnrollments(id),
+    { enabled: !!id },
+  );
   const enrollments = toArray<EnrollmentResponse>(enrollmentsRaw);
 
   // After the enrollmentsRaw query, add:
 const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClass(id);
 
   // ── Lookup queries ────────────────────────────────────────────────────────
-  const { data: subjectsRaw } = useQuery({
-    queryKey: ["admin", "subjects"],
-    queryFn: () => subjectApi.getAll(),
-  });
-  const { data: educatorsRaw } = useQuery({
-    queryKey: ["admin", "educators", "all"],
-    queryFn: () => educatorApi.getAll(),
-  });
-  const { data: schoolYearsRaw } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: () => schoolYearApi.getAll(),
-  });
-  const { data: semestersRaw } = useQuery({
-    queryKey: ["admin", "semesters"],
-    queryFn: () => semesterApi.getAll(),
-  });
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections", cls?.schoolYearId],
-    queryFn:  () => sectionApi.getAll(cls!.schoolYearId),
-    enabled:  !!cls?.schoolYearId,
-  });
+  const { data: subjectsRaw } = useAsyncQuery(
+    queryKeys.admin.subjects.list(),
+    () => subjectApi.getAll(),
+  );
+  const { data: educatorsRaw } = useAsyncQuery(
+    queryKeys.admin.educators.list(),
+    () => educatorApi.getAll(),
+  );
+  const { data: schoolYearsRaw } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    () => schoolYearApi.getAll(),
+  );
+  const { data: semestersRaw } = useAsyncQuery(
+    queryKeys.admin.semesters.list(),
+    () => semesterApi.getAll(),
+  );
+  const { data: sectionsRaw } = useAsyncQuery(
+    queryKeys.admin.sections.list({ schoolYearId: cls?.schoolYearId }),
+    () => sectionApi.getAll(cls!.schoolYearId),
+    { enabled: !!cls?.schoolYearId },
+  );
 
   // ── Enrich cls ────────────────────────────────────────────────────────────
   const enrichedCls = useMemo<Class | undefined>(() => {
@@ -111,7 +113,7 @@ const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClas
     mutationFn: () => classApi.archive(id),
     onSuccess: () => {
       toast.success("Class archived.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "classes"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.classes.all });
       setArchiveConfirm(false);
     },
     onError: (err: AxiosError<{ message: string }>) => {
@@ -125,10 +127,8 @@ const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClas
       classApi.removeEnrollment(id, enrollmentId),
     onSuccess: () => {
       toast.success("Student removed.");
-      queryClient.invalidateQueries({
-        queryKey: ["admin", "classes", id, "enrollments"],
-      });
-      queryClient.invalidateQueries({ queryKey: ["admin", "classes", id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.classes.enrolled(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.classes.detail(id) });
       setRemoveTarget(null);
     },
     onError: (err: AxiosError<{ message: string }>) => {

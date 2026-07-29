@@ -1,7 +1,4 @@
 import { DataTable } from "@/components/shared/DataTable";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen } from "lucide-react";
 import { useSubjectColumns } from "@/components/admin/subject/SubjectColumns";
 import type { Subject } from "@/types/admin/subject.types";
 import type { SubjectType } from "@/types/admin/subject.types";
@@ -31,42 +28,19 @@ export function SubjectTable({
 }: SubjectTableProps) {
   const columns = useSubjectColumns(onLockClick, onUnlockClick);
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="space-y-2">
-        {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-12 w-full rounded-lg" />
-        ))}
-      </div>
-    );
+  let emptyDescription = "";
+  if (filterLevelId !== "all") {
+    emptyDescription = `No ${activeTab} subjects for this level yet.`;
+  } else if (selectedCourseId !== "all") {
+    emptyDescription = `No ${activeTab} subjects for this course yet.`;
+  } else if (selectedStrandId !== "all") {
+    emptyDescription = `No ${activeTab} subjects for this strand yet.`;
+  } else if (selectedProgramId !== "all") {
+    emptyDescription = `No ${activeTab} subjects for this program yet.`;
+  } else {
+    emptyDescription = `No ${activeTab} subjects found for this school year.`;
   }
 
-  // Empty state
-  if (subjects.length === 0) {
-    let description = "";
-    if (filterLevelId !== "all") {
-      description = `No ${activeTab} subjects for this level yet.`;
-    } else if (selectedCourseId !== "all") {
-      description = `No ${activeTab} subjects for this course yet.`;
-    } else if (selectedStrandId !== "all") {
-      description = `No ${activeTab} subjects for this strand yet.`;
-    } else if (selectedProgramId !== "all") {
-      description = `No ${activeTab} subjects for this program yet.`;
-    } else {
-      description = `No ${activeTab} subjects found for this school year.`;
-    }
-
-    return (
-      <EmptyState
-        icon={BookOpen}
-        title={`No ${activeTab} subjects found`}
-        description={description}
-      />
-    );
-  }
-
-  // Table
   return (
     <>
       {activeTab === "minor" && (
@@ -77,7 +51,13 @@ export function SubjectTable({
           </span>
         </div>
       )}
-      <DataTable columns={columns} data={subjects} />
+      <DataTable
+        columns={columns}
+        data={subjects}
+        isLoading={isLoading}
+        emptyTitle={`No ${activeTab} subjects found`}
+        emptyDescription={emptyDescription}
+      />
     </>
   );
 }

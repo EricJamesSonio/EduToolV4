@@ -5,7 +5,8 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 
 import {
   useAssessment,
@@ -43,11 +44,11 @@ export default function AssessmentDetailPage(): React.JSX.Element {
   const [assigning, setAssigning] = useState(false);
   const [reopening, setReopening] = useState(false);
 
-  const { data: students } = useQuery({
-    queryKey: ["class-students", classId],
-    queryFn: () => educatorClassApi.getStudents(classId),
-    enabled: assignOpen || reopenOpen,
-  });
+  const { data: students } = useAsyncQuery(
+    queryKeys.educator.classes.students(classId),
+    () => educatorClassApi.getStudents(classId),
+    { enabled: assignOpen || reopenOpen },
+  );
 
   async function handleAssign(selectedIds: string[]) {
     setAssigning(true);

@@ -2,8 +2,9 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { assessmentKeys } from "@/hooks/queryKeys";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
@@ -47,10 +48,10 @@ export default function NewAssessmentPage() {
 
   const { mutateAsync: updateAssessment, isPending: isUpdating } = useUpdateAssessment(classId);
   const { data: weeks } = useClassWeeks(classId);
-  const { data: gradingScheme } = useQuery({
-    queryKey: ["grading-scheme", classId],
-    queryFn: () => educatorGradingSchemeApi.getForClass(classId),
-  });
+  const { data: gradingScheme } = useAsyncQuery(
+    queryKeys.educator.gradingSchemes.detail(classId),
+    () => educatorGradingSchemeApi.getForClass(classId),
+  );
   const schemeTypes = gradingScheme?.components
     ?.map((c) => c.type) ?? [];
   const patch = useCallback((u: Partial<BuilderState>) => setState((p) => ({ ...p, ...u })), []);
@@ -90,11 +91,11 @@ export default function NewAssessmentPage() {
   const manualSteps = ["Type & Instructions", "Items & Dates"];
   const allSteps = ["Grading Mode", ...(isManual ? manualSteps : systemSteps)];
 
-  const { data: termOptions = [] } = useQuery({
-    queryKey: ["grade-term-options", classId],
-    queryFn: () => gradeApi.getTermOptions(classId),
-    enabled: !!classId,
-  });
+  const { data: termOptions = [] } = useAsyncQuery(
+    queryKeys.educator.gradeTermOptions.detail(classId),
+    () => gradeApi.getTermOptions(classId),
+    { enabled: !!classId },
+  );
 
   function getLessonTermInfo(): { termId: string; termName: string; semesterName: string } | null {
     if (!state.selectedLesson || !weeks?.length) return null;
@@ -150,11 +151,11 @@ export default function NewAssessmentPage() {
     try {
       const assessment = await assessmentApi.confirmPreview(classId, state.previewId);
       const assessmentId = assessment.id;
-      queryClient.setQueryData(assessmentKeys.detail(assessmentId), assessment);
+      queryClient.setQueryData(queryKeys.educator.assessments.detail(assessmentId), assessment);
       await updateAssessment({ assessmentId, data: { releaseDate: state.releaseDate, endDate: state.endDate, showBreakdown: state.showBreakdown, weekNumber: state.weekNumber || undefined } });
       const published = await assessmentApi.publish(classId, assessmentId, state.selectedStudentIds.length > 0 ? { studentIds: state.selectedStudentIds } : undefined);
-      if (published) queryClient.setQueryData(assessmentKeys.detail(assessmentId), (old: any) => old ? { ...old, isPublished: true } : old);
-      queryClient.invalidateQueries({ queryKey: ["grades", classId] });
+      if (published) queryClient.setQueryData(queryKeys.educator.assessments.detail(assessmentId), (old: any) => old ? { ...old, isPublished: true } : old);
+      queryClient.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, '') });
       toast.success("Assessment published!");
       await router.push(`/educator/classes/${classId}/assessments/${assessmentId}`);
       return;
@@ -181,8 +182,8 @@ export default function NewAssessmentPage() {
         weekNumber: state.weekNumber,
         ranges: [],
       });
-      queryClient.setQueryData(assessmentKeys.detail(assessment.id), assessment);
-      queryClient.invalidateQueries({ queryKey: ["grades", classId] });
+      queryClient.setQueryData(queryKeys.educator.assessments.detail(assessment.id), assessment);
+      queryClient.invalidateQueries({ queryKey: queryKeys.educator.grades.list(classId, '') });
       toast.success("Manual assessment created!");
       await router.push(`/educator/classes/${classId}/assessments/${assessment.id}`);
       return;

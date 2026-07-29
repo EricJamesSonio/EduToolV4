@@ -7,6 +7,7 @@ import {
 
 import { semesterTemplateApi } from "@/api/admin/semester-template.api";
 import clientApi from "@/api/client";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 
 import type {
   SemesterTemplateCreateDto,
@@ -16,154 +17,67 @@ import type {
   TemplateAssignment,
 } from "@/types/admin/semester-template.types";
 
-
-// ─── Query: Get all templates ─────────────────────────────
+const templateKeys = queryKeys.admin.semesterTemplates;
 
 export const useSemesterTemplates = () => {
   return useAsyncQuery<SemesterTemplate[]>(
-    ["semester-templates"],
+    templateKeys.list(),
     semesterTemplateApi.getAll,
+    { meta: { preset: 'static', feature: 'semester-templates' } },
   );
 };
-
-
-// ─── Mutation: Create template ───────────────────────────
 
 export const useCreateSemesterTemplate = () => {
   return useMutationWithInvalidation(
-    (dto: SemesterTemplateCreateDto) =>
-      semesterTemplateApi.create(dto),
-
-    {
-      invalidateKeys: [
-        ["semester-templates"],
-      ],
-    },
+    (dto: SemesterTemplateCreateDto) => semesterTemplateApi.create(dto),
+    { invalidateKeys: [templateKeys.all] },
   );
 };
-
-
-// ─── Mutation: Update template ───────────────────────────
 
 export const useUpdateSemesterTemplate = () => {
   return useMutationWithInvalidation(
-    ({
-      id,
-      dto,
-    }: {
-      id: string;
-      dto: SemesterTemplateUpdateDto;
-    }) =>
+    ({ id, dto }: { id: string; dto: SemesterTemplateUpdateDto }) =>
       semesterTemplateApi.update(id, dto),
-
-    {
-      invalidateKeys: [
-        ["semester-templates"],
-      ],
-    },
+    { invalidateKeys: [templateKeys.all] },
   );
 };
-
-
-// ─── Mutation: Delete template ───────────────────────────
 
 export const useDeleteSemesterTemplate = () => {
   return useMutationWithInvalidation(
-    (id: string) =>
-      semesterTemplateApi.delete(id),
-
-    {
-      invalidateKeys: [
-        ["semester-templates"],
-      ],
-    },
+    (id: string) => semesterTemplateApi.delete(id),
+    { invalidateKeys: [templateKeys.all] },
   );
 };
 
-
-// ─── Query: Template assignments ─────────────────────────
-
-export const useTemplateAssignments = (
-  schoolYearId: string | null,
-) => {
+export const useTemplateAssignments = (schoolYearId: string | null) => {
   return useAsyncQuery<TemplateAssignment[]>(
-    [
-      "semester-template-assignments",
-      schoolYearId,
-    ],
-
-    () =>
-      semesterTemplateApi.getAssignmentsBySchoolYear(
-        schoolYearId!,
-      ),
-
-    {
-      enabled: !!schoolYearId,
-    },
+    [...templateKeys.all, 'assignments', schoolYearId],
+    () => semesterTemplateApi.getAssignmentsBySchoolYear(schoolYearId!),
+    { meta: { preset: 'list', feature: 'template-assignments' }, enabled: !!schoolYearId },
   );
 };
 
-
-// ─── Query: Programs by school year ─────────────────────
-
-export const useProgramsBySchoolYear = (
-  schoolYearId: string | null,
-) => {
-  return useAsyncQuery<
-    {
-      id: string;
-      name: string;
-      type: string;
-    }[]
-  >(
-    ["programs", schoolYearId],
-
+export const useProgramsBySchoolYear = (schoolYearId: string | null) => {
+  return useAsyncQuery<{ id: string; name: string; type: string }[]>(
+    [...templateKeys.all, 'programs', schoolYearId],
     async () => {
-      const res =
-        await clientApi.get(
-          `/programs?schoolYearId=${schoolYearId}`,
-        );
-
+      const res = await clientApi.get(`/programs?schoolYearId=${schoolYearId}`);
       return res.data.data ?? [];
     },
-
-    {
-      enabled: !!schoolYearId,
-    },
+    { meta: { preset: 'list', feature: 'programs-by-year' }, enabled: !!schoolYearId },
   );
 };
-
-
-// ─── Mutation: Assign template ───────────────────────────
 
 export const useAssignTemplate = () => {
   return useMutationWithInvalidation(
-    (dto: AssignTemplateDto) =>
-      semesterTemplateApi.assign(dto),
-
-    {
-      invalidateKeys: [
-        ["semester-template-assignments"],
-      ],
-    },
+    (dto: AssignTemplateDto) => semesterTemplateApi.assign(dto),
+    { invalidateKeys: [[...templateKeys.all, 'assignments']] },
   );
 };
 
-
-// ─── Mutation: Remove assignment ─────────────────────────
-
-export const useRemoveTemplateAssignment =
-  () => {
-    return useMutationWithInvalidation(
-      (programId: string) =>
-        semesterTemplateApi.removeAssignment(
-          programId,
-        ),
-
-      {
-        invalidateKeys: [
-          ["semester-template-assignments"],
-        ],
-      },
-    );
-  };
+export const useRemoveTemplateAssignment = () => {
+  return useMutationWithInvalidation(
+    (programId: string) => semesterTemplateApi.removeAssignment(programId),
+    { invalidateKeys: [[...templateKeys.all, 'assignments']] },
+  );
+};

@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { useForm, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
@@ -41,19 +42,17 @@ interface EditClassDialogProps {
 }
 
 export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassDialogProps): React.JSX.Element {
-  const queryClient = useQueryClient();
-
-  const { data: educatorsRaw } = useQuery({
-    queryKey: ["admin", "educators", "all"],
-    queryFn: () => educatorApi.getAll(),
-  });
+  const { data: educatorsRaw } = useAsyncQuery(
+    queryKeys.admin.educators.list(),
+    () => educatorApi.getAll(),
+  );
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections", schoolYearId],
-    queryFn: () => sectionApi.getAll(schoolYearId),
-    enabled: !!schoolYearId,
-  });
+  const { data: sectionsRaw } = useAsyncQuery(
+    queryKeys.admin.sections.list({ schoolYearId }),
+    () => sectionApi.getAll(schoolYearId),
+    { enabled: !!schoolYearId },
+  );
   const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 
   const {
@@ -83,8 +82,8 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
   const selectedEducatorId = watch("educatorId");
   const selectedSectionId = watch("sectionId");
 
-  const mutation = useMutation({
-    mutationFn: (values: EditClassForm) => {
+  const mutation = useMutationWithInvalidation(
+    (values: EditClassForm) => {
       const payload: UpdateClassRequest = {
         educatorId: values.educatorId || undefined,
         sectionId: values.sectionId || undefined,
@@ -97,16 +96,20 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
       };
       return classApi.update(cls.id, payload);
     },
-    onSuccess: () => {
-      toast.success("Class updated.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "classes", cls.id] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "classes"] });
-      onClose();
+    {
+      invalidateKeys: [
+        queryKeys.admin.classes.detail(cls.id),
+        queryKeys.admin.classes.list(),
+      ],
+      onSuccess: () => {
+        toast.success("Class updated.");
+        onClose();
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to update class.");
+      },
     },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to update class.");
-    },
-  });
+  );
 
   const handleClose = (): void => {
     reset();

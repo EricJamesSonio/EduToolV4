@@ -1,49 +1,32 @@
-import { useQuery, UseQueryResult } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { studentAssessmentApi } from "@/api/student/assessment.api";
-import { QUERY_CONFIGS } from "@/lib/query-client";
-
 import type {
   StudentAssessmentItem,
   StudentAssessmentDetail,
   AssessmentResult,
 } from "@/api/student/assessment.api";
 
-// 🔹 Get all assessments
-export const useStudentAssessments = (
-  classId: string
-): UseQueryResult<StudentAssessmentItem[], Error> => {
-  return useQuery({
-    queryKey: ["student", "assessments", classId],
-    queryFn: () => studentAssessmentApi.getAll(classId),
-    enabled: !!classId,
-    ...QUERY_CONFIGS.list,
-  });
+export const useStudentAssessments = (classId: string) => {
+  return useAsyncQuery<StudentAssessmentItem[]>(
+    queryKeys.student.assessments.list(classId),
+    () => studentAssessmentApi.getAll(classId),
+    { enabled: !!classId },
+  );
 };
 
-// 🔹 Get single assessment
-export const useStudentAssessment = (
-  classId: string,
-  assessmentId: string
-): UseQueryResult<StudentAssessmentDetail, Error> => {
-  return useQuery({
-    queryKey: ["student", "assessment", classId, assessmentId],
-    queryFn: () =>
-      studentAssessmentApi.getOne(classId, assessmentId),
-    enabled: !!classId && !!assessmentId,
-    ...QUERY_CONFIGS.detail,
-  });
+export const useStudentAssessment = (classId: string, assessmentId: string) => {
+  return useAsyncQuery<StudentAssessmentDetail>(
+    queryKeys.student.assessments.detail(assessmentId),
+    () => studentAssessmentApi.getOne(classId, assessmentId),
+    { enabled: !!classId && !!assessmentId },
+  );
 };
 
-// 🔹 Get result
-export const useAssessmentResult = (
-  classId: string,
-  assessmentId: string
-): UseQueryResult<AssessmentResult, Error> => {
-  return useQuery({
-    queryKey: ["student", "assessment", "result", classId, assessmentId],
-    queryFn: () =>
-      studentAssessmentApi.getResult(classId, assessmentId),
-    enabled: !!classId && !!assessmentId,
-    ...QUERY_CONFIGS.detail,
-  });
+export const useAssessmentResult = (classId: string, assessmentId: string) => {
+  return useAsyncQuery<AssessmentResult>(
+    queryKeys.student.assessments.result(assessmentId),
+    () => studentAssessmentApi.getResult(classId, assessmentId),
+    { enabled: !!classId && !!assessmentId },
+  );
 };

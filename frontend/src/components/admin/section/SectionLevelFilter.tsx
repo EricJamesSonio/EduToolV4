@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/select";
 import type { Program } from "@/types/admin/program.types";
 import type { EnrichedLevel } from "@/components/admin/section/utils/section.utils";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { levelApi } from "@/api/admin/level.api";
 import type { Level } from "@/types/admin/level.types";
 
@@ -64,17 +65,17 @@ export function SectionLevelFilter({
   const fetchByCourse = isCollege && filterCourseId !== "all";
   const fetchByStrand = isSHS && filterStrandId !== "all";
 
-  const { data: filteredLevels = [] } = useQuery<Level[]>({
-    queryKey: ["admin", "levels", schoolYearId, "course", filterCourseId],
-    queryFn: () => levelApi.getByCourse(schoolYearId, filterCourseId),
-    enabled: fetchByCourse,
-  });
+  const { data: filteredLevels = [] } = useAsyncQuery<Level[]>(
+    queryKeys.admin.levels.list({ schoolYearId, courseId: filterCourseId }),
+    () => levelApi.getByCourse(schoolYearId, filterCourseId),
+    { enabled: fetchByCourse },
+  );
 
-  const { data: filteredByStrand = [] } = useQuery<Level[]>({
-    queryKey: ["admin", "levels", schoolYearId, "strand", filterStrandId],
-    queryFn: () => levelApi.getByStrand(schoolYearId, filterStrandId),
-    enabled: fetchByStrand,
-  });
+  const { data: filteredByStrand = [] } = useAsyncQuery<Level[]>(
+    queryKeys.admin.levels.list({ schoolYearId, strandId: filterStrandId }),
+    () => levelApi.getByStrand(schoolYearId, filterStrandId),
+    { enabled: fetchByStrand },
+  );
 
   const scopedGroup = grouped.find(
     (g) => g.programName === selectedProgram?.name,

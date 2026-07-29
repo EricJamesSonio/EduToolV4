@@ -1,18 +1,18 @@
-// frontend/src/hooks/student/useStudentGrades.ts
-import { useQuery, UseQueryResult } from "@tanstack/react-query";
+import { UseQueryResult } from "@tanstack/react-query";
 import { studentGradeApi } from "@/api/student/grade.api";
 import type { StudentTermGrade } from "@/api/student/grade.api";
-import { gradeKeys } from "@/hooks/queryKeys";
-import { QUERY_CONFIGS } from "@/lib/query-client";
+import { queryKeys } from "@/hooks/queryKeys.factory";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 
 export const useStudentGrades = (
   classId: string
 ): UseQueryResult<StudentTermGrade[], Error> => {
-  return useQuery({
-    queryKey: gradeKeys.byClass(classId),
-    queryFn: () => studentGradeApi.getOwn(classId),
-    enabled: !!classId,
-    ...QUERY_CONFIGS.list,
-    staleTime: 1000 * 60, // 1 minute for grades (frequently updated)
-  });
+  return useAsyncQuery<StudentTermGrade[]>(
+    queryKeys.student.grades.list(classId),
+    () => studentGradeApi.getOwn(classId),
+    {
+      meta: { preset: 'list', feature: 'student-grades' },
+      enabled: !!classId,
+    },
+  );
 };

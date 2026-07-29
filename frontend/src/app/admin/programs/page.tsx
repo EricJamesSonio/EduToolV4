@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { programApi } from "@/api/admin/program.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
@@ -28,10 +30,10 @@ export default function ProgramsPage(): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Program | null>(null);
 
-  const { data: schoolYears = [], isLoading: syLoading } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: schoolYearApi.getAll,
-  });
+  const { data: schoolYears = [], isLoading: syLoading } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    schoolYearApi.getAll,
+  );
 
   // Auto-select active or first school year once;
   // respect ?schoolYearId search param if present and valid
@@ -53,7 +55,7 @@ export default function ProgramsPage(): React.JSX.Element {
     onSuccess: () => {
       toast.success("Program deleted.");
       if (selectedSchoolYearId) {
-        queryClient.invalidateQueries({ queryKey: ["admin", "programs", "list", { schoolYearId: selectedSchoolYearId }] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.admin.programs.list({ schoolYearId: selectedSchoolYearId }) });
       }
       setDeleteTarget(null);
     },

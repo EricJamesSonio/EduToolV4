@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { semesterApi } from "@/api/admin/semester.api";
 import { educatorApi } from "@/api/admin/educator.api";
 import type { Semester } from "@/types/admin/semester.types";
@@ -30,17 +31,17 @@ export function ClassesFilterBar({
   setFilterEducatorId,
   schoolYearId,
 }: ClassesFilterBarProps): React.JSX.Element {
-  const { data: educatorsRaw } = useQuery({
-    queryKey: ["admin", "educators", "all"],
-    queryFn: () => educatorApi.getAll(),
-  });
+  const { data: educatorsRaw } = useAsyncQuery(
+    queryKeys.admin.educators.list(),
+    () => educatorApi.getAll(),
+  );
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
-  const { data: semestersRaw } = useQuery({
-    queryKey: ["admin", "semesters", schoolYearId],
-    queryFn: () => semesterApi.getAll(),
-    enabled: !!schoolYearId,
-  });
+  const { data: semestersRaw } = useAsyncQuery(
+    queryKeys.admin.semesters.list({ schoolYearId }),
+    () => semesterApi.getAll(),
+    { enabled: !!schoolYearId },
+  );
   const semesters = toArray<Semester>(semestersRaw);
 
   return (
