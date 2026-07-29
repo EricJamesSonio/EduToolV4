@@ -11,7 +11,7 @@ import type { Subject, SubjectType } from "@/types/admin/subject.types";
 import type { Level } from "@/types/admin/level.types";
 import { programApi } from "@/api/admin/program.api";
 import { levelApi } from "@/api/admin/level.api";
-import { Modal } from "@/components/shared/Modal";
+import { DialogForm } from "@/components/shared/DialogForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -234,234 +234,216 @@ export function SubjectDialog({
     (isMinorSubject && !selectedLevelId);
 
   return (
-    <Modal
+    <DialogForm
       open={open}
       onClose={handleClose}
       title={isEdit ? "Edit Subject" : "New Subject"}
       size="md"
+      onSubmit={handleSubmit(handleFormSubmit)}
+      isSaving={mutation.isPending}
+      saveLabel={isEdit ? "Save Changes" : "Create Subject"}
     >
+      {/* Subject Type — create only */}
+      {!isEdit && (
+        <div className="space-y-1.5">
+          <Label>Subject Type</Label>
+          <Tabs
+            value={subjectType}
+            onValueChange={(v) => {
+              setValue("subjectType", v as SubjectType);
+              setValue("levelId", defaultLevelId ?? "");
+              setValue("courseId", defaultCourseId ?? "");
+              setValue("strandId", defaultStrandId ?? "");
+            }}
+          >
+            <TabsList className="w-full h-9">
+              <TabsTrigger value="major" className="flex-1 text-sm">
+                Major
+              </TabsTrigger>
+              <TabsTrigger value="minor" className="flex-1 text-sm">
+                Minor
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      )}
 
-        <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-          {/* Subject Type — create only */}
-          {!isEdit && (
-            <div className="space-y-1.5">
-              <Label>Subject Type</Label>
-              <Tabs
-                value={subjectType}
-                onValueChange={(v) => {
-                  setValue("subjectType", v as SubjectType);
-                  setValue("levelId", defaultLevelId ?? "");
-                  setValue("courseId", defaultCourseId ?? "");
-                  setValue("strandId", defaultStrandId ?? "");
-                }}
-              >
-                <TabsList className="w-full h-9">
-                  <TabsTrigger value="major" className="flex-1 text-sm">
-                    Major
-                  </TabsTrigger>
-                  <TabsTrigger value="minor" className="flex-1 text-sm">
-                    Minor
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+      {/* Program — create only, always shown */}
+      {!isEdit && (
+        <div className="space-y-1.5">
+          <Label>Program</Label>
+          <Select
+            value={selectedProgramId}
+            onValueChange={(v) => {
+              setValue("programId", v ?? "");
+              setValue("levelId", "");
+              setValue("courseId", "");
+              setValue("strandId", "");
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a program">
+                {programs.find((p) => p.id === selectedProgramId)?.name ??
+                  "Select a program"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {programs.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {isMinor && (
+            <p className="text-xs text-muted-foreground">
+              Minor subjects can only be shared within this program.
+            </p>
           )}
+        </div>
+      )}
 
-          {/* Program — create only, always shown */}
-          {!isEdit && (
-            <div className="space-y-1.5">
-              <Label>Program</Label>
-              <Select
-                value={selectedProgramId}
-                onValueChange={(v) => {
-                  setValue("programId", v ?? "");
-                  setValue("levelId", "");
-                  setValue("courseId", "");
-                  setValue("strandId", "");
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a program">
-                    {programs.find((p) => p.id === selectedProgramId)?.name ??
-                      "Select a program"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {programs.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {isMinor && (
-                <p className="text-xs text-muted-foreground">
-                  Minor subjects can only be shared within this program.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Course — for College programs (before Level) */}
-          {!isEdit && !isMinor && hasCourses && (
-            <div className="space-y-1.5">
-              <Label>
-                Course <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={selectedCourseId}
-                onValueChange={(v) => {
-                  setValue("courseId", v ?? "");
-                  setValue("levelId", "");
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a course" />
-                </SelectTrigger>
-                <SelectContent>
-                  {programs
-                    .find((p) => p.id === selectedProgramId)
-                    ?.courses?.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              {errors.courseId && (
-                <p className="text-xs text-destructive">{errors.courseId.message}</p>
-              )}
-            </div>
-          )}
-
-          {/* Strand — for SHS programs (before Level) */}
-          {!isEdit && !isMinor && hasStrands && (
-            <div className="space-y-1.5">
-              <Label>
-                Strand <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={selectedStrandId}
-                onValueChange={(v) => {
-                  setValue("strandId", v ?? "");
-                  setValue("levelId", "");
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a strand" />
-                </SelectTrigger>
-                <SelectContent>
-                  {programs
-                    .find((p) => p.id === selectedProgramId)
-                    ?.strands?.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              {errors.strandId && (
-                <p className="text-xs text-destructive">{errors.strandId.message}</p>
-              )}
-            </div>
-          )}
-
-          {/* Level — now comes AFTER course/strand, filtered by course/strand */}
-          <div className="space-y-1.5">
-            <Label>
-              Level{" "}
-              {isMinor && (
-                <span className="text-muted-foreground font-normal">
-                  (optional for minor)
-                </span>
-              )}
-            </Label>
-            <Select
-              value={selectedLevelId}
-              onValueChange={(v) => setValue("levelId", v ?? "")}
-              disabled={!isEdit && !selectedProgramId}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={
-                    !isEdit && !selectedProgramId
-                      ? "Select a program first"
-                      : isEdit
-                        ? "Select a level"
-                        : hasCourses && !selectedCourseId
-                          ? "Select a course first"
-                          : hasStrands && !selectedStrandId
-                            ? "Select a strand first"
-                            : "Select a level"
-                  }
-                >
-                  {!isEdit
-                    ? filteredLevels.find((l) => l.id === selectedLevelId)?.name ??
-                      (hasCourses && !selectedCourseId
-                        ? "Select a course first"
-                        : hasStrands && !selectedStrandId
-                          ? "Select a strand first"
-                          : "Select a level")
-                    : levels.find((l) => l.id === selectedLevelId)?.name ?? "Select a level"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {isMinor && <SelectItem value="">— None —</SelectItem>}
-                {(!isEdit ? filteredLevels : levels).map((level) => (
-                  <SelectItem key={level.id} value={level.id}>
-                    {level.name}
+      {/* Course — for College programs (before Level) */}
+      {!isEdit && !isMinor && hasCourses && (
+        <div className="space-y-1.5">
+          <Label>
+            Course <span className="text-destructive">*</span>
+          </Label>
+          <Select
+            value={selectedCourseId}
+            onValueChange={(v) => {
+              setValue("courseId", v ?? "");
+              setValue("levelId", "");
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a course" />
+            </SelectTrigger>
+            <SelectContent>
+              {programs
+                .find((p) => p.id === selectedProgramId)
+                ?.courses?.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
                   </SelectItem>
                 ))}
-                {!isEdit && selectedProgramId && filteredLevels.length === 0 && (
-                  <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                    {hasCourses && !selectedCourseId
-                      ? "Select a course to see levels"
+            </SelectContent>
+          </Select>
+          {errors.courseId && (
+            <p className="text-xs text-destructive">{errors.courseId.message}</p>
+          )}
+        </div>
+      )}
+
+      {/* Strand — for SHS programs (before Level) */}
+      {!isEdit && !isMinor && hasStrands && (
+        <div className="space-y-1.5">
+          <Label>
+            Strand <span className="text-destructive">*</span>
+          </Label>
+          <Select
+            value={selectedStrandId}
+            onValueChange={(v) => {
+              setValue("strandId", v ?? "");
+              setValue("levelId", "");
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a strand" />
+            </SelectTrigger>
+            <SelectContent>
+              {programs
+                .find((p) => p.id === selectedProgramId)
+                ?.strands?.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          {errors.strandId && (
+            <p className="text-xs text-destructive">{errors.strandId.message}</p>
+          )}
+        </div>
+      )}
+
+      {/* Level — now comes AFTER course/strand, filtered by course/strand */}
+      <div className="space-y-1.5">
+        <Label>
+          Level{" "}
+          {isMinor && (
+            <span className="text-muted-foreground font-normal">
+              (optional for minor)
+            </span>
+          )}
+        </Label>
+        <Select
+          value={selectedLevelId}
+          onValueChange={(v) => setValue("levelId", v ?? "")}
+          disabled={!isEdit && !selectedProgramId}
+        >
+          <SelectTrigger>
+            <SelectValue
+              placeholder={
+                !isEdit && !selectedProgramId
+                  ? "Select a program first"
+                  : isEdit
+                    ? "Select a level"
+                    : hasCourses && !selectedCourseId
+                      ? "Select a course first"
                       : hasStrands && !selectedStrandId
-                        ? "Select a strand to see levels"
-                        : "No levels for this program"}
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
-            {errors.levelId && (
-              <p className="text-xs text-destructive">{errors.levelId.message}</p>
-            )}
-          </div>
-
-          {/* Subject Name */}
-          <div className="space-y-1.5">
-            <Label>Subject Name</Label>
-            <Input
-              placeholder="e.g. Mathematics, English, Science"
-              {...register("name", {
-                required: "Name is required",
-                minLength: { value: 2, message: "At least 2 characters" },
-                maxLength: { value: 100, message: "Max 100 characters" },
-              })}
-            />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-2 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={mutation.isPending}
+                        ? "Select a strand first"
+                        : "Select a level"
+              }
             >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitDisabled}>
-              {mutation.isPending
-                ? "Saving..."
-                : isEdit
-                  ? "Save Changes"
-                  : "Create Subject"}
-            </Button>
-          </div>
-        </form>
-    </Modal>
+              {!isEdit
+                ? filteredLevels.find((l) => l.id === selectedLevelId)?.name ??
+                  (hasCourses && !selectedCourseId
+                    ? "Select a course first"
+                    : hasStrands && !selectedStrandId
+                      ? "Select a strand first"
+                      : "Select a level")
+                : levels.find((l) => l.id === selectedLevelId)?.name ?? "Select a level"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {isMinor && <SelectItem value="">— None —</SelectItem>}
+            {(!isEdit ? filteredLevels : levels).map((level) => (
+              <SelectItem key={level.id} value={level.id}>
+                {level.name}
+              </SelectItem>
+            ))}
+            {!isEdit && selectedProgramId && filteredLevels.length === 0 && (
+              <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                {hasCourses && !selectedCourseId
+                  ? "Select a course to see levels"
+                  : hasStrands && !selectedStrandId
+                    ? "Select a strand to see levels"
+                    : "No levels for this program"}
+              </div>
+            )}
+          </SelectContent>
+        </Select>
+        {errors.levelId && (
+          <p className="text-xs text-destructive">{errors.levelId.message}</p>
+        )}
+      </div>
+
+      {/* Subject Name */}
+      <div className="space-y-1.5">
+        <Label>Subject Name</Label>
+        <Input
+          placeholder="e.g. Mathematics, English, Science"
+          {...register("name", {
+            required: "Name is required",
+            minLength: { value: 2, message: "At least 2 characters" },
+            maxLength: { value: 100, message: "Max 100 characters" },
+          })}
+        />
+        {errors.name && (
+          <p className="text-xs text-destructive">{errors.name.message}</p>
+        )}
+      </div>
+    </DialogForm>
   );
 }
