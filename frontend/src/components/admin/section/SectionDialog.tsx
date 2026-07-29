@@ -2,7 +2,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -70,7 +71,6 @@ export function SectionDialog({
   onSaved,
 }: SectionDialogProps): React.JSX.Element {
   const isEdit = !!section;
-  const queryClient = useQueryClient();
 
   const {
     register,
@@ -152,8 +152,8 @@ export function SectionDialog({
       ? !!selectedCourseId
       : !!selectedStrandId);
 
-  const mutation = useMutation({
-    mutationFn: (values: SectionFormValues) =>
+  const mutation = useMutationWithInvalidation(
+    (values: SectionFormValues) =>
       isEdit
         ? sectionApi.update(section!.id, {
             name: values.name,
@@ -167,27 +167,26 @@ export function SectionDialog({
             name: values.name,
             capacity: values.capacity,
           }),
-
-    onSuccess: () => {
-      toast.success(isEdit ? "Section updated." : "Section created.");
-
-      // 🔥 FULL CACHE SYNC (CRITICAL FIX)
-      queryClient.invalidateQueries({ queryKey: ["admin", "sections"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "levels"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "programs"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "enrichedLevels"] });
-
-      onSaved();
-      reset();
-      onClose();
+    {
+      invalidateKeys: [
+        queryKeys.admin.sections.all,
+        queryKeys.admin.levels.all,
+        queryKeys.admin.programs.all,
+        queryKeys.admin.enrichedLevels.all,
+      ],
+      onSuccess: () => {
+        toast.success(isEdit ? "Section updated." : "Section created.");
+        onSaved();
+        reset();
+        onClose();
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(
+          err?.response?.data?.message ?? "Failed to save section."
+        );
+      },
     },
-
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(
-        err?.response?.data?.message ?? "Failed to save section."
-      );
-    },
-  });
+  );
 
   function handleClose(): void {
     reset({
