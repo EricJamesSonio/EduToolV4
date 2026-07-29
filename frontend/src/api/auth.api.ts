@@ -20,12 +20,8 @@ export const authApi = {
     return res.data.data;
   },
 
-  getMe: async (accessToken?: string): Promise<AuthUser> => {
-    const res = await client.get<{ success: boolean; data: AuthUser }>("/auth/me", {
-      headers: accessToken
-        ? { Authorization: `Bearer ${accessToken}` }
-        : undefined,
-    });
+  getMe: async (): Promise<AuthUser> => {
+    const res = await client.get<{ success: boolean; data: AuthUser }>("/auth/me");
     return res.data.data;
   },
 
