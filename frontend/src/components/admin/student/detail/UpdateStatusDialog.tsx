@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { studentApi } from "@/api/admin/student.api";
@@ -38,22 +39,25 @@ export function UpdateStatusDialog({
   student,
   onClose,
 }: Props): React.JSX.Element {
-  const queryClient = useQueryClient();
   const [status, setStatus] = useState<StudentStatus>(student.status);
   const [reason, setReason] = useState("");
 
-  const mutation = useMutation({
-    mutationFn: () => studentApi.updateStatus(student.id, { status, reason: reason || undefined }),
-    onSuccess: () => {
-      toast.success("Student status updated.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "students", student.id] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "students"] });
-      onClose();
+  const mutation = useMutationWithInvalidation(
+    () => studentApi.updateStatus(student.id, { status, reason: reason || undefined }),
+    {
+      invalidateKeys: [
+        queryKeys.admin.students.detail(student.id),
+        queryKeys.admin.students.list(),
+      ],
+      onSuccess: () => {
+        toast.success("Student status updated.");
+        onClose();
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to update status.");
+      },
     },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to update status.");
-    },
-  });
+  );
 
   function handleClose() {
     setStatus(student.status);
