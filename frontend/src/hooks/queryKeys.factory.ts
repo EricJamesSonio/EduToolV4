@@ -1,9 +1,3 @@
-/**
- * Query Key Factory
- * Provides type-safe, nested query keys following TanStack Query best practices
- * Ensures consistency and prevents typos/duplicates across hooks
- */
-
 const adminKeys = {
   all: ['admin'] as const,
 } as const;
@@ -64,6 +58,10 @@ export const queryKeys = {
       detail: (id: string) => [...adminKeys.all, 'educators', 'detail', id] as const,
       assignments: (educatorId: string) => [...adminKeys.all, 'educators', 'detail', educatorId, 'assignments'] as const,
     },
+    enrichedLevels: {
+      all: [...adminKeys.all, 'enrichedLevels'] as const,
+      list: (filters?: Record<string, any>) => [...adminKeys.all, 'enrichedLevels', 'list', filters] as const,
+    },
     gradeLock: {
       all: [...adminKeys.all, 'gradeLock'] as const,
       list: (filters?: Record<string, any>) => [...adminKeys.all, 'gradeLock', 'list', filters] as const,
@@ -75,6 +73,7 @@ export const queryKeys = {
       all: [...adminKeys.all, 'gradingScales'] as const,
       list: (filters?: Record<string, any>) => [...adminKeys.all, 'gradingScales', 'list', filters] as const,
       detail: (id: string) => [...adminKeys.all, 'gradingScales', 'detail', id] as const,
+      assignments: (schoolYearId: string) => [...adminKeys.all, 'gradingScales', 'assignments', schoolYearId] as const,
     },
     gradingSchemes: {
       all: [...adminKeys.all, 'gradingSchemes'] as const,
@@ -87,6 +86,10 @@ export const queryKeys = {
       list: (filters?: Record<string, any>) => [...adminKeys.all, 'gradingSchemeTemplates', 'list', filters] as const,
       detail: (id: string) => [...adminKeys.all, 'gradingSchemeTemplates', 'detail', id] as const,
     },
+    holidayConfig: {
+      all: [...adminKeys.all, 'holidayConfig'] as const,
+      list: () => [...adminKeys.all, 'holidayConfig', 'list'] as const,
+    },
     levels: {
       all: [...adminKeys.all, 'levels'] as const,
       list: (filters?: Record<string, any>) => [...adminKeys.all, 'levels', 'list', filters] as const,
@@ -97,11 +100,15 @@ export const queryKeys = {
       all: [...adminKeys.all, 'organization'] as const,
       detail: () => [...adminKeys.all, 'organization', 'detail'] as const,
       settings: () => [...adminKeys.all, 'organization', 'settings'] as const,
-      accountsCheck: () => [...adminKeys.all, 'organization', 'accounts-check'] as const, // ← add
+      accountsCheck: () => [...adminKeys.all, 'organization', 'accountsCheck'] as const,
     },
     orgEnrollmentSetting: {
       all: [...adminKeys.all, 'orgEnrollmentSetting'] as const,
       detail: () => [...adminKeys.all, 'orgEnrollmentSetting', 'detail'] as const,
+    },
+    programCalendar: {
+      all: [...adminKeys.all, 'programCalendar'] as const,
+      detail: (programId: string, schoolYearId: string) => [...adminKeys.all, 'programCalendar', 'detail', programId, schoolYearId] as const,
     },
     programs: {
       all: [...adminKeys.all, 'programs'] as const,
@@ -131,6 +138,10 @@ export const queryKeys = {
       all: [...adminKeys.all, 'semesterTemplates'] as const,
       list: (filters?: Record<string, any>) => [...adminKeys.all, 'semesterTemplates', 'list', filters] as const,
       detail: (id: string) => [...adminKeys.all, 'semesterTemplates', 'detail', id] as const,
+    },
+    semesterTemplateAssignments: {
+      all: [...adminKeys.all, 'semesterTemplateAssignments'] as const,
+      list: (schoolYearId: string) => [...adminKeys.all, 'semesterTemplateAssignments', 'list', schoolYearId] as const,
     },
     strands: {
       all: [...adminKeys.all, 'strands'] as const,
@@ -176,25 +187,49 @@ export const queryKeys = {
       all: [...educatorKeys.all, 'classes'] as const,
       list: (filters?: Record<string, any>) => [...educatorKeys.all, 'classes', 'list', filters] as const,
       detail: (classId: string) => [...educatorKeys.all, 'classes', 'detail', classId] as const,
+      students: (classId: string) => [...educatorKeys.all, 'classes', 'detail', classId, 'students'] as const,
+    },
+    gradeLock: {
+      all: [...educatorKeys.all, 'gradeLock'] as const,
+      list: (classId: string) => [...educatorKeys.all, 'gradeLock', 'list', classId] as const,
+    },
+    gradeTermOptions: {
+      all: [...educatorKeys.all, 'gradeTermOptions'] as const,
+      detail: (classId: string) => [...educatorKeys.all, 'gradeTermOptions', 'detail', classId] as const,
     },
     grades: {
       all: [...educatorKeys.all, 'grades'] as const,
       list: (classId: string, termId: string, filters?: Record<string, any>) => [...educatorKeys.all, 'grades', 'list', classId, termId, filters] as const,
       detail: (gradeId: string) => [...educatorKeys.all, 'grades', 'detail', gradeId] as const,
     },
+    gradingScale: {
+      all: [...educatorKeys.all, 'gradingScale'] as const,
+      detail: (classId: string) => [...educatorKeys.all, 'gradingScale', 'detail', classId] as const,
+    },
     gradingSchemes: {
       all: [...educatorKeys.all, 'gradingSchemes'] as const,
       detail: (classId: string) => [...educatorKeys.all, 'gradingSchemes', 'detail', classId] as const,
+    },
+    gradingSchemeTemplates: {
+      all: [...educatorKeys.all, 'gradingSchemeTemplates'] as const,
+      list: (programType?: string) => [...educatorKeys.all, 'gradingSchemeTemplates', 'list', programType] as const,
+      detail: (templateId: string) => [...educatorKeys.all, 'gradingSchemeTemplates', 'detail', templateId] as const,
     },
     lessons: {
       all: [...educatorKeys.all, 'lessons'] as const,
       list: (classId: string, filters?: Record<string, any>) => [...educatorKeys.all, 'lessons', 'list', classId, filters] as const,
       detail: (lessonId: string) => [...educatorKeys.all, 'lessons', 'detail', lessonId] as const,
+      weekStructure: (classId: string) => [...educatorKeys.all, 'lessons', 'weekStructure', classId] as const,
     },
     meetings: {
       all: [...educatorKeys.all, 'meetings'] as const,
       list: (classId: string, filters?: Record<string, any>) => [...educatorKeys.all, 'meetings', 'list', classId, filters] as const,
       detail: (meetingId: string) => [...educatorKeys.all, 'meetings', 'detail', meetingId] as const,
+      token: (meetingId: string) => [...educatorKeys.all, 'meetings', 'token', meetingId] as const,
+    },
+    presentations: {
+      all: [...educatorKeys.all, 'presentations'] as const,
+      list: (classId: string) => [...educatorKeys.all, 'presentations', 'list', classId] as const,
     },
     submissions: {
       all: [...educatorKeys.all, 'submissions'] as const,
@@ -219,6 +254,10 @@ export const queryKeys = {
       all: [...studentKeys.all, 'classes'] as const,
       list: (filters?: Record<string, any>) => [...studentKeys.all, 'classes', 'list', filters] as const,
       detail: (classId: string) => [...studentKeys.all, 'classes', 'detail', classId] as const,
+    },
+    gradeLock: {
+      all: [...studentKeys.all, 'gradeLock'] as const,
+      list: (classId: string) => [...studentKeys.all, 'gradeLock', 'list', classId] as const,
     },
     grades: {
       all: [...studentKeys.all, 'grades'] as const,
@@ -265,6 +304,14 @@ export const queryKeys = {
       all: [...platformKeys.all, 'admins'] as const,
       list: (filters?: Record<string, any>) => [...platformKeys.all, 'admins', 'list', filters] as const,
       detail: (id: string) => [...platformKeys.all, 'admins', 'detail', id] as const,
+    },
+    registrationRequests: {
+      all: [...platformKeys.all, 'registrationRequests'] as const,
+      list: (filters?: Record<string, any>) => [...platformKeys.all, 'registrationRequests', 'list', filters] as const,
+    },
+    schools: {
+      all: [...platformKeys.all, 'schools'] as const,
+      list: (filters?: Record<string, any>) => [...platformKeys.all, 'schools', 'list', filters] as const,
     },
   },
 };
