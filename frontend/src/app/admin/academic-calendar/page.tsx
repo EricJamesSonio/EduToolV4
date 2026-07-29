@@ -2,7 +2,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Globe, CalendarRange } from "lucide-react";
 import { schoolYearApi }       from "@/api/admin/school-year.api";
 import { PageHeader }          from "@/components/shared/PageHeader";
@@ -23,10 +24,10 @@ export default function AcademicCalendarPage(): React.JSX.Element {
   const [activeTab,            setActiveTab]            = useState<PageTab>("holidays");
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
 
-  const { data: schoolYears = [], isLoading: syLoading } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn:  schoolYearApi.getAll,
-  });
+  const { data: schoolYears = [], isLoading: syLoading } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    schoolYearApi.getAll,
+  );
 
   const selectedYear = schoolYears.find((sy) => sy.id === selectedSchoolYearId);
   const displayYear  = selectedYear?.start_date
