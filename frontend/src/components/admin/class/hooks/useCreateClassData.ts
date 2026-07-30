@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 
 import { educatorApi }          from "@/api/admin/educator.api";
 import { subjectApi }          from "@/api/admin/subject.api";
@@ -23,30 +23,30 @@ export function useCreateClassData(
   selectedLevelId: string,
   isEnabled: boolean,
 ) {
-  const { data: educatorsRaw } = useQuery({
-    queryKey: queryKeys.admin.educators.list({}),
-    queryFn:  () => educatorApi.getAll(),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: educatorsRaw } = useAsyncQuery(
+    queryKeys.admin.educators.list({}),
+    () => educatorApi.getAll(),
+    { staleTime: 5 * 60 * 1000 },
+  );
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
-  const { data: programsRaw } = useQuery({
-    queryKey: ["admin", "programs", schoolYearId],
-    queryFn:  () => programApi.getAll(schoolYearId!),
-    enabled:  !!schoolYearId,
-  });
+  const { data: programsRaw } = useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId }),
+    () => programApi.getAll(schoolYearId!),
+    { enabled: !!schoolYearId },
+  );
   const programs = toArray<{ id: string; name: string }>(programsRaw);
 
-  const { data: coursesRaw } = useQuery({
-    queryKey: ["admin", "courses", schoolYearId, selectedProgramId],
-    queryFn:  () => courseApi.getAll({ schoolYearId: schoolYearId!, programId: selectedProgramId! }),
-    enabled:  !!schoolYearId && !!selectedProgramId,
-  });
+  const { data: coursesRaw } = useAsyncQuery(
+    queryKeys.admin.courses.list({ schoolYearId, programId: selectedProgramId! }),
+    () => courseApi.getAll({ schoolYearId: schoolYearId!, programId: selectedProgramId! }),
+    { enabled: !!schoolYearId && !!selectedProgramId },
+  );
 
-  const { data: strandsRaw } = useQuery({
-    queryKey: ["admin", "strands", selectedProgramId],
-    queryFn:  () => strandApi.getAll({ program_id: selectedProgramId! }),
-    enabled:  !!selectedProgramId,
-  });
+  const { data: strandsRaw } = useAsyncQuery(
+    queryKeys.admin.strands.list({ program_id: selectedProgramId! }),
+    () => strandApi.getAll({ program_id: selectedProgramId! }),
+    { enabled: !!selectedProgramId },
+  );
 
   const courses       = toArray<{ id: string; name: string }>(coursesRaw);
   const strands       = toArray<{ id: string; name: string }>(strandsRaw);
@@ -54,11 +54,11 @@ export function useCreateClassData(
   const hasTrack      = tracks.length > 0;
   const isCourseTrack = courses.length > 0;
 
-  const { data: levelsRaw } = useQuery({
-    queryKey: ["admin", "levels", "school-year", schoolYearId],
-    queryFn:  () => levelApi.getBySchoolYear(schoolYearId!),
-    enabled:  !!schoolYearId,
-  });
+  const { data: levelsRaw } = useAsyncQuery(
+    queryKeys.admin.levels.list({ schoolYearId }),
+    () => levelApi.getBySchoolYear(schoolYearId!),
+    { enabled: !!schoolYearId },
+  );
   const levels = useMemo<Level[]>(() => {
     const all = toArray<Level>(levelsRaw);
     if (!selectedProgramId) return [];
@@ -76,33 +76,33 @@ export function useCreateClassData(
     return result;
   }, [levelsRaw, selectedProgramId, hasTrack, isCourseTrack, selectedTrackId]);
 
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["admin", "sections", schoolYearId, selectedLevelId],
-    queryFn:  () => sectionApi.getAll(schoolYearId!, selectedLevelId!),
-    enabled:  !!schoolYearId && !!selectedLevelId,
-  });
+  const { data: sectionsRaw } = useAsyncQuery(
+    queryKeys.admin.sections.list({ schoolYearId, levelId: selectedLevelId! }),
+    () => sectionApi.getAll(schoolYearId!, selectedLevelId!),
+    { enabled: !!schoolYearId && !!selectedLevelId },
+  );
   const sections = toArray<{ id: string; name: string }>(sectionsRaw);
 
-  const { data: subjectsRaw } = useQuery({
-    queryKey: [
-      "admin", "subjects", selectedLevelId,
-      isCourseTrack ? selectedTrackId : undefined,
-      !isCourseTrack ? selectedTrackId : undefined,
-    ],
-    queryFn: () => subjectApi.getAll({
+  const { data: subjectsRaw } = useAsyncQuery(
+    queryKeys.admin.subjects.list({
+      levelId: selectedLevelId!,
+      ...(selectedTrackId && isCourseTrack ? { courseId: selectedTrackId } : {}),
+      ...(selectedTrackId && !isCourseTrack ? { strandId: selectedTrackId } : {}),
+    }),
+    () => subjectApi.getAll({
       levelId: selectedLevelId!,
       ...(selectedTrackId && isCourseTrack  ? { courseId: selectedTrackId } : {}),
       ...(selectedTrackId && !isCourseTrack ? { strandId: selectedTrackId } : {}),
     }),
-    enabled: !!selectedLevelId,
-  });
+    { enabled: !!selectedLevelId },
+  );
   const subjects = toArray<Subject>(subjectsRaw);
 
-  const { data: templateAssignments = [] } = useQuery({
-    queryKey: ["admin", "semester-template-assignments", schoolYearId],
-    queryFn:  () => semesterTemplateApi.getAssignmentsBySchoolYear(schoolYearId!),
-    enabled:  !!schoolYearId,
-  });
+  const { data: templateAssignments = [] } = useAsyncQuery(
+    queryKeys.admin.semesterTemplateAssignments.list(schoolYearId!),
+    () => semesterTemplateApi.getAssignmentsBySchoolYear(schoolYearId!),
+    { enabled: !!schoolYearId },
+  );
 
   const assignedProgramIds = useMemo(
     () => new Set(templateAssignments.map((a) => a.program_id)),
@@ -112,11 +112,11 @@ export function useCreateClassData(
   const programMissingTemplate =
     !!selectedProgramId && !assignedProgramIds.has(selectedProgramId);
 
-  const { data: semesters = [] } = useQuery({
-    queryKey: ["admin", "semesters", "by-program", selectedProgramId, schoolYearId],
-    queryFn:  () => semesterApi.getByProgram(selectedProgramId!, schoolYearId!),
-    enabled:  !!schoolYearId && !!selectedProgramId && !programMissingTemplate && isEnabled,
-  });
+  const { data: semesters = [] } = useAsyncQuery(
+    [...queryKeys.admin.semesters.all, 'by-program', selectedProgramId, schoolYearId] as const,
+    () => semesterApi.getByProgram(selectedProgramId!, schoolYearId!),
+    { enabled: !!schoolYearId && !!selectedProgramId && !programMissingTemplate && isEnabled },
+  );
 
   return {
     programs,
