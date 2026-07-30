@@ -1,24 +1,25 @@
 // frontend/src/components/admin/academic-calendar/ProgramCalendarsTab.tsx
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { CalendarDays, BookOpen } from "lucide-react";
 import { programApi } from "@/api/admin/program.api";
-import { Skeleton }   from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ProgramCalendarCard } from "./ProgramCalendarCard";
 
 interface Props {
-  schoolYearId:     string;
+  schoolYearId: string;
   schoolYearStart?: string;
-  schoolYearEnd?:   string;
+  schoolYearEnd?: string;
 }
 
 export function ProgramCalendarsTab({ schoolYearId, schoolYearStart, schoolYearEnd }: Props) {
-  const { data: programs = [], isLoading } = useQuery({
-    queryKey: ["admin", "programs", schoolYearId],
-    queryFn:  () => programApi.getAll(schoolYearId),
-    enabled:  !!schoolYearId,
-  });
+  const { data: programs = [], isLoading } = useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId }),
+    () => programApi.getAll(schoolYearId),
+    { enabled: !!schoolYearId },
+  );
 
   if (!schoolYearId) {
     return (

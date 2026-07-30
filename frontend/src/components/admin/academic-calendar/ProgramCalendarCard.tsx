@@ -2,7 +2,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import {
   ChevronDown, ChevronRight, BookOpen,
@@ -10,10 +11,10 @@ import {
 } from "lucide-react";
 import { programCalendarApi } from "@/api/admin/program-calendar.api";
 import type { CalendarBreak } from "@/api/admin/program-calendar.api";
-import { Button }   from "@/components/ui/button";
-import { Badge }    from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input }    from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { BreakEditor } from "./BreakEditor";
 
 function formatDate(iso: string) {
@@ -23,11 +24,11 @@ function formatDate(iso: string) {
 }
 
 interface Props {
-  programId:        string;
-  programName:      string;
-  schoolYearId:     string;
+  programId: string;
+  programName: string;
+  schoolYearId: string;
   schoolYearStart?: string;
-  schoolYearEnd?:   string;
+  schoolYearEnd?: string;
 }
 
 export function ProgramCalendarCard({
@@ -37,26 +38,23 @@ export function ProgramCalendarCard({
   schoolYearStart,
   schoolYearEnd,
 }: Props) {
-  const queryClient = useQueryClient();
-  const [expanded,  setExpanded]  = useState(false);
-  const [editing,   setEditing]   = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [startDate, setStartDate] = useState("");
-  const [endDate,   setEndDate]   = useState("");
-  const [notes,     setNotes]     = useState("");
-  const [breaks,    setBreaks]    = useState<CalendarBreak[]>([]);
+  const [endDate, setEndDate] = useState("");
+  const [notes, setNotes] = useState("");
+  const [breaks, setBreaks] = useState<CalendarBreak[]>([]);
 
-  const qKey = ["admin", "program-calendar", programId, schoolYearId];
+  const calendarKey = queryKeys.admin.programCalendar.detail(programId, schoolYearId);
 
-  const { data: calendar, isLoading } = useQuery({
-    queryKey: qKey,
-    queryFn:  () => programCalendarApi.getByProgram(programId, schoolYearId),
-    retry:    false,
-  });
+  const { data: calendar, isLoading } = useAsyncQuery(
+    calendarKey,
+    () => programCalendarApi.getByProgram(programId, schoolYearId),
+    { retry: false },
+  );
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: qKey });
-
-  const createMutation = useMutation({
-    mutationFn: () =>
+  const createMutation = useMutationWithInvalidation(
+    () =>
       programCalendarApi.create({
         schoolYearId, programId, startDate, endDate,
         notes: notes || undefined,
@@ -64,13 +62,16 @@ export function ProgramCalendarCard({
           .filter((b) => b.startDate && b.endDate)
           .map(({ label, startDate, endDate }) => ({ label, startDate, endDate })),
       }),
-    onSuccess: () => { toast.success("Calendar created."); invalidate(); setEditing(false); },
-    onError:   (e: any) =>
-      toast.error(e?.response?.data?.message ?? "Failed to create calendar."),
-  });
+    {
+      invalidateKeys: [calendarKey],
+      onSuccess: () => { toast.success("Calendar created."); setEditing(false); },
+      onError: (e: any) =>
+        toast.error(e?.response?.data?.message ?? "Failed to create calendar."),
+    },
+  );
 
-  const updateMutation = useMutation({
-    mutationFn: () =>
+  const updateMutation = useMutationWithInvalidation(
+    () =>
       programCalendarApi.update(calendar!.id, {
         startDate, endDate,
         notes: notes || undefined,
@@ -78,16 +79,22 @@ export function ProgramCalendarCard({
           .filter((b) => b.startDate && b.endDate)
           .map(({ label, startDate, endDate }) => ({ label, startDate, endDate })),
       }),
-    onSuccess: () => { toast.success("Calendar updated."); invalidate(); setEditing(false); },
-    onError:   (e: any) =>
-      toast.error(e?.response?.data?.message ?? "Failed to update calendar."),
-  });
+    {
+      invalidateKeys: [calendarKey],
+      onSuccess: () => { toast.success("Calendar updated."); setEditing(false); },
+      onError: (e: any) =>
+        toast.error(e?.response?.data?.message ?? "Failed to update calendar."),
+    },
+  );
 
-  const deleteMutation = useMutation({
-    mutationFn: () => programCalendarApi.delete(calendar!.id),
-    onSuccess:  () => { toast.success("Calendar removed."); invalidate(); },
-    onError:    () => toast.error("Failed to delete calendar."),
-  });
+  const deleteMutation = useMutationWithInvalidation(
+    () => programCalendarApi.delete(calendar!.id),
+    {
+      invalidateKeys: [calendarKey],
+      onSuccess: () => { toast.success("Calendar removed."); },
+      onError: () => toast.error("Failed to delete calendar."),
+    },
+  );
 
   function startEdit() {
     if (calendar) {
@@ -96,9 +103,9 @@ export function ProgramCalendarCard({
       setNotes(calendar.notes ?? "");
       setBreaks(
         calendar.breaks.map((b) => ({
-          label:     b.label,
+          label: b.label,
           startDate: (b.startDate as string).slice(0, 10),
-          endDate:   (b.endDate   as string).slice(0, 10),
+          endDate: (b.endDate as string).slice(0, 10),
         })),
       );
     } else {
@@ -110,7 +117,7 @@ export function ProgramCalendarCard({
     setExpanded(true);
   }
 
-  const isSaving    = createMutation.isPending || updateMutation.isPending;
+  const isSaving = createMutation.isPending || updateMutation.isPending;
   const hasCalendar = calendar !== null && calendar !== undefined;
 
   const activeBreaks = breaks.filter((b) => b.startDate && b.endDate);
@@ -132,7 +139,7 @@ export function ProgramCalendarCard({
           className="flex items-center gap-2 flex-1 text-left min-w-0"
         >
           {expanded
-            ? <ChevronDown  className="h-4 w-4 text-muted-foreground shrink-0" />
+            ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
             : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
           }
           <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
