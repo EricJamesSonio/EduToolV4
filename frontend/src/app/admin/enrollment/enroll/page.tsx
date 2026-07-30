@@ -1,3 +1,4 @@
+// ===== File: frontend\src\app\admin\enrollment\enroll\page.tsx =====
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
@@ -41,7 +42,6 @@ import type {
 import type { Class } from "@/types/admin/class.types";
 
 import {
-  EnrollmentBreadcrumb,
   ProgramSelector,
   CourseStrandSelector,
   LevelSelector,
@@ -49,6 +49,7 @@ import {
   ClassEnrollmentPanel,
   type ContextTableRow,
 } from "./_components";
+import { EnrollmentStepper, type StepDef, type StepStatus } from "./_components/EnrollmentStepper";
 
 export default function EnrollWorkspacePage() {
   const router = useRouter();
@@ -414,15 +415,69 @@ export default function EnrollWorkspacePage() {
     }
   }
 
-  const breadcrumbItems = [
-    ...(schoolYear
-      ? [{ label: schoolYear.name, onClick: () => { setProgramId(""); setCourseId(""); setStrandId(""); setLevelId(""); } }]
-      : []),
-    ...(program ? [{ label: program.name, onClick: () => { setCourseId(""); setStrandId(""); setLevelId(""); } }] : []),
-    ...(course ? [{ label: course.code ?? course.name, onClick: () => setLevelId("") }] : []),
-    ...(strand ? [{ label: strand.name, onClick: () => setLevelId("") }] : []),
-    ...(level ? [{ label: level.name }] : []),
-  ];
+  // ── Stepper state derivation ──
+  const needsCourseOrStrand = isCollege || isSHS;
+  const courseOrStrandDone = isCollege ? !!courseId : isSHS ? !!strandId : true;
+  const courseOrStrandLabel = isCollege ? "Course" : "Strand";
+
+  const steps: StepDef[] = useMemo(() => {
+    const list: StepDef[] = [
+      {
+        key: "program",
+        label: "Program",
+        description: program?.name,
+        status: (programId ? "done" : "active") as StepStatus,
+        onClick: programId
+          ? () => {
+              setProgramId("");
+              setCourseId("");
+              setStrandId("");
+              setLevelId("");
+            }
+          : undefined,
+      },
+    ];
+
+    if (needsCourseOrStrand) {
+      list.push({
+        key: "courseStrand",
+        label: courseOrStrandLabel,
+        description: course?.code ?? course?.name ?? strand?.name,
+        status: (courseOrStrandDone ? "done" : "active") as StepStatus,
+        onClick: courseOrStrandDone
+          ? () => {
+              setCourseId("");
+              setStrandId("");
+              setLevelId("");
+            }
+          : undefined,
+      });
+    }
+
+    list.push({
+      key: "level",
+      label: "Level / Grade",
+      description: level?.name,
+      status: (!programId || (needsCourseOrStrand && !courseOrStrandDone)
+        ? "pending"
+        : levelId
+        ? "done"
+        : "active") as StepStatus,
+      onClick: levelId ? () => setLevelId("") : undefined,
+    });
+
+    list.push({
+      key: "enroll",
+      label: "Enroll Students",
+      description: levelId ? `${selected.size} selected` : undefined,
+      status: (levelId ? "active" : "pending") as StepStatus,
+    });
+
+    return list;
+  }, [
+    programId, program, courseId, course, strandId, strand, levelId, level,
+    needsCourseOrStrand, courseOrStrandDone, courseOrStrandLabel, selected.size,
+  ]);
 
   return (
     <div className="space-y-6 pb-10">
@@ -434,9 +489,12 @@ export default function EnrollWorkspacePage() {
         Back to Enrollment
       </button>
 
-      <PageHeader title="Enroll Students" />
+      <PageHeader
+        title="Enroll Students"
+        description={schoolYear ? `School year: ${schoolYear.name}` : undefined}
+      />
 
-      <EnrollmentBreadcrumb items={breadcrumbItems} />
+      <EnrollmentStepper steps={steps} />
 
       {!programId && (
         <ProgramSelector
