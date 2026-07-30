@@ -8,9 +8,7 @@ import { programApi } from "@/api/admin/program.api";
 import { levelApi } from "@/api/admin/level.api";
 import type { Student } from "@/types/admin/student.types";
 import type { EnrollStudentProgramRequest } from "@/types/admin/student-enrollment.types";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+import { Modal } from "@/components/shared/Modal";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -102,21 +100,24 @@ export function ProgramEnrollmentDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <GraduationCap className="h-4 w-4" />
-            Assign Program
-          </DialogTitle>
-        </DialogHeader>
-
-        <p className="text-sm text-muted-foreground -mt-1">
+    <Modal
+      open={open}
+      onClose={handleClose}
+      size="sm"
+      title={
+        <span className="flex items-center gap-2">
+          <GraduationCap className="h-4 w-4" />
+          Assign Program
+        </span>
+      }
+      description={
+        <>
           Assigning program for{" "}
           <span className="font-medium text-foreground">{student.fullName}</span>
-        </p>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-1">
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
             <Label>Program <span className="text-destructive">*</span></Label>
             <Select
@@ -205,7 +206,6 @@ export function ProgramEnrollmentDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </Modal>
   );
 }
