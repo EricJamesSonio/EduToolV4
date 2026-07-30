@@ -65,7 +65,7 @@ export function GradingSchemeComponentRow({
       <Input
         value={row.name}
         disabled={disabled}
-        placeholder="e.g. Quizzes"
+        placeholder={COMPONENT_TYPES.find((t) => t.value === row.type)?.label ?? ""}
         onChange={(e) => onChange(index, "name", e.target.value)}
       />
 
