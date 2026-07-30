@@ -1,7 +1,9 @@
 "use client";
 
 import { use, useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Pencil, KeyRound, ShieldCheck, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,7 +33,6 @@ export default function StudentDetailPage({
   const { id } = use(params);
   const queryClient = useQueryClient();
 
-  // ✅ NEW
   const searchParams = useSearchParams();
   const router = useRouter();
   const backUrl = searchParams.get("back");
@@ -42,40 +43,35 @@ export default function StudentDetailPage({
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<StudentEnrollment | null>(null);
 
-  // ── Student account ──────────────────────────────────────────────────────
-  const { data: student, isLoading: studentLoading } = useQuery({
-    queryKey: ["admin", "students", id],
-    queryFn: () => studentApi.getOne(id),
-  });
+  const { data: student, isLoading: studentLoading } = useAsyncQuery(
+    queryKeys.admin.students.detail(id),
+    () => studentApi.getOne(id),
+  );
 
-  // ── Class enrollments ────────────────────────────────────────────────────
-  const { data: enrollmentsRaw, isLoading: enrollmentsLoading } = useQuery({
-    queryKey: ["admin", "students", id, "enrollments"],
-    queryFn: () => studentApi.getEnrollments(id),
-    enabled: !!id,
-  });
+  const { data: enrollmentsRaw, isLoading: enrollmentsLoading } = useAsyncQuery(
+    queryKeys.admin.students.enrollments(id),
+    () => studentApi.getEnrollments(id),
+    { enabled: !!id },
+  );
 
-  // ── School-year enrollments ──────────────────────────────────────────────
-  const { data: schoolYears } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: schoolYearApi.getAll,
-  });
+  const { data: schoolYears } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    schoolYearApi.getAll,
+  );
 
   const activeSchoolYearId =
     schoolYears?.find((sy) => sy.status === "active")?.id ??
     schoolYears?.[0]?.id ??
     null;
 
-  const { data: schoolYearEnrollments } = useQuery({
-    queryKey: ["admin", "school-year-enrollments", activeSchoolYearId],
-    queryFn: () =>
-      studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
-    enabled: !!activeSchoolYearId,
-    select: (data) => data.filter((e) => e.student_id === id),
-  });
+  const { data: schoolYearEnrollments } = useAsyncQuery(
+    queryKeys.admin.studentEnrollment.list({ schoolYearId: activeSchoolYearId }),
+    () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
+    { enabled: !!activeSchoolYearId },
+  );
 
   const enrollments = enrollmentsRaw ?? [];
-  const programEnrollments = schoolYearEnrollments ?? [];
+  const programEnrollments = schoolYearEnrollments?.filter((e) => e.student_id === id) ?? [];
   const programIds = useMemo(() => {
     const ids = new Set<string>();
     for (const e of programEnrollments) {
@@ -86,14 +82,13 @@ export default function StudentDetailPage({
     return Array.from(ids);
   }, [programEnrollments]);
 
-  // ── Remove enrollment ────────────────────────────────────────────────────
   const removeEnrollmentMutation = useMutation({
     mutationFn: (enrollmentId: string) =>
       studentApi.removeEnrollment(id, enrollmentId),
     onSuccess: () => {
       toast.success("Enrollment removed.");
       queryClient.invalidateQueries({
-        queryKey: ["admin", "students", id, "enrollments"],
+        queryKey: queryKeys.admin.students.enrollments(id),
       });
       setRemoveTarget(null);
     },
@@ -105,7 +100,6 @@ export default function StudentDetailPage({
     },
   });
 
-  // ── Loading ──────────────────────────────────────────────────────────────
   if (studentLoading) {
     return (
       <div className="space-y-4 max-w-4xl">
@@ -117,7 +111,6 @@ export default function StudentDetailPage({
     );
   }
 
-  // ── Not found ────────────────────────────────────────────────────────────
   if (!student) {
     return (
       <p className="text-sm text-muted-foreground py-12 text-center not-interactive">
@@ -126,10 +119,8 @@ export default function StudentDetailPage({
     );
   }
 
-  // ── UI ───────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* Back button when navigated from enrollment context */}
       {backUrl && (
         <Button
           variant="ghost"
