@@ -65,9 +65,9 @@ className={cn(
 
       <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 space-y-0.5">
-          <h1 className="!text-xl !font-semibold !leading-tight !tracking-tight !m-0 text-foreground not-interactive">
-            {title}
-          </h1>
+        <h1 className="!text-xl font-marketing !font-extrabold !leading-tight !tracking-tight !m-0 text-foreground not-interactive">
+          {title}
+        </h1>
           {description && (
             <p className="text-sm text-muted-foreground not-interactive">
               {description}
