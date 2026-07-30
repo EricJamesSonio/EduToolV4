@@ -89,10 +89,12 @@ export default function EducatorClassOverviewPage({
     () => subjectApi.getAll(),
   );
 
+  const schoolYearId = cls?.schoolYearId;
+
   const { data: sectionsRaw } = useAsyncQuery(
-    queryKeys.admin.sections.list({ schoolYearId: cls!.schoolYearId }),
-    () => sectionApi.getAll(cls!.schoolYearId),
-    { enabled: !!cls?.schoolYearId },
+    queryKeys.admin.sections.list({ schoolYearId: schoolYearId ?? '' }),
+    () => sectionApi.getAll(schoolYearId!),
+    { enabled: !!schoolYearId },
   );
 
   const { data: semestersRaw } = useAsyncQuery(
@@ -107,9 +109,9 @@ export default function EducatorClassOverviewPage({
 
   // Courses and strands — scoped to this class's school year
   const { data: coursesRaw } = useAsyncQuery(
-    queryKeys.admin.courses.list({ schoolYearId: cls!.schoolYearId }),
-    () => courseApi.getAll({ schoolYearId: cls!.schoolYearId }),
-    { enabled: !!cls?.schoolYearId },
+    queryKeys.admin.courses.list({ schoolYearId: schoolYearId ?? '' }),
+    () => courseApi.getAll({ schoolYearId: schoolYearId! }),
+    { enabled: !!schoolYearId },
   );
 
   const { data: strandsRaw } = useAsyncQuery(
