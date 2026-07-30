@@ -1,18 +1,11 @@
-/**
- * seed-data.ts
- * MAIN SEED ORCHESTRATOR
- * - Platform accounts
- * - Admin users
- */
-
 import { PrismaClient, Role, AccountStatus } from '@prisma/client'
 import * as bcrypt from 'bcrypt'
+import { SCHOOLS } from './data/schools'
+import { ADMINS } from './data/admins'
 
 const db = new PrismaClient()
 
 const SALT_ROUNDS = 10
-
-// ── Platform Owner ───────────────────────────────────────────────
 
 const PLATFORM_OWNER = {
   email: 'platform@edutool.dev',
@@ -20,30 +13,21 @@ const PLATFORM_OWNER = {
   fullName: 'Platform Owner',
 }
 
-// ── Admin Users ───────────────────────────────────────────────────
-
-const ADMINS = [
-  { email: 'admin1@edutool.dev', password: 'admin123', fullName: 'Admin One' },
-  { email: 'admin2@edutool.dev', password: 'admin123', fullName: 'Admin Two' },
-  { email: 'admin3@edutool.dev', password: 'admin123', fullName: 'Admin Three' },
-  { email: 'admin4@edutool.dev', password: 'admin123', fullName: 'Admin Four' },
-  { email: 'admin5@edutool.dev', password: 'admin123', fullName: 'Admin Five' },
-  { email: 'admin6@edutool.dev', password: 'admin123', fullName: 'Admin Six' },
-  { email: 'admin7@edutool.dev', password: 'admin123', fullName: 'Admin Seven' },
-  { email: 'admin8@edutool.dev', password: 'admin123', fullName: 'Admin Eight' },
-  { email: 'admin9@edutool.dev', password: 'admin123', fullName: 'Admin Nine' },
-  { email: 'admin10@edutool.dev', password: 'admin123', fullName: 'Admin Ten' },
-]
-
-// ── Helper ────────────────────────────────────────────────────────
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
 
 async function upsertAccount(params: {
   email: string
   password: string
   fullName: string
   role: Role
+  orgId?: string
 }) {
-  const { email, password, fullName, role } = params
+  const { email, password, fullName, role, orgId } = params
 
   const hashed = await bcrypt.hash(password, SALT_ROUNDS)
 
@@ -54,9 +38,10 @@ async function upsertAccount(params: {
       role,
       status: AccountStatus.active,
       deleted_at: null,
+      org_id: orgId ?? null,
     },
     create: {
-      org_id: null,
+      org_id: orgId ?? null,
       role,
       email,
       password: hashed,
@@ -77,11 +62,9 @@ async function upsertAccount(params: {
     },
   })
 
-  console.log(`✓ ${role.padEnd(16)} ${email}`)
+  console.log(`  ${role.padEnd(16)} ${email}${orgId ? ' (with org)' : ''}`)
   return account
 }
-
-// ── Main Seeder ───────────────────────────────────────────────────
 
 async function main() {
   console.log('\n🌱 START SEED PROCESS...\n')
@@ -95,9 +78,48 @@ async function main() {
     role: Role.platform_owner,
   })
 
-  // 2. Admins
-  console.log('\n▶ Admin Accounts')
-  for (const admin of ADMINS) {
+  // 2. Admins with schools (admin 1–8)
+  console.log('\n▶ Admin Accounts with Schools')
+  for (let i = 0; i < 8; i++) {
+    const admin = ADMINS[i]
+    const school = SCHOOLS[i]
+
+    const emailExt = slugify(school.name)
+    const org = await db.organization.upsert({
+      where: { email_extension: emailExt },
+      update: {
+        name: school.name,
+        description: `Based in ${school.location}`,
+        logo_url: school.logo_url,
+      },
+      create: {
+        name: school.name,
+        description: `Based in ${school.location}`,
+        logo_url: school.logo_url,
+        email_extension: emailExt,
+      },
+    })
+
+    const account = await upsertAccount({
+      email: admin.email,
+      password: admin.password,
+      fullName: admin.fullName,
+      role: Role.admin,
+      orgId: org.id,
+    })
+
+    if (!org.admin_account_id) {
+      await db.organization.update({
+        where: { id: org.id },
+        data: { admin_account_id: account.id },
+      })
+    }
+  }
+
+  // 3. Org-less admins (admin 9–10)
+  console.log('\n▶ Admin Accounts (no org)')
+  for (let i = 8; i < ADMINS.length; i++) {
+    const admin = ADMINS[i]
     await upsertAccount({
       email: admin.email,
       password: admin.password,
@@ -108,8 +130,6 @@ async function main() {
 
   console.log('\n✅ SEED COMPLETE\n')
 }
-
-// ── Execute ───────────────────────────────────────────────────────
 
 main()
   .catch((e) => {
