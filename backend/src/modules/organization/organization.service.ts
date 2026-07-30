@@ -24,7 +24,6 @@ export class OrganizationService {
   ) {}
 
 async create(adminId: string, dto: CreateOrganizationDto) {
-  console.log('create org dto:', dto) // ← add this
   const alreadyExists = await this.orgRepository.existsForAdmin(adminId)
     if (alreadyExists) {
       throw new ConflictException('An organization already exists for this account.')
@@ -34,6 +33,7 @@ async create(adminId: string, dto: CreateOrganizationDto) {
       const org = await this.orgRepository.create({
         name: dto.name,
         description: dto.description,
+        address: dto.address,
       })
       await this.orgRepository.linkToAdmin(adminId, org.id)
       return org
@@ -53,6 +53,7 @@ async create(adminId: string, dto: CreateOrganizationDto) {
       id: org.id,
       name: org.name,
       description: org.description,
+      address: org.address,
       logoUrl: org.logo_url ?? null,
       emailExtension: org.email_extension ?? null,
     }
@@ -66,6 +67,7 @@ async create(adminId: string, dto: CreateOrganizationDto) {
       return await this.orgRepository.update(orgId, {
         name: dto.name,
         description: dto.description,
+        address: dto.address,
         ...(dto.emailExtension !== undefined && {
           email_extension: dto.emailExtension ?? undefined,
         }),
@@ -112,6 +114,10 @@ async create(adminId: string, dto: CreateOrganizationDto) {
     });
 
     return { success: true, message: 'Seed completed successfully.' }
+  }
+
+  async getAllOrganizations() {
+    return this.orgRepository.findAll()
   }
 
   // ========================================================================
