@@ -12,7 +12,7 @@ import { HeroSection } from "@/components/landing/HeroSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { SolutionSection } from "@/components/landing/SolutionSection";
 import { ResourcesSection } from "@/components/landing/ResourcesSection";
-import { AnalyticsPreviewSection } from "@/components/landing/AnalyticsPreviewSection";
+//import { AnalyticsPreviewSection } from "@/components/landing/AnalyticsPreviewSection";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { CTASection } from "@/components/landing/CTASection";
 import { ContactAdminSection } from "@/components/landing/Contactadminsection";
@@ -45,7 +45,7 @@ export default function RootPage(): React.ReactNode {
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
       <HeroSection />
-      <AnalyticsPreviewSection />
+      
       <FeaturesSection />
       <SolutionSection />
       <ResourcesSection />
