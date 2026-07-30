@@ -64,8 +64,8 @@ export default function AcademicCalendarPage(): React.JSX.Element {
               className={cn(
                 "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors",
                 activeTab === tab.key
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-400 hover:text-white",
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {tab.icon}
