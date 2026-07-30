@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { AtSign, Loader2, AlertTriangle } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 
 import {
   Card,
@@ -35,27 +35,14 @@ import { organizationApi } from "@/api/admin/organization.api";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 
 export function EmailExtensionCard(): React.JSX.Element {
-  // ======================================================
-  // QUERIES
-  // ======================================================
-
   const { data: organization, isLoading } = useOrganization();
 
-  const { data: accountsCheck } = useQuery({
-    queryKey: queryKeys.admin.organization.accountsCheck(),
-    queryFn: () => organizationApi.checkHasAccounts(),
-    staleTime: 0,
-  });
-
-  // ======================================================
-  // MUTATIONS
-  // ======================================================
+  const { data: accountsCheck } = useAsyncQuery(
+    queryKeys.admin.organization.accountsCheck(),
+    () => organizationApi.checkHasAccounts(),
+  );
 
   const updateOrganizationMutation = useUpdateOrganization();
-
-  // ======================================================
-  // LOCAL STATE
-  // ======================================================
 
   const [extension, setExtension] = useState("");
   const [editing, setEditing] = useState(false);
@@ -68,17 +55,9 @@ export function EmailExtensionCard(): React.JSX.Element {
 
   const [isValidating, setIsValidating] = useState(false);
 
-  // ======================================================
-  // DERIVED STATE
-  // ======================================================
-
   const currentExtension = organization?.emailExtension ?? null;
 
   const hasAccounts = accountsCheck?.hasAccounts ?? false;
-
-  // ======================================================
-  // HANDLERS
-  // ======================================================
 
   function handleEdit(): void {
     if (hasAccounts) {
@@ -99,10 +78,6 @@ export function EmailExtensionCard(): React.JSX.Element {
   async function handleSaveClick(): Promise<void> {
     const cleanedExtension = extension.trim().replace(/^@/, "");
 
-    // ======================================================
-    // VALIDATION
-    // ======================================================
-
     if (!cleanedExtension) {
       setValidationError("Email extension cannot be empty.");
       return;
@@ -115,10 +90,6 @@ export function EmailExtensionCard(): React.JSX.Element {
 
       return;
     }
-
-    // ======================================================
-    // SERVER VALIDATION
-    // ======================================================
 
     setIsValidating(true);
 
@@ -201,17 +172,9 @@ export function EmailExtensionCard(): React.JSX.Element {
     );
   }
 
-  // ======================================================
-  // LOADING
-  // ======================================================
-
   if (isLoading) {
     return <></>;
   }
-
-  // ======================================================
-  // RENDER
-  // ======================================================
 
   return (
     <>

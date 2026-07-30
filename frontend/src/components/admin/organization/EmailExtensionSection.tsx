@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { AtSign, Loader2, AlertTriangle } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,11 +22,10 @@ import { queryKeys } from "@/hooks/queryKeys.factory";
 export function EmailExtensionSection(): React.JSX.Element {
   const { data: organization, isLoading } = useOrganization();
 
-  const { data: accountsCheck } = useQuery({
-    queryKey: queryKeys.admin.organization.accountsCheck(),
-    queryFn: () => organizationApi.checkHasAccounts(),
-    staleTime: 0,
-  });
+  const { data: accountsCheck } = useAsyncQuery(
+    queryKeys.admin.organization.accountsCheck(),
+    () => organizationApi.checkHasAccounts(),
+  );
 
   const updateOrganizationMutation = useUpdateOrganization();
 
