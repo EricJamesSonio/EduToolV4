@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner"; // kept for potential future use; harmless
 import type { Subject } from "@/types/admin/subject.types";
 import { PageHeader }   from "@/components/shared/PageHeader";
@@ -34,12 +35,11 @@ export default function SubjectsPage(): React.JSX.Element {
     programs, programsLoading,
     levels, levelsLoading,
     courses, strands,
-    educators, educatorsLoading,
+    educatorsLoading,
     subjects, subjectsLoading,
   } = useSubjectQueries(filters);
 
   const { lockMutation, unlockMutation } = useSubjectMutations(
-    queryClient,
     setLockTarget,
     setUnlockTarget,
   );
@@ -126,7 +126,6 @@ export default function SubjectsPage(): React.JSX.Element {
 {createOpen && (
   <SubjectDialog
     levels={levels}
-    educators={educators}
     schoolYearId={filters.selectedSchoolYearId ?? undefined}
     defaultSubjectType={filters.activeTab}
     defaultProgramId={filters.selectedProgramId !== "all" ? filters.selectedProgramId : undefined}
@@ -136,7 +135,7 @@ export default function SubjectsPage(): React.JSX.Element {
     open={createOpen}
     onClose={() => setCreateOpen(false)}
     onSaved={() => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects.list() });
     }}
   />
 )}
