@@ -3,7 +3,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Plus } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,11 +62,11 @@ function usePrograms(schoolYearId: any) {
       ? schoolYearId
       : schoolYearId?.schoolYearId;
 
-  return useQuery({
-    queryKey: ["programs", fixedId],
-    queryFn: () => fetchPrograms(fixedId),
-    enabled: !!fixedId,
-  });
+  return useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId: fixedId }),
+    () => fetchPrograms(fixedId),
+    { enabled: !!fixedId },
+  );
 }
 
 export default function GradingSchemesPage(): React.JSX.Element {
@@ -126,18 +127,14 @@ export default function GradingSchemesPage(): React.JSX.Element {
     isLoading: pLoading,
   } = usePrograms(selectedYearId);
 
-  const { data: classes = [] } = useQuery({
-    queryKey: [
-      "admin",
-      "classes",
-      selectedYearId,
-    ],
-    queryFn: () =>
+  const { data: classes = [] } = useAsyncQuery(
+    queryKeys.admin.classes.list({ schoolYearId: selectedYearId }),
+    () =>
       classApi.getAll({
         schoolYearId: selectedYearId,
       }),
-    enabled: !!selectedYearId,
-  });
+    { enabled: !!selectedYearId },
+  );
 
   // ================= DATA TRANSFORMATION =================
   const programsWithClasses = useMemo(() => {
