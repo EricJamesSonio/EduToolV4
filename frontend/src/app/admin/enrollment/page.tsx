@@ -1,3 +1,4 @@
+// ===== File: frontend\src\app\admin\enrollment\page.tsx =====
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
@@ -29,7 +30,8 @@ import {
   useUpdateProgramEnrollment,
 } from "@/hooks/admin/useStudentEnrollment";
 
-import { Plus, Users, BookOpen, UserRoundCheck, Layers, ClipboardList } from "lucide-react";
+import { Plus, Users, BookOpen, UserRoundCheck, Layers, ClipboardList, Settings, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import type { Student } from "@/types/admin/student.types";
 import type {
@@ -48,6 +50,7 @@ export default function EnrollmentPage() {
 
   const [schoolYearId, setSchoolYearId] = useState<string | null>(null);
   const [tab, setTab] = useState("enrollments");
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Program dialog
   const [programTarget, setProgramTarget] = useState<Student | null>(null);
@@ -289,6 +292,21 @@ export default function EnrollmentPage() {
           <div className="flex items-center justify-end gap-2">
             <Button
               size="sm"
+              variant="outline"
+              onClick={() => setSettingsOpen((o) => !o)}
+              aria-expanded={settingsOpen}
+            >
+              <Settings className="mr-1.5 h-4 w-4" />
+              Settings
+              <ChevronDown
+                className={cn(
+                  "ml-1.5 h-3.5 w-3.5 transition-transform",
+                  settingsOpen && "rotate-180"
+                )}
+              />
+            </Button>
+            <Button
+              size="sm"
               onClick={handleEnrollClick}
               disabled={isEnded}
             >
@@ -297,7 +315,11 @@ export default function EnrollmentPage() {
             </Button>
           </div>
 
-          <OrgEnrollmentSettingCard />
+          {settingsOpen && (
+            <div className="animate-fade-in">
+              <OrgEnrollmentSettingCard />
+            </div>
+          )}
 
           <div>
             {enrollLoading ? (
