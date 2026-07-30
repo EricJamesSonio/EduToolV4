@@ -89,12 +89,12 @@ async function main() {
       where: { email_extension: emailExt },
       update: {
         name: school.name,
-        description: `Based in ${school.location}`,
+        address: school.address,
         logo_url: school.logo_url,
       },
       create: {
         name: school.name,
-        description: `Based in ${school.location}`,
+        address: school.address,
         logo_url: school.logo_url,
         email_extension: emailExt,
       },
