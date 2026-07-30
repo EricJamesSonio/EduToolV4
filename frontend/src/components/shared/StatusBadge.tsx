@@ -48,30 +48,30 @@ interface StatusConfig {
 
 const STATUS_MAP: Record<string, StatusConfig> = {
   // Green — positive / active
-  active:    { label: "Active",    className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" },
-  present:   { label: "Present",   className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" },
-  submitted: { label: "Submitted", className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" },
-  passed:    { label: "Passed",    className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" },
-  open:      { label: "Open",      className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" },
-  unlocked:  { label: "Unlocked",  className: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" },
+  active:    { label: "Active",    className: "badge-active" },
+  present:   { label: "Present",   className: "badge-active" },
+  submitted: { label: "Submitted", className: "badge-active" },
+  passed:    { label: "Passed",    className: "badge-active" },
+  open:      { label: "Open",      className: "badge-active" },
+  unlocked:  { label: "Unlocked",  className: "badge-active" },
 
   // Yellow/Amber — pending / in-progress
-  pending:   { label: "Pending",   className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" },
-  draft:     { label: "Draft",     className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" },
-  upcoming:  { label: "Upcoming",  className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" },
-  exempted:  { label: "Exempted",  className: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" },
+  pending:   { label: "Pending",   className: "badge-pending" },
+  draft:     { label: "Draft",     className: "badge-pending" },
+  upcoming:  { label: "Upcoming",  className: "badge-pending" },
+  exempted:  { label: "Exempted",  className: "badge-pending" },
 
   // Red — negative / blocked / failed
-  blocked:   { label: "Blocked",   className: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800" },
-  dropped:   { label: "Dropped",   className: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800" },
-  absent:    { label: "Absent",    className: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800" },
-  failed:    { label: "Failed",    className: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800" },
-  closed:    { label: "Closed",    className: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800" },
-  missed:    { label: "Missed",    className: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800" },
+  blocked:   { label: "Blocked",   className: "badge-suspended" },
+  dropped:   { label: "Dropped",   className: "badge-suspended" },
+  absent:    { label: "Absent",    className: "badge-suspended" },
+  failed:    { label: "Failed",    className: "badge-suspended" },
+  closed:    { label: "Closed",    className: "badge-suspended" },
+  missed:    { label: "Missed",    className: "badge-suspended" },
 
   // Orange — warning / suspended / late
-  suspended: { label: "Suspended", className: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800" },
-  late:      { label: "Late",      className: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800" },
+  suspended: { label: "Suspended", className: "badge-suspended" },
+  late:      { label: "Late",      className: "badge-pending" },
 
   // Gray — inactive / ended / archived
   graduated: { label: "Graduated", className: "bg-muted text-muted-foreground border-border" },
@@ -80,12 +80,12 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   locked:    { label: "Locked",    className: "bg-muted text-muted-foreground border-border" },
   "auto-locked": { label: "Auto-Locked", className: "bg-muted text-muted-foreground border-border" },
 
-  // Blue-gray — transferred / live
-  transferred: { label: "Transferred", className: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700" },
-  excused:     { label: "Excused",     className: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-700" },
+  // Blue-gray — transferred / excused
+  transferred: { label: "Transferred", className: "badge-transferred" },
+  excused:     { label: "Excused",     className: "badge-transferred" },
 
   // Blue — live
-  live: { label: "Live", className: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800" },
+  live: { label: "Live", className: "badge-info" },
 };
 
 interface StatusBadgeProps {
