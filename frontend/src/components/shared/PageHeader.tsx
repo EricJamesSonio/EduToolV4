@@ -1,3 +1,4 @@
+// ===== File: frontend\src\components\shared\PageHeader.tsx =====
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -23,54 +24,50 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div data-slot="page-header" className={cn("flex flex-col gap-3", className)}>
+    <div
+      data-slot="page-header"
+      className={cn(
+        "flex flex-col gap-1.5 pb-4 mb-1 border-b border-border",
+        className
+      )}
+    >
+      {breadcrumbs && breadcrumbs.length > 0 && (
+        <nav aria-label="Breadcrumb">
+          <ol className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+            {breadcrumbs.map((crumb, i) => (
+              <li key={i} className="flex items-center gap-1">
+                {i > 0 && (
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                )}
+                {crumb.href ? (
+                  <Link
+                    href={crumb.href}
+                    className="hover:text-foreground transition-colors"
+                  >
+                    {crumb.label}
+                  </Link>
+                ) : (
+                  <span
+                    className={
+                      i === breadcrumbs.length - 1
+                        ? "font-medium text-foreground"
+                        : ""
+                    }
+                  >
+                    {crumb.label}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )}
 
-      {/* HEADER (THEME-BASED, NOT HARD-CODED) */}
-      <div className="w-full rounded-lg border border-border bg-card px-6 py-4">
-        <h1 className="text-center font-bold tracking-wide not-interactive">
-          {title}
-        </h1>
-      </div>
-
-      {/* Breadcrumb + Actions */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-
-        <div className="space-y-1">
-          {/* Breadcrumb */}
-          {breadcrumbs && breadcrumbs.length > 0 && (
-            <nav aria-label="Breadcrumb">
-              <ol className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
-                {breadcrumbs.map((crumb, i) => (
-                  <li key={i} className="flex items-center gap-1">
-                    {i > 0 && (
-                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
-
-                    {crumb.href ? (
-                      <Link
-                        href={crumb.href}
-                        className="hover:text-foreground transition-colors"
-                      >
-                        {crumb.label}
-                      </Link>
-                    ) : (
-                      <span
-                        className={
-                          i === breadcrumbs.length - 1
-                            ? "font-medium text-foreground"
-                            : ""
-                        }
-                      >
-                        {crumb.label}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </nav>
-          )}
-
-          {/* Description */}
+      <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 space-y-0.5">
+          <h1 className="!text-xl !font-semibold !leading-tight !tracking-tight !m-0 text-foreground not-interactive">
+            {title}
+          </h1>
           {description && (
             <p className="text-sm text-muted-foreground not-interactive">
               {description}
@@ -78,11 +75,8 @@ export function PageHeader({
           )}
         </div>
 
-        {/* Actions */}
         {actions && (
-          <div className="flex shrink-0 items-center gap-2 sm:mt-0">
-            {actions}
-          </div>
+          <div className="flex shrink-0 items-center gap-2">{actions}</div>
         )}
       </div>
     </div>
