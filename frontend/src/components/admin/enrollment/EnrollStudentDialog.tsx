@@ -1,24 +1,25 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { studentApi } from "@/api/admin/student.api";
 import type { Student } from "@/types/admin/student.types";
 import type { StudentSchoolYearEnrollment } from "@/types/admin/student-enrollment.types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input }  from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge }  from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface Props {
-  open:            boolean;
-  onClose:         () => void;
+  open: boolean;
+  onClose: () => void;
   alreadyEnrolled: StudentSchoolYearEnrollment[];
-  onConfirm:       (students: Student[]) => void;
-  isLoading:       boolean;
+  onConfirm: (students: Student[]) => void;
+  isLoading: boolean;
 }
 
 export function EnrollStudentDialog({
@@ -28,15 +29,15 @@ export function EnrollStudentDialog({
   onConfirm,
   isLoading,
 }: Props) {
-  const [search, setSearch]         = useState("");
-  const [selected, setSelected]     = useState<Student[]>([]);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Student[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const { data: allStudents = [], isLoading: studentsLoading } = useQuery({
-    queryKey: ["admin", "students", "all"],
-    queryFn:  () => studentApi.getAll({}),
-    enabled:  open,
-  });
+  const { data: allStudents = [], isLoading: studentsLoading } = useAsyncQuery(
+    queryKeys.admin.students.list(),
+    () => studentApi.getAll({}),
+    { enabled: open },
+  );
 
   const enrolledIds = useMemo(
     () => new Set(alreadyEnrolled.map((e) => e.student_id)),
@@ -90,7 +91,6 @@ export function EnrollStudentDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -101,7 +101,6 @@ export function EnrollStudentDialog({
           />
         </div>
 
-        {/* Selected chips */}
         {selected.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {selected.map((s) => (
@@ -123,7 +122,6 @@ export function EnrollStudentDialog({
           </div>
         )}
 
-        {/* Student list */}
         <div className="max-h-96 overflow-y-auto rounded-md border divide-y">
           {studentsLoading ? (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">

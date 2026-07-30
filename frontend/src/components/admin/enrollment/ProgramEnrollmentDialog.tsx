@@ -2,9 +2,10 @@
 
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { programApi } from "@/api/admin/program.api";
-import { levelApi }   from "@/api/admin/level.api";
+import { levelApi } from "@/api/admin/level.api";
 import type { Student } from "@/types/admin/student.types";
 import type { EnrollStudentProgramRequest } from "@/types/admin/student-enrollment.types";
 import {
@@ -14,24 +15,24 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Label }  from "@/components/ui/label";
+import { Label } from "@/components/ui/label";
 import { GraduationCap } from "lucide-react";
 
 interface FormValues {
-  program_id:  string;
-  level_id:    string;
-  course_id:   string;
-  strand_id:   string;
-  section_id:  string;
+  program_id: string;
+  level_id: string;
+  course_id: string;
+  strand_id: string;
+  section_id: string;
 }
 
 interface Props {
-  open:         boolean;
-  onClose:      () => void;
-  student:      Student;
+  open: boolean;
+  onClose: () => void;
+  student: Student;
   schoolYearId: string;
-  onConfirm:    (data: EnrollStudentProgramRequest) => void;
-  isLoading:    boolean;
+  onConfirm: (data: EnrollStudentProgramRequest) => void;
+  isLoading: boolean;
 }
 
 export function ProgramEnrollmentDialog({
@@ -45,49 +46,46 @@ export function ProgramEnrollmentDialog({
   const { watch, setValue, handleSubmit, reset } = useForm<FormValues>({
     defaultValues: {
       program_id: "",
-      level_id:   "",
-      course_id:  "",
-      strand_id:  "",
+      level_id: "",
+      course_id: "",
+      strand_id: "",
       section_id: "",
     },
   });
 
   const programId = watch("program_id");
-  const levelId   = watch("level_id");
+  const levelId = watch("level_id");
 
-  // Reset dependent fields when program changes
   useEffect(() => {
-    setValue("level_id",   "");
-    setValue("course_id",  "");
-    setValue("strand_id",  "");
+    setValue("level_id", "");
+    setValue("course_id", "");
+    setValue("strand_id", "");
     setValue("section_id", "");
   }, [programId, setValue]);
 
-  // Reset section when level changes
   useEffect(() => {
     setValue("section_id", "");
   }, [levelId, setValue]);
 
-  const { data: programs = [] } = useQuery({
-    queryKey: ["admin", "programs", schoolYearId],
-    queryFn:  () => programApi.getAll(schoolYearId),
-    enabled:  open && !!schoolYearId,
-  });
+  const { data: programs = [] } = useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId }),
+    () => programApi.getAll(schoolYearId),
+    { enabled: open && !!schoolYearId },
+  );
 
   const selectedProgram = programs.find((p) => p.id === programId);
-  const programType     = selectedProgram?.type ?? "";
+  const programType = selectedProgram?.type ?? "";
 
   const isCollege = programType === "college";
-  const isShs     = programType === "shs";
+  const isShs = programType === "shs";
   const hasLevels = ["daycare", "kinder", "elementary", "jhs"].includes(programType);
 
-  const { data: levels = [] } = useQuery({
-    queryKey: ["admin", "levels", schoolYearId],
-    queryFn:  () => levelApi.getBySchoolYear(schoolYearId),
-    enabled:  open && !!schoolYearId,
-  });
+  const { data: levels = [] } = useAsyncQuery(
+    queryKeys.admin.levels.list({ schoolYearId }),
+    () => levelApi.getBySchoolYear(schoolYearId),
+    { enabled: open && !!schoolYearId },
+  );
 
-  // Filter levels that belong to the selected program
   const programLevels = levels.filter((l) => (l as { program_id?: string }).program_id === programId);
 
   const handleClose = () => { reset(); onClose(); };
@@ -95,11 +93,11 @@ export function ProgramEnrollmentDialog({
   const onSubmit = (values: FormValues) => {
     if (!values.program_id) return;
     onConfirm({
-      program_id:  values.program_id,
-      level_id:    values.level_id   || undefined,
-      course_id:   values.course_id  || undefined,
-      strand_id:   values.strand_id  || undefined,
-      section_id:  values.section_id || undefined,
+      program_id: values.program_id,
+      level_id: values.level_id || undefined,
+      course_id: values.course_id || undefined,
+      strand_id: values.strand_id || undefined,
+      section_id: values.section_id || undefined,
     });
   };
 
@@ -119,7 +117,6 @@ export function ProgramEnrollmentDialog({
         </p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-1">
-          {/* Program */}
           <div className="space-y-1.5">
             <Label>Program <span className="text-destructive">*</span></Label>
             <Select
@@ -137,7 +134,6 @@ export function ProgramEnrollmentDialog({
             </Select>
           </div>
 
-          {/* Level — K-12 programs */}
           {hasLevels && programId && (
             <div className="space-y-1.5">
               <Label>Level</Label>
@@ -158,7 +154,6 @@ export function ProgramEnrollmentDialog({
             </div>
           )}
 
-          {/* Course — College */}
           {isCollege && programId && (
             <div className="space-y-1.5">
               <Label>Course</Label>
@@ -181,7 +176,6 @@ export function ProgramEnrollmentDialog({
             </div>
           )}
 
-          {/* Strand — SHS */}
           {isShs && programId && (
             <div className="space-y-1.5">
               <Label>Strand</Label>
