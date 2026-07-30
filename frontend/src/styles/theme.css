@@ -85,14 +85,20 @@
 
   /* Semantic colors */
   --destructive: #EF4444;
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: #991B1B;
 
   --success: #10B981;
+  --success-foreground: #065F46;
   --warning: #F59E0B;
+  --warning-foreground: #92400E;
   --info: #3B82F6;
+  --info-foreground: #1E40AF;
 
   --accent: #0EA5E9;
   --accent-foreground: #ffffff;
+
+  /* Feature icon colors */
+  --icon-classes: #22C55E;
 
   /* Sidebar */
   --sidebar: #ffffff;
@@ -125,14 +131,19 @@
   --ring: #3B82F6;
 
   --destructive: #EF4444;
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: #FCA5A5;
 
   --success: #10B981;
+  --success-foreground: #6EE7B7;
   --warning: #F59E0B;
+  --warning-foreground: #FCD34D;
   --info: #60A5FA;
+  --info-foreground: #BFDBFE;
 
   --accent: #38BDF8;
   --accent-foreground: #ffffff;
+
+  --icon-classes: #4ADE80;
 
   --sidebar: #0B1121;
   --sidebar-foreground: #F1F5F9;

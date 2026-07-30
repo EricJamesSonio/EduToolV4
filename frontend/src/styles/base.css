@@ -48,18 +48,6 @@
   }
 
   h2 {
-    font-size: clamp(3rem, 5vw, 4rem);
-  }
-
-  h3 {
-    font-size: clamp(2.25rem, 4vw, 3.25rem);
-  }
-
-  h4 {
-    font-size: 2rem;
-  }
-
-  h2 {
     font-size: clamp(2.5rem, 5vw, 4rem);
   }
 
