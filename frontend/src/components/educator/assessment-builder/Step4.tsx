@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { assessmentApi } from "@/api/educator/assessment.api";
@@ -19,16 +20,18 @@ export function Step4({
   const router = useRouter();
   const [cancelling, setCancelling] = useState(false);
 
-  const { data: preview } = useQuery({
-    queryKey: ["preview", previewId],
-    queryFn: () => assessmentApi.getPreview(classId, previewId),
-    refetchInterval: (query) => {
-      const s = query.state.data?.status;
-      return s === "completed" || s === "failed" ? false : 1500;
+  const { data: preview } = useAsyncQuery(
+    [...queryKeys.educator.all, 'preview', previewId] as const,
+    () => assessmentApi.getPreview(classId, previewId),
+    {
+      refetchInterval: (query: any) => {
+        const s = query.state.data?.status;
+        return s === "completed" || s === "failed" ? false : 1500;
+      },
+      enabled: !!previewId && !advancedRef.current && !cancelling,
+      retry: false,
     },
-    enabled: !!previewId && !advancedRef.current && !cancelling,
-    retry: false,
-  });
+  );
 
   const ready =
     preview?.status === "completed" && !!preview?.questions?.length;

@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { educatorClassApi } from "@/api/educator/class.api";
@@ -33,11 +34,11 @@ export function Step6({
   const datesMissing = !releaseDate || !endDate;
   const invalid =
     datesMissing || new Date(endDate) <= new Date(releaseDate);
-  const { data: students } = useQuery({
-    queryKey: ["class-students", classId],
-    queryFn: () => educatorClassApi.getStudents(classId),
-    enabled: !!classId,
-  });
+  const { data: students } = useAsyncQuery(
+    queryKeys.educator.classes.students(classId),
+    () => educatorClassApi.getStudents(classId),
+    { enabled: !!classId },
+  );
 
   return (
     <div className="space-y-6">

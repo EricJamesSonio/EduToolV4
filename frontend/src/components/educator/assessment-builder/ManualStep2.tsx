@@ -1,5 +1,6 @@
 import { Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Button } from "@/components/ui/button";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import { educatorClassApi } from "@/api/educator/class.api";
@@ -33,11 +34,11 @@ export function ManualStep2({
     !endDate ||
     new Date(endDate) <= new Date(releaseDate);
   const { data: weeks = [] } = useClassWeeks(classId);
-  const { data: students } = useQuery({
-    queryKey: ["class-students", classId],
-    queryFn: () => educatorClassApi.getStudents(classId),
-    enabled: !!classId,
-  });
+  const { data: students } = useAsyncQuery(
+    queryKeys.educator.classes.students(classId),
+    () => educatorClassApi.getStudents(classId),
+    { enabled: !!classId },
+  );
 
   const termMap = new Map<
     string,
