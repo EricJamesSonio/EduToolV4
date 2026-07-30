@@ -139,13 +139,33 @@ export function NewTemplateDialog({
     onOpenChange(false);
   };
 
+  const COMPONENT_TYPE_LABELS: Record<string, string> = {
+    written_work: "Written Work",
+    performance_task: "Performance Task",
+    quarterly_assessment: "Quarterly Assessment",
+    exam: "Exam",
+    quiz: "Quiz",
+    assignment: "Assignment",
+    project: "Project",
+    recitation: "Recitation",
+    participation: "Participation",
+    behavior: "Behavior",
+    attendance: "Attendance",
+    activity: "Activity",
+    custom: "Custom",
+    other: "Other",
+  };
+
   const handleSave = () => {
     if (!canSave) return;
 
     const payload = {
       name: name.trim(),
       classId,
-      components: rows,
+      components: rows.map((r) => ({
+        ...r,
+        name: r.name.trim() || COMPONENT_TYPE_LABELS[r.type] || r.type,
+      })),
     };
 
     if (isEditing && editScheme) {
@@ -193,7 +213,7 @@ export function NewTemplateDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {isEditing

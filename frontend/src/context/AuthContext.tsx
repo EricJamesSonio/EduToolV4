@@ -31,13 +31,14 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const router = useRouter();
   const queryClient = useQueryClient();
   const { setAccessToken, clearAuth } = useAuthStore();
+  const zustandIsLoading = useAuthStore((s) => s.isLoading);
   const bootstrap = useBootstrapAuth();
 
   useEffect(() => {
     bootstrap();
   }, [bootstrap]);
 
-  const { data: user, isLoading } = useAuthProfile();
+  const { data: user, isLoading: queryIsLoading } = useAuthProfile();
 
   const login = useCallback(
     async (email: string, password: string): Promise<void> => {
@@ -66,8 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
   const value: AuthContextValue = {
     user: user ?? null,
-    isLoading,
-    isAuthenticated: !!user,
+    isLoading: zustandIsLoading || queryIsLoading,
+    isAuthenticated: !!user && !zustandIsLoading,
     login,
     logout,
   };

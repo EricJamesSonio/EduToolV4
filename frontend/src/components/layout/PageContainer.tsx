@@ -1,5 +1,5 @@
+// ===== File: frontend\src\components\layout\PageContainer.tsx =====
 "use client";
-
 import { cn } from "@/lib/utils";
 
 interface PageContainerProps {
@@ -17,8 +17,7 @@ export function PageContainer({ children, className }: PageContainerProps) {
   return (
     <div
       className={cn(
-        // KEY PART: ensures readable contrast area
-        "min-h-full rounded-xl border border-black bg-white text-black",
+        "min-h-full rounded-xl border border-border bg-card text-card-foreground",
         "shadow-sm",
         "p-6",
         className

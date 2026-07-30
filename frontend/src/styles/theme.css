@@ -1,9 +1,10 @@
 /* ===== THEME TOKENS ONLY (NO COMPONENT STYLING) ===== */
 
 @theme inline {
-  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-  --font-heading: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-kodchasan), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-heading: var(--font-kodchasan), ui-sans-serif, system-ui, sans-serif;
+  --font-marketing: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 
   /* Core */
   --color-background: var(--background);
@@ -35,13 +36,13 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
 
-  /* Badge / tag hues (course category chips) */
-  --color-badge-yellow: var(--badge-yellow);
-  --color-badge-yellow-foreground: var(--badge-yellow-foreground);
+  /* Badge / tag hues (course category chips) — rotated across the 3 brand accents */
+  --color-badge-orange: var(--badge-orange);
+  --color-badge-orange-foreground: var(--badge-orange-foreground);
   --color-badge-purple: var(--badge-purple);
   --color-badge-purple-foreground: var(--badge-purple-foreground);
-  --color-badge-blue: var(--badge-blue);
-  --color-badge-blue-foreground: var(--badge-blue-foreground);
+  --color-badge-yellow: var(--badge-yellow);
+  --color-badge-yellow-foreground: var(--badge-yellow-foreground);
 
   /* Borders */
   --color-border: var(--border);
@@ -68,26 +69,26 @@
   --radius-sm: 0.75rem;
   --radius-lg: 1.75rem;
 
-  --background: #F7F2E7;
-  --foreground: #1C2129;
+  --background: #F7F7F5;
+  --foreground: #151313;
 
   --card: #FFFFFF;
-  --card-foreground: #1C2129;
+  --card-foreground: #151313;
   --popover: #FFFFFF;
-  --popover-foreground: #1C2129;
+  --popover-foreground: #151313;
 
-  --primary: #F15C3E;
+  --primary: #FF5734;
   --primary-foreground: #FFFFFF;
 
-  --secondary: #1C2129;
-  --secondary-foreground: #F7F2E7;
+  --secondary: #151313;
+  --secondary-foreground: #F7F7F5;
 
-  --muted: #F0EAD9;
-  --muted-foreground: #6B6656;
+  --muted: #EFEFEC;
+  --muted-foreground: #4A4A46;
 
-  --border: #E7DEC7;
-  --input: #D9CDA8;
-  --ring: #F15C3E;
+  --border: #E3E2DC;
+  --input: #D4D3CA;
+  --ring: #FF5734;
 
   --destructive: #C0392B;
   --destructive-foreground: #7A2620;
@@ -98,43 +99,43 @@
   --info: #2F6FA8;
   --info-foreground: #1E3A5F;
 
-  --accent: #FFC93C;
-  --accent-foreground: #2B2108;
+  --accent: #FCCC42;
+  --accent-foreground: #3B2A05;
 
-  --badge-yellow: #FFC93C;
-  --badge-yellow-foreground: #2B2108;
-  --badge-purple: #D8C6FA;
-  --badge-purple-foreground: #362160;
-  --badge-blue: #BEE6F5;
-  --badge-blue-foreground: #0F3A4D;
+  --badge-orange: #FF5734;
+  --badge-orange-foreground: #FFFFFF;
+  --badge-purple: #BE94F5;
+  --badge-purple-foreground: #34205C;
+  --badge-yellow: #FCCC42;
+  --badge-yellow-foreground: #3B2A05;
 
-  --icon-classes: #F15C3E;
+  --icon-classes: #FF5734;
 
-  --sidebar: #1C2129;
-  --sidebar-foreground: #F7F2E7;
-  --sidebar-border: #2B313B;
+  --sidebar: #151313;
+  --sidebar-foreground: #F7F7F5;
+  --sidebar-border: #262424;
 }
 
 .dark {
-  --background: #14181F;
-  --foreground: #F3EFE2;
+  --background: #14140F;
+  --foreground: #F7F7F5;
 
-  --card: #1C2129;
-  --card-foreground: #F3EFE2;
-  --popover: #1C2129;
-  --popover-foreground: #F3EFE2;
+  --card: #1C1C17;
+  --card-foreground: #F7F7F5;
+  --popover: #1C1C17;
+  --popover-foreground: #F7F7F5;
 
   --primary: #FF7A5C;
-  --primary-foreground: #1C2129;
+  --primary-foreground: #151313;
 
-  --secondary: #F7F2E7;
-  --secondary-foreground: #1C2129;
+  --secondary: #F7F7F5;
+  --secondary-foreground: #151313;
 
-  --muted: #232A33;
-  --muted-foreground: #9BA3AE;
+  --muted: #232320;
+  --muted-foreground: #B8B7B0;
 
-  --border: #2B313B;
-  --input: #3A4149;
+  --border: #2B2B26;
+  --input: #3A3A33;
   --ring: #FF7A5C;
 
   --destructive: #E5665A;
@@ -146,19 +147,19 @@
   --info: #6FA8DC;
   --info-foreground: #CFE3F5;
 
-  --accent: #FFD666;
-  --accent-foreground: #2B2108;
+  --accent: #FCD666;
+  --accent-foreground: #3B2A05;
 
-  --badge-yellow: #FFD666;
-  --badge-yellow-foreground: #2B2108;
-  --badge-purple: #C4A9F5;
+  --badge-orange: #FF7A5C;
+  --badge-orange-foreground: #2B1005;
+  --badge-purple: #D2B4FA;
   --badge-purple-foreground: #241541;
-  --badge-blue: #8FD4EC;
-  --badge-blue-foreground: #0A2733;
+  --badge-yellow: #FCD666;
+  --badge-yellow-foreground: #3B2A05;
 
   --icon-classes: #FF7A5C;
 
-  --sidebar: #0F1318;
-  --sidebar-foreground: #F3EFE2;
-  --sidebar-border: #232A33;
+  --sidebar: #0F0F0C;
+  --sidebar-foreground: #F7F7F5;
+  --sidebar-border: #232320;
 }

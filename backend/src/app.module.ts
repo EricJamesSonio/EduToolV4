@@ -16,6 +16,8 @@ import { SchedulerModule } from './core/scheduler/scheduler.module';
 
 import { HealthModule } from './modules/health/health.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { OrganizationModule } from './modules/organization/organization.module';
+import { PublicModule } from './modules/public/public.module';
 
 @Module({
   imports: [
@@ -35,6 +37,9 @@ import { UploadModule } from './modules/upload/upload.module';
     AssessmentDomainModule,
     SystemDomainModule,
     PlatformDomainModule,
+
+    OrganizationModule,
+    PublicModule,
 
     HealthModule,
     UploadModule,

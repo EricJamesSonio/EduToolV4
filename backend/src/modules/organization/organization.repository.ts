@@ -27,11 +27,12 @@ export class OrganizationRepository {
     return !!account?.org_id;
   }
 
-async create(data: { name: string; description?: string; email_extension?: string }) {
+async create(data: { name: string; description?: string; address?: string; email_extension?: string }) {
   return this.db.organization.create({
     data: {
       name: data.name,
       description: data.description ?? null,
+      address: data.address ?? null,
       email_extension: data.email_extension ?? undefined,
     },
   });
@@ -42,7 +43,8 @@ async update(
   data: {
     name?: string;
     description?: string;
-    email_extension?: string;   // removed `| null` — schema field is non-nullable
+    address?: string;
+    email_extension?: string;
   },
 ) {
   return this.db.organization.update({
@@ -55,6 +57,13 @@ async update(
     return this.db.account.update({
       where: { id: adminId },
       data: { org_id: orgId },
+    });
+  }
+
+  async findAll() {
+    return this.db.organization.findMany({
+      where: { admin_account_id: { not: null } },
+      orderBy: { name: 'asc' },
     });
   }
 }

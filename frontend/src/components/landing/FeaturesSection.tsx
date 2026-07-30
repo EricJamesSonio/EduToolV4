@@ -21,7 +21,7 @@ export function FeaturesSection() {
         <div className="flex justify-center">
           <div className="section-accent"></div>
         </div>
-        <h2 className="font-bold not-interactive">
+        <h2 className="font-marketing font-extrabold not-interactive">
           Everything Schools Need in One Platform
         </h2>
         <p className="text-lg text-muted-foreground not-interactive">

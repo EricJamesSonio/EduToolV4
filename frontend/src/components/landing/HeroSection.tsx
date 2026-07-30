@@ -30,7 +30,7 @@ export function HeroSection() {
           className={`space-y-10 text-center lg:text-left ${leftSideInView ? "animate-fade-in-up" : ""}`}
         >
           <div className="space-y-6">
-            <h1 className="cursor-default select-none text-5xl md:text-6xl">
+            <h1 className="font-marketing font-extrabold cursor-default select-none text-5xl md:text-6xl">
               The All-in-One{" "}
               <span className="gradient-text">School Management</span> Platform
             </h1>
@@ -65,7 +65,7 @@ export function HeroSection() {
           </div>
 
           {/* Trust badges (kept, but cleaner) */}
-          <div className="flex flex-wrap gap-6 justify-center lg:justify-start text-sm text-muted-foreground pt-2">
+          <div className="font-marketing flex flex-wrap gap-6 justify-center lg:justify-start text-sm text-muted-foreground pt-2">
             {[
               "Multi-tenant",
               "Secure",
@@ -105,7 +105,7 @@ export function HeroSection() {
               {/* Screen (auto height now) */}
               <div className="w-full bg-background/30">
                 <img
-                  src="/desktop.png"
+                  src="/desktop-2.png"
                   alt="Dashboard preview"
                   className="w-full h-auto object-cover"
                 />
@@ -120,7 +120,7 @@ export function HeroSection() {
 
               <div className="w-full bg-background/30">
                 <img
-                  src="/mobile.png"
+                  src="/mobile-2.png"
                   alt="Mobile preview"
                   className="w-full h-auto object-cover"
                 />

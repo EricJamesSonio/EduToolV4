@@ -52,7 +52,7 @@ export function PortalNavbar() {
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-11 h-11 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200">
               <img
-                src="/edutool.png"
+                src="/edutool-orange.png"
                 alt="Relief-ED logo"
                 className="w-full h-full object-cover"
               />

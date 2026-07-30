@@ -18,15 +18,16 @@
     scroll-padding-top: 6rem;
   }
 
-  body {
-    background-color: var(--background);
-    color: var(--foreground);
-    font-family: var(--font-sans);
-    font-size: 1rem;
-    /* 16px — standard base size */
-    line-height: 1.6;
-    font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
-  }
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 500;
+  /* 16px — standard base size */
+  line-height: 1.6;
+  font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
+}
 
   /* ── Headings use the rounded display font ── */
   h1,
