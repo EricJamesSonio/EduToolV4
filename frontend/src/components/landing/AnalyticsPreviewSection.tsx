@@ -27,7 +27,7 @@ export function AnalyticsPreviewSection() {
         <div className="flex justify-center">
           <div className="section-accent" />
         </div>
-        <h2 className="font-bold not-interactive">Trusted by Schools Worldwide</h2>
+        <h2 className="font-marketing font-extrabold not-interactive">Trusted by Schools Worldwide</h2>
         <p className="text-lg text-muted-foreground not-interactive">
           Relief-ED powers modern education systems across thousands of schools.
           Track real platform impact, user adoption, and engagement in real time.

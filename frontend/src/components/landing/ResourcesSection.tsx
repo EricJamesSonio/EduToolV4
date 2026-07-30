@@ -68,7 +68,7 @@ export function ResourcesSection() {
         <div className="flex justify-center">
           <div className="section-accent"></div>
         </div>
-        <h2 className="font-bold not-interactive">Learn & Get Started</h2>
+        <h2 className="font-marketing font-extrabold not-interactive">Learn & Get Started</h2>
         <p className="text-lg text-muted-foreground not-interactive">
           Everything you need to master Relief-ED and manage your school
           effectively.

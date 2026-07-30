@@ -17,7 +17,7 @@ export function WorkflowSection() {
         <div className="flex justify-center">
           <div className="section-accent"></div>
         </div>
-        <h2 className="font-bold not-interactive">
+        <h2 className="font-marketing font-extrabold not-interactive">
           Get Your School Running in Minutes
         </h2>
         <p className="text-lg text-muted-foreground not-interactive">

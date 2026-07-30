@@ -317,7 +317,7 @@ export function SolutionSection() {
             <div className="section-accent" />
           </div>
 
-          <h2 className="font-bold not-interactive">
+          <h2 className="font-marketing font-extrabold not-interactive">
             {role === "admin" && "Run Your School Without the Chaos"}
             {role === "educator" &&
               "Teach, Grade, and Manage Classes with Ease"}
