@@ -57,11 +57,11 @@ async function fetchPrograms(schoolYearId: string): Promise<Program[]> {
 }
 
 function useProgramsBySchoolYear(schoolYearId?: string) {
-  return useQuery({
-    queryKey: ["programs", schoolYearId],
-    queryFn: () => fetchPrograms(schoolYearId!),
-    enabled: !!schoolYearId,
-  });
+  return useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId }),
+    () => fetchPrograms(schoolYearId!),
+    { enabled: !!schoolYearId },
+  );
 }
 
 const errMsg = (e: unknown) =>
