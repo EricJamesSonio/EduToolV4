@@ -26,10 +26,10 @@ export function PageHeader({
   return (
     <div
       data-slot="page-header"
-      className={cn(
-        "flex flex-col gap-1.5 pb-4 mb-1 border-b border-border",
-        className
-      )}
+className={cn(
+  "flex flex-col gap-1.5 pb-4 mb-6 border-b border-border",
+  className
+)}
     >
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav aria-label="Breadcrumb">
