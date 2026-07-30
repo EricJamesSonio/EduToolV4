@@ -105,7 +105,7 @@ export function HeroSection() {
               {/* Screen (auto height now) */}
               <div className="w-full bg-background/30">
                 <img
-                  src="/desktop.png"
+                  src="/desktop-2.png"
                   alt="Dashboard preview"
                   className="w-full h-auto object-cover"
                 />
@@ -120,7 +120,7 @@ export function HeroSection() {
 
               <div className="w-full bg-background/30">
                 <img
-                  src="/mobile.png"
+                  src="/mobile-2.png"
                   alt="Mobile preview"
                   className="w-full h-auto object-cover"
                 />

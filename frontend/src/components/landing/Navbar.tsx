@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { GraduationCap } from "lucide-react";
 
 export function Navbar() {
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
+  const handleNavClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    sectionId: string,
+  ) => {
     e.preventDefault();
     const el = document.getElementById(sectionId);
     if (!el) return;
@@ -31,28 +34,38 @@ export function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border/60 bg-white/80 backdrop-blur-xl">
+    <nav className="sticky top-0 z-50 border-b border-border bg-secondary text-secondary-foreground shadow-sm">
       <div className="page-container flex items-center justify-between py-5">
         {/* Logo */}
-      <Link href="/" className="flex items-center gap-3 group">
-        <div className="w-11 h-11 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200">
-          <img
-            src="/edutool.png"
-            alt="Relief-ED logo"
-            className="w-full h-full object-cover"
-          />
-        </div>
-        <span className="font-heading font-bold text-xl tracking-tight">Relief-ED</span>
-      </Link>
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="w-11 h-11 rounded-xl overflow-hidden shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200">
+            <img
+              src="/edutool-orange.png"
+              alt="Relief-ED logo"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <span className="font-heading font-bold text-xl tracking-tight">
+            Relief-ED
+          </span>
+        </Link>
 
         {/* Center Links */}
         <div className="hidden md:flex items-center gap-10">
-          {["Home","Features", "Solutions", "Resources", "Pricing", "Contact", "About"].map((item) => (
+          {[
+            "Home",
+            "Features",
+            "Solutions",
+            "Resources",
+            "Pricing",
+            "Contact",
+            "About",
+          ].map((item) => (
             <a
               key={item}
               href={`#${item.toLowerCase()}`}
               onClick={(e) => handleNavClick(e, item.toLowerCase())}
-              className="relative text-base text-muted-foreground hover:text-foreground transition-colors duration-200 after:absolute after:bottom-[-2px] after:left-0 after:h-0.5 after:w-0 after:bg-primary after:transition-all after:duration-200 hover:after:w-full"
+              className="relative text-base text-secondary-foreground/80 hover:text-secondary-foreground transition-colors duration-200 after:absolute after:bottom-[-2px] after:left-0 after:h-0.5 after:w-0 after:bg-primary after:transition-all after:duration-200 hover:after:w-full"
             >
               {item}
             </a>
@@ -62,12 +75,13 @@ export function Navbar() {
         {/* Right Buttons */}
         <div className="flex items-center gap-4">
           <Link href="/login">
-            <Button variant="outline" className="bg-white shadow-xs text-base px-5 py-2.5">
+            <Button className="bg-secondary-foreground text-secondary hover:opacity-90 shadow-xs text-base px-5 py-2.5">
               Sign In
             </Button>
           </Link>
+
           <Link href="/login">
-            <Button className="shadow-sm text-base px-5 py-2.5">
+            <Button className="bg-primary text-primary-foreground hover:opacity-90 shadow-sm text-base px-5 py-2.5">
               Get Started
             </Button>
           </Link>
