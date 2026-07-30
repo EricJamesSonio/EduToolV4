@@ -2,7 +2,9 @@
 
 import { use } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { ArrowLeft, KeyRound, ShieldOff, ShieldCheck, Mail, Calendar, Shield } from "lucide-react";
 import { platformApi } from "@/api/platform.api";
@@ -30,10 +32,10 @@ export default function AdminDetailPage({ params }: PageProps): React.JSX.Elemen
     password: string;
   } | null>(null);
 
-  const { data: admin, isLoading } = useQuery({
-    queryKey: ["platform", "admins", id],
-    queryFn: () => platformApi.getAdmin(id),
-  });
+  const { data: admin, isLoading } = useAsyncQuery(
+    queryKeys.platform.admins.detail(id),
+    () => platformApi.getAdmin(id),
+  );
 
   const resetMutation = useMutation({
     mutationFn: () => platformApi.resetAdminPassword(id),
@@ -53,7 +55,7 @@ export default function AdminDetailPage({ params }: PageProps): React.JSX.Elemen
     mutationFn: () => platformApi.blockAdmin(id),
     onSuccess: () => {
       toast.success("Admin blocked.");
-      queryClient.invalidateQueries({ queryKey: ["platform", "admins"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.platform.admins.all });
       setConfirmType(null);
     },
     onError: () => toast.error("Failed to block admin."),
@@ -63,7 +65,7 @@ export default function AdminDetailPage({ params }: PageProps): React.JSX.Elemen
     mutationFn: () => platformApi.unblockAdmin(id),
     onSuccess: () => {
       toast.success("Admin unblocked.");
-      queryClient.invalidateQueries({ queryKey: ["platform", "admins"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.platform.admins.all });
       setConfirmType(null);
     },
     onError: () => toast.error("Failed to unblock admin."),
@@ -119,7 +121,6 @@ export default function AdminDetailPage({ params }: PageProps): React.JSX.Elemen
 
   return (
     <div className="space-y-6 max-w-2xl">
-      {/* Back */}
       <Button
         variant="ghost"
         size="sm"
@@ -130,7 +131,6 @@ export default function AdminDetailPage({ params }: PageProps): React.JSX.Elemen
         Back to Admins
       </Button>
 
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">
@@ -141,7 +141,6 @@ export default function AdminDetailPage({ params }: PageProps): React.JSX.Elemen
         <StatusBadge status={admin.status} />
       </div>
 
-      {/* Details card */}
       <div className="rounded-lg border bg-card divide-y">
         <DetailRow icon={Mail} label="Email" value={admin.email} />
         <DetailRow
@@ -156,7 +155,6 @@ export default function AdminDetailPage({ params }: PageProps): React.JSX.Elemen
         />
       </div>
 
-      {/* Actions */}
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
@@ -193,7 +191,6 @@ export default function AdminDetailPage({ params }: PageProps): React.JSX.Elemen
         )}
       </div>
 
-      {/* Confirm dialog */}
       {confirmType && confirmCopy && (
         <ConfirmDialog
           open
@@ -207,7 +204,6 @@ export default function AdminDetailPage({ params }: PageProps): React.JSX.Elemen
         />
       )}
 
-      {/* Credentials card after reset */}
       {resetCredentials && (
         <AdminCredentialsCard
           open
@@ -219,8 +215,6 @@ export default function AdminDetailPage({ params }: PageProps): React.JSX.Elemen
     </div>
   );
 }
-
-// ─── Detail Row ───────────────────────────────────────────────────────────────
 
 interface DetailRowProps {
   icon: React.ElementType;

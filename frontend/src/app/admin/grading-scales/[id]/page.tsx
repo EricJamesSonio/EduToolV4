@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
 import { useGradingScales } from "@/hooks/admin/useGradingScales";
@@ -49,7 +50,7 @@ const [initialised, setInitialised] = useState(false)
       gradingScaleApi.update(id, { name, ranges }),
     onSuccess: () => {
       toast.success("Grading scale saved.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "gradingScales"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.gradingScales.list() });
     },
     onError: (err: AxiosError<{ message: string }>) => {
       toast.error(err?.response?.data?.message ?? "Failed to save grading scale.");

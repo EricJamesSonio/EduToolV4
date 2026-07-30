@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { ColumnDef } from "@tanstack/react-table";
 import { classApi } from "@/api/admin/class.api";
@@ -30,25 +31,21 @@ interface EducatorClassAssignmentManagerProps {
 }
 
 export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssignmentManagerProps) {
-  const queryClient = useQueryClient();
-
-  const [assignOpen, setAssignOpen]     = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Class | null>(null);
   const [assignTarget, setAssignTarget] = useState<Class | null>(null);
-  const [search, setSearch]             = useState("");
+  const [search, setSearch] = useState("");
 
-  // Assigned classes
-  const { data: assigned = [], isLoading } = useQuery({
-    queryKey: ["admin", "classes", { educatorId }],
-    queryFn:  () => classApi.getAll({ educatorId }),
-  });
+  const { data: assigned = [], isLoading } = useAsyncQuery(
+    queryKeys.admin.classes.list({ educatorId }),
+    () => classApi.getAll({ educatorId }),
+  );
 
-  // All classes
-  const { data: allClasses = [], isLoading: loadingAll } = useQuery({
-    queryKey: ["admin", "classes", "all"],
-    queryFn:  () => classApi.getAll(),
-    enabled:  assignOpen,
-  });
+  const { data: allClasses = [], isLoading: loadingAll } = useAsyncQuery(
+    queryKeys.admin.classes.list(),
+    () => classApi.getAll(),
+    { enabled: assignOpen },
+  );
 
   const assignedIds = useMemo(() => new Set(assigned.map((c) => c.id)), [assigned]);
 
@@ -64,36 +61,36 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
     );
   }, [allClasses, assignedIds, search]);
 
-  // ✅ Assign mutation
-  const assignMutation = useMutation({
-    mutationFn: (classId: string) => classApi.update(classId, { educatorId }),
-    onSuccess: () => {
-      toast.success("Class assigned.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "classes", { educatorId }] });
-      queryClient.invalidateQueries({ queryKey: ["educators"] });
-      setAssignTarget(null);
-      setAssignOpen(false);
+  const assignMutation = useMutationWithInvalidation(
+    (classId: string) => classApi.update(classId, { educatorId }),
+    {
+      invalidateKeys: [queryKeys.admin.classes.list({ educatorId }), queryKeys.admin.educators.all],
+      onSuccess: () => {
+        toast.success("Class assigned.");
+        setAssignTarget(null);
+        setAssignOpen(false);
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to assign class.");
+        setAssignTarget(null);
+      },
     },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to assign class.");
-      setAssignTarget(null);
-    },
-  });
+  );
 
-  // Remove mutation
-  const removeMutation = useMutation({
-    mutationFn: (classId: string) => classApi.update(classId, { educatorId: undefined }),
-    onSuccess: () => {
-      toast.success("Class removed.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "classes", { educatorId }] });
-      queryClient.invalidateQueries({ queryKey: ["educators"] });
-      setRemoveTarget(null);
+  const removeMutation = useMutationWithInvalidation(
+    (classId: string) => classApi.update(classId, { educatorId: undefined }),
+    {
+      invalidateKeys: [queryKeys.admin.classes.list({ educatorId }), queryKeys.admin.educators.all],
+      onSuccess: () => {
+        toast.success("Class removed.");
+        setRemoveTarget(null);
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to remove.");
+        setRemoveTarget(null);
+      },
     },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to remove.");
-      setRemoveTarget(null);
-    },
-  });
+  );
 
   const assignedColumns = useMemo<ColumnDef<Class>[]>(() => [
     {
@@ -148,7 +145,6 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
   return (
     <div className="space-y-4">
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold not-interactive">Assigned Classes</h2>
         <Button size="sm" variant="outline" onClick={() => setAssignOpen(true)}>
@@ -157,7 +153,6 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
         </Button>
       </div>
 
-      {/* Table */}
       <DataTable
         columns={assignedColumns}
         data={assigned}
@@ -166,7 +161,6 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
         emptyDescription="Assign this educator to a class."
       />
 
-      {/* Assign dialog */}
       <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -206,7 +200,6 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
                       </p>
                     </div>
 
-                    {/* ✅ OPEN CONFIRM FIRST */}
                     <Button
                       size="sm"
                       variant="outline"
@@ -222,7 +215,6 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
         </DialogContent>
       </Dialog>
 
-      {/* ✅ ASSIGN CONFIRM */}
       <ConfirmDialog
         open={assignTarget !== null}
         onOpenChange={(o) => { if (!o) setAssignTarget(null); }}
@@ -241,7 +233,6 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
         }}
       />
 
-      {/* Remove confirm */}
       <ConfirmDialog
         open={removeTarget !== null}
         onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}

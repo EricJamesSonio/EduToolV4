@@ -1,22 +1,23 @@
 // frontend\src\components\admin\enrollment\program-view\ProgramEnrollmentView.tsx
 "use client";
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSchoolYearEnrollments } from "@/hooks/admin/useStudentEnrollment";
 import { studentApi } from "@/api/admin/student.api";
 import { CollegeEnrollmentView } from "./program-view/CollegeEnrollmentView";
-import { SHSEnrollmentView }     from "./program-view/SHSEnrollmentView";
+import { SHSEnrollmentView } from "./program-view/SHSEnrollmentView";
 import { GenericEnrollmentView } from "./program-view/GenericEnrollmentView";
 import type { Program } from "@/types/admin/program.types";
-import type { Level }   from "@/types/admin/level.types";
+import type { Level } from "@/types/admin/level.types";
 import type { Student } from "@/types/admin/student.types";
 
 interface ProgramEnrollmentViewProps {
-  program:      Program;
+  program: Program;
   schoolYearId: string;
-  levels:       Level[];
-  isEnded:      boolean;
+  levels: Level[];
+  isEnded: boolean;
 }
 
 export function ProgramEnrollmentView({
@@ -28,13 +29,12 @@ export function ProgramEnrollmentView({
   const { data: allEnrollments = [], isLoading: enrollmentsLoading } =
     useSchoolYearEnrollments(schoolYearId);
 
-  const { data: allStudentsRaw = [], isLoading: studentsLoading } = useQuery({
-    queryKey: ["admin", "students", "all"],
-    queryFn:  () => studentApi.getAll(),
-    select:   (data) => (Array.isArray(data) ? data : []),
-  });
+  const { data: allStudentsRaw = [], isLoading: studentsLoading } = useAsyncQuery(
+    queryKeys.admin.students.list(),
+    () => studentApi.getAll(),
+    { select: (data) => (Array.isArray(data) ? data : []) },
+  );
 
-  // Build student_id → fullName map once, shared by all child views
   const studentMap = useMemo(() => {
     const map = new Map<string, string>();
     (allStudentsRaw as Student[]).forEach((s) => map.set(s.id, s.fullName));
@@ -42,7 +42,7 @@ export function ProgramEnrollmentView({
   }, [allStudentsRaw]);
 
   const programLevels = levels.filter((l) => l.program_id === program.id);
-  const isLoading     = enrollmentsLoading || studentsLoading;
+  const isLoading = enrollmentsLoading || studentsLoading;
 
   if (isLoading) {
     return (
@@ -60,10 +60,10 @@ export function ProgramEnrollmentView({
     allEnrollments,
     schoolYearId,
     isEnded,
-    studentMap, // ← passed to all views
+    studentMap,
   };
 
   if (program.type === "college") return <CollegeEnrollmentView {...sharedProps} />;
-  if (program.type === "shs")     return <SHSEnrollmentView     {...sharedProps} />;
-  return                                  <GenericEnrollmentView {...sharedProps} />;
+  if (program.type === "shs") return <SHSEnrollmentView {...sharedProps} />;
+  return <GenericEnrollmentView {...sharedProps} />;
 }

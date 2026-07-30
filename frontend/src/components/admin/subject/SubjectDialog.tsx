@@ -1,9 +1,9 @@
-// ===== File: frontend\src\components\admin\subject\SubjectDialog.tsx =====
 "use client";
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { subjectApi } from "@/api/admin/subject.api";
 import type { CreateSubjectRequest, UpdateSubjectRequest } from "@/api/admin/subject.api";
@@ -63,7 +63,6 @@ export function SubjectDialog({
   onSaved,
 }: SubjectDialogProps): React.JSX.Element {
   const isEdit = !!subject;
-  const queryClient = useQueryClient();
   const [duplicateWarning, setDuplicateWarning] = useState<Subject | null>(null);
 
   const {
@@ -94,18 +93,18 @@ export function SubjectDialog({
   const isMinor = subjectType === "minor";
 
   // Fetch all subjects for duplicate checking
-  const { data: allSubjects = [] } = useQuery({
-    queryKey: ["admin", "subjects", "all", schoolYearId],
-    queryFn: () => subjectApi.getAll({ schoolYearId: schoolYearId! }),
-    enabled: !!schoolYearId && !isEdit,
-  });
+  const { data: allSubjects = [] } = useAsyncQuery(
+    [...queryKeys.admin.subjects.all, 'all', schoolYearId] as const,
+    () => subjectApi.getAll({ schoolYearId: schoolYearId! }),
+    { enabled: !!schoolYearId && !isEdit },
+  );
 
   // Fetch programs first
-  const { data: programs = [] } = useQuery({
-    queryKey: ["admin", "programs", schoolYearId],
-    queryFn: () => programApi.getAll(schoolYearId!),
-    enabled: !!schoolYearId && !isEdit,
-  });
+  const { data: programs = [] } = useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId }),
+    () => programApi.getAll(schoolYearId!),
+    { enabled: !!schoolYearId && !isEdit },
+  );
 
   // Then detect program type
   const selectedProgram = programs.find((p) => p.id === selectedProgramId);
@@ -114,17 +113,17 @@ export function SubjectDialog({
   const hasStrands = programType === "shs";
 
   // Fetch levels scoped to course or strand when selected
-  const { data: courseLevels = [] } = useQuery({
-    queryKey: ["admin", "levels", "course", schoolYearId, selectedCourseId],
-    queryFn:  () => levelApi.getByCourse(schoolYearId!, selectedCourseId),
-    enabled:  !!schoolYearId && hasCourses && !!selectedCourseId,
-  });
+  const { data: courseLevels = [] } = useAsyncQuery(
+    [...queryKeys.admin.levels.all, 'course', schoolYearId, selectedCourseId] as const,
+    () => levelApi.getByCourse(schoolYearId!, selectedCourseId),
+    { enabled: !!schoolYearId && hasCourses && !!selectedCourseId },
+  );
 
-  const { data: strandLevels = [] } = useQuery({
-    queryKey: ["admin", "levels", "strand", schoolYearId, selectedStrandId],
-    queryFn:  () => levelApi.getByStrand(schoolYearId!, selectedStrandId),
-    enabled:  !!schoolYearId && hasStrands && !!selectedStrandId,
-  });
+  const { data: strandLevels = [] } = useAsyncQuery(
+    [...queryKeys.admin.levels.all, 'strand', schoolYearId, selectedStrandId] as const,
+    () => levelApi.getByStrand(schoolYearId!, selectedStrandId),
+    { enabled: !!schoolYearId && hasStrands && !!selectedStrandId },
+  );
 
   const selectedLevelSource = hasCourses
     ? courseLevels
@@ -140,8 +139,8 @@ export function SubjectDialog({
         ? strandLevels
         : levels.filter((l) => l.program_id === selectedProgramId);
 
-  const mutation = useMutation({
-    mutationFn: (values: SubjectFormValues) => {
+  const mutation = useMutationWithInvalidation(
+    (values: SubjectFormValues) => {
       const payload: CreateSubjectRequest | UpdateSubjectRequest = {
         name: values.name,
         subjectType: values.subjectType,
@@ -154,17 +153,19 @@ export function SubjectDialog({
         ? subjectApi.update(subject!.id, payload as UpdateSubjectRequest)
         : subjectApi.create(payload as CreateSubjectRequest);
     },
-    onSuccess: () => {
-      toast.success(isEdit ? "Subject updated." : "Subject created.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
-      onSaved();
-      reset();
-      onClose();
-    },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to save subject.");
-    },
-  });
+    {
+      invalidateKeys: [queryKeys.admin.subjects.all],
+      onSuccess: () => {
+        toast.success(isEdit ? "Subject updated." : "Subject created.");
+        onSaved();
+        reset();
+        onClose();
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to save subject.");
+      },
+    }
+  );
 
   const handleClose = () => {
     reset({

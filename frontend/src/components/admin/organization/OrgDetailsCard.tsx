@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { ImageIcon } from "lucide-react";
 import { organizationApi } from "@/api/admin/organization.api";
@@ -23,15 +24,14 @@ interface OrgForm {
 }
 
 export function OrgDetailsCard() {
-  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [logoError, setLogoError] = useState(false);
 
-  const { data: org, isLoading } = useQuery({
-    queryKey: ["admin", "organization"],
-    queryFn: organizationApi.getOrg,
-  });
+  const { data: org, isLoading } = useAsyncQuery(
+    queryKeys.admin.organization.detail(),
+    organizationApi.getOrg,
+  );
 
   const {
     register,
@@ -55,22 +55,24 @@ export function OrgDetailsCard() {
     setLogoError(false);
   }, [org?.logoUrl]);
 
-  const updateMutation = useMutation({
-    mutationFn: (values: OrgForm) =>
+  const updateMutation = useMutationWithInvalidation(
+    (values: OrgForm) =>
       organizationApi.updateOrg({
         name: values.name,
         description: values.description || undefined,
       }),
-    onSuccess: (updated) => {
-      toast.success("Organization updated.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "organization"] });
-      reset({
-        name: updated.name,
-        description: updated.description ?? "",
-      });
+    {
+      invalidateKeys: [queryKeys.admin.organization.detail()],
+      onSuccess: (updated) => {
+        toast.success("Organization updated.");
+        reset({
+          name: updated.name,
+          description: updated.description ?? "",
+        });
+      },
+      onError: () => toast.error("Failed to update organization."),
     },
-    onError: () => toast.error("Failed to update organization."),
-  });
+  );
 
   const onSubmit = (values: OrgForm) => updateMutation.mutate(values);
 
@@ -82,7 +84,6 @@ export function OrgDetailsCard() {
     try {
       await organizationApi.uploadOrgLogo(file);
       toast.success("Organization logo updated.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "organization"] });
     } catch {
       toast.error("Failed to upload logo.");
     } finally {
@@ -118,7 +119,6 @@ export function OrgDetailsCard() {
       </h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8">
-        {/* LEFT: Identity — logo + name */}
         <div className="flex flex-col gap-4">
           <div className="mx-auto lg:mx-0 w-full max-w-[220px] aspect-square rounded-xl border border-border bg-muted flex items-center justify-center overflow-hidden">
             {showLogoPlaceholder() ? (
@@ -181,7 +181,6 @@ export function OrgDetailsCard() {
           </div>
         </div>
 
-        {/* RIGHT: Settings — description + email extension */}
         <div className="space-y-6">
           <div className="space-y-1.5">
             <Label htmlFor="org-desc" className="text-sm text-foreground">

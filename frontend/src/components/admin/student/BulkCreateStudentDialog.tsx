@@ -12,6 +12,7 @@ import { studentApi, type BulkCreateStudentResult } from "@/api/admin/student.ap
 import { downloadCsv } from "@/utils/csv.util";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 
 interface BulkCreateStudentDialogProps {
   open: boolean;
@@ -70,7 +71,7 @@ export function BulkCreateStudentDialog({
         valid.map((p) => ({ fullName: p.fullName, id: p.id }))
       );
       setResults(created);
-      queryClient.invalidateQueries({ queryKey: ["admin", "students"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.students.list() });
       toast.success(`Created ${created.length} student${created.length === 1 ? "" : "s"}.`);
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "Failed to create students.");

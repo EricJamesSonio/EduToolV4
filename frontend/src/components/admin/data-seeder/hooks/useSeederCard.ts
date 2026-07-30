@@ -1,6 +1,7 @@
 // frontend/src/components/admin/data-seeder/hooks/useSeederCard.ts
 import { useEffect, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 import { organizationApi } from "@/api/admin/organization.api";
@@ -33,16 +34,15 @@ function isShortDurationError(err: unknown): boolean {
 }
 
 export function useSeederCard() {
-  const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState(false);
   const [pendingSchoolYear, setPendingSchoolYear] =
     useState<PendingSchoolYear | null>(null);
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
 
-  const { data: schoolYears = [], isLoading: syLoading } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: schoolYearApi.getAll,
-  });
+  const { data: schoolYears = [], isLoading: syLoading } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    schoolYearApi.getAll,
+  );
 
   useEffect(() => {
     if (schoolYears.length > 0 && !selectedSchoolYearId) {
@@ -51,8 +51,8 @@ export function useSeederCard() {
     }
   }, [schoolYears, selectedSchoolYearId]);
 
-  const createSchoolYearMutation = useMutation({
-    mutationFn: ({
+  const createSchoolYearMutation = useMutationWithInvalidation(
+    ({
       name,
       start_date,
       end_date,
@@ -63,21 +63,22 @@ export function useSeederCard() {
       end_date?: string;
       confirm_short_duration?: boolean;
     }) => schoolYearApi.create({ name, start_date, end_date, confirm_short_duration }),
-    onSuccess: (result) => {
-      const created = (result as any).data ?? result;
-      toast.success(`School year "${created.name}" created.`);
-      queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
-      setSelectedSchoolYearId(created.id);
-      setPendingSchoolYear(null);
-    },
-    onError: (err: unknown, variables) => {
-      if (isShortDurationError(err)) {
-        setPendingSchoolYear({
-          name: variables.name,
-          start_date: variables.start_date,
-          end_date: variables.end_date,
-        });
-        return;
+    {
+      invalidateKeys: [queryKeys.admin.schoolYears.all],
+      onSuccess: (result) => {
+        const created = (result as any).data ?? result;
+        toast.success(`School year "${created.name}" created.`);
+        setSelectedSchoolYearId(created.id);
+        setPendingSchoolYear(null);
+      },
+      onError: (err: unknown, variables) => {
+        if (isShortDurationError(err)) {
+          setPendingSchoolYear({
+            name: variables.name,
+            start_date: variables.start_date,
+            end_date: variables.end_date,
+          });
+          return;
       }
       toast.error("Failed to create school year.");
     },
@@ -92,21 +93,21 @@ export function useSeederCard() {
     createSchoolYearMutation.mutate({ name, start_date, end_date });
   }
 
-  const { data: existingPrograms = [] } = useQuery({
-    queryKey: ["admin", "programs", selectedSchoolYearId],
-    queryFn: () => programApi.getAll(selectedSchoolYearId!),
-    enabled: !!selectedSchoolYearId,
-  });
+  const { data: existingPrograms = [] } = useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId: selectedSchoolYearId! }),
+    () => programApi.getAll(selectedSchoolYearId!),
+    { enabled: !!selectedSchoolYearId },
+  );
 
-  const { data: existingCourses = [] } = useQuery({
-    queryKey: ["admin", "courses", selectedSchoolYearId],
-    queryFn: () => courseApi.getAll({ schoolYearId: selectedSchoolYearId! }),
-    enabled: !!selectedSchoolYearId,
-  });
+  const { data: existingCourses = [] } = useAsyncQuery(
+    queryKeys.admin.courses.list({ schoolYearId: selectedSchoolYearId! }),
+    () => courseApi.getAll({ schoolYearId: selectedSchoolYearId! }),
+    { enabled: !!selectedSchoolYearId },
+  );
 
-  const { data: existingStrands = [] } = useQuery({
-    queryKey: ["admin", "strands", selectedSchoolYearId],
-    queryFn: async () => {
+  const { data: existingStrands = [] } = useAsyncQuery(
+    queryKeys.admin.strands.list({ schoolYearId: selectedSchoolYearId! }),
+    async () => {
       try {
         const result = await strandApi.getAll();
         return Array.isArray(result) ? result : [];
@@ -114,20 +115,20 @@ export function useSeederCard() {
         return [];
       }
     },
-    enabled: !!selectedSchoolYearId,
-  });
+    { enabled: !!selectedSchoolYearId },
+  );
 
-  const { data: existingLevels = [] } = useQuery({
-    queryKey: ["admin", "levels", selectedSchoolYearId],
-    queryFn: () => levelApi.getBySchoolYear(selectedSchoolYearId!),
-    enabled: !!selectedSchoolYearId,
-  });
+  const { data: existingLevels = [] } = useAsyncQuery(
+    queryKeys.admin.levels.list({ schoolYearId: selectedSchoolYearId! }),
+    () => levelApi.getBySchoolYear(selectedSchoolYearId!),
+    { enabled: !!selectedSchoolYearId },
+  );
 
-  const { data: existingSubjects = [] } = useQuery({
-    queryKey: ["admin", "subjects", selectedSchoolYearId],
-    queryFn: () => subjectApi.getAll({ schoolYearId: selectedSchoolYearId }),
-    enabled: !!selectedSchoolYearId,
-  });
+  const { data: existingSubjects = [] } = useAsyncQuery(
+    queryKeys.admin.subjects.list({ schoolYearId: selectedSchoolYearId }),
+    () => subjectApi.getAll({ schoolYearId: selectedSchoolYearId }),
+    { enabled: !!selectedSchoolYearId },
+  );
 
   const seedState = useSeedState();
 
@@ -147,8 +148,8 @@ export function useSeederCard() {
     gradingSchemesByProgram,
     semesterTemplatesByProgram,
     sectionConfigs,
-    seedGradingSchemes,        // ← add this
-    seedSemesterTemplates,     // ← add this
+    seedGradingSchemes,
+    seedSemesterTemplates,
     resetAll,
   } = seedState;
 
@@ -181,20 +182,24 @@ export function useSeederCard() {
     return payload;
   }
 
-  const seedMutation = useMutation({
-    mutationFn: organizationApi.seedOrg,
-    onSuccess: () => {
-      toast.success("Seed completed! Your programs, levels, and subjects are ready.");
-      setCollapsed(true);
-      resetAll();
-      queryClient.invalidateQueries({ queryKey: ["admin", "programs"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "courses"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "strands"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "levels"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
-    },
-    onError: () => toast.error("Seed failed. Please try again."),
-  });
+  const seedMutation = useMutationWithInvalidation(
+    organizationApi.seedOrg,
+    {
+      invalidateKeys: [
+        queryKeys.admin.programs.all,
+        queryKeys.admin.courses.all,
+        queryKeys.admin.strands.all,
+        queryKeys.admin.levels.all,
+        queryKeys.admin.subjects.all,
+      ],
+      onSuccess: () => {
+        toast.success("Seed completed! Your programs, levels, and subjects are ready.");
+        setCollapsed(true);
+        resetAll();
+      },
+      onError: () => toast.error("Seed failed. Please try again."),
+    }
+  );
 
   function handleSeed() {
     if (!selectedSchoolYearId) {

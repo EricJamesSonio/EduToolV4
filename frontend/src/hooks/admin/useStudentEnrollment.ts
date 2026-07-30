@@ -18,30 +18,23 @@ import type {
   UpdateProgramEnrollmentRequest,
 } from "@/types/admin/student-enrollment.types";
 
-
-import { queryKeys } from "@/hooks/queryKeys.factory"
-
+import { queryKeys } from "@/hooks/queryKeys.factory";
 
 // ── QUERY ─────────────────────────────────────────────
 
 export const useSchoolYearEnrollments = (
   schoolYearId: string,
 ) => {
-  return useAsyncQuery<
-    StudentSchoolYearEnrollment[]
-  >(
+  return useAsyncQuery<StudentSchoolYearEnrollment[]>(
     queryKeys.admin.studentEnrollment.list({ schoolYearId }),
     () => studentEnrollmentApi.getBySchoolYear(schoolYearId),
-
     {
       enabled: !!schoolYearId,
     },
   );
 };
 
-
 // ── MUTATIONS ─────────────────────────────────────────
-
 
 // Enroll student
 
@@ -57,14 +50,11 @@ export const useEnrollStudent = (
 
     {
       invalidateKeys: [
-        enrollmentKeys.bySchoolYear(
-          schoolYearId,
-        ),
+        queryKeys.admin.studentEnrollment.list({ schoolYearId }),
       ],
     },
   );
 };
-
 
 // Bulk enroll
 
@@ -80,41 +70,38 @@ export const useBulkEnrollStudents = (
 
     {
       invalidateKeys: [
-        enrollmentKeys.bySchoolYear(
-          schoolYearId,
-        ),
+        queryKeys.admin.studentEnrollment.list({ schoolYearId }),
       ],
     },
   );
 };
 
-
 // Update school year enrollment
 
-export const useUpdateSchoolYearEnrollment =
-  (schoolYearId: string) => {
-    return useMutationWithInvalidation(
-      ({
+export const useUpdateSchoolYearEnrollment = (
+  schoolYearId: string,
+) => {
+  return useMutationWithInvalidation(
+    ({
+      enrollmentId,
+      data,
+    }: {
+      enrollmentId: string;
+      data: UpdateSchoolYearEnrollmentRequest;
+    }) =>
+      studentEnrollmentApi.updateEnrollment(
+        schoolYearId,
         enrollmentId,
         data,
-      }: {
-        enrollmentId: string;
-        data: UpdateSchoolYearEnrollmentRequest;
-      }) =>
-        studentEnrollmentApi.updateEnrollment(
-          schoolYearId,
-          enrollmentId,
-          data,
-        ),
+      ),
 
-      {
-        invalidateKeys: [
-          queryKeys.admin.studentEnrollment.list({ schoolYearId }),
-        ],
-      },
-    );
-  };
-
+    {
+      invalidateKeys: [
+        queryKeys.admin.studentEnrollment.list({ schoolYearId }),
+      ],
+    },
+  );
+};
 
 // Unenroll student
 
@@ -130,14 +117,11 @@ export const useUnenrollStudent = (
 
     {
       invalidateKeys: [
-        enrollmentKeys.bySchoolYear(
-          schoolYearId,
-        ),
+        queryKeys.admin.studentEnrollment.list({ schoolYearId }),
       ],
     },
   );
 };
-
 
 // Enroll in program
 
@@ -160,57 +144,55 @@ export const useEnrollInProgram = (
 
     {
       invalidateKeys: [
-        enrollmentKeys.bySchoolYear(
-          schoolYearId,
-        ),
+        queryKeys.admin.studentEnrollment.list({ schoolYearId }),
       ],
     },
   );
 };
 
-
 // Update program enrollment
 
-export const useUpdateProgramEnrollment =
-  (schoolYearId: string) => {
-    return useMutationWithInvalidation(
-      ({
+export const useUpdateProgramEnrollment = (
+  schoolYearId: string,
+) => {
+  return useMutationWithInvalidation(
+    ({
+      programEnrollmentId,
+      data,
+    }: {
+      programEnrollmentId: string;
+      data: UpdateProgramEnrollmentRequest;
+    }) =>
+      studentEnrollmentApi.updateProgramEnrollment(
+        schoolYearId,
         programEnrollmentId,
         data,
-      }: {
-        programEnrollmentId: string;
-        data: UpdateProgramEnrollmentRequest;
-      }) =>
-        studentEnrollmentApi.updateProgramEnrollment(
-          schoolYearId,
-          programEnrollmentId,
-          data,
-        ),
+      ),
 
-      {
-        invalidateKeys: [
-          queryKeys.admin.studentEnrollment.list({ schoolYearId }),
-        ],
-      },
-    );
-  };
-
+    {
+      invalidateKeys: [
+        queryKeys.admin.studentEnrollment.list({ schoolYearId }),
+      ],
+    },
+  );
+};
 
 // Remove program enrollment
 
-export const useRemoveProgramEnrollment =
-  (schoolYearId: string) => {
-    return useMutationWithInvalidation(
-      (programEnrollmentId: string) =>
-        studentEnrollmentApi.removeProgramEnrollment(
-          schoolYearId,
-          programEnrollmentId,
-        ),
+export const useRemoveProgramEnrollment = (
+  schoolYearId: string,
+) => {
+  return useMutationWithInvalidation(
+    (programEnrollmentId: string) =>
+      studentEnrollmentApi.removeProgramEnrollment(
+        schoolYearId,
+        programEnrollmentId,
+      ),
 
-      {
-        invalidateKeys: [
-          queryKeys.admin.studentEnrollment.list({ schoolYearId }),
-        ],
-      },
-    );
-  };
+    {
+      invalidateKeys: [
+        queryKeys.admin.studentEnrollment.list({ schoolYearId }),
+      ],
+    },
+  );
+};

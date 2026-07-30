@@ -1,9 +1,8 @@
 "use client";
 
-// frontend/src/components/admin/school-years/SectionsPanel.tsx
-
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, ChevronRight } from "lucide-react";
 import { sectionApi } from "@/api/admin/section.api";
@@ -31,22 +30,20 @@ export function SectionsPanel({
   courseId,
   strandId,
 }: SectionsPanelProps): React.JSX.Element {
-  const queryClient = useQueryClient();
   const [dialogOpen,    setDialogOpen]    = useState(false);
   const [editTarget,    setEditTarget]    = useState<Section | null>(null);
   const [deleteTarget,  setDeleteTarget]  = useState<Section | null>(null);
   const [detailSection, setDetailSection] = useState<Section | null>(null);
 
-  const qKey = [
-    "admin", "sections", schoolYearId, level.id,
-    ...(courseId ? [courseId] : []),
-    ...(strandId ? [strandId] : []),
-  ];
-
-  const { data: sections = [], isLoading } = useQuery({
-    queryKey: qKey,
-    queryFn:  () => sectionApi.getAll(schoolYearId, level.id),
-  });
+  const { data: sections = [], isLoading } = useAsyncQuery(
+    queryKeys.admin.sections.list({
+      schoolYearId,
+      levelId: level.id,
+      ...(courseId ? { courseId } : {}),
+      ...(strandId ? { strandId } : {}),
+    }),
+    () => sectionApi.getAll(schoolYearId, level.id),
+  );
 
   const visibleSections = sections.filter((s) => {
     if (courseId) {
@@ -60,13 +57,8 @@ export function SectionsPanel({
     return true;
   });
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: qKey });
-    queryClient.invalidateQueries({ queryKey: ["admin", "sections"] });
-  };
-
-  const createMutation = useMutation({
-    mutationFn: (vals: SectionFormValues) =>
+  const createMutation = useMutationWithInvalidation(
+    (vals: SectionFormValues) =>
       sectionApi.create({
         levelId:      level.id,
         schoolYearId,
@@ -75,37 +67,43 @@ export function SectionsPanel({
         name:         vals.name,
         capacity:     Number(vals.capacity),
       }),
-    onSuccess: () => {
-      toast.success("Section created.");
-      invalidate();
-      setDialogOpen(false);
-    },
-    onError: () => toast.error("Failed to create section."),
-  });
+    {
+      invalidateKeys: [queryKeys.admin.sections.all],
+      onSuccess: () => {
+        toast.success("Section created.");
+        setDialogOpen(false);
+      },
+      onError: () => toast.error("Failed to create section."),
+    }
+  );
 
-  const updateMutation = useMutation({
-    mutationFn: (vals: SectionFormValues) =>
+  const updateMutation = useMutationWithInvalidation(
+    (vals: SectionFormValues) =>
       sectionApi.update(editTarget!.id, {
         name:     vals.name,
         capacity: Number(vals.capacity),
       }),
-    onSuccess: () => {
-      toast.success("Section updated.");
-      invalidate();
-      setEditTarget(null);
-    },
-    onError: () => toast.error("Failed to update section."),
-  });
+    {
+      invalidateKeys: [queryKeys.admin.sections.all],
+      onSuccess: () => {
+        toast.success("Section updated.");
+        setEditTarget(null);
+      },
+      onError: () => toast.error("Failed to update section."),
+    }
+  );
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => sectionApi.delete(id),
-    onSuccess: () => {
-      toast.success("Section deleted.");
-      invalidate();
-      setDeleteTarget(null);
-    },
-    onError: () => toast.error("Failed to delete section."),
-  });
+  const deleteMutation = useMutationWithInvalidation(
+    (id: string) => sectionApi.delete(id),
+    {
+      invalidateKeys: [queryKeys.admin.sections.all],
+      onSuccess: () => {
+        toast.success("Section deleted.");
+        setDeleteTarget(null);
+      },
+      onError: () => toast.error("Failed to delete section."),
+    }
+  );
 
   const isMutating = createMutation.isPending || updateMutation.isPending;
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { useRouter } from "next/navigation";
 import { Download, ArrowLeft, ShieldAlert, RefreshCw } from "lucide-react";
 
@@ -86,10 +87,10 @@ export default function CredentialsPage(): React.JSX.Element {
   const router = useRouter();
   const [downloading, setDownloading] = useState(false);
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["admin", "students", "credentials-list"],
-    queryFn: getCredentialsList,
-  });
+  const { data, isLoading, refetch, isRefetching } = useAsyncQuery(
+    [...queryKeys.admin.students.all, 'credentials-list'] as const,
+    getCredentialsList,
+  );
 
   async function handleDownload() {
     setDownloading(true);
@@ -139,7 +140,6 @@ export default function CredentialsPage(): React.JSX.Element {
         }
       />
 
-      {/* Warning banner */}
       <div className="rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 flex items-start gap-3">
         <ShieldAlert className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
         <div className="space-y-0.5">

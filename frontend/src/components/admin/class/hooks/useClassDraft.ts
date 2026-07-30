@@ -1,5 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import type { CreateClassForm } from "@/components/admin/class/CreateClassDialog.types";
 import { createStandardMutationOptions } from "@/lib/error-handling";
 import { QUERY_CONFIGS } from "@/lib/query-client";
@@ -49,50 +51,53 @@ export function useClassDraft() {
   const queryClient = useQueryClient();
 
   // Query to get the current draft
-  const { data: draft, isLoading, error } = useQuery({
-    queryKey: classDraftKeys.draft,
-    queryFn: () => {
+  const { data: draft, isLoading, error } = useAsyncQuery(
+    [...queryKeys.admin.all, 'classDraft'] as const,
+    async () => {
       const savedDraft = loadClassDraft();
       return savedDraft || {};
     },
-    staleTime: 1000 * 60 * 60, // 1 hour - drafts are less critical
-    gcTime: 1000 * 60 * 60 * 24, // 24 hours
-  });
+    { staleTime: 1000 * 60 * 60, gcTime: 1000 * 60 * 60 * 24 },
+  );
 
   // Mutation to save draft
-  const saveDraftMutation = useMutation({
-    mutationFn: (values: Partial<CreateClassForm>) => {
+  const saveDraftMutation = useMutationWithInvalidation(
+    (values: Partial<CreateClassForm>) => {
       saveClassDraft(values);
       return Promise.resolve(undefined);
     },
-    ...createStandardMutationOptions({
-      entity: "Class Draft",
-      operation: "update",
-      silent: true, // Don't show toast for auto-saves
-      onSuccess: (newDraft) => {
-        // Update React Query cache with new draft
-        queryClient.setQueryData(classDraftKeys.draft, newDraft);
-      },
-    }),
-  });
+    {
+      ...createStandardMutationOptions({
+        entity: "Class Draft",
+        operation: "update",
+        silent: true, // Don't show toast for auto-saves
+        onSuccess: (newDraft) => {
+          // Update React Query cache with new draft
+          queryClient.setQueryData([...queryKeys.admin.all, 'classDraft'] as const, newDraft);
+        },
+      }),
+    },
+  );
 
   // Mutation to clear draft
-  const clearDraftMutation = useMutation({
-    mutationFn: () => {
+  const clearDraftMutation = useMutationWithInvalidation(
+    () => {
       clearClassDraft();
       return Promise.resolve(undefined);
     },
-    ...createStandardMutationOptions({
-      entity: "Class Draft",
-      operation: "delete",
-      silent: true, // Don't show toast for clear operations
-      onSuccess: () => {
-        // Clear React Query cache
-        queryClient.setQueryData(classDraftKeys.draft, {});
-        queryClient.invalidateQueries({ queryKey: classDraftKeys.draft });
-      },
-    }),
-  });
+    {
+      invalidateKeys: [[...queryKeys.admin.all, 'classDraft'] as const],
+      ...createStandardMutationOptions({
+        entity: "Class Draft",
+        operation: "delete",
+        silent: true, // Don't show toast for clear operations
+        onSuccess: () => {
+          // Clear React Query cache
+          queryClient.setQueryData([...queryKeys.admin.all, 'classDraft'] as const, {});
+        },
+      }),
+    },
+  );
 
   // Auto-save hook - replaces the original useClassDraftAutosave
   function useClassDraftAutosave(values: CreateClassForm): void {

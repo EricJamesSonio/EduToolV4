@@ -1,7 +1,9 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Users, Plus, Download, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -34,18 +36,17 @@ function StudentsPageInner(): React.JSX.Element {
   const { data: org, isLoading: orgLoading } = useOrganization();
   const hasEmailExtension = !!org?.emailExtension;
 
-  const { data: studentsRaw, isLoading } = useQuery({
-    queryKey: ["admin", "students", filters],
-    queryFn:  () => studentApi.getAll(filters),
-  });
+  const { data: studentsRaw, isLoading } = useAsyncQuery(
+    queryKeys.admin.students.list(filters),
+    () => studentApi.getAll(filters),
+  );
 
   const students: Student[] = studentsRaw ?? [];
 
-  // ── Active school year ────────────────────────────────────────────────
-  const { data: schoolYears } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: schoolYearApi.getAll,
-  });
+  const { data: schoolYears } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    schoolYearApi.getAll,
+  );
 
   const activeSchoolYearId = useMemo(
     () =>
@@ -55,14 +56,12 @@ function StudentsPageInner(): React.JSX.Element {
     [schoolYears],
   );
 
-  // ── School-year enrollments (for program/level/section enrichment) ───
-  const { data: schoolYearEnrollments } = useQuery({
-    queryKey: ["admin", "school-year-enrollments", activeSchoolYearId],
-    queryFn: () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
-    enabled: !!activeSchoolYearId,
-  });
+  const { data: schoolYearEnrollments } = useAsyncQuery(
+    queryKeys.admin.studentEnrollment.list({ schoolYearId: activeSchoolYearId }),
+    () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
+    { enabled: !!activeSchoolYearId },
+  );
 
-  // Merge enrollment data into each student row
   const enrichedStudents: Student[] = useMemo(
     () =>
       students.map((s) => {
@@ -120,7 +119,6 @@ function StudentsPageInner(): React.JSX.Element {
               Bulk Create
             </Button>
 
-            {/* Email Extension Guard */}
             {!hasEmailExtension ? (
               <Button
                 size="sm"
@@ -141,7 +139,6 @@ function StudentsPageInner(): React.JSX.Element {
         }
       />
 
-      {/* Alert when no email extension */}
       {!hasEmailExtension && !orgLoading && (
         <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
@@ -193,7 +190,7 @@ function StudentsPageInner(): React.JSX.Element {
           open={createOpen}
           onClose={() => setCreateOpen(false)}
           onCreated={() => {
-            queryClient.invalidateQueries({ queryKey: ["admin", "students"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.students.all });
           }}
         />
       )}

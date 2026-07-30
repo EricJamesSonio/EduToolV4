@@ -2,7 +2,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 
 import { ChevronLeft, GraduationCap } from "lucide-react";
 import { levelApi }   from "@/api/admin/level.api";
@@ -46,15 +47,15 @@ export function ProgramDetailView({
   // subjectLevelId still needs local state — it's transient UI only
   const [subjectLevelId, setSubjectLevelId] = useState<string | undefined>(undefined);
 
-  const { data: freshProgram } = useQuery({
-    queryKey: ["admin", "program", program.id],
-    queryFn:  () => programApi.getOne(program.id),
-  });
+  const { data: freshProgram } = useAsyncQuery(
+    queryKeys.admin.programs.detail(program.id),
+    () => programApi.getOne(program.id),
+  );
 
-  const { data: allLevels = [], isLoading: levelsLoading } = useQuery({
-    queryKey: ["admin", "levels", schoolYearId],
-    queryFn:  () => levelApi.getBySchoolYear(schoolYearId),
-  });
+  const { data: allLevels = [], isLoading: levelsLoading } = useAsyncQuery(
+    queryKeys.admin.levels.list({ schoolYearId }),
+    () => levelApi.getBySchoolYear(schoolYearId),
+  );
 
   const activeProgram = freshProgram ?? program;
 

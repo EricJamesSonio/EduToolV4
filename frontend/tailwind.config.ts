@@ -16,21 +16,6 @@ const config: Config = {
         heading: ["var(--font-heading)", "system-ui", "sans-serif"],
       },
 colors: {
-  // Brand palette — static OK for hard colors
-  brand: {
-    50: "#eff6ff",
-    100: "#dbeafe",
-    200: "#bfdbfe",
-    300: "#93c5fd",
-    400: "#60a5fa",
-    500: "#3b82f6",
-    600: "#2563eb",
-    700: "#1d4ed8",
-    800: "#1e40af",
-    900: "#1e3a8a",
-    950: "#172554",
-  },
-
   // Sidebar (OPTIONAL if you still use it)
   sidebar: {
     bg: "var(--sidebar-bg)",
@@ -86,6 +71,21 @@ colors: {
   destructive: {
     DEFAULT: "var(--destructive)",
     foreground: "var(--destructive-foreground)",
+  },
+
+  success: {
+    DEFAULT: "var(--success)",
+    foreground: "var(--success-foreground)",
+  },
+
+  warning: {
+    DEFAULT: "var(--warning)",
+    foreground: "var(--warning-foreground)",
+  },
+
+  info: {
+    DEFAULT: "var(--info)",
+    foreground: "var(--info-foreground)",
   },
 
   border: "var(--border)",

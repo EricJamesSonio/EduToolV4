@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -29,15 +30,14 @@ import { organizationApi } from "@/api/admin/organization.api";
  */
 
 export function AdminWelcomeModal() {
-  const queryClient = useQueryClient();
   const [open, setOpen] = useState(true);
   const [view, setView] = useState<"welcome" | "setup">("welcome");
 
-  const { data: org, isLoading } = useQuery({
-    queryKey: ["admin", "organization"],
-    queryFn: organizationApi.getOrg,
-    retry: false,
-  });
+  const { data: org, isLoading } = useAsyncQuery(
+    queryKeys.admin.organization.detail(),
+    organizationApi.getOrg,
+    { retry: false },
+  );
 
   // Org already exists → nothing to show
   if (isLoading || org !== null) return null;
@@ -125,23 +125,25 @@ function WelcomeView({ onSetup, onDismiss }: { onSetup: () => void; onDismiss: (
 /* ─── Setup step ────────────────────────────────────────────────── */
 
 function SetupView({ onSuccess, onBack }: { onSuccess: () => void; onBack: () => void }) {
-  const queryClient = useQueryClient();
-
   const { register, handleSubmit, formState: { errors } } = useForm<{
     name: string;
     description: string;
   }>({ defaultValues: { name: "", description: "" } });
 
-  const mutation = useMutation({
-    mutationFn: organizationApi.createOrg,
-    onSuccess: () => {
-      toast.success("Organization created! Welcome to Relief-ED.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "organization"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "analytics"] });
-      onSuccess();
-    },
-    onError: () => toast.error("Failed to create organization."),
-  });
+  const mutation = useMutationWithInvalidation(
+    organizationApi.createOrg,
+    {
+      invalidateKeys: [
+        queryKeys.admin.organization.detail(),
+        queryKeys.admin.analytics.dashboard(),
+      ],
+      onSuccess: () => {
+        toast.success("Organization created! Welcome to Relief-ED.");
+        onSuccess();
+      },
+      onError: () => toast.error("Failed to create organization."),
+    }
+  );
 
   return (
     <>

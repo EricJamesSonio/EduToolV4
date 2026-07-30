@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -53,47 +54,43 @@ export function GradeLockHierarchyFilter({
   onReset,
 }: GradeLockHierarchyFilterProps): React.JSX.Element {
 
-  // ───────────────────────── PROGRAMS
-  const { data: programs = [], isLoading: loadingPrograms } = useQuery({
-    queryKey: ["programs", selectedSchoolYearId],
-    queryFn: () => programApi.getAll(selectedSchoolYearId),
-    enabled: !!selectedSchoolYearId,
-  });
+  const { data: programs = [], isLoading: loadingPrograms } = useAsyncQuery(
+    queryKeys.admin.programs.list({ selectedSchoolYearId }),
+    () => programApi.getAll(selectedSchoolYearId),
+    { enabled: !!selectedSchoolYearId },
+  );
 
   const selectedProgramObj = programs.find(p => p.id === selectedProgram);
 
-  // ───────────────────────── COURSES
-  const { data: courses = [], isLoading: loadingCourses } = useQuery({
-    queryKey: ["courses", selectedSchoolYearId, selectedProgram],
-    queryFn: () =>
+  const { data: courses = [], isLoading: loadingCourses } = useAsyncQuery(
+    queryKeys.admin.courses.list({ schoolYearId: selectedSchoolYearId, programId: selectedProgram }),
+    () =>
       courseApi.getAll({
         schoolYearId: selectedSchoolYearId,
         programId: selectedProgram,
       }),
-    enabled: !!selectedSchoolYearId && !!selectedProgram,
-  });
+    { enabled: !!selectedSchoolYearId && !!selectedProgram },
+  );
 
   const selectedCourseObj = courses.find(c => c.id === selectedCourseStrand);
 
-  // ───────────────────────── STRANDS
-  const { data: strands = [], isLoading: loadingStrands } = useQuery({
-    queryKey: ["strands", selectedProgram],
-    queryFn: () =>
+  const { data: strands = [], isLoading: loadingStrands } = useAsyncQuery(
+    queryKeys.admin.strands.list({ program_id: selectedProgram }),
+    () =>
       strandApi.getAll({
         program_id: selectedProgram,
       }),
-    enabled: !!selectedProgram,
-  });
+    { enabled: !!selectedProgram },
+  );
 
   const safeStrands = Array.isArray(strands) ? strands : [];
   const selectedStrandObj = safeStrands.find(s => s.id === selectedCourseStrand);
 
-  // ───────────────────────── LEVELS
-  const { data: levels = [], isLoading: loadingLevels } = useQuery({
-    queryKey: ["levels", selectedSchoolYearId],
-    queryFn: () => levelApi.getBySchoolYear(selectedSchoolYearId),
-    enabled: !!selectedSchoolYearId,
-  });
+  const { data: levels = [], isLoading: loadingLevels } = useAsyncQuery(
+    queryKeys.admin.levels.list({ schoolYearId: selectedSchoolYearId }),
+    () => levelApi.getBySchoolYear(selectedSchoolYearId),
+    { enabled: !!selectedSchoolYearId },
+  );
 
   const safeLevels = Array.isArray(levels) ? levels : [];
   const selectedLevelObj = safeLevels.find(l => l.id === selectedLevel);
@@ -114,7 +111,6 @@ export function GradeLockHierarchyFilter({
 
       <div className="flex flex-wrap gap-3 items-center">
 
-        {/* SCHOOL YEAR */}
         <SchoolYearSelector
           schoolYears={schoolYears ?? []}
           isLoading={schoolYearsLoading}
@@ -122,7 +118,6 @@ export function GradeLockHierarchyFilter({
           onSelect={onSchoolYearSelect}
         />
 
-        {/* PROGRAM */}
         {selectedSchoolYearId && (
           loadingPrograms ? (
             <Skeleton className="h-9 w-44" />
@@ -144,7 +139,6 @@ export function GradeLockHierarchyFilter({
           )
         )}
 
-        {/* COURSE */}
         {selectedProgram && courses.length > 0 && (
           loadingCourses ? (
             <Skeleton className="h-9 w-56" />
@@ -166,7 +160,6 @@ export function GradeLockHierarchyFilter({
           )
         )}
 
-        {/* STRAND */}
         {selectedProgram && safeStrands.length > 0 && (
           loadingStrands ? (
             <Skeleton className="h-9 w-56" />
@@ -188,7 +181,6 @@ export function GradeLockHierarchyFilter({
           )
         )}
 
-        {/* LEVEL */}
         {levelStepReady && (
           loadingLevels ? (
             <Skeleton className="h-9 w-40" />
@@ -210,7 +202,6 @@ export function GradeLockHierarchyFilter({
           )
         )}
 
-        {/* RESET */}
         <Button variant="outline" size="sm" onClick={onReset}>
           Reset
         </Button>

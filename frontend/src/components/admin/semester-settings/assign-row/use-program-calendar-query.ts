@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { programCalendarApi } from "@/api/admin/program-calendar.api";
 import type { SemesterTemplate } from "@/types/admin/semester-template.types";
 
@@ -7,11 +8,11 @@ export function useProgramCalendarQuery(
   program: { id: string; type: string; school_year_id: string; semesterAssignment?: { template_id: string } | null },
   templates: SemesterTemplate[],
 ) {
-  const { data: calendarInfo } = useQuery({
-    queryKey: ["program-calendar", program.id, program.school_year_id],
-    queryFn: () => programCalendarApi.getForProgram(program.id, program.school_year_id),
-    enabled: !!program.school_year_id,
-  });
+  const { data: calendarInfo } = useAsyncQuery(
+    queryKeys.admin.programCalendar.detail(program.id, program.school_year_id),
+    () => programCalendarApi.getForProgram(program.id, program.school_year_id),
+    { enabled: !!program.school_year_id },
+  );
 
   const calendarBreaks = calendarInfo?.breaks ?? [];
 

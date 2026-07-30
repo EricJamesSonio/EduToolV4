@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { semesterApi } from "@/api/admin/semester.api";
 import type { Semester } from "@/types/admin/semester.types";
 import type { TermInput } from "@/api/admin/semester.api";
@@ -22,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import type { AxiosError } from "axios";
 
@@ -64,7 +64,6 @@ export function SemesterFormDialog({
   semester,
 }: SemesterFormDialogProps) {
   const isEdit = !!semester;
-  const queryClient = useQueryClient();
 
   const [draft, setDraft] = useState<SemesterDraft>(EMPTY_DRAFT);
   const [errors, setErrors] = useState<ReturnType<typeof validateSemester>>({});
@@ -102,11 +101,11 @@ export function SemesterFormDialog({
     }
   }, [open, semester, isEdit]);
 
-  const { data: schoolYears = [] } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn: schoolYearApi.getAll,
-    enabled: open && !isEdit,
-  });
+  const { data: schoolYears = [] } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    schoolYearApi.getAll,
+    { enabled: open && !isEdit },
+  );
 
   const [schoolYearId, setSchoolYearId] = useState("");
 
@@ -117,8 +116,8 @@ export function SemesterFormDialog({
     if (!isEdit) localStorage.setItem("semesterDraft", JSON.stringify(next));
   };
 
-  const createMutation = useMutation({
-    mutationFn: () =>
+  const createMutation = useMutationWithInvalidation(
+    () =>
       semesterApi.create({
         schoolYearId,
         name: draft.name,
@@ -126,34 +125,38 @@ export function SemesterFormDialog({
         endDate: draft.endDate,
         terms: draft.terms as TermInput[],
       }),
-    onSuccess: () => {
-      toast.success("Semester created.");
-      localStorage.removeItem("semesterDraft");
-      queryClient.invalidateQueries({ queryKey: ["semesters"] });
-      onClose();
-    },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to create semester.");
-    },
-  });
+    {
+      invalidateKeys: [queryKeys.admin.semesters.list()],
+      onSuccess: () => {
+        toast.success("Semester created.");
+        localStorage.removeItem("semesterDraft");
+        onClose();
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to create semester.");
+      },
+    }
+  );
 
-  const updateMutation = useMutation({
-    mutationFn: () =>
+  const updateMutation = useMutationWithInvalidation(
+    () =>
       semesterApi.update(semester!.id, {
         name: draft.name,
         startDate: draft.startDate,
         endDate: draft.endDate,
         terms: draft.terms as TermInput[],
       }),
-    onSuccess: () => {
-      toast.success("Semester updated.");
-      queryClient.invalidateQueries({ queryKey: ["semesters"] });
-      onClose();
-    },
-    onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to update semester.");
-    },
-  });
+    {
+      invalidateKeys: [queryKeys.admin.semesters.list()],
+      onSuccess: () => {
+        toast.success("Semester updated.");
+        onClose();
+      },
+      onError: (err: AxiosError<{ message: string }>) => {
+        toast.error(err?.response?.data?.message ?? "Failed to update semester.");
+      },
+    }
+  );
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 

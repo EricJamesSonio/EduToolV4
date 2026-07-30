@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { Layers } from "lucide-react";
 
@@ -10,7 +11,6 @@ import { programApi } from "@/api/admin/program.api";
 
 import type { Level } from "@/types/admin/level.types";
 import type { CourseSnapshot, StrandSnapshot } from "@/types/admin/program.types";
-import { useQuery } from "@tanstack/react-query";
 
 import { useSchoolYearLevels } from "@/hooks/admin/useSchoolYearLevels";
 
@@ -34,18 +34,16 @@ export function LevelWithSectionsList({
   isEnded,
   onViewSubjects,
 }: Props) {
-  const queryClient = useQueryClient();
   const [deleteTarget, setDeleteTarget] = useState<Level | null>(null);
 
-  const { data: program } = useQuery({
-    queryKey: ["program", programId],
-    queryFn: () => programApi.getOne(programId),
-  });
+  const { data: program } = useAsyncQuery(
+    queryKeys.admin.programs.detail(programId),
+    () => programApi.getOne(programId),
+  );
 
   const { data: allLevels = [], isLoading } =
     useSchoolYearLevels(schoolYearId);
 
-  // 🔥 SINGLE FILTER ONLY HERE
   const levels = allLevels.filter(
     (l) => l.program_id === programId
   );
@@ -56,28 +54,27 @@ export function LevelWithSectionsList({
   const courses: CourseSnapshot[] = program?.courses ?? [];
   const strands: StrandSnapshot[] = program?.strands ?? [];
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({
-      queryKey: ["school-year-levels", schoolYearId],
-    });
-
-  const createMutation = useMutation({
-    mutationFn: (name: string) =>
+  const createMutation = useMutationWithInvalidation(
+    (name: string) =>
       levelApi.create({ programId, name, schoolYearId }),
-    onSuccess: () => {
-      toast.success("Level added");
-      invalidate();
+    {
+      invalidateKeys: [queryKeys.admin.levels.list({ schoolYearId })],
+      onSuccess: () => {
+        toast.success("Level added");
+      },
     },
-  });
+  );
 
-  const generateMutation = useMutation({
-    mutationFn: (count: number) =>
+  const generateMutation = useMutationWithInvalidation(
+    (count: number) =>
       levelApi.bulkGenerate({ programId, schoolYearId, count }),
-    onSuccess: () => {
-      toast.success("Levels generated");
-      invalidate();
+    {
+      invalidateKeys: [queryKeys.admin.levels.list({ schoolYearId })],
+      onSuccess: () => {
+        toast.success("Levels generated");
+      },
     },
-  });
+  );
 
   if (isLoading || !program) {
     return (
@@ -127,7 +124,7 @@ export function LevelWithSectionsList({
             <CourseGroupBlock
               key={course.id}
               course={course}
-              levels={levels} 
+              levels={levels}
               {...sharedProps}
             />
           ))}
@@ -137,7 +134,7 @@ export function LevelWithSectionsList({
             <StrandGroupBlock
               key={strand.id}
               strand={strand}
-              levels={levels} 
+              levels={levels}
               {...sharedProps}
             />
           ))}

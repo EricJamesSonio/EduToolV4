@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { Pagination } from "@/components/shared/Pagination";
@@ -111,11 +112,10 @@ export default function PlatformSchoolsPage() {
   const [limit, setLimit] = useState(10);
   const [selected, setSelected] = useState<SchoolOrg | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["platform", "schools", { search, page, limit }],
-    queryFn: () =>
-      platformApi.getSchools({ search: search || undefined, page, limit }),
-  });
+  const { data, isLoading } = useAsyncQuery(
+    queryKeys.platform.schools.list({ search, page, limit }),
+    () => platformApi.getSchools({ search: search || undefined, page, limit }),
+  );
 
   const schools = data?.data ?? [];
   const total = data?.meta?.total ?? 0;

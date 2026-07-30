@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { useShareSubject } from "@/hooks/admin/useSubject";
 import { courseApi } from "@/api/admin/course.api";
@@ -57,28 +58,28 @@ export function ShareSubjectDialog({
 
   // Fetch courses — only for college programs
   // Courses API expects: { schoolYearId, programId? }
-  const { data: allCourses = [], isLoading: coursesLoading } = useQuery({
-    queryKey: ["admin", "courses", programId, schoolYearId],
-    queryFn: () =>
+  const { data: allCourses = [], isLoading: coursesLoading } = useAsyncQuery(
+    queryKeys.admin.courses.list({ schoolYearId, programId: programId! }),
+    () =>
       courseApi.getAll({ schoolYearId, programId: programId! }),
-    enabled: !!programId && open && isCollege,
-  });
+    { enabled: !!programId && open && isCollege },
+  );
 
   // Fetch strands — only for SHS programs
   // Strands API expects: { program_id? } (snake_case!)
-  const { data: allStrands = [], isLoading: strandsLoading } = useQuery({
-    queryKey: ["admin", "strands", programId, schoolYearId],
-    queryFn: () =>
+  const { data: allStrands = [], isLoading: strandsLoading } = useAsyncQuery(
+    queryKeys.admin.strands.list({ program_id: programId!, schoolYearId }),
+    () =>
       strandApi.getAll({ program_id: programId! }),
-    enabled: !!programId && open && isSHS,
-  });
+    { enabled: !!programId && open && isSHS },
+  );
 
   // Fetch levels — only for simple programs
-  const { data: allLevels = [], isLoading: levelsLoading } = useQuery({
-    queryKey: ["admin", "levels", schoolYearId],
-    queryFn: () => levelApi.getBySchoolYear(schoolYearId),
-    enabled: open && isSimple,
-  });
+  const { data: allLevels = [], isLoading: levelsLoading } = useAsyncQuery(
+    queryKeys.admin.levels.list({ schoolYearId }),
+    () => levelApi.getBySchoolYear(schoolYearId),
+    { enabled: open && isSimple },
+  );
 
   const isLoading = coursesLoading || strandsLoading || levelsLoading;
 

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { toast } from "sonner"
-import { useQuery } from "@tanstack/react-query"
+import { useAsyncQuery } from "@/hooks/hook-factory.utils"
+import { queryKeys } from "@/hooks/queryKeys.factory"
 import { programCalendarApi } from "@/api/admin/program-calendar.api"
 import { semesterTemplateApi } from "@/api/admin/semester-template.api"
 import { useAssignTemplate, useRemoveTemplateAssignment } from "@/hooks/admin/useSemesterTemplate"
@@ -52,11 +53,11 @@ export function useAssignRow(
   }, [assignedTemplate])
 
   // Fetch calendar info for this program
-  const { data: calendarInfo } = useQuery({
-    queryKey: ["program-calendar", program.id, program.school_year_id],
-    queryFn: () => programCalendarApi.getForProgram(program.id, program.school_year_id),
-    enabled: !!program.school_year_id,
-  })
+  const { data: calendarInfo } = useAsyncQuery(
+    queryKeys.admin.programCalendar.detail(program.id, program.school_year_id),
+    () => programCalendarApi.getForProgram(program.id, program.school_year_id),
+    { enabled: !!program.school_year_id },
+  )
 
   const calendarBreaks = calendarInfo?.breaks ?? []
   const calendarStart = calendarInfo?.startDate ?? ""
