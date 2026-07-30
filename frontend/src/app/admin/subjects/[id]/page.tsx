@@ -1,8 +1,9 @@
-// frontend/src/app/admin/subjects/[id]/page.tsx
 "use client";
 
 import { use, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -23,8 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AxiosError } from "axios";
-
-// ─── Sharings Section ─────────────────────────────────────────────────────────
 
 function SharingsSection({
   subject,
@@ -129,8 +128,6 @@ function SharingsSection({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function SubjectDetailPage({
   params,
 }: {
@@ -144,26 +141,25 @@ export default function SubjectDetailPage({
   const [lockConfirm, setLockConfirm]     = useState(false);
   const [unlockConfirm, setUnlockConfirm] = useState(false);
 
-  const { data: subject, isLoading } = useQuery({
-    queryKey: ["admin", "subjects", id],
-    queryFn:  () => subjectApi.getOne(id),
-  });
+  const { data: subject, isLoading } = useAsyncQuery(
+    queryKeys.admin.subjects.detail(id),
+    () => subjectApi.getOne(id),
+  );
 
-  const { data: levels = [] } = useQuery({
-    queryKey: ["admin", "levels", "all"],
-    queryFn:  () => levelApi.getAll(),
-  });
+  const { data: levels = [] } = useAsyncQuery(
+    queryKeys.admin.levels.list(),
+    () => levelApi.getAll(),
+  );
 
-  const { data: educators = [] } = useQuery({
-    queryKey: ["admin", "educators", "all"],
-    queryFn:  () => educatorApi.getAll(),
-    select:   (data) => (Array.isArray(data) ? data : []),
-  });
+  const { data: educators = [] } = useAsyncQuery(
+    queryKeys.admin.educators.list(),
+    () => educatorApi.getAll(),
+  );
 
-  const { data: schoolYears = [] } = useQuery({
-    queryKey: ["admin", "school-years"],
-    queryFn:  schoolYearApi.getAll,
-  });
+  const { data: schoolYears = [] } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    schoolYearApi.getAll,
+  );
 
   const activeSchoolYearId =
     schoolYears.find((sy) => sy.status === "active")?.id ??
@@ -174,7 +170,7 @@ export default function SubjectDetailPage({
     mutationFn: () => subjectApi.lock(id),
     onSuccess: () => {
       toast.success("Subject locked.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects", id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects.detail(id) });
       setLockConfirm(false);
     },
     onError: (err: AxiosError<{ message: string }>) => {
@@ -187,7 +183,7 @@ export default function SubjectDetailPage({
     mutationFn: () => subjectApi.unlock(id),
     onSuccess: () => {
       toast.success("Subject unlocked.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects", id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects.detail(id) });
       setUnlockConfirm(false);
     },
     onError: (err: AxiosError<{ message: string }>) => {
@@ -216,8 +212,6 @@ export default function SubjectDetailPage({
 
   const isLocked = subject.lockStatus === "locked";
   const isMinor  = subject.subjectType === "minor";
-
-  // programName is actually the level name (legacy backend field naming)
   const levelDisplayName = subject.levelName ?? subject.programName ?? null;
 
   return (
@@ -249,7 +243,6 @@ export default function SubjectDetailPage({
         }
       />
 
-      {/* Locked banner */}
       {isLocked && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -257,7 +250,6 @@ export default function SubjectDetailPage({
         </div>
       )}
 
-      {/* Info card */}
       <div className="rounded-lg border bg-card divide-y">
         <div className="flex items-center gap-4 px-4 py-3">
           <span className="w-36 text-sm text-muted-foreground shrink-0 not-interactive">Name</span>
@@ -293,7 +285,6 @@ export default function SubjectDetailPage({
         </div>
       </div>
 
-      {/* Sharings — minor only */}
       {isMinor && activeSchoolYearId && (
         <SharingsSection
           subject={subject}
@@ -302,7 +293,6 @@ export default function SubjectDetailPage({
         />
       )}
 
-      {/* Linked Classes */}
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold not-interactive">Linked Classes</h2>
         <Button
