@@ -3,7 +3,9 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Check, BookOpen } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 
 import {
   Dialog,
@@ -54,15 +56,15 @@ export function ApplyToClassDialog({
   const { data: classesRaw, isLoading: classesLoading } =
     useEducatorClasses();
 
-  const { data: subjectsRaw } = useQuery({
-    queryKey: ["subjects"],
-    queryFn: () => subjectApi.getAll(),
-  });
+  const { data: subjectsRaw } = useAsyncQuery(
+    queryKeys.admin.subjects.list(),
+    () => subjectApi.getAll(),
+  );
 
-  const { data: schoolYearsRaw } = useQuery({
-    queryKey: ["school-years"],
-    queryFn: () => schoolYearApi.getAll(),
-  });
+  const { data: schoolYearsRaw } = useAsyncQuery(
+    queryKeys.admin.schoolYears.list(),
+    () => schoolYearApi.getAll(),
+  );
 
   // ================= ACTIVE SCHOOL YEAR =================
   const activeSchoolYearId = useMemo(() => {
@@ -70,11 +72,11 @@ export function ApplyToClassDialog({
     return arr.find((sy) => sy.status === "active")?.id ?? null;
   }, [schoolYearsRaw]);
 
-  const { data: sectionsRaw } = useQuery({
-    queryKey: ["sections", activeSchoolYearId],
-    queryFn: () => sectionApi.getAll(activeSchoolYearId!),
-    enabled: !!activeSchoolYearId,
-  });
+  const { data: sectionsRaw } = useAsyncQuery(
+    queryKeys.admin.sections.list({ schoolYearId: activeSchoolYearId! }),
+    () => sectionApi.getAll(activeSchoolYearId!),
+    { enabled: !!activeSchoolYearId },
+  );
 
   // ================= MAPS =================
   const subjectMap = useMemo(() => {
@@ -119,11 +121,11 @@ export function ApplyToClassDialog({
 
       // ================= CACHE INVALIDATION =================
       queryClient.invalidateQueries({
-        queryKey: ["grading-scheme", "class", selectedClassId],
+        queryKey: queryKeys.educator.gradingSchemes.detail(selectedClassId),
       });
 
       queryClient.invalidateQueries({
-        queryKey: ["grading-scheme"],
+        queryKey: queryKeys.educator.gradingSchemes.all,
       });
 
       toast.success(`"${scheme.name}" applied to class.`);
