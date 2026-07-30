@@ -35,6 +35,14 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
 
+  /* Badge / tag hues (course category chips) */
+  --color-badge-yellow: var(--badge-yellow);
+  --color-badge-yellow-foreground: var(--badge-yellow-foreground);
+  --color-badge-purple: var(--badge-purple);
+  --color-badge-purple-foreground: var(--badge-purple-foreground);
+  --color-badge-blue: var(--badge-blue);
+  --color-badge-blue-foreground: var(--badge-blue-foreground);
+
   /* Borders */
   --color-border: var(--border);
   --color-input: var(--input);
@@ -49,37 +57,37 @@
 /* ===== SHADOW TOKENS ===== */
 :root {
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.10), 0 4px 6px -4px rgb(0 0 0 / 0.06);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.10), 0 8px 10px -6px rgb(0 0 0 / 0.06);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 6px 12px -2px rgb(0 0 0 / 0.08), 0 3px 6px -3px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 14px 24px -6px rgb(0 0 0 / 0.10), 0 6px 10px -6px rgb(0 0 0 / 0.06);
+  --shadow-xl: 0 24px 32px -8px rgb(0 0 0 / 0.12), 0 10px 14px -8px rgb(0 0 0 / 0.06);
 }
 
 :root {
-  --radius: 0.625rem;
-  --radius-sm: 0.375rem;
-  --radius-lg: 0.75rem;
+  --radius: 1.25rem;
+  --radius-sm: 0.75rem;
+  --radius-lg: 1.75rem;
 
-  --background: #FBF7EF;
-  --foreground: #17241D;
+  --background: #F7F2E7;
+  --foreground: #1C2129;
 
   --card: #FFFFFF;
-  --card-foreground: #17241D;
+  --card-foreground: #1C2129;
   --popover: #FFFFFF;
-  --popover-foreground: #17241D;
+  --popover-foreground: #1C2129;
 
-  --primary: #1F4D3D;
+  --primary: #F15C3E;
   --primary-foreground: #FFFFFF;
 
-  --secondary: #EFE7D2;
-  --secondary-foreground: #2B463C;
+  --secondary: #1C2129;
+  --secondary-foreground: #F7F2E7;
 
-  --muted: #F3EDDE;
-  --muted-foreground: #6C7C73;
+  --muted: #F0EAD9;
+  --muted-foreground: #6B6656;
 
-  --border: #DED2B4;
-  --input: #C9BC98;
-  --ring: #1F4D3D;
+  --border: #E7DEC7;
+  --input: #D9CDA8;
+  --ring: #F15C3E;
 
   --destructive: #C0392B;
   --destructive-foreground: #7A2620;
@@ -90,37 +98,44 @@
   --info: #2F6FA8;
   --info-foreground: #1E3A5F;
 
-  --accent: #E8A33D;
-  --accent-foreground: #3B2508;
+  --accent: #FFC93C;
+  --accent-foreground: #2B2108;
 
-  --icon-classes: #3B8161;
+  --badge-yellow: #FFC93C;
+  --badge-yellow-foreground: #2B2108;
+  --badge-purple: #D8C6FA;
+  --badge-purple-foreground: #362160;
+  --badge-blue: #BEE6F5;
+  --badge-blue-foreground: #0F3A4D;
 
-  --sidebar: #FFFDF8;
-  --sidebar-foreground: #17241D;
-  --sidebar-border: #EAE0C8;
+  --icon-classes: #F15C3E;
+
+  --sidebar: #1C2129;
+  --sidebar-foreground: #F7F2E7;
+  --sidebar-border: #2B313B;
 }
 
 .dark {
-  --background: #0E1712;
+  --background: #14181F;
   --foreground: #F3EFE2;
 
-  --card: #16211B;
+  --card: #1C2129;
   --card-foreground: #F3EFE2;
-  --popover: #16211B;
+  --popover: #1C2129;
   --popover-foreground: #F3EFE2;
 
-  --primary: #2F6B52;
-  --primary-foreground: #FFFFFF;
+  --primary: #FF7A5C;
+  --primary-foreground: #1C2129;
 
-  --secondary: #1B2A22;
-  --secondary-foreground: #E7E2D3;
+  --secondary: #F7F2E7;
+  --secondary-foreground: #1C2129;
 
-  --muted: #1E2B24;
-  --muted-foreground: #93A399;
+  --muted: #232A33;
+  --muted-foreground: #9BA3AE;
 
-  --border: #26362D;
-  --input: #33463B;
-  --ring: #2F6B52;
+  --border: #2B313B;
+  --input: #3A4149;
+  --ring: #FF7A5C;
 
   --destructive: #E5665A;
   --destructive-foreground: #F9CFC9;
@@ -131,12 +146,19 @@
   --info: #6FA8DC;
   --info-foreground: #CFE3F5;
 
-  --accent: #F0B454;
-  --accent-foreground: #2B1B06;
+  --accent: #FFD666;
+  --accent-foreground: #2B2108;
 
-  --icon-classes: #4FAE86;
+  --badge-yellow: #FFD666;
+  --badge-yellow-foreground: #2B2108;
+  --badge-purple: #C4A9F5;
+  --badge-purple-foreground: #241541;
+  --badge-blue: #8FD4EC;
+  --badge-blue-foreground: #0A2733;
 
-  --sidebar: #121D17;
+  --icon-classes: #FF7A5C;
+
+  --sidebar: #0F1318;
   --sidebar-foreground: #F3EFE2;
-  --sidebar-border: #223129;
+  --sidebar-border: #232A33;
 }
