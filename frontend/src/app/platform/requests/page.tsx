@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
@@ -45,16 +47,15 @@ export default function PlatformRequestsPage() {
     password: string;
   } | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["platform", "registration-requests", { search, page, limit, statusFilter }],
-    queryFn: () =>
-      registrationApi.list({
-        search: search || undefined,
-        status: statusFilter !== "all" ? statusFilter : undefined,
-        page,
-        limit,
-      }),
-  });
+  const { data, isLoading } = useAsyncQuery(
+    queryKeys.platform.registrationRequests.list({ search, page, limit, statusFilter }),
+    () => registrationApi.list({
+      search: search || undefined,
+      status: statusFilter !== "all" ? statusFilter : undefined,
+      page,
+      limit,
+    }),
+  );
 
   const requests = data?.data ?? [];
   const total = data?.total ?? 0;
@@ -65,7 +66,7 @@ export default function PlatformRequestsPage() {
     onSuccess: (result) => {
       setCredentials(result);
       setApproveDialog(null);
-      queryClient.invalidateQueries({ queryKey: ["platform", "registration-requests"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.platform.registrationRequests.all });
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message ?? "Failed to approve request");
@@ -77,7 +78,7 @@ export default function PlatformRequestsPage() {
     onSuccess: () => {
       toast.success("Request rejected");
       setRejectConfirm(null);
-      queryClient.invalidateQueries({ queryKey: ["platform", "registration-requests"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.platform.registrationRequests.all });
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message ?? "Failed to reject request");
