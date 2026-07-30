@@ -128,7 +128,8 @@ async function main() {
     })
   }
 
-  console.log('\n✅ SEED COMPLETE\n')
+  console.log('\n✅ SEED COMPLETE (platform owner + admins)')
+  console.log('▶ Run seed-domain-data.ts next to populate domain data (programs, levels, educators, students, classes)\n')
 }
 
 main()
