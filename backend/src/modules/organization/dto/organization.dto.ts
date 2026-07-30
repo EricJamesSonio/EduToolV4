@@ -28,6 +28,11 @@ export class CreateOrganizationDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
+  address?: string
+
+  @IsOptional()
+  @IsString()
   @Matches(/^@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
     message: 'emailExtension must be a valid domain like @relief-ed.ph',
   })
@@ -45,6 +50,11 @@ export class UpdateOrganizationDto {
   @IsString()
   @MaxLength(500)
   description?: string
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  address?: string
 
   @IsOptional()
   @IsString()
