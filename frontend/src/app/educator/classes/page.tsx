@@ -163,10 +163,10 @@ export default function EducatorClassesPage(): React.JSX.Element {
     { enabled: !!activeSchoolYearId },
   );
 
-  const { data: strandsRaw } = useQuery({
-    queryKey: ["admin", "strands"],
-    queryFn:  () => strandApi.getAll(),
-  });
+  const { data: strandsRaw } = useAsyncQuery(
+    queryKeys.admin.strands.list(),
+    () => strandApi.getAll(),
+  );
 
   // ── Maps ─────────────────────────────────────────────────────────────────
 
