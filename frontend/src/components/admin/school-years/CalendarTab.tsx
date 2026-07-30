@@ -1,17 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
 
 import { academicCalendarApi } from "@/api/admin/academic-calendar.api";
-import type { CalendarEvent }  from "@/types/admin/calendar.types";
-import { DataTable }    from "@/components/shared/DataTable";
+import type { CalendarEvent } from "@/types/admin/calendar.types";
+import { DataTable } from "@/components/shared/DataTable";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { Button }       from "@/components/ui/button";
-import { formatDate }   from "@/utils/date.util";
+import { Button } from "@/components/ui/button";
+import { formatDate } from "@/utils/date.util";
 
 import { EventFormDialog } from "./EventFormDialog";
 import { EVENT_TYPE_LABELS } from "./constants";
@@ -21,58 +22,60 @@ interface CalendarTabProps {
 }
 
 export function CalendarTab({ schoolYearId }: CalendarTabProps): React.JSX.Element {
-  const queryClient = useQueryClient();
   const [eventDialog, setEventDialog] = useState<{
     mode: "create" | "edit";
     event?: CalendarEvent;
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null);
 
-  const { data: events, isLoading } = useQuery({
-    queryKey: ["admin", "calendar", schoolYearId],
-    queryFn:  () => academicCalendarApi.getAll(schoolYearId),
-  });
+  const { data: events, isLoading } = useAsyncQuery(
+    queryKeys.admin.academicCalendar.list(),
+    () => academicCalendarApi.getAll(schoolYearId),
+  );
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ["admin", "calendar", schoolYearId] });
-
-  const createMutation = useMutation({
-    mutationFn: academicCalendarApi.create,
-    onSuccess: (res) => {
-      if (res.warning) toast.warning(res.warning);
-      else toast.success("Event added.");
-      invalidate();
-      setEventDialog(null);
+  const createMutation = useMutationWithInvalidation(
+    academicCalendarApi.create,
+    {
+      invalidateKeys: [queryKeys.admin.academicCalendar.list()],
+      onSuccess: (res) => {
+        if (res.warning) toast.warning(res.warning);
+        else toast.success("Event added.");
+        setEventDialog(null);
+      },
+      onError: () => toast.error("Failed to add event."),
     },
-    onError: () => toast.error("Failed to add event."),
-  });
+  );
 
-  const updateMutation = useMutation({
-    mutationFn: ({
+  const updateMutation = useMutationWithInvalidation(
+    ({
       id,
       data,
     }: {
-      id:   string;
+      id: string;
       data: Parameters<typeof academicCalendarApi.update>[1];
     }) => academicCalendarApi.update(id, data),
-    onSuccess: (res) => {
-      if (res.warning) toast.warning(res.warning);
-      else toast.success("Event updated.");
-      invalidate();
-      setEventDialog(null);
+    {
+      invalidateKeys: [queryKeys.admin.academicCalendar.list()],
+      onSuccess: (res) => {
+        if (res.warning) toast.warning(res.warning);
+        else toast.success("Event updated.");
+        setEventDialog(null);
+      },
+      onError: () => toast.error("Failed to update event."),
     },
-    onError: () => toast.error("Failed to update event."),
-  });
+  );
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => academicCalendarApi.remove(id),
-    onSuccess: () => {
-      toast.success("Event deleted.");
-      invalidate();
-      setDeleteTarget(null);
+  const deleteMutation = useMutationWithInvalidation(
+    (id: string) => academicCalendarApi.remove(id),
+    {
+      invalidateKeys: [queryKeys.admin.academicCalendar.list()],
+      onSuccess: () => {
+        toast.success("Event deleted.");
+        setDeleteTarget(null);
+      },
+      onError: () => toast.error("Failed to delete event."),
     },
-    onError: () => toast.error("Failed to delete event."),
-  });
+  );
 
   const columns: ColumnDef<CalendarEvent>[] = [
     {

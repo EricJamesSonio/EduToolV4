@@ -3,25 +3,24 @@
 // frontend/src/components/admin/school-years/SectionDetailPanel.tsx
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import {
   Users, BookOpen, CalendarDays,
   Clock, GraduationCap, ChevronRight,
 } from "lucide-react";
-import { classApi }   from "@/api/admin/class.api";
+import { classApi } from "@/api/admin/class.api";
 import { studentApi } from "@/api/admin/student.api";
 import type { Section } from "@/types/admin/section.types";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Badge }    from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type PanelTab = "students" | "classes" | "schedule";
 
 const WEEKDAY_LABELS: Record<number, string> = {
-  0: "Sunday",   1: "Monday", 2: "Tuesday", 3: "Wednesday",
+  0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
   4: "Thursday", 5: "Friday", 6: "Saturday",
 };
 const WEEKDAY_SHORT: Record<number, string> = {
@@ -31,11 +30,17 @@ const WEEKDAY_SHORT: Record<number, string> = {
 function formatTime(time: string): string {
   const [h, m] = time.split(":").map(Number);
   const period = h >= 12 ? "PM" : "AM";
-  const hour   = h % 12 === 0 ? 12 : h % 12;
+  const hour = h % 12 === 0 ? 12 : h % 12;
   return `${hour}:${String(m).padStart(2, "0")} ${period}`;
 }
 
-// ─── Students Tab ─────────────────────────────────────────────────────────────
+function sectionStudentsKey(sectionId: string, schoolYearId: string) {
+  return [...queryKeys.admin.sections.all, 'students', sectionId, schoolYearId] as const;
+}
+
+function sectionClassesKey(sectionId: string, schoolYearId: string) {
+  return [...queryKeys.admin.sections.all, 'classes', sectionId, schoolYearId] as const;
+}
 
 function StudentsTab({
   section,
@@ -44,11 +49,10 @@ function StudentsTab({
   section: Section;
   schoolYearId: string;
 }) {
-  // Use studentApi.getAll with sectionId — returns full Student objects with fullName, studentId, status
-  const { data: students = [], isLoading } = useQuery({
-    queryKey: ["admin", "section-students", section.id, schoolYearId],
-    queryFn:  () => studentApi.getAll({ sectionId: section.id, schoolYearId }),
-  });
+  const { data: students = [], isLoading } = useAsyncQuery(
+    sectionStudentsKey(section.id, schoolYearId),
+    () => studentApi.getAll({ sectionId: section.id, schoolYearId }),
+  );
 
   if (isLoading) {
     return (
@@ -105,8 +109,6 @@ function StudentsTab({
   );
 }
 
-// ─── Classes Tab ──────────────────────────────────────────────────────────────
-
 function ClassesTab({
   section,
   schoolYearId,
@@ -114,10 +116,10 @@ function ClassesTab({
   section: Section;
   schoolYearId: string;
 }) {
-  const { data: classes = [], isLoading } = useQuery({
-    queryKey: ["admin", "section-classes", section.id, schoolYearId],
-    queryFn:  () => classApi.getAll({ sectionId: section.id, schoolYearId }),
-  });
+  const { data: classes = [], isLoading } = useAsyncQuery(
+    sectionClassesKey(section.id, schoolYearId),
+    () => classApi.getAll({ sectionId: section.id, schoolYearId }),
+  );
 
   if (isLoading) {
     return (
@@ -175,8 +177,6 @@ function ClassesTab({
   );
 }
 
-// ─── Weekly Schedule Tab ──────────────────────────────────────────────────────
-
 function WeeklyScheduleTab({
   section,
   schoolYearId,
@@ -184,11 +184,10 @@ function WeeklyScheduleTab({
   section: Section;
   schoolYearId: string;
 }) {
-  // Reuses cached result from ClassesTab — same query key
-  const { data: classes = [], isLoading } = useQuery({
-    queryKey: ["admin", "section-classes", section.id, schoolYearId],
-    queryFn:  () => classApi.getAll({ sectionId: section.id, schoolYearId }),
-  });
+  const { data: classes = [], isLoading } = useAsyncQuery(
+    sectionClassesKey(section.id, schoolYearId),
+    () => classApi.getAll({ sectionId: section.id, schoolYearId }),
+  );
 
   if (isLoading) {
     return (
@@ -199,11 +198,11 @@ function WeeklyScheduleTab({
   }
 
   type ScheduleEntry = {
-    subjectName:  string;
+    subjectName: string;
     educatorName?: string;
-    startTime:    string;
-    endTime:      string;
-    classId:      string;
+    startTime: string;
+    endTime: string;
+    classId: string;
   };
 
   const byWeekday: Record<number, ScheduleEntry[]> = {};
@@ -211,11 +210,11 @@ function WeeklyScheduleTab({
     for (const sched of cls.schedules) {
       if (!byWeekday[sched.weekday]) byWeekday[sched.weekday] = [];
       byWeekday[sched.weekday].push({
-        subjectName:  cls.subjectName ?? cls.title,
+        subjectName: cls.subjectName ?? cls.title,
         educatorName: cls.educatorName,
-        startTime:    sched.startTime,
-        endTime:      sched.endTime,
-        classId:      cls.id,
+        startTime: sched.startTime,
+        endTime: sched.endTime,
+        classId: cls.id,
       });
     }
   }
@@ -275,16 +274,13 @@ function WeeklyScheduleTab({
   );
 }
 
-// ─── Main Panel ───────────────────────────────────────────────────────────────
-
 export interface SectionDetailPanelProps {
-  section:         Section | null;
-  schoolYearId:    string;
-  levelName?:      string;
-  /** When provided, shows a "View Subjects" button that navigates to the subjects tab */
+  section: Section | null;
+  schoolYearId: string;
+  levelName?: string;
   onViewSubjects?: () => void;
-  open:            boolean;
-  onClose:         () => void;
+  open: boolean;
+  onClose: () => void;
 }
 
 export function SectionDetailPanel({
@@ -297,16 +293,15 @@ export function SectionDetailPanel({
 }: SectionDetailPanelProps): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<PanelTab>("students");
 
-  // Fetch students for live count in the header badge
-  const { data: students = [] } = useQuery({
-    queryKey: ["admin", "section-students", section?.id, schoolYearId],
-    queryFn:  () => studentApi.getAll({ sectionId: section!.id, schoolYearId }),
-    enabled:  !!section,
-  });
+  const { data: students = [] } = useAsyncQuery(
+    sectionStudentsKey(section?.id ?? '', schoolYearId),
+    () => studentApi.getAll({ sectionId: section!.id, schoolYearId }),
+    { enabled: !!section },
+  );
 
   const tabs: { key: PanelTab; label: string; icon: React.ReactNode }[] = [
-    { key: "students", label: "Students",        icon: <Users        className="h-3.5 w-3.5" /> },
-    { key: "classes",  label: "Classes",         icon: <BookOpen     className="h-3.5 w-3.5" /> },
+    { key: "students", label: "Students", icon: <Users className="h-3.5 w-3.5" /> },
+    { key: "classes", label: "Classes", icon: <BookOpen className="h-3.5 w-3.5" /> },
     { key: "schedule", label: "Weekly Schedule", icon: <CalendarDays className="h-3.5 w-3.5" /> },
   ];
 
@@ -314,10 +309,8 @@ export function SectionDetailPanel({
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent className="w-full sm:max-w-xl flex flex-col p-0 gap-0 overflow-hidden">
 
-        {/* ── Fixed header + tabs ── */}
         <SheetHeader className="px-5 pt-5 pb-0 border-b shrink-0">
 
-          {/* Title + badges + View Subjects */}
           <div className="flex items-start justify-between gap-3 pb-4">
             <div>
               <SheetTitle className="text-base font-semibold leading-tight not-interactive">
@@ -334,7 +327,6 @@ export function SectionDetailPanel({
                   Cap. {section.capacity}
                 </Badge>
               )}
-              {/* Live student count — no longer stale from section.studentCount */}
               <Badge variant="outline" className="text-xs">
                 {students.length} {students.length === 1 ? "student" : "students"}
               </Badge>
@@ -350,7 +342,6 @@ export function SectionDetailPanel({
             </div>
           </div>
 
-          {/* ── Tab bar — sits on the border-b line so it looks "floating" ── */}
           <div className="flex">
             {tabs.map((tab) => (
               <button
@@ -371,7 +362,6 @@ export function SectionDetailPanel({
           </div>
         </SheetHeader>
 
-        {/* ── Scrollable body ── */}
         <div className="flex-1 overflow-y-auto">
           {section && activeTab === "students" && (
             <StudentsTab section={section} schoolYearId={schoolYearId} />

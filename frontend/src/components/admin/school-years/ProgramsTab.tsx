@@ -1,7 +1,8 @@
 // frontend\src\components\admin\school-years\ProgramsTab.tsx
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { ChevronRight, BookOpen, GraduationCap, Users } from "lucide-react";
 import Link from "next/link";
 import { programApi } from "@/api/admin/program.api";
@@ -22,10 +23,10 @@ interface ProgramsTabProps {
 export function ProgramsTab({ schoolYearId, isEnded }: ProgramsTabProps): React.JSX.Element {
   const { state, selectProgram, backToPrograms } = useEnrollmentDrilldown();
 
-  const { data: programs = [], isLoading: programsLoading } = useQuery({
-    queryKey: ["admin", "programs", schoolYearId],
-    queryFn:  () => programApi.getAll(schoolYearId),
-  });
+  const { data: programs = [], isLoading: programsLoading } = useAsyncQuery(
+    queryKeys.admin.programs.list({ schoolYearId }),
+    () => programApi.getAll(schoolYearId),
+  );
 
   const { data: enrollments = [], isLoading: enrollmentsLoading } =
     useSchoolYearEnrollments(schoolYearId);
