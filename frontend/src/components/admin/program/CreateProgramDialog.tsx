@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { programApi } from "@/api/admin/program.api";
 import type { ProgramType } from "@/api/admin/program.api";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,7 +60,7 @@ export function CreateProgramDialog({
     },
     onSuccess: () => {
       toast.success("Program created.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "programs", schoolYearId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.programs.list({ schoolYearId }) });
       reset();
       onClose();
     },
