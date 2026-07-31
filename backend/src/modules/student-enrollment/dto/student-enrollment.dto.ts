@@ -4,11 +4,13 @@ import {
   IsOptional,
   IsEnum,
   IsArray,
+  IsInt,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-// ── School-Year Enrollment ──────────────────────────────────────────────────
+// ── School-Year Enrollment ────────────────────────── ────────────────────────
 
 export class EnrollStudentDto {
   @IsString()
@@ -143,4 +145,25 @@ export class UpdateProgramEnrollmentDto {
   @IsOptional()
   @IsString()
   section_id?: string;
+}
+
+export class PaginatedEnrollmentQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number = 20;
+}
+
+export interface PaginatedResult<T> {
+  data:  T[];
+  total: number;
+  page:  number;
+  limit: number;
 }
