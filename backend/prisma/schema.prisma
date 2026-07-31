@@ -963,6 +963,7 @@ model AuditLog {
   id          String   @id @default(uuid())
   org_id      String
   actor_id    String
+  log_type    String   @default("admin")
   action      String
   entity_type String
   entity_id   String
