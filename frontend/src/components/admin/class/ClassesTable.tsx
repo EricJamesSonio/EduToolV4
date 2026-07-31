@@ -25,6 +25,28 @@ export function ClassesTable({ data, onArchive }: ClassesTableProps): React.JSX.
       ),
     },
     {
+      header: "Program",
+      accessorFn: (row) => row.programName ?? "—",
+      cell: ({ getValue }) => (
+        <span className="text-sm text-muted-foreground not-interactive">{getValue<string>()}</span>
+      ),
+    },
+    {
+      header: "Level",
+      accessorFn: (row) => row.levelName ?? "—",
+      cell: ({ getValue }) => (
+        <span className="text-sm text-muted-foreground not-interactive">{getValue<string>()}</span>
+      ),
+    },
+    {
+      header: "Course / Strand",
+      accessorFn: (row) =>
+        [row.courseName, row.strandName].filter(Boolean).join(" / ") || "—",
+      cell: ({ getValue }) => (
+        <span className="text-sm text-muted-foreground not-interactive">{getValue<string>()}</span>
+      ),
+    },
+    {
       header: "Section",
       accessorFn: (row) => row.sectionName ?? "—",
       cell: ({ getValue }) => (
