@@ -34,6 +34,7 @@ interface DataTableProps<TData, TValue> {
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   onRowClick?: (row: TData) => void;
   className?: string;
+  headerVariant?: "neutral" | "accent";
 }
 
 export function DataTable<TData, TValue>({
@@ -46,6 +47,7 @@ export function DataTable<TData, TValue>({
   onRowSelectionChange,
   onRowClick,
   className,
+  headerVariant = "neutral",
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -55,14 +57,14 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
-    autoResetPageIndex: false,   // ← add this
+    autoResetPageIndex: false,
     state: {
       sorting,
       ...(rowSelection !== undefined ? { rowSelection } : {}),
     },
     ...(onRowSelectionChange ? { onRowSelectionChange } : {}),
     enableRowSelection: !!onRowSelectionChange,
-  })
+  });
 
   return (
     <div className={cn("relative w-full", className)}>
@@ -76,7 +78,7 @@ export function DataTable<TData, TValue>({
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow key={headerGroup.id} data-header-variant={headerVariant}>
                 {headerGroup.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   const sorted = header.column.getIsSorted();
