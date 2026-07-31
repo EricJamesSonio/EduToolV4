@@ -1,7 +1,7 @@
 // components/assign-row/term-date-row.tsx
 "use client"
 
-import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Label } from "@/components/ui/label"
 import type { TermWithSemester } from "./types"
 import { addOneDay } from "./helpers"
@@ -16,6 +16,13 @@ interface TermDateRowProps {
   onDateChange: (termId: string, field: "startDate" | "endDate", value: string) => void
 }
 
+function parseISOToDate(value: string): Date | null {
+  if (!value) return null
+  const [y, m, d] = value.split("-").map(Number)
+  if (!y || !m || !d) return null
+  return new Date(y, m - 1, d)
+}
+
 export function TermDateRow({
   term,
   startDate,
@@ -26,30 +33,39 @@ export function TermDateRow({
   onDateChange,
 }: TermDateRowProps) {
   const minStart = prevEndDate ? addOneDay(prevEndDate) : syMin
+  const minStartDate = parseISOToDate(minStart)
+  const maxDate = parseISOToDate(syMax)
+  const minEndDate = parseISOToDate(startDate) ?? minStartDate
 
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] gap-2 p-2 border rounded">
-      <Label className="text-[10px] not-interactive">
+    <div className="grid grid-cols-[1fr_auto_auto] gap-2 p-2 border rounded items-end">
+      <Label className="text-[10px] not-interactive self-center">
         {term.semesterName} · {term.name}
       </Label>
 
-      <Input
-        type="date"
-        className="h-7 text-xs"
-        value={startDate}
-        min={minStart || syMin}
-        max={syMax}
-        onChange={(e) => onDateChange(term.id, "startDate", e.target.value)}
-      />
+      <div className="w-[150px]">
+        <DatePicker
+          value={startDate}
+          onChange={(v) => onDateChange(term.id, "startDate", v)}
+          placeholder="Start date"
+          disabled={(date) =>
+            (minStartDate ? date < minStartDate : false) ||
+            (maxDate ? date > maxDate : false)
+          }
+        />
+      </div>
 
-      <Input
-        type="date"
-        className="h-7 text-xs"
-        value={endDate}
-        min={startDate || syMin}
-        max={syMax}
-        onChange={(e) => onDateChange(term.id, "endDate", e.target.value)}
-      />
+      <div className="w-[150px]">
+        <DatePicker
+          value={endDate}
+          onChange={(v) => onDateChange(term.id, "endDate", v)}
+          placeholder="End date"
+          disabled={(date) =>
+            (minEndDate ? date < minEndDate : false) ||
+            (maxDate ? date > maxDate : false)
+          }
+        />
+      </div>
     </div>
   )
 }
