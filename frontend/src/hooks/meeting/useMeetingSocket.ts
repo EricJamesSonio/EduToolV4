@@ -22,6 +22,8 @@ export interface IncomingReaction {
 export interface IncomingHandRaise {
   userId: string;
   name: string;
+  /** unique timestamp-based id so the overlay can skip stale events on re-mount */
+  id: string;
 }
 
 interface UseMeetingSocketReturn {
@@ -43,6 +45,10 @@ interface UseMeetingSocketReturn {
   changeSlide: (slide: number) => void;
   startPresentation: (presentationId?: string) => void;
   stopPresentation: () => void;
+  /** Clear the last received reaction (used on meeting re-entry) */
+  clearLatestReaction: () => void;
+  /** Clear the last hand-raise event (used on meeting re-entry) */
+  clearLatestHandRaise: () => void;
 }
 
 export const useMeetingSocket = ({
@@ -159,7 +165,11 @@ const socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
         });
 
         if (newRaise) {
-          setLatestHandRaise({ userId: newRaise.userId, name: newRaise.name });
+          setLatestHandRaise({
+            userId: newRaise.userId,
+            name:   newRaise.name,
+            id:     `${newRaise.userId}-${Date.now()}`,
+          });
         }
 
         prevParticipantsRef.current = incoming;
@@ -249,6 +259,12 @@ return () => {
   }, []);
 
   const sendReaction = useCallback((emoji: string): void => {
+    // Cancel any pending self-echo timer from a previous rapid call
+    if (selfEchoTimerRef.current) {
+      clearTimeout(selfEchoTimerRef.current);
+      selfEchoTimerRef.current = null;
+    }
+
     const selfId = `self-${Date.now()}-${Math.random()}`;
     socketRef.current?.emit("reaction:send", { emoji });
 
@@ -280,6 +296,21 @@ return () => {
     socketRef.current?.emit("lesson:presentation_stop");
   }, []);
 
+  // ── Ephemeral state reset ──────────────────────────────────────────────────
+  // Used when re-entering an already-running meeting so stale reactions /
+  // hand-raises from the previous room session never leak into the overlay.
+  const clearLatestReaction = useCallback(() => {
+    if (selfEchoTimerRef.current) {
+      clearTimeout(selfEchoTimerRef.current);
+      selfEchoTimerRef.current = null;
+    }
+    setLatestReaction(null);
+  }, []);
+
+  const clearLatestHandRaise = useCallback(() => {
+    setLatestHandRaise(null);
+  }, []);
+
   return {
     socket: socketRef.current,
     connected,
@@ -297,5 +328,7 @@ return () => {
     changeSlide,
     startPresentation,
     stopPresentation,
+    clearLatestReaction,
+    clearLatestHandRaise,
   };
 };
