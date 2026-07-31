@@ -24,10 +24,12 @@ import { queryKeys } from "@/hooks/queryKeys.factory";
 
 export const useSchoolYearEnrollments = (
   schoolYearId: string,
+  page: number = 1,
+  limit: number = 20,
 ) => {
-  return useAsyncQuery<StudentSchoolYearEnrollment[]>(
-    queryKeys.admin.studentEnrollment.list({ schoolYearId }),
-    () => studentEnrollmentApi.getBySchoolYear(schoolYearId),
+  return useAsyncQuery(
+    queryKeys.admin.studentEnrollment.list({ schoolYearId, page, limit }),
+    () => studentEnrollmentApi.getBySchoolYear(schoolYearId, page, limit),
     {
       enabled: !!schoolYearId,
     },
