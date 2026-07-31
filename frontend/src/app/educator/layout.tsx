@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useRoleGuard } from "@/hooks/useRole";
-import { BackButtonGuard } from "@/components/shared/BackButtonGuard";
+import { RouteGuardLoader } from "@/components/shared/RouteGuardLoader";
 import { WelcomeModal } from "@/components/shared/WelcomeModal";
 import { EducatorSidebar } from "@/components/layout/EducatorSidebar";
 import { AppShell } from "@/components/layout/AppShell";
@@ -22,15 +22,14 @@ export default function EducatorLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const canRender = useRoleGuard(["educator"]);
-  if (!canRender) return null;
+  const { status } = useRoleGuard(["educator"]);
+  if (status !== "allowed") return <RouteGuardLoader />;
 
   return (
     <MeetingProvider>
       <SidebarProvider>
         <AppShell sidebar={<EducatorSidebar />}>
           {children}
-          <BackButtonGuard />
           <WelcomeModal role="educator" />
         </AppShell>
       </SidebarProvider>

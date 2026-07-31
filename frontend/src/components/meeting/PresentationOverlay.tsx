@@ -101,7 +101,7 @@ return (
       slides={presentation.slides}
       currentSlideIndex={safeIndex}
       template={template}
-      onSelect={handleThumbnailSelect}
+      onSelect={canNavigate ? handleThumbnailSelect : undefined}
     />
 
     {/* MAIN STAGE AREA */}
@@ -111,8 +111,8 @@ return (
         template={template}
         slideNumber={safeIndex}
         totalSlides={totalSlides}
-        onNext={goToNext}
-        onPrev={goToPrev}
+        onNext={canNavigate ? goToNext : undefined}
+        onPrev={canNavigate ? goToPrev : undefined}
       />
     </div>
 

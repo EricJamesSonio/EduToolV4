@@ -33,8 +33,12 @@ export class ClassController {
 
   @Post()
   @Roles('admin')
-  async create(@CurrentUser('org_id') orgId: string, @Body() dto: CreateClassDto) {
-    return this.classService.create(orgId, dto);
+  async create(
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+    @Body() dto: CreateClassDto,
+  ) {
+    return this.classService.create(orgId, dto, actorId);
   }
 
   @Get()
@@ -62,8 +66,12 @@ export class ClassController {
   @Delete(':id')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async archive(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
-    await this.classService.archive(id, orgId);
+  async archive(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+  ) {
+    await this.classService.archive(id, orgId, actorId);
   }
 
   @Post(':id/enroll')
@@ -71,9 +79,10 @@ export class ClassController {
   async enrollStudent(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: EnrollStudentDto,
   ) {
-    return this.classService.enrollStudent(id, orgId, dto);
+    return this.classService.enrollStudent(id, orgId, dto, actorId);
   }
 
   @Get(':id/enrollments')
@@ -106,8 +115,9 @@ export class ClassController {
     @Param('classId') classId: string,
     @Param('enrollmentId') enrollmentId: string,
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
   ) {
-    return this.classService.removeEnrollment(classId, enrollmentId, orgId);
+    return this.classService.removeEnrollment(classId, enrollmentId, orgId, actorId);
   }
 
   @Post(':id/reassign-educator')

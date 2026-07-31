@@ -11,7 +11,10 @@ interface Props {
 }
 
 export function EnrollmentTab({ schoolYearId, isEnded }: Props) {
-  const { data: enrollments = [], isLoading } = useSchoolYearEnrollments(schoolYearId);
+  const { data: enrollmentsResponse = [], isLoading } = useSchoolYearEnrollments(schoolYearId);
+  const enrollments = Array.isArray(enrollmentsResponse)
+    ? enrollmentsResponse
+    : enrollmentsResponse?.data ?? [];
 
   const activeCount   = enrollments.filter((e) => e.status === "active").length;
   const pendingCount  = enrollments.filter((e) => e.status === "pending").length;

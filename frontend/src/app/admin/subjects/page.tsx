@@ -68,14 +68,9 @@ export default function SubjectsPage(): React.JSX.Element {
         }
       />
 
-      {/* Search + New Subject on one line */}
+      {/* New Subject — own row, right-aligned (matches Sections/Programs pages) */}
       {filters.selectedSchoolYearId && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <SubjectSearch
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            resultCount={filteredSubjects.length}
-          />
+        <div className="flex justify-end">
           <Button onClick={() => setCreateOpen(true)} size="sm">
             <Plus className="mr-1.5 h-4 w-4" />
             {filters.activeTab === "minor" ? "New Minor Subject" : "New Subject"}
@@ -89,17 +84,24 @@ export default function SubjectsPage(): React.JSX.Element {
         onTabChange={filters.setActiveTab}
       />
 
-      {/* Filters */}
+      {/* Search + Filters — one row (matches Sections page) */}
       {filters.selectedSchoolYearId && (
-        <SubjectFilters
-          {...filters}
-          programs={programs}
-          levels={levels}
-          courses={courses}
-          strands={strands}
-          programsLoading={programsLoading}
-          levelsLoading={levelsLoading}
-        />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+          <SubjectSearch
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            resultCount={filteredSubjects.length}
+          />
+          <SubjectFilters
+            {...filters}
+            programs={programs}
+            levels={levels}
+            courses={courses}
+            strands={strands}
+            programsLoading={programsLoading}
+            levelsLoading={levelsLoading}
+          />
+        </div>
       )}
 
       {/* Table or empty state */}

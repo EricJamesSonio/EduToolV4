@@ -30,13 +30,14 @@ export class ProgramController {
   @Post()
   async create(
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: CreateProgramDto,
   ) {
     if (!orgId) {
       throw new BadRequestException('orgId is missing from user context')
     }
 
-    return this.programService.create(orgId, dto)
+    return this.programService.create(orgId, dto, actorId)
   }
 
   @Get()
@@ -104,13 +105,14 @@ export class ProgramController {
   async update(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: UpdateProgramDto,
   ) {
     if (!orgId) {
       throw new BadRequestException('orgId is missing from user context')
     }
 
-    return this.programService.update(id, orgId, dto)
+    return this.programService.update(id, orgId, dto, actorId)
   }
 
   @Delete(':id')
@@ -118,11 +120,12 @@ export class ProgramController {
   async remove(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
   ) {
     if (!orgId) {
       throw new BadRequestException('orgId is missing from user context')
     }
 
-    await this.programService.remove(id, orgId)
+    await this.programService.remove(id, orgId, actorId)
   }
 }

@@ -10,8 +10,10 @@ import { SemesterTemplateSeederService } from './seeders/semester-template-seede
 import { MajorSubjectSeederService } from './seeders/major-subject-seeder.service'
 import { MinorSubjectSeederService } from './seeders/minor-subject-seeder.service'
 import { PrerequisiteSeederService } from './seeders/prerequisite-seeder.service'
+import { AuditLogModule } from '../audit-log/audit-log.module'
 
 @Module({
+  imports: [AuditLogModule],
   providers: [
     OrgSeederService,
     ProgramSeederService,

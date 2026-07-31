@@ -1,7 +1,7 @@
 "use client";
 
 import { useRoleGuard } from "@/hooks/useRole";
-import { BackButtonGuard } from "@/components/shared/BackButtonGuard";
+import { RouteGuardLoader } from "@/components/shared/RouteGuardLoader";
 import { PlatformSidebar } from "@/components/layout/PlatformSidebar";
 import { AppShell } from "@/components/layout/AppShell";
 import { SidebarProvider } from "@/context/SidebarContext";
@@ -11,14 +11,13 @@ export default function PlatformLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const canRender = useRoleGuard(["platform_owner"]);
-  if (!canRender) return null;
+  const { status } = useRoleGuard(["platform_owner"]);
+  if (status !== "allowed") return <RouteGuardLoader />;
 
   return (
     <SidebarProvider>
       <AppShell sidebar={<PlatformSidebar />}>
         {children}
-        <BackButtonGuard />
       </AppShell>
     </SidebarProvider>
   );

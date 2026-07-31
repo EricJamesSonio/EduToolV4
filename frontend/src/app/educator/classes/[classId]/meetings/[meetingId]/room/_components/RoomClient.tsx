@@ -1,7 +1,7 @@
 // src/app/educator/classes/[classId]/meetings/[meetingId]/room/_components/RoomClient.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,10 +45,19 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const currentUserName             = currentUser?.fullName ?? "You";
 
   // ── Join / leave ──────────────────────────────────────────────────────────
+  const didClearStale = useRef(false);
+
   useEffect(() => {
     if (!tokenData) return;
     if (meetingCtx.isInMeeting && meetingCtx.meetingId === meetingId) {
       meetingCtx.maximize();
+      // Clear stale reaction/hand-raise state only once per mount, when
+      // re-entering an already-running meeting. Guarded so a token refetch
+      // (e.g. on reconnect) can't wipe freshly-arrived reactions mid-session.
+      if (!didClearStale.current) {
+        didClearStale.current = true;
+        meetingCtx.clearEphemeralState();
+      }
     } else {
       meetingCtx.joinMeeting({
         classId, meetingId, role: "educator",
@@ -81,7 +90,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
 
   const respondMutation    = useRespondToJoinRequest(classId, meetingId);
   const endMeetingMutation = useEndMeeting(classId);
-  const { presentation, selectPresentation, clearPresentation } = useMeetingPresentation(classId);
+  const { presentation, selectPresentation, clearPresentation } = useMeetingPresentation(classId, meetingCtx.presentationId);
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [micOn,         setMicOn]         = useState(true);

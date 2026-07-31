@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common'
 import { ProgramRepository } from './program.repository'
 import { DatabaseService } from '@/core/database/database.provider'
+import { AuditLogService } from '../audit-log/audit-log.service'
 import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto'
 
 @Injectable()
@@ -8,9 +9,10 @@ export class ProgramService {
   constructor(
     private readonly programRepository: ProgramRepository,
     private readonly db: DatabaseService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
-  async create(orgId: string, dto: CreateProgramDto) {
+  async create(orgId: string, dto: CreateProgramDto, actorId: string) {
     const nameTaken = await this.programRepository.findByNameAndYear(
       dto.name,
       orgId,
@@ -23,12 +25,23 @@ export class ProgramService {
       )
     }
 
-    return this.programRepository.create({
+    const program = await this.programRepository.create({
       orgId,
       schoolYearId: dto.schoolYearId,
       name: dto.name,
       type: dto.type,
     })
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'program_created',
+      entityType: 'program',
+      entityId: program.id,
+      metadata: { name: dto.name, type: dto.type },
+    }).catch(() => {});
+
+    return program
   }
 
   // ✅ UPDATED: added includeAssignment flag
@@ -63,14 +76,25 @@ export class ProgramService {
     return program
   }
 
-  async update(id: string, orgId: string, dto: UpdateProgramDto) {
+  async update(id: string, orgId: string, dto: UpdateProgramDto, actorId: string) {
     const program = await this.programRepository.findById(id, orgId)
     if (!program) throw new NotFoundException('Program not found.')
 
-    return this.programRepository.update(id, {
+    const updated = await this.programRepository.update(id, {
       name: dto.name,
       type: dto.type,
     })
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'program_updated',
+      entityType: 'program',
+      entityId: id,
+      metadata: { name: dto.name },
+    }).catch(() => {});
+
+    return updated
   }
 
   async getSemesters(programId: string, schoolYearId: string, orgId: string) {
@@ -121,7 +145,7 @@ export class ProgramService {
     }))
   }
 
-  async remove(id: string, orgId: string) {
+  async remove(id: string, orgId: string, actorId: string) {
     const program = await this.programRepository.findById(id, orgId)
     if (!program) throw new NotFoundException('Program not found.')
 
@@ -142,6 +166,15 @@ export class ProgramService {
       )
     }
 
-    return this.programRepository.delete(id)
+    await this.programRepository.delete(id)
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'program_deleted',
+      entityType: 'program',
+      entityId: id,
+      metadata: { name: program.name },
+    }).catch(() => {});
   }
 }

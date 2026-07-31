@@ -124,7 +124,7 @@ export function CreateClassDialog({
       return classApi.create(payload);
     },
     {
-      invalidateKeys: [queryKeys.admin.classes.list()],
+      invalidateKeys: [queryKeys.admin.classes.all],
       onSuccess: () => {
         toast.success("Class created.");
         clearClassDraft();

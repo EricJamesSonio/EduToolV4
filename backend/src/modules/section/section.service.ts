@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { SectionRepository } from './section.repository';
 import { DatabaseService }   from '@/core/database/database.provider';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { CreateSectionDto, UpdateSectionDto, QuerySectionDto } from './dto/section.dto';
 
 @Injectable()
@@ -10,9 +11,10 @@ export class SectionService {
   constructor(
     private readonly sectionRepository: SectionRepository,
     private readonly db: DatabaseService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
-  async create(orgId: string, dto: CreateSectionDto) {
+  async create(orgId: string, dto: CreateSectionDto, actorId: string) {
     const level = await this.db.level.findFirst({
       where: { id: dto.levelId, org_id: orgId },
     });
@@ -34,7 +36,7 @@ export class SectionService {
       if (!strand) throw new NotFoundException('Strand not found.');
     }
 
-    return this.sectionRepository.create({
+    const section = await this.sectionRepository.create({
       orgId,
       levelId:      dto.levelId,
       schoolYearId: dto.schoolYearId,
@@ -43,22 +45,45 @@ export class SectionService {
       name:         dto.name,
       capacity:     dto.capacity,
     });
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'section_created',
+      entityType: 'section',
+      entityId: section.id,
+      metadata: { name: dto.name, capacity: dto.capacity },
+    }).catch(() => {});
+
+    return section;
   }
 
   async findAll(orgId: string, query: QuerySectionDto) {
     return this.sectionRepository.findAll(orgId, query.schoolYearId, query.levelId);
   }
 
-  async update(id: string, orgId: string, dto: UpdateSectionDto) {
+  async update(id: string, orgId: string, dto: UpdateSectionDto, actorId: string) {
     const section = await this.sectionRepository.findById(id, orgId);
     if (!section) throw new NotFoundException('Section not found.');
-    return this.sectionRepository.update(id, {
+
+    const updated = await this.sectionRepository.update(id, {
       name:     dto.name,
       capacity: dto.capacity,
     });
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'section_updated',
+      entityType: 'section',
+      entityId: id,
+      metadata: { name: dto.name },
+    }).catch(() => {});
+
+    return updated;
   }
 
-  async remove(id: string, orgId: string) {
+  async remove(id: string, orgId: string, actorId: string) {
     const section = await this.sectionRepository.findById(id, orgId);
     if (!section) throw new NotFoundException('Section not found.');
 
@@ -68,7 +93,16 @@ export class SectionService {
         'Cannot delete a section that has students assigned to it.',
       );
     }
-    return this.sectionRepository.softDelete(id);
+    await this.sectionRepository.softDelete(id);
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'section_deleted',
+      entityType: 'section',
+      entityId: id,
+      metadata: { name: section.name },
+    }).catch(() => {});
   }
 
   async findById(id: string, orgId: string) {

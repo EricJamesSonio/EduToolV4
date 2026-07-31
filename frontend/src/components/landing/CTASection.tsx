@@ -14,9 +14,9 @@ export function CTASection() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[length:24px_24px] pointer-events-none"></div>
 
         <div className="relative space-y-6">
-          <h2 className="font-bold text-white not-interactive">
-            Modernize Educational Operations
-          </h2>
+<h2 className="font-marketing font-extrabold text-4xl md:text-5xl text-white not-interactive">
+  Modernize Educational Operations
+</h2>
           <p className="text-lg text-white/80 max-w-2xl mx-auto not-interactive">
             Streamline school management with a flexible platform designed for scalable institutions.
           </p>

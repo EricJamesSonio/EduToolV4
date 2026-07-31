@@ -1,19 +1,18 @@
 "use client";
 import { useRoleGuard } from "@/hooks/useRole";
-import { BackButtonGuard } from "@/components/shared/BackButtonGuard";
+import { RouteGuardLoader } from "@/components/shared/RouteGuardLoader";
 import { AdminWelcomeModal } from "@/components/shared/AdminWelcomeModal";
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { AppShell } from "@/components/layout/AppShell";
 import { SidebarProvider } from "@/context/SidebarContext";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const canRender = useRoleGuard(["admin"]);
-  if (!canRender) return null;
+  const { status } = useRoleGuard(["admin"]);
+  if (status !== "allowed") return <RouteGuardLoader />;
   return (
     <SidebarProvider>
       <AppShell sidebar={<AdminSidebar />}>
         {children}
-        <BackButtonGuard />
         <AdminWelcomeModal />
       </AppShell>
     </SidebarProvider>

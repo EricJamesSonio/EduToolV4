@@ -11,6 +11,7 @@ export const useAuditLogs = (
   return useAsyncQuery<AuditLog[]>(
     [...queryKeys.admin.auditLog.all, 'list', query] as const,
     () => auditLogApi.getAll(query),
+    { staleTime: 0, refetchInterval: 15000, meta: { preset: 'realtime' } },
   );
 };
 

@@ -52,6 +52,8 @@ interface MeetingContextValue {
   leaveMeeting: () => void;
   minimize: () => void;
   maximize: () => void;
+  /** Clear stale reaction/hand-raise state on meeting re-entry */
+  clearEphemeralState: () => void;
 }
 
 const MeetingContext = createContext<MeetingContextValue | null>(null);
@@ -94,7 +96,17 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     changeSlide, startPresentation, stopPresentation,
     latestReaction,   // ← plain destructure
     latestHandRaise,
+    clearLatestReaction,
+    clearLatestHandRaise,
   } = useMeetingSocket(socketProps);
+
+  // Clears the last received reaction / hand-raise. Called when a user
+  // re-enters an already-running meeting so stale ephemeral events from a
+  // previous room session never re-animate in the overlay.
+  const clearEphemeralState = useCallback(() => {
+    clearLatestReaction();
+    clearLatestHandRaise();
+  }, [clearLatestReaction, clearLatestHandRaise]);
 
   const joinMeeting = useCallback((params: {
     classId: string;
@@ -136,7 +148,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     sendChat, raiseHand, lowerHand, sendReaction,
     changeSlide, startPresentation, stopPresentation,
 
-    joinMeeting, leaveMeeting, minimize, maximize,
+    joinMeeting, leaveMeeting, minimize, maximize, clearEphemeralState,
   };
 
   return (

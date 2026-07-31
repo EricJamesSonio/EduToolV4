@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import { OrganizationRepository } from './organization.repository'
 import { OrgSeederService } from '../org-seeder/org-seeder.service'
+import { AuditLogService } from '../audit-log/audit-log.service'
 import { DatabaseService } from '@/core/database/database.provider'
 import {
   CreateOrganizationDto,
@@ -20,6 +21,7 @@ export class OrganizationService {
   constructor(
     private readonly orgRepository: OrganizationRepository,
     private readonly orgSeeder: OrgSeederService,
+    private readonly auditLogService: AuditLogService,
     private readonly db: DatabaseService,
   ) {}
 
@@ -36,6 +38,16 @@ async create(adminId: string, dto: CreateOrganizationDto) {
         address: dto.address,
       })
       await this.orgRepository.linkToAdmin(adminId, org.id)
+
+      this.auditLogService.logAdminAction({
+        orgId: org.id,
+        actorId: adminId,
+        action: 'org_created',
+        entityType: 'organization',
+        entityId: org.id,
+        metadata: { name: dto.name },
+      }).catch(() => {});
+
       return org
     } catch (e: any) {
       if (e?.code === 'P2002' && e?.meta?.target?.includes('email_extension')) {
@@ -59,12 +71,12 @@ async create(adminId: string, dto: CreateOrganizationDto) {
     }
   }
 
-  async update(orgId: string, dto: UpdateOrganizationDto) {
+  async update(orgId: string, dto: UpdateOrganizationDto, actorId: string) {
     const org = await this.orgRepository.findById(orgId)
     if (!org) throw new NotFoundException('Organization not found.')
 
     try {
-      return await this.orgRepository.update(orgId, {
+      const updated = await this.orgRepository.update(orgId, {
         name: dto.name,
         description: dto.description,
         address: dto.address,
@@ -72,6 +84,17 @@ async create(adminId: string, dto: CreateOrganizationDto) {
           email_extension: dto.emailExtension ?? undefined,
         }),
       })
+
+      this.auditLogService.logAdminAction({
+        orgId,
+        actorId,
+        action: 'org_updated',
+        entityType: 'organization',
+        entityId: orgId,
+        metadata: { name: dto.name },
+      }).catch(() => {});
+
+      return updated
     } catch (e: any) {
       if (e?.code === 'P2002' && e?.meta?.target?.includes('email_extension')) {
         throw new ConflictException('This email extension is already in use by another organization.')
@@ -80,13 +103,14 @@ async create(adminId: string, dto: CreateOrganizationDto) {
     }
   }
 
-  async seed(orgId: string, dto: SeedOrganizationDto) {
+  async seed(orgId: string, dto: SeedOrganizationDto, actorId: string) {
     if (!orgId) throw new BadRequestException('No organization found for this account.')
     const org = await this.orgRepository.findById(orgId)
     if (!org) throw new NotFoundException('Organization not found.')
 
   await this.orgSeeder.seedOrg({
     orgId,
+    actorId,
     schoolYearId:          dto.schoolYearId,
     programs:              dto.programs,
     courses:               dto.courses,

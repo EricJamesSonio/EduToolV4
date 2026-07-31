@@ -25,6 +25,7 @@ export class AuditLogRepository {
       data: {
         org_id: data.orgId,
         actor_id: data.actorId,
+        log_type: 'admin',
         action: data.action,
         entity_type: data.entityType,
         entity_id: data.entityId,
@@ -50,11 +51,11 @@ export class AuditLogRepository {
       data: {
         org_id: data.orgId,
         actor_id: data.actorId,
+        log_type: 'activity',
         action: data.action,
         entity_type: data.entityType,
         entity_id: data.entityId,
-        metadata: data.metadata ?? Prisma.JsonNull
-
+        metadata: data.metadata ?? Prisma.JsonNull,
       },
     });
   }
@@ -79,6 +80,7 @@ export class AuditLogRepository {
     return this.db.auditLog.findMany({
       where: {
         org_id: orgId,
+        log_type: 'admin',
         ...(filters.action ? { action: filters.action } : {}),
         ...(filters.entityType ? { entity_type: filters.entityType } : {}),
         ...(filters.entityId ? { entity_id: filters.entityId } : {}),
@@ -111,6 +113,7 @@ export class AuditLogRepository {
     return this.db.auditLog.findMany({
       where: {
         org_id: orgId,
+        log_type: 'activity',
         entity_type: 'class',
         ...(filters.classId ? { entity_id: filters.classId } : {}),
         ...(filters.from || filters.to

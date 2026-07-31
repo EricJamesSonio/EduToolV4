@@ -18,9 +18,10 @@ export class SectionController {
   @Roles('admin')
   async create(
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: CreateSectionDto,
   ) {
-    return this.sectionService.create(orgId, dto);
+    return this.sectionService.create(orgId, dto, actorId);
   }
 
   @Get()
@@ -36,9 +37,10 @@ export class SectionController {
   async update(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: UpdateSectionDto,
   ) {
-    return this.sectionService.update(id, orgId, dto);
+    return this.sectionService.update(id, orgId, dto, actorId);
   }
 
   @Delete(':id')
@@ -47,7 +49,8 @@ export class SectionController {
   async remove(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
   ) {
-    await this.sectionService.remove(id, orgId);
+    await this.sectionService.remove(id, orgId, actorId);
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/store/auth.store";
 import type { Role } from "@/types/auth.types";
@@ -10,44 +11,54 @@ import type { Role } from "@/types/auth.types";
  *
  * Usage in portal layouts:
  *   const { role } = useRole();
- *   useRoleGuard(["admin"]);
+ *   const { status } = useRoleGuard(["admin"]);
  */
 export function useRole() {
   const { user } = useAuth();
   return { role: user?.role ?? null };
 }
 
-/**
- * Redirects to /login if the user's role is not in the allowed list.
- * Also redirects if the user is not yet loaded (after loading completes).
- *
- * Returns `true` when it is safe to render protected children (authenticated
- * and authorised).  Return `false` during loading so the layout can avoid
- * flashing protected content to unauthorised users.
- *
- * @param allowedRoles  Roles permitted to access the current route
- */
-export function useRoleGuard(allowedRoles: Role[]): boolean {
-  const { user, isLoading } = useAuth();
+export type RoleGuardStatus = "loading" | "allowed" | "redirecting";
 
-  /* Redirect BEFORE browser paints — this ensures the protected page is
-     never visible to unauthorised users or visitors with expired tokens. */
+/**
+ * Protects a route from unauthenticated / unauthorised users.
+ *
+ * - "loading"    → auth state not resolved yet (session restore in flight).
+ *                  Layouts MUST render a loader for this status (never a blank
+ *                  screen).
+ * - "allowed"    → user is authenticated and has a permitted role.
+ * - "redirecting"→ user is not allowed; a redirect to /login has been
+ *                  dispatched. Layouts can render a loader briefly.
+ *
+ * Redirects happen:
+ *   1. Before paint on mount via useLayoutEffect → no flash of protected UI.
+ *   2. On every auth-state change (e.g. after logout while mounted).
+ *   3. On bfcache restore (pageshow) → full replace so the cached protected
+ *      page is dropped and the user lands on /login.
+ */
+export function useRoleGuard(allowedRoles: Role[]): { status: RoleGuardStatus } {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const redirectedRef = useRef(false);
+
   useLayoutEffect(() => {
     if (isLoading) return;
 
-    if (!user) {
-      window.location.replace("/login");
-      return;
-    }
+    const isAllowed = !!user && allowedRoles.includes(user.role);
 
-    if (!allowedRoles.includes(user.role)) {
-      window.location.replace("/login");
+    if (!isAllowed) {
+      if (!redirectedRef.current) {
+        redirectedRef.current = true;
+        router.replace("/login");
+      }
+    } else {
+      redirectedRef.current = false;
     }
-  }, [user, isLoading, allowedRoles]);
+  }, [user, isLoading, allowedRoles, router]);
 
-  /* Handle bfcache restore — when user presses back after logout the
-     component is not remounted so the effect above is skipped.  The
-     pageshow event fires even on persisted (cached) restores. */
+  /* bfcache restore — the component is not remounted on restore, so the effect
+     above is skipped.  pageshow fires even for persisted (cached) restores.
+     Use a full replace so no cached protected DOM is ever revealed. */
   useEffect(() => {
     const onPageShow = (e: PageTransitionEvent) => {
       if (!e.persisted) return;
@@ -60,10 +71,14 @@ export function useRoleGuard(allowedRoles: Role[]): boolean {
     return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
-  /* Prevent rendering children until we are certain the user is
-     authenticated and has the correct role.                          */
-  if (isLoading) return false;
-  if (!user) return false;
-  if (!allowedRoles.includes(user.role)) return false;
-  return true;
+  let status: RoleGuardStatus;
+  if (isLoading || redirectedRef.current) {
+    status = "loading";
+  } else if (user && allowedRoles.includes(user.role)) {
+    status = "allowed";
+  } else {
+    status = "redirecting";
+  }
+
+  return { status };
 }

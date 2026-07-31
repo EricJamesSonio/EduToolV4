@@ -28,8 +28,11 @@ export function ProgramsTab({ schoolYearId, isEnded }: ProgramsTabProps): React.
     () => programApi.getAll(schoolYearId),
   );
 
-  const { data: enrollments = [], isLoading: enrollmentsLoading } =
+  const { data: enrollmentsResponse = [], isLoading: enrollmentsLoading } =
     useSchoolYearEnrollments(schoolYearId);
+  const enrollments = Array.isArray(enrollmentsResponse)
+    ? enrollmentsResponse
+    : enrollmentsResponse?.data ?? [];
 
   const selected = programs.find((p) => p.id === state.programId) ?? null;
 

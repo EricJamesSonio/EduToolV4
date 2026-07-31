@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useRoleGuard } from "@/hooks/useRole";
-import { BackButtonGuard } from "@/components/shared/BackButtonGuard";
+import { RouteGuardLoader } from "@/components/shared/RouteGuardLoader";
 import { WelcomeModal } from "@/components/shared/WelcomeModal";
 import { StudentSidebar } from "@/components/layout/StudentSidebar";
 import { AppShell } from "@/components/layout/AppShell";
@@ -22,15 +22,14 @@ export default function StudentLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const canRender = useRoleGuard(["student"]);
-  if (!canRender) return null;
+  const { status } = useRoleGuard(["student"]);
+  if (status !== "allowed") return <RouteGuardLoader />;
 
   return (
     <MeetingProvider>
       <SidebarProvider>
         <AppShell sidebar={<StudentSidebar />}>
           {children}
-          <BackButtonGuard />
           <WelcomeModal role="student" />
         </AppShell>
       </SidebarProvider>

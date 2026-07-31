@@ -56,37 +56,39 @@ function StudentsPageInner(): React.JSX.Element {
     [schoolYears],
   );
 
-  const { data: schoolYearEnrollments } = useAsyncQuery(
-    queryKeys.admin.studentEnrollment.list({ schoolYearId: activeSchoolYearId }),
-    () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
-    { enabled: !!activeSchoolYearId },
-  );
+const { data: schoolYearEnrollments } = useAsyncQuery(
+  queryKeys.admin.studentEnrollment.list({ schoolYearId: activeSchoolYearId }),
+  () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
+  { enabled: !!activeSchoolYearId },
+);
 
-  const enrichedStudents: Student[] = useMemo(
-    () =>
-      students.map((s) => {
-        const sye = schoolYearEnrollments?.find(
-          (e) => e.student_id === s.id,
-        );
-        if (!sye?.programEnrollments?.length) return s;
-        const pe =
-          sye.programEnrollments.find((p) => p.status === "active") ??
-          sye.programEnrollments[0];
-        return {
-          ...s,
-          programName: pe.program?.name ?? s.programName,
-          levelName: pe.level?.name ?? s.levelName,
-          sectionName: pe.section?.name ?? s.sectionName,
-          courseName: pe.course
-            ? pe.course.code
-              ? `${pe.course.code} – ${pe.course.name}`
-              : pe.course.name
-            : s.courseName,
-          strandName: pe.strand?.name ?? s.strandName,
-        };
-      }),
-    [students, schoolYearEnrollments],
-  );
+const enrollmentsForYear = schoolYearEnrollments?.data ?? [];
+
+const enrichedStudents: Student[] = useMemo(
+  () =>
+    students.map((s) => {
+      const sye = enrollmentsForYear.find(
+        (e) => e.student_id === s.id,
+      );
+      if (!sye?.programEnrollments?.length) return s;
+      const pe =
+        sye.programEnrollments.find((p) => p.status === "active") ??
+        sye.programEnrollments[0];
+      return {
+        ...s,
+        programName: pe.program?.name ?? s.programName,
+        levelName: pe.level?.name ?? s.levelName,
+        sectionName: pe.section?.name ?? s.sectionName,
+        courseName: pe.course
+          ? pe.course.code
+            ? `${pe.course.code} – ${pe.course.name}`
+            : pe.course.name
+          : s.courseName,
+        strandName: pe.strand?.name ?? s.strandName,
+      };
+    }),
+  [students, enrollmentsForYear],
+);
 
   const handleDownloadCredentials = () => {
     window.open(studentApi.downloadCredentials(), "_blank");

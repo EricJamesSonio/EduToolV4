@@ -61,9 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       // Swallow — we clear local state regardless
     } finally {
       clearAuth();
-      queryClient.removeQueries({ queryKey: queryKeys.auth.me() });
+      queryClient.clear();
+      // Replace (not push) so the protected page is removed from the back stack.
+      router.replace("/login");
     }
-  }, [clearAuth, queryClient]);
+  }, [clearAuth, queryClient, router]);
 
   const value: AuthContextValue = {
     user: user ?? null,

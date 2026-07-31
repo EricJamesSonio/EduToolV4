@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { TEMPLATE_STYLES } from "@/lib/presentation-templates";
 import type { Slide } from "@/types/educator/presentation.types";
@@ -14,18 +15,44 @@ interface Props {
 export default function SlideThumbnails({ slides, currentSlideIndex, template, onSelect }: Props) {
   const canSelect = !!onSelect;
   const templateStyle = TEMPLATE_STYLES[template ?? "green"] ?? TEMPLATE_STYLES.green;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLDivElement>(null);
+
+  // Keep the active slide thumbnail in view as the slide changes
+  useEffect(() => {
+    const container = scrollRef.current;
+    const active = activeRef.current;
+    if (!container || !active) return;
+
+    const containerTop = container.getBoundingClientRect().top;
+    const containerBottom = container.getBoundingClientRect().bottom;
+    const activeTop = active.getBoundingClientRect().top;
+    const activeBottom = active.getBoundingClientRect().bottom;
+    const PADDING = 8;
+
+    if (activeTop < containerTop + PADDING) {
+      container.scrollTop -= (containerTop + PADDING) - activeTop;
+    } else if (activeBottom > containerBottom - PADDING) {
+      container.scrollTop += activeBottom - (containerBottom - PADDING);
+    }
+  }, [currentSlideIndex]);
+
   return (
     <div className="w-56 border-r border-zinc-800 bg-zinc-900 flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
         <span className="text-sm font-medium text-white">Slides</span>
+        <span className="text-xs text-zinc-400 tabular-nums">
+          {currentSlideIndex + 1}/{slides.length}
+        </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-2 space-y-2">
         {slides.map((slide, i) => {
           const cleanTitle = slide.title?.replace(/^Slide\s+\d+\s*[-:.]?\s*/i, "")?.trim();
           return (
           <div
             key={slide.id}
+            ref={i === currentSlideIndex ? activeRef : undefined}
             onClick={canSelect ? () => onSelect(i) : undefined}
             className={cn(
               "relative rounded-lg overflow-hidden transition-all",
