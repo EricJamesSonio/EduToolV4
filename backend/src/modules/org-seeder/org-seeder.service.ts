@@ -3,6 +3,7 @@ import { DatabaseService } from '@/core/database/database.provider';
 import { seedId } from './seed-id';
 import { SeedContext } from './seed-context';
 import type { SeedResult, OrgSeedOptions } from './seed-context';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 import { ProgramSeederService } from './seeders/program-seeder.service';
 import { CourseSeederService } from './seeders/course-seeder.service';
@@ -31,9 +32,10 @@ export class OrgSeederService {
     private readonly majorSubjectSeeder: MajorSubjectSeederService,
     private readonly minorSubjectSeeder: MinorSubjectSeederService,
     private readonly prerequisiteSeeder: PrerequisiteSeederService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
-  async seedOrg(options: OrgSeedOptions): Promise<SeedResult> {
+  async seedOrg(options: OrgSeedOptions & { actorId: string }): Promise<SeedResult> {
     const ctx = new SeedContext(this.db, options);
 
     await this.db.orgEnrollmentSetting.upsert({
@@ -70,6 +72,18 @@ export class OrgSeederService {
     await this.majorSubjectSeeder.seed(ctx);
     await this.minorSubjectSeeder.seed(ctx);
     await this.prerequisiteSeeder.seed(ctx);
+
+    this.auditLogService.logAdminAction({
+      orgId: ctx.orgId,
+      actorId: options.actorId,
+      action: 'org_seeded',
+      entityType: 'organization',
+      entityId: ctx.orgId,
+      metadata: {
+        programsCreated: Object.keys(ctx.programMap ?? {}).length,
+        coursesCreated: Object.keys(ctx.courseMap ?? {}).length,
+      },
+    }).catch(() => {});
 
     return ctx.result;
   }
