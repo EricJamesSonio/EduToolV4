@@ -2,13 +2,32 @@
 
 // ── Admin audit log action types ──────────────────────────────────────────────
 export type AdminActionType =
+  | 'org_created'
+  | 'org_updated'
+  | 'org_seeded'
+  | 'school_year_created'
+  | 'school_year_updated'
+  | 'school_year_activated'
+  | 'school_year_ended'
+  | 'program_created'
+  | 'program_updated'
+  | 'program_deleted'
+  | 'section_created'
+  | 'section_updated'
+  | 'section_deleted'
+  | 'class_created'
+  | 'class_archived'
+  | 'class_reassigned'
   | 'student_profile_changed'
   | 'student_status_changed'
   | 'enrollment_created'
   | 'enrollment_removed'
+  | 'enrollment_updated'
   | 'password_reset'
-  | 'class_reassigned'
   | 'grade_lock_override'
+  | 'GRADE_LOCK'
+  | 'GRADE_UNLOCK_OVERRIDE'
+  | 'AUTO_GRADE_LOCK'
   | 'section_capacity_overflow'
   | 'class_capacity_overflow'
   | 'academic_calendar_changed';
@@ -23,6 +42,9 @@ export type EducatorActivityType =
   | 'assessment_edited'
   | 'assessment_published'
   | 'assessment_deleted'
+  | 'assessment_reopened'
+  | 'assessment_questions_generated'
+  | 'students_assigned_to_assessment'
   | 'score_published'
   | 'score_unpublished'
   | 'grade_locked'
@@ -36,6 +58,7 @@ export class AuditLogEntity {
   id: string;
   orgId: string;
   actorId: string;
+  logType: string;
   action: string;
   entityType: string;
   entityId: string;
