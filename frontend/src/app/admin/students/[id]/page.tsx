@@ -64,14 +64,14 @@ export default function StudentDetailPage({
     schoolYears?.[0]?.id ??
     null;
 
-  const { data: schoolYearEnrollments } = useAsyncQuery(
-    queryKeys.admin.studentEnrollment.list({ schoolYearId: activeSchoolYearId }),
-    () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
-    { enabled: !!activeSchoolYearId },
-  );
+const { data: schoolYearEnrollments } = useAsyncQuery(
+  queryKeys.admin.studentEnrollment.list({ schoolYearId: activeSchoolYearId }),
+  () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
+  { enabled: !!activeSchoolYearId },
+);
 
-  const enrollments = enrollmentsRaw ?? [];
-  const programEnrollments = schoolYearEnrollments?.filter((e) => e.student_id === id) ?? [];
+const enrollments = enrollmentsRaw ?? [];
+const programEnrollments = schoolYearEnrollments?.data?.filter((e) => e.student_id === id) ?? [];
   const programIds = useMemo(() => {
     const ids = new Set<string>();
     for (const e of programEnrollments) {
