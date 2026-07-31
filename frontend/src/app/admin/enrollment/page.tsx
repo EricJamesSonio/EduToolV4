@@ -1,7 +1,7 @@
 // ===== File: frontend\src\app\admin\enrollment\page.tsx =====
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -19,6 +19,7 @@ import { EnrolledStudentTable } from "@/components/admin/enrollment/EnrolledStud
 import { ProgramEnrollmentDialog } from "@/components/admin/enrollment/ProgramEnrollmentDialog";
 import { OrgEnrollmentSettingCard } from "@/components/admin/enrollment/OrgEnrollmentSettingCard";
 import { DataTable } from "@/components/shared/DataTable";
+import { Pagination } from "@/components/shared/Pagination";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { useSchoolYears, useSections } from "@/hooks/admin/useSchoolYears";
@@ -52,20 +53,33 @@ export default function EnrollmentPage() {
   const [tab, setTab] = useState("enrollments");
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+
   // Program dialog
   const [programTarget, setProgramTarget] = useState<Student | null>(null);
 
   // Section assignment per row
   const [sectionAssignments, setSectionAssignments] = useState<Record<string, string>>({});
 
+  // Reset to page 1 whenever the school year changes, so we never land on a
+  // page number that doesn't exist for the newly selected year.
+  useEffect(() => {
+    setPage(1);
+  }, [schoolYearId]);
+
   // ── Data ──────────────────────────────────────────────
 
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
 
   const {
-    data: enrollments = [],
+    data: enrollmentsResponse,
     isLoading: enrollLoading,
-  } = useSchoolYearEnrollments(schoolYearId ?? "");
+  } = useSchoolYearEnrollments(schoolYearId ?? "", page, limit);
+
+  const enrollments = enrollmentsResponse?.data ?? [];
+  const total = enrollmentsResponse?.total ?? 0;
 
   const { data: allStudents = [] } = useStudents();
 
@@ -80,6 +94,12 @@ export default function EnrollmentPage() {
   }, [allStudents]);
 
   // ── Derived ────────────────────────────────────────────
+  // NOTE: these are computed from the CURRENT PAGE only (enrollments is now
+  // a page of `limit` records, not the full list). activeCount/pendingCount/
+  // totalProgramEnrollments will be inaccurate once there are more than one
+  // page of results. Total Students below uses `total` from the API, which
+  // IS accurate. Flagging this so it isn't a silent surprise — the other
+  // three numbers need a backend aggregate endpoint to be fixed properly.
 
   const activeCount = enrollments.filter((e) => e.status === "active").length;
   const pendingCount = enrollments.filter((e) => e.status === "pending").length;
@@ -332,7 +352,7 @@ export default function EnrollmentPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
                   <p className="text-xs text-muted-foreground not-interactive">Total Students</p>
-                  <p className="text-2xl font-semibold not-interactive">{enrollments.length}</p>
+                  <p className="text-2xl font-semibold not-interactive">{total}</p>
                   <p className="text-xs text-muted-foreground not-interactive">in this school year</p>
                 </div>
                 <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
@@ -341,13 +361,13 @@ export default function EnrollmentPage() {
                     {activeCount}
                   </p>
                   <p className="text-xs text-muted-foreground not-interactive">
-                    {pendingCount > 0 ? `${pendingCount} pending` : "no pending"}
+                    {pendingCount > 0 ? `${pendingCount} pending (this page)` : "no pending (this page)"}
                   </p>
                 </div>
                 <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
                   <p className="text-xs text-muted-foreground not-interactive">Program Enrollments</p>
                   <p className="text-2xl font-semibold not-interactive">{totalProgramEnrollments}</p>
-                  <p className="text-xs text-muted-foreground not-interactive">across all programs</p>
+                  <p className="text-xs text-muted-foreground not-interactive">across all programs (this page)</p>
                 </div>
               </div>
             )}
@@ -378,19 +398,27 @@ export default function EnrollmentPage() {
                 isUnenrolling={unenrollMutation.isPending}
                 studentMap={studentMap}
               />
+              <Pagination
+                page={page}
+                limit={limit}
+                total={total}
+                onPageChange={setPage}
+                onLimitChange={setLimit}
+                pageSizeOptions={[10, 20, 50]}
+              />
             </TabsContent>
 
             <TabsContent value="pending" className="pt-4 space-y-2">
               <p className="text-xs text-muted-foreground px-1">
                 Students enrolled in a program who haven&apos;t been assigned to a
-                section yet.
+                section yet (current page only).
               </p>
               <DataTable
                 columns={pendingColumns}
                 data={pendingSectionEnrollments}
                 isLoading={enrollLoading}
                 emptyTitle="All students have sections assigned"
-                emptyDescription="No pending section assignments for this school year."
+                emptyDescription="No pending section assignments on this page."
                 className="rounded-lg border"
               />
             </TabsContent>
