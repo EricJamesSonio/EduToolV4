@@ -166,26 +166,6 @@ private async resolveSemesterId(
 }
 
 async create(orgId: string, dto: CreateClassDto, actorId: string) {
-  // ── DEBUG ──────────────────────────────────────────────────────────────
-  const subjectDebug = await this.db.subject.findFirst({
-    where: { id: dto.subjectId, org_id: orgId },
-    select: {
-      id:         true,
-      name:       true,
-      program_id: true,
-      course_id:  true,
-      strand_id:  true,
-      level_id:   true,
-    },
-  })
-  console.log('[DEBUG] Subject:', JSON.stringify(subjectDebug, null, 2))
-
-  const sharingDebug = await this.db.subjectSharing.findMany({
-    where: { subject_id: dto.subjectId },
-  })
-  console.log('[DEBUG] Sharings:', JSON.stringify(sharingDebug, null, 2))
-  // ── END DEBUG ──────────────────────────────────────────────────────────
-
   const programId = await this.resolveProgramIdFromSubject(dto.subjectId, orgId)
 
   if (!programId) {
