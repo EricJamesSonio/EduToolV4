@@ -104,7 +104,9 @@ apiClient.interceptors.response.use(
         useAuthStore.getState().clearAuth();
 
         if (hadSession) {
-          window.location.href = "/";
+          // Replace so unauthenticated users never land on (or return to) a
+          // protected page via the back button.
+          window.location.replace("/login");
         }
 
         return Promise.reject(error);
