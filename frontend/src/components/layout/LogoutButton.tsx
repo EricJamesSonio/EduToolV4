@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { useSidebar } from "@/context/SidebarContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { queryClient } from "@/lib/query-client.config";
 import { useAuth } from "@/hooks/useAuth";
 
 export function LogoutButton(): React.JSX.Element {
@@ -17,10 +16,9 @@ export function LogoutButton(): React.JSX.Element {
 
   async function handleLogout(): Promise<void> {
     setIsLoggingOut(true);
-    queryClient.clear();
+    // Canonical logout: clears API session, auth state, query cache and
+    // redirects to /login (replacing history) — see AuthContext.logout().
     await logout();
-    // Replace history entry so back button can't return to the authenticated page
-    window.location.replace("/login");
   }
 
   const button = (
