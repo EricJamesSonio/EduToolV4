@@ -27,6 +27,10 @@ export class QueryAuditLogDto {
   @IsOptional()
   @IsUUID()
   actorId?: string;
+
+  @IsOptional()
+  @IsString()
+  logType?: string;
 }
 
 // ── GET /activity-log?classId= ────────────────────────────────────────────────
