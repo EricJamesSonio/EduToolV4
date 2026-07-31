@@ -8,9 +8,17 @@ export class StudentEnrollmentRepository {
 
   // ── School-Year Enrollment ────────────────────────────────────────────────
 
-  findAllBySchoolYear(schoolYearId: string, orgId: string) {
-    return this.db.studentSchoolYear.findMany({
-      where: { school_year_id: schoolYearId, org_id: orgId },
+findAllBySchoolYear(
+  schoolYearId: string,
+  orgId:        string,
+  page:         number,
+  limit:        number,
+) {
+  const where = { school_year_id: schoolYearId, org_id: orgId }
+
+  return Promise.all([
+    this.db.studentSchoolYear.findMany({
+      where,
       include: {
         programEnrollments: {
           include: {
@@ -23,8 +31,12 @@ export class StudentEnrollmentRepository {
         },
       },
       orderBy: { enrolled_at: 'desc' },
-    })
-  }
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    this.db.studentSchoolYear.count({ where }),
+  ])
+}
 
   findEnrollmentById(id: string, orgId: string) {
     return this.db.studentSchoolYear.findFirst({
