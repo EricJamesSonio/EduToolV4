@@ -59,8 +59,10 @@ export class ClassRepository {
             course_id: true,
             strand_id: true,
             level_id: true,
-            course: { select: { program_id: true } },
-            strand: { select: { program_id: true } },
+            program: { select: { name: true } },
+            course:  { select: { name: true, program: { select: { name: true } } } },
+            strand:  { select: { name: true, program: { select: { name: true } } } },
+            level:   { select: { name: true } },
           },
         },
         educator: {

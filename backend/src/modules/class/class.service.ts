@@ -6,6 +6,7 @@ import {
 import { ClassRepository }    from './class.repository'
 import { EnrollmentService }  from '../enrollment/enrollment.service'
 import { AttendanceService }  from '../attendance/attendance.service'
+import { AuditLogService } from '../audit-log/audit-log.service'
 import { DatabaseService }    from '@/core/database/database.provider'
 import {
   CreateClassDto, UpdateClassDto, QueryClassDto,
@@ -36,6 +37,7 @@ export class ClassService {
     private readonly classRepository:  ClassRepository,
     private readonly enrollmentService: EnrollmentService,
     private readonly attendanceService: AttendanceService,
+    private readonly auditLogService: AuditLogService,
     private readonly db:               DatabaseService,
   ) {}
 
@@ -163,7 +165,7 @@ private async resolveSemesterId(
   return fallback.id
 }
 
-async create(orgId: string, dto: CreateClassDto) {
+async create(orgId: string, dto: CreateClassDto, actorId: string) {
   // ── DEBUG ──────────────────────────────────────────────────────────────
   const subjectDebug = await this.db.subject.findFirst({
     where: { id: dto.subjectId, org_id: orgId },
@@ -219,6 +221,15 @@ async create(orgId: string, dto: CreateClassDto) {
       console.error(`[AttendanceService] Failed to generate sessions for class ${cls.id}:`, err)
     })
 
+  this.auditLogService.logAdminAction({
+    orgId,
+    actorId,
+    action: 'class_created',
+    entityType: 'class',
+    entityId: cls.id,
+    metadata: { subjectId: dto.subjectId, educatorId: dto.educatorId },
+  }).catch(() => {});
+
   return this.classRepository.findById(cls.id, orgId)
 }
 
@@ -247,6 +258,10 @@ return classes.map((cls) => {
     ...cls,
     program_id:    programId,
     subject_name:  subject?.name ?? null,
+    program_name:  subject?.program?.name ?? subject?.course?.program?.name ?? subject?.strand?.program?.name ?? null,
+    level_name:    subject?.level?.name ?? null,
+    course_name:   subject?.course?.name ?? null,
+    strand_name:   subject?.strand?.name ?? null,
 
     // ✅ THIS IS THE FIX
     educatorName: educator?.profile?.full_name ?? null,
@@ -291,13 +306,21 @@ return classes.map((cls) => {
     })
   }
 
-  async archive(id: string, orgId: string) {
+  async archive(id: string, orgId: string, actorId: string) {
     const cls = await this.classRepository.findById(id, orgId)
     if (!cls) throw new NotFoundException('Class not found.')
-    return this.classRepository.softDelete(id)
+    await this.classRepository.softDelete(id)
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'class_archived',
+      entityType: 'class',
+      entityId: id,
+    }).catch(() => {});
   }
 
-  async enrollStudent(id: string, orgId: string, dto: EnrollStudentDto) {
+  async enrollStudent(id: string, orgId: string, dto: EnrollStudentDto, actorId: string) {
     const cls = await this.classRepository.findById(id, orgId)
     if (!cls) throw new NotFoundException('Class not found.')
 
@@ -311,6 +334,15 @@ return classes.map((cls) => {
         await this.classRepository.lockGradingSchemeForClass(id, orgId)
       }
     }
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'enrollment_created',
+      entityType: 'class_enrollment',
+      entityId: id,
+      metadata: { studentId: dto.studentId },
+    }).catch(() => {});
 
     return result
   }
@@ -333,10 +365,21 @@ return classes.map((cls) => {
     return this.enrollmentService.updateStatus(classId, enrollmentId, orgId, dto)
   }
 
-  async removeEnrollment(classId: string, enrollmentId: string, orgId: string) {
+  async removeEnrollment(classId: string, enrollmentId: string, orgId: string, actorId: string) {
     const cls = await this.classRepository.findById(classId, orgId)
     if (!cls) throw new NotFoundException('Class not found.')
-    return this.enrollmentService.remove(classId, enrollmentId, orgId)
+    const result = await this.enrollmentService.remove(classId, enrollmentId, orgId)
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'enrollment_removed',
+      entityType: 'class_enrollment',
+      entityId: classId,
+      metadata: { enrollmentId },
+    }).catch(() => {});
+
+    return result
   }
 
   async reassignEducator(id: string, orgId: string, dto: ReassignEducatorDto, adminId: string) {
@@ -363,7 +406,18 @@ return classes.map((cls) => {
       reassignedBy:   adminId,
     })
 
-    return this.classRepository.update(id, { educatorId: dto.educatorId })
+    const updated = await this.classRepository.update(id, { educatorId: dto.educatorId })
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId: adminId,
+      action: 'class_reassigned',
+      entityType: 'class',
+      entityId: id,
+      metadata: { fromEducatorId: cls.educator_id, toEducatorId: dto.educatorId, reason: dto.reason },
+    }).catch(() => {});
+
+    return updated
   }
 
   async getOwnershipHistory(id: string, orgId: string) {
