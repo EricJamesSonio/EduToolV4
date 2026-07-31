@@ -30,16 +30,15 @@ export default function SchoolYearsPage(): React.JSX.Element {
     <div className="space-y-6 pb-10">
       <PageHeader
         title="School Years"
-        actions={
-          <div className="flex items-center gap-2">
-            <HelpGuide slug="admin_school_years" />
-            <Button onClick={() => setCreateOpen(true)} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              New School Year
-            </Button>
-          </div>
-        }
+        actions={<HelpGuide slug="admin_school_years" />}
       />
+
+      <div className="flex justify-end">
+        <Button onClick={() => setCreateOpen(true)} size="sm">
+          <Plus className="mr-2 h-4 w-4" />
+          New School Year
+        </Button>
+      </div>
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
