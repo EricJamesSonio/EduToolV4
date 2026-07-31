@@ -6,12 +6,14 @@ import { SchoolYearRepository } from './school-year.repository';
 import { LevelModule } from '@/modules/level/level.module';
 import { SubjectModule } from '@/modules/subject/subject.module';
 import { GradingScaleModule } from '../grading-scale/grading-scale.module';
+import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
   imports: [
-    LevelModule,   // for seeding level structure on school year creation
+    LevelModule,
     SubjectModule,
-    GradingScaleModule // for unlocking all subjects on school year activation
+    GradingScaleModule,
+    AuditLogModule,
   ],
   controllers: [SchoolYearController],
   providers: [SchoolYearService, SchoolYearRepository],

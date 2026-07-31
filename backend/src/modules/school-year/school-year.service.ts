@@ -10,6 +10,7 @@ import { SchoolYearRepository } from './school-year.repository';
 import { LevelService } from '@/modules/level/level.service';
 import { SubjectService } from '@/modules/subject/subject.service';
 import { GradingScaleService } from '../grading-scale/grading-scale.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import {
   CreateSchoolYearDto,
   UpdateSchoolYearDto,
@@ -30,6 +31,7 @@ export class SchoolYearService {
     private readonly levelService: LevelService,
     private readonly subjectService: SubjectService,
     private readonly gradingScaleService: GradingScaleService,
+    private readonly auditLogService: AuditLogService,
   ) { }
 
   // ---------------------------------------------------------------------------
@@ -68,6 +70,7 @@ export class SchoolYearService {
   async create(
     orgId: string,
     dto: CreateSchoolYearDto,
+    actorId: string,
   ): Promise<SchoolYearCreateResult> {
     this.validateDateRange(dto.start_date, dto.end_date);
     this.validateNotInPast(dto.start_date, dto.end_date); // 👈 ADD THIS
@@ -92,6 +95,15 @@ export class SchoolYearService {
 
     await this.levelService.seedFromDefaults(orgId, schoolYear.id, {});
 
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'school_year_created',
+      entityType: 'school_year',
+      entityId: schoolYear.id,
+      metadata: { name: dto.name, start_date: dto.start_date, end_date: dto.end_date },
+    }).catch(() => {});
+
     return {
       data: schoolYear,
       warning: short ? 'School year is shorter than 10 months.' : undefined,
@@ -112,7 +124,7 @@ export class SchoolYearService {
     return this.schoolYearRepository.findActive(orgId);
   }
 
-  async update(id: string, orgId: string, dto: UpdateSchoolYearDto) {
+  async update(id: string, orgId: string, dto: UpdateSchoolYearDto, actorId: string) {
     const schoolYear = await this.schoolYearRepository.findById(id, orgId);
     if (!schoolYear) throw new NotFoundException('School year not found.');
 
@@ -122,7 +134,6 @@ export class SchoolYearService {
       );
     }
 
-    // Resolve effective dates for cross-field validation
     const effectiveStart =
       dto.start_date ?? schoolYear.start_date?.toISOString();
     const effectiveEnd = dto.end_date ?? schoolYear.end_date?.toISOString();
@@ -140,14 +151,25 @@ export class SchoolYearService {
       });
     }
 
-    return this.schoolYearRepository.update(id, {
+    const updated = await this.schoolYearRepository.update(id, {
       name: dto.name,
       start_date: dto.start_date,
       end_date: dto.end_date,
     });
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'school_year_updated',
+      entityType: 'school_year',
+      entityId: id,
+      metadata: { name: dto.name },
+    }).catch(() => {});
+
+    return updated;
   }
 
-  async activate(id: string, orgId: string) {
+  async activate(id: string, orgId: string, actorId: string) {
     const schoolYear = await this.schoolYearRepository.findById(id, orgId);
     if (!schoolYear) {
       throw new NotFoundException('School year not found.');
@@ -193,12 +215,19 @@ export class SchoolYearService {
 
     const result = await this.schoolYearRepository.updateStatus(id, 'active');
 
-    // 🔓 Reset locks for new active cycle
     await this.subjectService.unlockAllForOrg(orgId);
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'school_year_activated',
+      entityType: 'school_year',
+      entityId: id,
+    }).catch(() => {});
 
     return result;
   }
-  async end(id: string, orgId: string) {
+  async end(id: string, orgId: string, actorId: string) {
     const schoolYear = await this.schoolYearRepository.findById(id, orgId);
     if (!schoolYear) throw new NotFoundException('School year not found.');
 
@@ -211,6 +240,14 @@ export class SchoolYearService {
 
     await this.schoolYearRepository.updateStatus(id, 'ended');
     await this.schoolYearRepository.unenrollAllStudents(id, orgId);
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'school_year_ended',
+      entityType: 'school_year',
+      entityId: id,
+    }).catch(() => {});
 
     return this.schoolYearRepository.findById(id, orgId);
   }
