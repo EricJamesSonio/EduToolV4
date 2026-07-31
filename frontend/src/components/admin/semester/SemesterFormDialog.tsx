@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
+import {
+  useAsyncQuery,
+  useMutationWithInvalidation,
+} from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { semesterApi } from "@/api/admin/semester.api";
 import type { Semester } from "@/types/admin/semester.types";
@@ -24,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { schoolYearApi } from "@/api/admin/school-year.api";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import type { AxiosError } from "axios";
 
 interface SemesterFormDialogProps {
@@ -133,9 +137,11 @@ export function SemesterFormDialog({
         onClose();
       },
       onError: (err: AxiosError<{ message: string }>) => {
-        toast.error(err?.response?.data?.message ?? "Failed to create semester.");
+        toast.error(
+          err?.response?.data?.message ?? "Failed to create semester.",
+        );
       },
-    }
+    },
   );
 
   const updateMutation = useMutationWithInvalidation(
@@ -153,9 +159,11 @@ export function SemesterFormDialog({
         onClose();
       },
       onError: (err: AxiosError<{ message: string }>) => {
-        toast.error(err?.response?.data?.message ?? "Failed to update semester.");
+        toast.error(
+          err?.response?.data?.message ?? "Failed to update semester.",
+        );
       },
-    }
+    },
   );
 
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -198,10 +206,17 @@ export function SemesterFormDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(o) => { if (!o) handleCloseClick(); }}>
+      <Dialog
+        open={open}
+        onOpenChange={(o) => {
+          if (!o) handleCloseClick();
+        }}
+      >
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isEdit ? "Edit Semester" : "New Semester"}</DialogTitle>
+            <DialogTitle>
+              {isEdit ? "Edit Semester" : "New Semester"}
+            </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5 mt-1">
@@ -216,7 +231,8 @@ export function SemesterFormDialog({
                   <SelectTrigger>
                     <SelectValue placeholder="Select school year">
                       {schoolYearId
-                        ? (schoolYears.find((sy) => sy.id === schoolYearId)?.name ?? "Select school year")
+                        ? (schoolYears.find((sy) => sy.id === schoolYearId)
+                            ?.name ?? "Select school year")
                         : "Select school year"}
                     </SelectValue>
                   </SelectTrigger>
@@ -250,31 +266,24 @@ export function SemesterFormDialog({
             </div>
 
             {/* Date range */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Start Date</Label>
-                <Input
-                  type="date"
-                  value={draft.startDate}
-                  onChange={(e) => patch("startDate", e.target.value)}
-                />
-                {(errors.startDate || errors.dateRange) && (
-                  <p className="text-xs text-destructive">
-                    {errors.startDate ?? errors.dateRange}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label>End Date</Label>
-                <Input
-                  type="date"
-                  value={draft.endDate}
-                  onChange={(e) => patch("endDate", e.target.value)}
-                />
-                {errors.endDate && (
-                  <p className="text-xs text-destructive">{errors.endDate}</p>
-                )}
-              </div>
+            <div className="space-y-1.5">
+              <Label>Semester date range</Label>
+              <DateRangePicker
+                startDate={draft.startDate}
+                endDate={draft.endDate}
+                onChange={({ startDate, endDate }) => {
+                  const next = { ...draft, startDate, endDate };
+                  setDraft(next);
+                  if (submitted) setErrors(validateSemester(next));
+                  if (!isEdit)
+                    localStorage.setItem("semesterDraft", JSON.stringify(next));
+                }}
+              />
+              {(errors.startDate || errors.endDate || errors.dateRange) && (
+                <p className="text-xs text-destructive">
+                  {errors.startDate ?? errors.endDate ?? errors.dateRange}
+                </p>
+              )}
             </div>
 
             {/* Terms */}
@@ -304,8 +313,8 @@ export function SemesterFormDialog({
                 {isPending
                   ? "Saving..."
                   : isEdit
-                  ? "Save Changes"
-                  : "Create Semester"}
+                    ? "Save Changes"
+                    : "Create Semester"}
               </Button>
             </div>
           </div>
