@@ -42,4 +42,8 @@ export interface Class {
   createdAt: string;
   updatedAt?: string;
   programId?: string;
+  programName?: string;
+  levelName?: string;
+  courseName?: string;
+  strandName?: string;
 }
