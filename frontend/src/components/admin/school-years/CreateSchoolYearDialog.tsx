@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { schoolYearApi } from "@/api/admin/school-year.api";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,7 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
 
     onSuccess: () => {
       toast.success("School year created.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.schoolYears.list() });
       reset();
       setShortDurationWarning(null);
       onClose();

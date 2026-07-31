@@ -26,8 +26,11 @@ export function ProgramEnrollmentView({
   levels,
   isEnded,
 }: ProgramEnrollmentViewProps) {
-  const { data: allEnrollments = [], isLoading: enrollmentsLoading } =
+  const { data: allEnrollmentsResponse = [], isLoading: enrollmentsLoading } =
     useSchoolYearEnrollments(schoolYearId);
+  const allEnrollments = Array.isArray(allEnrollmentsResponse)
+    ? allEnrollmentsResponse
+    : allEnrollmentsResponse?.data ?? [];
 
   const { data: allStudentsRaw = [], isLoading: studentsLoading } = useAsyncQuery(
     queryKeys.admin.students.list(),
