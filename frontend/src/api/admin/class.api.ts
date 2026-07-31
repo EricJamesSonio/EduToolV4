@@ -78,6 +78,10 @@ interface RawClass {
   created_at:        string;
   updated_at?:       string;
   program_id?:       string | null;
+  program_name?:     string | null;
+  level_name?:       string | null;
+  course_name?:      string | null;
+  strand_name?:      string | null;
   _count?:           { enrollments: number };
 }
 
@@ -129,6 +133,10 @@ function mapClass(raw: RawClass): Class {
     createdAt:       raw.created_at,
     updatedAt:       raw.updated_at,
     programId: raw.program_id ?? undefined,
+    programName: raw.program_name ?? undefined,
+    levelName: raw.level_name ?? undefined,
+    courseName: raw.course_name ?? undefined,
+    strandName: raw.strand_name ?? undefined,
   };
 }
 

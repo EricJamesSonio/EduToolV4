@@ -15,14 +15,24 @@ interface ApiResponse<T> {
   data:    T;
 }
 
+interface PaginatedResponse<T> {
+  data:  T[];
+  total: number;
+  page:  number;
+  limit: number;
+}
+
 export const studentEnrollmentApi = {
   // ── School-year level ───────────────────────────────────────────────────────
 
   getBySchoolYear: async (
     schoolYearId: string,
-  ): Promise<StudentSchoolYearEnrollment[]> => {
-    const res = await client.get<ApiResponse<StudentSchoolYearEnrollment[]>>(
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResponse<StudentSchoolYearEnrollment>> => {
+    const res = await client.get<ApiResponse<PaginatedResponse<StudentSchoolYearEnrollment>>>(
       `/school-years/${schoolYearId}/enrollments`,
+      { params: { page, limit } },
     );
     return res.data.data;
   },
