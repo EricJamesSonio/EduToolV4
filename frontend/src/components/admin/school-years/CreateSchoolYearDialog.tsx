@@ -14,15 +14,19 @@ import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 
 import type { CreateForm, ShortDurationWarning } from "./types/types";
 import { isShortDurationError } from "./utils/helpers";
 
-// ---------------------------------------------------------------------------
-
 interface Props {
   open: boolean;
   onClose: () => void;
+}
+
+function parseLocalDateForCompare(value: string): Date {
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y, m - 1, d);
 }
 
 export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Element {
@@ -35,10 +39,15 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<CreateForm>({
     defaultValues: { name: "", start_date: "", end_date: "" },
   });
+
+  const startDate = watch("start_date");
+  const endDate = watch("end_date");
 
   const mutation = useMutation({
     mutationFn: (payload: CreateForm & { confirm_short_duration?: boolean }) =>
@@ -85,65 +94,73 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
   return (
     <>
       <Modal open={open} onClose={handleClose} title="New School Year" size="sm">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="sy-name">Title</Label>
+            <Input
+              id="sy-name"
+              placeholder="e.g. School Year 2026-2027"
+              {...register("name", {
+                required: "Title is required",
+                minLength: { value: 2, message: "At least 2 characters" },
+                maxLength: { value: 100, message: "Max 100 characters" },
+              })}
+            />
+            {errors.name && (
+              <p className="text-xs text-destructive">{errors.name.message}</p>
+            )}
+          </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="sy-name">Title</Label>
-              <Input
-                id="sy-name"
-                placeholder="e.g. School Year 2026-2027"
-                {...register("name", {
-                  required: "Title is required",
-                  minLength: { value: 2, message: "At least 2 characters" },
-                  maxLength: { value: 100, message: "Max 100 characters" },
-                })}
-              />
-              {errors.name && (
-                <p className="text-xs text-destructive">{errors.name.message}</p>
-              )}
-            </div>
+<div className="grid grid-cols-2 gap-3">
+  <div className="space-y-1.5">
+    <Label>Start Date</Label>
+    <DatePicker
+      value={startDate || ""}
+      onChange={(v) =>
+        setValue("start_date", v, { shouldValidate: true, shouldDirty: true })
+      }
+    />
+    <input
+      type="hidden"
+      {...register("start_date", { required: "Start date is required" })}
+    />
+    {errors.start_date && (
+      <p className="text-xs text-destructive">{errors.start_date.message}</p>
+    )}
+  </div>
+  <div className="space-y-1.5">
+    <Label>End Date</Label>
+    <DatePicker
+      value={endDate || ""}
+      onChange={(v) =>
+        setValue("end_date", v, { shouldValidate: true, shouldDirty: true })
+      }
+      disabled={(date) => (startDate ? date < parseLocalDateForCompare(startDate) : false)}
+    />
+    <input
+      type="hidden"
+      {...register("end_date", { required: "End date is required" })}
+    />
+    {errors.end_date && (
+      <p className="text-xs text-destructive">{errors.end_date.message}</p>
+    )}
+  </div>
+</div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Start Date</Label>
-                <Input
-                  type="date"
-                  {...register("start_date", {
-                    required: "Start date is required",
-                  })}
-                />
-                {errors.start_date && (
-                  <p className="text-xs text-destructive">{errors.start_date.message}</p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label>End Date</Label>
-                <Input
-                  type="date"
-                  {...register("end_date", {
-                    required: "End date is required",
-                  })}
-                />
-                {errors.end_date && (
-                  <p className="text-xs text-destructive">{errors.end_date.message}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={mutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Creating..." : "Create"}
-              </Button>
-            </div>
-          </form>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={mutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </div>
+        </form>
       </Modal>
 
       <ConfirmDialog
