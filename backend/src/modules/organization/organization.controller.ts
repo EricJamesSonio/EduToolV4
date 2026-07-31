@@ -66,18 +66,20 @@ export class OrganizationController {
   @Roles('admin')
   async update(
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: UpdateOrganizationDto,
   ) {
-    return this.orgService.update(orgId, dto)
+    return this.orgService.update(orgId, dto, actorId)
   }
 
   @Post('seed')
   @Roles('admin')
   async seed(
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
     @Body() dto: SeedOrganizationDto,
   ) {
-    return this.orgService.seed(orgId, dto)
+    return this.orgService.seed(orgId, dto, actorId)
   }
 
   // ========================================================================
