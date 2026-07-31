@@ -143,7 +143,10 @@ export default function EnrollWorkspacePage() {
   const { data: programs = [], isLoading: progLoading } = usePrograms(schoolYearId || null);
   const { data: allLevels = [], isLoading: levelsLoading } = useLevelsByYear(schoolYearId);
   const { data: allStudents = [], isLoading: studentsLoading } = useStudents({});
-  const { data: enrollments = [], isLoading: enrollLoading } = useSchoolYearEnrollments(schoolYearId);
+  const { data: enrollmentsResponse = [], isLoading: enrollLoading } = useSchoolYearEnrollments(schoolYearId);
+  const enrollments = Array.isArray(enrollmentsResponse)
+    ? enrollmentsResponse
+    : enrollmentsResponse?.data ?? [];
   const { data: sections = [], isLoading: sectionsLoading } = useSections(schoolYearId || null, levelId || undefined);
 
   const { data: classesRaw = [], isLoading: classesLoading } = useClasses({ schoolYearId: schoolYearId || undefined });
@@ -408,7 +411,8 @@ export default function EnrollWorkspacePage() {
       );
 
       toast.success(`${students.length} student(s) enrolled.`);
-      router.push(`/admin/enrollment`);
+      setConfirmOpen(false);
+      setSelected(new Set());
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
       toast.error(e?.response?.data?.message ?? "Failed to enroll some students.");
