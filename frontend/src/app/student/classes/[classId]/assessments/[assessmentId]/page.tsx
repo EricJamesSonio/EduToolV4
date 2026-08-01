@@ -184,7 +184,6 @@ export default function AssessmentTakerPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title={isManual ? "Instructions" : (assessment.type?.replace(/_/g, " ") ?? "Assessment")}
-        description="Review instructions and take this assessment."
         breadcrumbs={[
           { label: "Assessments", href: `/student/classes/${classId}/assessments` },
           { label: isManual ? "Instructions" : (assessment.type?.replace(/_/g, " ") ?? "Assessment") },
