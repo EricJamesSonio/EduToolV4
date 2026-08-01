@@ -128,7 +128,7 @@ export default function LoginPage() {
 
           <div className="flex flex-col gap-8">
             <div>
-              <h1 className="font-heading text-3xl font-bold leading-tight tracking-tight">
+              <h1 className="font-marketing font-extrabold text-4xl md:text-5xl leading-tight tracking-tight text-foreground">
                 Every class, grade, and meeting — in one place your school
                 can trust.
               </h1>
@@ -229,8 +229,8 @@ export default function LoginPage() {
 
           <Card className="shadow-sm border-0 md:shadow-none">
             <CardHeader className="pb-4 pt-6 px-6">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                Welcome back
+              <h1 className="font-marketing font-extrabold text-3xl md:text-4xl tracking-tight">
+                Welcome <span className="gradient-text">back</span>
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
                 Sign in to your account to continue.
