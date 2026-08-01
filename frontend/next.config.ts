@@ -13,25 +13,29 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
+
               // Scripts
               isDev
                 ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
                 : "script-src 'self' 'unsafe-inline'",
+
               // Styles
               "style-src 'self' 'unsafe-inline'",
-              // ✅ FIXED: allow backend in dev
+
+              // ✅ FIXED (Docker + Dev + Prod ready)
               isDev
-                ? "connect-src 'self' http://localhost:5000 ws://localhost:* wss://localhost:* https://*.agora.io wss://*.agora.io"
-                : "connect-src 'self' https://*.agora.io wss://*.agora.io",
-              // Media (for video calls, blobs, etc.)
+                ? "connect-src 'self' http://localhost:3001 http://backend:3000 ws://localhost:* ws://backend:3000 https://*.agora.io wss://*.agora.io"
+                : "connect-src 'self' https://your-production-domain.com https://*.agora.io wss://*.agora.io",
+
+              // Media
               "media-src 'self' blob:",
-              // Images — allow backend origin in dev
+
+              // Images
               isDev
-                ? "img-src 'self' data: blob: http://localhost:5000"
+                ? "img-src 'self' data: blob: http://localhost:3001 http://backend:3000"
                 : "img-src 'self' data: blob:",
-              // Fonts
+
               "font-src 'self'",
-              // Security hardening
               "frame-ancestors 'none'",
               "worker-src 'self' blob:",
               "object-src 'none'",
