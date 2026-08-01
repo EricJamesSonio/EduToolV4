@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { format, isPast, isWithinInterval, addMinutes } from "date-fns";
 import { Calendar, Users, ArrowRight, Radio, Video } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
+  ListItemCardAction,
   listItemCardClass,
   listItemTitleClass,
 } from "@/components/shared/ListItemCard";
@@ -84,24 +84,19 @@ export function MeetingCard({ meeting, classId }: MeetingCardProps) {
       {/* Actions */}
       <div className="flex flex-wrap items-center gap-2 pt-1">
         {status === "live" && (
-          <Button
-            size="sm"
-            className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+          <ListItemCardAction
+            icon={Radio}
+            label="Enter Room"
+            variant="default"
+            className="bg-green-600 hover:bg-green-700 text-white"
             onClick={() => router.push(`${basePath}/room`)}
-          >
-            <Radio className="h-3.5 w-3.5" />
-            Enter Room
-          </Button>
+          />
         )}
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5"
+        <ListItemCardAction
+          icon={ArrowRight}
+          label="View"
           onClick={() => router.push(basePath)}
-        >
-          View
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Button>
+        />
       </div>
     </div>
   );
