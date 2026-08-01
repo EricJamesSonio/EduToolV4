@@ -19,7 +19,7 @@ export function PageContainer({ children, className }: PageContainerProps) {
       className={cn(
         "min-h-full rounded-xl border border-border bg-card text-card-foreground",
         "shadow-sm",
-        "p-6",
+        "p-4 sm:p-5 lg:p-6",
         className
       )}
     >
