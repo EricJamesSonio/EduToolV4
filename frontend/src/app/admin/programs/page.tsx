@@ -82,7 +82,6 @@ export default function ProgramsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Programs"
-        description="Organize your academic structure into programs."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_programs" />
@@ -106,7 +105,7 @@ export default function ProgramsPage(): React.JSX.Element {
       )}
 
       {isLoading ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-32 w-full rounded-lg" />
           ))}
@@ -118,7 +117,7 @@ export default function ProgramsPage(): React.JSX.Element {
           description="Add a program manually or run the data seeder from the Organization page."
         />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {programs.map((program) => (
             <ProgramCard key={program.id} program={program} onDelete={setDeleteTarget} />
           ))}
