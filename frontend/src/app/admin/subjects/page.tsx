@@ -55,7 +55,6 @@ export default function SubjectsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Subjects"
-        description="Manage the subjects offered across your programs."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_subjects" />
