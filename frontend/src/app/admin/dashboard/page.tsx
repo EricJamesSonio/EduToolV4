@@ -176,6 +176,7 @@ export default function AdminDashboardPage(): React.JSX.Element {
 
       <PageHeader
         title="Dashboard"
+        description="Overview of your school's academic activity and performance."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_dashboard" />
