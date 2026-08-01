@@ -218,7 +218,6 @@ export default function SubjectDetailPage({
     <div className="space-y-6">
       <PageHeader
         title={subject.title}
-        description="View subject details and its assigned levels."
         breadcrumbs={[
           { label: "Admin" },
           { label: "Subjects", href: "/admin/subjects" },
