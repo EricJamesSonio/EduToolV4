@@ -23,6 +23,7 @@ export default function MeetingsPage({ params }: Props) {
     <div className="space-y-6">
       <PageHeader
         title="Meetings"
+        description="Schedule and join live meetings for this class."
         actions={
           <Button
             onClick={() => router.push(`/educator/classes/${classId}/meetings/new`)}
