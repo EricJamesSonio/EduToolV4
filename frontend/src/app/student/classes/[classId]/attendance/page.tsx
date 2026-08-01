@@ -178,7 +178,7 @@ export default function StudentAttendancePage(): React.JSX.Element {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="My Attendance" />
+      <PageHeader title="My Attendance" description="Track your attendance across your classes." />
 
       {/* Summary bar */}
       {isLoading ? (
