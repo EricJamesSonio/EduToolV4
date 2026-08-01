@@ -30,6 +30,7 @@ export default function SchoolYearsPage(): React.JSX.Element {
     <div className="space-y-6 pb-10">
       <PageHeader
         title="School Years"
+        description="Create and manage your school years."
         actions={<HelpGuide slug="admin_school_years" />}
       />
 
@@ -41,7 +42,7 @@ export default function SchoolYearsPage(): React.JSX.Element {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-32 rounded-lg" />
           ))}
@@ -53,7 +54,7 @@ export default function SchoolYearsPage(): React.JSX.Element {
           description="Create your first school year to get started."
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {schoolYears.map((year) => (
             <SchoolYearCard key={year.id} year={year} hasActive={hasActive} />
           ))}
