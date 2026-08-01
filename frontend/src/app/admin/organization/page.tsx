@@ -9,6 +9,7 @@ export default function OrganizationPage(): React.JSX.Element {
     <div className="space-y-8 pb-10">
       <PageHeader
         title="Organization"
+        description="Configure your school's organization and data seeding."
         actions={<HelpGuide slug="admin_organization" />}
       />
 
