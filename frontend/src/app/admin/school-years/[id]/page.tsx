@@ -63,6 +63,7 @@ export default function SchoolYearDetailPage({
     <div className="space-y-6">
       <PageHeader
         title={schoolYear.name}
+        description="View this school year's academic structure."
         breadcrumbs={[
           { label: "Admin" },
           { label: "School Years", href: "/admin/school-years" },
@@ -133,7 +134,7 @@ export default function SchoolYearDetailPage({
             </Button>
           </div>
         ) : (
-          <div className={`grid gap-4 ${cardGridClass(programs.length)}`}>
+          <div className={`grid ${cardGridClass(programs.length)}`}>
             {programs.map((program) => (
               <ProgramCard
                 key={program.id}
