@@ -146,6 +146,7 @@ export default function GradesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Grades"
+        description="View and compute grades for this class."
         breadcrumbs={[
           { label: "Classes", href: "/educator/classes" },
           { label: "Class", href: `/educator/classes/${classId}` },
