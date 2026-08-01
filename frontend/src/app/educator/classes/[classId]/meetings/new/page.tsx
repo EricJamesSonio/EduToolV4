@@ -75,6 +75,7 @@ export default function NewMeetingPage({ params }: Props) {
     <div className="space-y-6">
       <PageHeader
         title="New Meeting"
+        description="Schedule a new live meeting."
         breadcrumbs={[
           { label: "Meetings", href: `/educator/classes/${classId}/meetings` },
           { label: "New Meeting" },
