@@ -21,9 +21,13 @@ import { formatSchedules } from "@/types/educator/class.types";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import {
+  ListItemCardAction,
+  listItemCardClass,
+  listItemTitleClass,
+} from "@/components/shared/ListItemCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 import type { EducatorClass } from "@/types/educator/class.types";
 import type { Subject } from "@/types/admin/subject.types";
@@ -58,13 +62,13 @@ function ClassCard({
   ].filter(Boolean);
 
   return (
-    <div className="rounded-xl border bg-card p-6 space-y-4">
+    <div className={listItemCardClass}>
       <div className="flex items-start gap-3">
-        <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[colorIndex % WEEK_COLORS.length])}>
+        <div className={cn("rounded-md p-2 sm:p-2.5 shrink-0", WEEK_COLORS[colorIndex % WEEK_COLORS.length])}>
           <BookOpen className="h-4 w-4" />
         </div>
         <div className="flex-1 min-w-0 space-y-1">
-          <h3 className="font-semibold text-lg leading-tight truncate">
+          <h3 className={cn(listItemTitleClass, "truncate")}>
             {cls.subjectName ?? cls.subject_id}
           </h3>
           <div className="space-y-0.5">
@@ -97,10 +101,7 @@ function ClassCard({
             <span className="text-xs text-muted-foreground">Cap: {cls.capacity}</span>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={onClick}>
-          <Eye className="mr-1.5 h-3.5 w-3.5" />
-          View
-        </Button>
+        <ListItemCardAction icon={Eye} label="View" onClick={onClick} />
       </div>
     </div>
   );
@@ -108,7 +109,7 @@ function ClassCard({
 
 function ClassCardSkeleton(): React.JSX.Element {
   return (
-    <div className="rounded-xl border bg-card p-6 space-y-4">
+    <div className={listItemCardClass}>
       <div className="flex items-start gap-3">
         <Skeleton className="h-9 w-9 rounded-md shrink-0" />
         <div className="flex-1 space-y-1">
@@ -249,11 +250,10 @@ export default function EducatorClassesPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="My Classes"
-        description="Classes currently assigned to you."
       />
 
       {classesLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {[1, 2, 3].map((i) => (
             <ClassCardSkeleton key={i} />
           ))}
@@ -265,7 +265,7 @@ export default function EducatorClassesPage(): React.JSX.Element {
           description="You have no active classes yet. Contact your administrator."
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {classes.map((cls, i) => (
             <ClassCard
               key={cls.id}

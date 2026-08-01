@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { analyticsApi } from "@/api/admin/analytics.api";
+import { analyticsApi, DEFAULT_PAGE_SIZE } from "@/api/admin/analytics.api";
 import { organizationApi } from "@/api/admin/organization.api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
+import { Pagination } from "@/components/shared/Pagination";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -36,16 +37,16 @@ interface StatCardProps {
 function StatCard({ label, value, icon: Icon, iconColor, isLoading, warning, action }: StatCardProps) {
   return (
     <div className={cn(
-      "rounded-xl border bg-card p-6 flex items-start justify-between gap-4",
+      "rounded-xl border bg-card p-3 sm:p-5 lg:p-6 flex items-start justify-between gap-2 sm:gap-4",
       warning && value && value > 0 && "border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20"
     )}>
-      <div className="space-y-1">
-        <p className="text-sm text-muted-foreground not-interactive">{label}</p>
+      <div className="space-y-1 min-w-0">
+        <p className="text-xs sm:text-sm text-muted-foreground not-interactive">{label}</p>
         {isLoading ? (
           <Skeleton className="h-8 w-16" />
         ) : (
           <p className={cn(
-            "text-3xl font-bold tracking-tight not-interactive",
+            "text-xl sm:text-3xl font-bold tracking-tight not-interactive",
             warning && value && value > 0 && "text-amber-600"
           )}>
             {value ?? 0}
@@ -61,12 +62,12 @@ function StatCard({ label, value, icon: Icon, iconColor, isLoading, warning, act
         )}
       </div>
       <div className={cn(
-        "rounded-md p-2",
+        "rounded-md p-1.5 sm:p-2 shrink-0",
         iconColor ?? "bg-muted",
         warning && value && value > 0 && "bg-amber-100 dark:bg-amber-900/30"
       )}>
         <Icon className={cn(
-          "h-5 w-5",
+          "h-4 w-4 sm:h-5 sm:w-5",
           iconColor ? "text-current" : "text-muted-foreground",
           warning && value && value > 0 && "text-amber-600"
         )} />
@@ -122,6 +123,8 @@ const enrollmentColumns: ColumnDef<EnrollmentBreakdownRow>[] = [
 export default function AdminDashboardPage(): React.JSX.Element {
   const router = useRouter();
   const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
+  const [enrollmentPage, setEnrollmentPage] = useState(1);
+  const [enrollmentLimit, setEnrollmentLimit] = useState(DEFAULT_PAGE_SIZE);
 
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
 
@@ -132,6 +135,10 @@ export default function AdminDashboardPage(): React.JSX.Element {
       setSelectedYearId(active?.id ?? schoolYears[0].id);
     }
   }, [schoolYears, selectedYearId]);
+
+  useEffect(() => {
+    setEnrollmentPage(1);
+  }, [selectedYearId]);
 
   const { data: org, isLoading: orgLoading } = useAsyncQuery(
     queryKeys.admin.organization.detail(),
@@ -146,10 +153,23 @@ export default function AdminDashboardPage(): React.JSX.Element {
   );
 
   const { data: enrollment, isLoading: enrollmentLoading } = useAsyncQuery(
-    queryKeys.admin.analytics.detail("enrollment"),
-    () => analyticsApi.getEnrollmentBreakdown(selectedYearId ?? undefined),
+    [...queryKeys.admin.analytics.detail("enrollment"), enrollmentPage, enrollmentLimit],
+    () =>
+      analyticsApi.getEnrollmentBreakdown(
+        selectedYearId ?? undefined,
+        enrollmentPage,
+        enrollmentLimit,
+      ),
     { enabled: !!org && !!selectedYearId },
   );
+
+  const enrollmentRows = enrollment?.data ?? [];
+  const enrollmentTotal = enrollment?.meta?.total ?? 0;
+  const enrollmentTotalPages = enrollment?.meta?.totalPages ?? 1;
+
+  useEffect(() => {
+    if (enrollmentPage > enrollmentTotalPages) setEnrollmentPage(Math.max(1, enrollmentTotalPages));
+  }, [enrollmentPage, enrollmentTotalPages]);
 
   return (
     <div className="space-y-8">
@@ -169,7 +189,7 @@ export default function AdminDashboardPage(): React.JSX.Element {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         <StatCard
           label="Total Students"
           value={overview?.totalStudents}
@@ -209,11 +229,21 @@ export default function AdminDashboardPage(): React.JSX.Element {
         <h2 className="text-base font-semibold not-interactive">Enrollment Breakdown</h2>
         <DataTable
           columns={enrollmentColumns}
-          data={enrollment ?? []}
+          data={enrollmentRows}
           isLoading={enrollmentLoading}
           emptyTitle="No enrollment data"
           emptyDescription="Enrollment data will appear once students are assigned to sections."
         />
+        {enrollmentTotal > 0 && (
+          <Pagination
+            page={enrollmentPage}
+            limit={enrollmentLimit}
+            total={enrollmentTotal}
+            onPageChange={setEnrollmentPage}
+            onLimitChange={(l) => { setEnrollmentLimit(l); setEnrollmentPage(1); }}
+            pageSizeOptions={[20, 50, 100]}
+          />
+        )}
       </div>
     </div>
   );

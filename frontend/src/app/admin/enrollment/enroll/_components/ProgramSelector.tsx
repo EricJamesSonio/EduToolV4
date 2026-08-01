@@ -4,6 +4,11 @@ import { GraduationCap, BookOpen, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  listItemCardClass,
+  listItemIconClass,
+  listItemTitleClass,
+} from "@/components/shared/ListItemCard";
+import {
   PROGRAM_TYPE_LABELS, PROGRAM_TYPE_COLORS,
 } from "@/types/admin/program.types";
 import { cn } from "@/lib/utils";
@@ -20,14 +25,14 @@ interface ProgramSelectorProps {
 export function ProgramSelector({ programs, isLoading, onSelect }: ProgramSelectorProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3">
         {[1, 2, 3].map((i) => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3">
       {programs.map((p) => {
         const typeLabel = PROGRAM_TYPE_LABELS[p.type as keyof typeof PROGRAM_TYPE_LABELS] ?? p.type;
         const typeColor = PROGRAM_TYPE_COLORS[p.type as keyof typeof PROGRAM_TYPE_COLORS] ?? "";
@@ -36,14 +41,14 @@ export function ProgramSelector({ programs, isLoading, onSelect }: ProgramSelect
             key={p.id}
             type="button"
             onClick={() => onSelect(p.id)}
-            className="rounded-xl border bg-card p-6 space-y-4 text-left transition-all hover:bg-muted/30"
+            className={cn(listItemCardClass, "text-left transition-all hover:bg-muted/30")}
           >
             <div className="flex items-start gap-3">
-              <div className="icon-container icon-edu shrink-0 mt-0.5">
+              <div className={cn(listItemIconClass, "icon-edu mt-0.5")}>
                 <GraduationCap className="h-4.5 w-4.5" />
               </div>
               <div className="space-y-1 min-w-0">
-                <p className="font-semibold text-lg leading-tight">{p.name}</p>
+                <p className={cn(listItemTitleClass, "not-interactive")}>{p.name}</p>
                 <Badge variant="outline" className={cn("text-xs border", typeColor)}>
                   {typeLabel}
                 </Badge>
@@ -64,20 +69,20 @@ interface CourseStrandSelectorProps {
 
 export function CourseStrandSelector({ items, isCollege, onSelect }: CourseStrandSelectorProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3">
       {items.map((item) => (
         <button
           key={item.id}
           type="button"
           onClick={() => onSelect(item.id)}
-          className="rounded-xl border bg-card p-6 space-y-4 text-left transition-all hover:bg-muted/30"
+          className={cn(listItemCardClass, "text-left transition-all hover:bg-muted/30")}
         >
           <div className="flex items-start gap-3">
-            <div className="icon-container icon-edu shrink-0 mt-0.5">
+            <div className={cn(listItemIconClass, "icon-edu mt-0.5")}>
               <BookOpen className="h-4.5 w-4.5" />
             </div>
             <div className="space-y-1 min-w-0">
-              <p className="font-semibold text-lg leading-tight">{item.code ?? item.name}</p>
+              <p className={cn(listItemTitleClass, "not-interactive")}>{item.code ?? item.name}</p>
               {item.code && <p className="text-sm text-muted-foreground">{item.name}</p>}
             </div>
           </div>
@@ -96,7 +101,7 @@ interface LevelSelectorProps {
 export function LevelSelector({ levels, isLoading, onSelect }: LevelSelectorProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3">
         {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
       </div>
     );
@@ -112,20 +117,20 @@ export function LevelSelector({ levels, isLoading, onSelect }: LevelSelectorProp
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3">
       {levels.map((l) => (
         <button
           key={l.id}
           type="button"
           onClick={() => onSelect(l.id)}
-          className="rounded-xl border bg-card p-6 space-y-4 text-left transition-all hover:bg-muted/30"
+          className={cn(listItemCardClass, "text-left transition-all hover:bg-muted/30")}
         >
           <div className="flex items-start gap-3">
-            <div className="icon-container icon-edu shrink-0 mt-0.5">
+            <div className={cn(listItemIconClass, "icon-edu mt-0.5")}>
               <Layers className="h-4.5 w-4.5" />
             </div>
             <div className="space-y-1 min-w-0">
-              <p className="font-semibold text-lg leading-tight">{l.name}</p>
+              <p className={cn(listItemTitleClass, "not-interactive")}>{l.name}</p>
             </div>
           </div>
         </button>

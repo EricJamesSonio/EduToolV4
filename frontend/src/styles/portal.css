@@ -5,18 +5,33 @@
 ──────────────────────────────────────────── */
 
 [data-slot="card-title"] {
-  font-size: 1.125rem;
+  font-size: 0.875rem;
   line-height: 1.375;
   font-weight: 600;
 }
 [data-slot="card-description"] {
-  font-size: 1rem;
+  font-size: 0.875rem;
   color: var(--muted-foreground);
+}
+
+@media (min-width: 640px) {
+  [data-slot="card-title"] {
+    font-size: 1.125rem;
+  }
+  [data-slot="card-description"] {
+    font-size: 1rem;
+  }
 }
 
 /* ── Table (shadcn Table) ── */
 table[data-slot="table"] {
-  font-size: 1rem;
+  font-size: 0.875rem;
+}
+
+@media (min-width: 640px) {
+  table[data-slot="table"] {
+    font-size: 1rem;
+  }
 }
 [data-slot="table-head"] {
   height: 3rem;

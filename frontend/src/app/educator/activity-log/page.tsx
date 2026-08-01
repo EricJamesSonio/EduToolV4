@@ -189,7 +189,6 @@ export default function EducatorActivityLogPage() {
     <div className="space-y-6">
       <PageHeader
         title="Activity Log"
-        description="A record of actions performed in your classes."
       />
 
       {/* Filters */}

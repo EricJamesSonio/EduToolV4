@@ -525,4 +525,33 @@
   .border-enhanced:hover {
     border-color: var(--primary);
   }
+
+  /* ─────────────────────────────────────────
+     SEMANTIC TYPE SCALE — shared responsive font sizes
+     Desktop (>= lg) matches the sizes previously hardcoded
+     on each component; mobile steps down globally.
+  ───────────────────────────────────────── */
+  .text-type-page-title {
+    @apply text-xl md:text-3xl;
+  }
+
+  .text-type-section-title {
+    @apply text-base lg:text-lg;
+  }
+
+  .text-type-card-title {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
+
+  .text-type-body {
+    @apply text-sm md:text-base;
+  }
+
+  .text-type-caption {
+    @apply text-xs sm:text-sm;
+  }
+
+  .text-type-meta {
+    @apply text-[11px] sm:text-xs;
+  }
 }

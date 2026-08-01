@@ -11,7 +11,12 @@ import { getCountConfig } from "@/components/admin/levels/get-count-config";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { pickCardColor, cardGridClass } from "@/lib/utils";
+import {
+  listItemCardClass,
+  listItemIconClass,
+  listItemTitleClass,
+} from "@/components/shared/ListItemCard";
+import { cn, pickCardColor, cardGridClass } from "@/lib/utils";
 import type { Level } from "@/types/admin/level.types";
 
 interface ProgramLevelsSectionProps {
@@ -78,7 +83,7 @@ export function ProgramLevelsSection({
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-40 w-full rounded-xl" />
         ))}
@@ -170,9 +175,9 @@ export function ProgramLevelsSection({
           <p className="text-sm text-muted-foreground not-interactive">No levels yet.</p>
         </div>
       ) : (
-        <div className={`grid gap-4 ${cardGridClass(levels.length)}`}>
+        <div className={`grid ${cardGridClass(levels.length)}`}>
           {levels.map((level) => (
-            <div key={level.id} className="rounded-xl border bg-card p-6 space-y-4">
+            <div key={level.id} className={listItemCardClass}>
               {editingId === level.id ? (
                 <InlineEdit
                   value={level.name}
@@ -182,11 +187,11 @@ export function ProgramLevelsSection({
                 />
               ) : (
                 <div className="flex items-start gap-3">
-                  <div className={`icon-container ${pickCardColor(level.id)} shrink-0 mt-0.5`}>
+                  <div className={cn(listItemIconClass, pickCardColor(level.id), "mt-0.5")}>
                     <Layers className="h-4.5 w-4.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-lg leading-tight truncate not-interactive">{level.name}</h3>
+                    <h3 className={cn(listItemTitleClass, "truncate not-interactive")}>{level.name}</h3>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <button

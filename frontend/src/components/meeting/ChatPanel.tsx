@@ -34,7 +34,7 @@ export function ChatPanel({
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {messages.length === 0 && (
-          <p className="text-xs text-zinc-500 text-center pt-4">
+          <p className="text-xs text-muted-foreground text-center pt-4">
             No messages yet. Start the conversation!
           </p>
         )}
@@ -51,15 +51,15 @@ export function ChatPanel({
               )}>
                 <p className={cn(
                   "text-[11px] font-medium px-1",
-                  isOwn ? "text-zinc-400 text-right" : "text-zinc-500"
+                  isOwn ? "text-muted-foreground text-right" : "text-muted-foreground"
                 )}>
                   {isOwn ? "You" : msg.senderName}
                 </p>
                 <div className={cn(
                   "rounded-xl px-3 py-2 text-sm leading-relaxed break-words",
                   isOwn
-                    ? "bg-blue-600 text-white rounded-tr-sm"
-                    : "bg-zinc-800 text-zinc-100 border border-zinc-700 rounded-tl-sm"
+                    ? "bg-primary text-primary-foreground rounded-tr-sm"
+                    : "bg-muted text-foreground border border-border rounded-tl-sm"
                 )}>
                   {msg.message}
                 </div>
@@ -69,19 +69,19 @@ export function ChatPanel({
         })}
         <div ref={bottomRef} />
       </div>
-      <div className="border-t border-zinc-800 p-3 flex gap-2">
+      <div className="border-t border-border p-3 flex gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="Send a message..."
-          className="flex-1 text-sm bg-zinc-800 rounded-lg px-3 py-1.5 outline-none border border-zinc-700 focus:border-blue-500/50 text-zinc-100 placeholder-zinc-500"
+          className="flex-1 text-sm bg-muted rounded-lg px-3 py-1.5 outline-none border border-border focus:border-primary/50 text-foreground placeholder:text-muted-foreground"
         />
         <Button
           size="sm"
           onClick={handleSend}
           disabled={!input.trim()}
-          className="bg-blue-600 hover:bg-blue-500 text-white"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
         >
           Send
         </Button>

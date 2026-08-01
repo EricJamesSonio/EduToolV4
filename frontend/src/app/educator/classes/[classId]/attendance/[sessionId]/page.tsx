@@ -280,7 +280,6 @@ export default function AttendanceSessionPage() {
     <div className="space-y-6">
       <PageHeader
         title={dateLabel}
-        description={sessionLabel}
         breadcrumbs={[
           { label: "Attendance", href: `/educator/classes/${classId}/attendance` },
           { label: sessionLabel },

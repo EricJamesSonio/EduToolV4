@@ -266,18 +266,18 @@ function ContextMenuPopup({
     <div
       ref={ref}
       style={style}
-      className="bg-zinc-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[180px]"
+      className="bg-popover border border-border rounded-xl shadow-2xl overflow-hidden min-w-[180px]"
     >
       {/* Participant label */}
-      <div className="px-4 py-2.5 border-b border-white/10">
-        <p className="text-xs text-white/50 font-medium uppercase tracking-wider">
+      <div className="px-4 py-2.5 border-b border-border">
+        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
           {menu.participant.name}
         </p>
       </div>
 
       <button
         onClick={() => { onViewFullscreen(menu.participant); onClose(); }}
-        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:text-foreground hover:bg-muted transition-colors text-left"
       >
         <span>⛶</span>
         View fullscreen
@@ -285,7 +285,7 @@ function ContextMenuPopup({
 
       <button
         onClick={() => { onViewAll(); onClose(); }}
-        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground/80 hover:text-foreground hover:bg-muted transition-colors text-left"
       >
         <span>⊞</span>
         View all cameras

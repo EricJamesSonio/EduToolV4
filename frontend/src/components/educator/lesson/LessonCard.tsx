@@ -5,8 +5,12 @@
 import Link from "next/link";
 import { Lesson } from "@/types/educator/lesson.types";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  ListItemCard,
+  ListItemCardAction,
+  listItemTitleClass,
+} from "@/components/shared/ListItemCard";
+import { cn } from "@/lib/utils";
 import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
 
 interface LessonCardProps {
@@ -46,10 +50,10 @@ export function LessonCard({
   const hasConcept = !!lesson.concept;
 
   return (
-    <Card className="hover:shadow-sm transition-shadow">
-      <CardContent className="flex items-center justify-between gap-4 p-4">
+    <ListItemCard className="hover:shadow-sm transition-shadow">
+      <div className="flex items-center justify-between gap-3 sm:gap-4">
         <div className="min-w-0 flex-1">
-          <p className="font-medium truncate">{lesson.title}</p>
+          <p className={cn(listItemTitleClass, "truncate")}>{lesson.title}</p>
 
           {lesson.description && (
             <p className="text-xs text-muted-foreground mt-0.5 truncate">
@@ -63,12 +67,14 @@ export function LessonCard({
         </div>
 
         <Link href={`/educator/classes/${classId}/lessons/${lesson.id}`}>
-          <Button variant="ghost" size="sm" className="shrink-0 gap-1">
-            View / Edit
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
+          <ListItemCardAction
+            icon={ArrowRight}
+            label="View / Edit"
+            variant="ghost"
+            className="shrink-0"
+          />
         </Link>
-      </CardContent>
-    </Card>
+      </div>
+    </ListItemCard>
   );
 }

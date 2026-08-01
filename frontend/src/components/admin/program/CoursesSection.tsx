@@ -10,7 +10,12 @@ import { ProgramLevelsSection } from "./ProgramLevelsSection";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { pickCardColor, cardGridClass } from "@/lib/utils";
+import {
+  listItemCardClass,
+  listItemIconClass,
+  listItemTitleClass,
+} from "@/components/shared/ListItemCard";
+import { cn, pickCardColor } from "@/lib/utils";
 import type { CourseSnapshot, Program } from "@/types/admin/program.types";
 
 interface CoursesSectionProps {
@@ -83,13 +88,13 @@ export function CoursesSection({
       ) : (
         <div className="space-y-6">
           {courses.map((course) => (
-            <div key={course.id} className="rounded-xl border bg-card p-6 space-y-4">
+            <div key={course.id} className={cn(listItemCardClass, "p-3 sm:p-5 sm:space-y-4 lg:p-6")}>
               <div className="flex items-start gap-3">
-                <div className={`icon-container ${pickCardColor(course.id)} shrink-0 mt-0.5`}>
+                <div className={cn(listItemIconClass, pickCardColor(course.id), "mt-0.5")}>
                   <BookOpen className="h-4.5 w-4.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-lg leading-tight truncate not-interactive">{course.name}</h3>
+                  <h3 className={cn(listItemTitleClass, "truncate not-interactive")}>{course.name}</h3>
                   {course.code && (
                     <Badge variant="outline" className="text-xs font-mono mt-1">
                       {course.code}

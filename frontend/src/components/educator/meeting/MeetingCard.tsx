@@ -4,7 +4,11 @@ import { useRouter } from "next/navigation";
 import { format, isPast, isWithinInterval, addMinutes } from "date-fns";
 import { Calendar, Users, ArrowRight, Radio, Video } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {
+  ListItemCardAction,
+  listItemCardClass,
+  listItemTitleClass,
+} from "@/components/shared/ListItemCard";
 import { WEEK_COLORS } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 import type { Meeting } from "@/types/educator/meeting.types";
@@ -41,17 +45,18 @@ export function MeetingCard({ meeting, classId }: MeetingCardProps) {
 
   return (
     <div className={cn(
-      "rounded-xl border bg-card p-6 space-y-4 transition-colors",
+      listItemCardClass,
+      "transition-colors",
       status === "live" && "border-green-200 bg-green-50/30"
     )}>
       {/* Header row */}
       <div className="flex items-start gap-3">
-        <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[colorIdx % WEEK_COLORS.length])}>
-          <Video className="h-5 w-5" />
+        <div className={cn("rounded-md p-2 sm:p-2.5 shrink-0", WEEK_COLORS[colorIdx % WEEK_COLORS.length])}>
+          <Video className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="font-semibold truncate">{meeting.title}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className={cn(listItemTitleClass, "truncate")}>{meeting.title}</p>
             <Badge variant={config.variant} className={cn("text-xs font-normal shrink-0", config.className)}>
               {config.label}
             </Badge>
@@ -65,7 +70,7 @@ export function MeetingCard({ meeting, classId }: MeetingCardProps) {
       </div>
 
       {/* Info row */}
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+      <div className="flex items-center gap-3 sm:gap-4 text-sm text-muted-foreground flex-wrap">
         <span className="flex items-center gap-1.5">
           <Calendar className="h-3.5 w-3.5 shrink-0" />
           {format(new Date(meeting.startTime), "MMM d, yyyy · h:mm a")}
@@ -77,26 +82,21 @@ export function MeetingCard({ meeting, classId }: MeetingCardProps) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 pt-1">
+      <div className="flex flex-wrap items-center gap-2 pt-1">
         {status === "live" && (
-          <Button
-            size="sm"
-            className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+          <ListItemCardAction
+            icon={Radio}
+            label="Enter Room"
+            variant="default"
+            className="bg-green-600 hover:bg-green-700 text-white"
             onClick={() => router.push(`${basePath}/room`)}
-          >
-            <Radio className="h-3.5 w-3.5" />
-            Enter Room
-          </Button>
+          />
         )}
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5"
+        <ListItemCardAction
+          icon={ArrowRight}
+          label="View"
           onClick={() => router.push(basePath)}
-        >
-          View
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Button>
+        />
       </div>
     </div>
   );

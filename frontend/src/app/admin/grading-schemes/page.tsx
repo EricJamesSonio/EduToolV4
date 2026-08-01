@@ -166,7 +166,6 @@ export default function GradingSchemesPage(): React.JSX.Element {
       {/* ================= HEADER ================= */}
       <PageHeader
         title="Grading Scheme Templates"
-        description="Create reusable grading scheme templates and assign them to programs or individual classes."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_grading_schemes" />

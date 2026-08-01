@@ -1,8 +1,9 @@
 import { UseQueryResult } from "@tanstack/react-query";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { analyticsApi } from "@/api/admin/analytics.api";
+import { analyticsApi, DEFAULT_PAGE_SIZE } from "@/api/admin/analytics.api";
 import type { AnalyticsOverview, EnrollmentBreakdownRow } from "@/types/admin/analytics.types";
+import type { PaginatedResponse } from "@/types/api.types";
 import type { GradeAnalyticsResponse } from "@/api/admin/analytics.api";
 
 export const useAnalyticsOverview = (
@@ -19,10 +20,18 @@ export const useAnalyticsOverview = (
 
 export const useEnrollmentBreakdown = (
   schoolYearId?: string,
-): UseQueryResult<EnrollmentBreakdownRow[], Error> => {
-  return useAsyncQuery<EnrollmentBreakdownRow[]>(
-    schoolYearId ? [...queryKeys.admin.analytics.all, 'enrollment', schoolYearId] as const : [...queryKeys.admin.analytics.all, 'enrollment'] as const,
-    () => analyticsApi.getEnrollmentBreakdown(schoolYearId),
+  page = 1,
+  limit = DEFAULT_PAGE_SIZE,
+): UseQueryResult<PaginatedResponse<EnrollmentBreakdownRow>, Error> => {
+  return useAsyncQuery<PaginatedResponse<EnrollmentBreakdownRow>>(
+    [
+      ...queryKeys.admin.analytics.all,
+      'enrollment',
+      ...(schoolYearId ? [schoolYearId] : []),
+      page,
+      limit,
+    ] as const,
+    () => analyticsApi.getEnrollmentBreakdown(schoolYearId, page, limit),
     {
       enabled: !!schoolYearId,
     },

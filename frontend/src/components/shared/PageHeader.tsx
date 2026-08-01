@@ -65,18 +65,18 @@ className={cn(
 
       <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 space-y-0.5">
-        <h1 className="!text-xl font-marketing !font-extrabold !leading-tight !tracking-tight !m-0 text-foreground not-interactive">
+        <h1 className="font-marketing !font-extrabold !leading-tight !tracking-tight !m-0 text-type-page-title text-foreground not-interactive">
           {title}
         </h1>
           {description && (
-            <p className="text-sm text-muted-foreground not-interactive">
+            <p className="text-type-body font-medium gradient-text not-interactive">
               {description}
             </p>
           )}
         </div>
 
         {actions && (
-          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+          <div className="flex flex-wrap shrink-0 items-center gap-2">{actions}</div>
         )}
       </div>
     </div>

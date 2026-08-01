@@ -17,7 +17,6 @@ export default function AuditLogPage() {
     <div className="space-y-6 p-6">
       <PageHeader
         title="Logs"
-        description="Administrative audit trail and per-class educator activity logs."
         actions={<HelpGuide slug="admin_audit_log" />}
       />
 

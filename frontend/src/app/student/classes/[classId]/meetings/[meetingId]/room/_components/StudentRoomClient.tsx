@@ -17,6 +17,8 @@ import {
   VideoGrid, PresentationView, ControlsBar,
   type SidePanelType,
 } from "@/components/student/meeting-room";
+import { MeetingOverflowSheet } from "@/components/meeting/MeetingOverflowSheet";
+import { Hand, MessageSquare, Presentation, Users, Smile, Maximize, Minimize } from "lucide-react";
 
 // ── NEW: import the overlay ───────────────────────────────────────────────────
 import { ReactionOverlay } from "@/components/meeting/ReactionOverlay";
@@ -85,6 +87,8 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   const [showReactions, setShowReactions] = useState(false);
   const [isFullscreen,  setIsFullscreen]  = useState(true);
   const [sidePanel,     setSidePanel]     = useState<SidePanelType>(null);
+  const [overflowOpen,  setOverflowOpen]  = useState(false);
+  const [mobileSlidesOpen, setMobileSlidesOpen] = useState(false);
 
   // ── Video track replay ────────────────────────────────────────────────────
   useEffect(() => {
@@ -153,6 +157,8 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
             isError={isError}
             remoteUsers={remoteUsers}
             isPresenting={isPresenting}
+            mobileSlidesOpen={mobileSlidesOpen}
+            onCloseMobileSlides={() => setMobileSlidesOpen(false)}
           />
         ) : (
           <VideoGrid joined={joined} remoteUsers={remoteUsers} />
@@ -186,12 +192,80 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
         <ReactionPicker onPick={sendReaction} onClose={() => setShowReactions(false)} />
       )}
 
+      <MeetingOverflowSheet
+        open={overflowOpen}
+        onClose={() => setOverflowOpen(false)}
+        actions={[
+          ...(isPresenting
+            ? [{
+                key: "slides",
+                label: "Slides",
+                icon: Presentation,
+                onClick: () => {
+                  setOverflowOpen(false);
+                  setMobileSlidesOpen(true);
+                },
+              }]
+            : []),
+          {
+            key: "chat",
+            label: "Chat",
+            icon: MessageSquare,
+            active: sidePanel === "chat",
+            onClick: () => {
+              setOverflowOpen(false);
+              handleTogglePanel("chat");
+            },
+          },
+          {
+            key: "participants",
+            label: participants.length > 0 ? `${participants.length}` : "People",
+            icon: Users,
+            active: sidePanel === "participants",
+            onClick: () => {
+              setOverflowOpen(false);
+              handleTogglePanel("participants");
+            },
+          },
+          {
+            key: "reactions",
+            label: "React",
+            icon: Smile,
+            active: showReactions,
+            onClick: () => {
+              setOverflowOpen(false);
+              setShowReactions((v) => !v);
+            },
+          },
+          {
+            key: "hand",
+            label: handRaised ? "Lower" : "Hand",
+            icon: Hand,
+            active: handRaised,
+            onClick: () => {
+              setOverflowOpen(false);
+              handleToggleHand();
+            },
+          },
+          {
+            key: "fullscreen",
+            label: isFullscreen ? "Exit Full" : "Fullscreen",
+            icon: isFullscreen ? Minimize : Maximize,
+            onClick: () => {
+              setOverflowOpen(false);
+              setIsFullscreen((v) => !v);
+            },
+          },
+        ]}
+      />
+
       <ControlsBar
         connected={connected}
         micOn={micOn}
         camOn={camOn}
         handRaised={handRaised}
         isFullscreen={isFullscreen}
+        overflowOpen={overflowOpen}
         sidePanel={sidePanel}
         participantCount={participants.length}
         onToggleMic={handleToggleMic}
@@ -200,6 +274,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
         onToggleReactions={() => setShowReactions((v) => !v)}
         onToggleFullscreen={() => setIsFullscreen((v) => !v)}
         onToggleSidePanel={handleTogglePanel}
+        onToggleOverflow={() => setOverflowOpen((v) => !v)}
         onLeave={handleLeave}
       />
     </div>

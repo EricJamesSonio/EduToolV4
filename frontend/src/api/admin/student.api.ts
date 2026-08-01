@@ -1,5 +1,9 @@
 import client from "@/api/client";
 import type { Student, StudentStatus, BulkImportResult } from "@/types/admin/student.types";
+import type { PaginatedResponse } from "@/types/api.types";
+
+export const DEFAULT_PAGE_SIZE = 20;
+export const MAX_SELECT_LIMIT = 5000;
 
 export interface CreateStudentRequest {
   fullName:  string;
@@ -46,6 +50,9 @@ export interface GetStudentsQuery {
   strandId?:     string;
   levelId?:      string;
   sectionId?:    string;
+  // Pagination
+  page?:         number;
+  limit?:        number;
 }
 
 export interface StudentEnrollment {
@@ -73,14 +80,19 @@ interface ApiResponse<T> {
 }
 
 export const studentApi = {
-  getAll: async (query?: GetStudentsQuery): Promise<Student[]> => {
+  getPage: async (query?: GetStudentsQuery): Promise<PaginatedResponse<Student>> => {
     const params = query
       ? Object.fromEntries(
           Object.entries(query).filter(([, v]) => v !== undefined && v !== ""),
         )
       : undefined;
-    const res = await client.get<ApiResponse<Student[]>>("/students", { params });
+    const res = await client.get<ApiResponse<PaginatedResponse<Student>>>("/students", { params });
     return res.data.data;
+  },
+
+  getAll: async (query?: GetStudentsQuery): Promise<Student[]> => {
+    const result = await studentApi.getPage({ ...query, limit: query?.limit ?? MAX_SELECT_LIMIT });
+    return result.data;
   },
 
   getOne: async (id: string): Promise<Student> => {

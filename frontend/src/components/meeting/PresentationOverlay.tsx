@@ -3,6 +3,7 @@
 import { useCallback, useEffect } from "react";
 import SlideThumbnails from "./SlideThumbnails";
 import SlideViewer from "./SlideViewer";
+import { MeetingBottomSheet } from "./MeetingBottomSheet";
 import type { Presentation } from "@/types/educator/presentation.types";
 
 interface Props {
@@ -11,6 +12,9 @@ interface Props {
   onChangeSlide?: (index: number) => void;
   error?: boolean;
   isLoading?: boolean;
+  /** Mobile: whether the slides bottom sheet is open */
+  mobileSlidesOpen?: boolean;
+  onCloseMobileSlides?: () => void;
 }
 
 export default function PresentationOverlay({
@@ -19,6 +23,8 @@ export default function PresentationOverlay({
   onChangeSlide,
   error,
   isLoading,
+  mobileSlidesOpen = false,
+  onCloseMobileSlides,
 }: Props) {
   const totalSlides = presentation?.slides.length ?? 0;
   const safeIndex = Math.min(Math.max(currentSlideIndex, 0), totalSlides - 1);
@@ -97,14 +103,17 @@ export default function PresentationOverlay({
 return (
   <div className="w-full h-full flex overflow-hidden bg-zinc-950">
     
-    <SlideThumbnails
-      slides={presentation.slides}
-      currentSlideIndex={safeIndex}
-      template={template}
-      onSelect={canNavigate ? handleThumbnailSelect : undefined}
-    />
+    {/* Desktop: permanent left slide rail (hidden on mobile) */}
+    <div className="hidden sm:block shrink-0">
+      <SlideThumbnails
+        slides={presentation.slides}
+        currentSlideIndex={safeIndex}
+        template={template}
+        onSelect={canNavigate ? handleThumbnailSelect : undefined}
+      />
+    </div>
 
-    {/* MAIN STAGE AREA */}
+    {/* MAIN STAGE AREA — full width on mobile, remainder of row on desktop */}
     <div className="flex-1 h-full min-w-0 flex">
       <SlideViewer
         slide={currentSlide}
@@ -115,6 +124,28 @@ return (
         onPrev={canNavigate ? goToPrev : undefined}
       />
     </div>
+
+    {/* Mobile: on-demand slides bottom sheet (opened via overflow menu) */}
+    <MeetingBottomSheet
+      open={mobileSlidesOpen}
+      onClose={onCloseMobileSlides ?? (() => {})}
+      title="Slides"
+    >
+      <SlideThumbnails
+        slides={presentation.slides}
+        currentSlideIndex={safeIndex}
+        template={template}
+        variant="filmstrip"
+        onSelect={
+          canNavigate
+            ? (index) => {
+                handleThumbnailSelect(index);
+                onCloseMobileSlides?.();
+              }
+            : undefined
+        }
+      />
+    </MeetingBottomSheet>
 
   </div>
 );

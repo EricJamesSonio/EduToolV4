@@ -495,7 +495,6 @@ export default function EnrollWorkspacePage() {
 
       <PageHeader
         title="Enroll Students"
-        description={schoolYear ? `School year: ${schoolYear.name}` : undefined}
       />
 
       <EnrollmentStepper steps={steps} />

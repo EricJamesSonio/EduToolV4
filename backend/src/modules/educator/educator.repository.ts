@@ -1,5 +1,6 @@
 // @/modules/educator/educator.repository.ts
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
@@ -33,35 +34,44 @@ export class EducatorRepository {
     });
   }
 
-  async findAll(orgId: string, filters: { search?: string; status?: string }) {
-    const { search, status } = filters;
+  async findAll(orgId: string, filters: { search?: string; status?: string; page?: number; limit?: number }) {
+    const { search, status, page = 1, limit = 20 } = filters;
 
-    return this.db.account.findMany({
-      where: {
-        org_id: orgId,
-        role: 'educator',
-        deleted_at: null,
-        ...(status ? { status: status as any } : {}),
-        ...(search
-          ? {
-              OR: [
-                {
-                  profile: {
-                    full_name: { contains: search, mode: 'insensitive' },
-                  },
+    const where: Prisma.AccountWhereInput = {
+      org_id: orgId,
+      role: 'educator',
+      deleted_at: null,
+      ...(status ? { status: status as any } : {}),
+      ...(search
+        ? {
+            OR: [
+              {
+                profile: {
+                  full_name: { contains: search, mode: 'insensitive' },
                 },
-                {
-                  profile: {
-                    metadata: { path: ['educatorId'], string_contains: search },
-                  },
+              },
+              {
+                profile: {
+                  metadata: { path: ['educatorId'], string_contains: search },
                 },
-              ],
-            }
-          : {}),
-      },
-      include: { profile: true },
-      orderBy: { created_at: 'desc' },
-    });
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await Promise.all([
+      this.db.account.findMany({
+        where,
+        include: { profile: true },
+        orderBy: { created_at: 'desc' },
+        skip:    (page - 1) * limit,
+        take:    limit,
+      }),
+      this.db.account.count({ where }),
+    ]);
+
+    return { data, total };
   }
 
   async findById(id: string, orgId: string) {

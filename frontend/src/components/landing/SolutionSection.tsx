@@ -317,11 +317,25 @@ export function SolutionSection() {
             <div className="section-accent" />
           </div>
 
-          <h2 className="font-marketing font-extrabold not-interactive">
-            {role === "admin" && "Run Your School Without the Chaos"}
-            {role === "educator" &&
-              "Teach, Grade, and Manage Classes with Ease"}
-            {role === "student" && "Stay on Top of Your Learning"}
+          <h2 className="font-marketing font-extrabold text-3xl md:text-4xl not-interactive">
+            {role === "admin" && (
+              <>
+                Run Your School{" "}
+                <span className="gradient-text">Without the Chaos</span>
+              </>
+            )}
+            {role === "educator" && (
+              <>
+                Teach, Grade, and Manage Classes{" "}
+                <span className="gradient-text">with Ease</span>
+              </>
+            )}
+            {role === "student" && (
+              <>
+                Stay on Top of{" "}
+                <span className="gradient-text">Your Learning</span>
+              </>
+            )}
           </h2>
 
           <p className="text-lg text-muted-foreground not-interactive">

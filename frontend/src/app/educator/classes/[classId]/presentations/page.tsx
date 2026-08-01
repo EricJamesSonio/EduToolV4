@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ListItemCardAction } from "@/components/shared/ListItemCard";
 import { cn, pickCardColor } from "@/lib/utils";
 import {
   Plus,
@@ -208,33 +209,25 @@ function PresentationCard({
         </div>
       </CardContent>
 
-      <div className="flex items-center gap-2 px-6 pb-4">
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
+      <div className="flex items-center gap-2 px-3 pb-3 sm:px-6 sm:pb-4">
+        <ListItemCardAction
+          icon={Eye}
+          label="View"
           onClick={() =>
             router.push(
               `/educator/classes/${classId}/presentations/${presentation.id}/view`,
             )
           }
-        >
-          <Eye className="h-3.5 w-3.5" />
-          View
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
+        />
+        <ListItemCardAction
+          icon={Edit3}
+          label="Edit"
           onClick={() =>
             router.push(
               `/educator/classes/${classId}/presentations/new?lessonId=${presentation.lessonId}&presentationId=${presentation.id}`,
             )
           }
-        >
-          <Edit3 className="h-3.5 w-3.5" />
-          Edit
-        </Button>
+        />
         <div className="ml-auto">
           <AlertDialog>
             <AlertDialogTrigger
@@ -292,7 +285,7 @@ function CardSkeleton(): React.JSX.Element {
       <CardContent>
         <Skeleton className="h-3 w-32" />
       </CardContent>
-      <div className="flex items-center gap-2 px-6 pb-4">
+      <div className="flex items-center gap-2 px-3 pb-3 sm:px-6 sm:pb-4">
         <Skeleton className="h-8 w-16 rounded-md" />
         <Skeleton className="h-8 w-14 rounded-md" />
         <Skeleton className="h-8 w-8 rounded-md ml-auto" />
@@ -345,7 +338,6 @@ export default function PresentationsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Presentations"
-        description="Manage slide presentations for your lessons."
         actions={<LessonSelectDialog classId={classId} />}
       />
 
@@ -370,7 +362,7 @@ export default function PresentationsPage(): React.JSX.Element {
       )}
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-3 md:grid-cols-2 lg:grid-cols-3 sm:gap-4">
           {[1, 2, 3].map((i) => (
             <CardSkeleton key={i} />
           ))}
@@ -397,7 +389,7 @@ export default function PresentationsPage(): React.JSX.Element {
           description="Try selecting a different week or create a new presentation."
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-3 md:grid-cols-2 lg:grid-cols-3 sm:gap-4">
           {filteredPresentations.map((pres) => (
             <PresentationCard
               key={pres.id}

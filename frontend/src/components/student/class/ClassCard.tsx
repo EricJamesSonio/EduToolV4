@@ -4,8 +4,12 @@ import Link from "next/link";
 import { BookOpen, Clock, User, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
+import {
+  ListItemCardAction,
+  listItemCardClass,
+  listItemTitleClass,
+} from "@/components/shared/ListItemCard";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { formatSchedule } from "@/utils/classes.utils";
 import type { StudentClassItem } from "@/api/student/class.api";
 
@@ -27,14 +31,17 @@ export function ClassCard({ item, colorIndex = 0 }: ClassCardProps) {
   return (
     <Link
       href={`/student/classes/${cls.id}`}
-      className="rounded-xl border bg-card p-6 space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200 group block"
+      className={cn(
+        listItemCardClass,
+        "block group hover:border-primary/40 hover:shadow-md transition-all duration-200"
+      )}
     >
       <div className="flex items-start gap-3">
-        <div className={cn("rounded-md p-2.5 shrink-0", WEEK_COLORS[colorIndex % WEEK_COLORS.length])}>
+        <div className={cn("rounded-md p-2 sm:p-2.5 shrink-0", WEEK_COLORS[colorIndex % WEEK_COLORS.length])}>
           <BookOpen className="h-4 w-4" />
         </div>
         <div className="flex-1 min-w-0 space-y-1">
-          <h3 className="font-semibold text-lg leading-tight truncate">
+          <h3 className={cn(listItemTitleClass, "truncate")}>
             {cls.subjectName ?? "Unnamed Subject"}
           </h3>
           <div className="space-y-0.5">
@@ -67,10 +74,7 @@ export function ClassCard({ item, colorIndex = 0 }: ClassCardProps) {
         {cls.capacity > 0 && (
           <span className="text-xs text-muted-foreground">Cap: {cls.capacity}</span>
         )}
-        <Button variant="outline" size="sm">
-          <Eye className="mr-1.5 h-3.5 w-3.5" />
-          View
-        </Button>
+        <ListItemCardAction icon={Eye} label="View" className="shrink-0" />
       </div>
     </Link>
   );

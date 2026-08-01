@@ -4,10 +4,14 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Video, Calendar, Radio, Clock, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import {
+  ListItemCardAction,
+  listItemCardClass,
+  listItemTitleClass,
+} from "@/components/shared/ListItemCard";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
 import { isWithinInterval, addMinutes, isPast } from "date-fns";
@@ -67,54 +71,55 @@ function MeetingCard({
   const renderAction = () => {
     if (meeting.isInvited && isLive) {
       return (
-        <Button
-          size="sm"
-          className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+        <ListItemCardAction
+          icon={Radio}
+          label="Join"
+          variant="default"
+          className="bg-green-600 hover:bg-green-700 text-white"
           onClick={() =>
             router.push(`/student/classes/${classId}/meetings/${meeting.id}/room`)
           }
-        >
-          <Radio className="h-3.5 w-3.5 animate-pulse" />
-          Join
-        </Button>
+        />
       );
     }
     if (meeting.isInvited && !isLive && !isEnded) {
       return (
-        <Button size="sm" variant="outline" disabled>
-          Not Live Yet
-        </Button>
+        <ListItemCardAction
+          label="Not Live Yet"
+          mobileLabel="Soon"
+          disabled
+        />
       );
     }
     if (requested || meeting.joinRequest?.status === "pending") {
       return (
-        <Button size="sm" variant="outline" disabled>
-          Request Sent
-        </Button>
+        <ListItemCardAction
+          label="Request Sent"
+          mobileLabel="Sent"
+          disabled
+        />
       );
     }
     return (
-      <Button
-        size="sm"
-        variant="outline"
+      <ListItemCardAction
+        label="Request to Join"
+        mobileLabel="Request"
         onClick={handleRequestJoin}
         disabled={isPending || isEnded}
-      >
-        Request to Join
-      </Button>
+      />
     );
   };
 
   return (
-    <div className="rounded-xl border bg-card p-6 space-y-4">
+    <div className={listItemCardClass}>
       <div className="flex items-start gap-3">
-        <div className={cn("rounded-md p-2.5 shrink-0",
+        <div className={cn("rounded-md p-2 sm:p-2.5 shrink-0",
           WEEK_COLORS[meeting.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % WEEK_COLORS.length])}>
           <Video className="h-4 w-4" />
         </div>
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-lg leading-tight truncate">
+            <h3 className={cn(listItemTitleClass, "truncate")}>
               {meeting.title}
             </h3>
             <Badge variant="outline" className={cn("text-[11px] font-medium shrink-0", meta.className)}>
@@ -143,16 +148,13 @@ function MeetingCard({
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
         {!isLive && (
-          <Button
-            size="sm"
-            variant="outline"
+          <ListItemCardAction
+            icon={Eye}
+            label="View Details"
             onClick={() =>
               router.push(`/student/classes/${classId}/meetings/${meeting.id}?classId=${classId}`)
             }
-          >
-            <Eye className="mr-1.5 h-3.5 w-3.5" />
-            View Details
-          </Button>
+          />
         )}
         <div className="ml-auto">{renderAction()}</div>
       </div>
@@ -162,7 +164,7 @@ function MeetingCard({
 
 function MeetingCardSkeleton() {
   return (
-    <div className="rounded-xl border bg-card p-6 space-y-4">
+    <div className={listItemCardClass}>
       <div className="flex items-start gap-3">
         <Skeleton className="h-9 w-9 rounded-md shrink-0" />
         <div className="flex-1 space-y-1">
@@ -198,7 +200,7 @@ export default function StudentClassMeetingsPage(): React.JSX.Element {
       />
 
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => <MeetingCardSkeleton key={i} />)}
         </div>
       ) : meetings.length === 0 ? (
@@ -208,7 +210,7 @@ export default function StudentClassMeetingsPage(): React.JSX.Element {
           description="Meetings will appear here once your educator schedules them."
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
           {meetings.map((m) => (
             <MeetingCard key={m.id} meeting={m} classId={classId} />
           ))}

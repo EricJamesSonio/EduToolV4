@@ -26,9 +26,9 @@ export class AnalyticsService {
     return { totalStudents, pendingStudents, totalEducators, totalClasses, schoolYearId: syId }
   }
 
-  async getEnrollmentBreakdown(orgId: string, schoolYearId?: string) {
+  async getEnrollmentBreakdown(orgId: string, schoolYearId?: string, page = 1, limit = 20) {
     const syId = await this.resolveSchoolYear(orgId, schoolYearId)
-    return this.repo.getEnrollmentBreakdown(orgId, syId)
+    return this.repo.getEnrollmentBreakdown(orgId, syId, page, limit)
   }
 
   async getGradeAnalytics(orgId: string, query: GradeAnalyticsQueryDto, schoolYearId?: string) {

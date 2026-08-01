@@ -9,11 +9,12 @@ interface ControlBtnProps {
   disabled?: boolean;
   label: string;
   hideOnMobile?: boolean;
+  mobileOnly?: boolean;
   children: React.ReactNode;
 }
 
 export function ControlBtn({
-  onClick, active, danger, disabled, label, hideOnMobile = false, children,
+  onClick, active, danger, disabled, label, hideOnMobile = false, mobileOnly = false, children,
 }: ControlBtnProps) {
   return (
     <button
@@ -25,6 +26,7 @@ export function ControlBtn({
         danger  && "text-red-400 hover:bg-red-900/30",
         !active && !danger && "text-zinc-300 hover:bg-zinc-800",
         hideOnMobile && "meeting-ctrl-btn--hide-mobile",
+        mobileOnly  && "meeting-ctrl-btn--mobile-only",
       )}
     >
       {children}

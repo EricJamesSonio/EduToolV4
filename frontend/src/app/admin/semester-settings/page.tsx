@@ -123,7 +123,6 @@ export default function SemesterSettingsPage(): React.JSX.Element {
       {/* ================= HEADER ================= */}
       <PageHeader
         title="Semester Settings"
-        description="Define reusable semester templates per program type, then assign them to programs."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_semester_settings" />

@@ -159,7 +159,6 @@ export default function GradeLockPage(): React.ReactElement {
       {/* ================= HEADER ================= */}
       <PageHeader
         title="Grade Lock System"
-        description="Manage reusable lock templates and apply them to classes."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_grade_lock" />

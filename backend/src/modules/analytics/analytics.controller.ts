@@ -36,8 +36,13 @@ export class AnalyticsController {
   @Get('enrollment')
   async getEnrollment(
     @CurrentUser('org_id') orgId: string,
+    @Query('schoolYearId') schoolYearId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.analyticsService.getEnrollmentBreakdown(orgId);
+    const parsedPage = page ? Math.max(1, parseInt(page, 10) || 1) : 1;
+    const parsedLimit = limit ? Math.min(200, Math.max(1, parseInt(limit, 10) || 20)) : 20;
+    return this.analyticsService.getEnrollmentBreakdown(orgId, schoolYearId, parsedPage, parsedLimit);
   }
 
   // ── Grade Analytics (LOCKED ONLY) ──────────────────────────

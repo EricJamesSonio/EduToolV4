@@ -24,6 +24,10 @@ import {
   SidePanel, VideoGrid, PresentationView, ControlsBar,
   type SidePanelType,
 } from "@/components/educator/meeting-room";
+import { MeetingOverflowSheet } from "@/components/meeting/MeetingOverflowSheet";
+import {
+  Hand, MessageSquare, Monitor, Users, UserPlus, Smile, Maximize, Minimize, Presentation,
+} from "lucide-react";
 import { ReactionOverlay } from "@/components/meeting/ReactionOverlay";
 import { useMeetingAttendance } from "@/hooks/meeting/useMeetingAttendance";
 import { AttendanceSummaryPanel } from "@/components/educator/meeting-room/AttendanceSummaryPanel";
@@ -101,6 +105,8 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const [showPresModal, setShowPresModal] = useState(false);
   const [localExpanded, setLocalExpanded] = useState(false);
   const [isFullscreen,  setIsFullscreen]  = useState(true);
+  const [overflowOpen,  setOverflowOpen]  = useState(false);
+  const [mobileSlidesOpen, setMobileSlidesOpen] = useState(false);
 
   const pendingRequests = meeting?.joinRequests.filter((r) => r.status === "pending") ?? [];
 
@@ -228,6 +234,8 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
             localExpanded={localExpanded}
             camOn={camOn}
             micOn={micOn}
+            mobileSlidesOpen={mobileSlidesOpen}
+            onCloseMobileSlides={() => setMobileSlidesOpen(false)}
             onChangeSlide={changeSlide}
             onExpand={() => setLocalExpanded(true)}
           />
@@ -304,6 +312,98 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         <ReactionPicker onPick={sendReaction} onClose={() => setShowReactions(false)} />
       )}
 
+      <MeetingOverflowSheet
+        open={overflowOpen}
+        onClose={() => setOverflowOpen(false)}
+        actions={[
+          ...(isPresenting
+            ? [{
+                key: "slides",
+                label: "Slides",
+                icon: Presentation,
+                onClick: () => {
+                  setOverflowOpen(false);
+                  setMobileSlidesOpen(true);
+                },
+              }]
+            : []),
+          {
+            key: "present",
+            label: isPresenting ? "Stop" : "Present",
+            icon: Monitor,
+            active: isPresenting,
+            onClick: () => {
+              setOverflowOpen(false);
+              if (isPresenting) {
+                handleStopPresentation();
+              } else {
+                setShowPresModal(true);
+              }
+            },
+          },
+          {
+            key: "chat",
+            label: "Chat",
+            icon: MessageSquare,
+            active: sidePanel === "chat",
+            onClick: () => {
+              setOverflowOpen(false);
+              handleTogglePanel("chat");
+            },
+          },
+          {
+            key: "participants",
+            label: participants.length > 0 ? `${participants.length}` : "People",
+            icon: Users,
+            active: sidePanel === "participants",
+            onClick: () => {
+              setOverflowOpen(false);
+              handleTogglePanel("participants");
+            },
+          },
+          {
+            key: "join-requests",
+            label: "Requests",
+            icon: UserPlus,
+            active: sidePanel === "join-requests",
+            badge: pendingRequests.length,
+            onClick: () => {
+              setOverflowOpen(false);
+              handleTogglePanel("join-requests");
+            },
+          },
+          {
+            key: "reactions",
+            label: "React",
+            icon: Smile,
+            active: showReactions,
+            onClick: () => {
+              setOverflowOpen(false);
+              setShowReactions((v) => !v);
+            },
+          },
+          {
+            key: "hand",
+            label: handRaised ? "Lower" : "Hand",
+            icon: Hand,
+            active: handRaised,
+            onClick: () => {
+              setOverflowOpen(false);
+              handleToggleHand();
+            },
+          },
+          {
+            key: "fullscreen",
+            label: isFullscreen ? "Exit Full" : "Fullscreen",
+            icon: isFullscreen ? Minimize : Maximize,
+            onClick: () => {
+              setOverflowOpen(false);
+              setIsFullscreen((v) => !v);
+            },
+          },
+        ]}
+      />
+
       <ControlsBar
         connected={connected}
         micOn={micOn}
@@ -312,6 +412,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         isPresenting={isPresenting}
         isFullscreen={isFullscreen}
         showReactions={showReactions}
+        overflowOpen={overflowOpen}
         sidePanel={sidePanel}
         participantCount={participants.length}
         pendingRequestCount={pendingRequests.length}
@@ -323,6 +424,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         onTogglePresentation={() => isPresenting ? handleStopPresentation() : setShowPresModal(true)}
         onToggleFullscreen={() => setIsFullscreen((v) => !v)}
         onToggleSidePanel={handleTogglePanel}
+        onToggleOverflow={() => setOverflowOpen((v) => !v)}
         onLeave={handleLeave}
         onEnd={handleEndMeeting}
       />

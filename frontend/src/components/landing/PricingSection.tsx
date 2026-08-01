@@ -61,8 +61,8 @@ export function PricingSection() {
         <div className="flex justify-center">
           <div className="section-accent"></div>
         </div>
-        <h2 className="font-marketing font-extrabold not-interactive">
-          Simple, Transparent Pricing
+        <h2 className="font-marketing font-extrabold text-3xl md:text-4xl not-interactive">
+          Simple, <span className="gradient-text">Transparent Pricing</span>
         </h2>
         <p className="text-lg text-muted-foreground not-interactive">
           Choose the plan that fits your school. No hidden fees, no surprises.

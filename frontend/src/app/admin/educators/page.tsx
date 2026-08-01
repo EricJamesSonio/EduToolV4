@@ -1,16 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { UserPlus, Users, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEducators, useResetEducatorPassword } from "@/hooks/admin/useEducators";
+import { useResetEducatorPassword } from "@/hooks/admin/useEducators";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
+import { educatorApi, DEFAULT_PAGE_SIZE } from "@/api/admin/educator.api";
 import { useOrganization } from "@/hooks/admin/useOrganization";
 import type { Educator } from "@/types/admin/educator.types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { Pagination } from "@/components/shared/Pagination";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -24,6 +28,8 @@ import type { AxiosError } from "axios";
 export default function EducatorsPage(): React.JSX.Element {
   const router = useRouter();
   const [search, setSearch]                   = useState("");
+  const [page, setPage]                       = useState(1);
+  const [limit, setLimit]                     = useState(DEFAULT_PAGE_SIZE);
   const [createOpen, setCreateOpen]           = useState(false);
   const [bulkOpen, setBulkOpen]               = useState(false);
   const [resetTarget, setResetTarget]         = useState<Educator | null>(null);
@@ -31,10 +37,21 @@ export default function EducatorsPage(): React.JSX.Element {
     fullName: string; email: string; educatorCode: string; password: string;
   } | null>(null);
 
-  const { data: educators = [], isLoading } = useEducators(search || undefined);
+  const { data: educatorsResp, isLoading } = useAsyncQuery(
+    [...queryKeys.admin.educators.list({ search }), page, limit],
+    () => educatorApi.getPage({ search: search || undefined, page, limit }),
+  );
+
+  const educators = educatorsResp?.data ?? [];
+  const totalEducators = educatorsResp?.meta?.total ?? 0;
+  const totalEducatorPages = educatorsResp?.meta?.totalPages ?? 1;
   const { data: org, isLoading: orgLoading } = useOrganization();
   const hasEmailExtension = !!org?.emailExtension;
   const resetMutation = useResetEducatorPassword();
+
+  useEffect(() => {
+    if (page > totalEducatorPages) setPage(Math.max(1, totalEducatorPages));
+  }, [page, totalEducatorPages]);
 
   const handleResetConfirm = () => {
     if (!resetTarget) return;
@@ -112,7 +129,10 @@ export default function EducatorsPage(): React.JSX.Element {
 
       <SearchInput
         value={search}
-        onChange={setSearch}
+        onChange={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
         placeholder="Search by name or Educator ID..."
         className="max-w-sm"
       />
@@ -143,10 +163,20 @@ export default function EducatorsPage(): React.JSX.Element {
           }
         />
       ) : (
-        <EducatorTable
-          data={educators}
-          onResetPassword={setResetTarget}
-        />
+        <>
+          <EducatorTable
+            data={educators}
+            onResetPassword={setResetTarget}
+          />
+          <Pagination
+            page={page}
+            limit={limit}
+            total={totalEducators}
+            onPageChange={setPage}
+            onLimitChange={(l) => { setLimit(l); setPage(1); }}
+            pageSizeOptions={[20, 50, 100]}
+          />
+        </>
       )}
 
       {createOpen && hasEmailExtension && (

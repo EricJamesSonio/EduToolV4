@@ -141,7 +141,6 @@ export default function GradingScalePage({ params }: Props) {
     <div className="w-full space-y-6">
       <PageHeader
         title="Grading Scale"
-        description="The grading scale applied to this class's program. Set by your administrator."
       />
 
       {isLoading ? (

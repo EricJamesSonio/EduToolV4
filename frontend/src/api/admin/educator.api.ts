@@ -1,5 +1,9 @@
 import client from "@/api/client";
 import type { Educator } from "@/types/admin/educator.types";
+import type { PaginatedResponse } from "@/types/api.types";
+
+export const DEFAULT_PAGE_SIZE = 20;
+export const MAX_SELECT_LIMIT = 5000;
 
 export interface CreateEducatorRequest {
   fullName:  string;
@@ -23,17 +27,32 @@ export interface UpdateEducatorRequest {
   profileImage?: string;
 }
 
+export interface GetEducatorsQuery {
+  search?: string;
+  status?: string;
+  page?:   number;
+  limit?:  number;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data:    T;
 }
 
 export const educatorApi = {
-  getAll: async (search?: string): Promise<Educator[]> => {
-    const res = await client.get<ApiResponse<Educator[]>>("/educators", {
-      params: search ? { search } : undefined,
-    });
+  getPage: async (query?: GetEducatorsQuery): Promise<PaginatedResponse<Educator>> => {
+    const params = query
+      ? Object.fromEntries(
+          Object.entries(query).filter(([, v]) => v !== undefined && v !== ""),
+        )
+      : undefined;
+    const res = await client.get<ApiResponse<PaginatedResponse<Educator>>>("/educators", { params });
     return res.data.data;
+  },
+
+  getAll: async (search?: string): Promise<Educator[]> => {
+    const result = await educatorApi.getPage({ search: search || undefined, limit: MAX_SELECT_LIMIT });
+    return result.data;
   },
 
   getOne: async (id: string): Promise<Educator> => {

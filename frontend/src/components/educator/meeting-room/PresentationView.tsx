@@ -10,13 +10,16 @@ interface PresentationViewProps {
   localExpanded: boolean;
   camOn: boolean;
   micOn: boolean;
+  mobileSlidesOpen?: boolean;
+  onCloseMobileSlides?: () => void;
   onChangeSlide: (index: number) => void;
   onExpand: () => void;
 }
 
 export function PresentationView({
   presentation, currentSlide, localExpanded,
-  camOn, micOn, onChangeSlide, onExpand,
+  camOn, micOn, mobileSlidesOpen = false, onCloseMobileSlides,
+  onChangeSlide, onExpand,
 }: PresentationViewProps) {
   return (
     <div className="flex-1 relative overflow-hidden">
@@ -24,6 +27,8 @@ export function PresentationView({
         presentation={presentation}
         currentSlideIndex={currentSlide}
         onChangeSlide={onChangeSlide}
+        mobileSlidesOpen={mobileSlidesOpen}
+        onCloseMobileSlides={onCloseMobileSlides}
       />
       {!localExpanded && (
         <PipVideo

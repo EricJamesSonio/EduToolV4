@@ -38,7 +38,7 @@ export function VideoGrid({ joined, remoteUsers }: VideoGridProps) {
       {/* Local video PIP — static in grid mode */}
       <div
         id="local-video-pip"
-        className="absolute bottom-4 right-4 w-52 h-36 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10"
+        className="absolute bottom-4 right-4 w-32 h-24 sm:w-52 sm:h-36 rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden shadow-lg z-10"
       />
     </div>
   );

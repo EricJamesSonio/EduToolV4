@@ -24,7 +24,11 @@ export function HelpGuide({ slug }: HelpGuideProps) {
     <Sheet>
       <SheetTrigger
         render={
-          <Button size="icon-sm" className="rounded-full">
+          <Button
+            size="icon"
+            aria-label="Help"
+            className="h-9 w-9 shrink-0 rounded-full sm:h-10 sm:w-10"
+          >
             <HelpCircle className="h-4 w-4" />
           </Button>
         }
