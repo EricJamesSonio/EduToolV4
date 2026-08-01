@@ -45,7 +45,6 @@ export default function NewLessonPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="New Lesson"
-        description="Create a new lesson for this class."
         breadcrumbs={[
           { label: "Lessons", href: `/educator/classes/${classId}/lessons` },
           { label: "New Lesson" },
