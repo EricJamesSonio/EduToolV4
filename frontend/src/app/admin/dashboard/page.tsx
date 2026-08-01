@@ -37,16 +37,16 @@ interface StatCardProps {
 function StatCard({ label, value, icon: Icon, iconColor, isLoading, warning, action }: StatCardProps) {
   return (
     <div className={cn(
-      "rounded-xl border bg-card p-6 flex items-start justify-between gap-4",
+      "rounded-xl border bg-card p-3 sm:p-5 lg:p-6 flex items-start justify-between gap-2 sm:gap-4",
       warning && value && value > 0 && "border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20"
     )}>
-      <div className="space-y-1">
-        <p className="text-sm text-muted-foreground not-interactive">{label}</p>
+      <div className="space-y-1 min-w-0">
+        <p className="text-xs sm:text-sm text-muted-foreground not-interactive">{label}</p>
         {isLoading ? (
           <Skeleton className="h-8 w-16" />
         ) : (
           <p className={cn(
-            "text-3xl font-bold tracking-tight not-interactive",
+            "text-xl sm:text-3xl font-bold tracking-tight not-interactive",
             warning && value && value > 0 && "text-amber-600"
           )}>
             {value ?? 0}
@@ -62,12 +62,12 @@ function StatCard({ label, value, icon: Icon, iconColor, isLoading, warning, act
         )}
       </div>
       <div className={cn(
-        "rounded-md p-2",
+        "rounded-md p-1.5 sm:p-2 shrink-0",
         iconColor ?? "bg-muted",
         warning && value && value > 0 && "bg-amber-100 dark:bg-amber-900/30"
       )}>
         <Icon className={cn(
-          "h-5 w-5",
+          "h-4 w-4 sm:h-5 sm:w-5",
           iconColor ? "text-current" : "text-muted-foreground",
           warning && value && value > 0 && "text-amber-600"
         )} />
@@ -176,7 +176,6 @@ export default function AdminDashboardPage(): React.JSX.Element {
 
       <PageHeader
         title="Dashboard"
-        description="Overview of your school's academic activity and performance."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_dashboard" />
@@ -190,7 +189,7 @@ export default function AdminDashboardPage(): React.JSX.Element {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         <StatCard
           label="Total Students"
           value={overview?.totalStudents}
