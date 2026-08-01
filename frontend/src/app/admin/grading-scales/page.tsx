@@ -61,7 +61,6 @@ export default function GradingScalesPage(): React.JSX.Element {
       {/* ================= HEADER ================= */}
       <PageHeader
         title="Grading Scales"
-        description="Manage global grading scale templates and assign them to programs."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_grading_scales" />
