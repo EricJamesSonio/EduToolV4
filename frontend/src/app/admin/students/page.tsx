@@ -111,6 +111,7 @@ const enrichedStudents: Student[] = useMemo(
     <div className="space-y-6">
       <PageHeader
         title="Students"
+        description="Manage student accounts and academic records."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_students" />
