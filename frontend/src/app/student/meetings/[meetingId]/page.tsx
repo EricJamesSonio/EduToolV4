@@ -77,6 +77,7 @@ export default function StudentMeetingDetailPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title={meeting?.title ?? "Meeting"}
+        description="View meeting details and join when live."
         breadcrumbs={[
           { label: "Meetings", href: "/student/meetings" },
           { label: meeting?.title ?? "Meeting" },
