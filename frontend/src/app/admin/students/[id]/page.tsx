@@ -135,6 +135,7 @@ const programEnrollments = schoolYearEnrollments?.data?.filter((e) => e.student_
 
       <PageHeader
         title={student.fullName}
+        description="View student details and manage their account."
         breadcrumbs={[
           { label: "Admin" },
           { label: "Students", href: "/admin/students" },
