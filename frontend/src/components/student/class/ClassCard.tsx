@@ -5,11 +5,11 @@ import { BookOpen, Clock, User, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
 import {
+  ListItemCardAction,
   listItemCardClass,
   listItemTitleClass,
 } from "@/components/shared/ListItemCard";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { formatSchedule } from "@/utils/classes.utils";
 import type { StudentClassItem } from "@/api/student/class.api";
 
@@ -74,10 +74,7 @@ export function ClassCard({ item, colorIndex = 0 }: ClassCardProps) {
         {cls.capacity > 0 && (
           <span className="text-xs text-muted-foreground">Cap: {cls.capacity}</span>
         )}
-        <Button variant="outline" size="sm">
-          <Eye className="mr-1.5 h-3.5 w-3.5" />
-          View
-        </Button>
+        <ListItemCardAction icon={Eye} label="View" className="shrink-0" />
       </div>
     </Link>
   );
