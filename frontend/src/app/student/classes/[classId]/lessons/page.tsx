@@ -30,7 +30,7 @@ export default function StudentLessonsPage(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Lessons" />
+      <PageHeader title="Lessons" description="Access your lesson materials." />
 
       {isLoading && (
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
