@@ -1,5 +1,8 @@
 import client from "@/api/client";
 import type { AnalyticsOverview, EnrollmentBreakdownRow } from "@/types/admin/analytics.types";
+import type { PaginatedResponse } from "@/types/api.types";
+
+export const DEFAULT_PAGE_SIZE = 20;
 
 export interface GradeAnalyticsResponse {
   passingRate:  number;
@@ -19,10 +22,15 @@ export const analyticsApi = {
     return res.data.data;
   },
 
-  getEnrollmentBreakdown: async (schoolYearId?: string): Promise<EnrollmentBreakdownRow[]> => {
-    const res = await client.get<ApiResponse<EnrollmentBreakdownRow[]>>("/analytics/enrollment", {
-      params: { schoolYearId },
-    });
+  getEnrollmentBreakdown: async (
+    schoolYearId?: string,
+    page = 1,
+    limit = DEFAULT_PAGE_SIZE,
+  ): Promise<PaginatedResponse<EnrollmentBreakdownRow>> => {
+    const res = await client.get<ApiResponse<PaginatedResponse<EnrollmentBreakdownRow>>>(
+      "/analytics/enrollment",
+      { params: { schoolYearId, page, limit } },
+    );
     return res.data.data;
   },
 
