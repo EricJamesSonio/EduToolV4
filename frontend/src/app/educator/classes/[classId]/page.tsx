@@ -223,7 +223,6 @@ if (clsLoading) {
   <div className="space-y-6">
     <PageHeader
       title={enriched.subjectName ?? enriched.subjectId}
-      description={contextLine || enriched.sectionName || undefined}
       breadcrumbs={[{ label: "My Classes", href: "/educator/classes" }]}
       actions={
         <Badge variant="secondary" className="shrink-0">
@@ -285,7 +284,7 @@ if (clsLoading) {
       <div>
         <h2 className="text-sm font-semibold mb-3">Class Sections</h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
           {quickLinks.map((link, i) => {
             const color = WEEK_COLORS[i % WEEK_COLORS.length];
             const Icon = link.icon;
@@ -293,9 +292,9 @@ if (clsLoading) {
               <button
                 key={link.href}
                 onClick={() => router.push(link.href)}
-                className="rounded-xl border bg-card p-6 space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200 group text-left"
+                className="rounded-xl border bg-card p-3 sm:p-5 space-y-2 sm:space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200 group text-left"
               >
-                <div className={cn("rounded-md p-2.5 w-fit", color)}>
+                <div className={cn("rounded-md p-2 w-fit", color)}>
                   <Icon className="h-4 w-4" />
                 </div>
                 <div className="space-y-1">
