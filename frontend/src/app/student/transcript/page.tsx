@@ -299,7 +299,7 @@ export default function StudentTranscriptPage(): React.JSX.Element {
     <div className="space-y-6">
       {/* Header */}
       <div className="space-y-3">
-        <PageHeader title="Transcript" description="View your complete academic record and transcript." />
+        <PageHeader title="Transcript" />
 
         <div className="flex justify-end">
           <Button
