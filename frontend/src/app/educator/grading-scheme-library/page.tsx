@@ -86,7 +86,6 @@ export default function GradingSchemeLibraryPage() {
     <div className="space-y-6">
       <PageHeader
         title="Grading Scheme Library"
-        description="Create and manage reusable grading scheme templates."
         actions={
           <Button onClick={() => setShowNew(true)} className="gap-1.5">
             <Plus className="h-4 w-4" />
