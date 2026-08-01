@@ -11,12 +11,12 @@ import { schoolYearApi } from "@/api/admin/school-year.api";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import {
+  ListItemCardAction,
   listItemCardClass,
   listItemIconClass,
   listItemTitleClass,
 } from "@/components/shared/ListItemCard";
-import { Button } from "@/components/ui/button";
-import { Eye, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
+import { Eye, Calendar, CalendarX2, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/date.util";
 
@@ -133,37 +133,30 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
 
         {/* Actions */}
         <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
+          <ListItemCardAction
+            icon={Eye}
+            label="View"
             onClick={() => router.push(`/admin/school-years/${year.id}`)}
-          >
-            <Eye className="mr-1.5 h-3.5 w-3.5" />
-            View
-          </Button>
+          />
 
           {year.status === "pending" && !hasActive && (
-            <Button
-              variant="outline"
-              size="sm"
+            <ListItemCardAction
+              icon={CheckCircle2}
+              label="Set Active"
               className="text-primary border-primary/30 hover:bg-primary/10"
               onClick={() => setConfirmAction("activate")}
               disabled={isMutating}
-            >
-              Set Active
-            </Button>
+            />
           )}
 
           {year.status === "active" && (
-            <Button
-              variant="outline"
-              size="sm"
+            <ListItemCardAction
+              icon={CalendarX2}
+              label="End School Year"
               className="text-destructive border-destructive/20 hover:bg-destructive/10"
               onClick={() => setConfirmAction("end")}
               disabled={isMutating}
-            >
-              End School Year
-            </Button>
+            />
           )}
         </div>
       </div>
