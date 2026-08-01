@@ -232,7 +232,6 @@ export default function PresentationBuilderPage(): React.JSX.Element {
     <div className="space-y-5">
       <PageHeader
         title="Presentation Builder"
-        description="Build a slide presentation from your lessons."
         breadcrumbs={[
           { label: "Classes",          href: `/educator/classes` },
           { label: lesson.title,       href: `/educator/classes/${classId}` },
