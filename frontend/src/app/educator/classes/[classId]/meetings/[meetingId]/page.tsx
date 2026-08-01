@@ -258,6 +258,7 @@ export default function MeetingDetailPage({ params }: Props) {
     <div className="space-y-6">
       <PageHeader
         title={meeting.title}
+        description="View meeting details and join when live."
         breadcrumbs={[
           { label: "Meetings", href: `/educator/classes/${classId}/meetings` },
           { label: meeting.title },
