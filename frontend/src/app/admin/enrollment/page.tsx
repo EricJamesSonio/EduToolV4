@@ -294,6 +294,7 @@ export default function EnrollmentPage() {
     <div className="space-y-6 pb-10">
       <PageHeader
         title="Enrollment"
+        description="Manage student enrollment across programs and classes."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_enrollment" />
