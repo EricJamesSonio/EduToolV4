@@ -5,9 +5,9 @@
 import Link from "next/link";
 import { Lesson } from "@/types/educator/lesson.types";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   ListItemCard,
+  ListItemCardAction,
   listItemTitleClass,
 } from "@/components/shared/ListItemCard";
 import { cn } from "@/lib/utils";
@@ -67,10 +67,12 @@ export function LessonCard({
         </div>
 
         <Link href={`/educator/classes/${classId}/lessons/${lesson.id}`}>
-          <Button variant="ghost" size="sm" className="shrink-0 gap-1">
-            View / Edit
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
+          <ListItemCardAction
+            icon={ArrowRight}
+            label="View / Edit"
+            variant="ghost"
+            className="shrink-0"
+          />
         </Link>
       </div>
     </ListItemCard>
