@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { Eye, Trash2, GraduationCap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
+  ListItemCardAction,
   listItemCardClass,
   listItemIconClass,
   listItemTitleClass,
@@ -58,24 +58,18 @@ export function ProgramCard({ program, onDelete }: ProgramCardProps): React.JSX.
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
+        <ListItemCardAction
+          icon={Eye}
+          label="View"
           onClick={() => router.push(`/admin/programs/${program.id}`)}
-        >
-          <Eye className="mr-1.5 h-3.5 w-3.5" />
-          View
-        </Button>
+        />
         {isCustom && (
-          <Button
-            variant="outline"
-            size="sm"
+          <ListItemCardAction
+            icon={Trash2}
+            label="Delete"
             className="text-destructive border-destructive/20 hover:bg-destructive/10"
             onClick={() => onDelete(program)}
-          >
-            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-            Delete
-          </Button>
+          />
         )}
       </div>
     </div>
