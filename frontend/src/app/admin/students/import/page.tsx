@@ -113,7 +113,6 @@ export default function CredentialsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Student Credentials"
-        description="Import students and generate their login credentials."
         actions={
           <div className="flex items-center gap-2">
             <Button
