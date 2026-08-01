@@ -92,12 +92,27 @@ describe('AnalyticsService', () => {
   // ── getEnrollmentBreakdown ────────────────────────
 
   it('should return enrollment breakdown', async () => {
-    repo.getEnrollmentBreakdown.mockResolvedValue([{ program: 'A', count: 50 }]);
+    repo.getEnrollmentBreakdown.mockResolvedValue({
+      data: [
+        {
+          levelSection: 'Grade 1 - A',
+          programName: 'Kinder',
+          gradeLevel: 'Grade 1',
+          sectionName: 'A',
+          activeCount: 40,
+          pendingCount: 2,
+          totalCount: 42,
+        },
+      ],
+      meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+    });
 
     const result = await service.getEnrollmentBreakdown('org1', 'sy1');
 
-    expect(repo.getEnrollmentBreakdown).toHaveBeenCalledWith('org1', 'sy1');
-    expect(result).toEqual([{ program: 'A', count: 50 }]);
+    expect(repo.getEnrollmentBreakdown).toHaveBeenCalledWith('org1', 'sy1', 1, 20);
+    expect(result.meta.total).toBe(1);
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].levelSection).toBe('Grade 1 - A');
   });
 
   // ── getGradeAnalytics ─────────────────────────────
