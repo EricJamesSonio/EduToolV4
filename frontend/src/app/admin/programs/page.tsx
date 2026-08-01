@@ -82,6 +82,7 @@ export default function ProgramsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Programs"
+        description="Organize your academic structure into programs."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_programs" />
