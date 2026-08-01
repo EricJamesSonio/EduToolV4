@@ -4,6 +4,8 @@ import {
   IsOptional,
   IsEnum,
   IsUUID,
+  IsInt,
+  Min,
   MinLength,
   MaxLength,
   IsArray,
@@ -123,6 +125,20 @@ export class QueryStudentDto {
   @Transform(({ value }) => value || undefined)
   @IsUUID()
   sectionId?: string;
+
+  // ── Pagination ──────────────────────────────────────────────────────────
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number = 20;
 }
 
 export class AddEnrollmentDto {
