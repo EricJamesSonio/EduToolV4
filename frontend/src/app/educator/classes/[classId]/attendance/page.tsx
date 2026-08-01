@@ -12,7 +12,6 @@ export default function AttendancePage() {
     <div className="space-y-6">
       <PageHeader
         title="Attendance"
-        description="Record and track attendance for this class."
       />
 
       <AttendanceGrid classId={classId} />
