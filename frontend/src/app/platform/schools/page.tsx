@@ -122,7 +122,7 @@ export default function PlatformSchoolsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Schools" />
+      <PageHeader title="Schools" description="View all registered schools on the platform." />
 
       <div className="flex items-center gap-4">
         <SearchInput
