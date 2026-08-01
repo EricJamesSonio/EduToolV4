@@ -1,13 +1,13 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Users, Plus, Download, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { studentApi }  from "@/api/admin/student.api";
+import { studentApi, DEFAULT_PAGE_SIZE } from "@/api/admin/student.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { studentEnrollmentApi } from "@/api/admin/student-enrollment.api";
 import type { Student } from "@/types/admin/student.types";
@@ -16,6 +16,7 @@ import type { GetStudentsQuery } from "@/api/admin/student.api";
 import { PageHeader }    from "@/components/shared/PageHeader";
 import { HelpGuide }     from "@/components/shared/help-guide/HelpGuide";
 import { EmptyState }    from "@/components/shared/EmptyState";
+import { Pagination }    from "@/components/shared/Pagination";
 import { Skeleton }      from "@/components/ui/skeleton";
 import { Button }        from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -32,16 +33,24 @@ function StudentsPageInner(): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
   const [bulkOpen, setBulkOpen]     = useState(false);
   const [filters, setFilters]       = useState<GetStudentsQuery>({});
+  const [page, setPage]             = useState(1);
+  const [limit, setLimit]           = useState(DEFAULT_PAGE_SIZE);
 
   const { data: org, isLoading: orgLoading } = useOrganization();
   const hasEmailExtension = !!org?.emailExtension;
 
-  const { data: studentsRaw, isLoading } = useAsyncQuery(
-    queryKeys.admin.students.list(filters),
-    () => studentApi.getAll(filters),
+  const { data: studentsResp, isLoading } = useAsyncQuery(
+    [...queryKeys.admin.students.list(filters), page, limit],
+    () => studentApi.getPage({ ...filters, page, limit }),
   );
 
-  const students: Student[] = studentsRaw ?? [];
+  const students: Student[] = studentsResp?.data ?? [];
+  const totalStudents = studentsResp?.meta?.total ?? 0;
+  const totalStudentPages = studentsResp?.meta?.totalPages ?? 1;
+
+  useEffect(() => {
+    if (page > totalStudentPages) setPage(Math.max(1, totalStudentPages));
+  }, [page, totalStudentPages]);
 
   const { data: schoolYears } = useAsyncQuery(
     queryKeys.admin.schoolYears.list(),
@@ -157,7 +166,13 @@ const enrichedStudents: Student[] = useMemo(
         </Alert>
       )}
 
-      <StudentFilterBar filters={filters} onChange={setFilters} />
+      <StudentFilterBar
+        filters={filters}
+        onChange={(next) => {
+          setFilters(next);
+          setPage(1);
+        }}
+      />
 
       {isLoading ? (
         <div className="space-y-2">
@@ -181,10 +196,20 @@ const enrichedStudents: Student[] = useMemo(
           }
         />
       ) : (
-        <StudentTable
-          data={enrichedStudents}
-          onView={(s) => router.push(`/admin/students/${s.id}`)}
-        />
+        <>
+          <StudentTable
+            data={enrichedStudents}
+            onView={(s) => router.push(`/admin/students/${s.id}`)}
+          />
+          <Pagination
+            page={page}
+            limit={limit}
+            total={totalStudents}
+            onPageChange={setPage}
+            onLimitChange={(l) => { setLimit(l); setPage(1); }}
+            pageSizeOptions={[20, 50, 100]}
+          />
+        </>
       )}
 
       {createOpen && hasEmailExtension && (
