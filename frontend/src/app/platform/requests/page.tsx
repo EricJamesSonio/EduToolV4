@@ -87,7 +87,7 @@ export default function PlatformRequestsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Registration Requests" description="Review and approve school registration requests." />
+      <PageHeader title="Registration Requests" />
 
       <div className="flex items-center gap-4">
         <SearchInput
