@@ -205,7 +205,6 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
     <div className="space-y-6">
       <PageHeader
         title="Classes"
-        description="Manage your classes and their students, lessons, and grades."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_classes" />
