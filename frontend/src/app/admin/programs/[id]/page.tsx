@@ -61,6 +61,7 @@ export default function ProgramDetailPage({
     <div className="space-y-6">
       <PageHeader
         title={program.name}
+        description="View and configure this program's structure."
         breadcrumbs={[
           { label: "Admin" },
           { label: "Programs", href: "/admin/programs" },
