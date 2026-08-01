@@ -63,7 +63,7 @@ export default function SubmissionReviewPage() {
   if (!submission) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Submission Review" description="Review this student's submission and assign a grade." breadcrumbs={[
+        <PageHeader title="Submission Review" breadcrumbs={[
           { label: "Assessments", href: `/educator/classes/${classId}/assessments` },
           { label: assessment?.title ?? "...", href: `/educator/classes/${classId}/assessments/${assessmentId}` },
           { label: "Submissions", href: `/educator/classes/${classId}/assessments/${assessmentId}/submissions` },
@@ -80,7 +80,6 @@ export default function SubmissionReviewPage() {
     <div className="space-y-6">
       <PageHeader
         title={`Review — ${submission.studentName}`}
-        description="Review this student's submission and assign a grade."
         breadcrumbs={[
           { label: "Assessments", href: `/educator/classes/${classId}/assessments` },
           { label: assessment?.title ?? "...", href: `/educator/classes/${classId}/assessments/${assessmentId}` },
