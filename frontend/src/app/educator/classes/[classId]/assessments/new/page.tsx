@@ -197,7 +197,6 @@ export default function NewAssessmentPage() {
     <div className="space-y-8">
       <PageHeader
         title="New Assessment"
-        description="Create a new assessment for this class."
         breadcrumbs={[{ label: "Assessments", href: `/educator/classes/${classId}/assessments` }]}
       />
       <StepIndicator steps={allSteps} current={step} />
