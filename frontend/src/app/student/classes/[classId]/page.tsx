@@ -24,7 +24,6 @@ export default function StudentClassDetailPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title={subjectName}
-        description="View this class's lessons, grades, and meetings."
         breadcrumbs={[
           { label: "My Classes", href: "/student/classes" },
           { label: subjectName },
