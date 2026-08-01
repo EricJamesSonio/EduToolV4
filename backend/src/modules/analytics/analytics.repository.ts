@@ -96,19 +96,33 @@ async countStudentsByStatus(
     })
   }
 
-  async getEnrollmentBreakdown(orgId: string, schoolYearId: string) {
-    const sections = await this.db.section.findMany({
-      where:   { org_id: orgId, school_year_id: schoolYearId, deleted_at: null },
-      include: { level: { include: { program: true } } },
-    })
+  async getEnrollmentBreakdown(orgId: string, schoolYearId: string, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
 
-    const classes = await this.db.class.findMany({
-      where:  { org_id: orgId, school_year_id: schoolYearId, deleted_at: null },
-      select: {
-        section_id:  true,
-        enrollments: { select: { status: true } },
-      },
-    })
+    const [sections, total] = await Promise.all([
+      this.db.section.findMany({
+        where:   { org_id: orgId, school_year_id: schoolYearId, deleted_at: null },
+        include: { level: { include: { program: true } } },
+        orderBy: { name: 'asc' },
+        skip,
+        take: limit,
+      }),
+      this.db.section.count({
+        where: { org_id: orgId, school_year_id: schoolYearId, deleted_at: null },
+      }),
+    ]);
+
+    const pageSectionIds = sections.map((s) => s.id);
+
+    const classes = pageSectionIds.length > 0
+      ? await this.db.class.findMany({
+          where:  { org_id: orgId, school_year_id: schoolYearId, deleted_at: null, section_id: { in: pageSectionIds } },
+          select: {
+            section_id:  true,
+            enrollments: { select: { status: true } },
+          },
+        })
+      : [];
 
     const sectionEnrollments = new Map<string, { active: number; pending: number }>()
     for (const cls of classes) {
@@ -123,7 +137,7 @@ async countStudentsByStatus(
       }
     }
 
-    return sections.map((section) => {
+    const data = sections.map((section) => {
       const counts = sectionEnrollments.get(section.id) ?? { active: 0, pending: 0 }
       return {
         levelSection: `${section.level.name} - ${section.name}`,
@@ -135,5 +149,15 @@ async countStudentsByStatus(
         totalCount:   counts.active + counts.pending,
       }
     })
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    }
   }
 }
