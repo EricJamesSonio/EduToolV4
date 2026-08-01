@@ -165,6 +165,7 @@ export default function SubmissionsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Submissions"
+        description="Review and grade student submissions."
         breadcrumbs={[
           { label: "Assessments", href: `/educator/classes/${classId}/assessments` },
           { label: assessment?.title ?? "...", href: `/educator/classes/${classId}/assessments/${assessmentId}` },
