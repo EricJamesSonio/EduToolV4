@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { analyticsApi } from "@/api/admin/analytics.api";
+import { analyticsApi, DEFAULT_PAGE_SIZE } from "@/api/admin/analytics.api";
 import { organizationApi } from "@/api/admin/organization.api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
+import { Pagination } from "@/components/shared/Pagination";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -122,6 +123,8 @@ const enrollmentColumns: ColumnDef<EnrollmentBreakdownRow>[] = [
 export default function AdminDashboardPage(): React.JSX.Element {
   const router = useRouter();
   const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
+  const [enrollmentPage, setEnrollmentPage] = useState(1);
+  const [enrollmentLimit, setEnrollmentLimit] = useState(DEFAULT_PAGE_SIZE);
 
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
 
@@ -132,6 +135,10 @@ export default function AdminDashboardPage(): React.JSX.Element {
       setSelectedYearId(active?.id ?? schoolYears[0].id);
     }
   }, [schoolYears, selectedYearId]);
+
+  useEffect(() => {
+    setEnrollmentPage(1);
+  }, [selectedYearId]);
 
   const { data: org, isLoading: orgLoading } = useAsyncQuery(
     queryKeys.admin.organization.detail(),
@@ -146,10 +153,23 @@ export default function AdminDashboardPage(): React.JSX.Element {
   );
 
   const { data: enrollment, isLoading: enrollmentLoading } = useAsyncQuery(
-    queryKeys.admin.analytics.detail("enrollment"),
-    () => analyticsApi.getEnrollmentBreakdown(selectedYearId ?? undefined),
+    [...queryKeys.admin.analytics.detail("enrollment"), enrollmentPage, enrollmentLimit],
+    () =>
+      analyticsApi.getEnrollmentBreakdown(
+        selectedYearId ?? undefined,
+        enrollmentPage,
+        enrollmentLimit,
+      ),
     { enabled: !!org && !!selectedYearId },
   );
+
+  const enrollmentRows = enrollment?.data ?? [];
+  const enrollmentTotal = enrollment?.meta?.total ?? 0;
+  const enrollmentTotalPages = enrollment?.meta?.totalPages ?? 1;
+
+  useEffect(() => {
+    if (enrollmentPage > enrollmentTotalPages) setEnrollmentPage(Math.max(1, enrollmentTotalPages));
+  }, [enrollmentPage, enrollmentTotalPages]);
 
   return (
     <div className="space-y-8">
@@ -209,11 +229,21 @@ export default function AdminDashboardPage(): React.JSX.Element {
         <h2 className="text-base font-semibold not-interactive">Enrollment Breakdown</h2>
         <DataTable
           columns={enrollmentColumns}
-          data={enrollment ?? []}
+          data={enrollmentRows}
           isLoading={enrollmentLoading}
           emptyTitle="No enrollment data"
           emptyDescription="Enrollment data will appear once students are assigned to sections."
         />
+        {enrollmentTotal > 0 && (
+          <Pagination
+            page={enrollmentPage}
+            limit={enrollmentLimit}
+            total={enrollmentTotal}
+            onPageChange={setEnrollmentPage}
+            onLimitChange={(l) => { setEnrollmentLimit(l); setEnrollmentPage(1); }}
+            pageSizeOptions={[20, 50, 100]}
+          />
+        )}
       </div>
     </div>
   );
