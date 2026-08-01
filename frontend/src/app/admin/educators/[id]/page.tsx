@@ -100,6 +100,7 @@ export default function EducatorDetailPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title={educator.fullName}
+        description="View educator details and manage their account."
         breadcrumbs={[
           { label: "Educators", href: "/admin/educators" },
           { label: educator.fullName },
