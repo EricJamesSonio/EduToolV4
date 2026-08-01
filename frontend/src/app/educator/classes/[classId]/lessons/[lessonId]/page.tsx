@@ -132,6 +132,7 @@ export default function LessonDetailPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title={lesson.title}
+        description="View and edit this lesson's content."
         breadcrumbs={[
           { label: "Lessons", href: `/educator/classes/${classId}/lessons` },
           { label: lesson.title },
