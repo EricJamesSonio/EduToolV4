@@ -38,7 +38,6 @@ export default function AssessmentResultPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Assessment Result"
-        description="View your result and feedback for this assessment."
         breadcrumbs={[
           { label: "Assessments", href: `/student/classes/${classId}/assessments` },
           { label: "Result" },
