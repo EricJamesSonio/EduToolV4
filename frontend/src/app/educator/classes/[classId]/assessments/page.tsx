@@ -131,7 +131,6 @@ export default function AssessmentsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Assessments"
-        description="Create and manage assessments for this class."
         actions={
           <Link href={`/educator/classes/${classId}/assessments/new`}>
             <Button size="sm" className="gap-1.5">
