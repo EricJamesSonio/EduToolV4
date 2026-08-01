@@ -1,8 +1,9 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { listItemCardClass } from "@/components/shared/ListItemCard";
 
 export function ClassCardSkeleton() {
   return (
-    <div className="rounded-xl border bg-card p-6 space-y-4">
+    <div className={listItemCardClass}>
       <div className="flex items-start gap-3">
         <Skeleton className="h-9 w-9 rounded-md shrink-0" />
         <div className="flex-1 space-y-1">
