@@ -65,11 +65,25 @@ export class EducatorService {
   // ── GET /educators ──────────────────────────────────────────────────────────
 
   async findAll(orgId: string, query: QueryEducatorDto) {
-    const accounts = await this.educatorRepository.findAll(orgId, {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const { data, total } = await this.educatorRepository.findAll(orgId, {
       search: query.search,
       status: query.status,
+      page,
+      limit,
     });
-    return accounts.map((a) => this.formatAccount(a));
+
+    return {
+      data: data.map((a) => this.formatAccount(a)),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   private async buildOrgEmail(orgId: string, emailName: string) {
