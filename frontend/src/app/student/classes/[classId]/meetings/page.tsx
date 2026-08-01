@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import {
+  listItemCardClass,
+  listItemTitleClass,
+} from "@/components/shared/ListItemCard";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
 import { isWithinInterval, addMinutes, isPast } from "date-fns";
@@ -106,15 +110,15 @@ function MeetingCard({
   };
 
   return (
-    <div className="rounded-xl border bg-card p-6 space-y-4">
+    <div className={listItemCardClass}>
       <div className="flex items-start gap-3">
-        <div className={cn("rounded-md p-2.5 shrink-0",
+        <div className={cn("rounded-md p-2 sm:p-2.5 shrink-0",
           WEEK_COLORS[meeting.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % WEEK_COLORS.length])}>
           <Video className="h-4 w-4" />
         </div>
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-lg leading-tight truncate">
+            <h3 className={cn(listItemTitleClass, "truncate")}>
               {meeting.title}
             </h3>
             <Badge variant="outline" className={cn("text-[11px] font-medium shrink-0", meta.className)}>
@@ -162,7 +166,7 @@ function MeetingCard({
 
 function MeetingCardSkeleton() {
   return (
-    <div className="rounded-xl border bg-card p-6 space-y-4">
+    <div className={listItemCardClass}>
       <div className="flex items-start gap-3">
         <Skeleton className="h-9 w-9 rounded-md shrink-0" />
         <div className="flex-1 space-y-1">
@@ -190,6 +194,7 @@ export default function StudentClassMeetingsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Meetings"
+        description="Join your scheduled live meetings."
         breadcrumbs={[
           { label: "My Classes", href: "/student/classes" },
           { label: "Class", href: `/student/classes/${classId}` },
@@ -198,7 +203,7 @@ export default function StudentClassMeetingsPage(): React.JSX.Element {
       />
 
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => <MeetingCardSkeleton key={i} />)}
         </div>
       ) : meetings.length === 0 ? (
@@ -208,7 +213,7 @@ export default function StudentClassMeetingsPage(): React.JSX.Element {
           description="Meetings will appear here once your educator schedules them."
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
           {meetings.map((m) => (
             <MeetingCard key={m.id} meeting={m} classId={classId} />
           ))}
