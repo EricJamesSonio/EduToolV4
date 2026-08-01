@@ -187,7 +187,7 @@ export default function StudentGradesPage(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="My Grades" />
+      <PageHeader title="My Grades" description="View your grades and performance across terms." />
 
       {/* Overall summary — only if at least one term is released */}
       {!isLoading && hasAnyReleased && overallAvg !== null && (
