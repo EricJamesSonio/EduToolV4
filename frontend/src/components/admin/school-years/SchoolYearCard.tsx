@@ -10,6 +10,11 @@ import { isAxiosError } from "axios";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import {
+  listItemCardClass,
+  listItemIconClass,
+  listItemTitleClass,
+} from "@/components/shared/ListItemCard";
 import { Button } from "@/components/ui/button";
 import { Eye, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -92,29 +97,29 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
 
   const getStatusIcon = () => {
     if (year.status === "active") {
-      return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
+      return <CheckCircle2 className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-emerald-500" />;
     }
     if (year.status === "archived") {
-      return <AlertCircle className="h-5 w-5 text-muted-foreground" />;
+      return <AlertCircle className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-muted-foreground" />;
     }
-    return <Calendar className="h-5 w-5 text-primary" />;
+    return <Calendar className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-primary" />;
   };
 
   return (
     <>
       <div
         className={cn(
-          "rounded-xl border bg-card p-6 space-y-4",
+          listItemCardClass,
           year.status === "active" && "border-primary/30 bg-primary/5"
         )}
       >
         {/* Header with Icon and Info */}
         <div className="flex items-start gap-3">
-          <div className="icon-container icon-edu shrink-0 mt-0.5">
+          <div className={cn(listItemIconClass, "icon-edu mt-0.5")}>
             {getStatusIcon()}
           </div>
           <div className="flex-1 space-y-1">
-            <h3 className="font-semibold text-lg leading-tight not-interactive">{year.name}</h3>
+            <h3 className={cn(listItemTitleClass, "not-interactive")}>{year.name}</h3>
             {(year.start_date || year.end_date) && (
               <p className="text-sm text-muted-foreground not-interactive">
                 {year.start_date ? formatDate(year.start_date) : "—"}
