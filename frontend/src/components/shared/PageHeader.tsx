@@ -65,11 +65,11 @@ className={cn(
 
       <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 space-y-0.5">
-        <h1 className="font-marketing !font-extrabold !leading-tight !tracking-tight !m-0 text-2xl md:text-3xl text-foreground not-interactive">
+        <h1 className="font-marketing !font-extrabold !leading-tight !tracking-tight !m-0 text-type-page-title text-foreground not-interactive">
           {title}
         </h1>
           {description && (
-            <p className="text-sm md:text-base font-medium gradient-text not-interactive">
+            <p className="text-type-body font-medium gradient-text not-interactive">
               {description}
             </p>
           )}
