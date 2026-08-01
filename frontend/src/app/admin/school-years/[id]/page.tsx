@@ -63,7 +63,6 @@ export default function SchoolYearDetailPage({
     <div className="space-y-6">
       <PageHeader
         title={schoolYear.name}
-        description="View this school year's academic structure."
         breadcrumbs={[
           { label: "Admin" },
           { label: "School Years", href: "/admin/school-years" },
