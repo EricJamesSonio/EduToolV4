@@ -102,7 +102,6 @@ export default function AssessmentDetailPage(): React.JSX.Element {
           { label: "Assessments", href: `/educator/classes/${classId}/assessments` },
           { label: assessment.title },
         ]}
-        description="Assessment details, instructions, and submissions overview."
         actions={
           <AssessmentActions
             classId={classId}
