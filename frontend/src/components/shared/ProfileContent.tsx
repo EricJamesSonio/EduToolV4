@@ -114,7 +114,7 @@ export function ProfileContent(): React.JSX.Element {
   if (!user) {
     return (
       <div className="space-y-6">
-        <PageHeader title="My Profile" description="View and manage your profile information." />
+        <PageHeader title="My Profile" />
         <p className="text-sm text-muted-foreground">Loading profile…</p>
       </div>
     );
@@ -150,7 +150,7 @@ export function ProfileContent(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="My Profile" description="View and manage your profile information." />
+      <PageHeader title="My Profile" />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left: Avatar hero card */}
