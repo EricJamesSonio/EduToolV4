@@ -49,9 +49,11 @@ export class StudentRepository {
       strandId?:     string;
       levelId?:      string;
       sectionId?:    string;
+      page?:         number;
+      limit?:        number;
     },
   ) {
-    const { search, status, schoolYearId, programId, courseId, strandId, levelId, sectionId } = filters;
+    const { search, status, schoolYearId, programId, courseId, strandId, levelId, sectionId, page = 1, limit = 20 } = filters;
 
     const hasHierarchyFilter = schoolYearId || programId || courseId || strandId || levelId || sectionId;
 
@@ -60,68 +62,77 @@ export class StudentRepository {
     // two-step query, then filter Account with id IN [...].
     let matchingStudentIds: string[] | null = null;
 
-  if (hasHierarchyFilter) {
-    const matchingSSY = await this.db.studentSchoolYear.findMany({
-      where: {
-        org_id: orgId,
-        ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
-        programEnrollments: {
-          some: {
-            org_id: orgId,
-            ...(programId  ? { program_id: programId } : {}),
-            ...(courseId   ? { course_id:  courseId  } : {}),
-            ...(strandId   ? { strand_id:  strandId  } : {}),
-            ...(levelId    ? { level_id:   levelId   } : {}),
-            ...(sectionId  ? { section_id: sectionId } : {}),
+    if (hasHierarchyFilter) {
+      const matchingSSY = await this.db.studentSchoolYear.findMany({
+        where: {
+          org_id: orgId,
+          ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
+          programEnrollments: {
+            some: {
+              org_id: orgId,
+              ...(programId  ? { program_id: programId } : {}),
+              ...(courseId   ? { course_id:  courseId  } : {}),
+              ...(strandId   ? { strand_id:  strandId  } : {}),
+              ...(levelId    ? { level_id:   levelId   } : {}),
+              ...(sectionId  ? { section_id: sectionId } : {}),
+            },
           },
         },
-      },
-      select: { student_id: true },
-    });
-
-    matchingStudentIds = matchingSSY.map((r) => r.student_id);
-
-    // Fallback: if only sectionId is provided and enrollment table returned nothing,
-    // check profile.metadata directly — students enrolled via simple profile update
-    // are stored there instead of in StudentProgramEnrollment.
-    if (
-      matchingStudentIds.length === 0 &&
-      sectionId &&
-      !schoolYearId && !programId && !courseId && !strandId && !levelId
-    ) {
-      const metaMatches = await this.db.profile.findMany({
-        where: {
-          metadata: { path: ['sectionId'], equals: sectionId },
-          account: { org_id: orgId, role: 'student', deleted_at: null },
-        },
-        select: { account_id: true },
+        select: { student_id: true },
       });
 
-      matchingStudentIds = metaMatches.map((r) => r.account_id);
+      matchingStudentIds = matchingSSY.map((r) => r.student_id);
+
+      // Fallback: if only sectionId is provided and enrollment table returned nothing,
+      // check profile.metadata directly — students enrolled via simple profile update
+      // are stored there instead of in StudentProgramEnrollment.
+      if (
+        matchingStudentIds.length === 0 &&
+        sectionId &&
+        !schoolYearId && !programId && !courseId && !strandId && !levelId
+      ) {
+        const metaMatches = await this.db.profile.findMany({
+          where: {
+            metadata: { path: ['sectionId'], equals: sectionId },
+            account: { org_id: orgId, role: 'student', deleted_at: null },
+          },
+          select: { account_id: true },
+        });
+
+        matchingStudentIds = metaMatches.map((r) => r.account_id);
+      }
+
+      if (matchingStudentIds.length === 0) return { data: [], total: 0 };
     }
 
-    if (matchingStudentIds.length === 0) return [];
-  }
+    const where: Prisma.AccountWhereInput = {
+      org_id:     orgId,
+      role:       'student',
+      deleted_at: null,
+      ...(matchingStudentIds !== null ? { id: { in: matchingStudentIds } } : {}),
+      ...(status ? { status: status as any } : {}),
+      ...(search
+        ? {
+            OR: [
+              { profile: { full_name: { contains: search, mode: 'insensitive' } } },
+              { profile: { metadata: { path: ['studentId'], string_contains: search } } },
+            ],
+          }
+        : {}),
+    };
 
-    return this.db.account.findMany({
-      where: {
-        org_id:     orgId,
-        role:       'student',
-        deleted_at: null,
-        ...(matchingStudentIds !== null ? { id: { in: matchingStudentIds } } : {}),
-        ...(status ? { status: status as any } : {}),
-        ...(search
-          ? {
-              OR: [
-                { profile: { full_name: { contains: search, mode: 'insensitive' } } },
-                { profile: { metadata: { path: ['studentId'], string_contains: search } } },
-              ],
-            }
-          : {}),
-      },
-      include: { profile: true },
-      orderBy: { created_at: 'desc' },
-    });
+    const [data, total] = await Promise.all([
+      this.db.account.findMany({
+        where,
+        include: { profile: true },
+        orderBy: { created_at: 'desc' },
+        skip:    (page - 1) * limit,
+        take:    limit,
+      }),
+      this.db.account.count({ where }),
+    ]);
+
+    return { data, total };
   }
 
   async findById(id: string, orgId: string) {

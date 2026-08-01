@@ -200,7 +200,10 @@ export class StudentService {
   }
 
   async findAll(orgId: string, query: QueryStudentDto) {
-    const accounts = await this.studentRepository.findAll(orgId, {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const { data, total } = await this.studentRepository.findAll(orgId, {
       search:       query.search,
       status:       query.status,
       schoolYearId: query.schoolYearId,
@@ -209,9 +212,19 @@ export class StudentService {
       strandId:     query.strandId,
       levelId:      query.levelId,
       sectionId:    query.sectionId,
+      page,
+      limit,
     });
 
-    return accounts.map((a) => this.formatAccount(a as Record<string, any>));
+    return {
+      data: data.map((a) => this.formatAccount(a as Record<string, any>)),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findById(id: string, orgId: string) {
