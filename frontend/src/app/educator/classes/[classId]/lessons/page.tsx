@@ -35,6 +35,7 @@ export default function LessonsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Lessons"
+        description="Plan and manage lessons for this class."
         actions={
           <Link href={`/educator/classes/${classId}/lessons/new`}>
             <Button size="sm" className="gap-1.5">
