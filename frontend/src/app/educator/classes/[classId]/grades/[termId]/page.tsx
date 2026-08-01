@@ -158,6 +158,7 @@ export default function TermGradesPage() {
     <div className="space-y-6">
       <PageHeader
         title={termName}
+        description="View grades for this grading term."
         breadcrumbs={[
           { label: "Classes", href: "/educator/classes" },
           { label: "Class", href: `/educator/classes/${classId}` },
