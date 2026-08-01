@@ -98,8 +98,8 @@ export function OrgDetailsCard() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card p-6 lg:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8">
+      <div className="rounded-lg border border-border bg-card p-3 sm:p-6 lg:p-8">
+        <div className="grid grid-cols-[120px_1fr] gap-3 sm:grid-cols-[180px_1fr] sm:gap-6 lg:grid-cols-[220px_1fr] lg:gap-8">
           <Skeleton className="aspect-square w-full rounded-xl" />
           <div className="space-y-4">
             <Skeleton className="h-4 w-24" />
@@ -113,12 +113,12 @@ export function OrgDetailsCard() {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6 lg:p-8 space-y-8">
+    <div className="rounded-lg border border-border bg-card p-3 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
       <h2 className="text-lg font-semibold text-foreground">
         Organization Details
       </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8">
+      <div className="grid grid-cols-[120px_1fr] gap-3 sm:grid-cols-[180px_1fr] sm:gap-6 lg:grid-cols-[220px_1fr] lg:gap-8">
         <div className="flex flex-col gap-4">
           <div className="mx-auto lg:mx-0 w-full max-w-[220px] aspect-square rounded-xl border border-border bg-muted flex items-center justify-center overflow-hidden">
             {showLogoPlaceholder() ? (
