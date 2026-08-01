@@ -25,8 +25,9 @@ export function ContactAdminSection() {
         <div className="flex justify-center">
           <div className="section-accent"></div>
         </div>
-        <h2 className="font-marketing font-extrabold not-interactive">
-          Ready to Manage Your Institution?
+        <h2 className="font-marketing font-extrabold text-3xl md:text-4xl not-interactive">
+          Ready to Manage{" "}
+          <span className="gradient-text">Your Institution?</span>
         </h2>
         <p className="text-lg text-muted-foreground not-interactive">
            Get a dedicated admin account and take control of your educational operations with Relief-ED.

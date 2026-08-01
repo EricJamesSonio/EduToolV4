@@ -20,8 +20,8 @@ export function AnalyticsPreviewSection() {
           <div className="section-accent" />
         </div>
 
-        <h2 className="font-marketing font-extrabold not-interactive">
-          Trusted by Schools
+        <h2 className="font-marketing font-extrabold text-3xl md:text-4xl not-interactive">
+          Trusted by <span className="gradient-text">Schools</span>
         </h2>
 
         <p className="text-lg text-muted-foreground not-interactive">

@@ -21,8 +21,9 @@ export function FeaturesSection() {
         <div className="flex justify-center">
           <div className="section-accent"></div>
         </div>
-        <h2 className="font-marketing font-extrabold not-interactive">
-          Everything Schools Need in One Platform
+        <h2 className="font-marketing font-extrabold text-3xl md:text-4xl not-interactive">
+          Everything Schools Need in{" "}
+          <span className="gradient-text">One Platform</span>
         </h2>
         <p className="text-lg text-muted-foreground not-interactive">
           Comprehensive tools designed specifically for modern educational institutions
