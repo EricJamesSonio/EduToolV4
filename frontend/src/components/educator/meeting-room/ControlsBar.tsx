@@ -2,7 +2,7 @@
 
 import {
   Mic, MicOff, Video, VideoOff, Hand, MessageSquare,
-  Users, LogOut, Smile, UserPlus, Monitor, Maximize, Minimize,
+  Users, LogOut, Smile, UserPlus, Monitor, Maximize, Minimize, MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ControlBtn } from "./ControlBtn";
@@ -16,6 +16,7 @@ interface ControlsBarProps {
   isPresenting: boolean;
   isFullscreen: boolean;
   showReactions: boolean;
+  overflowOpen: boolean;
   sidePanel: SidePanelType;
   participantCount: number;
   pendingRequestCount: number;
@@ -27,17 +28,18 @@ interface ControlsBarProps {
   onTogglePresentation: () => void;
   onToggleFullscreen: () => void;
   onToggleSidePanel: (panel: NonNullable<SidePanelType>) => void;
+  onToggleOverflow: () => void;
   onLeave: () => void;
   onEnd: () => void;
 }
 
 export function ControlsBar({
   connected, micOn, camOn, handRaised,
-  isPresenting, isFullscreen, showReactions,
+  isPresenting, isFullscreen, showReactions, overflowOpen,
   sidePanel, participantCount, pendingRequestCount,
   isEndingMeeting,
   onToggleMic, onToggleCam, onToggleHand, onToggleReactions,
-  onTogglePresentation, onToggleFullscreen, onToggleSidePanel,
+  onTogglePresentation, onToggleFullscreen, onToggleSidePanel, onToggleOverflow,
   onLeave, onEnd,
 }: ControlsBarProps) {
   return (
@@ -71,6 +73,7 @@ export function ControlsBar({
         onClick={onTogglePresentation}
         active={isPresenting}
         label={isPresenting ? "Stop" : "Present"}
+        hideOnMobile
       >
         <Monitor className="h-5 w-5" />
       </ControlBtn>
@@ -79,6 +82,7 @@ export function ControlsBar({
         onClick={() => onToggleSidePanel("chat")}
         active={sidePanel === "chat"}
         label="Chat"
+        hideOnMobile
       >
         <MessageSquare className="h-5 w-5" />
       </ControlBtn>
@@ -116,6 +120,10 @@ export function ControlsBar({
           </span>
         )}
       </div>
+
+      <ControlBtn onClick={onToggleOverflow} active={overflowOpen} label="More" mobileOnly>
+        <MoreHorizontal className="h-5 w-5" />
+      </ControlBtn>
 
       <ControlBtn onClick={onLeave} label="Leave">
         <LogOut className="h-5 w-5" />
