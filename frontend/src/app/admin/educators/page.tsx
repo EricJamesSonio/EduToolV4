@@ -81,6 +81,7 @@ export default function EducatorsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Educators"
+        description="Manage educator accounts and their access."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_educators" />
