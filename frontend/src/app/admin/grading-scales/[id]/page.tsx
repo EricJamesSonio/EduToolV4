@@ -105,6 +105,7 @@ const [initialised, setInitialised] = useState(false)
     <div className="space-y-6">
       <PageHeader
         title={scale.name}
+        description="View and manage this grading scale template."
         actions={
           <div className="flex items-center gap-2">
             <Button
