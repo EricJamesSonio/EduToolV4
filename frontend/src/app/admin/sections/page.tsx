@@ -101,6 +101,7 @@ export default function SectionsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Sections"
+        description="Manage the sections within your classes."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_sections" />
