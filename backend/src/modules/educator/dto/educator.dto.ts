@@ -6,6 +6,8 @@ import {
   MinLength,
   MaxLength,
   IsEnum,
+  IsInt,
+  Min,
   IsArray,
   ArrayMinSize,
   ArrayMaxSize,
@@ -68,6 +70,18 @@ export class QueryEducatorDto {
   @IsOptional()
   @IsEnum(EducatorStatus)
   status?: EducatorStatus;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number = 20;
 }
 
 // ── POST /educators/bulk ───────────────────────────────────────────────────────
