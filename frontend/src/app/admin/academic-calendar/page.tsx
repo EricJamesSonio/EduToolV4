@@ -39,7 +39,6 @@ export default function AcademicCalendarPage(): React.JSX.Element {
       {/* Full-width header — consistent with all other pages */}
       <PageHeader
         title="Academic Calendar"
-        description="Configure holidays and set up program-scoped academic calendars with break periods and auto-generated terms."
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_academic_calendar" />
