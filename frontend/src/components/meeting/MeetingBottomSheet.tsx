@@ -29,21 +29,21 @@ export function MeetingBottomSheet({
     <div className="fixed inset-0 z-[60] sm:hidden" role="dialog" aria-modal="true">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 animate-[meeting-fade-in_150ms_ease-out]"
+        className="absolute inset-0 bg-black/40 animate-[meeting-fade-in_150ms_ease-out]"
         onClick={onClose}
         aria-hidden
       />
 
       {/* Sheet */}
-      <div className="absolute inset-x-0 bottom-0 max-h-[78vh] rounded-t-2xl border-t border-zinc-800 bg-zinc-900 shadow-2xl flex flex-col animate-[meeting-sheet-up_250ms_ease-out]">
+      <div className="absolute inset-x-0 bottom-0 max-h-[78vh] rounded-t-2xl border-t border-border bg-card shadow-2xl flex flex-col animate-[meeting-sheet-up_250ms_ease-out]">
         {/* Drag handle */}
-        <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-zinc-700" />
+        <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/30" />
         {title && (
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 shrink-0">
-            <span className="text-sm font-medium text-white capitalize">{title}</span>
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
+            <span className="text-sm font-medium text-foreground capitalize">{title}</span>
             <button
               onClick={onClose}
-              className="h-8 w-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              className="h-8 w-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="Close"
             >
               ✕

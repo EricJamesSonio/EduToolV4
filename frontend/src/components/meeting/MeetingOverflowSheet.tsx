@@ -44,14 +44,14 @@ export function MeetingOverflowSheet({
                 action.active && !action.danger
                   ? "bg-primary/15 text-primary"
                   : action.danger
-                    ? "text-red-400 hover:bg-red-900/30"
-                    : "bg-zinc-800/70 text-zinc-200 hover:bg-zinc-800",
+                    ? "text-destructive hover:bg-destructive/10"
+                    : "bg-muted text-foreground hover:bg-muted/70",
               )}
             >
               <Icon className="h-5 w-5" />
               <span className="text-[10px] leading-tight text-center">{action.label}</span>
               {!!action.badge && action.badge > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-amber-500 text-[9px] font-bold text-zinc-950 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-warning text-warning-foreground text-[9px] font-bold flex items-center justify-center">
                   {action.badge}
                 </span>
               )}
