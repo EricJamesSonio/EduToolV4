@@ -130,7 +130,6 @@ export function PublishedGradesPage({ classId }: { classId: string }) {
     <div className="space-y-6">
       <PageHeader
         title="View Grades"
-        description="Review and download published grades."
         breadcrumbs={[
           { label: "Classes", href: "/educator/classes" },
           { label: "Class", href: `/educator/classes/${classId}` },
