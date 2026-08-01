@@ -119,7 +119,6 @@ export default function PlatformAdminsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Admin Accounts"
-        description="Manage platform-level administrator accounts."
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
