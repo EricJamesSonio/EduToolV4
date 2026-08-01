@@ -1,7 +1,12 @@
 "use client"
 
-import { cn } from "@/lib/utils"
-import { GRADING_SCHEME_TEMPLATES, PROGRAMS } from "./constants/seed-data"
+import { Check } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { cn }    from "@/lib/utils"
+import { GRADING_SCHEME_TEMPLATES } from "./constants/seed-data"
+import { CollapsiblePreview } from "./ui/CollapsiblePreview"
+import { EnableToggle } from "./ui/EnableToggle"
+import { ProgramPanel } from "./ui/ProgramPanel"
 
 interface GradingSchemeStepProps {
   selectedPrograms:        Set<string>
@@ -21,30 +26,12 @@ export function GradingSchemeStep({
   const applicableSchemes = GRADING_SCHEME_TEMPLATES.filter((scheme) =>
     selectedPrograms.has(scheme.programType)
   )
-  const programNameMap = Object.fromEntries(PROGRAMS.map((p) => [p.key, p.label]))
 
   if (applicableSchemes.length === 0) return null
 
   return (
-    <div className="space-y-2">
-      {/* Enable/disable toggle */}
-      <div className="flex items-center justify-end">
-        <button
-          type="button"
-          onClick={() => onToggleSeed(!seedGradingSchemes)}
-          className={cn(
-            "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors",
-            seedGradingSchemes ? "bg-primary" : "bg-muted-foreground/30"
-          )}
-        >
-          <span
-            className={cn(
-              "pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
-              seedGradingSchemes ? "translate-x-4" : "translate-x-1"
-            )}
-          />
-        </button>
-      </div>
+    <div className="space-y-3">
+      <EnableToggle enabled={seedGradingSchemes} onToggle={onToggleSeed} />
 
       {!seedGradingSchemes ? (
         <p className="text-xs text-muted-foreground not-interactive">
@@ -57,52 +44,61 @@ export function GradingSchemeStep({
           </p>
           {applicableSchemes.map((scheme) => {
             const isSelected = gradingSchemesByProgram[scheme.programType] !== false
-            const programLabel = programNameMap[scheme.programType] || scheme.programType
 
             return (
-              <div
+              <ProgramPanel
                 key={scheme.programType}
-                className={cn(
-                  "border rounded-md p-3 transition-colors",
-                  isSelected
-                    ? "bg-white dark:bg-slate-950 border-amber-200 dark:border-amber-900"
-                    : "bg-muted/50 border-muted-foreground/20"
-                )}
+                program={scheme.programType}
+                badge={
+                  <Badge variant={isSelected ? "outline" : "secondary"} className="text-xs font-normal">
+                    {isSelected ? scheme.name : "Not selected"}
+                  </Badge>
+                }
               >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    id={`scheme-${scheme.programType}`}
-                    checked={isSelected}
-                    onChange={(e) => onToggleScheme(scheme.programType, e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 cursor-pointer mt-1"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <label
-                      htmlFor={`scheme-${scheme.programType}`}
-                      className="block text-sm font-medium cursor-pointer mb-2"
-                    >
-                      {scheme.name}
-                    </label>
-                    <p className="text-xs text-muted-foreground mb-3 not-interactive">
-                      For: <span className="font-medium">{programLabel}</span>
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {scheme.components.map((comp) => (
-                        <div
-                          key={comp.name}
-                          className="bg-muted/50 rounded px-2 py-1.5 text-xs border border-muted-foreground/10"
-                        >
-                          <div className="font-medium text-foreground truncate not-interactive">{comp.name}</div>
-                          <div className="text-muted-foreground text-xs mt-0.5 not-interactive">
-                            {comp.weight}% • {comp.type}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                {/* Scheme toggle card */}
+                <button
+                  type="button"
+                  onClick={() => onToggleScheme(scheme.programType, !isSelected)}
+                  className={cn(
+                    "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
+                    isSelected && "border-primary bg-primary/5"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                      isSelected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-muted-foreground/40"
+                    )}
+                  >
+                    {isSelected && <Check className="h-3 w-3" />}
                   </div>
-                </div>
-              </div>
+                  <div>
+                    <p className="text-sm font-medium leading-tight">{scheme.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {scheme.components.length} {scheme.components.length === 1 ? "component" : "components"}
+                    </p>
+                  </div>
+                </button>
+
+                {/* Components preview */}
+                <CollapsiblePreview label="Preview components" count={scheme.components.length}>
+                  {scheme.components.map((comp) => (
+                    <div key={comp.name} className="flex items-center justify-between px-3 py-1.5 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 uppercase">
+                          {comp.type}
+                        </Badge>
+                        <span className="text-muted-foreground not-interactive">{comp.name}</span>
+                      </div>
+                      <span className="font-mono text-muted-foreground tabular-nums not-interactive">
+                        {comp.weight}%
+                      </span>
+                    </div>
+                  ))}
+                </CollapsiblePreview>
+              </ProgramPanel>
             )
           })}
         </div>
