@@ -279,7 +279,7 @@ export default function StudentAssessmentsPage(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Assessments" />
+      <PageHeader title="Assessments" description="View and take your assessments." />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
