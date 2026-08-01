@@ -163,7 +163,6 @@ const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClas
    <div className="space-y-6">
       <PageHeader
         title={enrichedCls.subjectName ?? "Unnamed Class"}
-        description="View and manage this class's students and academic work."
         breadcrumbs={[
           { label: "Admin" },
           { label: "Classes", href: "/admin/classes" },
