@@ -210,7 +210,7 @@ function WeeklyScheduleTab({
     for (const sched of cls.schedules) {
       if (!byWeekday[sched.weekday]) byWeekday[sched.weekday] = [];
       byWeekday[sched.weekday].push({
-        subjectName: cls.subjectName ?? cls.title,
+        subjectName: cls.subjectName ?? cls.title ?? "",
         educatorName: cls.educatorName,
         startTime: sched.startTime,
         endTime: sched.endTime,

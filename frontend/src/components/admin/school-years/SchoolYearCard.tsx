@@ -99,7 +99,7 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
     if (year.status === "active") {
       return <CheckCircle2 className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-emerald-500" />;
     }
-    if (year.status === "archived") {
+    if (year.status === "ended") {
       return <AlertCircle className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-muted-foreground" />;
     }
     return <Calendar className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-primary" />;
