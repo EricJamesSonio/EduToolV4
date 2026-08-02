@@ -43,13 +43,13 @@ export function ControlsBar({
   onLeave, onEnd,
 }: ControlsBarProps) {
   return (
-    <div className="meeting-controls relative shrink-0 flex items-center justify-center flex-wrap gap-1 border-t border-zinc-800 bg-zinc-900 px-2 py-1">
+    <div className="meeting-controls relative shrink-0 flex items-center justify-center flex-wrap gap-1 border-t border-border bg-card px-2 py-1">
       {/* Connection status */}
       <div className={cn(
         "meeting-status absolute left-3 flex items-center gap-1.5 text-[10px]",
-        connected ? "text-emerald-400" : "text-zinc-500",
+        connected ? "text-success" : "text-muted-foreground",
       )}>
-        <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", connected ? "bg-emerald-400" : "bg-zinc-500")} />
+        <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", connected ? "bg-success" : "bg-muted-foreground")} />
         <span className="meeting-status-label">{connected ? "Connected" : "Connecting..."}</span>
       </div>
 
@@ -115,7 +115,7 @@ export function ControlsBar({
           <UserPlus className="h-5 w-5" />
         </ControlBtn>
         {pendingRequestCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 h-4 w-4 flex items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-zinc-950 pointer-events-none">
+          <span className="absolute -top-0.5 -right-0.5 h-4 w-4 flex items-center justify-center rounded-full bg-warning text-warning-foreground text-[9px] font-bold pointer-events-none">
             {pendingRequestCount}
           </span>
         )}
