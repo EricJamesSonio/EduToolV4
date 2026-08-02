@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 const isDev = process.env.NODE_ENV === "development";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+const wsUrl = process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:5000";
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
@@ -25,7 +27,7 @@ const nextConfig: NextConfig = {
 
               // ✅ FIXED (Docker + Dev + Prod ready)
               isDev
-                ? "connect-src 'self' http://localhost:3001 http://backend:3000 ws://localhost:* ws://backend:3000 https://*.agora.io wss://*.agora.io"
+                ? `connect-src 'self' ${apiUrl} ${wsUrl} ${wsUrl.replace(/^http/, "ws")} ws://backend:3000 https://*.agora.io wss://*.agora.io`
                 : "connect-src 'self' https://your-production-domain.com https://*.agora.io wss://*.agora.io",
 
               // Media
@@ -33,7 +35,7 @@ const nextConfig: NextConfig = {
 
               // Images
               isDev
-                ? "img-src 'self' data: blob: http://localhost:3001 http://backend:3000"
+                ? `img-src 'self' data: blob: ${apiUrl} http://backend:3000`
                 : "img-src 'self' data: blob:",
 
               "font-src 'self'",
