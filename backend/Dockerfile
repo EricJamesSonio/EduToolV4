@@ -20,6 +20,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+ENV NODE_ENV=production
+ENV PORT=5000
+
 COPY package*.json ./
 RUN npm install --omit=dev
 
@@ -27,6 +30,6 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 
-EXPOSE 3000
+EXPOSE 5000
 
 CMD ["node", "dist/main.js"]
