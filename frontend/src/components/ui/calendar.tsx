@@ -153,7 +153,7 @@ function Calendar({
           showOutsideDays={showOutsideDays}
           month={viewDate}
           onMonthChange={goToMonth}
-          components={{ Nav: () => null }}
+          components={{ Nav: () => <span className="hidden" /> }}
           classNames={{
             months: "flex flex-col",
             month: "flex flex-col gap-1 !w-fit",
