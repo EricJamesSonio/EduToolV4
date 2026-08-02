@@ -17,6 +17,7 @@ interface ConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   message: string | React.ReactNode;
+  description?: string | React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   onConfirm: () => void;
@@ -31,6 +32,7 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   message,
+  description,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   onConfirm,
@@ -55,6 +57,9 @@ export function ConfirmDialog({
               <DialogTitle>{title}</DialogTitle>
               <DialogDescription className="mt-1">
                 {message}
+                {description && (
+                  <span className="mt-1 block">{description}</span>
+                )}
               </DialogDescription>
             </div>
           </div>

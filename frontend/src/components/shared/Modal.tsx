@@ -24,7 +24,7 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: React.ReactNode;
-  description?: string;
+  description?: string | React.ReactNode;
   size?: ModalSize;
   children: React.ReactNode;
   className?: string;
