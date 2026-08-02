@@ -13,19 +13,26 @@ import { LoggingInterceptor } from './commons/interceptors/logging.interceptor';
 import { ResponseInterceptor } from './commons/interceptors/response.interceptor';
 import helmet from 'helmet';
 
-// Load env files with real (shell/container) vars taking priority.
-// Order matters: `.env.local` is loaded first and overrides `.env`, so a
-// developer running locally gets localhost values while Docker / Render
-// inject values via the actual process environment (dotenv never overrides
-// an already-present process env var unless `override` is true).
+// Load env files with a clear precedence:
+//   1. `.env.local` — developer-local values. Loaded with `override: true`
+//      so it wins even if the value is already present in the process env
+//      (dotenv normally never overrides an existing env var). Docker/Render
+//      images do NOT ship a `.env.local`, so when absent the injected
+//      process vars (or `.env`) take over instead.
+//   2. `.env`        — baseline values, only fills in anything not set above.
 (() => {
-  const files: string[] = [];
-  for (const name of ['.env.local', '.env']) {
-    const path = join(process.cwd(), name);
-    if (existsSync(path)) files.push(path);
+  const localPath = join(process.cwd(), '.env.local');
+  const envPath = join(process.cwd(), '.env');
+
+  if (existsSync(localPath)) {
+    const parsed = dotenv.config({ path: localPath, override: true });
+    dotenvExpand.expand(parsed);
   }
-  const parsed = dotenv.config({ path: files, quiet: true });
-  dotenvExpand.expand(parsed);
+
+  if (existsSync(envPath)) {
+    const parsed = dotenv.config({ path: envPath });
+    dotenvExpand.expand(parsed);
+  }
 })();
 
 async function bootstrap() {
