@@ -79,13 +79,13 @@ export const useApplyTemplateToClass = (): UseMutationResult<
 
 // Apply template to program (bulk)
 export const useApplyTemplateToProgram = (): UseMutationResult<
-  void,
+  { success: boolean; appliedCount: number },
   Error,
   { programId: string; templateId: string; overwriteExisting?: boolean }
 > => {
   const queryClient = useQueryClient();
 
-  return useMutationWithInvalidation<void, Error, { programId: string; templateId: string; overwriteExisting?: boolean }>(
+  return useMutationWithInvalidation<{ success: boolean; appliedCount: number }, Error, { programId: string; templateId: string; overwriteExisting?: boolean }>(
     (payload) => adminGradingSchemeApi.applyToProgram(payload),
     {
       invalidateKeys: [queryKeys.admin.gradingSchemes.list()],

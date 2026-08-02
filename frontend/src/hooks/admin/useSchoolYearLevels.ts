@@ -9,8 +9,7 @@ export function useSchoolYearLevels(schoolYearId: string) {
   return useAsyncQuery<Level[]>(
     queryKeys.admin.levels.list({ schoolYearId }),
     async () => {
-      const res = await levelApi.getBySchoolYear(schoolYearId);
-      return res.data ?? res;
+      return levelApi.getBySchoolYear(schoolYearId);
     },
     { enabled: !!schoolYearId },
   );

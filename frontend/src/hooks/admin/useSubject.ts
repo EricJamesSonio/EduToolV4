@@ -64,10 +64,7 @@ export const useShareSubject = () => {
   return useMutationWithInvalidation<SubjectSharing, Error, { id: string; data: ShareSubjectRequest }>(
     ({ id, data }: { id: string; data: ShareSubjectRequest }) => subjectApi.share(id, data),
     {
-      invalidateKeys: (result, variables) => [
-        queryKeys.admin.subjects.detail(variables.id),
-        [...queryKeys.admin.subjects.all, 'sharings', variables.id] as const,
-      ],
+      invalidateKeys: [queryKeys.admin.subjects.all],
     },
   );
 };
@@ -76,10 +73,7 @@ export const useUnshareSubject = () => {
   return useMutationWithInvalidation<{ success: true }, Error, { id: string; sharingId: string }>(
     ({ id, sharingId }: { id: string; sharingId: string }) => subjectApi.unshare(id, sharingId),
     {
-      invalidateKeys: (result, variables) => [
-        queryKeys.admin.subjects.detail(variables.id),
-        [...queryKeys.admin.subjects.all, 'sharings', variables.id] as const,
-      ],
+      invalidateKeys: [queryKeys.admin.subjects.all],
     },
   );
 };
