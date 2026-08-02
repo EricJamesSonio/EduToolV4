@@ -25,7 +25,7 @@ export function usePresentation(classId: string, id: string) {
 }
 
 export function usePresentationByLesson(classId: string, lessonId: string) {
-  return useAsyncQuery<Presentation>(
+  return useAsyncQuery<Presentation | null>(
     [...queryKeys.educator.presentations.all, 'byLesson', classId, lessonId] as const,
     () => presentationApi.getByLesson(classId, lessonId),
     { enabled: !!classId && !!lessonId },
