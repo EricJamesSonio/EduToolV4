@@ -34,7 +34,7 @@
     "@nestjs/schedule": "^6.1.1",
     "@nestjs/serve-static": "^4.0.2",
     "@nestjs/websockets": "^10.4.22",
-    "@prisma/adapter-pg": "^7.5.0",
+    "@prisma/adapter-pg": "^5.22.0",
     "@prisma/client": "^5.22.0",
     "agora-token": "^2.0.5",
     "bcrypt": "^6.0.0",
