@@ -61,7 +61,7 @@ export function ApplyTemplateModal({
         {/* Template selector */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Select Template</label>
-          <Select value={selectedTemplateId} onValueChange={onTemplateChange}>
+          <Select value={selectedTemplateId} onValueChange={(v) => { if (v !== null) onTemplateChange(v); }}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Choose a template..." />
             </SelectTrigger>
@@ -70,9 +70,9 @@ export function ApplyTemplateModal({
                 <SelectItem key={t.id} value={t.id}>
                   <div className="flex items-center gap-2">
                     <span>{t.name}</span>
-                    {t.program_type && (
+                    {t.programType && (
                       <span className="text-xs text-muted-foreground">
-                        ({t.program_type})
+                        ({t.programType})
                       </span>
                     )}
                   </div>
@@ -95,11 +95,11 @@ export function ApplyTemplateModal({
                   {selectedTemplate.components?.length ?? 0}
                 </span>
               </p>
-              {selectedTemplate.program_type && (
+              {selectedTemplate.programType && (
                 <p className="text-sm">
                   <span className="font-medium">Program Type:</span>{" "}
                   <span className="text-muted-foreground">
-                    {selectedTemplate.program_type}
+                    {selectedTemplate.programType}
                   </span>
                 </p>
               )}

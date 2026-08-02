@@ -47,9 +47,9 @@ export function TemplatesList({
         >
           <div className="flex-1">
             <p className="text-sm font-medium not-interactive">{template.name}</p>
-            {template.program_type && (
+            {template.programType && (
               <p className="text-xs text-muted-foreground not-interactive">
-                Type: {template.program_type}
+                Type: {template.programType}
               </p>
             )}
             <p className="text-xs text-muted-foreground mt-1 not-interactive">

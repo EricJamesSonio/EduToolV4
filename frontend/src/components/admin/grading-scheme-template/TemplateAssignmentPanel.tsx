@@ -214,7 +214,7 @@ export function TemplateAssignmentPanel({
               <Select
                 value={programTemplates[prog.id] ?? ""}
                 onValueChange={(templateId) =>
-                  handleProgramTemplateSelect(prog, templateId)
+                  handleProgramTemplateSelect(prog, templateId ?? "")
                 }
                 disabled={isPending}
               >
@@ -297,7 +297,7 @@ export function TemplateAssignmentPanel({
               )}
               <Select
                 value={classTemplates[cls.id] ?? ""}
-                onValueChange={(templateId) => handleApplyToClass(cls, templateId)}
+                onValueChange={(templateId) => handleApplyToClass(cls, templateId ?? "")}
                 disabled={isPending}
               >
                 <SelectTrigger className="h-8 w-48 text-xs">
