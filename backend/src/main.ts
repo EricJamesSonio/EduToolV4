@@ -1,7 +1,9 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import dotenvExpand from 'dotenv-expand';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
@@ -10,6 +12,21 @@ import { AllExceptionFilter } from './commons/filters/all-exception.filter';
 import { LoggingInterceptor } from './commons/interceptors/logging.interceptor';
 import { ResponseInterceptor } from './commons/interceptors/response.interceptor';
 import helmet from 'helmet';
+
+// Load env files with real (shell/container) vars taking priority.
+// Order matters: `.env.local` is loaded first and overrides `.env`, so a
+// developer running locally gets localhost values while Docker / Render
+// inject values via the actual process environment (dotenv never overrides
+// an already-present process env var unless `override` is true).
+(() => {
+  const files: string[] = [];
+  for (const name of ['.env.local', '.env']) {
+    const path = join(process.cwd(), name);
+    if (existsSync(path)) files.push(path);
+  }
+  const parsed = dotenv.config({ path: files, quiet: true });
+  dotenvExpand.expand(parsed);
+})();
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
