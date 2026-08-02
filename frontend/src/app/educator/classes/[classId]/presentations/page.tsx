@@ -328,7 +328,7 @@ export default function PresentationsPage(): React.JSX.Element {
   }, [presentations, lessonWeekMap]);
 
   const filteredPresentations = useMemo(() => {
-    if (weekFilter === "all") return presentations;
+    if (weekFilter === "all") return presentations ?? [];
     return (presentations ?? []).filter(
       (p) => lessonWeekMap.get(p.lessonId) === weekFilter,
     );
