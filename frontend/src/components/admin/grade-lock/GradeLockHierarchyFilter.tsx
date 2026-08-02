@@ -122,7 +122,7 @@ export function GradeLockHierarchyFilter({
           loadingPrograms ? (
             <Skeleton className="h-9 w-44" />
           ) : (
-            <Select value={selectedProgram} onValueChange={onProgramChange}>
+            <Select value={selectedProgram} onValueChange={(v) => { if (v !== null) onProgramChange(v); }}>
               <SelectTrigger className="w-44">
                 <SelectValue>
                   {selectedProgramObj?.name ?? "Select Program"}
@@ -143,7 +143,7 @@ export function GradeLockHierarchyFilter({
           loadingCourses ? (
             <Skeleton className="h-9 w-56" />
           ) : (
-            <Select value={selectedCourseStrand} onValueChange={onCourseStrandChange}>
+            <Select value={selectedCourseStrand} onValueChange={(v) => { if (v !== null) onCourseStrandChange(v); }}>
               <SelectTrigger className="w-56">
                 <SelectValue>
                   {selectedCourseObj?.name ?? "Select Course"}
@@ -164,7 +164,7 @@ export function GradeLockHierarchyFilter({
           loadingStrands ? (
             <Skeleton className="h-9 w-56" />
           ) : (
-            <Select value={selectedCourseStrand} onValueChange={onCourseStrandChange}>
+            <Select value={selectedCourseStrand} onValueChange={(v) => { if (v !== null) onCourseStrandChange(v); }}>
               <SelectTrigger className="w-56">
                 <SelectValue>
                   {selectedStrandObj?.name ?? "Select Strand"}
@@ -185,7 +185,7 @@ export function GradeLockHierarchyFilter({
           loadingLevels ? (
             <Skeleton className="h-9 w-40" />
           ) : (
-            <Select value={selectedLevel} onValueChange={onLevelChange}>
+            <Select value={selectedLevel} onValueChange={(v) => { if (v !== null) onLevelChange(v); }}>
               <SelectTrigger className="w-40">
                 <SelectValue>
                   {selectedLevelObj?.name ?? "Select Level"}
