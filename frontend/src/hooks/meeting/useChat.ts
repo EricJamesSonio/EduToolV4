@@ -73,6 +73,7 @@ export function useChat({
       const tempId = nextTempId++;
 
       const opt: OptimisticMessage = {
+        id: tempId.toString(),
         _tempId: tempId,
         senderId: currentUserId,
         senderName: currentUserName,
