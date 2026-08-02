@@ -19,6 +19,7 @@ import { MailModule } from '@/modules/mail/mail.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: ['.env.local', '.env'],
       load: [appConfig, jwtConfig, dbConfig],
       validationSchema: envValidationSchema,
     }),
