@@ -30,7 +30,7 @@ interface LessonContentPanelProps {
   onWordHover: (idx: number) => void;
   onAutoGenerate: () => void;
   isAutoGenerating: boolean;
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function LessonContentPanel({
