@@ -97,7 +97,7 @@ export function ConceptBuildViewer({
                 ? "Building concepts..."
                 : "Not started"}
           </ProgressLabel>
-          <ProgressValue>{done ? "100%" : `${progress}%`}</ProgressValue>
+          <ProgressValue>{() => (done ? "100%" : `${progress}%`)}</ProgressValue>
         </div>
         <span className="sr-only">{progress}% complete</span>
       </Progress>
