@@ -42,7 +42,7 @@ export function PresentationView({
     <div className="flex-1 relative overflow-hidden">
       {presentationId ? (
         <PresentationOverlay
-          presentation={presentation}
+          presentation={presentation ?? null}
           currentSlideIndex={currentSlide}
           error={isError}
           isLoading={isLoading}
