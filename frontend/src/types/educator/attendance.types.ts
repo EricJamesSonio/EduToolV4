@@ -1,5 +1,11 @@
 export type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
+export interface SessionStudent {
+  id: string;
+  name: string;
+  code: string;
+}
+
 export interface AttendanceSession {
   id: string;
   class_id: string;
@@ -19,6 +25,7 @@ export interface AttendanceRecord {
 
 export interface SessionWithRecords extends AttendanceSession {
   records: AttendanceRecord[];
+  students: SessionStudent[];
 }
 
 export interface WeekSessions {
