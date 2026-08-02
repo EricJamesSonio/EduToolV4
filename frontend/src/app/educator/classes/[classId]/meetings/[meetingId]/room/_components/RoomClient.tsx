@@ -26,7 +26,7 @@ import {
 } from "@/components/educator/meeting-room";
 import { MeetingOverflowSheet } from "@/components/meeting/MeetingOverflowSheet";
 import {
-  Hand, MessageSquare, Monitor, Users, UserPlus, Smile, Maximize, Minimize, Presentation,
+  Hand, MessageSquare, Monitor, Users, UserPlus, Smile, Maximize, Minimize, Presentation as PresentationIcon,
 } from "lucide-react";
 import { ReactionOverlay } from "@/components/meeting/ReactionOverlay";
 import { useMeetingAttendance } from "@/hooks/meeting/useMeetingAttendance";
@@ -335,7 +335,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
             ? [{
                 key: "slides",
                 label: "Slides",
-                icon: Presentation,
+                icon: PresentationIcon,
                 onClick: () => {
                   setOverflowOpen(false);
                   setMobileSlidesOpen(true);
