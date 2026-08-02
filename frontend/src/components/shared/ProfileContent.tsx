@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import type { AuthUser } from "@/types/auth.types";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/store/auth.store";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -138,7 +139,7 @@ export function ProfileContent(): React.JSX.Element {
         { headers: { "Content-Type": "multipart/form-data" } },
       );
 
-      setUser({ ...user, profileImage: data.path });
+      setUser({ ...user, profileImage: data.path } as AuthUser);
       toast.success("Profile photo updated");
     } catch {
       toast.error("Failed to upload profile photo");
