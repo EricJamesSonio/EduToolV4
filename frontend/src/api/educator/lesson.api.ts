@@ -14,7 +14,7 @@ export interface UpdateLessonRequest {
   description?: string;
   weekNumber?: number;
   subIndex?: number;
-  detail?: string;
+  detail?: string | null;
 }
 
 function unwrap<T>(data: T | { data: T }): T {
