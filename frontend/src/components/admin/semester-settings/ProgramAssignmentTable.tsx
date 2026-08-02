@@ -81,6 +81,7 @@ function ProgramTableRowActions({
         <Select
           value={selectedId}
           onValueChange={(value) => {
+            if (value === null) return;
             setSelectedId(value)
             if (value === "none") {
               if (schoolYearStarted) return
