@@ -93,5 +93,5 @@ export function DateRangePicker({
         />
       </PopoverContent>
     </Popover>
-  )d
+  )
 }
