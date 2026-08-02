@@ -15,6 +15,7 @@ import { courseApi }     from "@/api/admin/course.api";
 import { strandApi }     from "@/api/admin/strand.api";
 import { levelApi }      from "@/api/admin/level.api";
 import { sectionApi }    from "@/api/admin/section.api";
+import type { Level }    from "@/types/admin/level.types";
 import type { ProgramType } from "@/types/admin/program.types";
 
 export interface HierarchySelection {
@@ -137,7 +138,7 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
     <div className="flex flex-wrap items-center gap-2">
 
       {/* School Year */}
-      <Select value={value.schoolYearId ?? ALL} onValueChange={selectSchoolYear}>
+      <Select value={value.schoolYearId ?? ALL} onValueChange={(v) => { if (v !== null) selectSchoolYear(v); }}>
         <SelectTrigger className="w-48 h-9 text-sm">
           <span className="truncate text-sm">
             {selectedSY
@@ -158,7 +159,7 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
       {/* Program */}
       {value.schoolYearId && (
         loadingPrograms ? <Skeleton className="h-9 w-44" /> : (
-          <Select value={value.programId ?? ALL} onValueChange={selectProgram}>
+          <Select value={value.programId ?? ALL} onValueChange={(v) => { if (v !== null) selectProgram(v); }}>
             <SelectTrigger className="w-44 h-9 text-sm">
               <span className="truncate text-sm">
                 {selectedProgram ? selectedProgram.name : "All Programs"}
@@ -177,7 +178,7 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
       {/* Course — college only */}
       {value.programId && programType && hasCourses(programType) && (
         loadingCourses ? <Skeleton className="h-9 w-44" /> : (
-          <Select value={value.courseId ?? ALL} onValueChange={selectCourse}>
+          <Select value={value.courseId ?? ALL} onValueChange={(v) => { if (v !== null) selectCourse(v); }}>
             <SelectTrigger className="w-44 h-9 text-sm">
               <span className="truncate text-sm">
                 {selectedCourse ? selectedCourse.name : "All Courses"}
@@ -196,7 +197,7 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
       {/* Strand — shs only */}
       {value.programId && programType && hasStrands(programType) && (
         loadingStrands ? <Skeleton className="h-9 w-40" /> : (
-          <Select value={value.strandId ?? ALL} onValueChange={selectStrand}>
+          <Select value={value.strandId ?? ALL} onValueChange={(v) => { if (v !== null) selectStrand(v); }}>
             <SelectTrigger className="w-40 h-9 text-sm">
               <span className="truncate text-sm">
                 {selectedStrand ? selectedStrand.name : "All Strands"}
@@ -215,7 +216,7 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
       {/* Level */}
       {levelsEnabled && (
         loadingLevels ? <Skeleton className="h-9 w-36" /> : (
-          <Select value={value.levelId ?? ALL} onValueChange={selectLevel}>
+          <Select value={value.levelId ?? ALL} onValueChange={(v) => { if (v !== null) selectLevel(v); }}>
             <SelectTrigger className="w-36 h-9 text-sm">
               <span className="truncate text-sm">
                 {selectedLevel ? selectedLevel.name : "All Levels"}
@@ -234,7 +235,7 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
       {/* Section */}
       {value.levelId && (
         loadingSections ? <Skeleton className="h-9 w-36" /> : (
-          <Select value={value.sectionId ?? ALL} onValueChange={selectSection}>
+          <Select value={value.sectionId ?? ALL} onValueChange={(v) => { if (v !== null) selectSection(v); }}>
             <SelectTrigger className="w-36 h-9 text-sm">
               <span className="truncate text-sm">
                 {selectedSection ? selectedSection.name : "All Sections"}
