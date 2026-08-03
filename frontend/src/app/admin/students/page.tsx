@@ -1,11 +1,13 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { Users, Plus, Download, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import type { AxiosError } from "axios";
 
 import { studentApi, DEFAULT_PAGE_SIZE } from "@/api/admin/student.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
@@ -20,11 +22,13 @@ import { Pagination }    from "@/components/shared/Pagination";
 import { Skeleton }      from "@/components/ui/skeleton";
 import { Button }        from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 import { StudentFilterBar }    from "@/components/admin/student/StudentFilterBar";
 import { StudentTable }        from "@/components/admin/student/StudentTable";
 import { CreateStudentDialog } from "@/components/admin/student/CreateStudentDialog";
 import { BulkCreateStudentDialog } from "@/components/admin/student/BulkCreateStudentDialog";
+import { StudentCredentialsCard } from "@/components/admin/student/StudentCredentialsCard";
 import { useOrganization } from "@/hooks/admin/useOrganization";
 
 function StudentsPageInner(): React.JSX.Element {
@@ -35,6 +39,28 @@ function StudentsPageInner(): React.JSX.Element {
   const [filters, setFilters]       = useState<GetStudentsQuery>({});
   const [page, setPage]             = useState(1);
   const [limit, setLimit]           = useState(DEFAULT_PAGE_SIZE);
+  const [resetTarget, setResetTarget] = useState<Student | null>(null);
+  const [newCredentials, setNewCredentials] = useState<{
+    fullName: string; email: string; studentId: string; password: string;
+  } | null>(null);
+
+  const resetMutation = useMutation({
+    mutationFn: (studentId: string) => studentApi.resetPassword(studentId),
+    onSuccess: (result) => {
+      const student = resetTarget;
+      setResetTarget(null);
+      setNewCredentials({
+        fullName:  student?.fullName ?? "",
+        email:     student?.email ?? "",
+        studentId: student?.studentId ?? "",
+        password:  result.plainPassword,
+      });
+    },
+    onError: (err: AxiosError<{ message: string }>) => {
+      toast.error(err?.response?.data?.message ?? "Failed to reset password.");
+      setResetTarget(null);
+    },
+  });
 
   const { data: org, isLoading: orgLoading } = useOrganization();
   const hasEmailExtension = !!org?.emailExtension;
@@ -200,6 +226,7 @@ const enrichedStudents: Student[] = useMemo(
           <StudentTable
             data={enrichedStudents}
             onView={(s) => router.push(`/admin/students/${s.id}`)}
+            onResetPassword={setResetTarget}
           />
           <Pagination
             page={page}
@@ -226,6 +253,30 @@ const enrichedStudents: Student[] = useMemo(
         <BulkCreateStudentDialog
           open={bulkOpen}
           onClose={() => setBulkOpen(false)}
+        />
+      )}
+
+      {/* Reset password confirm */}
+      <ConfirmDialog
+        open={resetTarget !== null}
+        onOpenChange={(o) => { if (!o) setResetTarget(null); }}
+        title="Reset password?"
+        message={`This will generate a new password for ${resetTarget?.fullName}. The old password will stop working immediately.`}
+        confirmLabel="Reset Password"
+        destructive
+        isLoading={resetMutation.isPending}
+        onConfirm={() => {
+          if (resetTarget) resetMutation.mutate(resetTarget.id);
+        }}
+      />
+
+      {/* New credentials after reset */}
+      {newCredentials && (
+        <StudentCredentialsCard
+          open
+          onClose={() => setNewCredentials(null)}
+          credentials={newCredentials}
+          title="Password reset successfully"
         />
       )}
     </div>
