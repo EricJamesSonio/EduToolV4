@@ -62,8 +62,16 @@ async function bootstrap() {
     new ResponseInterceptor(),
   );
 
+  // CORS origins are driven by CORS_ORIGIN (comma-separated). Fails closed
+  // (empty = no cross-origin requests allowed) so production never assumes a
+  // hardcoded host. Example: CORS_ORIGIN=https://app.onrender.com
+  const allowedOrigins = (process.env.CORS_ORIGIN ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: allowedOrigins,
     credentials: true,
   });
 
@@ -75,7 +83,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: [`'self'`],
-        imgSrc: [`'self'`, 'data:', 'http://localhost:5000', 'http://localhost:3000'],
+        imgSrc: [`'self'`, 'data:'],
       },
     },
   }),
