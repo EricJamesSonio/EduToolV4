@@ -33,6 +33,9 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 
+# Static assets (org logos, profiles, seeded school images)
+COPY uploads ./uploads
+
 EXPOSE 5000
 
 CMD ["node", "dist/main.js"]
