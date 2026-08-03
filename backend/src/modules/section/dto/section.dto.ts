@@ -7,6 +7,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateSectionDto {
   @IsUUID()
@@ -57,9 +58,29 @@ export class QuerySectionDto {
 
   @IsOptional()
   @IsUUID()
+  programId?: string;
+
+  @IsOptional()
+  @IsUUID()
   courseId?: string;
 
   @IsOptional()
   @IsUUID()
   strandId?: string;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number = 20;
 }
