@@ -40,19 +40,21 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
   const { data: user, isLoading: queryIsLoading } = useAuthProfile();
 
-  const login = useCallback(
-    async (email: string, password: string): Promise<void> => {
-      const { accessToken: newToken } = await authApi.login({ email, password });
+const login = useCallback(
+  async (email: string, password: string): Promise<void> => {
+    const { accessToken: newToken } = await authApi.login({ email, password });
+    useAuthStore.getState().setAccessToken(newToken);
 
-      useAuthStore.getState().setAccessToken(newToken);
+    // Use the query client to fetch+cache in one step — no competing auto-fetch
+    const me = await queryClient.fetchQuery({
+      queryKey: queryKeys.auth.me(),
+      queryFn: () => authApi.getMe(),
+    });
 
-      const me = await authApi.getMe();
-      queryClient.setQueryData(queryKeys.auth.me(), me);
-
-      router.push(getRoleHomePath(me.role));
-    },
-    [router, queryClient]
-  );
+    router.push(getRoleHomePath(me.role));
+  },
+  [router, queryClient]
+);
 
   const logout = useCallback(async (): Promise<void> => {
     try {
