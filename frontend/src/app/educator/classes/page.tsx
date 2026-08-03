@@ -253,7 +253,7 @@ export default function EducatorClassesPage(): React.JSX.Element {
       />
 
       {classesLoading ? (
-        <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {[1, 2, 3].map((i) => (
             <ClassCardSkeleton key={i} />
           ))}
@@ -265,7 +265,7 @@ export default function EducatorClassesPage(): React.JSX.Element {
           description="You have no active classes yet. Contact your administrator."
         />
       ) : (
-        <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {classes.map((cls, i) => (
             <ClassCard
               key={cls.id}
