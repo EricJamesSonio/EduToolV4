@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 const isDev = process.env.NODE_ENV === "development";
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
-const wsUrl = process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:5000";
+// Baked at build time. Default to "" (fail-closed) — never assume localhost in
+// the deployed bundle. Render/docker-compose must pass the real backend URL.
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+const wsUrl = process.env.NEXT_PUBLIC_WS_URL ?? "";
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
@@ -26,13 +28,13 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
 
               // ✅ Dev + Docker + Production ready — allow the configured API/WS hosts
-              `connect-src 'self' ${apiUrl} ${wsUrl} ${wsUrl.replace(/^http/, "ws")} ws://localhost:5000 ws://backend:3000 https://*.agora.io wss://*.agora.io`,
+              `connect-src 'self' ${apiUrl} ${wsUrl} ${wsUrl.replace(/^http/, "ws")} https://*.agora.io wss://*.agora.io`,
 
               // Media
               "media-src 'self' blob:",
 
               // Images
-              `img-src 'self' data: blob: ${apiUrl} http://localhost:5000 http://backend:3000`,
+              `img-src 'self' data: blob: ${apiUrl}`,
 
               "font-src 'self'",
               "frame-ancestors 'none'",

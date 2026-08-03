@@ -2,9 +2,11 @@
 FROM node:20-alpine AS builder
 
 # Build-time env vars — Next.js bakes NEXT_PUBLIC_* into the bundle.
-ARG NEXT_PUBLIC_API_URL=http://localhost:5000
-ARG NEXT_PUBLIC_SOCKET_URL=http://localhost:5000
-ARG NEXT_PUBLIC_WS_URL=ws://localhost:5000
+# MUST be provided at build time (Render build args / docker-compose). Empty by
+# default so we never bake localhost into the production bundle.
+ARG NEXT_PUBLIC_API_URL=
+ARG NEXT_PUBLIC_SOCKET_URL=
+ARG NEXT_PUBLIC_WS_URL=
 ARG NEXT_PUBLIC_AGORA_APP_ID=
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
@@ -29,6 +31,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
+# Force the standalone server to bind all interfaces regardless of the
+# container's HOSTNAME (Render/Next standalone gotcha).
+ENV HOSTNAME=0.0.0.0
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
