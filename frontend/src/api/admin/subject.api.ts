@@ -6,11 +6,15 @@ import type {
   SubjectSharing,
   SubjectType,
 } from "@/types/admin/subject.types";
+import type { PaginatedResponse } from "@/types/api.types";
 import type { AxiosResponse } from "axios";
 
 // ==============================
 // REQUEST TYPES
 // ==============================
+
+export const DEFAULT_PAGE_SIZE = 20;
+export const MAX_SELECT_LIMIT = 5000;
 
 export interface CreateSubjectRequest {
   name: string;
@@ -41,6 +45,8 @@ export interface GetSubjectsQuery {
   courseId?:     string;
   strandId?:     string;
   subjectType?:  SubjectType;
+  page?:         number;
+  limit?:        number;
 }
 
 export interface ShareSubjectRequest {
@@ -137,11 +143,30 @@ function mapSubject(s: SubjectResponse): Subject {
 // ==============================
 
 export const subjectApi = {
-  getAll: async (params?: GetSubjectsQuery): Promise<Subject[]> => {
-    const res: AxiosResponse<ApiResponse<SubjectResponse[]>> =
-      await client.get("/subjects", { params });
+  getPage: async (params?: GetSubjectsQuery): Promise<PaginatedResponse<Subject>> => {
+    const query = params
+      ? Object.fromEntries(
+          Object.entries(params).filter(
+            ([, v]) => v !== undefined && v !== "",
+          ),
+        )
+      : undefined;
 
-    return res.data.data.map(mapSubject);
+    const res: AxiosResponse<ApiResponse<PaginatedResponse<SubjectResponse>>> =
+      await client.get("/subjects", { params: query });
+
+    return {
+      data: res.data.data.data.map(mapSubject),
+      meta: res.data.data.meta,
+    };
+  },
+
+  getAll: async (params?: GetSubjectsQuery): Promise<Subject[]> => {
+    const result = await subjectApi.getPage({
+      ...params,
+      limit: params?.limit ?? MAX_SELECT_LIMIT,
+    });
+    return result.data;
   },
 
   getOne: async (id: string): Promise<Subject> => {
