@@ -13,6 +13,12 @@ export const envValidationSchema = Joi.object({
 
   APP_NAME: Joi.string().default('EduTool'),
 
-  GMAIL_EMAIL: Joi.string().email().required(),
-  GMAIL_APP_PASSWORD: Joi.string().required(),
+  // Comma-separated list of allowed CORS origins (e.g. https://app.onrender.com).
+  CORS_ORIGIN: Joi.string().optional(),
+
+  // Email is optional: if GMAIL_EMAIL / GMAIL_APP_PASSWORD are not set the app
+  // boots and only email-dependent flows (OTP / credentials) will fail at send
+  // time with a logged error.
+  GMAIL_EMAIL: Joi.string().email().optional(),
+  GMAIL_APP_PASSWORD: Joi.string().optional(),
 });
