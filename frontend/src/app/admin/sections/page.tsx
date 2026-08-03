@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { Pagination } from "@/components/shared/Pagination";
 
 import { Plus, Search } from "lucide-react";
 
@@ -25,6 +26,7 @@ import { SectionEmptyState } from "@/components/admin/section/SectionEmptyState"
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 
 import { programApi } from "@/api/admin/program.api";
+import { DEFAULT_PAGE_SIZE } from "@/api/admin/section.api";
 
 import type { Section } from "@/types/admin/section.types";
 
@@ -35,6 +37,8 @@ export default function SectionsPage(): React.JSX.Element {
   const [editTarget, setEditTarget] = useState<Section | null>(null);
   const [schoolYearId, setSchoolYearId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
 
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
 
@@ -47,6 +51,8 @@ export default function SectionsPage(): React.JSX.Element {
 
   const {
     sections,
+    total: sectionsTotal,
+    totalPages: sectionsTotalPages,
     isLoading: sectionsLoading,
     filterProgramId,
     setFilterProgramId,
@@ -59,7 +65,7 @@ export default function SectionsPage(): React.JSX.Element {
     deleteTarget,
     setDeleteTarget,
     deleteMutation,
-  } = useSections(schoolYearId);
+  } = useSections(schoolYearId, { search, page, limit });
 
   const {
     levels,
@@ -76,21 +82,17 @@ export default function SectionsPage(): React.JSX.Element {
 
   const isLoading = sectionsLoading || levelsLoading;
 
-  const filteredSections = sections.filter((s) => {
-    const matchesSearch = s.name
-      .toLowerCase()
-      .includes(search.toLowerCase());
+  // Reset to page 1 whenever the school year changes
+  useEffect(() => { setPage(1); }, [schoolYearId]);
 
-    const matchesProgram =
-      filterProgramId === "all" ||
-      levelMap[s.level_id]?.programId === filterProgramId;
-
-    return matchesSearch && matchesProgram;
-  });
+  // Clamp page when the result set shrinks (Educators/Students pattern)
+  useEffect(() => {
+    if (page > sectionsTotalPages) setPage(Math.max(1, sectionsTotalPages));
+  }, [page, sectionsTotalPages]);
 
   // 🔥 FIXED: full invalidation set
   function handleSaved(): void {
-    queryClient.invalidateQueries({ queryKey: queryKeys.admin.sections.list({ schoolYearId }) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.sections.all });
     queryClient.invalidateQueries({ queryKey: queryKeys.admin.levels.list({ schoolYearId }) });
     queryClient.invalidateQueries({ queryKey: queryKeys.admin.programs.list({ schoolYearId }) });
 
@@ -115,6 +117,7 @@ export default function SectionsPage(): React.JSX.Element {
                 setFilterStrandId("all");
                 setFilterLevelId("all");
                 setSearch("");
+                setPage(1);
               }}
             />
           </div>
@@ -137,7 +140,7 @@ export default function SectionsPage(): React.JSX.Element {
             <Input
               placeholder="Search sections..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="pl-8 w-56 h-9"
             />
           </div>
@@ -149,13 +152,14 @@ export default function SectionsPage(): React.JSX.Element {
             onProgramChange={(id) => {
               setFilterProgramId(id);
               setSearch("");
+              setPage(1);
             }}
             filterCourseId={filterCourseId}
-            onCourseChange={setFilterCourseId}
+            onCourseChange={(id) => { setFilterCourseId(id); setPage(1); }}
             filterStrandId={filterStrandId}
-            onStrandChange={setFilterStrandId}
+            onStrandChange={(id) => { setFilterStrandId(id); setPage(1); }}
             filterLevelId={filterLevelId}
-            onLevelChange={setFilterLevelId}
+            onLevelChange={(id) => { setFilterLevelId(id); setPage(1); }}
             grouped={grouped}
             levelMap={levelMap}
           />
@@ -174,19 +178,35 @@ export default function SectionsPage(): React.JSX.Element {
             <Skeleton key={i} className="h-12 w-full rounded-lg" />
           ))}
         </div>
-      ) : filteredSections.length === 0 ? (
+      ) : sections.length === 0 ? (
         <SectionEmptyState
-          isFiltered={filterLevelId !== "all" || search !== ""}
+          isFiltered={
+            filterProgramId !== "all" ||
+            filterCourseId  !== "all" ||
+            filterStrandId  !== "all" ||
+            filterLevelId   !== "all" ||
+            search !== ""
+          }
           onCreateClick={() => setCreateOpen(true)}
         />
       ) : (
-        <SectionTable
-          sections={filteredSections}
-          levelMap={levelMap}
-          programs={programs}
-          onEdit={setEditTarget}
-          onDelete={setDeleteTarget}
-        />
+        <>
+          <SectionTable
+            sections={sections}
+            levelMap={levelMap}
+            programs={programs}
+            onEdit={setEditTarget}
+            onDelete={setDeleteTarget}
+          />
+          <Pagination
+            page={page}
+            limit={limit}
+            total={sectionsTotal}
+            onPageChange={setPage}
+            onLimitChange={(l) => { setLimit(l); setPage(1); }}
+            pageSizeOptions={[20, 50, 100]}
+          />
+        </>
       )}
 
       {createOpen && schoolYearId && (
@@ -216,6 +236,7 @@ export default function SectionsPage(): React.JSX.Element {
             setFilterCourseId("all");
             setFilterStrandId("all");
             setSearch("");
+            setPage(1);
           }}
         />
       )}
