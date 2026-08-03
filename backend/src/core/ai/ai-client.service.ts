@@ -6,6 +6,7 @@ export class AiClientService {
   private readonly logger = new Logger(AiClientService.name);
   private readonly apiKey: string;
   private readonly model: string;
+  private readonly referer: string;
   private readonly apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
   constructor(private readonly config: ConfigService) {
@@ -31,7 +32,7 @@ export class AiClientService {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://localhost:3000',
+        'HTTP-Referer': this.referer,
         'X-Title': 'EduTool AI',
       },
       body: JSON.stringify({
