@@ -34,13 +34,13 @@ export class AuthController {
   ) {
     const tokens = await this.authService.login(dto);
 
-    // Set refresh token as HTTP-only cookie — NOT accessible to JS
+    // Set refresh token as HTTP-only cookie — NOT accessible to JS.
+    // sameSite is 'none' in production because the frontend and backend live on
+    // different Render subdomains (cross-site); 'none' is silently rejected by
+    // browsers unless `secure: true`, which the helper sets in production.
     res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      ...this.getCookieOptions(),
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/',
     });
 
     // Only return access token in body (refresh token is cookie-only)
@@ -59,11 +59,8 @@ export class AuthController {
 
     // Set new refresh token as HttpOnly cookie
     res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      ...this.getCookieOptions(),
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/',
     });
 
     // Return only access token in response body
@@ -83,18 +80,23 @@ export class AuthController {
     return decodeURIComponent(match.slice(name.length + 1));
   }
 
+  private getCookieOptions() {
+    const isProd = process.env.NODE_ENV === 'production';
+    return {
+      httpOnly: true,
+      secure: isProd, // 'none' cookies are rejected by browsers without secure:true
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+      path: '/',
+    };
+  }
+
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    // ALWAYS clear the refresh token cookie — even if access token is expired
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax' as const,
-      path: '/',
-    };
-
-    res.clearCookie('refreshToken', cookieOptions);
+    // ALWAYS clear the refresh token cookie — even if access token is expired.
+    // clearCookie MUST use the exact same sameSite/secure/path as the cookie
+    // was set with, or the browser won't recognize it and won't delete it.
+    res.clearCookie('refreshToken', this.getCookieOptions());
 
     // Also try to clear the server-side refresh token hash
     const refreshToken = req.cookies?.refreshToken ?? this.getCookie(req, 'refreshToken');
