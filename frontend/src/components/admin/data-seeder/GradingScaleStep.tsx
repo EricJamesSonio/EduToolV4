@@ -1,13 +1,12 @@
 // frontend/src/components/admin/data-seeder/GradingScaleStep.tsx
 "use client"
 
-import { Check } from "lucide-react"
-import { Badge }  from "@/components/ui/badge"
-import { cn }     from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 import { GRADING_SCALE_PRESETS } from "./constants/seed-data"
 import { CollapsiblePreview } from "./ui/CollapsiblePreview"
 import { EnableToggle } from "./ui/EnableToggle"
 import { ProgramPanel } from "./ui/ProgramPanel"
+import { SelectableCard } from "./ui/SelectableCard"
 
 interface GradingScaleStepProps {
   selectedPrograms:        Set<string>
@@ -61,37 +60,17 @@ export function GradingScaleStep({
               >
                 {/* Preset grid */}
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {GRADING_SCALE_PRESETS.map((preset) => {
-                    const isSelected = selectedPresetKey === preset.key
-                    return (
-                      <button
-                        key={preset.key}
-                        type="button"
-                        onClick={() => onSelectPreset(prog, preset.key)}
-                        className={cn(
-                          "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
-                          isSelected && "border-primary bg-primary/5"
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors",
-                            isSelected
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-muted-foreground/40"
-                          )}
-                        >
-                          {isSelected && <Check className="h-2.5 w-2.5" />}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium leading-tight">{preset.name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {preset.ranges.length} grade {preset.ranges.length === 1 ? "range" : "ranges"}
-                          </p>
-                        </div>
-                      </button>
-                    )
-                  })}
+                  {GRADING_SCALE_PRESETS.map((preset) => (
+                    <SelectableCard
+                      key={preset.key}
+                      selected={selectedPresetKey === preset.key}
+                      onSelect={() => onSelectPreset(prog, preset.key)}
+                      title={preset.name}
+                      subtitle={`${preset.ranges.length} grade ${
+                        preset.ranges.length === 1 ? "range" : "ranges"
+                      }`}
+                    />
+                  ))}
                 </div>
 
                 {/* Range preview for the currently selected preset */}
