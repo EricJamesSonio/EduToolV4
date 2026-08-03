@@ -1,11 +1,11 @@
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+// NEXT_PUBLIC_* values are baked into the bundle at build time. They default to
+// "" so production never falls back to a hardcoded localhost — the deploy must
+// provide the real backend URL (Render build args / docker-compose / .env.local).
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-export const SOCKET_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:5000";
+export const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? "";
 
-export const AGORA_APP_ID =
-  process.env.NEXT_PUBLIC_AGORA_APP_ID ?? "";
+export const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID ?? "";
 
 // API route prefixes — keeps path strings in one place
 export const API_ROUTES = {
