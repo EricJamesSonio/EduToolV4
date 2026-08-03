@@ -11,6 +11,9 @@ export class AiClientService {
   constructor(private readonly config: ConfigService) {
     this.apiKey = this.config.get<string>('OPENROUTER_API_KEY') ?? '';
     this.model = this.config.get<string>('AI_MODEL') ?? 'qwen/qwen3-235b-a22b:free';
+    // Referer/referrer fields are only used for OpenRouter analytics. If APP_URL
+    // is unset we send nothing rather than a hardcoded localhost.
+    this.referer = process.env.APP_URL ?? '';
   }
 
   async callAi(
