@@ -25,18 +25,14 @@ const nextConfig: NextConfig = {
               // Styles
               "style-src 'self' 'unsafe-inline'",
 
-              // ✅ FIXED (Docker + Dev + Prod ready)
-              isDev
-                ? `connect-src 'self' ${apiUrl} ${wsUrl} ${wsUrl.replace(/^http/, "ws")} ws://backend:3000 https://*.agora.io wss://*.agora.io`
-                : "connect-src 'self' https://your-production-domain.com https://*.agora.io wss://*.agora.io",
+              // ✅ Dev + Docker + Production ready — allow the configured API/WS hosts
+              `connect-src 'self' ${apiUrl} ${wsUrl} ${wsUrl.replace(/^http/, "ws")} ws://localhost:5000 ws://backend:3000 https://*.agora.io wss://*.agora.io`,
 
               // Media
               "media-src 'self' blob:",
 
               // Images
-              isDev
-                ? `img-src 'self' data: blob: ${apiUrl} http://backend:3000`
-                : "img-src 'self' data: blob:",
+              `img-src 'self' data: blob: ${apiUrl} http://localhost:5000 http://backend:3000`,
 
               "font-src 'self'",
               "frame-ancestors 'none'",
