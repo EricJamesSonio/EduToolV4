@@ -12,7 +12,7 @@ export function useSubjectMutations(
   const lockMutation = useMutationWithInvalidation(
     (id: string) => subjectApi.lock(id),
     {
-      invalidateKeys: [queryKeys.admin.subjects.list()],
+      invalidateKeys: [queryKeys.admin.subjects.all],
       onSuccess: () => {
         toast.success("Subject locked.");
         setLockTarget(null);
@@ -27,7 +27,7 @@ export function useSubjectMutations(
   const unlockMutation = useMutationWithInvalidation(
     (id: string) => subjectApi.unlock(id),
     {
-      invalidateKeys: [queryKeys.admin.subjects.list()],
+      invalidateKeys: [queryKeys.admin.subjects.all],
       onSuccess: () => {
         toast.success("Subject unlocked.");
         setUnlockTarget(null);
