@@ -18,6 +18,9 @@ export interface Slide {
   title: string | null;
   content: string;
   lessonSection: string | null;
+  image?: string | null;
+  thumbnail?: string | null;
+  poster?: string | null;
   createdAt: string;
 }
 

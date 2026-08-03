@@ -132,7 +132,7 @@ export default function EducatorClassesPage(): React.JSX.Element {
   const { data: classesRaw, isLoading: classesLoading } = useEducatorClasses();
 
   const { data: subjectsRaw } = useAsyncQuery(
-    queryKeys.admin.subjects.list(),
+    queryKeys.admin.subjects.all,
     () => subjectApi.getAll(),
   );
 

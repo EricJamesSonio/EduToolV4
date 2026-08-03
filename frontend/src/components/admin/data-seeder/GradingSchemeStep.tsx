@@ -1,12 +1,11 @@
 "use client"
 
-import { Check } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { cn }    from "@/lib/utils"
 import { GRADING_SCHEME_TEMPLATES } from "./constants/seed-data"
 import { CollapsiblePreview } from "./ui/CollapsiblePreview"
 import { EnableToggle } from "./ui/EnableToggle"
 import { ProgramPanel } from "./ui/ProgramPanel"
+import { SelectableCard } from "./ui/SelectableCard"
 
 interface GradingSchemeStepProps {
   selectedPrograms:        Set<string>
@@ -55,32 +54,15 @@ export function GradingSchemeStep({
                   </Badge>
                 }
               >
-                {/* Scheme toggle card */}
-                <button
-                  type="button"
-                  onClick={() => onToggleScheme(scheme.programType, !isSelected)}
-                  className={cn(
-                    "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
-                    isSelected && "border-primary bg-primary/5"
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-                      isSelected
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-muted-foreground/40"
-                    )}
-                  >
-                    {isSelected && <Check className="h-3 w-3" />}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium leading-tight">{scheme.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {scheme.components.length} {scheme.components.length === 1 ? "component" : "components"}
-                    </p>
-                  </div>
-                </button>
+                {/* Scheme selectable card */}
+                <SelectableCard
+                  selected={isSelected}
+                  onSelect={() => onToggleScheme(scheme.programType, !isSelected)}
+                  title={scheme.name}
+                  subtitle={`${scheme.components.length} ${
+                    scheme.components.length === 1 ? "component" : "components"
+                  }`}
+                />
 
                 {/* Components preview */}
                 <CollapsiblePreview label="Preview components" count={scheme.components.length}>

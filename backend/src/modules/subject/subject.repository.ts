@@ -110,8 +110,13 @@ async findAll(
     yearLevel?: string;
     termLabel?: string;
     subjectType?: string;
+    page?: number;
+    limit?: number;
   },
 ) {
+  const page  = filters.page ?? 1;
+  const limit = filters.limit ?? 20;
+
   let courseFilter: Record<string, unknown> = {};
   if (filters.scope === 'open') {
     courseFilter = { course_id: null };
@@ -177,35 +182,58 @@ async findAll(
     sharings: true,
   };
 
-  const subjects = await this.db.subject.findMany({
-    where:   baseWhere,
-    include: subjectInclude,
-    orderBy: [{ year_level: 'asc' }, { term_label: 'asc' }, { name: 'asc' }],
-  });
-
-  // Shared minor subjects visible to the selected level
-  let sharedMinorSubjects: any[] = [];
-  if (filters.levelId) {
-    sharedMinorSubjects = await this.db.subject.findMany({
-      where: {
-        org_id:       orgId,
-        subject_type: 'minor',
-        sharings:     { some: { level_id: filters.levelId } },
-      },
-      include: subjectInclude,
-      orderBy: [{ year_level: 'asc' }, { term_label: 'asc' }, { name: 'asc' }],
-    });
-  }
-
-  const allSubjects = [
-    ...subjects,
-    ...sharedMinorSubjects.filter(
-      (shared) => !subjects.some((s) => s.id === shared.id),
-    ),
+  const subjectOrderBy = [
+    { year_level: 'asc' as const },
+    { term_label: 'asc' as const },
+    { name: 'asc' as const },
   ];
 
-  const enriched        = await this.enrichSubjects(allSubjects);
-  const allSharings     = allSubjects.flatMap((s: any) => s.sharings ?? []);
+  // ── Pagination: build the FULL ordered/deduped id list first (cheap),
+  //    then fetch the heavy include/enrich only for the current page. ──────
+  const [mainIds, sharedIds] = await Promise.all([
+    this.db.subject.findMany({
+      where:   baseWhere,
+      select:  { id: true },
+      orderBy: subjectOrderBy,
+    }),
+    filters.levelId
+      ? this.db.subject.findMany({
+          where: {
+            org_id:       orgId,
+            subject_type: 'minor',
+            sharings:     { some: { level_id: filters.levelId } },
+            ...(filters.search ? { name: { contains: filters.search, mode: 'insensitive' as const } } : {}),
+          },
+          select:  { id: true },
+          orderBy: subjectOrderBy,
+        })
+      : Promise.resolve([] as { id: string }[]),
+  ]);
+
+  const mainIdSet     = new Set(mainIds.map((s) => s.id));
+  const mergedIds     = [
+    ...mainIds.map((s) => s.id),
+    ...sharedIds.map((s) => s.id).filter((id) => !mainIdSet.has(id)),
+  ];
+  const total         = mergedIds.length;
+  const pageIds       = mergedIds.slice((page - 1) * limit, (page - 1) * limit + limit);
+
+  if (pageIds.length === 0) {
+    return { data: [], total };
+  }
+
+  const pageSubjects = await this.db.subject.findMany({
+    where:  { id: { in: pageIds }, org_id: orgId },
+    include: subjectInclude,
+  });
+
+  const idOrder = new Map(pageIds.map((id, i) => [id, i]));
+  const subjects = pageSubjects
+    .slice()
+    .sort((a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0));
+
+  const enriched        = await this.enrichSubjects(subjects);
+  const allSharings     = subjects.flatMap((s: any) => s.sharings ?? []);
   const enrichedSharings = await this.enrichSharings(allSharings);
 
   const sharingsBySubject = enrichedSharings.reduce<Record<string, any[]>>(
@@ -217,10 +245,12 @@ async findAll(
     {},
   );
 
-  return enriched.map((s: any) => ({
+  const data = enriched.map((s: any) => ({
     ...s,
     sharings: sharingsBySubject[s.id] ?? [],
   }));
+
+  return { data, total };
 }
 
   async findById(id: string, orgId: string) {

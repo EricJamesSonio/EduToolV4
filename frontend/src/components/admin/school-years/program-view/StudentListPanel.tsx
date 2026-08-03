@@ -141,7 +141,7 @@ export function StudentListPanel({
         <div className="flex items-center gap-2">
           {/* Section filter — only shown when there are sections to filter by */}
           {showSectionFilter && (
-            <Select value={sectionFilter} onValueChange={setSectionFilter}>
+            <Select value={sectionFilter} onValueChange={(v) => { if (v !== null) setSectionFilter(v); }}>
               <SelectTrigger className="h-7 text-xs w-36">
                 <SelectValue placeholder="All Sections" />
               </SelectTrigger>

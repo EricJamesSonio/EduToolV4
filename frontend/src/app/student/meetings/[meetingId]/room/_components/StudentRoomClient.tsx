@@ -89,6 +89,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   const [sidePanel,     setSidePanel]     = useState<SidePanelType>(null);
   const [overflowOpen,  setOverflowOpen]  = useState(false);
   const [mobileSlidesOpen, setMobileSlidesOpen] = useState(false);
+  const [featuredUid,   setFeaturedUid]   = useState<string | number | null>(null);
 
   // ── Video track replay ────────────────────────────────────────────────────
   useEffect(() => {
@@ -106,7 +107,15 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
       });
     });
     return () => cancelAnimationFrame(raf);
-  }, [isPresenting, remoteUsers]);
+  }, [isPresenting, featuredUid, remoteUsers]);
+
+  // If the promoted participant leaves, exit "featured".
+  useEffect(() => {
+    if (featuredUid == null) return;
+    if (!remoteUsers.some((u) => String(u.uid) === String(featuredUid))) {
+      setFeaturedUid(null);
+    }
+  }, [remoteUsers, featuredUid]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleToggleMic   = async () => { await toggleMic();    setMicOn((v) => !v); };
@@ -143,10 +152,10 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className={cn(
-      "flex flex-col bg-zinc-950 text-white overflow-hidden",
+      "flex flex-col bg-background text-foreground overflow-hidden",
       isFullscreen ? "fixed inset-0 z-50" : "h-screen",
     )}>
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex overflow-hidden relative bg-zinc-950">
 
         {isPresenting ? (
           <PresentationView
@@ -159,6 +168,10 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
             isPresenting={isPresenting}
             mobileSlidesOpen={mobileSlidesOpen}
             onCloseMobileSlides={() => setMobileSlidesOpen(false)}
+            featuredUid={featuredUid}
+            onPromote={(uid) => setFeaturedUid(uid)}
+            onExitFeatured={() => setFeaturedUid(null)}
+            isFullscreen={isFullscreen}
           />
         ) : (
           <VideoGrid joined={joined} remoteUsers={remoteUsers} />

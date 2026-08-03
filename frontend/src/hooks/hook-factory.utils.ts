@@ -187,7 +187,7 @@ export function useMutationWithInvalidation<
       invalidateKeys?.forEach((key) => {
         queryClient.invalidateQueries({ queryKey: key });
       });
-      options.onSuccess?.(data, variables, context);
+      options.onSuccess?.(data, variables, context as any, undefined as any);
     },
   });
 }
@@ -235,7 +235,7 @@ export function useBatchMutation<
 
 
 type OptimisticContext<T> = {
-  previousData?: T;
+  previousData: T | undefined;
 };
 
 export function useMutationWithOptimisticUpdate<
@@ -277,11 +277,11 @@ export function useMutationWithOptimisticUpdate<
       if (context?.previousData) {
         queryClient.setQueryData(queryKey, context.previousData);
       }
-      options.onError?.(error, variables, context);
+      options.onError?.(error, variables, context as any, undefined as any);
     },
     onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey });
-      options.onSuccess?.(data, variables, context);
+      options.onSuccess?.(data, variables, context as any, undefined as any);
     },
     ...options,
   });

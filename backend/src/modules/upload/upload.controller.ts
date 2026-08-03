@@ -20,6 +20,11 @@ import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 import { UploadService } from './upload.service';
 
+// ⚠️ PRODUCTION NOTE: these write to the container's LOCAL filesystem.
+// Render (and most managed platforms) use EPHEMERAL storage — any file saved
+// here is LOST on every deploy/restart and is not shared across instances.
+// For production use object storage (S3/Cloudinary/etc.) or a persistent
+// Render Disk mounted at /app/uploads instead of the container filesystem.
 const PROFILE_UPLOADS_DIR = join(process.cwd(), 'uploads', 'profiles');
 const ORG_LOGO_UPLOADS_DIR = join(process.cwd(), 'uploads', 'organizations');
 

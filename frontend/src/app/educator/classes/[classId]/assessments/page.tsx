@@ -143,7 +143,7 @@ export default function AssessmentsPage(): React.JSX.Element {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
+        <Select value={typeFilter} onValueChange={(v) => { if (v !== null) setTypeFilter(v); }}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Type">{typeFilter === "all" ? "All Types" : TYPE_LABELS[typeFilter] ?? typeFilter.replace(/_/g, " ")}</SelectValue>
           </SelectTrigger>
@@ -159,7 +159,7 @@ export default function AssessmentsPage(): React.JSX.Element {
           </SelectContent>
         </Select>
 
-        <Select value={termFilter} onValueChange={(v) => { setTermFilter(v); setWeekFilter("all"); }}>
+        <Select value={termFilter} onValueChange={(v) => { if (v !== null) { setTermFilter(v); setWeekFilter("all"); } }}>
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Term">{termFilter === "all" ? "All Terms" : termOptions.find(t => t.value === termFilter)?.label}</SelectValue>
           </SelectTrigger>
@@ -171,7 +171,7 @@ export default function AssessmentsPage(): React.JSX.Element {
           </SelectContent>
         </Select>
 
-        <Select value={weekFilter} onValueChange={setWeekFilter}>
+        <Select value={weekFilter} onValueChange={(v) => { if (v !== null) setWeekFilter(v); }}>
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Week">{weekFilter === "all" ? "All Weeks" : filteredWeekOptions.find(w => w.value === weekFilter)?.label}</SelectValue>
           </SelectTrigger>

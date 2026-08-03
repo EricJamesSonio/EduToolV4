@@ -61,11 +61,12 @@ export default function PresentationBuilderPage(): React.JSX.Element {
   );
 
   const slideRanges = useMemo(() => {
-    if (!lesson?.detail) return [];
+    const detail = lesson?.detail;
+    if (!detail) return [];
     return slides.map((s) => {
       if (s.charStart !== null && s.charEnd !== null)
         return { slideNumber: s.slideNumber, start: s.charStart, end: s.charEnd };
-      const idx = lesson.detail.indexOf(s.content);
+      const idx = detail.indexOf(s.content);
       if (idx !== -1)
         return { slideNumber: s.slideNumber, start: idx, end: idx + s.content.length };
       return null;
@@ -175,7 +176,7 @@ export default function PresentationBuilderPage(): React.JSX.Element {
   // ── Auto-generate ─────────────────────────────────────────────────────────
   const handleAutoGenerate = async () => {
     if (!lesson) return;
-    const genSlides = (result: Array<{ title?: string; content: string }>) =>
+    const genSlides = (result: Array<{ title: string | null | undefined; content: string }>) =>
       result.map((s, i) => ({
         id: newSlideId(), slideNumber: i + 1,
         title: s.title ?? `Slide ${i + 1}`, content: s.content,

@@ -35,6 +35,7 @@ export interface BulkImportResult {
   status:       "success" | "validation_failed";
   totalRows?:   number;
   totalCreated?: number;
+  importedCount?: number;
   validCount?:  number;
   invalidCount?: number;
   students?:    Student[];

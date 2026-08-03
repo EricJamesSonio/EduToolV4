@@ -24,8 +24,8 @@ function Btn({ onClick, active, danger, label, hideOnMobile, mobileOnly, childre
       className={cn(
         "meeting-ctrl-btn flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[10px] transition-colors",
         active && !danger && "text-primary bg-primary/10",
-        danger && "text-red-400 hover:bg-red-900/30",
-        !active && !danger && "text-zinc-300 hover:bg-zinc-800",
+        danger && "text-destructive hover:bg-destructive/10",
+        !active && !danger && "text-muted-foreground hover:bg-muted hover:text-foreground",
         hideOnMobile && "meeting-ctrl-btn--hide-mobile",
         mobileOnly && "meeting-ctrl-btn--mobile-only",
       )}
@@ -62,13 +62,13 @@ export function ControlsBar({
   onToggleFullscreen, onToggleSidePanel, onToggleOverflow, onLeave,
 }: ControlsBarProps) {
   return (
-    <div className="meeting-controls relative shrink-0 flex items-center justify-center flex-wrap gap-1 border-t border-zinc-800 bg-zinc-900 px-2 py-1">
+    <div className="meeting-controls relative shrink-0 flex items-center justify-center flex-wrap gap-1 border-t border-border bg-card px-2 py-1">
       {/* Connection status */}
       <div className={cn(
         "meeting-status absolute left-3 flex items-center gap-1.5 text-[11px]",
-        connected ? "text-emerald-400" : "text-zinc-500",
+        connected ? "text-success" : "text-muted-foreground",
       )}>
-        <span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-emerald-400" : "bg-zinc-500")} />
+        <span className={cn("h-1.5 w-1.5 rounded-full", connected ? "bg-success" : "bg-muted-foreground")} />
         <span className="meeting-status-label">{connected ? "Connected" : "Connecting..."}</span>
       </div>
 

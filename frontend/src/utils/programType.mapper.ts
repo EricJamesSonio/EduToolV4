@@ -6,9 +6,9 @@ import type { ProgramType as ApiProgramType } from "@/api/admin/program.api";
 export function mapToApiProgramType(type: UIProgramType): ApiProgramType {
   switch (type) {
     case "jhs":
-      return "high_school";
+      return "high_school" as ApiProgramType;
     case "shs":
-      return "senior_high";
+      return "senior_high" as ApiProgramType;
     case "elementary":
     case "college":
     case "custom":

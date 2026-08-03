@@ -90,7 +90,10 @@ private mapToResponse(subject: any) {
   }
 
   async findAll(orgId: string, query: QuerySubjectDto) {
-    const subjects = await this.subjectRepository.findAll(orgId, {
+    const page  = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const { data, total } = await this.subjectRepository.findAll(orgId, {
       schoolYearId: query.schoolYearId,
       programId:    query.programId,
       levelId:      query.levelId,
@@ -101,8 +104,14 @@ private mapToResponse(subject: any) {
       yearLevel:    query.yearLevel,
       termLabel:    query.termLabel,
       subjectType:  query.subjectType,
+      page,
+      limit,
     });
-    return subjects.map((s) => this.mapToResponse(s));
+
+    return {
+      data: data.map((s) => this.mapToResponse(s)),
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async findById(id: string, orgId: string) {

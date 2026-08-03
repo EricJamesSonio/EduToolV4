@@ -101,7 +101,7 @@ export function AssignSectionDialog({
               No sections available for this scope.
             </p>
           ) : (
-            <Select value={selectedSectionId} onValueChange={setSelectedSectionId}>
+            <Select value={selectedSectionId} onValueChange={(v) => { if (v !== null) setSelectedSectionId(v); }}>
               <SelectTrigger className="h-9 text-sm">
                 <SelectValue placeholder="Select a section">
                   {sections.find((s) => s.id === selectedSectionId)?.name ?? "Select a section"}

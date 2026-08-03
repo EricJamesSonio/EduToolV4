@@ -55,6 +55,7 @@ export interface AssessmentResult {
     order: number;
     studentAnswer: string | null;
     isCorrect: boolean | null;
+    isManual?: boolean;
   }>;
 }
 

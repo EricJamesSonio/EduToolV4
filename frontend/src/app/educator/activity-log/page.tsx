@@ -121,7 +121,7 @@ export default function EducatorActivityLogPage() {
 
   // Subject lookup for class display names
   const { data: subjectsRaw } = useAsyncQuery(
-    queryKeys.admin.subjects.list(),
+    queryKeys.admin.subjects.all,
     () => subjectApi.getAll(),
   );
 

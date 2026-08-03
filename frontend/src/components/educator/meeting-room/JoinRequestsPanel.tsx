@@ -40,14 +40,14 @@ export function JoinRequestsPanel({ requests, students, onRespond, isPending }: 
               <button
                 onClick={() => onRespond(req.id, "accepted")}
                 disabled={isPending}
-                className="h-7 w-7 flex items-center justify-center rounded-md text-green-600 hover:bg-green-500/10 transition-colors disabled:opacity-40"
+                className="h-7 w-7 flex items-center justify-center rounded-md text-success hover:bg-success/10 transition-colors disabled:opacity-40"
               >
                 <Check className="h-4 w-4" />
               </button>
               <button
                 onClick={() => onRespond(req.id, "declined")}
                 disabled={isPending}
-                className="h-7 w-7 flex items-center justify-center rounded-md text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+                className="h-7 w-7 flex items-center justify-center rounded-md text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
               >
                 <X className="h-4 w-4" />
               </button>

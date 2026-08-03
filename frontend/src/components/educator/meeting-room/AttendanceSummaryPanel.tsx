@@ -1,6 +1,7 @@
 // src/components/educator/meeting-room/AttendanceSummaryPanel.tsx
 "use client";
 
+import { cn } from "@/lib/utils";
 import type { AttendanceRecord } from "@/hooks/meeting/useMeetingAttendance";
 
 interface AttendanceSummaryPanelProps {
@@ -12,17 +13,10 @@ function RoleBadge({ role }: { role: string }) {
   const isEducator = role === "educator";
   return (
     <span
-      style={{
-        fontSize:     "10px",
-        fontWeight:   600,
-        padding:      "1px 7px",
-        borderRadius: "999px",
-        background:   isEducator ? "rgba(99,102,241,0.15)" : "rgba(34,197,94,0.12)",
-        color:        isEducator ? "#a5b4fc"                : "#86efac",
-        border:       isEducator ? "1px solid rgba(99,102,241,0.3)" : "1px solid rgba(34,197,94,0.25)",
-        textTransform: "capitalize" as const,
-        letterSpacing: "0.03em",
-      }}
+      className={cn(
+        "inline-flex items-center rounded-full border px-1.5 py-px text-[10px] font-semibold capitalize tracking-wide",
+        isEducator ? "border-info/30 bg-info/15 text-info" : "border-success/30 bg-success/15 text-success",
+      )}
     >
       {role}
     </span>
@@ -36,7 +30,7 @@ function SessionList({ record, formatDuration }: {
   if (record.sessions.length <= 1) return null;
 
   return (
-    <div style={{ marginTop: "6px", paddingLeft: "36px" }}>
+    <div className="mt-1.5 pl-9">
       {record.sessions.map((s, i) => {
         const elapsed = s.leftAt > 0
           ? Math.round((s.leftAt - s.joinedAt) / 1000)
@@ -45,15 +39,10 @@ function SessionList({ record, formatDuration }: {
         return (
           <div
             key={i}
-            style={{
-              display:    "flex",
-              alignItems: "center",
-              gap:        "6px",
-              marginBottom: "2px",
-            }}
+            className="flex items-center gap-1.5 mb-0.5"
           >
-            <span style={{ color: "rgba(255,255,255,0.2)", fontSize: "10px" }}>↳</span>
-            <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>
+            <span className="text-muted-foreground/40 text-[10px]">↳</span>
+            <span className="text-[11px] text-muted-foreground">
               Session {i + 1}: {formatDuration(elapsed)}
             </span>
           </div>
@@ -79,31 +68,18 @@ export function AttendanceSummaryPanel({
     : 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="flex flex-col h-full">
 
       {/* ── Header stats ── */}
-      <div
-        style={{
-          display:       "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap:           "8px",
-          padding:       "12px",
-          borderBottom:  "1px solid rgba(255,255,255,0.07)",
-        }}
-      >
+      <div className="grid grid-cols-2 gap-2 p-3 border-b border-border">
         <StatCard label="Total Joined" value={String(totalParticipants)} />
         <StatCard label="Avg. Duration" value={formatDuration(avgSeconds)} />
       </div>
 
       {/* ── Record list ── */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
+      <div className="flex-1 overflow-y-auto p-2">
         {sorted.length === 0 && (
-          <p style={{
-            textAlign: "center",
-            fontSize:  "13px",
-            color:     "rgba(255,255,255,0.3)",
-            paddingTop: "24px",
-          }}>
+          <p className="text-center text-[13px] text-muted-foreground pt-6">
             No attendance data yet
           </p>
         )}
@@ -111,61 +87,34 @@ export function AttendanceSummaryPanel({
         {sorted.map((record) => (
           <div
             key={record.userId}
-            style={{
-              borderRadius: "10px",
-              padding:      "10px 12px",
-              marginBottom: "4px",
-              background:   "rgba(255,255,255,0.03)",
-              border:       "1px solid rgba(255,255,255,0.06)",
-            }}
+            className="rounded-[10px] p-2.5 mb-1 bg-muted/40 border border-border/60"
           >
             {/* Row: avatar + name + role + duration */}
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div className="flex items-center gap-2.5">
               {/* Avatar */}
-              <div style={{
-                width:          "28px",
-                height:         "28px",
-                borderRadius:   "50%",
-                background:     "rgba(99,102,241,0.2)",
-                display:        "flex",
-                alignItems:     "center",
-                justifyContent: "center",
-                fontSize:       "12px",
-                fontWeight:     700,
-                color:          "#a5b4fc",
-                flexShrink:     0,
-              }}>
+              <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                 {record.name[0]?.toUpperCase()}
               </div>
 
               {/* Name + role */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                  <span style={{
-                    fontSize:   "13px",
-                    fontWeight: 600,
-                    color:      "rgba(255,255,255,0.9)",
-                    overflow:   "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    maxWidth:   "120px",
-                  }}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[13px] font-semibold text-foreground truncate max-w-[120px]">
                     {record.name}
                   </span>
                   <RoleBadge role={record.role} />
                 </div>
-                <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)" }}>
+                <span className="text-[11px] text-muted-foreground">
                   {record.sessions.length} session{record.sessions.length !== 1 ? "s" : ""}
                 </span>
               </div>
 
               {/* Total duration */}
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <span style={{
-                  fontSize:   "13px",
-                  fontWeight: 700,
-                  color:      record.totalSeconds >= 60 ? "#86efac" : "rgba(255,255,255,0.5)",
-                }}>
+              <div className="text-right shrink-0">
+                <span className={cn(
+                  "text-[13px] font-bold",
+                  record.totalSeconds >= 60 ? "text-success" : "text-muted-foreground",
+                )}>
                   {formatDuration(record.totalSeconds)}
                 </span>
               </div>
@@ -178,13 +127,7 @@ export function AttendanceSummaryPanel({
       </div>
 
       {/* ── Footer note ── */}
-      <div style={{
-        padding:      "8px 12px",
-        borderTop:    "1px solid rgba(255,255,255,0.07)",
-        fontSize:     "11px",
-        color:        "rgba(255,255,255,0.25)",
-        textAlign:    "center",
-      }}>
+      <div className="px-3 py-2 border-t border-border text-[11px] text-muted-foreground text-center">
         Tracked locally · resets when you close the tab
       </div>
     </div>
@@ -195,19 +138,9 @@ export function AttendanceSummaryPanel({
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{
-      borderRadius: "8px",
-      background:   "rgba(255,255,255,0.04)",
-      border:       "1px solid rgba(255,255,255,0.07)",
-      padding:      "8px 10px",
-      textAlign:    "center",
-    }}>
-      <div style={{ fontSize: "18px", fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>
-        {value}
-      </div>
-      <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", marginTop: "2px" }}>
-        {label}
-      </div>
+    <div className="rounded-lg bg-muted/40 border border-border/60 p-2 text-center">
+      <div className="text-lg font-bold text-foreground">{value}</div>
+      <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
     </div>
   );
 }

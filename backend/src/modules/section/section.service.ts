@@ -59,7 +59,24 @@ export class SectionService {
   }
 
   async findAll(orgId: string, query: QuerySectionDto) {
-    return this.sectionRepository.findAll(orgId, query.schoolYearId, query.levelId);
+    const page  = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const { data, total } = await this.sectionRepository.findAll(orgId, {
+      schoolYearId: query.schoolYearId,
+      levelId:      query.levelId,
+      programId:    query.programId,
+      courseId:     query.courseId,
+      strandId:     query.strandId,
+      search:       query.search,
+      page,
+      limit,
+    });
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async update(id: string, orgId: string, dto: UpdateSectionDto, actorId: string) {

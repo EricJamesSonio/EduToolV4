@@ -57,7 +57,7 @@ export function ApplyToClassDialog({
     useEducatorClasses();
 
   const { data: subjectsRaw } = useAsyncQuery(
-    queryKeys.admin.subjects.list(),
+    queryKeys.admin.subjects.all,
     () => subjectApi.getAll(),
   );
 

@@ -126,7 +126,7 @@ export function useSeederCard() {
 
   const { data: existingSubjects = [] } = useAsyncQuery(
     queryKeys.admin.subjects.list({ schoolYearId: selectedSchoolYearId }),
-    () => subjectApi.getAll({ schoolYearId: selectedSchoolYearId }),
+    () => subjectApi.getAll({ schoolYearId: selectedSchoolYearId ?? undefined }),
     { enabled: !!selectedSchoolYearId },
   );
 
@@ -270,7 +270,7 @@ seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesBy
   // Derived sets for disabled states
   const existingProgramTypes = new Set(existingPrograms.map((p) => p.type));
   const existingCourseCodes = new Set(
-    existingCourses.map((c) => c.code?.trim()).filter(Boolean),
+    existingCourses.map((c) => c.code?.trim()).filter((c): c is string => !!c),
   );
   const existingStrandNames = new Set(existingStrands.map((s) => s.name));
   const existingLevelNames = new Set(existingLevels.map((l) => l.name));

@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 const isDev = process.env.NODE_ENV === "development";
+// Baked at build time. Default to "" (fail-closed) — never assume localhost in
+// the deployed bundle. Render/docker-compose must pass the real backend URL.
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+const wsUrl = process.env.NEXT_PUBLIC_WS_URL ?? "";
 const nextConfig: NextConfig = {
+  output: "standalone",
   poweredByHeader: false,
   async headers() {
     return [
@@ -13,25 +18,25 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
+
               // Scripts
               isDev
                 ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
                 : "script-src 'self' 'unsafe-inline'",
+
               // Styles
               "style-src 'self' 'unsafe-inline'",
-              // ✅ FIXED: allow backend in dev
-              isDev
-                ? "connect-src 'self' http://localhost:5000 ws://localhost:* wss://localhost:* https://*.agora.io wss://*.agora.io"
-                : "connect-src 'self' https://*.agora.io wss://*.agora.io",
-              // Media (for video calls, blobs, etc.)
+
+              // ✅ Dev + Docker + Production ready — allow the configured API/WS hosts
+              `connect-src 'self' ${apiUrl} ${wsUrl} ${wsUrl.replace(/^http/, "ws")} https://*.agora.io wss://*.agora.io`,
+
+              // Media
               "media-src 'self' blob:",
-              // Images — allow backend origin in dev
-              isDev
-                ? "img-src 'self' data: blob: http://localhost:5000"
-                : "img-src 'self' data: blob:",
-              // Fonts
+
+              // Images
+              `img-src 'self' data: blob: ${apiUrl}`,
+
               "font-src 'self'",
-              // Security hardening
               "frame-ancestors 'none'",
               "worker-src 'self' blob:",
               "object-src 'none'",

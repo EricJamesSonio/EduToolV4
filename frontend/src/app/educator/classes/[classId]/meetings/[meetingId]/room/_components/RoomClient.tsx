@@ -26,7 +26,7 @@ import {
 } from "@/components/educator/meeting-room";
 import { MeetingOverflowSheet } from "@/components/meeting/MeetingOverflowSheet";
 import {
-  Hand, MessageSquare, Monitor, Users, UserPlus, Smile, Maximize, Minimize, Presentation,
+  Hand, MessageSquare, Monitor, Users, UserPlus, Smile, Maximize, Minimize, Presentation as PresentationIcon,
 } from "lucide-react";
 import { ReactionOverlay } from "@/components/meeting/ReactionOverlay";
 import { useMeetingAttendance } from "@/hooks/meeting/useMeetingAttendance";
@@ -107,6 +107,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const [isFullscreen,  setIsFullscreen]  = useState(true);
   const [overflowOpen,  setOverflowOpen]  = useState(false);
   const [mobileSlidesOpen, setMobileSlidesOpen] = useState(false);
+  const [featuredUid,   setFeaturedUid]   = useState<string | number | null>(null);
 
   const pendingRequests = meeting?.joinRequests.filter((r) => r.status === "pending") ?? [];
 
@@ -127,7 +128,16 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
       });
     });
     return () => cancelAnimationFrame(raf);
-  }, [isPresenting, remoteUsers]);
+  }, [isPresenting, featuredUid, remoteUsers]);
+
+  // If the promoted participant leaves, exit "featured" so the main monitor
+  // isn't left pointing at a dead element.
+  useEffect(() => {
+    if (featuredUid == null) return;
+    if (!remoteUsers.some((u) => String(u.uid) === String(featuredUid))) {
+      setFeaturedUid(null);
+    }
+  }, [remoteUsers, featuredUid]);
 
   // ── Shared exit: flush sessions, persist, then navigate ──────────────────
   // flushSessions() does an async setState, so we capture the flushed totals
@@ -222,10 +232,10 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className={cn(
-      "meeting-room flex flex-col bg-zinc-950 text-white overflow-hidden",
+      "meeting-room flex flex-col bg-background text-foreground overflow-hidden",
       isFullscreen ? "fixed inset-0 z-50" : "h-screen",
     )}>
-      <div className="flex-1 flex overflow-hidden relative min-h-0">
+      <div className="flex-1 flex overflow-hidden relative min-h-0 bg-zinc-950">
 
         {isPresenting ? (
           <PresentationView
@@ -238,6 +248,11 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
             onCloseMobileSlides={() => setMobileSlidesOpen(false)}
             onChangeSlide={changeSlide}
             onExpand={() => setLocalExpanded(true)}
+            remoteUsers={remoteUsers}
+            featuredUid={featuredUid}
+            onPromote={(uid) => setFeaturedUid(uid)}
+            onExitFeatured={() => setFeaturedUid(null)}
+            isFullscreen={isFullscreen}
           />
         ) : (
           <VideoGrid
@@ -320,7 +335,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
             ? [{
                 key: "slides",
                 label: "Slides",
-                icon: Presentation,
+                icon: PresentationIcon,
                 onClick: () => {
                   setOverflowOpen(false);
                   setMobileSlidesOpen(true);

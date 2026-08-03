@@ -61,7 +61,7 @@ const { data: gradingScheme, isLoading: schemeLoading } = useGradingSchemeByClas
 
   // ── Lookup queries ────────────────────────────────────────────────────────
   const { data: subjectsRaw } = useAsyncQuery(
-    queryKeys.admin.subjects.list(),
+    queryKeys.admin.subjects.all,
     () => subjectApi.getAll(),
   );
   const { data: educatorsRaw } = useAsyncQuery(

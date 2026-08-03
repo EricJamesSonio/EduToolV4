@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner"; // kept for potential future use; harmless
@@ -8,6 +8,7 @@ import type { Subject } from "@/types/admin/subject.types";
 import { PageHeader }   from "@/components/shared/PageHeader";
 import { HelpGuide }    from "@/components/shared/help-guide/HelpGuide";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
+import { Pagination }   from "@/components/shared/Pagination";
 import { Button }       from "@/components/ui/button";
 import { Plus }         from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -20,6 +21,7 @@ import { SubjectEmptyState } from "@/components/admin/subject/SubjectEmptyState"
 import { useSubjectFilters } from "@/components/admin/subject/hooks/useSubjectFilters";
 import { useSubjectQueries } from "@/components/admin/subject/hooks/useSubjectQueries";
 import { useSubjectMutations } from "@/components/admin/subject/hooks/useSubjectMutations";
+import { DEFAULT_PAGE_SIZE } from "@/api/admin/subject.api";
 
 export default function SubjectsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
@@ -29,6 +31,8 @@ export default function SubjectsPage(): React.JSX.Element {
   const [lockTarget,    setLockTarget]    = useState<Subject | null>(null);
   const [unlockTarget,  setUnlockTarget]  = useState<Subject | null>(null);
   const [searchQuery,   setSearchQuery]   = useState("");
+  const [page,          setPage]          = useState(1);
+  const [limit,         setLimit]         = useState(DEFAULT_PAGE_SIZE);
 
   const {
     schoolYears, syLoading,
@@ -36,8 +40,8 @@ export default function SubjectsPage(): React.JSX.Element {
     levels, levelsLoading,
     courses, strands,
     educatorsLoading,
-    subjects, subjectsLoading,
-  } = useSubjectQueries(filters);
+    subjects, subjectsTotal, subjectsTotalPages, subjectsLoading,
+  } = useSubjectQueries(filters, { search: searchQuery, page, limit });
 
   const { lockMutation, unlockMutation } = useSubjectMutations(
     setLockTarget,
@@ -47,9 +51,13 @@ export default function SubjectsPage(): React.JSX.Element {
   const isLoading =
     levelsLoading || educatorsLoading || subjectsLoading || programsLoading;
 
-  const filteredSubjects = subjects.filter((subject) =>
-    subject.title.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  // Reset to page 1 whenever the school year changes
+  useEffect(() => { setPage(1); }, [filters.selectedSchoolYearId]);
+
+  // Clamp page when the result set shrinks (Educators/Students pattern)
+  useEffect(() => {
+    if (page > subjectsTotalPages) setPage(Math.max(1, subjectsTotalPages));
+  }, [page, subjectsTotalPages]);
 
   return (
     <div className="space-y-6">
@@ -81,7 +89,7 @@ export default function SubjectsPage(): React.JSX.Element {
       {/* Tabs */}
       <SubjectTabs
         filters={filters}
-        onTabChange={filters.setActiveTab}
+        onTabChange={(tab) => { filters.setActiveTab(tab); setPage(1); }}
       />
 
       {/* Search + Filters — one row (matches Sections page) */}
@@ -89,11 +97,15 @@ export default function SubjectsPage(): React.JSX.Element {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
           <SubjectSearch
             searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            resultCount={filteredSubjects.length}
+            onSearchChange={(v) => { setSearchQuery(v); setPage(1); }}
+            resultCount={subjectsTotal}
           />
           <SubjectFilters
             {...filters}
+            setSelectedProgramId={(v) => { filters.setSelectedProgramId(v); setPage(1); }}
+            setFilterLevelId={(v) => { filters.setFilterLevelId(v); setPage(1); }}
+            setSelectedCourseId={(v) => { filters.setSelectedCourseId(v); setPage(1); }}
+            setSelectedStrandId={(v) => { filters.setSelectedStrandId(v); setPage(1); }}
             programs={programs}
             levels={levels}
             courses={courses}
@@ -108,7 +120,7 @@ export default function SubjectsPage(): React.JSX.Element {
       {filters.selectedSchoolYearId ? (
         <SubjectTable
           isLoading={isLoading}
-          subjects={filteredSubjects}
+          subjects={subjects}
           activeTab={filters.activeTab}
           filterLevelId={filters.filterLevelId}
           selectedCourseId={filters.selectedCourseId}
@@ -121,6 +133,17 @@ export default function SubjectsPage(): React.JSX.Element {
         <SubjectEmptyState
           showNoSchoolYear
           onCreateClick={() => setCreateOpen(true)}
+        />
+      )}
+
+      {filters.selectedSchoolYearId && (
+        <Pagination
+          page={page}
+          limit={limit}
+          total={subjectsTotal}
+          onPageChange={setPage}
+          onLimitChange={(l) => { setLimit(l); setPage(1); }}
+          pageSizeOptions={[20, 50, 100]}
         />
       )}
 
@@ -137,7 +160,7 @@ export default function SubjectsPage(): React.JSX.Element {
     open={createOpen}
     onClose={() => setCreateOpen(false)}
     onSaved={() => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects.list() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects.all });
     }}
   />
 )}

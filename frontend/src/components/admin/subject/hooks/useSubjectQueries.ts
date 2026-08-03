@@ -6,10 +6,23 @@ import { levelApi }      from "@/api/admin/level.api";
 import { courseApi }     from "@/api/admin/course.api";
 import { strandApi }     from "@/api/admin/strand.api";
 import { educatorApi }   from "@/api/admin/educator.api";
-import { subjectApi }    from "@/api/admin/subject.api";
+import { subjectApi, DEFAULT_PAGE_SIZE } from "@/api/admin/subject.api";
 import type { FiltersState } from "./useSubjectFilters";
 
-export function useSubjectQueries(filters: FiltersState) {
+export interface SubjectPageParams {
+  search?: string;
+  page?:   number;
+  limit?:  number;
+}
+
+export function useSubjectQueries(
+  filters: FiltersState,
+  pageParams: SubjectPageParams = {},
+) {
+  const search = pageParams.search ?? "";
+  const page   = pageParams.page ?? 1;
+  const limit  = pageParams.limit ?? DEFAULT_PAGE_SIZE;
+
   const { data: schoolYears = [], isLoading: syLoading } = useAsyncQuery(
     queryKeys.admin.schoolYears.list(),
     schoolYearApi.getAll,
@@ -73,44 +86,29 @@ export function useSubjectQueries(filters: FiltersState) {
     { select: (data) => (Array.isArray(data) ? data : []) },
   );
 
-  const { data: subjects = [], isLoading: subjectsLoading } = useAsyncQuery(
-    queryKeys.admin.subjects.list({
-      schoolYearId: filters.selectedSchoolYearId,
-      programId:
-        filters.selectedProgramId !== "all"
-          ? filters.selectedProgramId
-          : undefined,
-      levelId:
-        filters.filterLevelId !== "all" ? filters.filterLevelId : undefined,
-      courseId:
-        filters.selectedCourseId !== "all"
-          ? filters.selectedCourseId
-          : undefined,
-      strandId:
-        filters.selectedStrandId !== "all"
-          ? filters.selectedStrandId
-          : undefined,
-      subjectType: filters.activeTab,
-    }),
-    () =>
-      subjectApi.getAll({
-        schoolYearId: filters.selectedSchoolYearId!,
-        programId:
-          filters.selectedProgramId !== "all"
-            ? filters.selectedProgramId
-            : undefined,
-        levelId:
-          filters.filterLevelId !== "all" ? filters.filterLevelId : undefined,
-        courseId:
-          filters.selectedCourseId !== "all"
-            ? filters.selectedCourseId
-            : undefined,
-        strandId:
-          filters.selectedStrandId !== "all"
-            ? filters.selectedStrandId
-            : undefined,
-        subjectType: filters.activeTab,
-      }),
+  const listFilters = {
+    schoolYearId: filters.selectedSchoolYearId!,
+    programId:
+      filters.selectedProgramId !== "all"
+        ? filters.selectedProgramId
+        : undefined,
+    levelId:
+      filters.filterLevelId !== "all" ? filters.filterLevelId : undefined,
+    courseId:
+      filters.selectedCourseId !== "all"
+        ? filters.selectedCourseId
+        : undefined,
+    strandId:
+      filters.selectedStrandId !== "all"
+        ? filters.selectedStrandId
+        : undefined,
+    subjectType: filters.activeTab,
+    search: search || undefined,
+  };
+
+  const { data: subjectsResp, isLoading: subjectsLoading } = useAsyncQuery(
+    [...queryKeys.admin.subjects.list(listFilters), page, limit],
+    () => subjectApi.getPage({ ...listFilters, page, limit }),
     { enabled: !!filters.selectedSchoolYearId },
   );
 
@@ -120,6 +118,9 @@ export function useSubjectQueries(filters: FiltersState) {
     levels, levelsLoading,
     courses, strands,
     educators, educatorsLoading,
-    subjects, subjectsLoading,
+    subjects: subjectsResp?.data ?? [],
+    subjectsTotal: subjectsResp?.meta?.total ?? 0,
+    subjectsTotalPages: subjectsResp?.meta?.totalPages ?? 1,
+    subjectsLoading,
   };
 }

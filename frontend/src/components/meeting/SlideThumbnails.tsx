@@ -52,8 +52,8 @@ export default function SlideThumbnails({ slides, currentSlideIndex, template, o
         "relative rounded-lg overflow-hidden transition-all",
         canSelect && "cursor-pointer",
         isActive
-          ? "ring-2 ring-primary ring-offset-2 ring-offset-zinc-900"
-          : canSelect ? "hover:ring-1 hover:ring-zinc-600" : "",
+          ? "ring-2 ring-primary ring-offset-2 ring-offset-card"
+          : canSelect ? "hover:ring-1 hover:ring-border" : "",
       )}
     >
       <div
@@ -77,9 +77,9 @@ export default function SlideThumbnails({ slides, currentSlideIndex, template, o
   if (variant === "filmstrip") {
     return (
       <div className="w-full h-full flex flex-col">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 shrink-0">
-          <span className="text-sm font-medium text-white">Slides</span>
-          <span className="text-xs text-zinc-400 tabular-nums">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border shrink-0">
+          <span className="text-sm font-medium text-foreground">Slides</span>
+          <span className="text-xs text-muted-foreground tabular-nums">
             {currentSlideIndex + 1}/{slides.length}
           </span>
         </div>
@@ -91,10 +91,10 @@ export default function SlideThumbnails({ slides, currentSlideIndex, template, o
   }
 
   return (
-    <div className="w-56 border-r border-zinc-800 bg-zinc-900 flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-        <span className="text-sm font-medium text-white">Slides</span>
-        <span className="text-xs text-zinc-400 tabular-nums">
+    <div className="w-56 border-r border-border bg-card flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <span className="text-sm font-medium text-foreground">Slides</span>
+        <span className="text-xs text-muted-foreground tabular-nums">
           {currentSlideIndex + 1}/{slides.length}
         </span>
       </div>

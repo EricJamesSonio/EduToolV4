@@ -19,6 +19,7 @@ export interface AuthUser {
   metadata: Record<string, unknown> | null;
   createdAt: string;
   profileImage?: string | null;
+  personalEmail?: string | null;
 }
 
 export interface TokenPayload {

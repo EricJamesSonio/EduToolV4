@@ -40,7 +40,7 @@ export function TermDatesModal({
   schoolYearStart,
   schoolYearEnd,
   preselectedTemplateId,
-}: TermDatesModalProps): React.JSX.Element {
+}: TermDatesModalProps): React.ReactNode {
   // ================= HOOKS =================
   const {
     current,

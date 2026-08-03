@@ -1,7 +1,9 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import dotenvExpand from 'dotenv-expand';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
@@ -10,6 +12,28 @@ import { AllExceptionFilter } from './commons/filters/all-exception.filter';
 import { LoggingInterceptor } from './commons/interceptors/logging.interceptor';
 import { ResponseInterceptor } from './commons/interceptors/response.interceptor';
 import helmet from 'helmet';
+
+// Load env files with a clear precedence:
+//   1. `.env.local` — developer-local values. Loaded with `override: true`
+//      so it wins even if the value is already present in the process env
+//      (dotenv normally never overrides an existing env var). Docker/Render
+//      images do NOT ship a `.env.local`, so when absent the injected
+//      process vars (or `.env`) take over instead.
+//   2. `.env`        — baseline values, only fills in anything not set above.
+(() => {
+  const localPath = join(process.cwd(), '.env.local');
+  const envPath = join(process.cwd(), '.env');
+
+  if (existsSync(localPath)) {
+    const parsed = dotenv.config({ path: localPath, override: true });
+    dotenvExpand.expand(parsed);
+  }
+
+  if (existsSync(envPath)) {
+    const parsed = dotenv.config({ path: envPath });
+    dotenvExpand.expand(parsed);
+  }
+})();
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -38,8 +62,16 @@ async function bootstrap() {
     new ResponseInterceptor(),
   );
 
+  // CORS origins are driven by CORS_ORIGIN (comma-separated). Fails closed
+  // (empty = no cross-origin requests allowed) so production never assumes a
+  // hardcoded host. Example: CORS_ORIGIN=https://app.onrender.com
+  const allowedOrigins = (process.env.CORS_ORIGIN ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: allowedOrigins,
     credentials: true,
   });
 
@@ -51,7 +83,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: [`'self'`],
-        imgSrc: [`'self'`, 'data:', 'http://localhost:5000', 'http://localhost:3000'],
+        imgSrc: [`'self'`, 'data:'],
       },
     },
   }),

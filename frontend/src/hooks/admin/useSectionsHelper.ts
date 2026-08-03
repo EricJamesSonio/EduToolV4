@@ -2,20 +2,43 @@ import { useState } from "react";
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
-import { sectionApi } from "@/api/admin/section.api";
+import { sectionApi, DEFAULT_PAGE_SIZE } from "@/api/admin/section.api";
+import type { PaginatedResponse } from "@/types/api.types";
 import type { Section } from "@/types/admin/section.types";
 import type { AxiosError } from "axios";
 
-export function useSections(schoolYearId: string | null) {
+export interface SectionPageParams {
+  search?: string;
+  page?:   number;
+  limit?:  number;
+}
+
+export function useSections(
+  schoolYearId: string | null,
+  pageParams: SectionPageParams = {},
+) {
+  const search = pageParams.search ?? "";
+  const page   = pageParams.page ?? 1;
+  const limit  = pageParams.limit ?? DEFAULT_PAGE_SIZE;
+
   const [filterProgramId, setFilterProgramId] = useState<string>("all");
   const [filterCourseId, setFilterCourseId] = useState<string>("all");
   const [filterStrandId, setFilterStrandId] = useState<string>("all");
   const [filterLevelId, setFilterLevelId] = useState<string>("all");
   const [deleteTarget, setDeleteTarget] = useState<Section | null>(null);
 
-  const { data: allSections = [], isLoading } = useAsyncQuery<Section[]>(
-    queryKeys.admin.sections.list({ schoolYearId }),
-    () => sectionApi.getAll(schoolYearId!),
+  const listFilters = {
+    schoolYearId: schoolYearId ?? undefined,
+    levelId:      filterLevelId   !== "all" ? filterLevelId   : undefined,
+    courseId:     filterCourseId  !== "all" ? filterCourseId  : undefined,
+    strandId:     filterStrandId  !== "all" ? filterStrandId  : undefined,
+    programId:    filterProgramId !== "all" ? filterProgramId : undefined,
+    search:       search || undefined,
+  };
+
+  const { data: sectionsResp, isLoading } = useAsyncQuery<PaginatedResponse<Section>>(
+    [...queryKeys.admin.sections.list(listFilters), page, limit],
+    () => sectionApi.getPage({ ...listFilters, page, limit }),
     { enabled: !!schoolYearId },
   );
 
@@ -36,23 +59,11 @@ export function useSections(schoolYearId: string | null) {
     setFilterLevelId("all");
   }
 
-  const sections = allSections.filter((s) => {
-    const matchesLevel =
-      filterLevelId === "all" || s.level_id === filterLevelId;
-    const matchesCourse =
-      filterCourseId === "all" ||
-      (s as Section & { course_id?: string }).course_id === filterCourseId;
-    const matchesStrand =
-      filterStrandId === "all" ||
-      (s as Section & { strand_id?: string }).strand_id === filterStrandId;
-    return matchesLevel && matchesCourse && matchesStrand;
-  });
-
   const deleteMutation = useMutationWithInvalidation(
     (id: string) => sectionApi.delete(id),
     {
       invalidateKeys: [
-        queryKeys.admin.sections.list({ schoolYearId }),
+        queryKeys.admin.sections.all,
         queryKeys.admin.levels.list({ schoolYearId }),
         queryKeys.admin.programs.list({ schoolYearId }),
       ],
@@ -68,7 +79,9 @@ export function useSections(schoolYearId: string | null) {
   );
 
   return {
-    sections,
+    sections: sectionsResp?.data ?? [],
+    total: sectionsResp?.meta?.total ?? 0,
+    totalPages: sectionsResp?.meta?.totalPages ?? 1,
     isLoading,
     filterProgramId,
     setFilterProgramId: handleSetFilterProgramId,

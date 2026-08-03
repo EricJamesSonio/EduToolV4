@@ -1,7 +1,8 @@
 import {
-  IsString, IsOptional, IsUUID, IsIn,
-  MinLength, MaxLength, ValidateIf,
+  IsString, IsOptional, IsUUID, IsIn, IsInt,
+  MinLength, MaxLength, Min, ValidateIf,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateSubjectDto {
   @IsString()
@@ -110,6 +111,18 @@ export class QuerySubjectDto {
   @IsString()
   @IsIn(['major', 'minor'])
   subjectType?: 'major' | 'minor';
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number = 20;
 }
 
 export class ShareSubjectDto {

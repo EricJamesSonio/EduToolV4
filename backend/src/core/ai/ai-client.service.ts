@@ -6,11 +6,15 @@ export class AiClientService {
   private readonly logger = new Logger(AiClientService.name);
   private readonly apiKey: string;
   private readonly model: string;
+  private readonly referer: string;
   private readonly apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
   constructor(private readonly config: ConfigService) {
     this.apiKey = this.config.get<string>('OPENROUTER_API_KEY') ?? '';
     this.model = this.config.get<string>('AI_MODEL') ?? 'qwen/qwen3-235b-a22b:free';
+    // Referer/referrer fields are only used for OpenRouter analytics. If APP_URL
+    // is unset we send nothing rather than a hardcoded localhost.
+    this.referer = process.env.APP_URL ?? '';
   }
 
   async callAi(
@@ -28,7 +32,7 @@ export class AiClientService {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://localhost:3000',
+        'HTTP-Referer': this.referer,
         'X-Title': 'EduTool AI',
       },
       body: JSON.stringify({

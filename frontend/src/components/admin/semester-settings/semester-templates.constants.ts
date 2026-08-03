@@ -11,6 +11,8 @@
 
 import type { ProgramType } from "@/types/admin/semester-template.types";
 
+export { PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
+
 export interface LocalTerm {
   name: string;
 }

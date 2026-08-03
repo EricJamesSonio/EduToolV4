@@ -67,8 +67,8 @@ export const useGradeLocks = (schoolYearId?: string): UseQueryResult<GradeLock[]
 };
 
 // Assign setting to class
-export const useAssignSetting = (): UseMutationResult<void, Error, { classId: string; settingId: string }> => {
-  return useMutationWithInvalidation<void, Error, { classId: string; settingId: string }>(
+export const useAssignSetting = (): UseMutationResult<GradeLock, Error, { classId: string; settingId: string }> => {
+  return useMutationWithInvalidation<GradeLock, Error, { classId: string; settingId: string }>(
     ({ classId, settingId }) => gradeLockApi.assignSetting(classId, settingId),
     {
       invalidateKeys: [queryKeys.admin.gradeLock.list()],
@@ -83,8 +83,8 @@ export const useAssignSetting = (): UseMutationResult<void, Error, { classId: st
 };
 
 // Assign grade lock
-export const useAssignGradeLock = (): UseMutationResult<void, Error, { classId: string; settingId: string }> => {
-  return useMutationWithInvalidation<void, Error, { classId: string; settingId: string }>(
+export const useAssignGradeLock = (): UseMutationResult<GradeLock, Error, { classId: string; settingId: string }> => {
+  return useMutationWithInvalidation<GradeLock, Error, { classId: string; settingId: string }>(
     ({ classId, settingId }) => gradeLockApi.assignSetting(classId, settingId),
     {
       invalidateKeys: [queryKeys.admin.gradeLock.list()],
@@ -99,8 +99,8 @@ export const useAssignGradeLock = (): UseMutationResult<void, Error, { classId: 
 };
 
 // Lock class
-export const useLockClass = (): UseMutationResult<void, Error, { classId: string; reason?: string }> => {
-  return useMutationWithInvalidation<void, Error, { classId: string; reason?: string }>(
+export const useLockClass = (): UseMutationResult<GradeLockResponse, Error, { classId: string; reason?: string }> => {
+  return useMutationWithInvalidation<GradeLockResponse, Error, { classId: string; reason?: string }>(
     ({ classId, reason }) => gradeLockApi.lockClass(classId, reason),
     {
       invalidateKeys: [queryKeys.admin.gradeLock.list()],
@@ -115,8 +115,8 @@ export const useLockClass = (): UseMutationResult<void, Error, { classId: string
 };
 
 // Unlock class
-export const useUnlockClass = (): UseMutationResult<void, Error, { classId: string; reason: string }> => {
-  return useMutationWithInvalidation<void, Error, { classId: string; reason: string }>(
+export const useUnlockClass = (): UseMutationResult<GradeLockResponse, Error, { classId: string; reason: string }> => {
+  return useMutationWithInvalidation<GradeLockResponse, Error, { classId: string; reason: string }>(
     ({ classId, reason }) => gradeLockApi.unlockClass(classId, reason),
     {
       invalidateKeys: [queryKeys.admin.gradeLock.list()],
@@ -131,8 +131,8 @@ export const useUnlockClass = (): UseMutationResult<void, Error, { classId: stri
 };
 
 // Override lock
-export const useOverrideLock = (): UseMutationResult<void, Error, { classId: string; reason: string }> => {
-  return useMutationWithInvalidation<void, Error, { classId: string; reason: string }>(
+export const useOverrideLock = (): UseMutationResult<GradeLockResponse, Error, { classId: string; reason: string }> => {
+  return useMutationWithInvalidation<GradeLockResponse, Error, { classId: string; reason: string }>(
     ({ classId, reason }) => gradeLockApi.overrideLock(classId, reason),
     {
       invalidateKeys: [queryKeys.admin.gradeLock.list()],

@@ -269,6 +269,7 @@ export function ClassGradingSchemeEditor({
         open={deleteIndex !== null}
         onOpenChange={() => setDeleteIndex(null)}
         title="Remove component?"
+        message="Are you sure you want to remove this grading component?"
         onConfirm={handleDeleteConfirm}
       />
 
