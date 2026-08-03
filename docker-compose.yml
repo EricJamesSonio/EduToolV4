@@ -2,6 +2,8 @@ services:
   backend:
     build: ./backend
     container_name: edutool_backend
+    environment:
+      - DB_SSL_REJECT_UNAUTHORIZED=false
     ports:
       - "5000:5000"
     env_file:
