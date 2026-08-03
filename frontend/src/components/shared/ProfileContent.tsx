@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AuthUser } from "@/types/auth.types";
 import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/store/auth.store";
@@ -9,18 +9,26 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getProfileImageUrl } from "@/utils/profile.util";
 import apiClient from "@/api/client";
+import { profileApi } from "@/api/profile.api";
+import { queryKeys } from "@/hooks/queryKeys.factory";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Mail,
   ShieldCheck,
   CalendarDays,
-  CircleUser,
   Building2,
   Loader2,
   Camera,
+  Save,
+  UserRound,
+  AtSign,
 } from "lucide-react";
 import type { AccountStatus, Role } from "@/types/auth.types";
 
@@ -109,8 +117,19 @@ function InfoRow({ icon: Icon, label, value, iconStyle, children }: InfoRowProps
 export function ProfileContent(): React.JSX.Element {
   const { user } = useAuth();
   const setUser = useAuthStore((s) => s.setUser);
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [personalEmail, setPersonalEmail] = useState("");
+
+  useEffect(() => {
+    if (user) {
+      setFullName(user.fullName ?? "");
+      setPersonalEmail(user.personalEmail ?? "");
+    }
+  }, [user]);
 
   if (!user) {
     return (
@@ -123,6 +142,13 @@ export function ProfileContent(): React.JSX.Element {
 
   const initials = user.fullName ? getInitials(user.fullName) : "?";
   const profileImageUrl = getProfileImageUrl(user.profileImage);
+
+  function publishUser(next: AuthUser): void {
+    setFullName(next.fullName ?? "");
+    setPersonalEmail(next.personalEmail ?? "");
+    setUser(next);
+    queryClient.setQueryData(queryKeys.auth.me(), next);
+  }
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -139,7 +165,8 @@ export function ProfileContent(): React.JSX.Element {
         { headers: { "Content-Type": "multipart/form-data" } },
       );
 
-      setUser({ ...user, profileImage: data.path } as AuthUser);
+      const updated = await profileApi.updateProfile({ profileImage: data.path });
+      publishUser(updated);
       toast.success("Profile photo updated");
     } catch {
       toast.error("Failed to upload profile photo");
@@ -148,6 +175,27 @@ export function ProfileContent(): React.JSX.Element {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const updated = await profileApi.updateProfile({
+        fullName,
+        personalEmail: personalEmail.trim() === "" ? null : personalEmail.trim(),
+      });
+      publishUser(updated);
+      toast.success("Profile updated");
+    } catch {
+      toast.error("Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const hasChanges =
+    (fullName ?? "") !== (user.fullName ?? "") ||
+    (personalEmail ?? "") !== (user.personalEmail ?? "");
 
   return (
     <div className="space-y-6">
@@ -212,13 +260,11 @@ export function ProfileContent(): React.JSX.Element {
           </Card>
         </div>
 
-        {/* Right: Details card */}
-        <div className="lg:col-span-3">
-          <Card className="border-border/60 h-full">
+        {/* Right: Details + edit card */}
+        <div className="lg:col-span-3 space-y-6">
+          <Card className="border-border/60">
             <CardContent className="px-6 py-2">
               <InfoRow icon={Mail} label="Email address" value={user.email} iconStyle={ICON_STYLES.mail} />
-              <Separator />
-              <InfoRow icon={CircleUser} label="Full name" value={user.fullName ?? "—"} iconStyle={ICON_STYLES.user} />
               <Separator />
               <InfoRow icon={ShieldCheck} label="Role" iconStyle={ICON_STYLES.role}>
                 <Badge
@@ -250,6 +296,60 @@ export function ProfileContent(): React.JSX.Element {
                   <InfoRow icon={Building2} label="Organization ID" value={user.orgId} iconStyle={ICON_STYLES.building} />
                 </>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Editable fields */}
+          <Card className="border-border/60">
+            <CardContent className="px-6 py-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Edit details</h3>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="fullName" className="text-xs text-muted-foreground">
+                      Full name
+                    </Label>
+                    <div className="relative">
+                      <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="full-name"
+                        className="pl-9"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Your full name"
+                        maxLength={200}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="personal-email" className="flex items-center text-muted-foreground">
+                      Personal email
+                    </Label>
+                    <div className="relative">
+                      <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="personal-email"
+                        className="pl-9"
+                        type="email"
+                        value={personalEmail}
+                        onChange={(e) => setPersonalEmail(e.target.value)}
+                        placeholder="Optional personal email"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={saving || !hasChanges}>
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    Save changes
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </div>
