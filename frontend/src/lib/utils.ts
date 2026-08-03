@@ -8,9 +8,9 @@ export function cn(...inputs: ClassValue[]) {
 export function cardGridClass(count: number): string {
   const gap = "gap-3 sm:gap-4";
   if (count <= 1) return `grid-cols-1 ${gap}`;
-  if (count <= 2) return `grid-cols-3 sm:grid-cols-2 ${gap}`;
-  if (count <= 3) return `grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 ${gap}`;
-  return `grid-cols-3 sm:grid-cols-2 xl:grid-cols-4 ${gap}`;
+  if (count <= 2) return `grid-cols-1 sm:grid-cols-2 ${gap}`;
+  if (count <= 3) return `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${gap}`;
+  return `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 ${gap}`;
 }
 
 const CARD_COLORS = [
