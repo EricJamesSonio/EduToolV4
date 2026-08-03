@@ -32,28 +32,59 @@ export class SectionRepository {
 
   async findAll(
     orgId:        string,
-    schoolYearId?: string,
-    levelId?:      string,
-    courseId?:     string,
-    strandId?:     string,
+    filters: {
+      schoolYearId?: string;
+      levelId?:      string;
+      programId?:    string;
+      courseId?:     string;
+      strandId?:     string;
+      search?:       string;
+      page?:         number;
+      limit?:        number;
+    },
   ) {
-    const sections = await this.db.section.findMany({
-      where: {
-        org_id:     orgId,
-        deleted_at: null,
-        ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
-        ...(levelId      ? { level_id:       levelId }      : {}),
-        ...(courseId     ? { course_id:      courseId }     : {}),
-        ...(strandId     ? { strand_id:      strandId }     : {}),
-      },
-      orderBy: [{ level_id: 'asc' }, { name: 'asc' }],
-    });
+    const page  = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+
+    let levelFilter: Record<string, unknown> = {};
+    if (filters.levelId) {
+      levelFilter = { level_id: filters.levelId };
+    } else if (filters.programId) {
+      const levels = await this.db.level.findMany({
+        where:  { program_id: filters.programId },
+        select: { id: true },
+      });
+      levelFilter = { level_id: { in: levels.map((l) => l.id) } };
+    }
+
+    const where: Record<string, unknown> = {
+      org_id:     orgId,
+      deleted_at: null,
+      ...(filters.schoolYearId ? { school_year_id: filters.schoolYearId } : {}),
+      ...levelFilter,
+      ...(filters.courseId ? { course_id: filters.courseId } : {}),
+      ...(filters.strandId ? { strand_id: filters.strandId } : {}),
+      ...(filters.search ? { name: { contains: filters.search, mode: 'insensitive' as const } } : {}),
+    };
+
+    const [sections, total] = await Promise.all([
+      this.db.section.findMany({
+        where,
+        orderBy: [{ level_id: 'asc' }, { name: 'asc' }],
+        skip:    (page - 1) * limit,
+        take:    limit,
+      }),
+      this.db.section.count({ where }),
+    ]);
 
     const counts = await Promise.all(
       sections.map((s) => this.countStudentsInSection(s.id)),
     );
 
-    return sections.map((s, i) => ({ ...s, studentCount: counts[i] }));
+    return {
+      data: sections.map((s, i) => ({ ...s, studentCount: counts[i] })),
+      total,
+    };
   }
 
   async findById(id: string, orgId: string) {
