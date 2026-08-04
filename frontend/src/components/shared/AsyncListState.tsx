@@ -2,10 +2,8 @@
 
 import type { ReactNode } from "react";
 import { isValidElement } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface EmptyConfig {
@@ -22,62 +20,30 @@ interface AsyncListStateProps {
   isError: boolean;
   /** True when the fetch confirmed there is nothing to show. */
   isEmpty: boolean;
-  /** Optional handler re-run on the failed fetch (shown as a Retry button on error). */
-  onRetry?: () => void;
   /** Custom loading fallback. Defaults to a card skeleton grid. */
   loading?: ReactNode;
   /** Empty-state config, or a custom React node to render when empty. */
   empty: EmptyConfig | ReactNode;
-  errorTitle?: string;
-  errorDescription?: string;
   /** The content to render when there is data. */
   children: ReactNode;
 }
 
 /**
  * Single, consistent source of truth for rendering async list states:
- * error (with Retry) → loading → empty → content.
+ * loading → empty → content.
  *
- * Every admin list page should route its list-body through this so the UX is
- * uniform: a failed fetch shows an actionable error instantly, a confirmed
- * empty dataset shows the empty state immediately, and loading only appears
- * while there is genuinely nothing cached yet.
+ * Errors render exactly like the empty state (with its action button). Showing
+ * "failed to load" only confuses users into thinking their data exists but
+ * just won't render, so a failed fetch looks the same as "nothing is there yet".
  */
 export function AsyncListState({
   isLoading,
   isError,
   isEmpty,
-  onRetry,
   loading,
   empty,
-  errorTitle = "Failed to load data",
-  errorDescription,
   children,
 }: AsyncListStateProps) {
-  if (isError) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-          <AlertTriangle className="h-6 w-6 text-destructive" />
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm font-medium">{errorTitle}</p>
-          {errorDescription && (
-            <p className="mx-auto max-w-xs text-sm text-muted-foreground">
-              {errorDescription}
-            </p>
-          )}
-        </div>
-        {onRetry && (
-          <Button size="sm" variant="outline" onClick={onRetry}>
-            <RefreshCw className="mr-1.5 h-4 w-4" />
-            Retry
-          </Button>
-        )}
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       loading ?? (
@@ -90,7 +56,7 @@ export function AsyncListState({
     );
   }
 
-  if (isEmpty) {
+  if (isEmpty || isError) {
     if (isValidElement(empty)) return empty;
     return (
       <EmptyState
