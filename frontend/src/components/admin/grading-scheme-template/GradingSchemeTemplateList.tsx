@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, MoreHorizontal, Pencil, Trash2, ChevronRight } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, ChevronRight, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -17,6 +17,8 @@ import type { AxiosError } from "axios";
 interface GradingSchemeTemplateListProps {
   templates: GradingSchemeTemplate[];
   isLoading: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   onCreateClick: () => void;
   onEditClick: (template: GradingSchemeTemplate) => void;
 }
@@ -24,6 +26,8 @@ interface GradingSchemeTemplateListProps {
 export function GradingSchemeTemplateList({
   templates,
   isLoading,
+  isError,
+  onRetry,
   onCreateClick,
   onEditClick,
 }: GradingSchemeTemplateListProps) {
@@ -44,6 +48,25 @@ export function GradingSchemeTemplateList({
       },
     });
   };
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border py-12 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+          <AlertTriangle className="h-6 w-6 text-destructive" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Failed to load templates</p>
+        </div>
+        {onRetry && (
+          <Button size="sm" variant="outline" onClick={onRetry}>
+            <RefreshCw className="mr-1.5 h-4 w-4" />
+            Retry
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
