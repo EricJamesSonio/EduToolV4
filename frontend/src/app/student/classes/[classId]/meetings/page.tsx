@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { CardGrid } from "@/components/shared/CardGrid";
 import {
   ListItemCardAction,
   listItemCardClass,
@@ -200,9 +201,9 @@ export default function StudentClassMeetingsPage(): React.JSX.Element {
       />
 
       {isLoading ? (
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <CardGrid>
           {[1, 2, 3].map((i) => <MeetingCardSkeleton key={i} />)}
-        </div>
+        </CardGrid>
       ) : meetings.length === 0 ? (
         <EmptyState
           icon={Video}
@@ -210,11 +211,11 @@ export default function StudentClassMeetingsPage(): React.JSX.Element {
           description="Meetings will appear here once your educator schedules them."
         />
       ) : (
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <CardGrid>
           {meetings.map((m) => (
             <MeetingCard key={m.id} meeting={m} classId={classId} />
           ))}
-        </div>
+        </CardGrid>
       )}
     </div>
   );
