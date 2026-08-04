@@ -43,7 +43,6 @@ export default function SubjectsPage(): React.JSX.Element {
     courses, strands,
     educatorsLoading,
     subjects, subjectsTotal, subjectsTotalPages, subjectsLoading,
-    subjectsError, refetchSubjects,
   } = useSubjectQueries(filters, { search: searchQuery, page, limit });
 
   const { lockMutation, unlockMutation } = useSubjectMutations(
@@ -124,8 +123,6 @@ export default function SubjectsPage(): React.JSX.Element {
         <SubjectTable
           isLoading={isLoading}
           subjects={subjects}
-          isError={subjectsError}
-          onRetry={refetchSubjects}
           activeTab={filters.activeTab}
           filterLevelId={filters.filterLevelId}
           selectedCourseId={filters.selectedCourseId}
