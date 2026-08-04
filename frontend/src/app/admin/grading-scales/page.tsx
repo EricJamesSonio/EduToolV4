@@ -20,19 +20,26 @@ import { useGradingScales, useGradingScaleAssignments } from "@/hooks/admin/useG
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
 import { usePrograms } from "@/hooks/admin/usePrograms";
 import { gradingScaleApi } from "@/api/admin/grading-scale.api";
+import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 
 import type { GradingScale } from "@/types/admin/grading-scale.types";
 
 export default function GradingScalesPage(): React.JSX.Element {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { ensureOrganization } = useOrganizationGuard();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<GradingScale | null>(null);
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
 
   const { data: schoolYears = [], isLoading: schoolYearsLoading } = useSchoolYears();
-  const { data: scales = [], isLoading: scalesLoading } = useGradingScales();
+  const {
+    data: scales = [],
+    isLoading: scalesLoading,
+    isError: scalesError,
+    refetch: refetchScales,
+  } = useGradingScales();
   const { data: programs = [], isLoading: programsLoading } = usePrograms(
     selectedSchoolYearId ?? undefined
   );
@@ -64,7 +71,7 @@ export default function GradingScalesPage(): React.JSX.Element {
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_grading_scales" />
-            <Button onClick={() => setCreateOpen(true)} size="sm">
+            <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
               <Plus className="mr-1.5 h-4 w-4" />
               New Scale
             </Button>
@@ -82,7 +89,9 @@ export default function GradingScalesPage(): React.JSX.Element {
         <GradingScaleList
           scales={scales}
           isLoading={scalesLoading}
-          onCreateClick={() => setCreateOpen(true)}
+          isError={scalesError}
+          onRetry={refetchScales}
+          onCreateClick={() => ensureOrganization(() => setCreateOpen(true))}
           onEditClick={(scale) => router.push(`/admin/grading-scales/${scale.id}`)}
         />
       </div>
