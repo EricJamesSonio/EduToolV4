@@ -38,7 +38,6 @@ export default function GradingScalesPage(): React.JSX.Element {
     data: scales = [],
     isLoading: scalesLoading,
     isError: scalesError,
-    refetch: refetchScales,
   } = useGradingScales();
   const { data: programs = [], isLoading: programsLoading } = usePrograms(
     selectedSchoolYearId ?? undefined
@@ -90,7 +89,6 @@ export default function GradingScalesPage(): React.JSX.Element {
           scales={scales}
           isLoading={scalesLoading}
           isError={scalesError}
-          onRetry={refetchScales}
           onCreateClick={() => ensureOrganization(() => setCreateOpen(true))}
           onEditClick={(scale) => router.push(`/admin/grading-scales/${scale.id}`)}
         />
