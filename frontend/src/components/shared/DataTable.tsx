@@ -20,14 +20,19 @@ import {
 } from "@/components/ui/table";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { EmptyState } from "./EmptyState";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
+  errorTitle?: string;
+  errorDescription?: string;
   emptyTitle?: string;
   emptyDescription?: string;
   rowSelection?: RowSelectionState;
@@ -41,6 +46,10 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   isLoading = false,
+  isError = false,
+  onRetry,
+  errorTitle = "Failed to load data",
+  errorDescription,
   emptyTitle = "No results",
   emptyDescription = "There is nothing to display here yet.",
   rowSelection,
@@ -141,6 +150,35 @@ export function DataTable<TData, TValue>({
                   ))}
                 </TableRow>
               ))
+            ) : isError ? (
+              !isLoading && (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-48 text-center"
+                  >
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                        <AlertTriangle className="h-6 w-6 text-destructive" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">{errorTitle}</p>
+                        {errorDescription && (
+                          <p className="mx-auto max-w-xs text-sm text-muted-foreground">
+                            {errorDescription}
+                          </p>
+                        )}
+                      </div>
+                      {onRetry && (
+                        <Button size="sm" variant="outline" onClick={onRetry}>
+                          <RefreshCw className="mr-1.5 h-4 w-4" />
+                          Retry
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
             ) : (
               !isLoading && (
                 <TableRow>
