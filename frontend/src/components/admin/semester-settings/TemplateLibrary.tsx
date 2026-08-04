@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Plus, Layers } from "lucide-react";
+import { Plus, Layers, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,6 +18,8 @@ import type { ProgramType } from "@/types/admin/semester-template.types";
 interface TemplateLibraryProps {
   templates: SemesterTemplate[];
   isLoading: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   onCreateClick: () => void;
   onCreateFromType: (type: string) => void;
   onEdit: (template: SemesterTemplate) => void;
@@ -27,6 +29,8 @@ interface TemplateLibraryProps {
 export function TemplateLibrary({
   templates,
   isLoading,
+  isError,
+  onRetry,
   onCreateClick,
   onCreateFromType,
   onEdit,
@@ -46,6 +50,25 @@ export function TemplateLibrary({
     () => Array.from(templatesByType.keys()),
     [templatesByType]
   );
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border bg-card py-12 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+          <AlertTriangle className="h-6 w-6 text-destructive" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Failed to load templates</p>
+        </div>
+        {onRetry && (
+          <Button size="sm" variant="outline" onClick={onRetry}>
+            <RefreshCw className="mr-1.5 h-4 w-4" />
+            Retry
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
