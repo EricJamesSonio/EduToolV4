@@ -6,6 +6,8 @@ import type { SubjectType } from "@/types/admin/subject.types";
 interface SubjectTableProps {
   isLoading: boolean;
   subjects: Subject[];
+  isError?: boolean;
+  onRetry?: () => void;
   activeTab: SubjectType;
   filterLevelId: string;
   selectedCourseId: string;
@@ -18,6 +20,8 @@ interface SubjectTableProps {
 export function SubjectTable({
   isLoading,
   subjects,
+  isError,
+  onRetry,
   activeTab,
   filterLevelId,
   selectedCourseId,
@@ -55,6 +59,9 @@ export function SubjectTable({
         columns={columns}
         data={subjects}
         isLoading={isLoading}
+        isError={isError}
+        onRetry={onRetry}
+        errorTitle="Failed to load subjects"
         emptyTitle={`No ${activeTab} subjects found`}
         emptyDescription={emptyDescription}
       />
