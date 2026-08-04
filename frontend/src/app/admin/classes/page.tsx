@@ -74,7 +74,6 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
     data: classesRaw,
     isLoading,
     isError: classesError,
-    refetch: refetchClasses,
   } = useAsyncQuery(
     queryKeys.admin.classes.list({ schoolYearId: selectedSchoolYearId, ...filters.query }),
     () =>
@@ -246,8 +245,6 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
         isLoading={isLoading}
         isError={classesError}
         isEmpty={classes.length === 0}
-        onRetry={refetchClasses}
-        errorTitle="Failed to load classes"
         empty={{
           icon: GraduationCap,
           title: "No classes found",
