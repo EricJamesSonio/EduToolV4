@@ -36,7 +36,12 @@ export function useSections(
     search:       search || undefined,
   };
 
-  const { data: sectionsResp, isLoading } = useAsyncQuery<PaginatedResponse<Section>>(
+  const {
+    data: sectionsResp,
+    isLoading,
+    isError,
+    refetch,
+  } = useAsyncQuery<PaginatedResponse<Section>>(
     [...queryKeys.admin.sections.list(listFilters), page, limit],
     () => sectionApi.getPage({ ...listFilters, page, limit }),
     { enabled: !!schoolYearId },
@@ -83,6 +88,8 @@ export function useSections(
     total: sectionsResp?.meta?.total ?? 0,
     totalPages: sectionsResp?.meta?.totalPages ?? 1,
     isLoading,
+    isError,
+    refetch,
     filterProgramId,
     setFilterProgramId: handleSetFilterProgramId,
     filterCourseId,

@@ -21,6 +21,8 @@ interface UseEnrichedLevelsReturn {
     { name: string; programName: string; programId: string }
   >;
   isLoading: boolean;
+  isError: boolean;
+  refetch: () => void;
 }
 
 export function useEnrichedLevels(
@@ -29,7 +31,12 @@ export function useEnrichedLevels(
   const enabled = !!schoolYearId;
 
   // ── Levels ─────────────────────────────────────────────
-  const { data: rawLevels = [], isLoading: levelsLoading } = useAsyncQuery(
+  const {
+    data: rawLevels = [],
+    isLoading: levelsLoading,
+    isError: levelsError,
+    refetch: refetchLevels,
+  } = useAsyncQuery(
     schoolYearId
       ? queryKeys.admin.levels.enriched({ schoolYearId })
       : queryKeys.admin.levels.all,
@@ -41,7 +48,12 @@ export function useEnrichedLevels(
   );
 
   // ── Programs ───────────────────────────────────────────
-  const { data: programs = [], isLoading: programsLoading } = useAsyncQuery(
+  const {
+    data: programs = [],
+    isLoading: programsLoading,
+    isError: programsError,
+    refetch: refetchPrograms,
+  } = useAsyncQuery(
     schoolYearId
       ? queryKeys.admin.programs.list({ schoolYearId })
       : queryKeys.admin.programs.all,
@@ -80,5 +92,10 @@ export function useEnrichedLevels(
     grouped,
     levelMap,
     isLoading: levelsLoading || programsLoading,
+    isError: levelsError || programsError,
+    refetch: () => {
+      refetchLevels();
+      refetchPrograms();
+    },
   };
 }
