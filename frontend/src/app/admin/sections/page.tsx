@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { AsyncListState } from "@/components/shared/AsyncListState";
 import { Pagination } from "@/components/shared/Pagination";
 
 import { Plus, Search } from "lucide-react";
@@ -24,6 +25,7 @@ import { SectionTable } from "@/components/admin/section/SectionTable";
 import { SectionLevelFilter } from "@/components/admin/section/SectionLevelFilter";
 import { SectionEmptyState } from "@/components/admin/section/SectionEmptyState";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
+import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 
 import { programApi } from "@/api/admin/program.api";
 import { DEFAULT_PAGE_SIZE } from "@/api/admin/section.api";
@@ -32,6 +34,7 @@ import type { Section } from "@/types/admin/section.types";
 
 export default function SectionsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
+  const { ensureOrganization } = useOrganizationGuard();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Section | null>(null);
@@ -54,6 +57,8 @@ export default function SectionsPage(): React.JSX.Element {
     total: sectionsTotal,
     totalPages: sectionsTotalPages,
     isLoading: sectionsLoading,
+    isError: sectionsError,
+    refetch: refetchSections,
     filterProgramId,
     setFilterProgramId,
     filterCourseId,
@@ -72,6 +77,8 @@ export default function SectionsPage(): React.JSX.Element {
     grouped,
     levelMap,
     isLoading: levelsLoading,
+    isError: levelsError,
+    refetch: refetchLevels,
   } = useEnrichedLevels(schoolYearId);
 
   const { data: programs = [] } = useAsyncQuery(
@@ -81,6 +88,11 @@ export default function SectionsPage(): React.JSX.Element {
   );
 
   const isLoading = sectionsLoading || levelsLoading;
+  const isError = sectionsError || levelsError;
+  const refetchAll = () => {
+    refetchSections();
+    refetchLevels();
+  };
 
   // Reset to page 1 whenever the school year changes
   useEffect(() => { setPage(1); }, [schoolYearId]);
@@ -126,7 +138,7 @@ export default function SectionsPage(): React.JSX.Element {
 
       {schoolYearId && (
         <div className="flex items-center justify-end gap-2">
-          <Button onClick={() => setCreateOpen(true)} size="sm">
+          <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
             <Plus className="mr-1.5 h-4 w-4" />
             New Section
           </Button>
@@ -166,47 +178,57 @@ export default function SectionsPage(): React.JSX.Element {
         </div>
       )}
 
-      {!schoolYearId && !syLoading ? (
+{!schoolYearId && !syLoading ? (
         <SectionEmptyState
           noSchoolYear
           isFiltered={false}
-          onCreateClick={() => setCreateOpen(true)}
-        />
-      ) : isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-12 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : sections.length === 0 ? (
-        <SectionEmptyState
-          isFiltered={
-            filterProgramId !== "all" ||
-            filterCourseId  !== "all" ||
-            filterStrandId  !== "all" ||
-            filterLevelId   !== "all" ||
-            search !== ""
-          }
-          onCreateClick={() => setCreateOpen(true)}
+          onCreateClick={() => ensureOrganization(() => setCreateOpen(true))}
         />
       ) : (
-        <>
-          <SectionTable
-            sections={sections}
-            levelMap={levelMap}
-            programs={programs}
-            onEdit={setEditTarget}
-            onDelete={setDeleteTarget}
-          />
-          <Pagination
-            page={page}
-            limit={limit}
-            total={sectionsTotal}
-            onPageChange={setPage}
-            onLimitChange={(l) => { setLimit(l); setPage(1); }}
-            pageSizeOptions={[20, 50, 100]}
-          />
-        </>
+        <AsyncListState
+          isLoading={isLoading}
+          isError={isError}
+          isEmpty={sections.length === 0}
+          onRetry={refetchAll}
+          errorTitle="Failed to load sections"
+          empty={
+            <SectionEmptyState
+              isFiltered={
+                filterProgramId !== "all" ||
+                filterCourseId  !== "all" ||
+                filterStrandId  !== "all" ||
+                filterLevelId   !== "all" ||
+                search !== ""
+              }
+              onCreateClick={() => ensureOrganization(() => setCreateOpen(true))}
+            />
+          }
+          loading={
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-lg" />
+              ))}
+            </div>
+          }
+        >
+          <>
+            <SectionTable
+              sections={sections}
+              levelMap={levelMap}
+              programs={programs}
+              onEdit={setEditTarget}
+              onDelete={setDeleteTarget}
+            />
+            <Pagination
+              page={page}
+              limit={limit}
+              total={sectionsTotal}
+              onPageChange={setPage}
+              onLimitChange={(l) => { setLimit(l); setPage(1); }}
+              pageSizeOptions={[20, 50, 100]}
+            />
+          </>
+        </AsyncListState>
       )}
 
       {createOpen && schoolYearId && (
