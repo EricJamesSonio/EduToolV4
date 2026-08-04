@@ -124,7 +124,6 @@ export default function GradingSchemesPage(): React.JSX.Element {
     data: templates = [],
     isLoading: tLoading,
     isError: templatesError,
-    refetch: refetchTemplates,
   } = useGradingSchemeTemplates();
 
   const {
@@ -210,7 +209,6 @@ export default function GradingSchemesPage(): React.JSX.Element {
               templates={templates}
               isLoading={tLoading}
               isError={templatesError}
-              onRetry={refetchTemplates}
               onCreateClick={() =>
                 setCreateOpen(true)
               }
