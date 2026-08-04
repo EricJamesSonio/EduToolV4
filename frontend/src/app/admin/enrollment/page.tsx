@@ -33,6 +33,7 @@ import {
 
 import { Plus, Users, BookOpen, UserRoundCheck, Layers, ClipboardList, Settings, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 
 import type { Student } from "@/types/admin/student.types";
 import type {
@@ -48,6 +49,7 @@ interface PendingSectionRow {
 
 export default function EnrollmentPage() {
   const router = useRouter();
+  const { ensureOrganization } = useOrganizationGuard();
 
   const [schoolYearId, setSchoolYearId] = useState<string | null>(null);
   const [tab, setTab] = useState("enrollments");
@@ -313,7 +315,7 @@ export default function EnrollmentPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setSettingsOpen((o) => !o)}
+              onClick={() => ensureOrganization(() => setSettingsOpen((o) => !o))}
               aria-expanded={settingsOpen}
             >
               <Settings className="mr-1.5 h-4 w-4" />
@@ -327,7 +329,7 @@ export default function EnrollmentPage() {
             </Button>
             <Button
               size="sm"
-              onClick={handleEnrollClick}
+              onClick={() => ensureOrganization(handleEnrollClick)}
               disabled={isEnded}
             >
               <Plus className="mr-1.5 h-4 w-4" />
