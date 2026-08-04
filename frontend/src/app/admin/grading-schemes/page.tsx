@@ -24,6 +24,7 @@ import {
   useUpdateGradingSchemeTemplate,
 } from "@/hooks/admin/useGradingSchemeTemplates";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
+import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 
 import type { CreateGradingSchemeTemplateDto } from "@/types/admin/grading-scheme-template.types";
 
@@ -56,7 +57,7 @@ async function fetchPrograms(
   return res.data.data ?? [];
 }
 
-function usePrograms(schoolYearId: any) {
+function usePrograms(schoolYearId: string | { schoolYearId?: string }) {
   const fixedId =
     typeof schoolYearId === "string"
       ? schoolYearId
@@ -64,13 +65,15 @@ function usePrograms(schoolYearId: any) {
 
   return useAsyncQuery(
     queryKeys.admin.programs.list({ schoolYearId: fixedId }),
-    () => fetchPrograms(fixedId),
+    () => fetchPrograms(fixedId!),
     { enabled: !!fixedId },
   );
 }
 
 export default function GradingSchemesPage(): React.JSX.Element {
   // ================= STATE =================
+  const { ensureOrganization } = useOrganizationGuard();
+
   const { data: schoolYears = [], isLoading: syLoading } =
     useSchoolYears();
 
@@ -120,6 +123,8 @@ export default function GradingSchemesPage(): React.JSX.Element {
   const {
     data: templates = [],
     isLoading: tLoading,
+    isError: templatesError,
+    refetch: refetchTemplates,
   } = useGradingSchemeTemplates();
 
   const {
@@ -172,7 +177,7 @@ export default function GradingSchemesPage(): React.JSX.Element {
             <Button
               size="sm"
               onClick={() =>
-                setCreateOpen(true)
+                ensureOrganization(() => setCreateOpen(true))
               }
             >
               <Plus className="mr-1.5 h-4 w-4" />
@@ -201,9 +206,11 @@ export default function GradingSchemesPage(): React.JSX.Element {
               </Badge>
             </div>
 
-            <GradingSchemeTemplateList
+<GradingSchemeTemplateList
               templates={templates}
               isLoading={tLoading}
+              isError={templatesError}
+              onRetry={refetchTemplates}
               onCreateClick={() =>
                 setCreateOpen(true)
               }
