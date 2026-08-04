@@ -59,7 +59,7 @@ export function AuditLogTab() {
       : {}),
   }), [from, to, action, entityType, search]);
 
-  const { data: raw, isLoading, isError, refetch } = useAuditLogs(query);
+  const { data: raw, isLoading } = useAuditLogs(query);
   const logs = useMemo(() => (Array.isArray(raw) ? raw : []), [raw]);
 
   const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
@@ -217,9 +217,6 @@ export function AuditLogTab() {
         columns={columns}
         data={paginated}
         isLoading={isLoading}
-        isError={isError}
-        onRetry={refetch}
-        errorTitle="Failed to load audit logs"
         emptyTitle="No audit logs found"
         emptyDescription="No entries match the current filters."
       />

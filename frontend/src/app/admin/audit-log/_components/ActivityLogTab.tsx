@@ -52,7 +52,7 @@ export function ActivityLogTab() {
     ...(classId ? { classId } : {}),
   }), [from, to, classId]);
 
-  const { data: raw, isLoading, isError, refetch } = useActivityLogs(query);
+  const { data: raw, isLoading } = useActivityLogs(query);
 
   const logs = useMemo(() => {
     const all = Array.isArray(raw) ? raw : [];
@@ -197,9 +197,6 @@ export function ActivityLogTab() {
         columns={columns}
         data={paginated}
         isLoading={isLoading}
-        isError={isError}
-        onRetry={refetch}
-        errorTitle="Failed to load activity logs"
         emptyTitle="No activity logs found"
         emptyDescription="No entries match the current filters."
       />
