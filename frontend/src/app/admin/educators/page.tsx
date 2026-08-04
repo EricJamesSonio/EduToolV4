@@ -42,7 +42,6 @@ export default function EducatorsPage(): React.JSX.Element {
     data: educatorsResp,
     isLoading,
     isError,
-    refetch,
   } = useAsyncQuery(
     [...queryKeys.admin.educators.list({ search }), page, limit],
     () => educatorApi.getPage({ search: search || undefined, page, limit }),
@@ -148,8 +147,6 @@ export default function EducatorsPage(): React.JSX.Element {
         isLoading={isLoading}
         isError={isError}
         isEmpty={educators.length === 0}
-        onRetry={refetch}
-        errorTitle="Failed to load educators"
         empty={{
           icon: Users,
           title: "No educators found",
