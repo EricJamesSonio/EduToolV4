@@ -88,7 +88,6 @@ export default function SemesterSettingsPage(): React.JSX.Element {
     data: templates = [],
     isLoading: tLoading,
     isError: templatesError,
-    refetch: refetchTemplates,
   } = useSemesterTemplates();
   const { data: programs = [], isLoading: pLoading } = useProgramsBySchoolYear(
     selectedYearId ?? undefined
@@ -148,7 +147,6 @@ export default function SemesterSettingsPage(): React.JSX.Element {
           templates={templates}
           isLoading={tLoading}
           isError={templatesError}
-          onRetry={refetchTemplates}
           onCreateClick={() => ensureOrganization(() => setCreateOpen(true))}
           onCreateFromType={(type) =>
             ensureOrganization(() => {
