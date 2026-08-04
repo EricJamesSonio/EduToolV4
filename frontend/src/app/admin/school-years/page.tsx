@@ -26,7 +26,6 @@ export default function SchoolYearsPage(): React.JSX.Element {
     isLoading,
     isError,
     isEmpty,
-    refetch,
   } = useListQuery<SchoolYear[]>(
     queryKeys.admin.schoolYears.list(),
     schoolYearApi.getAll,
@@ -52,14 +51,12 @@ export default function SchoolYearsPage(): React.JSX.Element {
         isLoading={isLoading}
         isError={isError}
         isEmpty={isEmpty}
-        onRetry={refetch}
-        errorTitle="Failed to load school years"
         empty={{
           icon: CalendarDays,
           title: "No school years yet",
           description: "Create your first school year to get started.",
           action: {
-            label: "Create School Year",
+            label: "Create School Year Now",
             onClick: () => ensureOrganization(() => setCreateOpen(true)),
           },
         }}
