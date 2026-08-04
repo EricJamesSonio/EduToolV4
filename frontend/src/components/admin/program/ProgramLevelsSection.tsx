@@ -11,12 +11,13 @@ import { getCountConfig } from "@/components/admin/levels/get-count-config";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CardGrid } from "@/components/shared/CardGrid";
 import {
   listItemCardClass,
   listItemIconClass,
   listItemTitleClass,
 } from "@/components/shared/ListItemCard";
-import { cn, pickCardColor, cardGridClass } from "@/lib/utils";
+import { cn, pickCardColor } from "@/lib/utils";
 import type { Level } from "@/types/admin/level.types";
 
 interface ProgramLevelsSectionProps {
@@ -83,11 +84,11 @@ export function ProgramLevelsSection({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+      <CardGrid count={4}>
         {[1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-40 w-full rounded-xl" />
         ))}
-      </div>
+      </CardGrid>
     );
   }
 
@@ -175,7 +176,7 @@ export function ProgramLevelsSection({
           <p className="text-sm text-muted-foreground not-interactive">No levels yet.</p>
         </div>
       ) : (
-        <div className={`grid ${cardGridClass(levels.length)}`}>
+        <CardGrid count={levels.length}>
           {levels.map((level) => (
             <div key={level.id} className={listItemCardClass}>
               {editingId === level.id ? (
@@ -218,7 +219,7 @@ export function ProgramLevelsSection({
               />
             </div>
           ))}
-        </div>
+        </CardGrid>
       )}
 
       {deleteTarget && (
