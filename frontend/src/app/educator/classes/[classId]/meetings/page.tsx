@@ -6,6 +6,7 @@ import { Plus, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { CardGrid } from "@/components/shared/CardGrid";
 import { MeetingCard } from "@/components/educator/meeting/MeetingCard";
 import { useMeetings } from "@/hooks/educator/useMeeting";
 
@@ -35,11 +36,11 @@ export default function MeetingsPage({ params }: Props) {
       />
 
       {isLoading ? (
-        <div className="grid grid-cols-3 gap-3 md:grid-cols-2 lg:grid-cols-3 sm:gap-4">
+        <CardGrid>
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="h-32 w-full animate-pulse rounded-xl bg-muted" />
           ))}
-        </div>
+        </CardGrid>
       ) : meetings.length === 0 ? (
         <div className="rounded-lg border bg-card p-6">
           <EmptyState
@@ -49,11 +50,11 @@ export default function MeetingsPage({ params }: Props) {
           />
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-3 md:grid-cols-2 lg:grid-cols-3 sm:gap-4">
+        <CardGrid>
           {meetings.map((m) => (
             <MeetingCard key={m.id} meeting={m} classId={classId} />
           ))}
-        </div>
+        </CardGrid>
       )}
     </div>
   );
