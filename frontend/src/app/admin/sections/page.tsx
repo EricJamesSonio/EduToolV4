@@ -58,7 +58,6 @@ export default function SectionsPage(): React.JSX.Element {
     totalPages: sectionsTotalPages,
     isLoading: sectionsLoading,
     isError: sectionsError,
-    refetch: refetchSections,
     filterProgramId,
     setFilterProgramId,
     filterCourseId,
@@ -78,7 +77,6 @@ export default function SectionsPage(): React.JSX.Element {
     levelMap,
     isLoading: levelsLoading,
     isError: levelsError,
-    refetch: refetchLevels,
   } = useEnrichedLevels(schoolYearId);
 
   const { data: programs = [] } = useAsyncQuery(
@@ -89,10 +87,6 @@ export default function SectionsPage(): React.JSX.Element {
 
   const isLoading = sectionsLoading || levelsLoading;
   const isError = sectionsError || levelsError;
-  const refetchAll = () => {
-    refetchSections();
-    refetchLevels();
-  };
 
   // Reset to page 1 whenever the school year changes
   useEffect(() => { setPage(1); }, [schoolYearId]);
@@ -189,8 +183,6 @@ export default function SectionsPage(): React.JSX.Element {
           isLoading={isLoading}
           isError={isError}
           isEmpty={sections.length === 0}
-          onRetry={refetchAll}
-          errorTitle="Failed to load sections"
           empty={
             <SectionEmptyState
               isFiltered={
