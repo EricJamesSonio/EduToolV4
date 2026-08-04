@@ -9,11 +9,12 @@ import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { educatorApi, DEFAULT_PAGE_SIZE } from "@/api/admin/educator.api";
 import { useOrganization } from "@/hooks/admin/useOrganization";
+import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 import type { Educator } from "@/types/admin/educator.types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { SearchInput } from "@/components/shared/SearchInput";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { AsyncListState } from "@/components/shared/AsyncListState";
 import { Pagination } from "@/components/shared/Pagination";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,7 +38,12 @@ export default function EducatorsPage(): React.JSX.Element {
     fullName: string; email: string; educatorCode: string; password: string;
   } | null>(null);
 
-  const { data: educatorsResp, isLoading } = useAsyncQuery(
+  const {
+    data: educatorsResp,
+    isLoading,
+    isError,
+    refetch,
+  } = useAsyncQuery(
     [...queryKeys.admin.educators.list({ search }), page, limit],
     () => educatorApi.getPage({ search: search || undefined, page, limit }),
   );
@@ -46,6 +52,7 @@ export default function EducatorsPage(): React.JSX.Element {
   const totalEducators = educatorsResp?.meta?.total ?? 0;
   const totalEducatorPages = educatorsResp?.meta?.totalPages ?? 1;
   const { data: org, isLoading: orgLoading } = useOrganization();
+  const { ensureOrganization } = useOrganizationGuard();
   const hasEmailExtension = !!org?.emailExtension;
   const resetMutation = useResetEducatorPassword();
 
@@ -86,11 +93,11 @@ export default function EducatorsPage(): React.JSX.Element {
             <HelpGuide slug="admin_educators" />
             {hasEmailExtension ? (
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setBulkOpen(true)}>
+                <Button variant="outline" size="sm" onClick={() => ensureOrganization(() => setBulkOpen(true))}>
                   <Users className="mr-1.5 h-4 w-4" />
                   Bulk Create
                 </Button>
-                <Button onClick={() => setCreateOpen(true)} size="sm">
+                <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
                   <UserPlus className="mr-1.5 h-4 w-4" />
                   New Educator
                 </Button>
@@ -137,32 +144,36 @@ export default function EducatorsPage(): React.JSX.Element {
         className="max-w-sm"
       />
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-12 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : educators.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title="No educators found"
-          description={
+      <AsyncListState
+        isLoading={isLoading}
+        isError={isError}
+        isEmpty={educators.length === 0}
+        onRetry={refetch}
+        errorTitle="Failed to load educators"
+        empty={{
+          icon: Users,
+          title: "No educators found",
+          description:
             search
               ? "Try a different search term."
               : hasEmailExtension
               ? "Create your first educator to get started."
-              : "Setup email extension first to create educators."
-          }
-          action={
+              : "Setup email extension first to create educators.",
+          action:
             !search && hasEmailExtension
-              ? { label: "New Educator", onClick: () => setCreateOpen(true) }
+              ? { label: "New Educator", onClick: () => ensureOrganization(() => setCreateOpen(true)) }
               : !search
               ? { label: "Setup Email Extension", onClick: handleSetupEmail }
-              : undefined
-          }
-        />
-      ) : (
+              : undefined,
+        }}
+        loading={
+          <div className="space-y-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+            ))}
+          </div>
+        }
+      >
         <>
           <EducatorTable
             data={educators}
@@ -177,7 +188,7 @@ export default function EducatorsPage(): React.JSX.Element {
             pageSizeOptions={[20, 50, 100]}
           />
         </>
-      )}
+      </AsyncListState>
 
       {createOpen && hasEmailExtension && (
         <CreateEducatorDialog
