@@ -5,10 +5,11 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-import { Plus, MoreHorizontal, Pencil, Trash2, ChevronRight, AlertTriangle, RefreshCw } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, ChevronRight, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +34,6 @@ interface GradingScaleListProps {
   scales: GradingScale[];
   isLoading: boolean;
   isError?: boolean;
-  onRetry?: () => void;
   onCreateClick: () => void;
   onEditClick: (scale: GradingScale) => void;
 }
@@ -49,7 +49,6 @@ export function GradingScaleList({
   scales,
   isLoading,
   isError,
-  onRetry,
   onCreateClick,
   onEditClick,
 }: GradingScaleListProps) {
@@ -76,25 +75,6 @@ export function GradingScaleList({
     deleteMutation.mutate(deleteTarget.id);
   };
 
-  if (isError) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border py-12 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-          <AlertTriangle className="h-6 w-6 text-destructive" />
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm font-medium">Failed to load grading scales</p>
-        </div>
-        {onRetry && (
-          <Button size="sm" variant="outline" onClick={onRetry}>
-            <RefreshCw className="mr-1.5 h-4 w-4" />
-            Retry
-          </Button>
-        )}
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -105,15 +85,14 @@ export function GradingScaleList({
     );
   }
 
-  if (scales.length === 0) {
+  if (isError || scales.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed px-4 py-8 text-center">
-        <p className="text-sm font-medium text-muted-foreground not-interactive">No grading scales yet</p>
-        <p className="text-xs text-muted-foreground mt-1 not-interactive">Create your first grading scale template</p>
-        <Button size="sm" variant="outline" className="mt-3" onClick={onCreateClick}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" /> New Scale
-        </Button>
-      </div>
+      <EmptyState
+        icon={Scale}
+        title="No grading scales yet"
+        description="Create your first grading scale template."
+        action={{ label: "New Scale", onClick: onCreateClick }}
+      />
     );
   }
 
