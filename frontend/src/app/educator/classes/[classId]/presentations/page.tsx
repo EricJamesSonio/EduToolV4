@@ -12,6 +12,7 @@ import { useLessons } from "@/hooks/educator/useLessons";
 import { useClassWeeks } from "@/hooks/educator/useClassWeeks";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { CardGrid } from "@/components/shared/CardGrid";
 import {
   Card,
   CardHeader,
@@ -362,11 +363,11 @@ export default function PresentationsPage(): React.JSX.Element {
       )}
 
       {isLoading ? (
-        <div className="grid grid-cols-3 gap-3 md:grid-cols-2 lg:grid-cols-3 sm:gap-4">
+        <CardGrid>
           {[1, 2, 3].map((i) => (
             <CardSkeleton key={i} />
           ))}
-        </div>
+        </CardGrid>
       ) : !presentations || presentations.length === 0 ? (
         <EmptyState
           icon={Presentation}
@@ -389,7 +390,7 @@ export default function PresentationsPage(): React.JSX.Element {
           description="Try selecting a different week or create a new presentation."
         />
       ) : (
-        <div className="grid grid-cols-3 gap-3 md:grid-cols-2 lg:grid-cols-3 sm:gap-4">
+        <CardGrid>
           {filteredPresentations.map((pres) => (
             <PresentationCard
               key={pres.id}
@@ -399,7 +400,7 @@ export default function PresentationsPage(): React.JSX.Element {
               weekNumber={lessonWeekMap.get(pres.lessonId) ?? null}
             />
           ))}
-        </div>
+        </CardGrid>
       )}
     </div>
   );
