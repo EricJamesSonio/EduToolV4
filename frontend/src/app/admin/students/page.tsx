@@ -71,7 +71,6 @@ function StudentsPageInner(): React.JSX.Element {
     data: studentsResp,
     isLoading,
     isError,
-    refetch,
   } = useAsyncQuery(
     [...queryKeys.admin.students.list(filters), page, limit],
     () => studentApi.getPage({ ...filters, page, limit }),
@@ -211,8 +210,6 @@ const enrichedStudents: Student[] = useMemo(
         isLoading={isLoading}
         isError={isError}
         isEmpty={students.length === 0}
-        onRetry={refetch}
-        errorTitle="Failed to load students"
         empty={{
           icon: Users,
           title: "No students found",
