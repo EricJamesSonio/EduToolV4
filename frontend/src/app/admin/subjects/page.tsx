@@ -18,6 +18,7 @@ import { SubjectTabs }       from "@/components/admin/subject/SubjectTabs";
 import { SubjectSearch }     from "@/components/admin/subject/SubjectSearch";
 import { SubjectTable }      from "@/components/admin/subject/SubjectTable";
 import { SubjectEmptyState } from "@/components/admin/subject/SubjectEmptyState";
+import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 import { useSubjectFilters } from "@/components/admin/subject/hooks/useSubjectFilters";
 import { useSubjectQueries } from "@/components/admin/subject/hooks/useSubjectQueries";
 import { useSubjectMutations } from "@/components/admin/subject/hooks/useSubjectMutations";
@@ -26,6 +27,7 @@ import { DEFAULT_PAGE_SIZE } from "@/api/admin/subject.api";
 export default function SubjectsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const filters = useSubjectFilters();
+  const { ensureOrganization } = useOrganizationGuard();
 
   const [createOpen,    setCreateOpen]    = useState(false);
   const [lockTarget,    setLockTarget]    = useState<Subject | null>(null);
@@ -41,6 +43,7 @@ export default function SubjectsPage(): React.JSX.Element {
     courses, strands,
     educatorsLoading,
     subjects, subjectsTotal, subjectsTotalPages, subjectsLoading,
+    subjectsError, refetchSubjects,
   } = useSubjectQueries(filters, { search: searchQuery, page, limit });
 
   const { lockMutation, unlockMutation } = useSubjectMutations(
@@ -79,7 +82,7 @@ export default function SubjectsPage(): React.JSX.Element {
       {/* New Subject — own row, right-aligned (matches Sections/Programs pages) */}
       {filters.selectedSchoolYearId && (
         <div className="flex justify-end">
-          <Button onClick={() => setCreateOpen(true)} size="sm">
+          <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
             <Plus className="mr-1.5 h-4 w-4" />
             {filters.activeTab === "minor" ? "New Minor Subject" : "New Subject"}
           </Button>
@@ -121,6 +124,8 @@ export default function SubjectsPage(): React.JSX.Element {
         <SubjectTable
           isLoading={isLoading}
           subjects={subjects}
+          isError={subjectsError}
+          onRetry={refetchSubjects}
           activeTab={filters.activeTab}
           filterLevelId={filters.filterLevelId}
           selectedCourseId={filters.selectedCourseId}
@@ -132,7 +137,7 @@ export default function SubjectsPage(): React.JSX.Element {
       ) : (
         <SubjectEmptyState
           showNoSchoolYear
-          onCreateClick={() => setCreateOpen(true)}
+          onCreateClick={() => ensureOrganization(() => setCreateOpen(true))}
         />
       )}
 
