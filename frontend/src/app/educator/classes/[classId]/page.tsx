@@ -25,6 +25,7 @@ import type { EnrollmentResponse } from "@/api/admin/class.api";
 import type { Subject } from "@/types/admin/subject.types";
 
 import { PageHeader } from "@/components/shared/PageHeader";
+import { CardGrid } from "@/components/shared/CardGrid";
 import { Skeleton }   from "@/components/ui/skeleton";
 import { Badge }      from "@/components/ui/badge";
 
@@ -284,7 +285,7 @@ if (clsLoading) {
       <div>
         <h2 className="text-sm font-semibold mb-3">Class Sections</h2>
 
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
+        <CardGrid>
           {quickLinks.map((link, i) => {
             const color = WEEK_COLORS[i % WEEK_COLORS.length];
             const Icon = link.icon;
@@ -306,7 +307,7 @@ if (clsLoading) {
               </button>
             );
           })}
-        </div>
+        </CardGrid>
       </div>
     </div>
   </div>
