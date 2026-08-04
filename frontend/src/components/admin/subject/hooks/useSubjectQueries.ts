@@ -106,7 +106,12 @@ export function useSubjectQueries(
     search: search || undefined,
   };
 
-  const { data: subjectsResp, isLoading: subjectsLoading } = useAsyncQuery(
+  const {
+    data: subjectsResp,
+    isLoading: subjectsLoading,
+    isError: subjectsError,
+    refetch: refetchSubjects,
+  } = useAsyncQuery(
     [...queryKeys.admin.subjects.list(listFilters), page, limit],
     () => subjectApi.getPage({ ...listFilters, page, limit }),
     { enabled: !!filters.selectedSchoolYearId },
@@ -122,5 +127,7 @@ export function useSubjectQueries(
     subjectsTotal: subjectsResp?.meta?.total ?? 0,
     subjectsTotalPages: subjectsResp?.meta?.totalPages ?? 1,
     subjectsLoading,
+    subjectsError,
+    refetchSubjects,
   };
 }

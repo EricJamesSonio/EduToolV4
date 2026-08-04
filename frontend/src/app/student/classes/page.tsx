@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ClassCard } from "@/components/student/class/ClassCard";
 import { ClassCardSkeleton } from "@/components/student/class/ClassCardSkeleton";
+import { CardGrid } from "@/components/shared/CardGrid";
 import { useStudentClasses } from "@/hooks/student/useStudentClasses";
 import { useStudentSemesters } from "@/hooks/student/useStudentSemesters";
 import type { StudentSemesterItem } from "@/api/student/semester.api";
@@ -71,11 +72,11 @@ export default function StudentClassesPage(): React.JSX.Element {
       />
 
       {isLoading && (
-        <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
+        <CardGrid className="sm:gap-5">
           {Array.from({ length: 6 }).map((_, i) => (
             <ClassCardSkeleton key={i} />
           ))}
-        </div>
+        </CardGrid>
       )}
 
       {isError && (
@@ -99,11 +100,11 @@ export default function StudentClassesPage(): React.JSX.Element {
       )}
 
       {!isLoading && !isError && filtered.length > 0 && (
-        <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
+        <CardGrid className="sm:gap-5">
           {filtered.map((item, i) => (
             <ClassCard key={item.enrollmentId} item={item} colorIndex={i} />
           ))}
-        </div>
+        </CardGrid>
       )}
     </div>
   );

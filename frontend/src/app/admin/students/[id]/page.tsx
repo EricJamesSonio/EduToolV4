@@ -190,8 +190,7 @@ const programEnrollments = schoolYearEnrollments?.data?.filter((e) => e.student_
       {resetOpen && (
         <ResetPasswordDialog
           open={resetOpen}
-          studentId={student.id}
-          studentName={student.fullName}
+          student={student}
           onClose={() => setResetOpen(false)}
         />
       )}

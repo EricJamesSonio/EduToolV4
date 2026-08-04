@@ -49,6 +49,30 @@ export class GradingSchemeTemplateRepository {
     return templates.map(mapTemplate);
   }
 
+  async findByProgramTypes(
+    orgId: string,
+    programTypes: string[],
+    programType?: string,
+  ) {
+    if (programTypes.length === 0) return [];
+
+    const types = programType
+      ? programTypes.filter((t) => t === programType)
+      : programTypes;
+
+    if (types.length === 0) return [];
+
+    const templates = await this.db.gradingSchemeTemplate.findMany({
+      where: {
+        org_id:       orgId,
+        program_type: { in: types },
+      },
+      include: COMPONENTS_INCLUDE,
+      orderBy: { created_at: 'desc' },
+    });
+    return templates.map(mapTemplate);
+  }
+
   async findById(id: string, orgId: string) {
     const template = await this.db.gradingSchemeTemplate.findFirst({
       where:   { id, org_id: orgId },

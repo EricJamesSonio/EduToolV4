@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { buildFullEmail } from "@/lib/email/buildFullEmail";
+import { StudentCredentialsCard } from "@/components/admin/student/StudentCredentialsCard";
 
 interface CredentialsPreview {
   fullName: string;
@@ -122,75 +123,17 @@ export function CreateStudentDialog({
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Credentials Preview
-  // ───────────────────────────────────────────────────────────────────────────
-
-  if (credentials) {
-    return (
-      <Modal
-        open={open}
-        onClose={handleClose}
-        title="Student Created"
-        size="sm"
-      >
-
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Save these credentials — the password won&apos;t
-              be shown again.
-            </p>
-
-            <div className="rounded-lg border bg-muted/40 p-4 space-y-2 text-sm font-mono">
-              <div>
-                <span className="text-muted-foreground">
-                  Name:
-                </span>{" "}
-                {credentials.fullName}
-              </div>
-
-              <div>
-                <span className="text-muted-foreground">
-                  Email:
-                </span>{" "}
-                {credentials.email}
-              </div>
-
-              <div>
-                <span className="text-muted-foreground">
-                  ID:
-                </span>{" "}
-                {credentials.studentId}
-              </div>
-
-              <div>
-                <span className="text-muted-foreground">
-                  Password:
-                </span>{" "}
-                {credentials.password}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-1">
-              <Button onClick={handleClose}>
-                Done
-              </Button>
-            </div>
-          </div>
-      </Modal>
-    );
-  }
-
-  // ───────────────────────────────────────────────────────────────────────────
   // Create Form
   // ───────────────────────────────────────────────────────────────────────────
 
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      title="New Student"
-      size="md"
-    >
+    <>
+      <Modal
+        open={open && !credentials}
+        onClose={handleClose}
+        title="New Student"
+        size="md"
+      >
 
         <form
           onSubmit={handleSubmit((v) =>
@@ -301,7 +244,16 @@ export function CreateStudentDialog({
             </Button>
           </div>
         </form>
-    </Modal>
+      </Modal>
+
+      {credentials && (
+        <StudentCredentialsCard
+          open
+          onClose={handleClose}
+          credentials={credentials}
+        />
+      )}
+    </>
   );
 }
 

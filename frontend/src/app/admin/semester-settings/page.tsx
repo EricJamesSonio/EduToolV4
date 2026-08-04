@@ -31,6 +31,7 @@ import clientApi from "@/api/client";
 import { TemplateFormDialog } from "@/components/admin/semester-settings/TemplateFormDialog";
 import { TemplateLibrary } from "@/components/admin/semester-settings/TemplateLibrary";
 import { AssignmentSection } from "@/components/admin/semester-settings/AssignmentSection";
+import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 import type { SchoolYear } from "@/types/admin/school-year.types";
 
 interface Program {
@@ -70,6 +71,8 @@ const errMsg = (e: unknown) =>
 
 export default function SemesterSettingsPage(): React.JSX.Element {
   // ================= STATE =================
+  const { ensureOrganization } = useOrganizationGuard();
+
   const { data: schoolYears = [], isLoading: syLoading } = useSchoolYears();
   const [selectedYearId, setSelectedYearId] = useState<string | null>(null);
 
@@ -81,7 +84,11 @@ export default function SemesterSettingsPage(): React.JSX.Element {
   );
 
   // ================= QUERIES =================
-  const { data: templates = [], isLoading: tLoading } = useSemesterTemplates();
+  const {
+    data: templates = [],
+    isLoading: tLoading,
+    isError: templatesError,
+  } = useSemesterTemplates();
   const { data: programs = [], isLoading: pLoading } = useProgramsBySchoolYear(
     selectedYearId ?? undefined
   );
@@ -126,7 +133,7 @@ export default function SemesterSettingsPage(): React.JSX.Element {
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_semester_settings" />
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Button size="sm" onClick={() => ensureOrganization(() => setCreateOpen(true))}>
               <Plus className="h-4 w-4 mr-1.5" />
               New Template
             </Button>
@@ -139,11 +146,14 @@ export default function SemesterSettingsPage(): React.JSX.Element {
         <TemplateLibrary
           templates={templates}
           isLoading={tLoading}
-          onCreateClick={() => setCreateOpen(true)}
-          onCreateFromType={(type) => {
-            setCreateFromType(type);
-            setCreateOpen(true);
-          }}
+          isError={templatesError}
+          onCreateClick={() => ensureOrganization(() => setCreateOpen(true))}
+          onCreateFromType={(type) =>
+            ensureOrganization(() => {
+              setCreateFromType(type);
+              setCreateOpen(true);
+            })
+          }
           onEdit={(template) => setEditTarget(template)}
           onDelete={(template) => setDeleteTarget(template)}
         />

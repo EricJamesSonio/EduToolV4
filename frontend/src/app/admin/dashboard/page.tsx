@@ -152,7 +152,10 @@ export default function AdminDashboardPage(): React.JSX.Element {
     { enabled: !!org && !!selectedYearId },
   );
 
-  const { data: enrollment, isLoading: enrollmentLoading } = useAsyncQuery(
+  const {
+    data: enrollment,
+    isLoading: enrollmentLoading,
+  } = useAsyncQuery(
     [...queryKeys.admin.analytics.detail("enrollment"), enrollmentPage, enrollmentLimit],
     () =>
       analyticsApi.getEnrollmentBreakdown(

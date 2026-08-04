@@ -21,6 +21,7 @@ import { formatSchedules } from "@/types/educator/class.types";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { CardGrid } from "@/components/shared/CardGrid";
 import {
   ListItemCardAction,
   listItemCardClass,
@@ -253,11 +254,11 @@ export default function EducatorClassesPage(): React.JSX.Element {
       />
 
       {classesLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <CardGrid>
           {[1, 2, 3].map((i) => (
             <ClassCardSkeleton key={i} />
           ))}
-        </div>
+        </CardGrid>
       ) : classes.length === 0 ? (
         <EmptyState
           icon={BookOpen}
@@ -265,7 +266,7 @@ export default function EducatorClassesPage(): React.JSX.Element {
           description="You have no active classes yet. Contact your administrator."
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <CardGrid>
           {classes.map((cls, i) => (
             <ClassCard
               key={cls.id}
@@ -274,7 +275,7 @@ export default function EducatorClassesPage(): React.JSX.Element {
               onClick={() => router.push(`/educator/classes/${cls.id}`)}
             />
           ))}
-        </div>
+        </CardGrid>
       )}
     </div>
   );

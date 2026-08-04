@@ -12,6 +12,7 @@ import {
   PROGRAM_TYPE_LABELS, PROGRAM_TYPE_COLORS,
 } from "@/types/admin/program.types";
 import { cn } from "@/lib/utils";
+import { CardGrid } from "@/components/shared/CardGrid";
 
 import type { Program } from "@/types/admin/program.types";
 import type { Level } from "@/types/admin/level.types";
@@ -25,14 +26,14 @@ interface ProgramSelectorProps {
 export function ProgramSelector({ programs, isLoading, onSelect }: ProgramSelectorProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+      <CardGrid className="xl:grid-cols-3">
         {[1, 2, 3].map((i) => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
-      </div>
+      </CardGrid>
     );
   }
 
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+    <CardGrid className="xl:grid-cols-3">
       {programs.map((p) => {
         const typeLabel = PROGRAM_TYPE_LABELS[p.type as keyof typeof PROGRAM_TYPE_LABELS] ?? p.type;
         const typeColor = PROGRAM_TYPE_COLORS[p.type as keyof typeof PROGRAM_TYPE_COLORS] ?? "";
@@ -57,7 +58,7 @@ export function ProgramSelector({ programs, isLoading, onSelect }: ProgramSelect
           </button>
         );
       })}
-    </div>
+    </CardGrid>
   );
 }
 
@@ -69,7 +70,7 @@ interface CourseStrandSelectorProps {
 
 export function CourseStrandSelector({ items, isCollege, onSelect }: CourseStrandSelectorProps) {
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+    <CardGrid className="xl:grid-cols-3">
       {items.map((item) => (
         <button
           key={item.id}
@@ -88,7 +89,7 @@ export function CourseStrandSelector({ items, isCollege, onSelect }: CourseStran
           </div>
         </button>
       ))}
-    </div>
+    </CardGrid>
   );
 }
 
@@ -101,9 +102,9 @@ interface LevelSelectorProps {
 export function LevelSelector({ levels, isLoading, onSelect }: LevelSelectorProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+      <CardGrid className="xl:grid-cols-3">
         {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
-      </div>
+      </CardGrid>
     );
   }
 
@@ -117,7 +118,7 @@ export function LevelSelector({ levels, isLoading, onSelect }: LevelSelectorProp
   }
 
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+    <CardGrid className="xl:grid-cols-3">
       {levels.map((l) => (
         <button
           key={l.id}
@@ -135,6 +136,6 @@ export function LevelSelector({ levels, isLoading, onSelect }: LevelSelectorProp
           </div>
         </button>
       ))}
-    </div>
+    </CardGrid>
   );
 }

@@ -24,7 +24,7 @@ import type { Class } from "@/types/admin/class.types";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { AsyncListState } from "@/components/shared/AsyncListState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 
@@ -38,10 +38,12 @@ import { queryKeys } from "@/hooks/queryKeys.factory";
 import { ClassesFilterBar } from "@/components/admin/class/ClassesFilterBar";
 import { ClassesTable } from "@/components/admin/class/ClassesTable";
 import { CreateClassDialog } from "@/components/admin/class/CreateClassDialog";
+import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 
 function ClassesPageInner(): React.JSX.Element {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { ensureOrganization } = useOrganizationGuard();
 
   const defaultSubjectId: string | undefined =
     searchParams.get("subjectId") ?? undefined;
@@ -68,7 +70,11 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
 
 
   // ===== Queries scoped to School Year =====
-  const { data: classesRaw, isLoading } = useAsyncQuery(
+  const {
+    data: classesRaw,
+    isLoading,
+    isError: classesError,
+  } = useAsyncQuery(
     queryKeys.admin.classes.list({ schoolYearId: selectedSchoolYearId, ...filters.query }),
     () =>
       classApi.getAll({
@@ -220,7 +226,7 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
 
       {selectedSchoolYearId && (
         <div className="flex items-center justify-end gap-2">
-          <Button onClick={() => setCreateOpen(true)} size="sm">
+          <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
             <Plus className="mr-1.5 h-4 w-4" />
             New Class
           </Button>
@@ -235,25 +241,29 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
   schoolYearId={selectedSchoolYearId}
 />
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-12 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : classes.length === 0 ? (
-        <EmptyState
-          icon={GraduationCap}
-          title="No classes found"
-          description="Create your first class to get started."
-          action={{
+<AsyncListState
+        isLoading={isLoading}
+        isError={classesError}
+        isEmpty={classes.length === 0}
+        empty={{
+          icon: GraduationCap,
+          title: "No classes found",
+          description: "Create your first class to get started.",
+          action: {
             label: "New Class",
-            onClick: () => setCreateOpen(true),
-          }}
-        />
-      ) : (
+            onClick: () => ensureOrganization(() => setCreateOpen(true)),
+          },
+        }}
+        loading={
+          <div className="space-y-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+            ))}
+          </div>
+        }
+      >
         <ClassesTable data={classes} onArchive={setArchiveTarget} />
-      )}
+      </AsyncListState>
 
       {createOpen && (
   <CreateClassDialog

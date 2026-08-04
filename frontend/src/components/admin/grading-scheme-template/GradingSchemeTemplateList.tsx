@@ -3,9 +3,10 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, MoreHorizontal, Pencil, Trash2, ChevronRight } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, ChevronRight, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ import type { AxiosError } from "axios";
 interface GradingSchemeTemplateListProps {
   templates: GradingSchemeTemplate[];
   isLoading: boolean;
+  isError?: boolean;
   onCreateClick: () => void;
   onEditClick: (template: GradingSchemeTemplate) => void;
 }
@@ -24,6 +26,7 @@ interface GradingSchemeTemplateListProps {
 export function GradingSchemeTemplateList({
   templates,
   isLoading,
+  isError,
   onCreateClick,
   onEditClick,
 }: GradingSchemeTemplateListProps) {
@@ -55,15 +58,14 @@ export function GradingSchemeTemplateList({
     );
   }
 
-  if (templates.length === 0) {
+  if (isError || templates.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed px-4 py-8 text-center">
-        <p className="text-sm font-medium text-muted-foreground not-interactive">No templates yet</p>
-        <p className="text-xs text-muted-foreground mt-1 not-interactive">Create your first grading scheme template</p>
-        <Button size="sm" variant="outline" className="mt-3" onClick={onCreateClick}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" /> New Template
-        </Button>
-      </div>
+      <EmptyState
+        icon={Layers}
+        title="No templates yet"
+        description="Create your first grading scheme template."
+        action={{ label: "New Template", onClick: onCreateClick }}
+      />
     );
   }
 

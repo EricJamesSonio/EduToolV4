@@ -108,6 +108,97 @@ private async resolveProgramIdFromSubject(
   return null
 }
 
+  // ---------------------------------------------------------------------------
+  // Resolve the set of program types an educator actually teaches
+  // (used to scope the grading-scheme template library)
+  // ---------------------------------------------------------------------------
+
+  async findEducatorProgramTypes(
+    educatorId: string,
+    orgId: string,
+  ): Promise<string[]> {
+    const classes = await this.db.class.findMany({
+      where: { educator_id: educatorId, org_id: orgId, deleted_at: null },
+      select: { subject_id: true },
+    })
+
+    const subjectIds = [...new Set(classes.map((c) => c.subject_id))]
+    if (subjectIds.length === 0) return []
+
+    const subjects = await this.db.subject.findMany({
+      where: { id: { in: subjectIds }, org_id: orgId },
+      select: {
+        program_id: true,
+        course:     { select: { program_id: true } },
+        strand:     { select: { program_id: true } },
+        level:      { select: { program_id: true } },
+        sharings: {
+          select: {
+            course: { select: { program_id: true } },
+            strand: { select: { program_id: true } },
+            level:  { select: { program_id: true } },
+          },
+        },
+      },
+    })
+
+    const programIds = new Set<string>()
+    for (const subject of subjects) {
+      let programId =
+        subject.program_id ??
+        subject.course?.program_id ??
+        subject.strand?.program_id ??
+        subject.level?.program_id
+
+      if (!programId) {
+        for (const sharing of subject.sharings) {
+          programId =
+            sharing.course?.program_id ??
+            sharing.strand?.program_id ??
+            sharing.level?.program_id
+          if (programId) break
+        }
+      }
+
+      if (programId) programIds.add(programId)
+    }
+
+    if (programIds.size === 0) return []
+
+    const programs = await this.db.program.findMany({
+      where: { id: { in: [...programIds] }, org_id: orgId },
+      select: { type: true },
+    })
+
+    return [...new Set(programs.map((p) => p.type).filter((t): t is string => !!t))]
+  }
+
+  // ---------------------------------------------------------------------------
+  // Resolve the program type of a single class (used to validate template apply)
+  // ---------------------------------------------------------------------------
+
+  async getClassProgramType(
+    classId: string,
+    orgId: string,
+  ): Promise<string | null> {
+    const cls = await this.db.class.findFirst({
+      where: { id: classId, org_id: orgId, deleted_at: null },
+      select: { subject_id: true },
+    })
+
+    if (!cls) return null
+
+    const programId = await this.resolveProgramIdFromSubject(cls.subject_id, orgId)
+    if (!programId) return null
+
+    const program = await this.db.program.findFirst({
+      where: { id: programId, org_id: orgId },
+      select: { type: true },
+    })
+
+    return program?.type ?? null
+  }
+
 private async resolveSemesterId(
   schoolYearId: string,
   programId: string,

@@ -5,10 +5,11 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-import { Plus, MoreHorizontal, Pencil, Trash2, ChevronRight } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, ChevronRight, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,7 @@ import type { GradingScale } from "@/types/admin/grading-scale.types";
 interface GradingScaleListProps {
   scales: GradingScale[];
   isLoading: boolean;
+  isError?: boolean;
   onCreateClick: () => void;
   onEditClick: (scale: GradingScale) => void;
 }
@@ -46,6 +48,7 @@ function passingThreshold(scale: GradingScale): string {
 export function GradingScaleList({
   scales,
   isLoading,
+  isError,
   onCreateClick,
   onEditClick,
 }: GradingScaleListProps) {
@@ -82,15 +85,14 @@ export function GradingScaleList({
     );
   }
 
-  if (scales.length === 0) {
+  if (isError || scales.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed px-4 py-8 text-center">
-        <p className="text-sm font-medium text-muted-foreground not-interactive">No grading scales yet</p>
-        <p className="text-xs text-muted-foreground mt-1 not-interactive">Create your first grading scale template</p>
-        <Button size="sm" variant="outline" className="mt-3" onClick={onCreateClick}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" /> New Scale
-        </Button>
-      </div>
+      <EmptyState
+        icon={Scale}
+        title="No grading scales yet"
+        description="Create your first grading scale template."
+        action={{ label: "New Scale", onClick: onCreateClick }}
+      />
     );
   }
 

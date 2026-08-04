@@ -1,6 +1,6 @@
 "use client";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Eye } from "lucide-react";
+import { Eye, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/DataTable";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -15,9 +15,10 @@ function getInitials(name: string): string {
 interface StudentTableProps {
   data: Student[];
   onView: (student: Student) => void;
+  onResetPassword: (student: Student) => void;
 }
 
-export function StudentTable({ data, onView }: StudentTableProps): React.JSX.Element {
+export function StudentTable({ data, onView, onResetPassword }: StudentTableProps): React.JSX.Element {
   const columns: ColumnDef<Student>[] = [
     {
       header: "",
@@ -87,15 +88,26 @@ export function StudentTable({ data, onView }: StudentTableProps): React.JSX.Ele
       header: "Actions",
       id: "actions",
       cell: ({ row }) => (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2 text-xs"
-          onClick={() => onView(row.original)}
-        >
-          <Eye className="mr-1 h-3.5 w-3.5" />
-          View
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            onClick={() => onView(row.original)}
+          >
+            <Eye className="mr-1 h-3.5 w-3.5" />
+            View
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+            onClick={() => onResetPassword(row.original)}
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            Reset Password
+          </Button>
+        </div>
       ),
     },
   ];
