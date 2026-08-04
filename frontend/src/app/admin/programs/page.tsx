@@ -13,6 +13,7 @@ import type { Program } from "@/types/admin/program.types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { AsyncListState } from "@/components/shared/AsyncListState";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,11 +21,13 @@ import { Plus, BookOpen, CalendarDays } from "lucide-react";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { CreateProgramDialog } from "@/components/admin/program/CreateProgramDialog";
 import { ProgramCard } from "@/components/admin/program/ProgramCard";
+import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 import type { AxiosError } from "axios";
 
 export default function ProgramsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const { ensureOrganization } = useOrganizationGuard();
 
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -48,7 +51,12 @@ export default function ProgramsPage(): React.JSX.Element {
     setSelectedSchoolYearId(active?.id ?? schoolYears[0].id);
   }, [schoolYears, searchParams]);
 
-  const { data: programs, isLoading: programsLoading } = usePrograms(selectedSchoolYearId ?? undefined);
+  const {
+    data: programs,
+    isLoading: programsLoading,
+    isError: programsError,
+    refetch: refetchPrograms,
+  } = usePrograms(selectedSchoolYearId ?? undefined);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => programApi.delete(id),
@@ -65,7 +73,6 @@ export default function ProgramsPage(): React.JSX.Element {
     },
   });
 
-  const isLoading = syLoading || programsLoading;
   const noSchoolYears = !syLoading && schoolYears.length === 0;
 
   if (noSchoolYears) {
@@ -97,32 +104,39 @@ export default function ProgramsPage(): React.JSX.Element {
 
       {selectedSchoolYearId && (
         <div className="flex items-center justify-end gap-2">
-          <Button onClick={() => setCreateOpen(true)} size="sm">
+          <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Add Program
           </Button>
         </div>
       )}
 
-      {isLoading ? (
+      <AsyncListState
+        isLoading={programsLoading}
+        isError={programsError}
+        isEmpty={!programsLoading && !programsError && !programs?.length}
+        onRetry={refetchPrograms}
+        errorTitle="Failed to load programs"
+        empty={{
+          icon: BookOpen,
+          title: "No programs for this school year",
+          description:
+            "Add a program manually or run the data seeder from the Organization page.",
+        }}
+        loading={
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-32 w-full rounded-lg" />
+            ))}
+          </div>
+        }
+      >
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : !programs?.length ? (
-        <EmptyState
-          icon={BookOpen}
-          title="No programs for this school year"
-          description="Add a program manually or run the data seeder from the Organization page."
-        />
-      ) : (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {programs.map((program) => (
+          {programs?.map((program) => (
             <ProgramCard key={program.id} program={program} onDelete={setDeleteTarget} />
           ))}
         </div>
-      )}
+      </AsyncListState>
 
       {selectedSchoolYearId && (
         <CreateProgramDialog
