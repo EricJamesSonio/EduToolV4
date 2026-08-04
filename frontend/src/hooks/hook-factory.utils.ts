@@ -36,6 +36,44 @@ export function useAsyncQuery<
 }
 
 
+/**
+ * Query hook for array-returning list endpoints.
+ *
+ * Normalizes the response to an array (so callers never deal with
+ * `undefined`/`null` from the backend) and exposes an `isEmpty` flag that the
+ * UI can use to render an empty state as soon as the server confirms there is
+ * nothing — instead of lingering on a loading skeleton.
+ *
+ * `isLoading` retains React Query v5 semantics (`isPending && isFetching`):
+ * true only when there is no cached data yet AND a fetch is in-flight.
+ */
+export function useListQuery<
+  TData = unknown,
+  TError = AxiosError,
+>(
+  queryKey: QueryKey,
+  queryFn: () => Promise<TData>,
+  options?: Omit<
+    UseQueryOptions<TData, TError, TData, QueryKey>,
+    'queryKey' | 'queryFn'
+  > & { meta?: AppMeta },
+) {
+  const query = useAsyncQuery<TData, TError>(queryKey, queryFn, options);
+  const data = (Array.isArray(query.data) ? query.data : []) as TData;
+  const isEmpty =
+    !query.isPending &&
+    !query.isFetching &&
+    !query.isError &&
+    (Array.isArray(data) ? data.length === 0 : true);
+
+  return {
+    ...query,
+    data,
+    isEmpty,
+  };
+}
+
+
 export function useAsyncMutation<
   TData = unknown,
   TError = AxiosError,
