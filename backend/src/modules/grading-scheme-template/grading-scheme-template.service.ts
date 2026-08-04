@@ -14,6 +14,7 @@ import {
   ApplyTemplateToProgramDto,
 } from './dto/grading-scheme-template.dto';
 import { GradingSchemeRepository } from '../grading-scheme/grading-scheme.repository';
+import { ClassService } from '../class/class.service';
 import { DatabaseService } from '@/core/database/database.provider';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class GradingSchemeTemplateService {
   constructor(
     private readonly repo: GradingSchemeTemplateRepository,
     private readonly gradingSchemeRepo: GradingSchemeRepository,
+    private readonly classService: ClassService,
     private readonly db: DatabaseService,
   ) {}
 
@@ -38,6 +40,18 @@ export class GradingSchemeTemplateService {
 
   async findAll(orgId: string, programType?: string) {
     return this.repo.findAll(orgId, programType);
+  }
+
+  async findForEducator(
+    orgId: string,
+    educatorId: string,
+    programType?: string,
+  ) {
+    const programTypes = await this.classService.findEducatorProgramTypes(
+      educatorId,
+      orgId,
+    );
+    return this.repo.findByProgramTypes(orgId, programTypes, programType);
   }
 
   async findById(id: string, orgId: string) {
@@ -72,6 +86,17 @@ export class GradingSchemeTemplateService {
   // Get template
   const template = await this.findById(dto.templateId, orgId);
 
+  // Guard: template program type must match the target class's program type
+  const classProgramType = await this.classService.getClassProgramType(
+    dto.classId,
+    orgId,
+  );
+  if (template.programType && classProgramType !== template.programType) {
+    throw new BadRequestException(
+      `Template type "${template.programType}" does not match the class program type "${classProgramType}".`,
+    );
+  }
+
   // Create/update grading scheme for the class
   return this.gradingSchemeRepo.upsertForClass(
     orgId,
@@ -91,6 +116,20 @@ export class GradingSchemeTemplateService {
 async applyToProgram(orgId: string, dto: ApplyTemplateToProgramDto) {
   // Get template
   const template = await this.findById(dto.templateId, orgId);
+
+  // Guard: template program type must match the target program type
+  const program = await this.db.program.findFirst({
+    where: { id: dto.programId, org_id: orgId },
+    select: { type: true },
+  });
+  if (!program) {
+    throw new NotFoundException('Program not found.');
+  }
+  if (template.programType && program.type !== template.programType) {
+    throw new BadRequestException(
+      `Template type "${template.programType}" does not match program type "${program.type}".`,
+    );
+  }
 
   // Get all class IDs under the program
   const classIds = await this.gradingSchemeRepo.findClassIdsByProgram(

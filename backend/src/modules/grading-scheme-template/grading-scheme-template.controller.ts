@@ -23,8 +23,13 @@ export class GradingSchemeTemplateController {
   @Roles('admin', 'educator')
   async findAll(
     @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') accountId: string,
+    @CurrentUser('role') role: string,
     @Query('programType') programType?: string,
   ) {
+    if (role === 'educator') {
+      return this.service.findForEducator(orgId, accountId, programType);
+    }
     return this.service.findAll(orgId, programType);
   }
 

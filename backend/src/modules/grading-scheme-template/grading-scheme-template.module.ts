@@ -3,9 +3,13 @@ import { GradingSchemeTemplateController } from './grading-scheme-template.contr
 import { GradingSchemeTemplateService } from './grading-scheme-template.service';
 import { GradingSchemeTemplateRepository } from './grading-scheme-template.repository';
 import { GradingSchemeModule } from '../grading-scheme/grading-scheme.module';
+import { ClassModule } from '../class/class.module';
 
 @Module({
-  imports: [forwardRef(() => GradingSchemeModule)], // <-- forwardRef
+  imports: [
+    forwardRef(() => GradingSchemeModule), // <-- forwardRef
+    ClassModule,
+  ],
   controllers: [GradingSchemeTemplateController],
   providers: [GradingSchemeTemplateService, GradingSchemeTemplateRepository],
   exports: [GradingSchemeTemplateService],
