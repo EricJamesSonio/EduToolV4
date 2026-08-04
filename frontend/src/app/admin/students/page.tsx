@@ -17,7 +17,7 @@ import type { GetStudentsQuery } from "@/api/admin/student.api";
 
 import { PageHeader }    from "@/components/shared/PageHeader";
 import { HelpGuide }     from "@/components/shared/help-guide/HelpGuide";
-import { EmptyState }    from "@/components/shared/EmptyState";
+import { AsyncListState } from "@/components/shared/AsyncListState";
 import { Pagination }    from "@/components/shared/Pagination";
 import { Skeleton }      from "@/components/ui/skeleton";
 import { Button }        from "@/components/ui/button";
@@ -30,6 +30,7 @@ import { CreateStudentDialog } from "@/components/admin/student/CreateStudentDia
 import { BulkCreateStudentDialog } from "@/components/admin/student/BulkCreateStudentDialog";
 import { StudentCredentialsCard } from "@/components/admin/student/StudentCredentialsCard";
 import { useOrganization } from "@/hooks/admin/useOrganization";
+import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 
 function StudentsPageInner(): React.JSX.Element {
   const router       = useRouter();
@@ -63,9 +64,15 @@ function StudentsPageInner(): React.JSX.Element {
   });
 
   const { data: org, isLoading: orgLoading } = useOrganization();
+  const { ensureOrganization } = useOrganizationGuard();
   const hasEmailExtension = !!org?.emailExtension;
 
-  const { data: studentsResp, isLoading } = useAsyncQuery(
+  const {
+    data: studentsResp,
+    isLoading,
+    isError,
+    refetch,
+  } = useAsyncQuery(
     [...queryKeys.admin.students.list(filters), page, limit],
     () => studentApi.getPage({ ...filters, page, limit }),
   );
@@ -147,11 +154,11 @@ const enrichedStudents: Student[] = useMemo(
             <Button
               variant="outline"
               size="sm"
-              onClick={() => router.push("/admin/students/import")}
+              onClick={() => ensureOrganization(() => router.push("/admin/students/import"))}
             >
               Import CSV
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setBulkOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => ensureOrganization(() => setBulkOpen(true))}>
               <Users className="mr-1.5 h-4 w-4" />
               Bulk Create
             </Button>
@@ -167,7 +174,7 @@ const enrichedStudents: Student[] = useMemo(
                 Setup Email Extension
               </Button>
             ) : (
-              <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Button size="sm" onClick={() => ensureOrganization(() => setCreateOpen(true))}>
                 <Plus className="mr-1.5 h-4 w-4" />
                 New Student
               </Button>
@@ -200,28 +207,32 @@ const enrichedStudents: Student[] = useMemo(
         }}
       />
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-12 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : students.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title="No students found"
-          description={
+      <AsyncListState
+        isLoading={isLoading}
+        isError={isError}
+        isEmpty={students.length === 0}
+        onRetry={refetch}
+        errorTitle="Failed to load students"
+        empty={{
+          icon: Users,
+          title: "No students found",
+          description:
             hasEmailExtension
               ? "Create your first student or adjust your filters."
-              : "Setup email extension first to create students."
-          }
-          action={
+              : "Setup email extension first to create students.",
+          action:
             hasEmailExtension
-              ? { label: "New Student", onClick: () => setCreateOpen(true) }
-              : { label: "Setup Email Extension", onClick: handleSetupEmail }
-          }
-        />
-      ) : (
+              ? { label: "New Student", onClick: () => ensureOrganization(() => setCreateOpen(true)) }
+              : { label: "Setup Email Extension", onClick: handleSetupEmail },
+        }}
+        loading={
+          <div className="space-y-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+            ))}
+          </div>
+        }
+      >
         <>
           <StudentTable
             data={enrichedStudents}
@@ -237,7 +248,7 @@ const enrichedStudents: Student[] = useMemo(
             pageSizeOptions={[20, 50, 100]}
           />
         </>
-      )}
+      </AsyncListState>
 
       {createOpen && hasEmailExtension && (
         <CreateStudentDialog
