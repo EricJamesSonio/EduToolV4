@@ -155,8 +155,6 @@ export default function AdminDashboardPage(): React.JSX.Element {
   const {
     data: enrollment,
     isLoading: enrollmentLoading,
-    isError: enrollmentError,
-    refetch: refetchEnrollment,
   } = useAsyncQuery(
     [...queryKeys.admin.analytics.detail("enrollment"), enrollmentPage, enrollmentLimit],
     () =>
@@ -236,9 +234,6 @@ export default function AdminDashboardPage(): React.JSX.Element {
           columns={enrollmentColumns}
           data={enrollmentRows}
           isLoading={enrollmentLoading}
-          isError={enrollmentError}
-          onRetry={refetchEnrollment}
-          errorTitle="Failed to load enrollment data"
           emptyTitle="No enrollment data"
           emptyDescription="Enrollment data will appear once students are assigned to sections."
         />
