@@ -2,9 +2,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { Plus, Layers, AlertTriangle, RefreshCw } from "lucide-react";
+import { Plus, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { TemplateCard } from "./TemplateCard";
@@ -19,7 +20,6 @@ interface TemplateLibraryProps {
   templates: SemesterTemplate[];
   isLoading: boolean;
   isError?: boolean;
-  onRetry?: () => void;
   onCreateClick: () => void;
   onCreateFromType: (type: string) => void;
   onEdit: (template: SemesterTemplate) => void;
@@ -30,7 +30,6 @@ export function TemplateLibrary({
   templates,
   isLoading,
   isError,
-  onRetry,
   onCreateClick,
   onCreateFromType,
   onEdit,
@@ -51,25 +50,6 @@ export function TemplateLibrary({
     [templatesByType]
   );
 
-  if (isError) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border bg-card py-12 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-          <AlertTriangle className="h-6 w-6 text-destructive" />
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm font-medium">Failed to load templates</p>
-        </div>
-        {onRetry && (
-          <Button size="sm" variant="outline" onClick={onRetry}>
-            <RefreshCw className="mr-1.5 h-4 w-4" />
-            Retry
-          </Button>
-        )}
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -80,27 +60,14 @@ export function TemplateLibrary({
     );
   }
 
-  if (templateTypes.length === 0) {
+  if (isError || templateTypes.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed bg-card px-6 py-16 text-center">
-        <Layers className="h-10 w-10 text-muted-foreground/25 mx-auto mb-3" />
-        <p className="text-sm font-medium text-muted-foreground not-interactive">
-          No templates yet
-        </p>
-        <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto not-interactive">
-          Create your first semester template to define reusable semester and
-          term structures for each program type.
-        </p>
-        <Button
-          size="sm"
-          variant="outline"
-          className="mt-4"
-          onClick={onCreateClick}
-        >
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          New Template
-        </Button>
-      </div>
+      <EmptyState
+        icon={Layers}
+        title="No templates yet"
+        description="Create your first semester template to define reusable semester and term structures."
+        action={{ label: "New Template", onClick: onCreateClick }}
+      />
     );
   }
 
