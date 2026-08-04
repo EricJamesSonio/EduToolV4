@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { AsyncListState } from "@/components/shared/AsyncListState";
+import { CardGrid } from "@/components/shared/CardGrid";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,7 +56,6 @@ export default function ProgramsPage(): React.JSX.Element {
     data: programs,
     isLoading: programsLoading,
     isError: programsError,
-    refetch: refetchPrograms,
   } = usePrograms(selectedSchoolYearId ?? undefined);
 
   const deleteMutation = useMutation({
@@ -115,8 +115,6 @@ export default function ProgramsPage(): React.JSX.Element {
         isLoading={programsLoading}
         isError={programsError}
         isEmpty={!programsLoading && !programsError && !programs?.length}
-        onRetry={refetchPrograms}
-        errorTitle="Failed to load programs"
         empty={{
           icon: BookOpen,
           title: "No programs for this school year",
@@ -124,18 +122,18 @@ export default function ProgramsPage(): React.JSX.Element {
             "Add a program manually or run the data seeder from the Organization page.",
         }}
         loading={
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <CardGrid className="xl:grid-cols-3">
             {[1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-32 w-full rounded-lg" />
             ))}
-          </div>
+          </CardGrid>
         }
       >
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <CardGrid className="xl:grid-cols-3">
           {programs?.map((program) => (
             <ProgramCard key={program.id} program={program} onDelete={setDeleteTarget} />
           ))}
-        </div>
+        </CardGrid>
       </AsyncListState>
 
       {selectedSchoolYearId && (
