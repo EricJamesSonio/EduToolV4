@@ -3,9 +3,10 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, MoreHorizontal, Pencil, Trash2, ChevronRight, AlertTriangle, RefreshCw } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, ChevronRight, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,6 @@ interface GradingSchemeTemplateListProps {
   templates: GradingSchemeTemplate[];
   isLoading: boolean;
   isError?: boolean;
-  onRetry?: () => void;
   onCreateClick: () => void;
   onEditClick: (template: GradingSchemeTemplate) => void;
 }
@@ -27,7 +27,6 @@ export function GradingSchemeTemplateList({
   templates,
   isLoading,
   isError,
-  onRetry,
   onCreateClick,
   onEditClick,
 }: GradingSchemeTemplateListProps) {
@@ -49,25 +48,6 @@ export function GradingSchemeTemplateList({
     });
   };
 
-  if (isError) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border py-12 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-          <AlertTriangle className="h-6 w-6 text-destructive" />
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm font-medium">Failed to load templates</p>
-        </div>
-        {onRetry && (
-          <Button size="sm" variant="outline" onClick={onRetry}>
-            <RefreshCw className="mr-1.5 h-4 w-4" />
-            Retry
-          </Button>
-        )}
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -78,15 +58,14 @@ export function GradingSchemeTemplateList({
     );
   }
 
-  if (templates.length === 0) {
+  if (isError || templates.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed px-4 py-8 text-center">
-        <p className="text-sm font-medium text-muted-foreground not-interactive">No templates yet</p>
-        <p className="text-xs text-muted-foreground mt-1 not-interactive">Create your first grading scheme template</p>
-        <Button size="sm" variant="outline" className="mt-3" onClick={onCreateClick}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" /> New Template
-        </Button>
-      </div>
+      <EmptyState
+        icon={Layers}
+        title="No templates yet"
+        description="Create your first grading scheme template."
+        action={{ label: "New Template", onClick: onCreateClick }}
+      />
     );
   }
 
