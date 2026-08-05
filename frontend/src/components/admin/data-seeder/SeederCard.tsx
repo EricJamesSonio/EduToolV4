@@ -49,6 +49,7 @@ export function SeederCard() {
     seedMutation,
     handleSeed,
     summaryText,
+    summaryItems,
     derivedSelectedLevels,
     existingProgramTypes,
     existingCourseCodes,
@@ -220,28 +221,55 @@ export function SeederCard() {
 
           {/* Summary + Apply */}
           <Card id="summary" icon={Database} title="Summary">
-            <div className="flex flex-row items-center justify-between">
-              <p className="text-sm text-muted-foreground not-interactive">{summaryText}</p>
-              <Button
-                onClick={handleSeed}
-                disabled={
-                  seedMutation.isPending ||
-                  !selectedSchoolYearId ||
-                  selectedPrograms.size === 0
-                }
-              >
-                {seedMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Seeding...
-                  </>
-                ) : (
-                  <>
-                    <Database className="mr-2 h-4 w-4" />
-                    Apply Seed
-                  </>
-                )}
-              </Button>
+            <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
+              {summaryItems.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {summaryItems.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2"
+                    >
+                      <span className="truncate text-xs text-muted-foreground not-interactive">
+                        {item.label}
+                      </span>
+                      <span className="text-sm font-semibold tabular-nums not-interactive">
+                        {item.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground not-interactive text-center py-1">
+                  Select a school year and at least one program to review what will be seeded.
+                </p>
+              )}
+
+              <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-muted-foreground not-interactive min-w-0">
+                  {summaryText}
+                </p>
+                <Button
+                  onClick={handleSeed}
+                  disabled={
+                    seedMutation.isPending ||
+                    !selectedSchoolYearId ||
+                    selectedPrograms.size === 0
+                  }
+                  className="shrink-0"
+                >
+                  {seedMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Seeding...
+                    </>
+                  ) : (
+                    <>
+                      <Database className="mr-2 h-4 w-4" />
+                      Apply Seed
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </Card>
         </div>
