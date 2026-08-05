@@ -4,6 +4,7 @@ import type {
   GradingSchemeTemplate,
   CreateGradingSchemeTemplateDto,
   ApplyTemplateToClassDto,
+  ProgramTemplateAssignment,
 } from '@/types/admin/grading-scheme-template.types'
 
 interface ApiResponse<T> {
@@ -82,6 +83,32 @@ export const adminGradingSchemeTemplateApi = {
     const res = await client.post<
       ApiResponse<{ success: boolean; appliedCount: number }>
     >(`/grading-scheme-templates/apply/program`, payload)
+    return res.data.data
+  },
+
+  // Get the template currently assigned to each program (derived from class schemes)
+  getProgramAssignments: async (
+    schoolYearId?: string
+  ): Promise<ProgramTemplateAssignment[]> => {
+    const res = await client.get<ApiResponse<ProgramTemplateAssignment[]>>(
+      `/grading-scheme-templates/assignments/program`,
+      {
+        params: schoolYearId ? { schoolYearId } : undefined,
+      }
+    )
+    return res.data.data
+  },
+
+  // Remove the template assignment from a program (unlinks template-derived schemes)
+  removeProgramAssignment: async (
+    programId: string,
+    schoolYearId?: string
+  ): Promise<{ success: boolean; removedCount: number }> => {
+    const res = await client.delete<
+      ApiResponse<{ success: boolean; removedCount: number }>
+    >(`/grading-scheme-templates/assignments/program/${programId}`, {
+      params: schoolYearId ? { schoolYearId } : undefined,
+    })
     return res.data.data
   },
 }
