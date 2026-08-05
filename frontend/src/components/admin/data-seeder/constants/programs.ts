@@ -34,7 +34,7 @@ export const LEVEL_DEFS: Record<string, string[]> = {
   elementary: ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"],
   jhs:        ["Grade 7", "Grade 8", "Grade 9", "Grade 10"],
   shs:        ["Grade 11", "Grade 12"],
-  college:    ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"],
+  college:    ["1st Year", "2nd Year", "3rd Year", "4th Year"],
 }
 
 export const LEVEL_MAX: Record<string, number> = {
