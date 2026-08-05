@@ -142,7 +142,11 @@ export class GradingSchemeRepository {
     return this.create(orgId, classId, templateId, name, components);
   }
 
-async findClassIdsByProgram(programId: string, orgId: string): Promise<string[]> {
+async findClassIdsByProgram(
+  programId: string,
+  orgId: string,
+  schoolYearId?: string,
+): Promise<string[]> {
   // Resolve all course/strand/level IDs that belong to this program
   const [courses, strands, levels] = await Promise.all([
     this.db.course.findMany({
@@ -185,6 +189,7 @@ async findClassIdsByProgram(programId: string, orgId: string): Promise<string[]>
       org_id:     orgId,
       deleted_at: null,
       subject_id: { in: subjectIds },
+      ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
     },
     select: { id: true },
   });
