@@ -1,4 +1,5 @@
 // frontend/src/components/admin/data-seeder/SchoolYearStep.tsx
+"use client";
 
 import { useState } from "react"
 import { Check, Loader2, Plus } from "lucide-react"
@@ -8,6 +9,7 @@ import { Input }    from "@/components/ui/input"
 import { Label }    from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn }       from "@/lib/utils"
+import { useOrganizationGuard } from "@/context/OrganizationGuardContext"
 import type { SchoolYear } from "@/types/admin/school-year.types"
 
 interface SchoolYearStepProps {
@@ -27,6 +29,7 @@ export function SchoolYearStep({
   onCreate,
   isCreating,
 }: SchoolYearStepProps) {
+  const { ensureOrganization } = useOrganizationGuard()
   const [showCreate, setShowCreate] = useState(false)
   const [newName,    setNewName]    = useState("")
   const [startDate,  setStartDate]  = useState("")
@@ -184,7 +187,7 @@ export function SchoolYearStep({
           ) : (
             <button
               type="button"
-              onClick={() => setShowCreate(true)}
+              onClick={() => ensureOrganization(() => setShowCreate(true))}
               className="flex items-center gap-1.5 text-xs text-primary hover:underline"
             >
               <Plus className="h-3.5 w-3.5" />
