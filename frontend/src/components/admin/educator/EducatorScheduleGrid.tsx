@@ -79,7 +79,7 @@ export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGri
     return DAY_ORDER.filter((d) => d !== 0 || used.has(0));
   }, [blocks]);
 
-  const { gridStart, gridEnd, interval } = useMemo(() => {
+const { gridStart, gridEnd, interval } = useMemo(() => {
     if (blocks.length === 0) {
       return { gridStart: 0, gridEnd: 0, interval: 30 };
     }
@@ -87,7 +87,7 @@ export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGri
     const starts = blocks.map((b) => b.startMin);
     const ends = blocks.map((b) => b.endMin);
     const start = Math.min(...starts);
-    const end = Math.max(...ends);
+    const rawEnd = Math.max(...ends);
 
     const offsets = [...starts, ...ends]
       .map((t) => t - start)
@@ -98,6 +98,10 @@ export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGri
     const chosen =
       MIN_INTERVAL_CANDIDATES.find((c) => rawGcd % c === 0) ??
       MIN_INTERVAL_CANDIDATES[MIN_INTERVAL_CANDIDATES.length - 1];
+
+    // Pad one interval past the last class so its end time gets its own
+    // visible row/label instead of coinciding with the grid's bottom edge.
+    const end = rawEnd + chosen;
 
     return { gridStart: start, gridEnd: end, interval: chosen };
   }, [blocks]);
