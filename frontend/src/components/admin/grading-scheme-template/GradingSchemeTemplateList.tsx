@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, MoreHorizontal, Pencil, Trash2, ChevronRight, Layers } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, ChevronRight, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/EmptyState";

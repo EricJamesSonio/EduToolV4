@@ -99,6 +99,16 @@
     flex-direction: column;
   }
 
+  /* Dropdown/popover menus are less rounded on phones so options stay
+     easier to read. `rounded-lg` resolves to the oversized --radius-lg
+     (1.75rem); use the softer --radius-sm token instead. */
+  [data-slot="select-content"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="popover-content"] {
+    border-radius: var(--radius-sm);
+  }
+
   /* Hide less important elements on very small screens */
   .hide-mobile {
     display: none;
