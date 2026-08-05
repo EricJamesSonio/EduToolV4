@@ -333,6 +333,29 @@ seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesBy
           .filter(Boolean)
           .join(" · ");
 
+  const summaryItems: { label: string; value: number }[] = [
+    { label: "Programs", value: selectedPrograms.size },
+    ...(totalLevelCount > 0 ? [{ label: "Levels", value: totalLevelCount }] : []),
+    ...(totalSectionCount > 0 ? [{ label: "Sections", value: totalSectionCount }] : []),
+    ...(selectedPrograms.has("college")
+      ? [{ label: "Courses", value: selectedCourses.size }]
+      : []),
+    ...(selectedPrograms.has("shs") ? [{ label: "Strands", value: selectedStrands.size }] : []),
+    {
+      label: "Subjects",
+      value: allSelectableSubjects.filter((k) => selectedSubjects.has(k)).length,
+    },
+    ...(seedGradingScale && Object.keys(resolvedGradingScales).length > 0
+      ? [{ label: "Grading Scales", value: Object.keys(resolvedGradingScales).length }]
+      : []),
+    ...(seedState.seedGradingSchemes && selectedGradingSchemes > 0
+      ? [{ label: "Grading Schemes", value: selectedGradingSchemes }]
+      : []),
+    ...(seedState.seedSemesterTemplates && selectedSemesterTemplates > 0
+      ? [{ label: "Semester Templates", value: selectedSemesterTemplates }]
+      : []),
+  ];
+
   const derivedSelectedLevels = new Set(
     Array.from(selectedPrograms)
       .filter((p) => LEVEL_DEFS[p])
@@ -359,6 +382,7 @@ seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesBy
     collapsed,
     setCollapsed,
     summaryText,
+    summaryItems,
     derivedSelectedLevels,
 
     // Existing data (disabled sets)

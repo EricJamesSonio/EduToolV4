@@ -182,6 +182,21 @@ export function useSeedState() {
     }))
   }
 
+  function toggleSeedGradingSchemes(enabled: boolean) {
+    setSeedGradingSchemes(enabled)
+    if (enabled) {
+      // Selecting the master "Grading Scheme Templates" toggle auto-selects
+      // every applicable program scheme so no extra per-program clicks are needed.
+      setGradingSchemesByProgram((prev) => {
+        const next = { ...prev }
+        GRADING_SCHEME_TEMPLATES.forEach((tpl) => {
+          next[tpl.programType] = true
+        })
+        return next
+      })
+    }
+  }
+
   // ===== SEMESTER TEMPLATES (NOT AUTO-SELECTED) =====
   const [seedSemesterTemplates, setSeedSemesterTemplates] = useState(false)
 
@@ -193,6 +208,21 @@ export function useSeedState() {
       ...prev,
       [programType]: enabled,
     }))
+  }
+
+  function toggleSeedSemesterTemplates(enabled: boolean) {
+    setSeedSemesterTemplates(enabled)
+    if (enabled) {
+      // Selecting the master "Semester Templates" toggle auto-selects every
+      // applicable program template so no extra per-program clicks are needed.
+      setSemesterTemplatesByProgram((prev) => {
+        const next = { ...prev }
+        SEMESTER_TEMPLATES.forEach((tpl) => {
+          next[tpl.programType] = true
+        })
+        return next
+      })
+    }
   }
 
   // ===== LEVEL & SECTION MANAGEMENT =====
@@ -346,14 +376,14 @@ export function useSeedState() {
 
     // Grading Schemes
     seedGradingSchemes,
-    setSeedGradingSchemes,
+    setSeedGradingSchemes: toggleSeedGradingSchemes,
 
     gradingSchemesByProgram,
     toggleGradingScheme,
 
     // Semester Templates
     seedSemesterTemplates,
-    setSeedSemesterTemplates,
+    setSeedSemesterTemplates: toggleSeedSemesterTemplates,
 
     semesterTemplatesByProgram,
     toggleSemesterTemplate,
