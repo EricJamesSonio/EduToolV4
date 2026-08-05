@@ -37,3 +37,12 @@ export interface ApplyTemplateToClassDto {
   templateId: string;
   name?: string; // optional: override template name
 }
+
+export interface ProgramTemplateAssignment {
+  programId: string;
+  programName: string;
+  programType: string;
+  templateId: string | null;
+  templateName: string | null;
+  classCount: number;
+}
