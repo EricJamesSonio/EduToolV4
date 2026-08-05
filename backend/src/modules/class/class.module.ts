@@ -9,9 +9,15 @@ import { ClassRepository } from './class.repository';
 import { EnrollmentModule } from '../enrollment/enrollment.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { AttendanceModule } from '../attendance/attendance.module';
+import { GradingSchemeTemplateModule } from '../grading-scheme-template/grading-scheme-template.module';
 
 @Module({
-  imports: [EnrollmentModule, AuditLogModule, forwardRef(() => AttendanceModule)],
+  imports: [
+    EnrollmentModule,
+    AuditLogModule,
+    forwardRef(() => AttendanceModule),
+    forwardRef(() => GradingSchemeTemplateModule),
+  ],
   controllers: [
     ClassController,
     StudentClassController,
