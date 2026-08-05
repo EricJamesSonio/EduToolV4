@@ -72,16 +72,10 @@ export function Navbar() {
           ))}
         </div>
 
-        {/* Right Buttons — stack vertically on phones, side-by-side on larger screens */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+        {/* Right button — Get Started (same login page, single CTA) */}
+        <div>
           <Link href="/login">
-            <Button className="w-full bg-secondary-foreground text-secondary hover:opacity-90 shadow-xs text-base px-5 py-2.5 sm:w-auto">
-              Sign In
-            </Button>
-          </Link>
-
-          <Link href="/login">
-            <Button className="w-full bg-primary text-primary-foreground hover:opacity-90 shadow-sm text-base px-5 py-2.5 sm:w-auto">
+            <Button className="bg-primary text-primary-foreground hover:opacity-90 shadow-sm text-base px-5 py-2.5">
               Get Started
             </Button>
           </Link>
