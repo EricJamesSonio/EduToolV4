@@ -159,3 +159,38 @@ export const useApplyTemplateToProgram =
       },
     )
   }
+
+
+// Query: Program assignments
+
+export const useGradingSchemeProgramAssignments = (
+  schoolYearId?: string | null,
+) => {
+  return useAsyncQuery(
+    queryKeys.admin.gradingSchemeTemplates.programAssignments(schoolYearId),
+    () =>
+      adminGradingSchemeTemplateApi.getProgramAssignments(
+        schoolYearId ?? undefined,
+      ),
+    { enabled: !!schoolYearId },
+  )
+}
+
+
+// Mutation: Remove program assignment
+
+export const useRemoveGradingSchemeProgramAssignment =
+  () => {
+    return useMutationWithInvalidation(
+      (payload: { programId: string; schoolYearId?: string | null }) =>
+        adminGradingSchemeTemplateApi.removeProgramAssignment(
+          payload.programId,
+          payload.schoolYearId ?? undefined,
+        ),
+      {
+        invalidateKeys: [
+          ["admin", "gradingSchemeTemplates", "programAssignments"],
+        ],
+      },
+    )
+  }
