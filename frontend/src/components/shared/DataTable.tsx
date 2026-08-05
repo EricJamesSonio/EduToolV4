@@ -51,6 +51,10 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
+  const hasFixedWidths = columns.some(
+    (c) => c.size !== undefined || c.minSize !== undefined
+  );
+
   const table = useReactTable({
     data,
     columns,
@@ -75,16 +79,22 @@ export function DataTable<TData, TValue>({
       )}
 
       <div className="rounded-md border">
-        <Table>
+        <Table className={cn(hasFixedWidths && "table-fixed")}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} data-header-variant={headerVariant}>
                 {headerGroup.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   const sorted = header.column.getIsSorted();
+                  const width =
+                    header.column.columnDef.size !== undefined ||
+                    header.column.columnDef.minSize !== undefined
+                      ? header.column.getSize()
+                      : undefined;
                   return (
                     <TableHead
                       key={header.id}
+                      style={width !== undefined ? { width } : undefined}
                       className={cn(
                         canSort &&
                           "cursor-pointer select-none hover:bg-muted/50 transition-colors"
@@ -131,14 +141,24 @@ export function DataTable<TData, TValue>({
                   )}
                   onClick={() => onRowClick?.(row.original)}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const width =
+                      cell.column.columnDef.size !== undefined ||
+                      cell.column.columnDef.minSize !== undefined
+                        ? cell.column.getSize()
+                        : undefined;
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        style={width !== undefined ? { width } : undefined}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))
             ) : (
