@@ -246,6 +246,7 @@ export default function GradingSchemesPage(): React.JSX.Element {
                 <TemplateAssignmentPanel
                   programs={programsWithClasses}
                   templates={templates}
+                  schoolYearId={selectedYearId}
                   isLoading={pLoading}
                 />
               </div>
@@ -260,6 +261,7 @@ export default function GradingSchemesPage(): React.JSX.Element {
         onOpenChange={(o) => { if (!o) setCreateOpen(false); }}
         onSave={handleSaveTemplate}
         isSaving={isTemplateSaving}
+        showProgramType
       />
 
       {editTarget && (
@@ -269,6 +271,7 @@ export default function GradingSchemesPage(): React.JSX.Element {
           template={editTarget}
           onSave={handleSaveTemplate}
           isSaving={isTemplateSaving}
+          showProgramType
         />
       )}
     </div>

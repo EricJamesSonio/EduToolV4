@@ -8,7 +8,7 @@ import { ClassModule } from '../class/class.module';
 @Module({
   imports: [
     forwardRef(() => GradingSchemeModule), // <-- forwardRef
-    ClassModule,
+    forwardRef(() => ClassModule),
   ],
   controllers: [GradingSchemeTemplateController],
   providers: [GradingSchemeTemplateService, GradingSchemeTemplateRepository],

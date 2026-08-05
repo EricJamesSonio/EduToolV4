@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
@@ -27,6 +28,7 @@ export function OrgDetailsCard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: org, isLoading } = useAsyncQuery(
     queryKeys.admin.organization.detail(),
@@ -74,7 +76,36 @@ export function OrgDetailsCard() {
     },
   );
 
-  const onSubmit = (values: OrgForm) => updateMutation.mutate(values);
+  const createMutation = useMutationWithInvalidation(
+    (values: OrgForm) =>
+      organizationApi.createOrg({
+        name: values.name,
+        description: values.description || undefined,
+      }),
+    {
+      invalidateKeys: [queryKeys.admin.analytics.dashboard()],
+      onSuccess: (created) => {
+        toast.success("Organization created.");
+        queryClient.setQueryData(
+          queryKeys.admin.organization.detail(),
+          created,
+        );
+        reset({
+          name: created.name,
+          description: created.description ?? "",
+        });
+      },
+      onError: () => toast.error("Failed to create organization."),
+    },
+  );
+
+  const onSubmit = (values: OrgForm) => {
+    if (org === null) {
+      createMutation.mutate(values);
+    } else {
+      updateMutation.mutate(values);
+    }
+  };
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -115,10 +146,71 @@ export function OrgDetailsCard() {
   return (
     <div className="rounded-lg border border-border bg-card p-3 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
       <h2 className="text-lg font-semibold text-foreground">
-        Organization Details
+        {org === null ? "Create Organization" : "Organization Details"}
       </h2>
 
-      <div className="grid grid-cols-[120px_1fr] gap-3 sm:grid-cols-[180px_1fr] sm:gap-6 lg:grid-cols-[220px_1fr] lg:gap-8">
+      {org === null && (
+        <p className="-mt-3 text-sm text-muted-foreground">
+          You haven't set up an organization yet. Give your school a name to
+          get started.
+        </p>
+      )}
+
+      {org === null ? (
+        <div className="space-y-6">
+          <div className="space-y-1.5">
+            <Label htmlFor="org-name" className="text-sm text-foreground">
+              Organization Name
+            </Label>
+            <Input
+              id="org-name"
+              placeholder="e.g. St. Mary's Academy"
+              {...register("name", {
+                required: "Name is required",
+                minLength: { value: 2, message: "At least 2 characters" },
+                maxLength: { value: 100, message: "Max 100 characters" },
+              })}
+            />
+            {errors.name && (
+              <p className="text-sm text-destructive">
+                {errors.name.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="org-desc" className="text-sm text-foreground">
+              Description{" "}
+              <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <Textarea
+              id="org-desc"
+              placeholder="A brief description of your school..."
+              rows={4}
+              {...register("description", {
+                maxLength: { value: 500, message: "Max 500 characters" },
+              })}
+            />
+            {errors.description && (
+              <p className="text-sm text-destructive">
+                {errors.description.message}
+              </p>
+            )}
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSubmit(onSubmit)}
+              disabled={createMutation.isPending}
+            >
+              {createMutation.isPending
+                ? "Creating..."
+                : "Create Organization"}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-[120px_1fr] gap-3 sm:grid-cols-[180px_1fr] sm:gap-6 lg:grid-cols-[220px_1fr] lg:gap-8">
         <div className="flex flex-col gap-4">
           <div className="mx-auto lg:mx-0 w-full max-w-[220px] aspect-square rounded-xl border border-border bg-muted flex items-center justify-center overflow-hidden">
             {showLogoPlaceholder() ? (
@@ -217,7 +309,8 @@ export function OrgDetailsCard() {
 
           <EmailExtensionSection />
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

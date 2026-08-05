@@ -71,6 +71,26 @@ export class GradingSchemeTemplateController {
     return this.service.delete(id, orgId);
   }
 
+  @Get('assignments/program')
+  @Roles('admin')
+  async getProgramAssignments(
+    @CurrentUser('org_id') orgId: string,
+    @Query('schoolYearId') schoolYearId?: string,
+  ) {
+    return this.service.getProgramAssignments(orgId, schoolYearId);
+  }
+
+  @Delete('assignments/program/:programId')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async removeProgramAssignment(
+    @Param('programId') programId: string,
+    @CurrentUser('org_id') orgId: string,
+    @Query('schoolYearId') schoolYearId?: string,
+  ) {
+    return this.service.removeProgramAssignment(orgId, programId, schoolYearId);
+  }
+
 @Post('apply/class')
 @Roles('admin')
 async applyToClass(

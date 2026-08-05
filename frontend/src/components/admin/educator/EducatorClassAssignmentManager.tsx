@@ -14,10 +14,12 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { Plus, X } from "lucide-react";
+import { EducatorScheduleGrid } from "./EducatorScheduleGrid";
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function formatSchedule(cls: Class): string {
   if (!cls.schedules?.length) return "—";
@@ -35,6 +37,7 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
   const [removeTarget, setRemoveTarget] = useState<Class | null>(null);
   const [assignTarget, setAssignTarget] = useState<Class | null>(null);
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"list" | "schedule">("list");
 
   const { data: assigned = [], isLoading } = useAsyncQuery(
     queryKeys.admin.classes.list({ educatorId }),
@@ -145,21 +148,33 @@ export function EducatorClassAssignmentManager({ educatorId }: EducatorClassAssi
   return (
     <div className="space-y-4">
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold not-interactive">Assigned Classes</h2>
-        <Button size="sm" variant="outline" onClick={() => setAssignOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Assign to Class
-        </Button>
+        <div className="flex items-center gap-2">
+          <Tabs value={view} onValueChange={(v) => setView(v as "list" | "schedule")}>
+            <TabsList>
+              <TabsTrigger value="list">List</TabsTrigger>
+              <TabsTrigger value="schedule">Schedule</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button size="sm" variant="outline" onClick={() => setAssignOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Assign to Class
+          </Button>
+        </div>
       </div>
 
-      <DataTable
-        columns={assignedColumns}
-        data={assigned}
-        isLoading={isLoading}
-        emptyTitle="No classes assigned"
-        emptyDescription="Assign this educator to a class."
-      />
+      {view === "list" ? (
+        <DataTable
+          columns={assignedColumns}
+          data={assigned}
+          isLoading={isLoading}
+          emptyTitle="No classes assigned"
+          emptyDescription="Assign this educator to a class."
+        />
+      ) : (
+        <EducatorScheduleGrid classes={assigned} isLoading={isLoading} />
+      )}
 
       <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
         <DialogContent className="sm:max-w-lg">

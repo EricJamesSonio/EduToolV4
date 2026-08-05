@@ -1,15 +1,16 @@
 // frontend/src/components/admin/grading-scheme-template/TemplateAssignmentPanel.tsx
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Layers } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, Layers, X } from "lucide-react";
+import { ColumnDef } from "@tanstack/react-table";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/DataTable";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { cn } from "@/lib/utils";
-import { WEEK_COLORS } from "@/lib/palette";
 import { PROGRAM_TYPE_COLORS, PROGRAM_TYPE_LABELS } from "@/types/admin/program.types";
 import {
   Select,
@@ -19,10 +20,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   useApplyTemplateToClass,
   useApplyTemplateToProgram,
+  useGradingSchemeProgramAssignments,
+  useRemoveGradingSchemeProgramAssignment,
 } from "@/hooks/admin/useGradingSchemeTemplates";
 import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
+import type { ProgramTemplateAssignment } from "@/types/admin/grading-scheme-template.types";
 import type { AxiosError } from "axios";
 
 interface ClassInfo {
@@ -38,258 +49,297 @@ interface ProgramInfo {
   classes: ClassInfo[];
 }
 
+interface ProgramRow extends ProgramInfo {
+  assignedTemplateId: string | null;
+  assignedTemplateName: string | null;
+  classCount: number;
+}
+
+interface ClassRow {
+  id: string;
+  name: string;
+  programId: string;
+  programName: string;
+  programType: string;
+}
+
 interface TemplateAssignmentPanelProps {
   programs: ProgramInfo[];
   templates: GradingSchemeTemplate[];
+  schoolYearId?: string | null;
   isLoading: boolean;
 }
 
-interface PendingProgramApply {
-  programId: string;
-  programName: string;
-  templateId: string;
-  templateName: string;
-  classCount: number;
+const DOT_COLORS = [
+  "bg-blue-500",
+  "bg-emerald-500",
+  "bg-purple-500",
+  "bg-amber-500",
+  "bg-teal-500",
+  "bg-indigo-500",
+  "bg-pink-500",
+  "bg-cyan-500",
+  "bg-orange-500",
+  "bg-rose-500",
+];
+
+function typeBadge(type: string) {
+  return cn(
+    "text-xs border px-2 py-0.5 w-fit font-normal not-interactive",
+    PROGRAM_TYPE_COLORS[type as keyof typeof PROGRAM_TYPE_COLORS] ??
+      "bg-slate-500/10 text-slate-600 border-slate-200",
+  );
 }
 
 export function TemplateAssignmentPanel({
   programs,
   templates,
+  schoolYearId,
   isLoading,
 }: TemplateAssignmentPanelProps) {
+  const queryClient = useQueryClient();
+
   const [selectedMode, setSelectedMode] = useState<"program" | "class">("program");
 
-  const [programTemplates, setProgramTemplates] = useState<Record<string, string>>({});
-  const [classTemplates, setClassTemplates] = useState<Record<string, string>>({});
+  const [assignTarget, setAssignTarget] = useState<ProgramRow | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [removeTarget, setRemoveTarget] = useState<ProgramRow | null>(null);
 
-  const [appliedPrograms, setAppliedPrograms] = useState<Set<string>>(new Set());
+  const [classTemplates, setClassTemplates] = useState<Record<string, string>>({});
   const [appliedClasses, setAppliedClasses] = useState<Set<string>>(new Set());
 
-  const [pendingApply, setPendingApply] = useState<PendingProgramApply | null>(null);
+  const { data: assignments = [], isLoading: assignmentsLoading } =
+    useGradingSchemeProgramAssignments(schoolYearId);
 
   const applyToProgram = useApplyTemplateToProgram();
   const applyToClass = useApplyTemplateToClass();
-  const isPending = applyToProgram.isPending || applyToClass.isPending;
+  const removeAssignment = useRemoveGradingSchemeProgramAssignment();
+  const isPending = applyToProgram.isPending || applyToClass.isPending || removeAssignment.isPending;
+
+  const refreshAssignments = () =>
+    queryClient.invalidateQueries({
+      queryKey: ["admin", "gradingSchemeTemplates", "programAssignments"],
+    });
 
   const getTemplateName = (id: string) =>
     templates.find((t) => t.id === id)?.name ?? id;
 
-  const handleProgramTemplateSelect = (prog: ProgramInfo, templateId: string) => {
-    setProgramTemplates((prev) => ({ ...prev, [prog.id]: templateId }));
-    setPendingApply({
-      programId: prog.id,
-      programName: prog.name,
-      templateId,
-      templateName: getTemplateName(templateId),
-      classCount: prog.classes.length,
-    });
-  };
+  const assignmentByProgram = useMemo(() => {
+    const map = new Map<string, ProgramTemplateAssignment>();
+    for (const a of assignments) map.set(a.programId, a);
+    return map;
+  }, [assignments]);
 
-  useEffect(() => {
-    if (selectedMode !== "class") return;
-    setClassTemplates((prev) => {
-      const next = { ...prev };
-      programs.forEach((prog) => {
-        const progTemplateId = programTemplates[prog.id];
-        if (!progTemplateId) return;
-        prog.classes.forEach((cls) => {
-          if (!next[cls.id]) {
-            next[cls.id] = progTemplateId;
-          }
-        });
-      });
-      return next;
-    });
-  }, [selectedMode, programs, programTemplates]);
-
-  const confirmApplyToProgram = () => {
-    if (!pendingApply) return;
-    applyToProgram.mutate(
-      { programId: pendingApply.programId, templateId: pendingApply.templateId },
-      {
-        onSuccess: (res) => {
-          const count = res.appliedCount ?? 0;
-          toast.success(`Applied "${pendingApply.templateName}" to ${count} classes.`);
-          setAppliedPrograms((prev) => new Set(prev).add(pendingApply.programId));
-
-          const prog = programs.find((p) => p.id === pendingApply.programId);
-          if (prog) {
-            setClassTemplates((prev) => {
-              const next = { ...prev };
-              prog.classes.forEach((cls) => {
-                next[cls.id] = pendingApply.templateId;
-              });
-              return next;
-            });
-            setAppliedClasses((prev) => {
-              const next = new Set(prev);
-              prog.classes.forEach((cls) => next.add(cls.id));
-              return next;
-            });
-          }
-          setPendingApply(null);
-        },
-        onError: (e) => {
-          const err = e as AxiosError<{ message: string }>;
-          toast.error(err?.response?.data?.message ?? "Failed to apply.");
-          setProgramTemplates((prev) => ({ ...prev, [pendingApply.programId]: "" }));
-          setPendingApply(null);
-        },
-      }
-    );
-  };
-
-  const handleApplyToClass = (cls: ClassInfo, templateId: string) => {
-    setClassTemplates((prev) => ({ ...prev, [cls.id]: templateId }));
-    applyToClass.mutate(
-      { classId: cls.id, templateId },
-      {
-        onSuccess: () => {
-          toast.success(`Applied "${getTemplateName(templateId)}" to "${cls.name}".`);
-          setAppliedClasses((prev) => new Set(prev).add(cls.id));
-        },
-        onError: (e) => {
-          const err = e as AxiosError<{ message: string }>;
-          toast.error(err?.response?.data?.message ?? "Failed to apply.");
-          setClassTemplates((prev) => ({ ...prev, [cls.id]: "" }));
-        },
-      }
-    );
-  };
-
-  // ── Program table data ────────────────────────────────────────────────────
-
-  const programsTableData = useMemo(
+  const programRows = useMemo<ProgramRow[]>(
     () =>
-      programs.map((prog) => ({
-        id: prog.id,
-        name: prog.name,
-        type: prog.type,
-        classCount: prog.classes.length,
-      })),
-    [programs]
+      programs.map((prog) => {
+        const assignment = assignmentByProgram.get(prog.id);
+        return {
+          ...prog,
+          assignedTemplateId: assignment?.templateId ?? null,
+          assignedTemplateName: assignment?.templateName ?? null,
+          classCount: prog.classes.length,
+        };
+      }),
+    [programs, assignmentByProgram],
   );
 
-  const programColumns = useMemo(
-    () => [
+  const selectedTemplate = useMemo(
+    () => templates.find((t) => t.id === selectedTemplateId),
+    [templates, selectedTemplateId],
+  );
+
+  // Validator: a template is only assignable to a program/class when its
+  // program type matches (or the template is universal, i.e. no type set).
+  const compatibleTemplates = useMemo(() => {
+    if (!assignTarget) return templates;
+    return templates.filter(
+      (t) => !t.programType || t.programType === assignTarget.type,
+    );
+  }, [templates, assignTarget]);
+
+  const confirmApplyToProgram = () => {
+    if (!assignTarget || !selectedTemplateId) return;
+    applyToProgram.mutate(
+      { programId: assignTarget.id, templateId: selectedTemplateId },
       {
-        accessorKey: "name",
-        header: "Program",
-        cell: ({ row }: any) => {
-          const color =
-            PROGRAM_TYPE_COLORS[row.original.type as keyof typeof PROGRAM_TYPE_COLORS]
-            ?? "bg-slate-500/10 text-slate-600 border-slate-200";
-          return (
-            <div className="flex flex-col gap-1">
-              <span className="font-medium text-sm not-interactive">{row.original.name}</span>
-              <Badge
-                variant="outline"
-                className={cn("text-xs border px-2 py-0.5 w-fit font-normal not-interactive", color)}
-              >
-                {PROGRAM_TYPE_LABELS[row.original.type as keyof typeof PROGRAM_TYPE_LABELS]
-                  ?? row.original.type}
-              </Badge>
-            </div>
+        onSuccess: (res) => {
+          toast.success(
+            `Applied "${getTemplateName(selectedTemplateId)}" to ${res.appliedCount ?? 0} classes.`,
           );
+          refreshAssignments();
+          setClassTemplates((prev) => {
+            const next = { ...prev };
+            assignTarget.classes.forEach((cls) => {
+              next[cls.id] = selectedTemplateId;
+            });
+            return next;
+          });
+          setAppliedClasses((prev) => {
+            const next = new Set(prev);
+            assignTarget.classes.forEach((cls) => next.add(cls.id));
+            return next;
+          });
+          setAssignTarget(null);
+          setSelectedTemplateId("");
+        },
+        onError: (e) => {
+          const err = e as AxiosError<{ message: string }>;
+          toast.error(err?.response?.data?.message ?? "Failed to apply template.");
         },
       },
+    );
+  };
+
+  const confirmRemove = () => {
+    if (!removeTarget) return;
+    removeAssignment.mutate(
+      { programId: removeTarget.id, schoolYearId },
       {
-        accessorKey: "classCount",
-        header: "Classes",
-        cell: ({ row }: any) => (
-          <span className="text-sm not-interactive">{row.original.classCount}</span>
+        onSuccess: (res) => {
+          toast.success(
+            res.removedCount > 0
+              ? `Removed template from ${res.removedCount} class${res.removedCount !== 1 ? "es" : ""}.`
+              : "Assignment removed.",
+          );
+          setRemoveTarget(null);
+        },
+        onError: (e) => {
+          const err = e as AxiosError<{ message: string }>;
+          toast.error(err?.response?.data?.message ?? "Failed to remove assignment.");
+        },
+      },
+    );
+  };
+
+  // ── Program table ──────────────────────────────────────────────────────────
+
+  const programColumns = useMemo<ColumnDef<ProgramRow>[]>(
+    () => [
+      {
+        id: "name",
+        header: "Program",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            {row.original.assignedTemplateName ? (
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            ) : (
+              <div className="h-4 w-4 shrink-0" />
+            )}
+            <div className="space-y-1">
+              <span className="font-medium text-sm not-interactive">{row.original.name}</span>
+              <div>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-xs border px-2 py-0.5 w-fit font-normal",
+                    PROGRAM_TYPE_COLORS[
+                      row.original.type as keyof typeof PROGRAM_TYPE_COLORS
+                    ] ?? "bg-slate-500/10 text-slate-600 border-slate-200",
+                  )}
+                >
+                  {PROGRAM_TYPE_LABELS[
+                    row.original.type as keyof typeof PROGRAM_TYPE_LABELS
+                  ] ?? row.original.type}
+                </Badge>
+              </div>
+            </div>
+          </div>
         ),
       },
       {
-        id: "actions",
-        header: "Template",
-        cell: ({ row }: any) => {
-          const prog = programs.find((p) => p.id === row.original.id);
-          if (!prog) return null;
-          return (
+        id: "assignedTemplate",
+        header: "Assigned Template",
+        cell: ({ row }) =>
+          row.original.assignedTemplateName ? (
             <div className="flex items-center gap-2">
-              {appliedPrograms.has(prog.id) && programTemplates[prog.id] && (
-                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-              )}
-              <Select
-                value={programTemplates[prog.id] ?? ""}
-                onValueChange={(templateId) =>
-                  handleProgramTemplateSelect(prog, templateId ?? "")
-                }
-                disabled={isPending}
-              >
-                <SelectTrigger className="h-8 w-48 text-xs">
-                  <SelectValue placeholder="Select template…">
-                    {programTemplates[prog.id]
-                      ? getTemplateName(programTemplates[prog.id])
-                      : "Select template…"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.map((t, i) => (
-                    <SelectItem key={t.id} value={t.id} className="text-xs">
-                      <div className="flex items-center gap-2">
-                        <div className={cn("h-2 w-2 rounded-full shrink-0", ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500", "bg-orange-500", "bg-rose-500"][i % 10])} />
-                        {t.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span className="text-sm font-medium not-interactive">
+                {row.original.assignedTemplateName}
+              </span>
             </div>
-          );
-        },
+          ) : (
+            <span className="text-sm text-muted-foreground not-interactive">Not assigned</span>
+          ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs gap-1 text-primary hover:bg-primary/10"
+              onClick={() => {
+                setAssignTarget(row.original);
+                setSelectedTemplateId(row.original.assignedTemplateId ?? "");
+              }}
+            >
+              <Check className="h-3.5 w-3.5" />
+              {row.original.assignedTemplateName ? "Change" : "Assign"}
+            </Button>
+            {row.original.assignedTemplateName && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
+                onClick={() => setRemoveTarget(row.original)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        ),
       },
     ],
-    [programs, programTemplates, appliedPrograms, templates, isPending]
+    [],
   );
 
-  // ── Class table data ──────────────────────────────────────────────────────
+  // ── Class table ────────────────────────────────────────────────────────────
 
-  const classesTableData = useMemo(
+  const classRows = useMemo<ClassRow[]>(
     () =>
       programs.flatMap((prog) =>
         prog.classes.map((cls) => ({
           id: cls.id,
           name: cls.name,
-          program: prog.name,
           programId: prog.id,
+          programName: prog.name,
           programType: prog.type,
-        }))
+        })),
       ),
-    [programs]
+    [programs],
   );
 
-  const classColumns = useMemo(
+  const classColumns = useMemo<ColumnDef<ClassRow>[]>(
     () => [
       {
-        accessorKey: "name",
+        id: "name",
         header: "Class",
+        cell: ({ row }) => (
+          <span className="font-medium text-sm not-interactive">{row.original.name}</span>
+        ),
       },
       {
-        accessorKey: "program",
+        id: "program",
         header: "Program",
-        cell: ({ row }: any) => {
-          const color =
-            PROGRAM_TYPE_COLORS[row.original.programType as keyof typeof PROGRAM_TYPE_COLORS]
-            ?? "bg-slate-500/10 text-slate-600 border-slate-200";
-          return (
-            <Badge
-              variant="outline"
-              className={cn("text-xs border px-2 py-0.5 w-fit font-normal not-interactive", color)}
-            >
-              {PROGRAM_TYPE_LABELS[row.original.programType as keyof typeof PROGRAM_TYPE_LABELS]
-                ?? row.original.program}
-            </Badge>
-          );
-        },
+        cell: ({ row }) => (
+          <Badge variant="outline" className={typeBadge(row.original.programType)}>
+            {PROGRAM_TYPE_LABELS[
+              row.original.programType as keyof typeof PROGRAM_TYPE_LABELS
+            ] ?? row.original.programName}
+          </Badge>
+        ),
       },
       {
         id: "actions",
         header: "Template",
-        cell: ({ row }: any) => {
-          const cls = classesTableData.find((c) => c.id === row.original.id);
-          if (!cls) return null;
+        cell: ({ row }) => {
+          const cls = row.original;
+          const compatibleForClass = templates.filter(
+            (t) => !t.programType || t.programType === cls.programType,
+          );
           return (
             <div className="flex items-center gap-2">
               {appliedClasses.has(cls.id) && classTemplates[cls.id] && (
@@ -297,21 +347,46 @@ export function TemplateAssignmentPanel({
               )}
               <Select
                 value={classTemplates[cls.id] ?? ""}
-                onValueChange={(templateId) => handleApplyToClass(cls, templateId ?? "")}
+                onValueChange={(templateId) => {
+                  const id = templateId ?? "";
+                  setClassTemplates((prev) => ({ ...prev, [cls.id]: id }));
+                  applyToClass.mutate(
+                    { classId: cls.id, templateId: id },
+                    {
+                      onSuccess: () => {
+                        const name =
+                          templates.find((t) => t.id === id)?.name ?? id;
+                        toast.success(`Applied "${name}" to "${cls.name}".`);
+                        setAppliedClasses((prev) => new Set(prev).add(cls.id));
+                      },
+                      onError: (e) => {
+                        const err = e as AxiosError<{ message: string }>;
+                        toast.error(err?.response?.data?.message ?? "Failed to apply.");
+                        setClassTemplates((prev) => ({ ...prev, [cls.id]: "" }));
+                      },
+                    },
+                  );
+                }}
                 disabled={isPending}
               >
-                <SelectTrigger className="h-8 w-48 text-xs">
+                <SelectTrigger className="h-8 w-56 text-xs">
                   <SelectValue placeholder="Select template…">
                     {classTemplates[cls.id]
-                      ? getTemplateName(classTemplates[cls.id])
+                      ? templates.find((t) => t.id === classTemplates[cls.id])?.name ??
+                        classTemplates[cls.id]
                       : "Select template…"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {templates.map((t, i) => (
+                  {compatibleForClass.map((t, i) => (
                     <SelectItem key={t.id} value={t.id} className="text-xs">
                       <div className="flex items-center gap-2">
-                        <div className={cn("h-2 w-2 rounded-full shrink-0", ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500", "bg-orange-500", "bg-rose-500"][i % 10])} />
+                        <div
+                          className={cn(
+                            "h-2 w-2 rounded-full shrink-0",
+                            DOT_COLORS[i % DOT_COLORS.length],
+                          )}
+                        />
                         {t.name}
                       </div>
                     </SelectItem>
@@ -323,10 +398,10 @@ export function TemplateAssignmentPanel({
         },
       },
     ],
-    [classesTableData, classTemplates, appliedClasses, templates, isPending]
+    [classTemplates, appliedClasses, templates, isPending, applyToClass],
   );
 
-  if (isLoading) {
+  if (isLoading || assignmentsLoading) {
     return (
       <div className="space-y-3">
         {[1, 2].map((i) => (
@@ -347,7 +422,7 @@ export function TemplateAssignmentPanel({
             onClick={() => setSelectedMode("program")}
           >
             <Layers className="h-3.5 w-3.5 mr-2" />
-            Apply to Program
+            Assign to Program
           </Button>
           <Button
             size="sm"
@@ -355,7 +430,7 @@ export function TemplateAssignmentPanel({
             onClick={() => setSelectedMode("class")}
           >
             <Layers className="h-3.5 w-3.5 mr-2" />
-            Apply to Class
+            Assign to Class
           </Button>
         </div>
 
@@ -363,8 +438,7 @@ export function TemplateAssignmentPanel({
           <div className="rounded-lg border overflow-hidden">
             <DataTable
               columns={programColumns}
-              data={programsTableData}
-              isLoading={isLoading}
+              data={programRows}
               emptyTitle="No programs found"
               emptyDescription="No programs exist for this school year."
             />
@@ -375,8 +449,7 @@ export function TemplateAssignmentPanel({
           <div className="rounded-lg border overflow-hidden">
             <DataTable
               columns={classColumns}
-              data={classesTableData}
-              isLoading={isLoading}
+              data={classRows}
               emptyTitle="No classes found"
               emptyDescription="No classes exist for this school year."
             />
@@ -384,25 +457,130 @@ export function TemplateAssignmentPanel({
         )}
       </div>
 
-      {pendingApply && (
-        <ConfirmDialog
-          open
-          title="Apply template to all classes?"
-          message={`This will apply "${pendingApply.templateName}" to all ${pendingApply.classCount} class${
-            pendingApply.classCount !== 1 ? "es" : ""
-          } in "${pendingApply.programName}". Existing grading schemes on those classes will be overwritten.`}
-          confirmLabel="Apply to All Classes"
-          destructive={false}
-          isLoading={applyToProgram.isPending}
-          onConfirm={confirmApplyToProgram}
+      {/* Assign dialog (program mode) */}
+      {assignTarget && (
+        <Dialog
+          open={!!assignTarget}
           onOpenChange={(o) => {
             if (!o) {
-              setProgramTemplates((prev) => ({
-                ...prev,
-                [pendingApply.programId]: "",
-              }));
-              setPendingApply(null);
+              setAssignTarget(null);
+              setSelectedTemplateId("");
             }
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-primary" />
+                Assign Grading Scheme Template
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+              <p className="text-xs text-muted-foreground not-interactive">Program</p>
+              <p className="font-medium text-sm not-interactive">{assignTarget.name}</p>
+              <Badge variant="outline" className={typeBadge(assignTarget.type)}>
+                {PROGRAM_TYPE_LABELS[
+                  assignTarget.type as keyof typeof PROGRAM_TYPE_LABELS
+                ] ?? assignTarget.type}
+              </Badge>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium not-interactive">Select Template</label>
+              <Select
+                value={selectedTemplateId}
+                onValueChange={(v) => setSelectedTemplateId(v ?? "")}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a template..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {compatibleTemplates.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground not-interactive">
+                      No templates available for this program type
+                    </div>
+                  ) : (
+                    compatibleTemplates.map((template, i) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={cn(
+                              "h-2 w-2 rounded-full shrink-0",
+                              DOT_COLORS[i % DOT_COLORS.length],
+                            )}
+                          />
+                          {template.name} ({template.components?.length ?? 0} components)
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedTemplate && (
+              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                <p className="text-xs text-muted-foreground not-interactive">Template Details</p>
+                <p className="font-medium text-sm not-interactive">{selectedTemplate.name}</p>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground not-interactive">
+                  <span>{selectedTemplate.components?.length ?? 0} components</span>
+                  {selectedTemplate.programType && (
+                    <span>
+                      For:{" "}
+                      {PROGRAM_TYPE_LABELS[
+                        selectedTemplate.programType as keyof typeof PROGRAM_TYPE_LABELS
+                      ] ?? selectedTemplate.programType}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
+              <p className="text-xs text-blue-900 not-interactive">
+                This will apply the template to all{" "}
+                <span className="font-medium">{assignTarget.classCount}</span> class
+                {assignTarget.classCount !== 1 ? "es" : ""} in{" "}
+                <span className="font-medium">{assignTarget.name}</span>. Existing grading
+                schemes on those classes will be overwritten.
+              </p>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAssignTarget(null);
+                  setSelectedTemplateId("");
+                }}
+                disabled={applyToProgram.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmApplyToProgram}
+                disabled={applyToProgram.isPending || !selectedTemplateId}
+              >
+                {applyToProgram.isPending ? "Applying..." : "Yes, Assign"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Remove confirm (program mode) */}
+      {removeTarget && (
+        <ConfirmDialog
+          open
+          title="Remove template assignment?"
+          message={`This will remove the template from all classes in "${removeTarget.name}". Educator-customized grading schemes and schemes from other templates will be kept.`}
+          confirmLabel="Yes, Remove"
+          destructive
+          isLoading={removeAssignment.isPending}
+          onConfirm={confirmRemove}
+          onOpenChange={(o) => {
+            if (!o) setRemoveTarget(null);
           }}
         />
       )}

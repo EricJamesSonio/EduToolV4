@@ -35,48 +35,76 @@ export class ClassRepository {
     });
   }
 
-  async findAll(orgId: string, filters: any) {
-    return this.db.class.findMany({
-      where: {
-        org_id: orgId,
-        deleted_at: null,
-        ...(filters.schoolYearId && { school_year_id: filters.schoolYearId }),
-        ...(filters.semesterId && { semester_id: filters.semesterId }),
-        ...(filters.educatorId && { educator_id: filters.educatorId }),
-        ...(filters.subjectId && { subject_id: filters.subjectId }),
-        ...(filters.sectionId && { section_id: filters.sectionId }),
+  async findAll(
+    orgId: string,
+    filters: {
+      schoolYearId?: string;
+      semesterId?: string;
+      educatorId?: string;
+      subjectId?: string;
+      sectionId?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    const { page = 1, limit = 20 } = filters;
+
+    const where = {
+      org_id: orgId,
+      deleted_at: null,
+      ...(filters.schoolYearId && { school_year_id: filters.schoolYearId }),
+      ...(filters.semesterId && { semester_id: filters.semesterId }),
+      ...(filters.educatorId && { educator_id: filters.educatorId }),
+      ...(filters.subjectId && { subject_id: filters.subjectId }),
+      ...(filters.sectionId && { section_id: filters.sectionId }),
+    };
+
+    const include = {
+      _count: {
+        select: { enrollments: true },
       },
-      include: {
-        _count: {
-          select: { enrollments: true },
-        },
-        schedules: true,
-        subject: {
-          select: {
-            id: true,
-            name: true,
-            program_id: true,
-            course_id: true,
-            strand_id: true,
-            level_id: true,
-            program: { select: { name: true } },
-            course:  { select: { name: true, program: { select: { name: true } } } },
-            strand:  { select: { name: true, program: { select: { name: true } } } },
-            level:   { select: { name: true } },
+      schedules: true,
+      subject: {
+        select: {
+          id: true,
+          name: true,
+          program_id: true,
+          course_id: true,
+          strand_id: true,
+          level_id: true,
+          program: { select: { name: true } },
+          course: {
+            select: { name: true, program: { select: { name: true } } },
           },
+          strand: {
+            select: { name: true, program: { select: { name: true } } },
+          },
+          level: { select: { name: true } },
         },
-        educator: {
-          include: {
-            profile: {
-              select: {
-                full_name: true,
-              },
+      },
+      educator: {
+        include: {
+          profile: {
+            select: {
+              full_name: true,
             },
           },
         },
       },
-      orderBy: { created_at: 'desc' },
-    });
+    };
+
+    const [data, total] = await Promise.all([
+      this.db.class.findMany({
+        where,
+        include,
+        orderBy: { created_at: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.db.class.count({ where }),
+    ]);
+
+    return { data, total };
   }
 
   async findById(id: string, orgId: string) {
@@ -145,11 +173,19 @@ export class ClassRepository {
     });
   }
 
-  async findEducatorSchedules(educatorId: string, orgId: string) {
+  async findEducatorSchedules(
+    educatorId: string,
+    orgId: string,
+    schoolYearId: string,
+  ) {
     return this.db.classSchedule.findMany({
       where: {
         org_id: orgId,
-        class: { educator_id: educatorId, deleted_at: null },
+        class: {
+          educator_id: educatorId,
+          school_year_id: schoolYearId,
+          deleted_at: null,
+        },
       },
       include: {
         class: {
@@ -171,11 +207,19 @@ export class ClassRepository {
     });
   }
 
-  async findSectionSchedules(sectionId: string, orgId: string) {
+  async findSectionSchedules(
+    sectionId: string,
+    orgId: string,
+    schoolYearId: string,
+  ) {
     return this.db.classSchedule.findMany({
       where: {
         org_id: orgId,
-        class: { section_id: sectionId, deleted_at: null },
+        class: {
+          section_id: sectionId,
+          school_year_id: schoolYearId,
+          deleted_at: null,
+        },
       },
       include: { class: true },
     });

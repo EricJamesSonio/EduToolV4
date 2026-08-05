@@ -1,5 +1,9 @@
 import client from "@/api/client";
 import type { Class, ClassSchedule } from "@/types/admin/class.types";
+import type { PaginatedResponse } from "@/types/api.types";
+
+export const DEFAULT_PAGE_SIZE = 20;
+export const MAX_SELECT_LIMIT = 5000;
 
 export interface ScheduleSlot {
   weekday:   number;
@@ -30,6 +34,8 @@ export interface GetClassesQuery {
   educatorId?:   string;
   subjectId?:    string;
   sectionId?:    string;
+  page?:         number;
+  limit?:        number;
 }
 
 export interface EnrollmentResponse {
@@ -140,13 +146,6 @@ function mapClass(raw: RawClass): Class {
   };
 }
 
-function unwrapAndMapList(res: { data: ApiResponse<RawClass[]> | RawClass[] }): Class[] {
-  const raw = Array.isArray(res.data)
-    ? res.data
-    : ((res.data as ApiResponse<RawClass[]>).data ?? []);
-  return raw.map(mapClass);
-}
-
 function unwrapAndMapOne(res: { data: ApiResponse<RawClass> | RawClass }): Class {
   const d = res.data as ApiResponse<RawClass>;
   const raw = d?.data !== undefined ? d.data : (res.data as RawClass);
@@ -154,12 +153,35 @@ function unwrapAndMapOne(res: { data: ApiResponse<RawClass> | RawClass }): Class
 }
 
 export const classApi = {
-  getAll: async (query?: GetClassesQuery): Promise<Class[]> => {
-    const res = await client.get<ApiResponse<RawClass[]> | RawClass[]>(
+  getPage: async (query?: GetClassesQuery): Promise<PaginatedResponse<Class>> => {
+    const params = query
+      ? Object.fromEntries(
+          Object.entries(query).filter(
+            ([, v]) => v !== undefined && v !== "",
+          ),
+        )
+      : undefined;
+
+    const res = await client.get<ApiResponse<PaginatedResponse<RawClass>>>(
       "/classes",
-      { params: query }
+      { params },
     );
-    return unwrapAndMapList(res);
+
+    const payload = res.data?.data;
+    return {
+      data: (payload?.data ?? []).map(mapClass),
+      meta: payload?.meta ?? {
+        total: 0,
+        page: query?.page ?? 1,
+        limit: query?.limit ?? DEFAULT_PAGE_SIZE,
+        totalPages: 1,
+      },
+    };
+  },
+
+  getAll: async (query?: GetClassesQuery): Promise<Class[]> => {
+    const result = await classApi.getPage({ ...query, limit: MAX_SELECT_LIMIT });
+    return result.data;
   },
 
   getOne: async (id: string): Promise<Class> => {

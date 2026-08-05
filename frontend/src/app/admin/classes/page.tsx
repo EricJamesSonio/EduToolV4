@@ -1,7 +1,7 @@
 // ===== File: frontend\src\app\admin\classes\page.tsx =====
 "use client";
 
-import { Suspense, useState, useMemo } from "react";
+import { Suspense, useState, useMemo, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { useSearchParams } from "next/navigation";
@@ -9,7 +9,8 @@ import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { GraduationCap, Plus } from "lucide-react";
 
-import { classApi } from "@/api/admin/class.api";
+import { classApi, DEFAULT_PAGE_SIZE } from "@/api/admin/class.api";
+import type { PaginatedResponse } from "@/types/api.types";
 import { subjectApi } from "@/api/admin/subject.api";
 import { educatorApi } from "@/api/admin/educator.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
@@ -27,6 +28,7 @@ import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { AsyncListState } from "@/components/shared/AsyncListState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
+import { Pagination } from "@/components/shared/Pagination";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -52,6 +54,8 @@ function ClassesPageInner(): React.JSX.Element {
     defaultSubjectId !== undefined
   );
   const [archiveTarget, setArchiveTarget] = useState<Class | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
 
   const filters = useClassFilters();
 
@@ -71,18 +75,49 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
 
   // ===== Queries scoped to School Year =====
   const {
-    data: classesRaw,
+    data: classesResp,
     isLoading,
     isError: classesError,
-  } = useAsyncQuery(
-    queryKeys.admin.classes.list({ schoolYearId: selectedSchoolYearId, ...filters.query }),
+  } = useAsyncQuery<PaginatedResponse<Class>>(
+    [
+      ...queryKeys.admin.classes.list({
+        schoolYearId: selectedSchoolYearId,
+        ...filters.query,
+      }),
+      page,
+      limit,
+    ],
     () =>
-      classApi.getAll({
+      classApi.getPage({
         ...filters.query,
         schoolYearId: selectedSchoolYearId!,
+        page,
+        limit,
       }),
     { enabled: !!selectedSchoolYearId },
   );
+
+  const totalClasses =
+    classesResp?.meta?.total ?? 0;
+  const totalClassPages =
+    classesResp?.meta?.totalPages ?? 1;
+
+  useEffect(() => {
+    if (page > totalClassPages) setPage(Math.max(1, totalClassPages));
+  }, [page, totalClassPages]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedSchoolYearId]);
+
+  const handleFilterSemesterChange: React.Dispatch<React.SetStateAction<string>> = (value) => {
+    filters.setFilterSemesterId(value);
+    setPage(1);
+  };
+  const handleFilterEducatorChange: React.Dispatch<React.SetStateAction<string>> = (value) => {
+    filters.setFilterEducatorId(value);
+    setPage(1);
+  };
 
   const { data: sectionsRaw } = useAsyncQuery(
     queryKeys.admin.sections.list({ schoolYearId: selectedSchoolYearId }),
@@ -166,7 +201,7 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
 
   // ===== Classes Transform =====
   const classes = useMemo<Class[]>(() => {
-    return toArray<Class>(classesRaw).map((cls) => ({
+    return toArray<Class>(classesResp?.data).map((cls) => ({
       ...cls,
       subjectName: subjectMap.get(cls.subjectId) ?? cls.subjectName,
       educatorName: educatorMap.get(cls.educatorId) ?? cls.educatorName,
@@ -183,7 +218,7 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
         cls.subjectId,
     }));
   }, [
-    classesRaw,
+    classesResp,
     subjectMap,
     educatorMap,
     schoolYearMap,
@@ -236,8 +271,8 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
 <ClassesFilterBar
   filterSemesterId={filters.filterSemesterId}
   filterEducatorId={filters.filterEducatorId}
-  setFilterSemesterId={filters.setFilterSemesterId}
-  setFilterEducatorId={filters.setFilterEducatorId}
+  setFilterSemesterId={handleFilterSemesterChange}
+  setFilterEducatorId={handleFilterEducatorChange}
   schoolYearId={selectedSchoolYearId}
 />
 
@@ -263,6 +298,17 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
         }
       >
         <ClassesTable data={classes} onArchive={setArchiveTarget} />
+        <Pagination
+          page={page}
+          limit={limit}
+          total={totalClasses}
+          onPageChange={setPage}
+          onLimitChange={(l) => {
+            setLimit(l);
+            setPage(1);
+          }}
+          pageSizeOptions={[20, 50, 100]}
+        />
       </AsyncListState>
 
       {createOpen && (

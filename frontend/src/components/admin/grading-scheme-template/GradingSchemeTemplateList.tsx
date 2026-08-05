@@ -11,6 +11,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
+import {
+  PROGRAM_TYPE_COLORS,
+  PROGRAM_TYPE_LABELS,
+  type ProgramType,
+} from "@/types/admin/program.types";
 import { useDeleteGradingSchemeTemplate } from "@/hooks/admin/useGradingSchemeTemplates";
 import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
 import type { AxiosError } from "axios";
@@ -90,7 +95,22 @@ export function GradingSchemeTemplateList({
                 )}
               />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate not-interactive">{template.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate not-interactive">{template.name}</p>
+                  {template.programType && (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] border px-1.5 py-0 w-fit font-normal shrink-0 not-interactive",
+                        PROGRAM_TYPE_COLORS[
+                          template.programType as ProgramType
+                        ] ?? "bg-slate-500/10 text-slate-600 border-slate-200",
+                      )}
+                    >
+                      {PROGRAM_TYPE_LABELS[template.programType as ProgramType] ?? template.programType}
+                    </Badge>
+                  )}
+                </div>
               </div>
               <span className="text-xs text-muted-foreground not-interactive">
                 {template.components?.length ?? 0} component{(template.components?.length ?? 0) !== 1 ? "s" : ""}

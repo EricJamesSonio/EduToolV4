@@ -117,20 +117,22 @@ export function GradingScaleList({
                 )}
               />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate not-interactive">{scale.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate not-interactive">{scale.name}</p>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[10px] border px-1.5 py-0 w-fit font-normal shrink-0 not-interactive",
+                      PROGRAM_TYPE_COLORS[
+                        scale.programType as keyof typeof PROGRAM_TYPE_COLORS
+                      ] ?? "bg-slate-500/10 text-slate-600 border-slate-200",
+                    )}
+                  >
+                    {PROGRAM_TYPE_LABELS[scale.programType as keyof typeof PROGRAM_TYPE_LABELS] ?? scale.programType}
+                  </Badge>
+                </div>
               </div>
               <div className="flex items-center gap-3">
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-xs border px-2 py-0.5 font-normal",
-                    PROGRAM_TYPE_COLORS[
-                      scale.programType as keyof typeof PROGRAM_TYPE_COLORS
-                    ] ?? "",
-                  )}
-                >
-                  {PROGRAM_TYPE_LABELS[scale.programType as keyof typeof PROGRAM_TYPE_LABELS] ?? scale.programType}
-                </Badge>
                 <span className="text-xs text-muted-foreground not-interactive">
                   {scale.ranges.length} range{scale.ranges.length !== 1 ? "s" : ""}
                 </span>
