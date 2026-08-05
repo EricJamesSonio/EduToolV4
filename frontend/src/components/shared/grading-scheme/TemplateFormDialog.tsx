@@ -30,13 +30,16 @@ import type {
   CreateGradingSchemeTemplateDto,
 } from "@/types/admin/grading-scheme-template.types";
 import type { GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
+import {
+  PROGRAM_TYPE_VALUES,
+  PROGRAM_TYPE_LABELS,
+  type ProgramType,
+} from "@/types/admin/program.types";
 
-const PROGRAM_TYPES = [
-  { value: "college", label: "College" },
-  { value: "shs", label: "Senior High School" },
-  { value: "jhs", label: "Junior High School" },
-  { value: "elementary", label: "Elementary" },
-];
+const PROGRAM_TYPES = PROGRAM_TYPE_VALUES.map((value) => ({
+  value,
+  label: PROGRAM_TYPE_LABELS[value as ProgramType],
+}));
 
 const DEFAULT_ROW = (): GradingSchemeComponentDto => ({
   name: "",
