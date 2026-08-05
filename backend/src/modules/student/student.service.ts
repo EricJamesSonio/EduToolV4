@@ -560,7 +560,7 @@ export class StudentService {
   }
 
   async getEducatorClasses(educatorId: string, orgId: string) {
-    const classes = await this.classRepository.findAll(orgId, { educatorId });
+    const { data: classes } = await this.classRepository.findAll(orgId, { educatorId });
     return Promise.all(
       classes.map(async (cls) => {
         const { subject } = await this.classRepository.findSubjectWithEducator(cls.id);
