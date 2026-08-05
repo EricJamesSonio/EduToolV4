@@ -201,7 +201,7 @@ export default function TermGradesPage() {
 
       {/* View toggle */}
       <div className="flex justify-end">
-        <div className="flex items-center gap-1 rounded-lg border p-1">
+        <div className="flex flex-col items-center gap-1 rounded-lg border p-1 sm:flex-row">
           {(["default", "clean"] as ViewMode[]).map((mode) => (
             <button
               key={mode}
