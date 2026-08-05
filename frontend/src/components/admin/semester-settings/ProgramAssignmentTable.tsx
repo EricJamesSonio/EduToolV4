@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { WEEK_COLORS } from "@/lib/palette";
 const DOT_COLORS = ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-teal-500", "bg-indigo-500", "bg-pink-500", "bg-cyan-500", "bg-orange-500", "bg-rose-500"];
 import {
   Select,
@@ -232,18 +231,18 @@ export function ProgramAssignmentTable({
             {
               accessorKey: "name",
               header: "Program",
-              cell: ({ row }: any) => {
+              cell: ({ row }: { row: { original: { id: string } } }) => {
                 const prog = programs.find((p) => p.id === row.original.id);
                 if (!prog) return null;
 
                 return (
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     {prog.semesterAssignment ? (
                       <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                     ) : (
                       <Circle className="h-4 w-4 text-muted-foreground/30 shrink-0" />
                     )}
-                    <span className="text-sm font-medium not-interactive">{prog.name}</span>
+                    <span className="text-sm font-medium truncate not-interactive">{prog.name}</span>
                   </div>
                 );
               },
@@ -251,7 +250,8 @@ export function ProgramAssignmentTable({
             {
               id: "template",
               header: "Template",
-              cell: ({ row }: any) => {
+              size: 340,
+              cell: ({ row }: { row: { original: { id: string } } }) => {
                 const prog = programs.find((p) => p.id === row.original.id);
                 if (!prog) return null;
 
