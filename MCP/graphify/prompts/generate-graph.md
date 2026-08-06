@@ -1,341 +1,387 @@
-# Graphify AI Graph Generation Prompt
+# Graphify — AI Knowledge Book Generator
 
-## Objective
+Graphify generates an AI-friendly knowledge book for any repository.
 
-You are an AI assistant. Your task is to analyze the provided `symbols.json` file containing the symbol index of a codebase, and produce two output files:
+Instead of forcing AI agents to repeatedly scan the repository, Graphify produces
+structured knowledge that helps them quickly understand the architecture,
+features, relationships, and important implementation details while minimizing
+context usage.
 
-1. **`graphify/graphify-storage/graph.json`** Ã¢â‚¬â€ A structured knowledge graph with semantic labels
-2. **`graphify/graphify-storage/graph.md`** Ã¢â‚¬â€ A human-readable markdown report
+The source code always remains the source of truth.
 
-## The Challenge
+---
 
-`symbols.json` contains raw structural data Ã¢â‚¬â€ file paths, symbol names, import relationships. But it lacks **semantic context**: what does each file actually do? What features does it belong to? What is the purpose of each symbol?
+# Goal
 
-Your job is to add that missing context. You will produce a `graph.json` where every file has a meaningful summary, every symbol has a purpose and role, files are grouped into coherent features, and semantic relationships between files are identified.
+Your objective is to analyze the repository and generate a synchronized AI
+knowledge book consisting of multiple artifacts.
 
-## Input: `symbols.json`
+These artifacts should allow future AI agents to:
 
-The `symbols.json` file contains:
+1. Understand the repository architecture.
+2. Locate relevant implementation areas.
+3. Read only the necessary source files.
+4. Avoid repeatedly scanning the entire repository.
+5. Minimize token usage while maintaining accuracy.
 
-### `files` (array)
-Each file entry:
-- `id`: numeric ID
-- `path`: relative file path from repo root
-- `language`: programming language (e.g. javascript, typescript, python)
+The generated knowledge should serve as a navigation layer between the AI and
+the source code.
 
-### `symbols` (array)
-Each symbol entry:
-- `name`: symbol name (function, class, variable, etc.)
-- `type`: symbol type (function, class, method, variable, constant, interface, type, enum, etc.)
-- `line`, `column`: source location
-- `isExported`: whether exported
-- `className`: parent class (for methods)
-- `signature`: full signature string (may be empty)
-- `filePath`: which file the symbol belongs to
+---
 
-### `imports` (array)
-Each import entry:
-- `importPath`: the import string (e.g. "./utils", "react", "lodash")
-- `importType`: default, named, namespace, side-effect, require, etc.
-- `importedSymbols`: array of specific symbol names imported
-- `sourceFile`: the file doing the importing
-- `resolvedFile`: which file the import resolves to (null for externals like npm packages)
+# Output Files
 
-You DO have access to the actual source code. The repository is located at:
+You must generate and keep synchronized the following files.
 
 ```
-C:\Users\Windows 10\Desktop\Personal\Studies\Research\EduToolV3
+mcp/
+│
+├── graph.json
+├── Manual.md
+├── symbols.json
+└── fileSummaries.json
 ```
 
-For every file in `symbols.json`, **read its source code** from the repository on disk before writing anything about it. Do NOT guess or hallucinate what a file does based on its name or the symbols listed here. Read the actual file contents to determine:
+---
 
-- What does this file actually do? (based on its real code, not its name)
-- What symbols does it actually contain and what do they really do? (read the function bodies)
-- What responsibilities does it actually have?
-- What features does it genuinely belong to?
+## graph.json
 
-For each symbol (function, class, method), read its actual implementation to write accurate `purpose` and `role` descriptions. If a symbol name suggests one thing but the code does something else, the code is truth.
+The repository knowledge book.
 
-## Your Task
+Contains enriched knowledge extracted from the repository.
 
-### Step 1: Analyze and Label Every File
+Every concept should be independent and self-contained.
 
-For each file in the codebase, determine:
+Each concept should include:
 
-- **What does this file do?** (1-2 sentence summary)
-- **What feature/system does it belong to?** (e.g. "auth", "database", "git", "docker", "core", "ui", "worker")
-- **What tags describe it?** (comma-separated, e.g. "ipc", "config", "database", "renderer")
+- Stable identifier
+- Title
+- Overview
+- Detailed description
+- Keywords
+- Responsibilities
+- Architecture notes
+- Related concepts
+- Important files
+- Important symbols
+- Implementation notes
 
-For each symbol (function, class, method, etc.), determine:
+The graph should focus on explaining the repository rather than simply listing
+files.
 
-- **What is its purpose?** (brief description of what it does)
-- **What role does it play in its file?** (e.g. "entry point", "helper", "orchestrator", "data model", "validator", "handler", "utility")
+---
 
-### Step 2: Build the Knowledge Graph
+## Manual.md
 
-Create `graph.json` with this exact schema:
+The AI navigation guide.
 
-#### Top-Level Structure
+Its purpose is NOT to explain the repository.
 
-```json
-{
-  "graphVersion": "2",
-  "repoName": "EduToolV3",
-  "repoPath": "C:\Users\Windows 10\Desktop\Personal\Studies\Research\EduToolV3",
-  "generatedAt": "<ISO-timestamp>",
-  "exportedAt": "<ISO-timestamp-from-symbols.json>",
-  "meta": {
-    "incremental": {
-      "total": <file-count>,
-      "reused": 0,
-      "rebuilt": <file-count>,
-      "new": <file-count>,
-      "changed": 0,
-      "neighborAffected": 0,
-      "generationMode": "ai_generated",
-      "affectedSetSize": <file-count>,
-      "bfsDepth": 0
-    }
-  },
-  "stats": {
-    "totalFiles": <file-count>,
-    "totalSymbols": <symbol-count>,
-    "totalImports": <import-count>,
-    "totalNodes": <file-count>,
-    "totalEdges": <edge-count>,
-    "totalFeatures": <feature-count>,
-    "totalConcepts": <concept-count>
-  },
-  "nodes": [...],
-  "edges": [...],
-  "features": {...},
-  "concepts": {...}
-}
+Its only purpose is helping AI agents locate the correct section of graph.json.
+
+The manual should be concise.
+
+For every concept inside graph.json include:
+
+- Concept name
+- Stable identifier
+- Short description
+- Keywords
+- Location inside graph.json
+- Related concepts (optional)
+
+Example:
+
+Authentication
+
+Identifier:
+authentication
+
+Description:
+Handles login, JWT authentication, middleware and user session.
+
+Keywords:
+login
+jwt
+middleware
+guards
+session
+
+Location:
+graph.json → concepts.authentication
+
+---
+
+Booking
+
+Identifier:
+booking
+
+Description:
+Booking workflow including reservation, pricing and checkout.
+
+Keywords:
+booking
+reservation
+payment
+calendar
+
+Location:
+graph.json → concepts.booking
+
+---
+
+Never duplicate the detailed explanations from graph.json.
+
+The manual is only a table of contents for AI agents.
+
+---
+
+## symbols.json
+
+Contains repository symbols.
+
+Include:
+
+- classes
+- interfaces
+- functions
+- methods
+- enums
+- exports
+- components
+
+Every symbol should reference its source file.
+
+---
+
+## fileSummaries.json
+
+Generate one concise summary for every source file.
+
+Each summary should include:
+
+- Purpose
+- Responsibilities
+- Important exports
+- Dependencies
+- Related concepts
+
+Do not duplicate implementation details.
+
+---
+
+# AI Knowledge Philosophy
+
+Graphify is NOT documentation.
+
+Graphify is NOT source code.
+
+Graphify is an AI navigation layer.
+
+The source code remains the final authority.
+
+Graphify exists only to help AI agents quickly locate the correct knowledge
+before reading implementation.
+
+---
+
+# Context Optimization Rules
+
+Future AI agents should follow this order.
+
+```
+Manual.md
+
+↓
+
+Relevant Concept inside graph.json
+
+↓
+
+fileSummaries.json
+
+↓
+
+symbols.json
+
+↓
+
+Relevant source files
 ```
 
-#### Node Schema
+Never read the entire repository before consulting the generated knowledge.
 
-Each file in `symbols.json` becomes one node. Use this exact shape:
+Never read the entire graph.json unless explicitly required.
 
-```json
-{
-  "id": "file-Code/services/git.js",
-  "type": "file",
-  "label": "git.js",
-  "filePath": "Code/services/git.js",
-  "language": "javascript",
-  "summary": "Handles Git operations: clone, commit, push, pull, and branch management via shell commands.",
-  "responsibilities": [
-    "Executes git CLI commands",
-    "Manages repository checkout and cloning",
-    "Handles branch creation and switching"
-  ],
-  "features": ["git", "core"],
-  "tags": ["git", "version-control", "services", "javascript"],
-  "stats": {
-    "totalSymbols": 12,
-    "exportedSymbols": 5,
-    "functions": 8,
-    "classes": 1,
-    "methods": 0,
-    "variables": 3
-  },
-  "symbols": [
-    {
-      "name": "cloneRepo",
-      "type": "function",
-      "line": 42,
-      "signature": "async function cloneRepo(url, dest)",
-      "purpose": "Clones a remote git repository to the local filesystem",
-      "role": "entry point"
-    }
-  ],
-  "summarySource": "ai",
-  "centrality": {
-    "fanIn": 3,
-    "fanOut": 1,
-    "degree": 4,
-    "centrality": 0.0103,
-    "importCount": 1,
-    "importedByCount": 3,
-    "inDegree": 3,
-    "outDegree": 1
-  },
-  "graphVersion": 2,
-  "updatedAt": "<ISO-timestamp>",
-  "structureHash": "",
-  "contentHash": "",
-  "generationMode": "ai_generated"
-}
-```
+Always identify the relevant concept first.
 
-Field notes:
-- `responsibilities`: 1-5 brief bullet points of what this file does (can be empty array)
-- `features`: one or more feature names this file belongs to (the primary feature first)
-- `tags`: descriptive tags for searching/filtering
-- `stats`: counts Ã¢â‚¬â€ derive from the symbols array for this file
-- `symbols`: include ALL function, class, and method symbols (skip pure variables/constants unless important), each with `purpose` and `role`
-- `summarySource`: always `"ai"`
-- `centrality`: compute from the edges you create (fanIn = how many files import this file, fanOut = how many files this file imports, degree = fanIn + fanOut, centrality = degree / (totalNodes - 1))
-- `graphVersion`: 2
-- `generationMode`: `"ai_generated"`
-- `structureHash` and `contentHash`: leave as empty strings
+Only read implementation files referenced by that concept.
 
-#### Edge Schema
+---
 
-```json
-{
-  "source": "file-Code/main.js",
-  "target": "file-Code/ipc/git_ipc.js",
-  "type": "ORCHESTRATES",
-  "weight": 3,
-  "description": "Main process registers this IPC handler"
-}
-```
+# Knowledge Organization
 
-Fields:
-- `source`, `target`: full node IDs (`"file-<path>"`)
-- `type`: one of the edge types below
-- `weight`: 1-5 indicating strength (1=weak, 5=strong)
-- `description`: brief explanation of why this edge exists
+Organize graph.json into high-level concepts instead of files.
 
-#### Edge Types to Identify
+Examples:
 
-| Type | When to Use | Weight Guidance |
-|------|-------------|-----------------|
-| `IMPORTS` | File A directly imports file B (from `symbols.json` imports with `resolvedFile`) | 2 |
-| `COLLABORATES_WITH` | Files that work together on the same feature or closely related features | 1 |
-| `ORCHESTRATES` | A file coordinates or manages multiple other files (e.g. main process Ã¢â€ â€™ handlers) | 3 |
-| `DEPENDS_ON` | File A logically depends on file B even if not directly imported (semantic dependency) | 2 |
-| `PROVIDES_TO` | File A provides data, services, or utilities consumed by file B | 2 |
-| `IMPLEMENTS` | File A implements an interface, protocol, or contract defined in file B | 2 |
-| `SEQUENCES` | Processing pipeline where A Ã¢â€ â€™ B Ã¢â€ â€™ C in a data/control flow | 2 |
-| `INITIALIZES` | File A initializes or bootstraps file B during startup | 2 |
-| `EXECUTES` | File A dispatches or spawns work in file B (e.g. worker Ã¢â€ â€™ task) | 2 |
-| `CROSS_CUTTING` | Shared utility used across otherwise unrelated modules | 1 |
+- Authentication
+- Authorization (RBAC)
+- User Management
+- Booking
+- Payments
+- Resort Management
+- Item Management
+- Package Management
+- Dashboard
+- API Client
+- Routing
+- State Management
+- Query Caching
+- Components
+- Styling
+- Forms
+- Database
+- Services
+- Background Jobs
+- File Storage
+- Notifications
+- Search
+- Maps
+- Analytics
+- Testing
+- Configuration
 
-Include `IMPORTS` edges for every resolved import. For semantic edges, only add them when you are confident the relationship exists Ã¢â‚¬â€ quality over quantity. Each edge should have a meaningful `description`.
+Each concept should explain:
 
-#### Features Schema
+- What it is
+- Why it exists
+- How it works
+- Which files implement it
+- Which symbols are important
+- Which concepts it depends on
 
-```json
-{
-  "core": {
-    "description": "Core application infrastructure: main process, IPC, preload, utilities, and services",
-    "color": "#4A90D9",
-    "files": ["Code/main.js", "Code/preload.js", "Code/utils/helpers.js"]
-  },
-  "database": {
-    "description": "SQLite database access layer for all persistent storage",
-    "color": "#7B61FF",
-    "files": ["Code/database/db.js", "Code/database/chatDb.js"]
-  }
-}
-```
+---
 
-Each feature:
-- `description`: what this feature encompasses
-- `color`: hex color for visualization (pick distinct colors)
-- `files`: array of file paths (not node IDs Ã¢â‚¬â€ raw paths like `"Code/file.js"`)
+# Enrichment Guidelines
 
-Every file should belong to at least one feature. Features should be coherent groupings Ã¢â‚¬â€ don't create too many. 5-15 features is typical for a moderate codebase.
+Do not simply describe code.
 
-#### Concepts Schema
+Enrich the repository knowledge by explaining:
 
-```json
-{
-  "IPC-Communication": {
-    "description": "Inter-Process Communication between main and renderer processes via Electron ipcMain/ipcRenderer",
-    "locations": ["Code/ipc/git_ipc.js", "Code/ipc/docker_ipc.js", "Code/preload.js"],
-    "keywords": ["ipcMain", "ipcRenderer", "contextBridge", "handle", "invoke"]
-  }
-}
-```
+- Feature responsibilities
+- Data flow
+- Request flow
+- Architecture decisions
+- Component interactions
+- Design patterns
+- Important implementation notes
+- Common extension points
+- Relationships between features
 
-Each concept:
-- `description`: what this concept represents
-- `locations`: array of file paths related to this concept
-- `keywords`: search terms associated with this concept (symbol names, technical terms)
+The goal is to help future AI agents understand the repository without needing
+to repeatedly inspect the same files.
 
-Concepts should capture important domain ideas, architectural patterns, and technical mechanisms. 5-15 concepts is typical.
+---
 
-### Step 3: Generate a Human-Readable Report
+# Synchronization Rules
 
-Create `graph.md` with this structure:
+The generated artifacts must always remain synchronized.
 
-```markdown
-# Graphify Report: EduToolV3
+Whenever a concept is:
 
-Generated: <date>
+- added
+- renamed
+- removed
+- split
+- merged
+- reorganized
 
-## Overview
+you MUST update:
 
-- Total files: N
-- Total symbols: N
-- Total imports: N
-- Graph nodes: N
-- Graph edges: N
-- Features: N
-- Concepts: N
-- Build: AI generated
+- graph.json
+- Manual.md
 
-## Feature Map
+Whenever symbols change:
 
-### [Feature Name]
-- **Description**: ...
-- **Files**: N files
-  - `file1.js`
-  - `file2.js`
+Update:
 
-## Top Files by Symbol Count
+- symbols.json
 
-| File | Symbols | Exported | Functions | Classes | Centrality |
-|------|---------|----------|-----------|---------|------------|
+Whenever a file's responsibilities change:
 
-## Top Files by Centrality
+Update:
 
-| File | Centrality | Fan-In | Fan-Out | Degree |
-|------|------------|--------|---------|--------|
+- fileSummaries.json
 
-## Architecture Flow
+Never update one artifact without updating the others when required.
 
-[Describe how data/control flows through the system, feature by feature. Explain the main processing pipelines, key entry points, and how features relate to each other.]
+---
 
-## Concepts Glossary
+# Stable Identifiers
 
-| Concept | Description | Keywords | Files |
-|---------|-------------|----------|-------|
+Every concept must have a stable identifier.
 
-## Edge Type Summary
+Example:
 
-| Type | Count | Description |
-|------|-------|-------------|
+authentication
 
-## Surprising Connections
+booking
 
-Cross-feature or unexpected relationships detected.
+payments
 
-## Notes
+dashboard
 
-- Add any observations about architecture, design patterns, or areas of complexity.
-```
+api-client
 
-## Instructions for You
+query-caching
 
-1. Be thorough but concise in summaries. Every file needs a meaningful summary that tells someone what it does.
-2. Group files by feature. A file can belong to multiple features but should have a primary feature.
-3. For `COLLABORATES_WITH` edges, only add them when files genuinely work together on the same logical feature.
-4. For semantic edges (`DEPENDS_ON`, `PROVIDES_TO`, `IMPLEMENTS`, etc.), be conservative Ã¢â‚¬â€ only add them when you have strong evidence from file names, symbol names, or import patterns.
-5. The `features` section should organize the entire codebase by coherent feature groups.
-6. The `concepts` section should document important domain or architectural concepts.
-7. Compute centrality values correctly: `centrality = degree / (totalNodes - 1)`.
-8. Focus on making the graph useful for someone asking "how does X work?".
-9. Do NOT include `stats` objects in feature or concept entries Ã¢â‚¬â€ they go only on nodes.
-10. The `symbols` array per node should include meaningful `purpose` and `role` for every symbol listed.
+role-based-access-control
 
-## Output
+state-management
 
-Write two files:
+These identifiers should remain stable across regenerations whenever possible.
 
-1. `C:\Users\Windows 10\Desktop\Personal\Studies\Research\EduToolV3\graphify\graphify-storage\graph.json` Ã¢â‚¬â€ the structured graph (must match the schema above exactly)
-2. `C:\Users\Windows 10\Desktop\Personal\Studies\Research\EduToolV3\graphify\graphify-storage\graph.md` Ã¢â‚¬â€ the human-readable report
+Manual.md should reference concepts using these identifiers instead of line
+numbers.
+
+Good:
+
+graph.json → concepts.authentication
+
+Bad:
+
+graph.json lines 150-210
+
+Line numbers are unstable and must never be used.
+
+---
+
+# Source of Truth
+
+The generated knowledge is a guide.
+
+If implementation details are needed, the AI should always read the relevant
+source files referenced by graph.json.
+
+The source code always overrides the generated knowledge.
+
+---
+
+# Quality Requirements
+
+The generated knowledge should:
+
+- Minimize future AI context usage.
+- Reduce repeated repository scanning.
+- Help AI quickly locate relevant code.
+- Explain architecture clearly.
+- Keep concepts independent.
+- Use stable identifiers.
+- Remain synchronized across all generated artifacts.
+- Be understandable by any AI coding assistant.
+
+The goal is to make repository understanding fast, deterministic, and
+token-efficient while preserving the source code as the ultimate source of
+truth.
