@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { schoolYearApi } from "@/api/admin/school-year.api";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Modal } from "@/components/shared/Modal";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ export function EditSchoolYearDialog({ schoolYear, open, onClose }: Props): Reac
 
     onSuccess: () => {
       toast.success("School year updated.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "school-years", schoolYear.id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.schoolYears.all });
       queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
       onClose();
     },
