@@ -1,6 +1,6 @@
 param(
-    [string]$SymbolsJsonPath = "C:\Users\Windows 10\Desktop\Personal\Studies\Research\EduToolV3\graphify\symbol-index-storage\symbols.json",
-    [string]$OutputDir = "C:\Users\Windows 10\Desktop\Personal\Studies\Research\EduToolV3\graphify\graphify-storage"
+    [string]$SymbolsJsonPath = "C:\Users\Windows 10\Desktop\Personal\Studies\Research\EduToolV3\MCP\graphify\symbol-index-storage\symbols.json",
+    [string]$OutputDir = "C:\Users\Windows 10\Desktop\Personal\Studies\Research\EduToolV3\MCP\graphify\graphify-storage"
 )
 
 Write-Host "Loading symbols.json..." -ForegroundColor Cyan
@@ -794,6 +794,111 @@ $features = @{
         color = "#2980B9"
         files = @()
     }
+    "program" = @{
+        description = "Program management: curriculum programs with type resolver, strand/section/level association, and semester linking"
+        color = "#8E44AD"
+        files = @()
+    }
+    "grading-scheme-template" = @{
+        description = "Reusable grading scheme templates: program/class assignment, auto-apply to new classes, and component weight resolution"
+        color = "#1ABC9C"
+        files = @()
+    }
+    "student-enrollment" = @{
+        description = "Student acquisition and enrollment: class and program enrollment, bulk enrollment, and unenrollment"
+        color = "#2980B9"
+        files = @()
+    }
+    "org-enrollment-setting" = @{
+        description = "Organization enrollment settings governing how students enroll into classes and programs"
+        color = "#2980B9"
+        files = @()
+    }
+    "subject-prerequisite" = @{
+        description = "Subject prerequisite management: required prior subjects, bulk creation, and eligibility checking"
+        color = "#D35400"
+        files = @()
+    }
+    "school-year" = @{
+        description = "School year management: CRUD, active-school-year resolution, activation, and end-of-year handling"
+        color = "#16A085"
+        files = @()
+    }
+    "semester" = @{
+        description = "Semester management: CRUD scoped to a school year with active semester resolution"
+        color = "#16A085"
+        files = @()
+    }
+    "semester-template" = @{
+        description = "Semester templates: reusable term-date patterns, program assignment, and placeholder semester generation"
+        color = "#16A085"
+        files = @()
+    }
+    "submission" = @{
+        description = "Assessment submissions: start/resume, drafts, finishing, answer retrieval, and expired-draft cleanup"
+        color = "#8E44AD"
+        files = @()
+    }
+    "analytics" = @{
+        description = "Analytics: enrollment breakdown, grade analytics, educator load, and actionable alerts"
+        color = "#95A5A6"
+        files = @()
+    }
+    "presentation" = @{
+        description = "Presentation slides: CRUD, per-lesson slides, and AI slide generation"
+        color = "#95A5A6"
+        files = @()
+    }
+    "export" = @{
+        description = "Export utilities: class card PDF generation and class CSV export"
+        color = "#95A5A6"
+        files = @()
+    }
+    "upload" = @{
+        description = "File upload: profile images and organization logos with path persistence"
+        color = "#95A5A6"
+        files = @()
+    }
+    "org-seeder" = @{
+        description = "Organization bootstrap seeder: programs, strands, levels, sections, subjects, courses, grading data, prerequisites, and semester templates"
+        color = "#95A5A6"
+        files = @()
+    }
+    "transcript" = @{
+        description = "Student transcripts: transcript generation and student-view endpoints"
+        color = "#95A5A6"
+        files = @()
+    }
+    "strand" = @{
+        description = "Strand management: CRUD for academic strands within a program"
+        color = "#95A5A6"
+        files = @()
+    }
+    "section" = @{
+        description = "Section management: CRUD and student counting within a section"
+        color = "#95A5A6"
+        files = @()
+    }
+    "level" = @{
+        description = "Level management: default levels, per-program/strand/course levels, and next-level generation"
+        color = "#95A5A6"
+        files = @()
+    }
+    "subject" = @{
+        description = "Subject management: CRUD, versioning, sharing across organizations, and lock/unlock"
+        color = "#95A5A6"
+        files = @()
+    }
+    "mail" = @{
+        description = "Email delivery: OTP and credentials emails via nodemailer"
+        color = "#95A5A6"
+        files = @()
+    }
+    "health" = @{
+        description = "Health check endpoint for service readiness"
+        color = "#95A5A6"
+        files = @()
+    }
 }
 
 # Now categorize all files into features based on their path
@@ -831,7 +936,7 @@ foreach ($fp in $allPaths) {
     elseif ($p -like "backend/src/modules/grade/*") { $features["grade"].files += $fp }
     elseif ($p -like "backend/src/modules/grading-scale/*") { $features["grading-scale"].files += $fp }
     elseif ($p -like "backend/src/modules/grading-scheme/*") { $features["grading-scheme"].files += $fp }
-    elseif ($p -like "backend/src/modules/grading-scheme-template/*") { $features["grading-scheme"].files += $fp }
+    elseif ($p -like "backend/src/modules/grading-scheme-template/*") { $features["grading-scheme-template"].files += $fp }
     elseif ($p -like "backend/src/modules/lesson/*") { $features["lesson"].files += $fp }
     elseif ($p -like "backend/src/modules/meeting/*") { $features["meeting"].files += $fp }
     elseif ($p -like "backend/src/modules/notification/*") { $features["notification"].files += $fp }
@@ -840,7 +945,7 @@ foreach ($fp in $allPaths) {
     elseif ($p -like "backend/src/modules/platform/*") { $features["platform"].files += $fp }
     elseif ($p -like "backend/src/modules/profile/*") { $features["core-infrastructure"].files += $fp }
     elseif ($p -like "backend/src/modules/student/*") { $features["student"].files += $fp }
-    elseif ($p -like "backend/src/modules/student-enrollment/*") { $features["enrollment"].files += $fp }
+    elseif ($p -like "backend/src/modules/student-enrollment/*") { $features["student-enrollment"].files += $fp }
     elseif ($p -like "backend/src/modules/academic-calendar/*") { $features["academic-calendar"].files += $fp }
     elseif ($p -like "backend/src/modules/*") { 
         # Generic catch-all for any module not listed
@@ -911,10 +1016,35 @@ foreach ($k in $emptyFeatures) { $features.Remove($k) }
 # ============= BUILD CONCEPTS =============
 Write-Host "Building concepts..." -ForegroundColor Cyan
 $concepts = @{
-    "IPC-Communication" = @{
-        description = "Inter-Process Communication between main and renderer processes via Electron ipcMain/ipcRenderer"
-        keywords = @("ipcMain","ipcRenderer","contextBridge","handle","invoke")
-        locations = @()
+    "Academic-Organization" = @{
+        description = "Academic program structure: programs, strands, levels, sections, subjects, and courses with school-year association and cross-org sharing"
+        keywords = @("ProgramService","StrandService","LevelService","SectionService","SubjectService","program","strand","level","section","subject","course")
+        locations = @("backend/src/modules/program/program.service.ts","backend/src/modules/strand/strand.service.ts","backend/src/modules/level/level.service.ts","backend/src/modules/section/section.service.ts","backend/src/modules/subject/subject.service.ts","backend/src/modules/course/course.service.ts")
+    }
+    "Academic-Calendar" = @{
+        description = "Academic calendar management: school years, semesters, semester templates with term dates, and academic-calendar holidays and breaks"
+        keywords = @("SchoolYearService","SemesterService","SemesterTemplateService","AcademicCalendarService","school_year","semester","term_dates","holidays")
+        locations = @("backend/src/modules/school-year/school-year.service.ts","backend/src/modules/semester/semester.service.ts","backend/src/modules/semester-template/semester-template.service.ts","backend/src/modules/academic-calendar/academic-calendar.service.ts")
+    }
+    "Student-Enrollment" = @{
+        description = "Student acquisition and enrollment: class enrollment, program enrollment, org enrollment settings, subject prerequisites, and eligibility checks"
+        keywords = @("StudentEnrollmentService","OrgEnrollmentSettingService","SubjectPrerequisiteService","enrollment","prerequisite","eligibility","Org")
+        locations = @("backend/src/modules/student-enrollment/student-enrollment.service.ts","backend/src/modules/enrollment/enrollment.service.ts","backend/src/modules/org-enrollment-setting/org-enrollment-setting.service.ts","backend/src/modules/subject-prerequisite/subject-prerequisite.service.ts")
+    }
+    "Grading-Scheme-Templates" = @{
+        description = "Reusable grading scheme templates: program/class assignment, auto-apply to new classes, and per-program component weight resolution"
+        keywords = @("GradingSchemeTemplateService","resolveProgramTemplate","applyToClass","applyToProgram","autoApplyForNewClass","template")
+        locations = @("backend/src/modules/grading-scheme-template/grading-scheme-template.service.ts","backend/src/modules/grading-scheme/grading-scheme.service.ts")
+    }
+    "Organization-Seeding" = @{
+        description = "Bulk organization bootstrap data: programs, grading schemes/scales/templates, levels, sections, strands, subjects, prerequisites, and semester templates seeded for a new organization"
+        keywords = @("OrgSeederService","seedOrg","seeder","bootstrap","seed-resources","program","grading")
+        locations = @("backend/src/modules/org-seeder/org-seeder.service.ts","backend/src/modules/org-seeder/seeders/program-seeder.ts","backend/src/modules/org-seeder/seeders/grading-scale-seeder.ts","backend/src/modules/org-seeder/seeders/major-subject-seeder.ts")
+    }
+    "Analytics-Dashboard" = @{
+        description = "Analytics and dashboards: enrollment breakdown, grade analytics, educator load, academic context, and actionable alerts"
+        keywords = @("AnalyticsService","DashboardService","getEnrollmentBreakdown","getGradeAnalytics","getAlerts","analytics","dashboard")
+        locations = @("backend/src/modules/analytics/analytics.service.ts","backend/src/modules/dashboard/dashboard.service.ts")
     }
     "JWT-Authentication" = @{
         description = "JWT-based authentication with access/refresh token rotation, Passport strategy, and guards"
