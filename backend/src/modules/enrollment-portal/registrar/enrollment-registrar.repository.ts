@@ -197,4 +197,31 @@ export class EnrollmentRegistrarRepository {
       },
     });
   }
+
+  // ── Auto-lock sweep (Phase 5) ────────────────────────────────────────────
+
+  findExpiredPendingApplications(now: Date) {
+    return this.db.enrollmentApplication.findMany({
+      where: {
+        status: EnrollmentApplicationStatus.pending,
+        enrollmentPeriod: { lock_date: { lte: now } },
+      },
+      select: {
+        id: true,
+        org_id: true,
+        application_code: true,
+        enrollmentPeriod: { select: { name: true, lock_date: true } },
+      },
+    });
+  }
+
+  lockApplication(id: string) {
+    return this.db.enrollmentApplication.update({
+      where: { id },
+      data: {
+        status: EnrollmentApplicationStatus.locked,
+        locked_at: new Date(),
+      },
+    });
+  }
 }

@@ -4,7 +4,8 @@ import { GradeLockService }          from '@/modules/grade-lock/grade-lock.servi
 import { SubmissionService }         from '@/modules/submission/submission.service'
 import { NotificationService }       from '@/modules/notification/notification.service'
 import { OrgEnrollmentSettingService } from '@/modules/org-enrollment-setting/org-enrollment-setting.service'
-import { DatabaseService }           from '@/core/database/database.provider'
+import { EnrollmentAutoLockService } from '@/modules/enrollment-portal/registrar/enrollment-auto-lock.service'
+import { DatabaseService } from '@/core/database/database.provider'
 
 @Injectable()
 export class SchedulerTasks {
@@ -15,8 +16,26 @@ export class SchedulerTasks {
     private readonly submissionService:         SubmissionService,
     private readonly notificationService:       NotificationService,
     private readonly orgEnrollmentSettingService: OrgEnrollmentSettingService,
+    private readonly enrollmentAutoLockService: EnrollmentAutoLockService,
     private readonly db:                        DatabaseService,
   ) {}
+
+  /**
+   * Runs hourly. Any enrollment application still `pending` for a period whose
+   * `lock_date` has passed is moved to `locked` (idempotent).
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async handleAutoLockEnrollmentApplications() {
+    this.logger.log('Running auto lock for expired enrollment applications...')
+    try {
+      const result = await this.enrollmentAutoLockService.lockExpired()
+      if (result.lockedCount > 0) {
+        this.logger.log(`Auto-locked ${result.lockedCount} enrollment application(s).`)
+      }
+    } catch (err) {
+      this.logger.error('Auto-lock enrollment applications failed', err)
+    }
+  }
 
   @Cron(CronExpression.EVERY_HOUR)
   async handleAutoGradeLock() {

@@ -14,6 +14,7 @@ import { EnrollmentRegistrarService } from './registrar/enrollment-registrar.ser
 import { EnrollmentRegistrarRepository } from './registrar/enrollment-registrar.repository';
 import { EnrollmentApprovalService } from './registrar/enrollment-approval.service';
 import { EnrollmentApprovalRepository } from './registrar/enrollment-approval.repository';
+import { EnrollmentAutoLockService } from './registrar/enrollment-auto-lock.service';
 
 @Module({
   imports: [
@@ -32,7 +33,8 @@ import { EnrollmentApprovalRepository } from './registrar/enrollment-approval.re
     EnrollmentRegistrarRepository,
     EnrollmentApprovalService,
     EnrollmentApprovalRepository,
+    EnrollmentAutoLockService,
   ],
-  exports: [EnrollmentPortalService],
+  exports: [EnrollmentPortalService, EnrollmentAutoLockService],
 })
 export class EnrollmentPortalModule {}

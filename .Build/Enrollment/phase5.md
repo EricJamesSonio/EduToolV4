@@ -21,3 +21,25 @@ Applications automatically move `pending → locked` at each period's `lock_date
 
 - Exactly one scheduling mechanism exists in the codebase after this phase — no new cron library or queue was introduced if `scheduler.tasks.ts` already covers the need.
 - The sweep is idempotent (running it twice in the same lock window doesn't double-log or error on already-locked rows).
+
+## Status — COMPLETE ✅
+
+### What shipped
+Audit confirmed `@nestjs/schedule` `@Cron` in `core/scheduler/scheduler.tasks.ts` is the (only) scheduling mechanism — no BullMQ/queue anywhere. Reused the existing grade-lock sweep pattern (`grade-lock-auto.service.ts`: service + repo + `auditLogService` with `actorId: 'system'`).
+
+- `enrollment-registrar.repository.ts` — `findExpiredPendingApplications(now)` (status `pending` + `enrollmentPeriod.lock_date <= now`) and `lockApplication(id)` (→ `locked`, `locked_at`).
+- `enrollment-auto-lock.service.ts` (new) — `lockExpired()` loops matches, locks each, writes audit `ENROLLMENT_APPLICATION_AUTO_LOCK` with `actorId: 'system'`.
+- `scheduler.tasks.ts` — `@Cron(EVERY_HOUR) handleAutoLockEnrollmentApplications()`.
+- `scheduler.module.ts` — imports `EnrollmentPortalModule` (exports `EnrollmentAutoLockService`). No new dependency.
+
+### Verified (live, cron temporarily set to 10s then reverted)
+| Application | before | after sweep | ✓ |
+|---|---|---|---|
+| `pending`, period `lock_date` in past | pending | **locked**, `locked_at` set | ✓ |
+| `pending`, period `lock_date` in future | pending | **pending** (not touched) | ✓ |
+| `approved` in expired period | approved | **approved** (never re-locked) | ✓ |
+
+Idempotency: after 2+ sweep windows the `AUTO_LOCK` audit count stayed at **1** (already-locked rows are filtered out; no double-log, no error).
+
+### Product flag (not invented silently)
+The `EnrollmentApplicationStatus` enum has **no `expired` state**. After a period's `end_date` passes, an application that was never approved/rejected is left `locked` indefinitely (it was locked at `lock_date` and stays locked). No `expired` value was added to the schema — flagging for a product decision whether an explicit "expired/closed" state is wanted before adding it.
