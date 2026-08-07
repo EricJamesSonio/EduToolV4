@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { DatabaseService } from '@/core/database/database.provider'
-import { SchoolYearEnrollmentStatus, EnrollmentStatus } from '@prisma/client'
+import { SchoolYearEnrollmentStatus, EnrollmentStatus, Prisma } from '@prisma/client'
 
 @Injectable()
 export class StudentEnrollmentRepository {
@@ -45,8 +45,14 @@ findAllBySchoolYear(
     })
   }
 
-  findByStudentAndSchoolYear(studentId: string, schoolYearId: string, orgId: string) {
-    return this.db.studentSchoolYear.findUnique({
+  findByStudentAndSchoolYear(
+    studentId: string,
+    schoolYearId: string,
+    orgId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.db;
+    return client.studentSchoolYear.findUnique({
       where: {
         org_id_student_id_school_year_id: {
           org_id:         orgId,
@@ -69,8 +75,15 @@ findAllBySchoolYear(
     })
   }
 
-  enrollStudent(orgId: string, schoolYearId: string, studentId: string, notes?: string) {
-    return this.db.studentSchoolYear.create({
+  enrollStudent(
+    orgId: string,
+    schoolYearId: string,
+    studentId: string,
+    notes?: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.db;
+    return client.studentSchoolYear.create({
       data: {
         org_id:         orgId,
         school_year_id: schoolYearId,
@@ -140,8 +153,10 @@ findAllBySchoolYear(
       strand_id?:  string
       section_id?: string
     },
+    tx?: Prisma.TransactionClient,
   ) {
-    return this.db.studentProgramEnrollment.create({
+    const client = tx ?? this.db;
+    return client.studentProgramEnrollment.create({
       data: {
         org_id:                 orgId,
         student_school_year_id: studentSchoolYearId,

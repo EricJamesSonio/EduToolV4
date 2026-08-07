@@ -13,7 +13,7 @@ import {
   EnrollStudentProgramDto,
   UpdateProgramEnrollmentDto,
 } from './dto/student-enrollment.dto'
-import { SchoolYearEnrollmentStatus } from '@prisma/client'
+import { SchoolYearEnrollmentStatus, Prisma } from '@prisma/client'
 
 @Injectable()
 export class StudentEnrollmentService {
@@ -34,7 +34,7 @@ export class StudentEnrollmentService {
     return { data, total, page, limit }
   }
 
-  async enrollStudent(schoolYearId: string, orgId: string, dto: EnrollStudentDto, actorId: string) {
+  async enrollStudent(schoolYearId: string, orgId: string, dto: EnrollStudentDto, actorId: string, tx?: Prisma.TransactionClient) {
     const existing = await this.repo.findByStudentAndSchoolYear(
       dto.student_id,
       schoolYearId,
@@ -51,7 +51,7 @@ export class StudentEnrollmentService {
       )
     }
 
-    const enrollment = await this.repo.enrollStudent(orgId, schoolYearId, dto.student_id, dto.notes)
+    const enrollment = await this.repo.enrollStudent(orgId, schoolYearId, dto.student_id, dto.notes, tx)
 
     this.auditLogService.logAdminAction({
       orgId,
@@ -142,12 +142,14 @@ export class StudentEnrollmentService {
     orgId:        string,
     dto:          EnrollStudentProgramDto,
     actorId:      string,
+    tx?:          Prisma.TransactionClient,
   ) {
     // Student must be enrolled in the school year first
     const schoolYearEnrollment = await this.repo.findByStudentAndSchoolYear(
       studentId,
       schoolYearId,
       orgId,
+      tx,
     )
     if (!schoolYearEnrollment) {
       throw new BadRequestException('Student is not enrolled in this school year.')
@@ -166,7 +168,7 @@ export class StudentEnrollmentService {
       )
     }
 
-    const programEnrollment = await this.repo.enrollInProgram(orgId, schoolYearEnrollment.id, dto)
+    const programEnrollment = await this.repo.enrollInProgram(orgId, schoolYearEnrollment.id, dto, tx)
 
     this.auditLogService.logAdminAction({
       orgId,

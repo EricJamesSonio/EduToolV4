@@ -47,6 +47,10 @@ export class CreateStudentDto {
   @IsOptional()
   @IsUUID()
   sectionId?: string;
+
+  @IsOptional()
+  @IsEmail()
+  personalEmail?: string;
 }
 
 export class UpdateStudentDto {

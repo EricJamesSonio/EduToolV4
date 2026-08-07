@@ -9,6 +9,7 @@ import { EnrollmentApplicationStatus } from '@prisma/client';
 import { generateRandomCode } from '@/commons/utils/random-code.util';
 import { AuditLogService } from '@/modules/audit-log/audit-log.service';
 import { EnrollmentRegistrarRepository } from './enrollment-registrar.repository';
+import { EnrollmentApprovalService } from './enrollment-approval.service';
 import {
   CreateEnrollmentPeriodDto,
   UpdateEnrollmentPeriodDto,
@@ -25,6 +26,7 @@ export class EnrollmentRegistrarService {
   constructor(
     private readonly repo: EnrollmentRegistrarRepository,
     private readonly auditLogService: AuditLogService,
+    private readonly approvalService: EnrollmentApprovalService,
   ) {}
 
   // ── Period management ────────────────────────────────────────────────────
@@ -163,19 +165,7 @@ export class EnrollmentRegistrarService {
   }
 
   async approveApplication(orgId: string, actorId: string, id: string) {
-    const app = await this.requireReviewable(orgId, id);
-
-    const approved = await this.repo.setReviewDecision(id, {
-      status: EnrollmentApplicationStatus.approved,
-      reviewedBy: actorId,
-    });
-
-    await this.logAdmin(orgId, actorId, 'ENROLLMENT_APPLICATION_APPROVE', id, {
-      application_code: app.application_code,
-      personal_email: app.personal_email,
-    });
-
-    return { success: true, application: this.toApplicationView(approved) };
+    return this.approvalService.approve(orgId, actorId, id);
   }
 
   async rejectApplication(

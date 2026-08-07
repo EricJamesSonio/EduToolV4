@@ -51,6 +51,35 @@ export class MailService {
     }
   }
 
+  /**
+   * Credentials email for a newly-created student login. Reuses the same
+   * template as the other credential emails but lets the recipient (the
+   * applicant's personal email) differ from the student's generated login
+   * email that is displayed. The personal email is the only pre-approval
+   * contact channel we have, so this is the sole way the applicant learns
+   * their new credentials.
+   */
+  async sendStudentCredentialsEmail(
+    recipient: string,
+    loginEmail: string,
+    password: string,
+  ): Promise<void> {
+    const appName = this.configService.get<string>('APP_NAME') ?? 'EduTool';
+
+    try {
+      await this.transporter.sendMail({
+        from: `"${appName}" <${this.configService.get<string>('GMAIL_EMAIL')}>`,
+        to: recipient,
+        subject: `Your ${appName} Student Account Credentials`,
+        html: this.credentialsTemplate(loginEmail, password, appName),
+      });
+      this.logger.log(`Student credentials email sent to ${recipient}`);
+    } catch (error) {
+      this.logger.error(`Failed to send student credentials email to ${recipient}`, error);
+      throw error;
+    }
+  }
+
   async sendApplicationConfirmationEmail(
     to: string,
     firstName: string,

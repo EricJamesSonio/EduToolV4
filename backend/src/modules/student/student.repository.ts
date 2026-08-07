@@ -6,17 +6,22 @@ import { DatabaseService } from '@/core/database/database.provider';
 export class StudentRepository {
   constructor(private readonly db: DatabaseService) {}
 
-  async create(data: {
-    orgId: string;
-    email: string;
-    hashedPassword: string;
-    status: string;
-    fullName: string;
-    studentId: string;
-    levelId?: string;
-    sectionId?: string;
-  }) {
-    return this.db.account.create({
+  async create(
+    data: {
+      orgId: string;
+      email: string;
+      hashedPassword: string;
+      status: string;
+      fullName: string;
+      studentId: string;
+      levelId?: string;
+      sectionId?: string;
+      personalEmail?: string | null;
+    },
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.db;
+    return client.account.create({
       data: {
         org_id: data.orgId,
         email: data.email,
@@ -26,6 +31,7 @@ export class StudentRepository {
         profile: {
           create: {
             full_name: data.fullName,
+            personal_email: data.personalEmail ?? null,
             metadata: {
               studentId: data.studentId,
               levelId: data.levelId,

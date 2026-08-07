@@ -32,4 +32,38 @@ In `enrollment-portal/registrar` approve handler:
 ## Acceptance
 
 - No duplicate "create a student account" code path exists — grep for the existing service's usages after this phase to confirm the new call site is the only addition, not a parallel implementation.
-- If approval fails partway, no orphaned `Account` without a matching `EnrollmentApplication.status = approved` (and vice versa) — whatever transaction/rollback guarantee the existing service already provides should be preserved, not weakened by wrapping it.
+- If approval fails partway, no orphaned `Account` without a matching `EnrollmentApplication.status = approved` (and vice versa) — that transaction/rollback guarantee is preserved by running everything through a single interactive `db.$transaction`.
+
+## Status — COMPLETE ✅
+
+### What shipped
+Orchestrator `enrollment-portal/registrar/enrollment-approval.service.ts` — thin wrapper that reuses existing logic; the only new business rule is section auto-assignment:
+
+1. `EnrollmentApprovalRepository.assignFirstAvailableSection` — eligible sections by `order_index`, picks the first with `active enrollments < capacity`.
+2. Single `db.$transaction`:
+   - `StudentService.create` → `Account` (role `student`, status `pending`) + `Profile` (incl. `personal_email` copied) + hashed password.
+   - `StudentEnrollmentService.enrollStudent` → `StudentSchoolYear` (status `active`).
+   - `StudentEnrollmentService.enrollInProgram` → `StudentProgramEnrollment` (status `active`, `section_id` = assignment or `null`).
+   - `EnrollmentApprovalRepository.approveInTx` → `status=approved`, `resulting_account_id`, `reviewed_by`, `reviewed_at`.
+3. Post-tx best-effort: credentials email to `personal_email` (reused mail method), capacity-full notification to registrars, audit `ENROLLMENT_APPLICATION_APPROVE`.
+
+### tx plumbing added
+- `StudentRepository.create(data, tx?)`, `StudentService.create(..., tx?)`.
+- `StudentEnrollmentRepository.enrollStudent / enrollInProgram` already took `tx`; added `tx` to `findByStudentAndSchoolYear` and passed it from `enrollInProgram`.
+- `MailService.sendStudentCredentialsEmail` (reuses `credentialsTemplate`).
+
+### Bugs caught during verification
+- `enrollment-approval.service.ts` — `StudentService.create` returns a **flattened** object (`{ ...formatAccount(account), plainPassword }`), not `{ account, plainPassword }`; destructured `account` was `undefined`.
+- `student-enrollment.service.ts` / `repository.ts` — `findByStudentAndSchoolYear` didn't accept the tx, so `enrollInProgram` couldn't see the `StudentSchoolYear` created moments earlier in the same transaction ("Student is not enrolled in this school year").
+
+### Verified (end-to-end, live server)
+| Case | Result |
+|---|---|
+| Approve (section has capacity) | 200, first `order_index` section auto-assigned |
+| Approve (all sections full) | 200, `section_id` null + `enrollment_section_full` notification to registrar |
+| Application | `status=approved`, `resulting_account_id`, `reviewed_by/at` set |
+| Account/Profile | role `student`, status `pending`, org-derived email, `Profile.personal_email` = applicant email |
+| `StudentSchoolYear` + `StudentProgramEnrollment` | created, `active` |
+| Audit | `ENROLLMENT_APPLICATION_APPROVE` logged |
+
+Acceptance: no parallel "create student" path (all reuse); the single `$transaction` guarantees an all-or-nothing approve (no orphaned Account vs approved application).

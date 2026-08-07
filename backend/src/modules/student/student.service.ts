@@ -21,6 +21,7 @@ import {
   buildCredentialsCsv,
 } from './student.utils';
 import { hashPassword } from '@/commons/utils/hash.util';
+import { Prisma } from '@prisma/client';
 import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '../enrollment/enrollment.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -165,7 +166,7 @@ export class StudentService {
     return emailName;
   }
 
-  async create(orgId: string, dto: CreateStudentDto) {
+  async create(orgId: string, dto: CreateStudentDto, tx?: Prisma.TransactionClient) {
     const email = await this.buildOrgEmail(orgId, dto.emailName);
 
     const emailTaken = await this.studentRepository.findByEmail(email, orgId);
@@ -194,7 +195,8 @@ export class StudentService {
       studentId:      dto.studentId,
       levelId:        dto.levelId,
       sectionId:      dto.sectionId,
-    });
+      personalEmail:  dto.personalEmail ?? null,
+    }, tx);
 
     return { ...this.formatAccount(account), plainPassword };
   }
