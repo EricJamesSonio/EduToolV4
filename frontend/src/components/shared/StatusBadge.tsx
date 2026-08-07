@@ -53,6 +53,7 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   submitted: { label: "Submitted", className: "badge-active" },
   passed:    { label: "Passed",    className: "badge-active" },
   open:      { label: "Open",      className: "badge-active" },
+  approved:  { label: "Approved",  className: "badge-active" },
   unlocked:  { label: "Unlocked",  className: "badge-active" },
 
   // Yellow/Amber — pending / in-progress
@@ -66,6 +67,7 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   dropped:   { label: "Dropped",   className: "badge-suspended" },
   absent:    { label: "Absent",    className: "badge-suspended" },
   failed:    { label: "Failed",    className: "badge-suspended" },
+  rejected:  { label: "Rejected",  className: "badge-suspended" },
   closed:    { label: "Closed",    className: "badge-suspended" },
   missed:    { label: "Missed",    className: "badge-suspended" },
 

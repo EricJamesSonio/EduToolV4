@@ -58,18 +58,28 @@ export class EnrollmentRegistrarService {
   }
 
   async listPeriods(orgId: string) {
-    const periods = await this.repo.findPeriods(orgId);
-    return periods.map((p) => ({
-      id: p.id,
-      name: p.name,
-      token: p.token,
-      start_date: p.start_date,
-      end_date: p.end_date,
-      lock_date: p.lock_date,
-      created_by: p.created_by,
-      school_year: p.schoolYear,
-      created_at: p.created_at,
-    }));
+    const [periods, org] = await Promise.all([
+      this.repo.findPeriods(orgId),
+      this.repo.findOrgInfo(orgId),
+    ]);
+    return {
+      org: {
+        id: org?.id ?? null,
+        name: org?.name ?? null,
+        slug: org?.slug ?? null,
+      },
+      periods: periods.map((p) => ({
+        id: p.id,
+        name: p.name,
+        token: p.token,
+        start_date: p.start_date,
+        end_date: p.end_date,
+        lock_date: p.lock_date,
+        created_by: p.created_by,
+        school_year: p.schoolYear,
+        created_at: p.created_at,
+      })),
+    };
   }
 
   async updatePeriod(orgId: string, actorId: string, id: string, dto: UpdateEnrollmentPeriodDto) {

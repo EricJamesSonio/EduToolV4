@@ -124,6 +124,19 @@ export const queryKeys = {
       detail: (id: string) => [...adminKeys.all, 'schoolYears', 'detail', id] as const,
       levels: (schoolYearId: string) => [...adminKeys.all, 'schoolYears', 'detail', schoolYearId, 'levels'] as const,
     },
+    enrollmentPortal: {
+      all: [...adminKeys.all, 'enrollmentPortal'] as const,
+      periods: {
+        all: [...adminKeys.all, 'enrollmentPortal', 'periods'] as const,
+        list: (filters?: Record<string, any>) => [...adminKeys.all, 'enrollmentPortal', 'periods', 'list', filters] as const,
+        detail: (id: string) => [...adminKeys.all, 'enrollmentPortal', 'periods', 'detail', id] as const,
+      },
+      applications: {
+        all: [...adminKeys.all, 'enrollmentPortal', 'applications'] as const,
+        list: (filters?: Record<string, any>) => [...adminKeys.all, 'enrollmentPortal', 'applications', 'list', filters] as const,
+        detail: (id: string) => [...adminKeys.all, 'enrollmentPortal', 'applications', 'detail', id] as const,
+      },
+    },
     sections: {
       all: [...adminKeys.all, 'sections'] as const,
       list: (filters?: Record<string, any>) => [...adminKeys.all, 'sections', 'list', filters] as const,

@@ -20,6 +20,7 @@ import {
   CalendarRange,
   UserPlus,
   Database,
+  Inbox,
 } from "lucide-react";
 
 const GROUPS = [
@@ -30,6 +31,7 @@ const GROUPS = [
       { label: "Organization", href: "/admin/organization", icon: Building2 },
       { label: "Data Seeder", href: "/admin/data-seeder", icon: Database },
       { label: "Enrollment", href: "/admin/enrollment", icon: UserPlus },
+      { label: "Enrollment Portal", href: "/admin/enrollment-portal", icon: Inbox },
       
     ],
   },

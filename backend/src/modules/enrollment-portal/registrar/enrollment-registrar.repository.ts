@@ -37,6 +37,13 @@ export class EnrollmentRegistrarRepository {
     });
   }
 
+  findOrgInfo(orgId: string) {
+    return this.db.organization.findUnique({
+      where: { id: orgId },
+      select: { id: true, name: true, slug: true },
+    });
+  }
+
   findPeriodByToken(orgId: string, token: string) {
     return this.db.enrollmentPeriod.findFirst({
       where: { org_id: orgId, token },
