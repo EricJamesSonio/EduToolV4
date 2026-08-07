@@ -1,1 +1,0 @@
-fixes ,m combined semster settings

@@ -1,1 +1,0 @@
-{"info":{"name":"Health","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},"item":[{"name":"Check","request":{"method":"GET","url":{"raw":"{{baseUrl}}/check","host":["{{baseUrl}}"],"path":["check"]}}}]}
