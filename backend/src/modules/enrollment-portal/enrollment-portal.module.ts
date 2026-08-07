@@ -1,18 +1,24 @@
 // src/modules/enrollment-portal/enrollment-portal.module.ts
 import { Module } from '@nestjs/common';
 import { AuthModule } from '@/modules/auth/auth.module';
+import { AuditLogModule } from '@/modules/audit-log/audit-log.module';
 import { EnrollmentPortalController } from './enrollment-portal.controller';
 import { EnrollmentPortalService } from './enrollment-portal.service';
 import { EnrollmentPortalRepository } from './enrollment-portal.repository';
 import { EnrollmentSessionGuard } from './enrollment-session.guard';
+import { EnrollmentRegistrarController } from './registrar/enrollment-registrar.controller';
+import { EnrollmentRegistrarService } from './registrar/enrollment-registrar.service';
+import { EnrollmentRegistrarRepository } from './registrar/enrollment-registrar.repository';
 
 @Module({
-  imports: [AuthModule],
-  controllers: [EnrollmentPortalController],
+  imports: [AuthModule, AuditLogModule],
+  controllers: [EnrollmentPortalController, EnrollmentRegistrarController],
   providers: [
     EnrollmentPortalService,
     EnrollmentPortalRepository,
     EnrollmentSessionGuard,
+    EnrollmentRegistrarService,
+    EnrollmentRegistrarRepository,
   ],
   exports: [EnrollmentPortalService],
 })
