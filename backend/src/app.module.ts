@@ -19,6 +19,7 @@ import { UploadModule } from './modules/upload/upload.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { ProfileModule } from './modules/profile/profile.module';
 import { PublicModule } from './modules/public/public.module';
+import { EnrollmentPortalModule } from './modules/enrollment-portal/enrollment-portal.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { PublicModule } from './modules/public/public.module';
     OrganizationModule,
     ProfileModule,
     PublicModule,
+    EnrollmentPortalModule,
 
     HealthModule,
     UploadModule,
