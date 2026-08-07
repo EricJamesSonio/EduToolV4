@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { isAxiosError } from "axios";
 
 import { schoolYearApi } from "@/api/admin/school-year.api";
+import { queryKeys } from "@/hooks/queryKeys.factory";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import {
@@ -59,11 +60,16 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
+  const invalidateSchoolYears = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.schoolYears.all });
+    queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
+  };
+
   const activateMutation = useMutation({
     mutationFn: () => schoolYearApi.activate(year.id),
     onSuccess: () => {
       toast.success("School year activated.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
+      invalidateSchoolYears();
       setConfirmAction(null);
     },
     onError: (err: unknown) => {
@@ -79,7 +85,7 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
     mutationFn: () => schoolYearApi.end(year.id),
     onSuccess: () => {
       toast.success("School year ended.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
+      invalidateSchoolYears();
       setConfirmAction(null);
     },
     onError: () => {

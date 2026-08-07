@@ -19,9 +19,15 @@ interface ScheduleBlock {
   sublabel: string;
 }
 
+interface PositionedBlock extends ScheduleBlock {
+  col: number;
+  colCount: number;
+}
+
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sat, Sun appended only if used
 const MIN_INTERVAL_CANDIDATES = [30, 15, 10, 5, 1];
 const PX_PER_MINUTE = 1.1;
+const TIME_COL_WIDTH = 64;
 
 const BLOCK_COLORS = [
   "bg-blue-500/15 border-blue-500/40 text-blue-700 dark:text-blue-300",
@@ -55,6 +61,58 @@ function colorForClass(classId: string): string {
   return BLOCK_COLORS[hash % BLOCK_COLORS.length];
 }
 
+/**
+ * Assigns each block in a single day to a sub-column so that
+ * time-overlapping blocks sit side-by-side instead of stacking.
+ * Blocks that don't overlap anything get colCount = 1 (full day width).
+ */
+function layoutOverlaps(dayBlocks: ScheduleBlock[]): PositionedBlock[] {
+  const sorted = [...dayBlocks].sort((a, b) => a.startMin - b.startMin);
+  const result: PositionedBlock[] = [];
+
+  let cluster: ScheduleBlock[] = [];
+  let clusterEnd = -1;
+
+  const flushCluster = () => {
+    if (cluster.length === 0) return;
+
+    const columnEnds: number[] = [];
+    const placed: PositionedBlock[] = [];
+
+    for (const b of cluster) {
+      let col = columnEnds.findIndex((end) => end <= b.startMin);
+      if (col === -1) {
+        col = columnEnds.length;
+        columnEnds.push(b.endMin);
+      } else {
+        columnEnds[col] = b.endMin;
+      }
+      placed.push({ ...b, col, colCount: 0 });
+    }
+
+    const colCount = columnEnds.length;
+    placed.forEach((p) => { p.colCount = colCount; });
+    result.push(...placed);
+
+    cluster = [];
+    clusterEnd = -1;
+  };
+
+  for (const b of sorted) {
+    if (cluster.length === 0 || b.startMin < clusterEnd) {
+      cluster.push(b);
+      clusterEnd = Math.max(clusterEnd, b.endMin);
+    } else {
+      flushCluster();
+      cluster.push(b);
+      clusterEnd = b.endMin;
+    }
+  }
+  flushCluster();
+
+  return result;
+}
+
 export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGridProps) {
   const blocks = useMemo<ScheduleBlock[]>(() => {
     const result: ScheduleBlock[] = [];
@@ -79,7 +137,7 @@ export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGri
     return DAY_ORDER.filter((d) => d !== 0 || used.has(0));
   }, [blocks]);
 
-const { gridStart, gridEnd, interval } = useMemo(() => {
+  const { gridStart, gridEnd, interval } = useMemo(() => {
     if (blocks.length === 0) {
       return { gridStart: 0, gridEnd: 0, interval: 30 };
     }
@@ -106,6 +164,29 @@ const { gridStart, gridEnd, interval } = useMemo(() => {
     return { gridStart: start, gridEnd: end, interval: chosen };
   }, [blocks]);
 
+  // Per-day column layout: each day gets its own contiguous run of grid
+  // columns (1 normally, or N if it has N overlapping classes at once).
+  // Placement for both axes then comes straight from CSS Grid track
+  // indices (gridRow / gridColumn) — no manual pixel math, so it can
+  // never drift out of sync with the row lines / time labels.
+  const { dayLayout, totalDataCols } = useMemo(() => {
+    let col = 2; // column 1 is the time-label column
+    const layout: Record<number, { startCol: number; colCount: number; blocks: PositionedBlock[] }> = {};
+
+    for (const d of days) {
+      const dayBlocks = blocks.filter((b) => b.weekday === d);
+      const positioned = layoutOverlaps(dayBlocks);
+      const colCount = positioned.length > 0
+        ? Math.max(...positioned.map((b) => b.colCount))
+        : 1;
+
+      layout[d] = { startCol: col, colCount, blocks: positioned };
+      col += colCount;
+    }
+
+    return { dayLayout: layout, totalDataCols: col - 2 };
+  }, [days, blocks]);
+
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -130,27 +211,31 @@ const { gridStart, gridEnd, interval } = useMemo(() => {
   const totalMinutes = gridEnd - gridStart;
   const numRows = Math.max(1, Math.ceil(totalMinutes / interval));
   const labelStep = Math.max(1, Math.round(30 / interval));
-  const timeColWidth = 64;
+  const totalCols = 1 + totalDataCols;
 
   return (
     <div className="border rounded-md overflow-x-auto bg-card">
       <div
         className="grid min-w-[640px]"
         style={{
-          gridTemplateColumns: `${timeColWidth}px repeat(${days.length}, 1fr)`,
+          gridTemplateColumns: `${TIME_COL_WIDTH}px repeat(${totalDataCols}, 1fr)`,
           gridTemplateRows: `auto repeat(${numRows}, ${interval * PX_PER_MINUTE}px)`,
         }}
       >
         {/* Header row */}
         <div className="sticky top-0 z-10 bg-card border-b border-r" />
-        {days.map((d) => (
-          <div
-            key={`head-${d}`}
-            className="sticky top-0 z-10 bg-card border-b border-r last:border-r-0 py-2 text-center text-xs font-semibold text-muted-foreground not-interactive"
-          >
-            {WEEKDAYS[d]}
-          </div>
-        ))}
+        {days.map((d) => {
+          const { startCol, colCount } = dayLayout[d];
+          return (
+            <div
+              key={`head-${d}`}
+              className="sticky top-0 z-10 bg-card border-b border-r py-2 text-center text-xs font-semibold text-muted-foreground not-interactive"
+              style={{ gridColumn: `${startCol} / span ${colCount}` }}
+            >
+              {WEEKDAYS[d]}
+            </div>
+          );
+        })}
 
         {/* Time labels */}
         {Array.from({ length: numRows }).map((_, i) => {
@@ -167,47 +252,47 @@ const { gridStart, gridEnd, interval } = useMemo(() => {
           );
         })}
 
-        {/* Day column backgrounds (grid lines) */}
-        {days.map((d, dayIdx) =>
-          Array.from({ length: numRows }).map((_, i) => (
+        {/* Background grid lines, one per data column */}
+        {Array.from({ length: totalDataCols }).map((_, colIdx) =>
+          Array.from({ length: numRows }).map((_, rowIdx) => (
             <div
-              key={`cell-${d}-${i}`}
-              className="border-r border-b last:border-r-0"
-              style={{ gridRow: i + 2, gridColumn: dayIdx + 2 }}
+              key={`bg-${colIdx}-${rowIdx}`}
+              className={`border-b ${colIdx === totalDataCols - 1 ? "" : "border-r"}`}
+              style={{ gridRow: rowIdx + 2, gridColumn: colIdx + 2 }}
             />
           ))
         )}
 
-        {/* Class blocks */}
-        {blocks.map((b) => {
-          const dayIdx = days.indexOf(b.weekday);
-          if (dayIdx === -1) return null;
+        {/* Class blocks — placed purely via grid row/column tracks */}
+        {days.map((d) => {
+          const { startCol, blocks: dayBlocks } = dayLayout[d];
+          return dayBlocks.map((b) => {
+            const rowStart = 2 + Math.round((b.startMin - gridStart) / interval);
+            const rowSpan = Math.max(1, Math.round((b.endMin - b.startMin) / interval));
 
-          const rowStart = 2 + Math.round((b.startMin - gridStart) / interval);
-          const rowSpan = Math.max(1, Math.round((b.endMin - b.startMin) / interval));
-
-          return (
-            <div
-              key={b.key}
-              className={`m-0.5 rounded-md border px-1.5 py-1 overflow-hidden ${colorForClass(b.classId)}`}
-              style={{
-                gridRow: `${rowStart} / span ${rowSpan}`,
-                gridColumn: dayIdx + 2,
-              }}
-            >
-              <p className="text-[11px] font-medium leading-tight truncate not-interactive">
-                {b.label}
-              </p>
-              {b.sublabel && (
-                <p className="text-[10px] opacity-80 leading-tight truncate not-interactive">
-                  {b.sublabel}
+            return (
+              <div
+                key={b.key}
+                className={`m-0.5 rounded-md border px-1.5 py-1 overflow-hidden ${colorForClass(b.classId)}`}
+                style={{
+                  gridRow: `${rowStart} / span ${rowSpan}`,
+                  gridColumn: startCol + b.col,
+                }}
+              >
+                <p className="text-[11px] font-medium leading-tight truncate not-interactive">
+                  {b.label}
                 </p>
-              )}
-              <p className="text-[9px] opacity-70 leading-tight not-interactive">
-                {toLabel(b.startMin)}–{toLabel(b.endMin)}
-              </p>
-            </div>
-          );
+                {b.sublabel && (
+                  <p className="text-[10px] opacity-80 leading-tight truncate not-interactive">
+                    {b.sublabel}
+                  </p>
+                )}
+                <p className="text-[9px] opacity-70 leading-tight not-interactive">
+                  {toLabel(b.startMin)}–{toLabel(b.endMin)}
+                </p>
+              </div>
+            );
+          });
         })}
       </div>
     </div>
