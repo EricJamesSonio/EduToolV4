@@ -67,6 +67,18 @@ enum GradingMode {
   hybrid
 }
 
+enum OtpPurpose {
+  org_registration
+  enrollment_verification
+}
+
+enum EnrollmentApplicationStatus {
+  pending
+  locked
+  approved
+  rejected
+}
+
 //////////////////////
 // CORE TABLES
 //////////////////////
@@ -79,6 +91,7 @@ model Organization {
   logo_url    String?
 
   email_extension String? @unique
+  slug           String? @unique
 
   admin_account_id String? @unique
 
@@ -101,6 +114,7 @@ model Account {
   email      String        @unique
   password   String
   status     AccountStatus
+  is_registrar Boolean     @default(false)
   created_at DateTime      @default(now())
   updated_at DateTime      @updatedAt
   deleted_at DateTime?
@@ -145,6 +159,7 @@ model Program {
   semesterAssignment      ProgramSemesterAssignment?
   gradingScaleAssignments GradingScaleAssignment[]
   programCalendars        ProgramCalendar[]
+  enrollmentApplications  EnrollmentApplication[]
 }
 
 model Course {
@@ -162,6 +177,7 @@ model Course {
   studentEnrollments StudentProgramEnrollment[]
   sections           Section[]
   levels             Level[]
+  enrollmentApplications EnrollmentApplication[]
 }
 
 model Strand {
@@ -178,6 +194,7 @@ model Strand {
   studentEnrollments StudentProgramEnrollment[]
   sections           Section[]
   levels             Level[]
+  enrollmentApplications EnrollmentApplication[]
 }
 
 model Level {
@@ -197,6 +214,7 @@ model Level {
   sharings           SubjectSharing[]
   studentEnrollments StudentProgramEnrollment[]
   subjects           Subject[]
+  enrollmentApplications EnrollmentApplication[]
 }
 
 model Section {
@@ -208,6 +226,7 @@ model Section {
   school_year_id String
   name           String
   capacity       Int
+  order_index    Int       @default(0)
   deleted_at     DateTime?
 
   level              Level                      @relation(fields: [level_id], references: [id])
@@ -215,6 +234,7 @@ model Section {
   strand             Strand?                    @relation(fields: [strand_id], references: [id])
   schoolYear         SchoolYear                 @relation(fields: [school_year_id], references: [id])
   studentEnrollments StudentProgramEnrollment[]
+  enrollmentApplications EnrollmentApplication[]
 }
 
 model SchoolYear {
@@ -236,6 +256,8 @@ model SchoolYear {
   classes            Class[]
   academicCalendars  AcademicCalendar[]
   programCalendars   ProgramCalendar[]
+  enrollmentPeriods  EnrollmentPeriod[]
+  enrollmentApplications EnrollmentApplication[]
 }
 
 model SemesterTemplate {
@@ -983,8 +1005,10 @@ model MeetingChatMessage {
   created_at  DateTime @default(now())
 }
 model Otp {
-  id                   String    @id @default(uuid())
+  id                   String     @id @default(uuid())
   email                String
+  purpose              OtpPurpose @default(org_registration)
+  org_id               String?
   full_name            String?
   code                 String
   plan                 String?
@@ -1015,4 +1039,73 @@ model RegistrationRequest {
   status               RegistrationStatus @default(pending)
   created_at           DateTime           @default(now())
   updated_at           DateTime           @updatedAt
+}
+
+// ─── PUBLIC ENROLLMENT PORTAL ────────────────────────────────────────────
+
+model EnrollmentPeriod {
+  id             String   @id @default(uuid())
+  org_id         String
+  school_year_id String
+  name           String
+  token          String   @unique
+  start_date     DateTime
+  end_date       DateTime
+  lock_date      DateTime
+  created_by     String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  schoolYear   SchoolYear              @relation(fields: [school_year_id], references: [id])
+  applications EnrollmentApplication[]
+
+  @@index([org_id, school_year_id])
+}
+
+model EnrollmentApplication {
+  id                   String                     @id @default(uuid())
+  org_id               String
+  school_year_id       String
+  enrollment_period_id String
+  application_code     String
+  personal_email       String
+
+  first_name            String
+  middle_name           String?
+  last_name             String
+  age                   Int?
+  address               String?
+  contact_number        String?
+  last_school_graduated String?
+
+  program_id           String
+  course_id            String?
+  strand_id            String?
+  level_id             String
+  section_id           String?
+
+  status               EnrollmentApplicationStatus @default(pending)
+  rejection_reason     String?
+  reviewed_by          String?
+  reviewed_at          DateTime?
+  locked_at            DateTime?
+  unlocked_by          String?
+  unlocked_at          DateTime?
+  resulting_account_id String?
+
+  submitted_at DateTime @default(now())
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  schoolYear       SchoolYear        @relation(fields: [school_year_id], references: [id])
+  enrollmentPeriod EnrollmentPeriod  @relation(fields: [enrollment_period_id], references: [id])
+  program          Program           @relation(fields: [program_id], references: [id])
+  course           Course?           @relation(fields: [course_id], references: [id])
+  strand           Strand?           @relation(fields: [strand_id], references: [id])
+  level            Level             @relation(fields: [level_id], references: [id])
+  section          Section?          @relation(fields: [section_id], references: [id])
+
+  @@unique([org_id, school_year_id, personal_email])
+  @@unique([org_id, school_year_id, application_code])
+  @@index([org_id, school_year_id, enrollment_period_id])
 }

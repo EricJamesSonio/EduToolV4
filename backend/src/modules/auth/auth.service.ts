@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { AccountStatus } from '@prisma/client';
+import { AccountStatus, OtpPurpose } from '@prisma/client';
 
 import { AuthRepository } from './auth.repository';
 import { LoginDto } from './dto/auth.dto';
@@ -122,6 +122,56 @@ export class AuthService {
     await this.mailService.sendOtpEmail(dto.email, code);
 
     return { message: 'New verification code sent to your email' };
+  }
+
+  // ─── Enrollment Portal OTP (public applicants) ───────────────────────────
+  // Same OTP write + send path as org registration, distinguished by
+  // `purpose` + `org_id` so an applicant OTP can never satisfy an
+  // org-registration verification (and vice versa).
+
+  async sendEnrollmentOtp(
+    email: string,
+    orgId: string,
+  ): Promise<{ message: string }> {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await this.authRepository.createOtp({
+      email,
+      code,
+      plan: null,
+      purpose: OtpPurpose.enrollment_verification,
+      org_id: orgId,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000),
+    });
+
+    await this.mailService.sendOtpEmail(email, code);
+
+    return { message: 'Verification code sent to your email' };
+  }
+
+  async verifyEnrollmentOtp(
+    email: string,
+    code: string,
+    orgId: string,
+  ): Promise<void> {
+    const otp = await this.authRepository.findValidOtp(email, code, {
+      purpose: OtpPurpose.enrollment_verification,
+      orgId,
+    });
+
+    if (!otp) {
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    if (otp.used_at) {
+      throw new BadRequestException('Verification code already used');
+    }
+
+    if (new Date() > otp.expires_at) {
+      throw new BadRequestException('Verification code has expired');
+    }
+
+    await this.authRepository.markOtpUsed(otp.id);
   }
 
   async refresh(incomingRefreshToken: string): Promise<AuthTokens> {

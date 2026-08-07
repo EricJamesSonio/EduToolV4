@@ -1,6 +1,7 @@
 // @/modules/auth/auth.repository.ts
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
+import { OtpPurpose } from '@prisma/client';
 
 @Injectable()
 export class AuthRepository {
@@ -76,17 +77,25 @@ export class AuthRepository {
     student_count?: string | null;
     programs_departments?: string | null;
     expires_at: Date;
+    purpose?: OtpPurpose;
+    org_id?: string;
   }) {
     return this.db.otp.create({ data });
   }
 
-  async findValidOtp(email: string, code: string) {
+  async findValidOtp(
+    email: string,
+    code: string,
+    opts?: { purpose?: OtpPurpose; orgId?: string },
+  ) {
     return this.db.otp.findFirst({
       where: {
         email,
         code,
         used_at: null,
         expires_at: { gte: new Date() },
+        ...(opts?.purpose ? { purpose: opts.purpose } : {}),
+        ...(opts?.orgId ? { org_id: opts.orgId } : {}),
       },
       orderBy: { created_at: 'desc' },
     });
