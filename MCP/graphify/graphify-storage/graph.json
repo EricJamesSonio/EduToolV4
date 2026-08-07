@@ -1,4 +1,7 @@
 ﻿{
+    "id":  "edutoolv3",
+    "title":  "EduToolV3 — Knowledge Graph",
+    "description":  "Graphify knowledge book for the EduToolV3 repository: high-level concepts and navigation for the backend (NestJS, Prisma/PostgreSQL) and frontend (React/Next.js) portals, their features, and relationships across the codebase.",
     "meta":  {
                  "incremental":  {
                                      "affectedSetSize":  1050,
