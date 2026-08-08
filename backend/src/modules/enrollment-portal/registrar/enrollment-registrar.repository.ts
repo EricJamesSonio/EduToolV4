@@ -96,6 +96,14 @@ export class EnrollmentRegistrarRepository {
     });
   }
 
+  countApplicationsByPeriodStatus(orgId: string) {
+    return this.db.enrollmentApplication.groupBy({
+      by: ['enrollment_period_id', 'status'],
+      where: { org_id: orgId },
+      _count: { _all: true },
+    });
+  }
+
   deletePeriod(id: string) {
     return this.db.enrollmentPeriod.delete({ where: { id } });
   }
@@ -229,6 +237,67 @@ export class EnrollmentRegistrarRepository {
         status: EnrollmentApplicationStatus.locked,
         locked_at: new Date(),
       },
+    });
+  }
+
+  // ── Dashboard (Phase: portal overview) ───────────────────────────────────
+
+  findPeriodApplications(orgId: string, periodId: string) {
+    return this.db.enrollmentApplication.findMany({
+      where: { org_id: orgId, enrollment_period_id: periodId },
+      select: {
+        program_id: true,
+        course_id: true,
+        strand_id: true,
+        level_id: true,
+        status: true,
+      },
+    });
+  }
+
+  findDashboardPrograms(orgId: string, schoolYearId: string) {
+    return this.db.program.findMany({
+      where: { org_id: orgId, school_year_id: schoolYearId },
+      include: {
+        courses: {
+          where: { org_id: orgId, school_year_id: schoolYearId },
+          orderBy: { name: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            levels: {
+              where: { org_id: orgId, school_year_id: schoolYearId },
+              orderBy: { name: 'asc' },
+              select: { id: true, name: true },
+            },
+          },
+        },
+        strands: {
+          where: { org_id: orgId, school_year_id: schoolYearId },
+          orderBy: { name: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            levels: {
+              where: { org_id: orgId, school_year_id: schoolYearId },
+              orderBy: { name: 'asc' },
+              select: { id: true, name: true },
+            },
+          },
+        },
+        levels: {
+          where: {
+            org_id: orgId,
+            school_year_id: schoolYearId,
+            course_id: null,
+            strand_id: null,
+          },
+          orderBy: { name: 'asc' },
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { name: 'asc' },
     });
   }
 }

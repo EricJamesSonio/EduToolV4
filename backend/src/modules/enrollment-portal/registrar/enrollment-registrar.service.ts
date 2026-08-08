@@ -21,6 +21,19 @@ import {
 const PERIOD_TOKEN_LENGTH = 7;
 const MAX_TOKEN_ATTEMPTS = 10;
 
+interface DashboardReference {
+  kind: 'course' | 'strand' | 'level';
+  id: string;
+  levelId: string | null;
+  enrolled: boolean;
+}
+
+interface DashboardBucket {
+  total: number;
+  enrolled: number;
+  references: DashboardReference[];
+}
+
 @Injectable()
 export class EnrollmentRegistrarService {
   constructor(
@@ -58,27 +71,185 @@ export class EnrollmentRegistrarService {
   }
 
   async listPeriods(orgId: string) {
-    const [periods, org] = await Promise.all([
+    const [periods, org, groupedByPeriod] = await Promise.all([
       this.repo.findPeriods(orgId),
       this.repo.findOrgInfo(orgId),
+      this.repo.countApplicationsByPeriodStatus(orgId),
     ]);
+
+    const countsByPeriod = groupedByPeriod.reduce<Record<string, Record<string, number>>>(
+      (acc, g) => {
+        const key = g.enrollment_period_id;
+        acc[key] = acc[key] ?? { pending: 0, locked: 0, approved: 0, rejected: 0 };
+        acc[key][g.status] = g._count._all;
+        return acc;
+      },
+      {},
+    );
+
     return {
       org: {
         id: org?.id ?? null,
         name: org?.name ?? null,
         slug: org?.slug ?? null,
       },
-      periods: periods.map((p) => ({
+      periods: periods.map((p) => {
+        const c = countsByPeriod[p.id] ?? { pending: 0, locked: 0, approved: 0, rejected: 0 };
+        return {
+          id: p.id,
+          name: p.name,
+          token: p.token,
+          start_date: p.start_date,
+          end_date: p.end_date,
+          lock_date: p.lock_date,
+          created_by: p.created_by,
+          school_year: p.schoolYear,
+          created_at: p.created_at,
+          counts: c,
+          total: c.pending + c.locked + c.approved + c.rejected,
+        };
+      }),
+    };
+  }
+
+  async getDashboard(orgId: string, periodId?: string) {
+    const [org, periods, groupedByPeriod] = await Promise.all([
+      this.repo.findOrgInfo(orgId),
+      this.repo.findPeriods(orgId),
+      this.repo.countApplicationsByPeriodStatus(orgId),
+    ]);
+
+    const countsByPeriod = groupedByPeriod.reduce<Record<string, Record<string, number>>>(
+      (acc, g) => {
+        const key = g.enrollment_period_id;
+        acc[key] = acc[key] ?? { pending: 0, locked: 0, approved: 0, rejected: 0 };
+        acc[key][g.status] = g._count._all;
+        return acc;
+      },
+      {},
+    );
+
+    const now = new Date();
+    const availablePeriods = periods.map((p) => {
+      const counts = countsByPeriod[p.id] ?? { pending: 0, locked: 0, approved: 0, rejected: 0 };
+      return {
         id: p.id,
         name: p.name,
         token: p.token,
         start_date: p.start_date,
         end_date: p.end_date,
         lock_date: p.lock_date,
-        created_by: p.created_by,
         school_year: p.schoolYear,
-        created_at: p.created_at,
-      })),
+        status: this.periodStatus(p, now),
+        counts,
+        total: counts.pending + counts.locked + counts.approved + counts.rejected,
+      };
+    });
+
+    let selected = periodId ? periods.find((p) => p.id === periodId) : undefined;
+    if (!selected) {
+      selected =
+        periods.find((p) => new Date(p.start_date) <= now) ??
+        periods.find((p) => p.created_at != null) ??
+        periods[0];
+    }
+
+    if (!selected) {
+      return {
+        org: this.orgView(org),
+        availablePeriods,
+        dashboard: null,
+      };
+    }
+
+    const [applications, programs] = await Promise.all([
+      this.repo.findPeriodApplications(orgId, selected.id),
+      this.repo.findDashboardPrograms(orgId, selected.school_year_id),
+    ]);
+
+    const summary = { pending: 0, locked: 0, approved: 0, rejected: 0 };
+    const buckets = new Map<string, DashboardBucket>();
+
+    for (const app of applications) {
+      summary[app.status] = (summary[app.status] ?? 0) + 1;
+      if (!app.program_id) continue;
+
+      const bucket = buckets.get(app.program_id) ?? { total: 0, enrolled: 0, references: [] };
+      buckets.set(app.program_id, bucket);
+      bucket.total += 1;
+      const enrolled = app.status === 'approved';
+      if (enrolled) bucket.enrolled += 1;
+
+      if (app.course_id) {
+        bucket.references.push({ kind: 'course', id: app.course_id, levelId: app.level_id, enrolled });
+      } else if (app.strand_id) {
+        bucket.references.push({ kind: 'strand', id: app.strand_id, levelId: app.level_id, enrolled });
+      } else {
+        bucket.references.push({ kind: 'level', id: app.level_id, levelId: null, enrolled });
+      }
+    }
+
+    const programOverview = programs.map((program) => {
+      const bucket = buckets.get(program.id) ?? { total: 0, enrolled: 0, references: [] };
+      const counts = (kind: string, id: string, levelId: string | null) => {
+        const hits = bucket.references.filter(
+          (r) => r.kind === kind && r.id === id && r.levelId === levelId,
+        );
+        return {
+          applied: hits.length,
+          enrolled: hits.filter((r) => r.enrolled).length,
+        };
+      };
+
+      return {
+        id: program.id,
+        name: program.name,
+        type: program.type,
+        applied: bucket.total,
+        approved: bucket.enrolled,
+        courses: program.courses.map((course) => {
+          const courseCounts = counts('course', course.id, null);
+          return {
+            id: course.id,
+            name: course.name,
+            ...courseCounts,
+            levels: course.levels.map((level) => {
+              const c = counts('course', course.id, level.id);
+              return { id: level.id, name: level.name, applied: c.applied, enrolled: c.enrolled };
+            }),
+          };
+        }),
+        strands: program.strands.map((strand) => ({
+          id: strand.id,
+          name: strand.name,
+          ...counts('strand', strand.id, null),
+        })),
+        levels: program.levels.map((level) => ({
+          id: level.id,
+          name: level.name,
+          ...counts('level', level.id, null),
+        })),
+      };
+    });
+
+    return {
+      org: this.orgView(org),
+      availablePeriods,
+      dashboard: {
+        period: {
+          id: selected.id,
+          name: selected.name,
+          token: selected.token,
+          start_date: selected.start_date,
+          end_date: selected.end_date,
+          lock_date: selected.lock_date,
+          school_year: selected.schoolYear,
+          status: this.periodStatus(selected, now),
+        },
+        summary,
+        total: summary.pending + summary.locked + summary.approved + summary.rejected,
+        programs: programOverview,
+      },
     };
   }
 
@@ -265,6 +436,20 @@ export class EnrollmentRegistrarService {
     if (lockDate <= startDate) {
       throw new BadRequestException('Lock date must be after the start date.');
     }
+  }
+
+  private orgView(org: { id?: string | null; name?: string | null; slug?: string | null } | null) {
+    return { id: org?.id ?? null, name: org?.name ?? null, slug: org?.slug ?? null };
+  }
+
+  private periodStatus(
+    period: { start_date: Date; end_date: Date; lock_date: Date },
+    now: Date,
+  ): 'upcoming' | 'open' | 'locked' | 'ended' {
+    if (now < period.start_date) return 'upcoming';
+    if (now > period.end_date) return 'ended';
+    if (now >= period.lock_date) return 'locked';
+    return 'open';
   }
 
   private toPeriodView(period: {

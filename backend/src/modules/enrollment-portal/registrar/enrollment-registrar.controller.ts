@@ -53,6 +53,15 @@ export class EnrollmentRegistrarController {
     return this.service.listPeriods(user.org_id);
   }
 
+  @Get('dashboard')
+  @HttpCode(HttpStatus.OK)
+  dashboard(
+    @CurrentUser() user: RegistrarUser,
+    @Query('period_id') periodId?: string,
+  ) {
+    return this.service.getDashboard(user.org_id, periodId);
+  }
+
   @Patch('periods/:id')
   @HttpCode(HttpStatus.OK)
   updatePeriod(
