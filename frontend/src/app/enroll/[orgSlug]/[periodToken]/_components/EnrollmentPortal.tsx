@@ -14,87 +14,46 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { enrollmentPortalApi } from "@/api/public/enrollment-portal.api";
+import { useEnrollmentDraft } from "@/hooks/useEnrollmentDraft";
+import { draftToApplicationPayload } from "@/utils/enrollmentApplication";
 import type {
   PublicPortalInfo,
   PublicProgram,
-  EnrollmentApplicationView,
   PublicApplicationLookup,
+  ApplicationDraft,
+  ApplicationDraftStep,
 } from "@/types/enrollment-portal.types";
 
-type Step = "identity" | "personal" | "program" | "review" | "success";
-
-interface Draft {
-  first_name: string;
-  middle_name: string;
-  last_name: string;
-  age: string;
-  address: string;
-  contact_number: string;
-  last_school_graduated: string;
-  program_id: string;
-  course_id: string;
-  strand_id: string;
-  level_id: string;
-}
-
-const emptyDraft: Draft = {
-  first_name: "",
-  middle_name: "",
-  last_name: "",
-  age: "",
-  address: "",
-  contact_number: "",
-  last_school_graduated: "",
-  program_id: "",
-  course_id: "",
-  strand_id: "",
-  level_id: "",
-};
+type Step = ApplicationDraftStep;
 
 const STEP_LABELS: Step[] = ["identity", "personal", "program", "review"];
 
-function cn(...parts: Array<string | false | null | undefined>) {
+function cn(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
+}
+
+/** Typesafe extraction of a server-provided error message from an unknown. */
+function errorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "response" in err) {
+    const data = (err as { response?: { data?: unknown } })?.response?.data;
+    if (data && typeof data === "object") {
+      const body = data as { message?: unknown; error?: unknown };
+      if (typeof body.message === "string" && body.message) return body.message;
+      // class-validator failures come back as an array of messages.
+      if (Array.isArray(body.message) && body.message.length) {
+        return String(body.message[0]);
+      }
+      if (typeof body.error === "string" && body.error) return body.error;
+    }
+  }
+  return err instanceof Error ? err.message : fallback;
 }
 
 function needsCourseOrStrand(program?: PublicProgram | null): boolean {
   return !!program && (program.type === "college" || program.type === "shs");
-}
-
-function toPayload(draft: Draft) {
-  return {
-    first_name: draft.first_name.trim(),
-    middle_name: draft.middle_name.trim() || undefined,
-    last_name: draft.last_name.trim(),
-    age: draft.age ? Number(draft.age) : undefined,
-    address: draft.address.trim() || undefined,
-    contact_number: draft.contact_number.trim() || undefined,
-    last_school_graduated: draft.last_school_graduated.trim() || undefined,
-    program_id: draft.program_id,
-    course_id: draft.course_id || undefined,
-    strand_id: draft.strand_id || undefined,
-    level_id: draft.level_id,
-  };
-}
-
-function fromApplication(app: EnrollmentApplicationView): Draft {
-  return {
-    first_name: app.first_name ?? "",
-    middle_name: app.middle_name ?? "",
-    last_name: app.last_name ?? "",
-    age: app.age != null ? String(app.age) : "",
-    address: app.address ?? "",
-    contact_number: app.contact_number ?? "",
-    last_school_graduated: app.last_school_graduated ?? "",
-    program_id: app.program_id ?? "",
-    course_id: app.course_id ?? "",
-    strand_id: app.strand_id ?? "",
-    level_id: app.level_id ?? "",
-  };
 }
 
 export function EnrollmentPortal({
@@ -103,7 +62,7 @@ export function EnrollmentPortal({
 }: {
   orgSlug: string;
   periodToken: string;
-}) {
+}): React.JSX.Element {
   const [catalog, setCatalog] = useState<PublicPortalInfo | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [view, setView] = useState<"apply" | "status">("apply");
@@ -115,9 +74,8 @@ export function EnrollmentPortal({
       .then((info) => {
         if (active) setCatalog(info);
       })
-      .catch((err: any) => {
-        if (active)
-          setCatalogError(err?.response?.data?.message ?? "This enrollment link is not available.");
+      .catch((err) => {
+        if (active) setCatalogError(errorMessage(err, "This enrollment link is not available."));
       });
     return () => {
       active = false;
@@ -232,17 +190,25 @@ function ApplyFlow({
   periodToken: string;
   catalog: PublicPortalInfo;
 }) {
-  const [step, setStep] = useState<Step>("identity");
   const [busy, setBusy] = useState(false);
-
-  const [email, setEmail] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
-
-  const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [editMode, setEditMode] = useState(false);
   const [createdCode, setCreatedCode] = useState("");
+
+  const {
+    email,
+    changeEmail,
+    otpSent,
+    setOtpSent,
+    draft,
+    patchDraft,
+    step,
+    setStep,
+    sessionToken,
+    editMode,
+    activateVerifiedSession,
+    resetSession,
+    completeDraft,
+  } = useEnrollmentDraft(orgSlug, periodToken);
 
   const periodOpen = catalog.period.is_open;
 
@@ -256,8 +222,8 @@ function ApplyFlow({
       await enrollmentPortalApi.requestOtp(orgSlug, periodToken, email);
       setOtpSent(true);
       toast.success("Verification code sent to your email.");
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? "Could not send the code.");
+    } catch (err) {
+      toast.error(errorMessage(err, "Could not send the code."));
     } finally {
       setBusy(false);
     }
@@ -268,12 +234,10 @@ function ApplyFlow({
     setBusy(true);
     try {
       const result = await enrollmentPortalApi.verifyOtp(orgSlug, periodToken, email, otpCode);
-      setSessionToken(result.token);
-      setEditMode(result.mode === "edit");
-      setStep("personal");
-      if (result.application) setDraft(fromApplication(result.application));
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? "That code didn't verify.");
+      setOtpSent(true);
+      activateVerifiedSession(result.token, result.mode === "edit", result.application ?? null);
+    } catch (err) {
+      toast.error(errorMessage(err, "That code didn't verify."));
     } finally {
       setBusy(false);
     }
@@ -283,18 +247,97 @@ function ApplyFlow({
     ? catalog.programs.find((p) => p.id === draft.program_id)
     : undefined;
 
+  // Self-heal any selection that no longer matches the current portal catalog
+  // (e.g. a draft resumed from an earlier session). Without this, a stale
+  // course/strand/level would submit and bounce back with a 400 from the API.
+  useEffect(() => {
+    const patch: Partial<ApplicationDraft> = {};
+    const program = draft.program_id
+      ? catalog.programs.find((p) => p.id === draft.program_id)
+      : undefined;
+
+    if (draft.program_id && !program) {
+      patch.program_id = "";
+      patch.course_id = "";
+      patch.strand_id = "";
+      patch.level_id = "";
+    } else if (program) {
+      if (draft.course_id && !program.courses.some((c) => c.id === draft.course_id)) {
+        patch.course_id = "";
+        patch.level_id = "";
+      }
+      if (draft.strand_id && !program.strands.some((s) => s.id === draft.strand_id)) {
+        patch.strand_id = "";
+        patch.level_id = "";
+      }
+
+      if (draft.level_id) {
+        const showCourses = program.type === "college";
+        const showStrands = program.type === "shs";
+        let applicable = ([] as PublicProgram["levels"]).slice();
+        if (showCourses && draft.course_id) {
+          applicable = program.courses.find((c) => c.id === draft.course_id)?.levels ?? applicable;
+        } else if (showStrands && draft.strand_id) {
+          applicable = program.strands.find((s) => s.id === draft.strand_id)?.levels ?? applicable;
+        }
+        if (applicable.length === 0) applicable = program.levels;
+        if (!applicable.some((l) => l.id === draft.level_id)) patch.level_id = "";
+      }
+    }
+
+    if (patch.program_id !== undefined || patch.course_id !== undefined || patch.strand_id !== undefined || patch.level_id !== undefined) {
+      patchDraft(patch);
+    }
+  }, [draft.program_id, draft.course_id, draft.strand_id, draft.level_id, catalog, patchDraft]);
+
   const handleSubmit = async () => {
-    if (!sessionToken || step !== "review") return;
+    if (step !== "review") return;
+    if (!sessionToken) {
+      console.warn("[EnrollmentPortal] submit attempted without an active session");
+      resetSession();
+      toast.error("Your session expired. Please verify your email again to continue.");
+      return;
+    }
+
+    if (!draft.first_name.trim() || !draft.last_name.trim()) {
+      toast.error("First and last name are required.");
+      setStep("personal");
+      return;
+    }
+    if (!draft.program_id || !selectedProgram) {
+      toast.error("Your saved program is no longer available. Please pick it again.");
+      setStep("program");
+      return;
+    }
+    if (needsCourseOrStrand(selectedProgram) && !draft.course_id && !draft.strand_id) {
+      toast.error("Select a course or strand for this program.");
+      setStep("program");
+      return;
+    }
+    if (!draft.level_id) {
+      toast.error("Select a level for this program.");
+      setStep("program");
+      return;
+    }
+
     setBusy(true);
     try {
-      const payload = toPayload(draft);
+      const payload = draftToApplicationPayload(draft);
       const result = editMode
         ? await enrollmentPortalApi.updateApplication(orgSlug, periodToken, sessionToken, payload)
         : await enrollmentPortalApi.createApplication(orgSlug, periodToken, sessionToken, payload);
       setCreatedCode(result.application_code);
       setStep("success");
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? "Could not save your application.");
+      completeDraft();
+    } catch (err) {
+      const httpErr = err as { response?: { status?: number; data?: unknown } };
+      console.error("Application submit failed", httpErr?.response?.status, httpErr?.response?.data);
+      if (httpErr?.response?.status === 401) {
+        resetSession();
+        toast.error("Your session expired. Verify your email again to continue.");
+      } else {
+        toast.error(errorMessage(err, "Could not save your application."));
+      }
     } finally {
       setBusy(false);
     }
@@ -302,15 +345,31 @@ function ApplyFlow({
 
   return (
     <div className="space-y-4">
-      <StepIndicator step={step} />
+      {sessionToken && step !== "identity" && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+          <span>
+            Verified as <span className="font-medium">{email}</span>. Your
+            session is active for 2 hours — you can leave and come back
+            anytime without re-verifying.
+          </span>
+          <button
+            type="button"
+            onClick={resetSession}
+            className="shrink-0 font-semibold underline underline-offset-2 hover:text-emerald-950"
+          >
+            End session
+          </button>
+        </div>
+      )}
 
+      <StepIndicator step={step} />
       <Card>
         <CardContent className="py-6">
           {step === "identity" && (
             <IdentityStep
               periodOpen={periodOpen}
               email={email}
-              setEmail={setEmail}
+              setEmail={changeEmail}
               otpSent={otpSent}
               otpCode={otpCode}
               setOtpCode={setOtpCode}
@@ -323,7 +382,7 @@ function ApplyFlow({
           {step === "personal" && (
             <PersonalStep
               draft={draft}
-              setDraft={setDraft}
+              setDraft={patchDraft}
               onBack={() => setStep("identity")}
               onNext={() => {
                 if (!draft.first_name.trim() || !draft.last_name.trim()) {
@@ -338,7 +397,7 @@ function ApplyFlow({
           {step === "program" && (
             <ProgramStep
               draft={draft}
-              setDraft={setDraft}
+              setDraft={patchDraft}
               programs={catalog.programs}
               selectedProgram={selectedProgram}
               onBack={() => setStep("personal")}
@@ -470,12 +529,12 @@ function PersonalStep({
   onBack,
   onNext,
 }: {
-  draft: Draft;
-  setDraft: (patch: Partial<Draft>) => void;
+  draft: ApplicationDraft;
+  setDraft: (patch: Partial<ApplicationDraft>) => void;
   onBack: () => void;
   onNext: () => void;
 }) {
-  const set = (key: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const set = (key: keyof ApplicationDraft) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft({ [key]: e.target.value });
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -527,8 +586,8 @@ function ProgramStep({
   onBack,
   onNext,
 }: {
-  draft: Draft;
-  setDraft: (patch: Partial<Draft>) => void;
+  draft: ApplicationDraft;
+  setDraft: (patch: Partial<ApplicationDraft>) => void;
   programs: PublicProgram[];
   selectedProgram?: PublicProgram;
   onBack: () => void;
@@ -551,6 +610,14 @@ function ProgramStep({
     return selectedProgram.levels;
   })();
 
+  const selectedCourse = showCourses
+    ? selectedProgram?.courses.find((c) => c.id === draft.course_id)
+    : undefined;
+  const selectedStrand = showStrands
+    ? selectedProgram?.strands.find((s) => s.id === draft.strand_id)
+    : undefined;
+  const selectedLevel = levelOptions.find((l) => l.id === draft.level_id);
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -558,11 +625,11 @@ function ProgramStep({
         <Select
           value={draft.program_id || ""}
           onValueChange={(v) =>
-            setDraft({ program_id: v, course_id: "", strand_id: "", level_id: "" })
+            setDraft({ program_id: v ?? "", course_id: "", strand_id: "", level_id: "" })
           }
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select a program" />
+            <span className="truncate">{selectedProgram?.name ?? "Select a program"}</span>
           </SelectTrigger>
           <SelectContent>
             {programs.map((p) => (
@@ -579,10 +646,14 @@ function ProgramStep({
           <Label>Course</Label>
           <Select
             value={draft.course_id || ""}
-            onValueChange={(v) => setDraft({ course_id: v, strand_id: "", level_id: "" })}
+            onValueChange={(v) => setDraft({ course_id: v ?? "", strand_id: "", level_id: "" })}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select a course" />
+              <span className="truncate">
+                {selectedCourse
+                  ? `${selectedCourse.name}${selectedCourse.code ? ` (${selectedCourse.code})` : ""}`
+                  : "Select a course"}
+              </span>
             </SelectTrigger>
             <SelectContent>
               {selectedProgram.courses.map((c) => (
@@ -600,10 +671,10 @@ function ProgramStep({
           <Label>Strand</Label>
           <Select
             value={draft.strand_id || ""}
-            onValueChange={(v) => setDraft({ strand_id: v, course_id: "", level_id: "" })}
+            onValueChange={(v) => setDraft({ strand_id: v ?? "", course_id: "", level_id: "" })}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select a strand" />
+              <span className="truncate">{selectedStrand?.name ?? "Select a strand"}</span>
             </SelectTrigger>
             <SelectContent>
               {selectedProgram.strands.map((s) => (
@@ -619,9 +690,9 @@ function ProgramStep({
       {selectedProgram && (
         <div className="space-y-2">
           <Label>Level</Label>
-          <Select value={draft.level_id || ""} onValueChange={(v) => setDraft({ level_id: v })}>
+          <Select value={draft.level_id || ""} onValueChange={(v) => setDraft({ level_id: v ?? "" })}>
             <SelectTrigger>
-              <SelectValue placeholder="Select a level" />
+              <span className="truncate">{selectedLevel?.name ?? "Select a level"}</span>
             </SelectTrigger>
             <SelectContent>
               {levelOptions.map((l) => (
@@ -654,7 +725,7 @@ function ReviewStep({
   onSubmit,
   onBack,
 }: {
-  draft: Draft;
+  draft: ApplicationDraft;
   catalog: PublicPortalInfo;
   editMode: boolean;
   busy: boolean;
@@ -738,8 +809,8 @@ function CheckStatus() {
     try {
       const res = await enrollmentPortalApi.lookupApplication(code.trim(), email.trim() || undefined);
       setResults(res);
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? "No application found for that code.");
+    } catch (err) {
+      setError(errorMessage(err, "No application found for that code."));
     } finally {
       setBusy(false);
     }
