@@ -95,7 +95,12 @@ export interface EnrollmentPeriod {
 
 export interface PeriodListResponse {
   org: { id: string | null; name: string | null; slug: string | null };
-  periods: EnrollmentPeriod[];
+  periods: Array<
+    EnrollmentPeriod & {
+      counts?: EnrollmentPeriodStatusCounts;
+      total?: number;
+    }
+  >;
 }
 
 export interface CreateEnrollmentPeriodInput {
@@ -154,4 +159,143 @@ export interface ApproveApplicationResult {
 export interface ActionApplicationResult {
   success: boolean;
   application: EnrollmentApplicationView;
+}
+
+// ── Public apply-flow form state ───────────────────────────────────────────
+
+export type ApplicationDraftStep = "identity" | "personal" | "program" | "review" | "success";
+
+/**
+ * All fields the applicant fills out on the public portal. Mirrors the
+ * upsert payload but keeps every value a string (form-native).
+ */
+export interface ApplicationDraft {
+  first_name: string;
+  middle_name: string;
+  last_name: string;
+  age: string;
+  address: string;
+  contact_number: string;
+  last_school_graduated: string;
+  program_id: string;
+  course_id: string;
+  strand_id: string;
+  level_id: string;
+}
+
+export const emptyApplicationDraft: ApplicationDraft = {
+  first_name: "",
+  middle_name: "",
+  last_name: "",
+  age: "",
+  address: "",
+  contact_number: "",
+  last_school_graduated: "",
+  program_id: "",
+  course_id: "",
+  strand_id: "",
+  level_id: "",
+};
+
+const DRAFT_KEYS = Object.keys(emptyApplicationDraft) as (keyof ApplicationDraft)[];
+
+const MAX_FIELD_LENGTH = 512;
+
+/**
+ * Safely rebuilds an ApplicationDraft from persisted input.
+ * Restores only the known fields, coerces everything to a trimmed string and
+ * caps field length — rejects injected/unknown keys and out-of-range values.
+ */
+export function sanitizeApplicationDraft(raw: unknown): ApplicationDraft {
+  const out: ApplicationDraft = { ...emptyApplicationDraft };
+  if (!raw || typeof raw !== "object") return out;
+  const source = raw as Record<string, unknown>;
+  for (const key of DRAFT_KEYS) {
+    const value = source[key];
+    if (typeof value === "string" || typeof value === "number") {
+      out[key] = String(value).slice(0, MAX_FIELD_LENGTH);
+    }
+  }
+  return out;
+}
+
+/**
+ * Maps a stored step back to the furthest safe step the applicant can resume
+ * after identity is re-verified. Anything unknown falls back to "personal".
+ */
+export function resumeApplicationStep(savedStep: string): "personal" | "program" | "review" {
+  if (savedStep === "review") return "review";
+  if (savedStep === "program") return "program";
+  return "personal";
+}
+
+// ── Registrar dashboard ────────────────────────────────────────────────────
+
+export type EnrollmentPeriodPhase = "upcoming" | "open" | "locked" | "ended";
+
+export interface EnrollmentPeriodStatusCounts {
+  pending: number;
+  locked: number;
+  approved: number;
+  rejected: number;
+}
+
+export interface EnrollmentPeriodSummary {
+  id: string;
+  name: string;
+  token: string;
+  start_date: string;
+  end_date: string;
+  lock_date: string;
+  school_year: { id: string; name: string } | null;
+  status: EnrollmentPeriodPhase;
+  counts: EnrollmentPeriodStatusCounts;
+  total: number;
+}
+
+export interface ProgramCountRow {
+  applied: number;
+  enrolled: number;
+}
+
+export interface ProgramLevelCount extends ProgramCountRow {
+  id: string;
+  name: string;
+}
+
+export interface ProgramCourseCount extends ProgramCountRow {
+  id: string;
+  name: string;
+  levels: ProgramLevelCount[];
+}
+
+export interface ProgramOverview extends ProgramCountRow {
+  id: string;
+  name: string;
+  type: string;
+  applied: number;
+  approved: number;
+  courses: ProgramCourseCount[];
+  strands: ProgramLevelCount[];
+  levels: ProgramLevelCount[];
+}
+
+export interface EnrollmentPortalDashboard {
+  org: { id: string | null; name: string | null; slug: string | null };
+  availablePeriods: EnrollmentPeriodSummary[];
+  dashboard: {
+    period: {
+      id: string;
+      name: string;
+      token: string;
+      start_date: string;
+      end_date: string;
+      lock_date: string;
+      school_year: { id: string; name: string } | null;
+      status: EnrollmentPeriodPhase;
+    };
+    summary: EnrollmentPeriodStatusCounts;
+    total: number;
+    programs: ProgramOverview[];
+  } | null;
 }
