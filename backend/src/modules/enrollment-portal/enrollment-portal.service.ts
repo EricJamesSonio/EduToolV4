@@ -24,7 +24,7 @@ import {
 
 const APPLICATION_CODE_LENGTH = 4;
 const MAX_CODE_ATTEMPTS = 12;
-const SESSION_TTL = '30m';
+const SESSION_TTL = '2h';
 
 @Injectable()
 export class EnrollmentPortalService {
