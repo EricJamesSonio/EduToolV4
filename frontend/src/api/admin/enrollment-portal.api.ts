@@ -12,6 +12,7 @@ import type {
   ApproveApplicationResult,
   ActionApplicationResult,
   EnrollmentApplicationStatus,
+  EnrollmentPortalDashboard,
 } from "@/types/enrollment-portal.types";
 
 type ApiResponse<T> = { success: boolean; data: T };
@@ -57,6 +58,14 @@ export const enrollmentPortalApi = {
   deletePeriod: async (id: string): Promise<{ success: boolean }> => {
     const res = await client.delete<ApiResponse<{ success: boolean }>>(
       `/admin/enrollment-portal/periods/${id}`,
+    );
+    return res.data.data;
+  },
+
+  getDashboard: async (periodId?: string): Promise<EnrollmentPortalDashboard> => {
+    const res = await client.get<ApiResponse<EnrollmentPortalDashboard>>(
+      "/admin/enrollment-portal/dashboard",
+      { params: periodId ? { period_id: periodId } : undefined },
     );
     return res.data.data;
   },
