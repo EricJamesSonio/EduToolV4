@@ -74,10 +74,10 @@ export function useUnlockApplication() {
 }
 
 // Localized filter state shared by the applications list page.
-export function useApplicationFilters() {
+export function useApplicationFilters(initialPeriodId = "") {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"" | "pending" | "locked" | "approved" | "rejected">("");
-  const [periodId, setPeriodId] = useState("");
+  const [periodId, setPeriodId] = useState(initialPeriodId);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
