@@ -1,10 +1,16 @@
 import {
-  Injectable, NotFoundException, ConflictException,
+  Injectable,
+  NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { SectionRepository } from './section.repository';
-import { DatabaseService }   from '@/core/database/database.provider';
+import { DatabaseService } from '@/core/database/database.provider';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import { CreateSectionDto, UpdateSectionDto, QuerySectionDto } from './dto/section.dto';
+import {
+  CreateSectionDto,
+  UpdateSectionDto,
+  QuerySectionDto,
+} from './dto/section.dto';
 
 @Injectable()
 export class SectionService {
@@ -38,37 +44,39 @@ export class SectionService {
 
     const section = await this.sectionRepository.create({
       orgId,
-      levelId:      dto.levelId,
+      levelId: dto.levelId,
       schoolYearId: dto.schoolYearId,
-      courseId:     dto.courseId,
-      strandId:     dto.strandId,
-      name:         dto.name,
-      capacity:     dto.capacity,
+      courseId: dto.courseId,
+      strandId: dto.strandId,
+      name: dto.name,
+      capacity: dto.capacity,
     });
 
-    this.auditLogService.logAdminAction({
-      orgId,
-      actorId,
-      action: 'section_created',
-      entityType: 'section',
-      entityId: section.id,
-      metadata: { name: dto.name, capacity: dto.capacity },
-    }).catch(() => {});
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'section_created',
+        entityType: 'section',
+        entityId: section.id,
+        metadata: { name: dto.name, capacity: dto.capacity },
+      })
+      .catch(() => {});
 
     return section;
   }
 
   async findAll(orgId: string, query: QuerySectionDto) {
-    const page  = query.page ?? 1;
+    const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
     const { data, total } = await this.sectionRepository.findAll(orgId, {
       schoolYearId: query.schoolYearId,
-      levelId:      query.levelId,
-      programId:    query.programId,
-      courseId:     query.courseId,
-      strandId:     query.strandId,
-      search:       query.search,
+      levelId: query.levelId,
+      programId: query.programId,
+      courseId: query.courseId,
+      strandId: query.strandId,
+      search: query.search,
       page,
       limit,
     });
@@ -79,23 +87,40 @@ export class SectionService {
     };
   }
 
-  async update(id: string, orgId: string, dto: UpdateSectionDto, actorId: string) {
+  async update(
+    id: string,
+    orgId: string,
+    dto: UpdateSectionDto,
+    actorId: string,
+  ) {
     const section = await this.sectionRepository.findById(id, orgId);
     if (!section) throw new NotFoundException('Section not found.');
 
+    if (dto.capacity !== undefined) {
+      const enrolledCount =
+        await this.sectionRepository.countStudentsInSection(id);
+      if (dto.capacity < enrolledCount) {
+        throw new ConflictException(
+          `Cannot set capacity to ${dto.capacity} — this section currently has ${enrolledCount} enrolled student(s). Lower the enrollment first, or set capacity to at least ${enrolledCount}.`,
+        );
+      }
+    }
+
     const updated = await this.sectionRepository.update(id, {
-      name:     dto.name,
+      name: dto.name,
       capacity: dto.capacity,
     });
 
-    this.auditLogService.logAdminAction({
-      orgId,
-      actorId,
-      action: 'section_updated',
-      entityType: 'section',
-      entityId: id,
-      metadata: { name: dto.name },
-    }).catch(() => {});
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'section_updated',
+        entityType: 'section',
+        entityId: id,
+        metadata: { name: dto.name },
+      })
+      .catch(() => {});
 
     return updated;
   }
@@ -112,14 +137,16 @@ export class SectionService {
     }
     await this.sectionRepository.softDelete(id);
 
-    this.auditLogService.logAdminAction({
-      orgId,
-      actorId,
-      action: 'section_deleted',
-      entityType: 'section',
-      entityId: id,
-      metadata: { name: section.name },
-    }).catch(() => {});
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'section_deleted',
+        entityType: 'section',
+        entityId: id,
+        metadata: { name: section.name },
+      })
+      .catch(() => {});
   }
 
   async findById(id: string, orgId: string) {
