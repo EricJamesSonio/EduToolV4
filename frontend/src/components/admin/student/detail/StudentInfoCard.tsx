@@ -1,15 +1,22 @@
 "use client";
 
-import { Mail, Hash, Calendar, GraduationCap, BookOpen, Users, Layers } from "lucide-react";
+import { useState } from "react";
+import { Mail, AtSign, Hash, Calendar, GraduationCap, BookOpen, Users, Layers, ArrowRightLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getProfileImageUrl } from "@/utils/profile.util";
+import { AssignSectionDialog } from "@/components/admin/school-years/program-view/AssignSectionDialog";
 import type { Student } from "@/types/admin/student.types";
-import type { StudentSchoolYearEnrollment } from "@/types/admin/student-enrollment.types";
+import type {
+  StudentSchoolYearEnrollment,
+  ProgramEnrollmentSnapshot,
+} from "@/types/admin/student-enrollment.types";
 
 interface Props {
   student:               Student;
   schoolYearEnrollments: StudentSchoolYearEnrollment[];
+  schoolYearId:          string;
+  isEnded:               boolean;
 }
 
 function getInitials(name: string): string {
@@ -37,7 +44,23 @@ function InfoRow({ icon, label, value }: InfoRowProps): React.JSX.Element {
 export function StudentInfoCard({
   student,
   schoolYearEnrollments,
+  schoolYearId,
+  isEnded,
 }: Props): React.JSX.Element {
+const [moveTarget, setMoveTarget] = useState<{
+    sye: StudentSchoolYearEnrollment;
+    programEnrollment: ProgramEnrollmentSnapshot;
+  } | null>(null);
+
+  // Map each program enrollment back to its parent school-year enrollment so the
+  // Move action can reuse AssignSectionDialog.
+  const enrollmentByProgramId = new Map<string, StudentSchoolYearEnrollment>();
+  for (const sye of schoolYearEnrollments) {
+    for (const pe of sye.programEnrollments) {
+      enrollmentByProgramId.set(pe.id, sye);
+    }
+  }
+
   const allProgramEnrollments = schoolYearEnrollments.flatMap(
     (sye) => sye.programEnrollments,
   );
@@ -60,6 +83,11 @@ export function StudentInfoCard({
             icon={<Mail className="h-4 w-4" />}
             label="Email"
             value={student.email}
+          />
+          <InfoRow
+            icon={<AtSign className="h-4 w-4" />}
+            label="Personal Email"
+            value={student.personalEmail || "—"}
           />
           <InfoRow
             icon={<Hash className="h-4 w-4" />}
@@ -94,6 +122,21 @@ export function StudentInfoCard({
                       <div className="flex items-center gap-2">
                         <BookOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <span className="text-sm font-semibold not-interactive">{pe.program.name}</span>
+                        {!isEnded && (
+                          <button
+                            onClick={() => {
+                              const sye = enrollmentByProgramId.get(pe.id);
+                              if (sye) {
+                                setMoveTarget({ sye, programEnrollment: pe });
+                              }
+                            }}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded hover:bg-primary/10 transition-colors shrink-0"
+                            title="Move to another section"
+                          >
+                            <ArrowRightLeft className="h-3 w-3" />
+                            Move
+                          </button>
+                        )}
                         <Badge
                           variant={pe.status === "active" ? "default" : "secondary"}
                           className="text-xs ml-auto not-interactive"
@@ -138,6 +181,17 @@ export function StudentInfoCard({
           />
         </div>
       </div>
+
+      {moveTarget && (
+        <AssignSectionDialog
+          open
+          onClose={() => setMoveTarget(null)}
+          enrollment={moveTarget.sye}
+          programEnrollment={moveTarget.programEnrollment}
+          schoolYearId={schoolYearId}
+          isEnded={isEnded}
+        />
+      )}
     </div>
   );
 }
