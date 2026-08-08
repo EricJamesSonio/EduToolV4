@@ -41,6 +41,8 @@ export interface UseEnrollmentDraftResult {
   sessionToken: string | null;
   /** True when the active session is editing an existing application. */
   editMode: boolean;
+  /** The existing application being edited (edit mode), if any. */
+  application: EnrollmentApplicationView | null;
   /** Starts a verified session right after a successful OTP: restores the
    *  stored draft (or the existing application in edit mode) and jumps back
    *  into the form without an identity round-trip. */
@@ -192,6 +194,7 @@ export function useEnrollmentDraft(
     setStep,
     sessionToken,
     editMode,
+    application,
     activateVerifiedSession,
     resetSession,
     completeDraft,

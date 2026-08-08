@@ -15,7 +15,10 @@ import type { Role } from "@/types/auth.types";
  */
 export function useRole() {
   const { user } = useAuth();
-  return { role: user?.role ?? null };
+  return {
+    role: user?.role ?? null,
+    isRegistrar: user?.isRegistrar ?? false,
+  };
 }
 
 export type RoleGuardStatus = "loading" | "allowed" | "redirecting";
