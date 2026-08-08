@@ -63,7 +63,26 @@ export function EnrollmentPeriodModal({
   }, [open, existing, schoolYearId]);
 
   const isPending = createMutation.isPending || updateMutation.isPending;
-  const formValid = !!name.trim() && !!syId && !!startDate && !!endDate && !!lockDate;
+
+  const startMs = startDate ? new Date(startDate).getTime() : null;
+  const lockMs = lockDate ? new Date(lockDate).getTime() : null;
+  const endMs = endDate ? new Date(endDate).getTime() : null;
+
+  const lockError =
+    startMs !== null && lockMs !== null && lockMs < startMs
+      ? "Lock date must be after the opening date."
+      : lockMs !== null && endMs !== null && lockMs >= endMs
+        ? "Lock date must be before the closing date."
+        : "";
+
+  const endError =
+    startMs !== null && endMs !== null && endMs <= startMs
+      ? "Closing date must be after the opening date."
+      : "";
+
+  const dateHasError = !!lockError || !!endError;
+  const formValid =
+    !!name.trim() && !!syId && !!startDate && !!endDate && !!lockDate && !dateHasError;
 
   const handleSubmit = async () => {
     if (!formValid) return;
@@ -139,8 +158,12 @@ export function EnrollmentPeriodModal({
               id="ep-lock"
               type="datetime-local"
               value={lockDate}
+              min={startDate || undefined}
+              aria-invalid={!!lockError}
+              className={lockError ? "border-destructive" : undefined}
               onChange={(e) => setLockDate(e.target.value)}
             />
+            {lockError && <p className="text-xs text-destructive">{lockError}</p>}
           </div>
 
           <div className="space-y-2">
@@ -149,8 +172,12 @@ export function EnrollmentPeriodModal({
               id="ep-end"
               type="datetime-local"
               value={endDate}
+              min={lockDate || startDate || undefined}
+              aria-invalid={!!endError}
+              className={endError ? "border-destructive" : undefined}
               onChange={(e) => setEndDate(e.target.value)}
             />
+            {endError && <p className="text-xs text-destructive">{endError}</p>}
           </div>
         </div>
 
