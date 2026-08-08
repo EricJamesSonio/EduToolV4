@@ -51,7 +51,12 @@ export class AuthService {
       );
     }
 
-    return this.generateTokens(account.id, account.org_id, account.role, account.email);
+    return this.generateTokens(
+      account.id,
+      account.org_id,
+      account.role,
+      account.email,
+    );
   }
 
   async register(dto: RegisterDto): Promise<{ message: string }> {
@@ -177,7 +182,9 @@ export class AuthService {
   async refresh(incomingRefreshToken: string): Promise<AuthTokens> {
     let accountId: string;
     try {
-      const payload = this.jwtService.decode(incomingRefreshToken) as { sub: string };
+      const payload = this.jwtService.decode(incomingRefreshToken) as {
+        sub: string;
+      };
       if (!payload?.sub) throw new Error();
       accountId = payload.sub;
     } catch {
@@ -199,7 +206,12 @@ export class AuthService {
       throw new UnauthorizedException('Account not found');
     }
 
-    return this.generateTokens(account.id, account.org_id, account.role, account.email);
+    return this.generateTokens(
+      account.id,
+      account.org_id,
+      account.role,
+      account.email,
+    );
   }
 
   async logout(accountId: string): Promise<void> {
@@ -224,6 +236,7 @@ export class AuthService {
       createdAt: account.created_at,
       personalEmail: account.profile?.personal_email ?? null,
       profileImage: account.profile?.profile_image ?? null,
+      isRegistrar: account.is_registrar ?? false,
     };
   }
 
@@ -241,7 +254,8 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload as any, {
-      expiresIn: (this.configService.get<string>('jwt.expiresIn') ?? '1h') as any,
+      expiresIn: (this.configService.get<string>('jwt.expiresIn') ??
+        '1h') as any,
     });
 
     const refreshToken = this.jwtService.sign(payload, {
