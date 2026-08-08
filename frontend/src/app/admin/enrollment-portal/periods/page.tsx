@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { AsyncListState } from "@/components/shared/AsyncListState";
 import { EnrollmentPeriodModal } from "@/components/admin/enrollment-portal/EnrollmentPeriodModal";
+import { useRole } from "@/hooks/useRole";
 import {
   useEnrollmentPeriods,
   useDeleteEnrollmentPeriod,
@@ -32,6 +33,7 @@ function formatDate(d?: string | null): string {
 
 export default function EnrollmentPeriodsPage() {
   const router = useRouter();
+  const { isRegistrar } = useRole();
   const { data, isLoading, isError } = useEnrollmentPeriods();
   const deleteMutation = useDeleteEnrollmentPeriod();
 
@@ -59,15 +61,17 @@ export default function EnrollmentPeriodsPage() {
           { label: "Periods" },
         ]}
         actions={
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setModalOpen(true);
-            }}
-            size="sm"
-          >
-            <Plus /> New Period
-          </Button>
+          !isRegistrar && (
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setModalOpen(true);
+              }}
+              size="sm"
+            >
+              <Plus /> New Period
+            </Button>
+          )
         }
       />
 
@@ -124,31 +128,33 @@ export default function EnrollmentPeriodsPage() {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Edit period"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditing(p);
-                      setModalOpen(true);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Delete period"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTarget(p);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
+                {!isRegistrar && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Edit period"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditing(p);
+                        setModalOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Delete period"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(p);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
