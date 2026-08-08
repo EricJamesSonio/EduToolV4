@@ -118,6 +118,11 @@ export const queryKeys = {
       courses: (programId: string) => [...adminKeys.all, 'programs', 'detail', programId, 'courses'] as const,
       strands: (programId: string) => [...adminKeys.all, 'programs', 'detail', programId, 'strands'] as const,
     },
+    registrars: {
+      all: [...adminKeys.all, 'registrars'] as const,
+      list: (filters?: Record<string, any>) => [...adminKeys.all, 'registrars', 'list', filters] as const,
+      detail: (id: string) => [...adminKeys.all, 'registrars', 'detail', id] as const,
+    },
     schoolYears: {
       all: [...adminKeys.all, 'schoolYears'] as const,
       list: (filters?: Record<string, any>) => [...adminKeys.all, 'schoolYears', 'list', filters] as const,
@@ -126,6 +131,7 @@ export const queryKeys = {
     },
     enrollmentPortal: {
       all: [...adminKeys.all, 'enrollmentPortal'] as const,
+      dashboard: (periodId?: string) => [...adminKeys.all, 'enrollmentPortal', 'dashboard', periodId ?? 'all'] as const,
       periods: {
         all: [...adminKeys.all, 'enrollmentPortal', 'periods'] as const,
         list: (filters?: Record<string, any>) => [...adminKeys.all, 'enrollmentPortal', 'periods', 'list', filters] as const,
