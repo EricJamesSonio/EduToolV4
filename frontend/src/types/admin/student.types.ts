@@ -11,6 +11,7 @@ export interface Student {
   orgId:         string;
   fullName:      string;
   email:         string;
+  personalEmail: string | null;
   studentId:     string;
   status:        StudentStatus;
   createdAt:     string;
