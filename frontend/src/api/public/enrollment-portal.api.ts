@@ -42,11 +42,11 @@ export const enrollmentPortalApi = {
   },
 
   requestOtp: async (orgSlug: string, periodToken: string, email: string): Promise<string> => {
-    const res = await publicClient.post<{ message: string }>(
+    const res = await publicClient.post<ApiResponse<{ message: string }>>(
       `/enroll/${orgSlug}/${periodToken}/otp`,
       { email },
     );
-    return res.data.message;
+    return res.data.data.message;
   },
 
   verifyOtp: async (
@@ -55,11 +55,11 @@ export const enrollmentPortalApi = {
     email: string,
     code: string,
   ): Promise<VerifyOtpResult> => {
-    const res = await publicClient.post<VerifyOtpResult>(
+    const res = await publicClient.post<ApiResponse<VerifyOtpResult>>(
       `/enroll/${orgSlug}/${periodToken}/otp/verify`,
       { email, code },
     );
-    return res.data;
+    return res.data.data;
   },
 
   createApplication: async (
