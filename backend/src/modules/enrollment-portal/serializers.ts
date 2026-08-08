@@ -21,6 +21,7 @@ export function resultToApplicationView(record: any) {
     strand_id: record.strand_id,
     level_id: record.level_id,
     status: record.status,
+    rejection_reason: record.rejection_reason,
     submitted_at: record.submitted_at,
     updated_at: record.updated_at,
   };

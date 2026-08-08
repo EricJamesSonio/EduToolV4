@@ -141,6 +141,39 @@ export class EnrollmentPortalRepository {
     });
   }
 
+  /**
+   * True when an email can no longer be used to submit a NEW application for
+   * this organization: either a previous application was already approved
+   * (which materializes a student account) or a student account for that
+   * personal email already exists. Checked org-wide and case-insensitively so
+   * a verified applicant can never re-apply after being admitted.
+   */
+  async emailAlreadyCommitted(orgId: string, email: string): Promise<boolean> {
+    const [approvedApp, studentAccount] = await Promise.all([
+      this.db.enrollmentApplication.findFirst({
+        where: {
+          org_id: orgId,
+          status: 'approved',
+          personal_email: { equals: email, mode: 'insensitive' },
+        },
+        select: { id: true },
+      }),
+      this.db.account.findFirst({
+        where: {
+          org_id: orgId,
+          role: 'student',
+          deleted_at: null,
+          profile: {
+            personal_email: { equals: email, mode: 'insensitive' },
+          },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    return Boolean(approvedApp || studentAccount);
+  }
+
   findApplicationByEmail(orgId: string, schoolYearId: string, email: string) {
     return this.db.enrollmentApplication.findUnique({
       where: {

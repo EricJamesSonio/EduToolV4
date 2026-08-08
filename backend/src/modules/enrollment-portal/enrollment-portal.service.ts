@@ -85,6 +85,7 @@ export class EnrollmentPortalService {
   async sendOtp(orgSlug: string, periodToken: string, dto: SendEnrollmentOtpDto) {
     const { org, period } = await this.resolveOrgAndPeriod(orgSlug, periodToken);
     this.assertAcceptingApplications(period);
+    await this.assertEmailNotAlreadyCommitted(org.id, dto.email);
 
     return this.authService.sendEnrollmentOtp(dto.email, org.id);
   }
@@ -98,6 +99,7 @@ export class EnrollmentPortalService {
     this.assertAcceptingApplications(period);
 
     await this.authService.verifyEnrollmentOtp(dto.email, dto.code, org.id);
+    await this.assertEmailNotAlreadyCommitted(org.id, dto.email);
 
     const existing = await this.repo.findApplicationByEmail(
       org.id,
@@ -132,6 +134,7 @@ export class EnrollmentPortalService {
     const { org, period } = await this.resolveOrgAndPeriod(orgSlug, periodToken);
     this.assertSessionMatchesOrg(org, session);
     this.assertAcceptingApplications(period);
+    await this.assertEmailNotAlreadyCommitted(org.id, session.personalEmail);
 
     const existing = await this.repo.findApplicationByEmail(
       org.id,
@@ -269,6 +272,22 @@ export class EnrollmentPortalService {
     if (!period) throw new NotFoundException('Enrollment link not found.');
 
     return { org, period };
+  }
+
+  /**
+   * Blocks an already-admitted applicant (approved application or existing
+   * student account) from re-submitting. Pending/rejected applications have no
+   * student account and are NOT approved, so they pass through and applicants
+   * can keep editing / tracking their existing application.
+   */
+  private async assertEmailNotAlreadyCommitted(orgId: string, email: string) {
+    if (await this.repo.emailAlreadyCommitted(orgId, email)) {
+      throw new ConflictException(
+        'This email has already been submitted and approved. A student account ' +
+          'already exists for it, so it can no longer be used again. ' +
+          'Please use a different email address.',
+      );
+    }
   }
 
   private assertAcceptingApplications(period: {
