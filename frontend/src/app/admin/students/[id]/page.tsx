@@ -64,6 +64,9 @@ export default function StudentDetailPage({
     schoolYears?.[0]?.id ??
     null;
 
+  const activeSchoolYearIsEnded =
+    schoolYears?.find((sy) => sy.id === activeSchoolYearId)?.status === "ended";
+
 const { data: schoolYearEnrollments } = useAsyncQuery(
   queryKeys.admin.studentEnrollment.list({ schoolYearId: activeSchoolYearId }),
   () => studentEnrollmentApi.getBySchoolYear(activeSchoolYearId!),
@@ -161,6 +164,8 @@ const programEnrollments = schoolYearEnrollments?.data?.filter((e) => e.student_
       <StudentInfoCard
         student={student}
         schoolYearEnrollments={programEnrollments}
+        schoolYearId={activeSchoolYearId ?? ""}
+        isEnded={activeSchoolYearIsEnded}
       />
 
       <StudentEnrollmentsList
