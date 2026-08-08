@@ -20,6 +20,7 @@ export interface AuthUser {
   createdAt: string;
   profileImage?: string | null;
   personalEmail?: string | null;
+  isRegistrar?: boolean;
 }
 
 export interface TokenPayload {

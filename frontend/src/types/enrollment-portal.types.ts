@@ -63,6 +63,7 @@ export interface EnrollmentApplicationView {
   strand_id: string | null;
   level_id: string;
   status: EnrollmentApplicationStatus;
+  rejection_reason: string | null;
   submitted_at: string;
   updated_at: string;
 }
