@@ -14,6 +14,7 @@ import { MailService } from '@/modules/mail/mail.service';
 import { NotificationService } from '@/modules/notification/notification.service';
 import { AuditLogService } from '@/modules/audit-log/audit-log.service';
 import { generateStudentId } from '@/modules/student/student.utils';
+import { StudentStatus } from '@/modules/student/dto/student.dto';
 import { EnrollmentRegistrarRepository } from './enrollment-registrar.repository';
 import { EnrollmentApprovalRepository } from './enrollment-approval.repository';
 
@@ -62,8 +63,9 @@ export class EnrollmentApprovalService {
           emailName: this.buildEmailName(fullName, app.application_code),
           studentId: generateStudentId(),
           levelId: app.level_id,
-          sectionId: section?.id ?? null,
+          sectionId: section?.id ?? undefined,
           personalEmail: app.personal_email,
+          status: StudentStatus.ACTIVE,
         },
         tx,
       );
@@ -86,9 +88,9 @@ export class EnrollmentApprovalService {
         {
           program_id: app.program_id,
           level_id:   app.level_id,
-          course_id:  app.course_id,
-          strand_id:  app.strand_id,
-          section_id: section?.id ?? null,
+          course_id:  app.course_id ?? undefined,
+          strand_id:  app.strand_id ?? undefined,
+          section_id: section?.id ?? undefined,
         },
         actorId,
         tx,
