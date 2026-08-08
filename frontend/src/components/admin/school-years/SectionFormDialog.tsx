@@ -22,6 +22,7 @@ interface SectionFormDialogProps {
   isLoading:     boolean;
   onClose:       () => void;
   onSubmit:      (vals: SectionFormValues) => void;
+  error?:        string | null;
 }
 
 export function SectionFormDialog({
@@ -30,6 +31,7 @@ export function SectionFormDialog({
   isLoading,
   onClose,
   onSubmit,
+  error,
 }: SectionFormDialogProps): React.JSX.Element {
   const {
     register,
@@ -72,6 +74,9 @@ export function SectionFormDialog({
               <p className="text-xs text-destructive">{errors.capacity.message}</p>
             )}
           </div>
+          {error && (
+            <p className="text-xs text-destructive">{error}</p>
+          )}
           <div className="flex justify-end gap-2">
             <Button
               type="button"

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
+import type { AxiosError } from "axios";
 import { Plus, Pencil, Trash2, ChevronRight } from "lucide-react";
 import { sectionApi } from "@/api/admin/section.api";
 import type { Section } from "@/types/admin/section.types";
@@ -34,6 +35,7 @@ export function SectionsPanel({
   const [editTarget,    setEditTarget]    = useState<Section | null>(null);
   const [deleteTarget,  setDeleteTarget]  = useState<Section | null>(null);
   const [detailSection, setDetailSection] = useState<Section | null>(null);
+  const [formError,     setFormError]     = useState<string | null>(null);
 
   const { data: sections = [], isLoading } = useAsyncQuery(
     queryKeys.admin.sections.list({
@@ -72,8 +74,10 @@ export function SectionsPanel({
       onSuccess: () => {
         toast.success("Section created.");
         setDialogOpen(false);
+        setFormError(null);
       },
-      onError: () => toast.error("Failed to create section."),
+      onError: (err: AxiosError<{ message: string }>) =>
+        setFormError(err?.response?.data?.message ?? "Failed to create section."),
     }
   );
 
@@ -88,8 +92,10 @@ export function SectionsPanel({
       onSuccess: () => {
         toast.success("Section updated.");
         setEditTarget(null);
+        setFormError(null);
       },
-      onError: () => toast.error("Failed to update section."),
+      onError: (err: AxiosError<{ message: string }>) =>
+        setFormError(err?.response?.data?.message ?? "Failed to update section."),
     }
   );
 
@@ -202,6 +208,7 @@ export function SectionsPanel({
         section={detailSection}
         schoolYearId={schoolYearId}
         levelName={level.name}
+        isEnded={isEnded}
         open={detailSection !== null}
         onClose={() => setDetailSection(null)}
       />
@@ -211,8 +218,9 @@ export function SectionsPanel({
         <SectionFormDialog
           mode="create"
           isLoading={isMutating}
-          onClose={() => setDialogOpen(false)}
+          onClose={() => { setDialogOpen(false); setFormError(null); }}
           onSubmit={(vals) => createMutation.mutate(vals)}
+          error={formError}
         />
       )}
       {editTarget && (
@@ -223,8 +231,9 @@ export function SectionsPanel({
             capacity: String(editTarget.capacity),
           }}
           isLoading={isMutating}
-          onClose={() => setEditTarget(null)}
+          onClose={() => { setEditTarget(null); setFormError(null); }}
           onSubmit={(vals) => updateMutation.mutate(vals)}
+          error={formError}
         />
       )}
       {deleteTarget && (

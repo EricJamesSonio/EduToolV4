@@ -2,16 +2,23 @@
 
 // frontend/src/components/admin/school-years/SectionDetailPanel.tsx
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import {
   Users, BookOpen, CalendarDays,
-  Clock, GraduationCap, ChevronRight,
+  Clock, GraduationCap, ChevronRight, ArrowRightLeft,
 } from "lucide-react";
 import { classApi } from "@/api/admin/class.api";
 import { studentApi } from "@/api/admin/student.api";
+import { studentEnrollmentApi } from "@/api/admin/student-enrollment.api";
+import { MAX_SELECT_LIMIT } from "@/api/admin/student.api";
 import type { Section } from "@/types/admin/section.types";
+import type {
+  StudentSchoolYearEnrollment,
+  ProgramEnrollmentSnapshot,
+} from "@/types/admin/student-enrollment.types";
+import { AssignSectionDialog } from "./program-view/AssignSectionDialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,14 +52,42 @@ function sectionClassesKey(sectionId: string, schoolYearId: string) {
 function StudentsTab({
   section,
   schoolYearId,
+  isEnded,
 }: {
   section: Section;
   schoolYearId: string;
+  isEnded: boolean;
 }) {
+  const [moveTarget, setMoveTarget] = useState<{
+    enrollment: StudentSchoolYearEnrollment;
+    programEnrollment: ProgramEnrollmentSnapshot;
+  } | null>(null);
+
   const { data: students = [], isLoading } = useAsyncQuery(
     sectionStudentsKey(section.id, schoolYearId),
     () => studentApi.getAll({ sectionId: section.id, schoolYearId }),
   );
+
+  // Build a lookup of the section's students → their matching program enrollment,
+  // so the "Move" action can reuse AssignSectionDialog.
+  const { data: syEnrollments = [] } = useAsyncQuery(
+    queryKeys.admin.studentEnrollment.list({ schoolYearId }),
+    () => studentEnrollmentApi.getBySchoolYear(schoolYearId, 1, MAX_SELECT_LIMIT).then((r) => r.data),
+    { enabled: students.length > 0 },
+  );
+
+  const enrollmentByStudentId = useMemo(() => {
+    const map = new Map<string, { enrollment: StudentSchoolYearEnrollment; programEnrollment: ProgramEnrollmentSnapshot }>();
+    for (const sye of syEnrollments) {
+      const pe = sye.programEnrollments.find(
+        (p) => p.section?.id === section.id,
+      );
+      if (pe) {
+        map.set(sye.student_id, { enrollment: sye, programEnrollment: pe });
+      }
+    }
+    return map;
+  }, [syEnrollments, section.id]);
 
   if (isLoading) {
     return (
@@ -75,37 +110,62 @@ function StudentsTab({
   }
 
   return (
-    <div className="divide-y">
-      {students.map((student) => (
-        <div
-          key={student.id}
-          className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 shrink-0">
-            <span className="text-xs font-semibold text-primary not-interactive">
-              {student.fullName.charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium truncate not-interactive">{student.fullName}</p>
-            <p className="text-xs text-muted-foreground not-interactive">{student.studentId}</p>
-          </div>
-          <Badge
-            variant="secondary"
-            className={cn(
-              "text-xs shrink-0 capitalize",
-              student.status === "active"
-                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
-                : student.status === "suspended"
-                ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
-                : "",
-            )}
-          >
-            {student.status}
-          </Badge>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="divide-y">
+        {students.map((student) => {
+          const ctx = enrollmentByStudentId.get(student.id);
+          return (
+            <div
+              key={student.id}
+              className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 shrink-0">
+                <span className="text-xs font-semibold text-primary not-interactive">
+                  {student.fullName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate not-interactive">{student.fullName}</p>
+                <p className="text-xs text-muted-foreground not-interactive">{student.studentId}</p>
+              </div>
+              {ctx && !isEnded ? (
+                <button
+                  onClick={() => setMoveTarget(ctx)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary px-2 py-1 rounded hover:bg-primary/10 transition-colors shrink-0"
+                >
+                  <ArrowRightLeft className="h-3 w-3" />
+                  Move
+                </button>
+              ) : null}
+              <Badge
+                variant="secondary"
+                className={cn(
+                  "text-xs shrink-0 capitalize",
+                  student.status === "active"
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                    : student.status === "suspended"
+                    ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                    : "",
+                )}
+              >
+                {student.status}
+              </Badge>
+            </div>
+          );
+        })}
+      </div>
+
+      {moveTarget && (
+        <AssignSectionDialog
+          open
+          onClose={() => setMoveTarget(null)}
+          enrollment={moveTarget.enrollment}
+          programEnrollment={moveTarget.programEnrollment}
+          schoolYearId={schoolYearId}
+          isEnded={isEnded}
+        />
+      )}
+    </>
   );
 }
 
@@ -278,6 +338,7 @@ export interface SectionDetailPanelProps {
   section: Section | null;
   schoolYearId: string;
   levelName?: string;
+  isEnded?: boolean;
   onViewSubjects?: () => void;
   open: boolean;
   onClose: () => void;
@@ -287,6 +348,7 @@ export function SectionDetailPanel({
   section,
   schoolYearId,
   levelName,
+  isEnded = false,
   onViewSubjects,
   open,
   onClose,
@@ -364,7 +426,7 @@ export function SectionDetailPanel({
 
         <div className="flex-1 overflow-y-auto">
           {section && activeTab === "students" && (
-            <StudentsTab section={section} schoolYearId={schoolYearId} />
+            <StudentsTab section={section} schoolYearId={schoolYearId} isEnded={isEnded} />
           )}
           {section && activeTab === "classes" && (
             <ClassesTab section={section} schoolYearId={schoolYearId} />
