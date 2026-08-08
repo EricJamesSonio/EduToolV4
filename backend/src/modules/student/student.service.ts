@@ -190,7 +190,7 @@ export class StudentService {
       orgId,
       email,
       hashedPassword,
-      status:         StudentStatus.PENDING,
+      status:         dto.status ?? StudentStatus.PENDING,
       fullName:       dto.fullName,
       studentId:      dto.studentId,
       levelId:        dto.levelId,
