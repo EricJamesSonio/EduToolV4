@@ -2,6 +2,7 @@
 
 import { SidebarShell } from "./SidebarShell";
 import { LogoutButton } from "./LogoutButton";
+import { useRole } from "@/hooks/useRole";
 import {
   LayoutDashboard,
   Building2,
@@ -28,9 +29,9 @@ const GROUPS = [
   {
     label: "Main",
     items: [
-      { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, exact: true },
-      { label: "Organization", href: "/admin/organization", icon: Building2 },
-      { label: "Data Seeder", href: "/admin/data-seeder", icon: Database },
+      { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, exact: true, registrarVisible: false },
+      { label: "Organization", href: "/admin/organization", icon: Building2, registrarVisible: false },
+      { label: "Data Seeder", href: "/admin/data-seeder", icon: Database, registrarVisible: false },
       { label: "Enrollment", href: "/admin/enrollment", icon: UserPlus },
       { label: "Enrollment Portal", href: "/admin/enrollment-portal", icon: Inbox },
       
@@ -39,42 +40,50 @@ const GROUPS = [
   {
     label: "Academic",
     items: [
-      { label: "School Years", href: "/admin/school-years", icon: CalendarDays },
-      { label: "Programs", href: "/admin/programs", icon: BookOpen },
+      { label: "School Years", href: "/admin/school-years", icon: CalendarDays, registrarVisible: false },
+      { label: "Programs", href: "/admin/programs", icon: BookOpen, registrarVisible: false },
       { label: "Sections", href: "/admin/sections", icon: Layers },
-      { label: "Subjects", href: "/admin/subjects", icon: FlaskConical },
-      { label: "Academic Calendar", href: "/admin/academic-calendar", icon: CalendarRange },
-      { label: "Semester Settings", href: "/admin/semester-settings", icon: CalendarClock },
-      { label: "Classes", href: "/admin/classes", icon: GraduationCap },
+      { label: "Subjects", href: "/admin/subjects", icon: FlaskConical, registrarVisible: false },
+      { label: "Academic Calendar", href: "/admin/academic-calendar", icon: CalendarRange, registrarVisible: false },
+      { label: "Semester Settings", href: "/admin/semester-settings", icon: CalendarClock, registrarVisible: false },
+      { label: "Classes", href: "/admin/classes", icon: GraduationCap, registrarVisible: false },
       
     ],
   },
   {
     label: "Grading",
     items: [
-      { label: "Grading Scales", href: "/admin/grading-scales", icon: BarChart3 },
-      { label: "Grading Schemes", href: "/admin/grading-schemes", icon: ClipboardList },
+      { label: "Grading Scales", href: "/admin/grading-scales", icon: BarChart3, registrarVisible: false },
+      { label: "Grading Schemes", href: "/admin/grading-schemes", icon: ClipboardList, registrarVisible: false },
       
     ],
   },
   {
     label: "People",
     items: [
-      { label: "Educators", href: "/admin/educators", icon: UserSquare2 },
+      { label: "Educators", href: "/admin/educators", icon: UserSquare2, registrarVisible: false },
       { label: "Students", href: "/admin/students", icon: Users },
-      { label: "Registrars", href: "/admin/registrars", icon: UserCog },
+      { label: "Registrars", href: "/admin/registrars", icon: UserCog, registrarVisible: false },
     ],
   },
   {
     label: "System",
     items: [
-      { label: "Grade Lock", href: "/admin/grade-lock", icon: Lock },
-      { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText },
+      { label: "Grade Lock", href: "/admin/grade-lock", icon: Lock, registrarVisible: false },
+      { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText, registrarVisible: false },
     ],
   },
 ];
 
 export function AdminSidebar(): React.JSX.Element {
+  const { isRegistrar } = useRole();
+  const filteredGroups = GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter(
+      (item) => !isRegistrar || item.registrarVisible !== false,
+    ),
+  })).filter((group) => group.items.length > 0);
+
   return (
     <SidebarShell
       header={
@@ -87,7 +96,7 @@ export function AdminSidebar(): React.JSX.Element {
           </p>
         </div>
       }
-      groups={GROUPS}
+      groups={filteredGroups}
       footer={<LogoutButton />}
     />
   );
