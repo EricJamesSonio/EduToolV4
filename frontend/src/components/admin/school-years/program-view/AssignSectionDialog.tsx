@@ -40,6 +40,7 @@ export function AssignSectionDialog({
   const [selectedSectionId, setSelectedSectionId] = useState<string>(
     programEnrollment.section?.id ?? "",
   );
+  const [formError, setFormError] = useState<string | null>(null);
 
   const levelId = programEnrollment.level?.id;
   const courseId = programEnrollment.course?.id ?? null;
@@ -55,24 +56,29 @@ export function AssignSectionDialog({
 
   const handleSave = () => {
     if (!selectedSectionId) return;
+    setFormError(null);
     updateMutation.mutate(
       { programEnrollmentId: programEnrollment.id, data: { section_id: selectedSectionId } },
       {
         onSuccess: () => { toast.success("Section assigned."); onClose(); },
         onError: (err: unknown) => {
           const e = err as AxiosError<{ message: string }>;
-          toast.error(e?.response?.data?.message ?? "Failed to assign section.");
+          setFormError(e?.response?.data?.message ?? "Failed to assign section.");
         },
       },
     );
   };
 
   const handleRemove = () => {
+    setFormError(null);
     updateMutation.mutate(
       { programEnrollmentId: programEnrollment.id, data: { section_id: null } },
       {
         onSuccess: () => { toast.success("Section removed."); onClose(); },
-        onError: () => toast.error("Failed to remove section."),
+        onError: (err: unknown) => {
+          const e = err as AxiosError<{ message: string }>;
+          setFormError(e?.response?.data?.message ?? "Failed to remove section.");
+        },
       },
     );
   };
@@ -121,6 +127,10 @@ export function AssignSectionDialog({
             </Select>
           )}
         </div>
+
+        {formError && (
+          <p className="text-sm text-destructive mt-1">{formError}</p>
+        )}
 
         <div className="flex items-center justify-between gap-2 pt-1">
           {programEnrollment.section && !isEnded && (
