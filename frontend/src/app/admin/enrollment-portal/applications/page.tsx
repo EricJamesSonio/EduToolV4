@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Ban, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,9 @@ function fmtSubmitted(d?: string): string {
 
 export default function EnrollmentApplicationsPage(): React.JSX.Element {
   const router = useRouter();
-  const filters = useApplicationFilters();
+  const searchParams = useSearchParams();
+  const periodParam = searchParams.get("period_id") ?? "";
+  const filters = useApplicationFilters(periodParam);
   const { data, isLoading } = useEnrollmentApplications(filters.query);
   const approveMutation = useApproveApplication();
   const { data: periodList } = useEnrollmentPeriods();
@@ -49,6 +51,7 @@ export default function EnrollmentApplicationsPage(): React.JSX.Element {
   const [unlockOpen, setUnlockOpen] = useState(false);
 
   const periods = periodList?.periods ?? [];
+  const activePeriod = periods.find((p) => p.id === filters.periodId);
 
   const columns = useMemo<ColumnDef<ApplicationListItem>[]>(
     () => [
@@ -124,8 +127,17 @@ export default function EnrollmentApplicationsPage(): React.JSX.Element {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Enrollment Applications"
+        title={activePeriod ? `${activePeriod.name} — Applications` : "Enrollment Applications"}
         description="Review and process applicant submissions."
+        breadcrumbs={[
+          {
+            label: "Overview",
+            href: activePeriod
+              ? `/admin/enrollment-portal?period_id=${activePeriod.id}`
+              : "/admin/enrollment-portal",
+          },
+          { label: "Applications" },
+        ]}
         actions={
           <Button variant="outline" size="sm" onClick={() => setUnlockOpen(true)}>
             <Plus /> Unlock
@@ -154,7 +166,13 @@ export default function EnrollmentApplicationsPage(): React.JSX.Element {
             </SelectContent>
           </Select>
 
-          <Select value={filters.periodId} onValueChange={(v) => filters.setPeriodId(v ?? "")}>
+          <Select
+            value={filters.periodId}
+            onValueChange={(v) => {
+              filters.setPeriodId(v ?? "");
+              router.replace(v ? `/admin/enrollment-portal/applications?period_id=${v}` : "/admin/enrollment-portal/applications");
+            }}
+          >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="All periods" />
             </SelectTrigger>
