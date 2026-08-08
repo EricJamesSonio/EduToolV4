@@ -35,7 +35,10 @@ export class RolesGuard implements CanActivate {
       const request = context.switchToHttp().getRequest();
       const user = request.user;
 
-      if (!user || user.is_registrar !== true) {
+      // Admins can perform registrar duties regardless of their flag; a
+      // non-admin needs the dedicated registrar capability.
+      const isAdmin = user?.role === 'admin';
+      if (!user || (!isAdmin && user.is_registrar !== true)) {
         throw new ForbiddenException('Registrar access required');
       }
     }
