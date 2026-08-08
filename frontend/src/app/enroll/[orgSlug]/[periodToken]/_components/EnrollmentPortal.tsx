@@ -46,6 +46,14 @@ function errorMessage(err: unknown, fallback: string): string {
       if (Array.isArray(body.message) && body.message.length) {
         return String(body.message[0]);
       }
+      // The HttpExceptionFilter nests the real message under `error`.
+      if (body.error && typeof body.error === "object") {
+        const nested = (body.error as { message?: unknown; error?: unknown }).message;
+        if (typeof nested === "string" && nested) return nested;
+        if (Array.isArray(nested) && nested.length) return String(nested[0]);
+        if (typeof (body.error as { message?: unknown; error?: unknown }).error === "string")
+          return (body.error as { message?: unknown; error?: unknown }).error as string;
+      }
       if (typeof body.error === "string" && body.error) return body.error;
     }
   }
@@ -205,6 +213,7 @@ function ApplyFlow({
     setStep,
     sessionToken,
     editMode,
+    application,
     activateVerifiedSession,
     resetSession,
     completeDraft,
@@ -363,6 +372,16 @@ function ApplyFlow({
       )}
 
       <StepIndicator step={step} />
+      {editMode && application?.status === "rejected" && application.rejection_reason && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+          <p className="font-medium">Your application was not approved</p>
+          <p className="mt-0.5">
+            Application <span className="font-mono font-semibold">{application.application_code}</span>
+            {" "}was rejected. Reason: {application.rejection_reason}. You can revise your details
+            below and resubmit for review.
+          </p>
+        </div>
+      )}
       <Card>
         <CardContent className="py-6">
           {step === "identity" && (
