@@ -19,6 +19,7 @@ import {
   ScrollText,
   CalendarRange,
   UserPlus,
+  UserCog,
   Database,
   Inbox,
 } from "lucide-react";
@@ -61,6 +62,7 @@ const GROUPS = [
     items: [
       { label: "Educators", href: "/admin/educators", icon: UserSquare2 },
       { label: "Students", href: "/admin/students", icon: Users },
+      { label: "Registrars", href: "/admin/registrars", icon: UserCog },
     ],
   },
   {
