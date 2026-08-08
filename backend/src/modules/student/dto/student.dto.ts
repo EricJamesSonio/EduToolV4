@@ -51,6 +51,15 @@ export class CreateStudentDto {
   @IsOptional()
   @IsEmail()
   personalEmail?: string;
+
+  /**
+   * Initial account status. Defaults to `pending` when omitted, keeping the
+   * web/bulk/Csv creation flows unchanged. The enrollment-approval flow passes
+   * `active` so an approved applicant's account is immediately usable.
+   */
+  @IsOptional()
+  @IsEnum(StudentStatus)
+  status?: StudentStatus;
 }
 
 export class UpdateStudentDto {
