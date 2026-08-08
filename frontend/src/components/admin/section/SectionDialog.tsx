@@ -1,7 +1,7 @@
 // ===== File: frontend\src\components\admin\section\SectionDialog.tsx =====
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { useForm } from "react-hook-form";
@@ -71,6 +71,8 @@ export function SectionDialog({
   onSaved,
 }: SectionDialogProps): React.JSX.Element {
   const isEdit = !!section;
+
+  const [formError, setFormError] = useState<string | null>(null);
 
   const {
     register,
@@ -178,10 +180,11 @@ export function SectionDialog({
         toast.success(isEdit ? "Section updated." : "Section created.");
         onSaved();
         reset();
+        setFormError(null);
         onClose();
       },
       onError: (err: AxiosError<{ message: string }>) => {
-        toast.error(
+        setFormError(
           err?.response?.data?.message ?? "Failed to save section."
         );
       },
@@ -189,6 +192,7 @@ export function SectionDialog({
   );
 
   function handleClose(): void {
+    setFormError(null);
     reset({
       programId: defaultProgramId ?? "",
       courseId: defaultCourseId ?? "",
@@ -215,6 +219,7 @@ export function SectionDialog({
       onSubmit={handleSubmit((v) => mutation.mutate(v))}
       isSaving={mutation.isPending}
       saveLabel={isEdit ? "Save Changes" : "Create Section"}
+      error={formError}
     >
       {/* Program */}
       {!isEdit && (
