@@ -31,6 +31,12 @@ function formatDate(d?: string | null): string {
   });
 }
 
+const OVERFLOW_ACTION_LABELS: Record<string, string> = {
+  no_section: "No section on overflow",
+  auto_create: "Auto-create section",
+  expand_capacity: "Expand capacity",
+};
+
 export default function EnrollmentPeriodsPage() {
   const router = useRouter();
   const { isRegistrar } = useRole();
@@ -109,6 +115,12 @@ export default function EnrollmentPeriodsPage() {
                     </span>
                     <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
                       {p.token}
+                    </span>
+                    <span
+                      className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                      title="When all matching sections are full"
+                    >
+                      {OVERFLOW_ACTION_LABELS[p.section_overflow_action ?? "no_section"] ?? p.section_overflow_action}
                     </span>
                   </div>
                   <div className="mt-0.5 text-xs text-muted-foreground">

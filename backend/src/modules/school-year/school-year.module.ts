@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { SchoolYearController } from './school-year.controller';
 import { SchoolYearService } from './school-year.service';
 import { SchoolYearRepository } from './school-year.repository';
+import { SchoolYearReadinessService } from './school-year-readiness.service';
 import { LevelModule } from '@/modules/level/level.module';
 import { SubjectModule } from '@/modules/subject/subject.module';
 import { GradingScaleModule } from '../grading-scale/grading-scale.module';
@@ -16,7 +17,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
     AuditLogModule,
   ],
   controllers: [SchoolYearController],
-  providers: [SchoolYearService, SchoolYearRepository],
-  exports: [SchoolYearService],
+  providers: [SchoolYearService, SchoolYearRepository, SchoolYearReadinessService],
+  exports: [SchoolYearService, SchoolYearReadinessService],
 })
 export class SchoolYearModule {}

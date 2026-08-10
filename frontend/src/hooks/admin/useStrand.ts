@@ -51,6 +51,7 @@ export const useCreateStrand =
       {
         invalidateKeys: [
           queryKeys.admin.strands.all,
+          queryKeys.admin.schoolYears.readiness(),
         ],
       },
     );
@@ -74,6 +75,7 @@ export const useUpdateStrand =
       {
         invalidateKeys: [
           queryKeys.admin.strands.all,
+          queryKeys.admin.schoolYears.readiness(),
         ],
       },
     );
@@ -91,6 +93,7 @@ export const useDeleteStrand =
       {
         invalidateKeys: [
           queryKeys.admin.strands.all,
+          queryKeys.admin.schoolYears.readiness(),
         ],
       },
     );

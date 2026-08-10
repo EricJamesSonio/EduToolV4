@@ -44,6 +44,8 @@ interface ListItemCardActionProps
   label: string;
   /** Compact text shown on phones instead of the icon (label-only actions). */
   mobileLabel?: string;
+  /** Render the icon at all sizes; keeps `label` as the aria-label. */
+  iconOnly?: boolean;
 }
 
 /**
@@ -55,6 +57,7 @@ export function ListItemCardAction({
   icon: Icon,
   label,
   mobileLabel,
+  iconOnly,
   className,
   variant = "outline",
   ...props
@@ -67,7 +70,9 @@ export function ListItemCardAction({
       aria-label={label}
       {...props}
       className={cn(
-        "sm:size-auto sm:h-7 sm:px-2.5 sm:text-[0.8rem]",
+        iconOnly
+          ? ""
+          : "sm:size-auto sm:h-7 sm:px-2.5 sm:text-[0.8rem]",
         className
       )}
     >
@@ -76,7 +81,7 @@ export function ListItemCardAction({
       ) : (
         <span className="sm:hidden text-xs">{mobileLabel}</span>
       )}
-      <span className="hidden sm:inline">{label}</span>
+      {!iconOnly && <span className="hidden sm:inline">{label}</span>}
     </Button>
   );
 }

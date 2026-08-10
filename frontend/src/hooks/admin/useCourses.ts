@@ -45,7 +45,10 @@ export const useCreateCourse = (): UseMutationResult<Course, Error, CreateCourse
   return useMutationWithInvalidation<Course, Error, CreateCourseRequest>(
     (data) => courseApi.create(data),
     {
-      invalidateKeys: [queryKeys.admin.courses.list()],
+      invalidateKeys: [
+        queryKeys.admin.courses.list(),
+        queryKeys.admin.schoolYears.readiness(),
+      ],
       onSuccess: (newCourse, variables) => {
         refetchProgramQueries(queryClient);
         queryClient.setQueryData(queryKeys.admin.courses.detail(newCourse.id), newCourse);
@@ -69,7 +72,10 @@ export const useUpdateCourse = (): UseMutationResult<
   return useMutationWithInvalidation<Course, Error, { id: string; data: UpdateCourseRequest; schoolYearId: string }>(
     ({ id, data }) => courseApi.update(id, data),
     {
-      invalidateKeys: [queryKeys.admin.courses.list()],
+      invalidateKeys: [
+        queryKeys.admin.courses.list(),
+        queryKeys.admin.schoolYears.readiness(),
+      ],
       onMutate: async ({ id, data }) => {
         await queryClient.cancelQueries({ queryKey: queryKeys.admin.courses.detail(id) });
 
@@ -102,7 +108,10 @@ export const useDeleteCourse = (): UseMutationResult<void, Error, { id: string; 
   return useMutationWithInvalidation<void, Error, { id: string; schoolYearId: string }>(
     ({ id }) => courseApi.remove(id),
     {
-      invalidateKeys: [queryKeys.admin.courses.list()],
+      invalidateKeys: [
+        queryKeys.admin.courses.list(),
+        queryKeys.admin.schoolYears.readiness(),
+      ],
       onMutate: async ({ id }) => {
         await queryClient.cancelQueries({ queryKey: queryKeys.admin.courses.detail(id) });
 

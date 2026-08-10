@@ -9,6 +9,7 @@ export type AdminActionType =
   | 'school_year_updated'
   | 'school_year_activated'
   | 'school_year_ended'
+  | 'school_year_deleted'
   | 'program_created'
   | 'program_updated'
   | 'program_deleted'

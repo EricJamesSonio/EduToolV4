@@ -3,6 +3,8 @@
 
 export type EnrollmentApplicationStatus = "pending" | "locked" | "approved" | "rejected";
 
+export type SectionOverflowAction = "auto_create" | "no_section" | "expand_capacity";
+
 // ── Public portal catalog (GET /enroll/:orgSlug/:periodToken) ──────────────
 
 export interface PublicLevelRef {
@@ -90,6 +92,7 @@ export interface EnrollmentPeriod {
   end_date: string;
   lock_date: string;
   created_by: string;
+  section_overflow_action?: SectionOverflowAction;
   created_at?: string;
   school_year?: { id: string; name: string } | null;
 }
@@ -110,6 +113,7 @@ export interface CreateEnrollmentPeriodInput {
   start_date: string;
   end_date: string;
   lock_date: string;
+  section_overflow_action?: SectionOverflowAction;
 }
 
 export interface ApplicationListItem {

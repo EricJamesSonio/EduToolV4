@@ -128,6 +128,8 @@ export const queryKeys = {
       list: (filters?: Record<string, any>) => [...adminKeys.all, 'schoolYears', 'list', filters] as const,
       detail: (id: string) => [...adminKeys.all, 'schoolYears', 'detail', id] as const,
       levels: (schoolYearId: string) => [...adminKeys.all, 'schoolYears', 'detail', schoolYearId, 'levels'] as const,
+      readiness: () => [...adminKeys.all, 'schoolYears', 'readiness'] as const,
+      readinessDetail: (id: string) => [...adminKeys.all, 'schoolYears', 'readiness', id] as const,
     },
     enrollmentPortal: {
       all: [...adminKeys.all, 'enrollmentPortal'] as const,

@@ -111,6 +111,22 @@ export const useEndSchoolYear =
   };
 
 
+export const useDeleteSchoolYear =
+  () => {
+    return useMutationWithInvalidation(
+      schoolYearApi.remove,
+
+      {
+        invalidateKeys: [
+          schoolYearKeys
+            .schoolYears
+            .all(),
+        ],
+      },
+    );
+  };
+
+
 // ─── Scoped by School Year ───────────────────────
 
 export const usePrograms = (

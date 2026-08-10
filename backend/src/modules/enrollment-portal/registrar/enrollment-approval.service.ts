@@ -17,6 +17,7 @@ import { generateStudentId } from '@/modules/student/student.utils';
 import { StudentStatus } from '@/modules/student/dto/student.dto';
 import { EnrollmentRegistrarRepository } from './enrollment-registrar.repository';
 import { EnrollmentApprovalRepository } from './enrollment-approval.repository';
+import { SectionOverflowAction } from '@prisma/client';
 
 @Injectable()
 export class EnrollmentApprovalService {
@@ -41,19 +42,49 @@ export class EnrollmentApprovalService {
       );
     }
 
-    const section = await this.repo.assignFirstAvailableSection({
-      orgId,
-      schoolYearId: app.school_year_id,
-      levelId: app.level_id,
-      courseId: app.course_id,
-      strandId: app.strand_id,
-    });
+    const overflowAction =
+      app.enrollmentPeriod?.section_overflow_action ?? SectionOverflowAction.no_section;
 
     const fullName = [app.first_name, app.middle_name, app.last_name]
       .filter(Boolean)
       .join(' ');
 
+    let section: { id: string; name: string; capacity: number } | null = null;
+
     const result = await this.db.$transaction(async (tx) => {
+      // Resolve the target section inside the transaction so any capacity
+      // expand / section-creation stays atomic with the rest of the approval.
+      const candidates = await this.repo.findEligibleSectionsTx(tx, {
+        orgId,
+        schoolYearId: app.school_year_id,
+        levelId: app.level_id,
+        courseId: app.course_id,
+        strandId: app.strand_id,
+      });
+
+      let target: { id: string; name: string; capacity: number } | null =
+        candidates.find((c) => c._count.studentEnrollments < c.capacity) ?? null;
+
+      if (!target) {
+        if (overflowAction === SectionOverflowAction.expand_capacity && candidates.length) {
+          const full = candidates[0];
+          const capacity = full._count.studentEnrollments + 1;
+          await this.repo.expandSectionCapacityTx(tx, full.id, capacity);
+          target = { id: full.id, name: full.name, capacity };
+        } else if (overflowAction === SectionOverflowAction.auto_create) {
+          const created = await this.repo.createOverflowSectionTx(tx, {
+            orgId,
+            schoolYearId: app.school_year_id,
+            levelId: app.level_id,
+            courseId: app.course_id,
+            strandId: app.strand_id,
+            levelName: app.level?.name ?? 'Level',
+          });
+          target = { id: created.id, name: created.name, capacity: created.capacity };
+        }
+        // no_section (or unrecoverable) → leave section null and notify below.
+      }
+
       // StudentService.create returns a flattened account object
       // ({ ...formatAccount(account), plainPassword }) rather than a nested shape.
       const created = await this.studentService.create(
@@ -63,7 +94,7 @@ export class EnrollmentApprovalService {
           emailName: this.buildEmailName(fullName, app.application_code),
           studentId: generateStudentId(),
           levelId: app.level_id,
-          sectionId: section?.id ?? undefined,
+          sectionId: target?.id ?? undefined,
           personalEmail: app.personal_email,
           status: StudentStatus.ACTIVE,
         },
@@ -90,7 +121,7 @@ export class EnrollmentApprovalService {
           level_id:   app.level_id,
           course_id:  app.course_id ?? undefined,
           strand_id:  app.strand_id ?? undefined,
-          section_id: section?.id ?? undefined,
+          section_id: target?.id ?? undefined,
         },
         actorId,
         tx,
@@ -98,8 +129,10 @@ export class EnrollmentApprovalService {
 
       const approved = await this.repo.approveInTx(tx, applicationId, actorId, account.id);
 
-      return { account, plainPassword, approved };
+      return { account, plainPassword, approved, section: target };
     });
+
+    section = result.section;
 
     // Best-effort post-transaction side effects — never block approval.
     this.mailService

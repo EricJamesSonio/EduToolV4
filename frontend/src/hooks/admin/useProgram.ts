@@ -3,6 +3,7 @@ import {
   useMutationWithInvalidation,
 } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
+import { useQueryClient } from "@tanstack/react-query";
 import { programApi } from "@/api/admin/program.api";
 import type {
   CreateProgramRequest,
@@ -32,6 +33,8 @@ export const usePrograms = (
 // ── CREATE program ──────────────────────────────────────
 
 export const useCreateProgram = () => {
+  const queryClient = useQueryClient();
+
   return useMutationWithInvalidation(
     (
       data: CreateProgramRequest,
@@ -46,11 +49,10 @@ export const useCreateProgram = () => {
         variables,
       ) => {
         // invalidate only affected bucket
-        return {
-          invalidateKeys: [
-            queryKeys.admin.programs.list({ schoolYearId: variables.schoolYearId }),
-          ],
-        };
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.programs.list({ schoolYearId: variables.schoolYearId }),
+        });
+        queryClient.invalidateQueries({ queryKey: queryKeys.admin.schoolYears.readiness() });
       },
     },
   );
@@ -77,6 +79,7 @@ export const useUpdateProgram =
       {
         invalidateKeys: [
           queryKeys.admin.programs.all,
+          queryKeys.admin.schoolYears.readiness(),
         ],
       },
     );
@@ -94,6 +97,7 @@ export const useDeleteProgram =
       {
         invalidateKeys: [
           queryKeys.admin.programs.all,
+          queryKeys.admin.schoolYears.readiness(),
         ],
       },
     );

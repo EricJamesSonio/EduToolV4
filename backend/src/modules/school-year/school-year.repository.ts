@@ -67,6 +67,73 @@ export class SchoolYearRepository {
     })
   }
 
+  /**
+   * Counts, per school year, how many scoped child rows exist across the
+   * models that reference SchoolYear via school_year_id. Used to determine
+   * whether a school year is "in use" (i.e. not just created and unused).
+   * Enrollment is intentionally omitted because it implies an existing Class,
+   * which is already counted.
+   */
+  private usageModels() {
+    return [
+      'program',
+      'course',
+      'strand',
+      'level',
+      'section',
+      'studentSchoolYear',
+      'semester',
+      'class',
+      'academicCalendar',
+      'programCalendar',
+      'gradingScaleAssignment',
+      'enrollmentPeriod',
+      'enrollmentApplication',
+    ] as const
+  }
+
+  async usageCountsBySchoolYear(orgId: string): Promise<Record<string, number>> {
+    const counts: Record<string, number> = {}
+
+    const results = await Promise.all(
+      this.usageModels().map(async (model) => {
+        const groups = await (this.db[model] as any).groupBy({
+          by: ['school_year_id'],
+          where: { org_id: orgId },
+          _count: { _all: true },
+        })
+        return groups.map((g: { school_year_id: string; _count: { _all: number } }) => ({
+          schoolYearId: g.school_year_id,
+          count: g._count._all,
+        }))
+      }),
+    )
+
+    for (const rows of results) {
+      for (const row of rows) {
+        counts[row.schoolYearId] = (counts[row.schoolYearId] ?? 0) + row.count
+      }
+    }
+
+    return counts
+  }
+
+  async hasUsage(id: string): Promise<boolean> {
+    const counts = await Promise.all(
+      this.usageModels().map(
+        (model) =>
+          (this.db[model] as any).count({
+            where: { school_year_id: id },
+          }),
+      ),
+    )
+    return counts.some((count) => count > 0)
+  }
+
+  async delete(id: string) {
+    return this.db.schoolYear.delete({ where: { id } })
+  }
+
   /** Find all school years whose end_date has passed and are still active */
   async findExpiredActive(): Promise<{ id: string; org_id: string }[]> {
     return this.db.schoolYear.findMany({

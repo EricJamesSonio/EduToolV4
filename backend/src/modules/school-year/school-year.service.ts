@@ -7,6 +7,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { SchoolYearRepository } from './school-year.repository';
+import { SchoolYearReadinessService } from './school-year-readiness.service';
 import { LevelService } from '@/modules/level/level.service';
 import { SubjectService } from '@/modules/subject/subject.service';
 import { GradingScaleService } from '../grading-scale/grading-scale.service';
@@ -32,6 +33,7 @@ export class SchoolYearService {
     private readonly subjectService: SubjectService,
     private readonly gradingScaleService: GradingScaleService,
     private readonly auditLogService: AuditLogService,
+    private readonly readinessService: SchoolYearReadinessService,
   ) { }
 
   // ---------------------------------------------------------------------------
@@ -111,7 +113,22 @@ export class SchoolYearService {
   }
 
   async findAll(orgId: string) {
-    return this.schoolYearRepository.findAll(orgId);
+    const schoolYears = await this.schoolYearRepository.findAll(orgId);
+
+    // Careful: the usage scan is only a UI hint (show/hide the Delete action).
+    // If it fails for any reason we must NOT break the whole list — fall back
+    // to "in use = false" and let the server-side check guard deletion.
+    let usage: Record<string, number> = {};
+    try {
+      usage = await this.schoolYearRepository.usageCountsBySchoolYear(orgId);
+    } catch {
+      usage = {};
+    }
+
+    return schoolYears.map((sy) => ({
+      ...sy,
+      in_use: (usage[sy.id] ?? 0) > 0,
+    }));
   }
 
   async findById(id: string, orgId: string) {
@@ -185,6 +202,9 @@ export class SchoolYearService {
       );
     }
 
+    // Require the school year to be structurally ready before activation.
+    await this.readinessService.assertReady(orgId, id);
+
     // ✅ Null safety (fix TS error properly)
     if (!schoolYear.start_date) {
       throw new BadRequestException(
@@ -250,6 +270,37 @@ export class SchoolYearService {
     }).catch(() => {});
 
     return this.schoolYearRepository.findById(id, orgId);
+  }
+
+  async remove(id: string, orgId: string, actorId: string) {
+    const schoolYear = await this.schoolYearRepository.findById(id, orgId);
+    if (!schoolYear) throw new NotFoundException('School year not found.');
+
+    if (schoolYear.status !== 'pending') {
+      throw new ConflictException(
+        'Only a pending school year that has not been used can be deleted.',
+      );
+    }
+
+    const inUse = await this.schoolYearRepository.hasUsage(id);
+    if (inUse) {
+      throw new ConflictException(
+        'This school year cannot be deleted because it is already in use (it has students, classes, sections, or curriculum data).',
+      );
+    }
+
+    await this.schoolYearRepository.delete(id);
+
+    this.auditLogService.logAdminAction({
+      orgId,
+      actorId,
+      action: 'school_year_deleted',
+      entityType: 'school_year',
+      entityId: id,
+      metadata: { name: schoolYear.name },
+    }).catch(() => {});
+
+    return { id, deleted: true };
   }
 
   private validateNotInPast(start_date?: string, end_date?: string): void {

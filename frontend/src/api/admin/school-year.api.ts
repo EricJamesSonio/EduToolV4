@@ -1,7 +1,11 @@
 // frontend/src/api/admin/school-year.api.ts
 
 import client from "@/api/client";
-import type { SchoolYear } from "@/types/admin/school-year.types";
+import type {
+  ReadinessSummary,
+  SchoolYear,
+  SchoolYearReadiness,
+} from "@/types/admin/school-year.types";
 
 export interface CreateSchoolYearRequest {
   name:                   string;
@@ -45,6 +49,27 @@ export const schoolYearApi = {
 
   end: async (id: string): Promise<SchoolYear> => {
     const res = await client.patch<{ success: boolean; data: SchoolYear }>(`/school-years/${id}/end`);
+    return res.data.data;
+  },
+
+  remove: async (id: string): Promise<{ id: string; deleted: boolean }> => {
+    const res = await client.delete<{ success: boolean; data: { id: string; deleted: boolean } }>(
+      `/school-years/${id}`,
+    );
+    return res.data.data;
+  },
+
+  getReadinessSummaries: async (): Promise<Record<string, ReadinessSummary>> => {
+    const res = await client.get<{ success: boolean; data: Record<string, ReadinessSummary> }>(
+      "/school-years/readiness",
+    );
+    return res.data.data;
+  },
+
+  getReadiness: async (id: string): Promise<SchoolYearReadiness> => {
+    const res = await client.get<{ success: boolean; data: SchoolYearReadiness }>(
+      `/school-years/${id}/readiness`,
+    );
     return res.data.data;
   },
 };

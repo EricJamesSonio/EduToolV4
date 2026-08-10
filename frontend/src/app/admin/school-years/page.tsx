@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { useListQuery } from "@/hooks/hook-factory.utils";
+import { useListQuery, useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -13,7 +13,7 @@ import { Plus, CalendarDays } from "lucide-react";
 import { CreateSchoolYearDialog } from "@/components/admin/school-years/CreateSchoolYearDialog";
 import { SchoolYearCard } from "@/components/admin/school-years/SchoolYearCard";
 import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
-import type { SchoolYear } from "@/types/admin/school-year.types";
+import type { SchoolYear, ReadinessSummary } from "@/types/admin/school-year.types";
 
 // ---------------------------------------------------------------------------
 
@@ -29,6 +29,14 @@ export default function SchoolYearsPage(): React.JSX.Element {
   } = useListQuery<SchoolYear[]>(
     queryKeys.admin.schoolYears.list(),
     schoolYearApi.getAll,
+  );
+
+  const {
+    data: readinessMap,
+  } = useAsyncQuery<Record<string, ReadinessSummary>>(
+    queryKeys.admin.schoolYears.readiness(),
+    schoolYearApi.getReadinessSummaries,
+    { meta: { preset: "list", feature: "schoolYears" } },
   );
 
   const hasActive = schoolYears.some((y) => y.status === "active");
@@ -63,7 +71,12 @@ export default function SchoolYearsPage(): React.JSX.Element {
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {schoolYears.map((year) => (
-            <SchoolYearCard key={year.id} year={year} hasActive={hasActive} />
+            <SchoolYearCard
+              key={year.id}
+              year={year}
+              hasActive={hasActive}
+              readiness={readinessMap?.[year.id]}
+            />
           ))}
         </div>
       </AsyncListState>

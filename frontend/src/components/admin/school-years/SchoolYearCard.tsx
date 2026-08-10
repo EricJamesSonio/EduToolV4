@@ -10,6 +10,7 @@ import { isAxiosError } from "axios";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { SchoolYearReadinessDialog } from "./SchoolYearReadinessDialog";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import {
   ListItemCardAction,
@@ -17,20 +18,21 @@ import {
   listItemIconClass,
   listItemTitleClass,
 } from "@/components/shared/ListItemCard";
-import { Eye, Calendar, CalendarX2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Eye, Calendar, CalendarX2, CheckCircle2, AlertCircle, CircleAlert, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/date.util";
 
-import type { SchoolYear } from "@/types/admin/school-year.types";
+import type { SchoolYear, ReadinessSummary } from "@/types/admin/school-year.types";
 
 // ---------------------------------------------------------------------------
 
 interface Props {
   year: SchoolYear;
   hasActive: boolean;
+  readiness?: ReadinessSummary;
 }
 
-type ConfirmAction = "activate" | "end";
+type ConfirmAction = "activate" | "end" | "delete";
 
 interface ConfirmCopy {
   title: string;
@@ -52,17 +54,33 @@ const CONFIRM_COPY: Record<ConfirmAction, ConfirmCopy> = {
     confirmLabel: "End School Year",
     destructive: true,
   },
+  delete: {
+    title: "Delete this school year?",
+    message: "This will permanently remove this unused school year. This cannot be undone.",
+    confirmLabel: "Delete School Year",
+    destructive: true,
+  },
 };
 
-export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
+export function SchoolYearCard({ year, hasActive, readiness }: Props): React.JSX.Element {
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+const [readinessOpen, setReadinessOpen] = useState(false);
 
-  const invalidateSchoolYears = () => {
+  const notReady = readiness ? !readiness.ready : false;
+
+const invalidateSchoolYears = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.admin.schoolYears.all });
     queryClient.invalidateQueries({ queryKey: ["admin", "school-years"] });
+  };
+
+  const removeFromCache = () => {
+    const removeYear = (old: SchoolYear[] | undefined) =>
+      old?.filter((y) => y.id !== year.id);
+    queryClient.setQueryData(queryKeys.admin.schoolYears.list(), removeYear);
+    queryClient.setQueryData(["admin", "school-years"], removeYear);
   };
 
   const activateMutation = useMutation({
@@ -94,11 +112,30 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
     },
   });
 
-  const isMutating = activateMutation.isPending || endMutation.isPending;
+  const deleteMutation = useMutation({
+    mutationFn: () => schoolYearApi.remove(year.id),
+    onSuccess: () => {
+      toast.success("School year deleted.");
+      removeFromCache();
+      invalidateSchoolYears();
+      setConfirmAction(null);
+    },
+    onError: (err: unknown) => {
+      const msg = isAxiosError(err)
+        ? (err.response?.data?.message ?? "Failed to delete school year.")
+        : "Failed to delete school year.";
+      toast.error(msg);
+      setConfirmAction(null);
+    },
+  });
+
+  const isMutating =
+    activateMutation.isPending || endMutation.isPending || deleteMutation.isPending;
 
   const handleConfirm = () => {
     if (confirmAction === "activate") activateMutation.mutate();
     else if (confirmAction === "end") endMutation.mutate();
+    else if (confirmAction === "delete") deleteMutation.mutate();
   };
 
   const getStatusIcon = () => {
@@ -125,7 +162,18 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
             {getStatusIcon()}
           </div>
           <div className="flex-1 space-y-1">
-            <h3 className={cn(listItemTitleClass, "not-interactive")}>{year.name}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className={cn(listItemTitleClass, "not-interactive")}>{year.name}</h3>
+              {notReady && (
+                <span
+                  title={
+                    "This school year is not ready. Open it to see what needs attention."
+                  }
+                >
+                  <CircleAlert className="h-4 w-4 text-amber-500 shrink-0" />
+                </span>
+              )}
+            </div>
             {(year.start_date || year.end_date) && (
               <p className="text-sm text-muted-foreground not-interactive">
                 {year.start_date ? formatDate(year.start_date) : "—"}
@@ -149,8 +197,14 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
             <ListItemCardAction
               icon={CheckCircle2}
               label="Set Active"
-              className="text-primary border-primary/30 hover:bg-primary/10"
-              onClick={() => setConfirmAction("activate")}
+              className={
+                notReady
+                  ? "text-muted-foreground border-muted-foreground/30 hover:bg-transparent cursor-not-allowed"
+                  : "text-primary border-primary/30 hover:bg-primary/10"
+              }
+              onClick={() =>
+                notReady ? setReadinessOpen(true) : setConfirmAction("activate")
+              }
               disabled={isMutating}
             />
           )}
@@ -161,6 +215,17 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
               label="End School Year"
               className="text-destructive border-destructive/20 hover:bg-destructive/10"
               onClick={() => setConfirmAction("end")}
+              disabled={isMutating}
+            />
+          )}
+
+          {year.status === "pending" && !year.in_use && (
+            <ListItemCardAction
+              icon={Trash2}
+              label="Delete"
+              iconOnly
+              className="text-destructive border-destructive/20 hover:bg-destructive/10"
+              onClick={() => setConfirmAction("delete")}
               disabled={isMutating}
             />
           )}
@@ -181,6 +246,12 @@ export function SchoolYearCard({ year, hasActive }: Props): React.JSX.Element {
           }}
         />
       )}
+
+      <SchoolYearReadinessDialog
+        open={readinessOpen}
+        onOpenChange={setReadinessOpen}
+        schoolYearId={year.id}
+      />
     </>
   );
 }

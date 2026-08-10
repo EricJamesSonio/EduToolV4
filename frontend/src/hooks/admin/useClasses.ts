@@ -43,7 +43,10 @@ export const useCreateClass = (): UseMutationResult<Class, Error, CreateClassReq
   return useMutationWithInvalidation<Class, Error, CreateClassRequest>(
     (data) => classApi.create(data),
     {
-      invalidateKeys: [queryKeys.admin.classes.list()],
+      invalidateKeys: [
+        queryKeys.admin.classes.list(),
+        queryKeys.admin.schoolYears.readiness(),
+      ],
       onSuccess: (newClass) => {
         queryClient.setQueryData(queryKeys.admin.classes.detail(newClass.id), newClass);
         toast.success("Class created successfully");
@@ -66,7 +69,10 @@ export const useUpdateClass = (): UseMutationResult<
   return useMutationWithInvalidation<Class, Error, { id: string; data: UpdateClassRequest }>(
     ({ id, data }) => classApi.update(id, data),
     {
-      invalidateKeys: [queryKeys.admin.classes.list()],
+      invalidateKeys: [
+        queryKeys.admin.classes.list(),
+        queryKeys.admin.schoolYears.readiness(),
+      ],
       onMutate: async ({ id, data }) => {
         await queryClient.cancelQueries({ queryKey: queryKeys.admin.classes.detail(id) });
 
@@ -98,7 +104,10 @@ export const useArchiveClass = (): UseMutationResult<void, Error, string> => {
   return useMutationWithInvalidation<void, Error, string>(
     (id) => classApi.archive(id),
     {
-      invalidateKeys: [queryKeys.admin.classes.list()],
+      invalidateKeys: [
+        queryKeys.admin.classes.list(),
+        queryKeys.admin.schoolYears.readiness(),
+      ],
       onMutate: async (id) => {
         await queryClient.cancelQueries({ queryKey: queryKeys.admin.classes.detail(id) });
 

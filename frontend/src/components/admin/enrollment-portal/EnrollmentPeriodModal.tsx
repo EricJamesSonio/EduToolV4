@@ -13,13 +13,39 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { isAxiosError } from "axios";
+import { AlertCircle, CircleAlert } from "lucide-react";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import {
   useCreateEnrollmentPeriod,
   useUpdateEnrollmentPeriod,
 } from "@/hooks/admin/useEnrollmentPeriods";
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
-import type { EnrollmentPeriod } from "@/types/enrollment-portal.types";
+import { queryKeys } from "@/hooks/queryKeys.factory";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { schoolYearApi } from "@/api/admin/school-year.api";
+import type {
+  EnrollmentPeriod,
+  SectionOverflowAction,
+} from "@/types/enrollment-portal.types";
+import type { SchoolYearReadiness } from "@/types/admin/school-year.types";
+
+const OVERFLOW_OPTIONS: { value: SectionOverflowAction; label: string; hint: string }[] = [
+  { value: "no_section", label: "Approve without a section", hint: "Leave the student without a section and notify registrars." },
+  { value: "auto_create", label: "Auto-create a section", hint: "Create a section for the level/course and assign the student." },
+  { value: "expand_capacity", label: "Expand a section's capacity", hint: "Increase the fullest eligible section to fit the student." },
+];
+
+const OVERFLOW_LABELS = Object.fromEntries(
+  OVERFLOW_OPTIONS.map((o) => [o.value, o.label]),
+) as Record<SectionOverflowAction, string>;
 
 interface EnrollmentPeriodModalProps {
   open: boolean;
@@ -52,6 +78,16 @@ export function EnrollmentPeriodModal({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [lockDate, setLockDate] = useState("");
+  const [overflowAction, setOverflowAction] = useState<SectionOverflowAction>("no_section");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const selectedYear = schoolYears.find((y) => y.id === syId);
+
+  const { data: readiness } = useAsyncQuery<SchoolYearReadiness>(
+    queryKeys.admin.schoolYears.readinessDetail(syId),
+    () => schoolYearApi.getReadiness(syId),
+    { enabled: !!syId },
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -60,6 +96,7 @@ export function EnrollmentPeriodModal({
     setStartDate(toLocalDate(existing?.start_date));
     setEndDate(toLocalDate(existing?.end_date));
     setLockDate(toLocalDate(existing?.lock_date));
+    setOverflowAction(existing?.section_overflow_action ?? "no_section");
   }, [open, existing, schoolYearId]);
 
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -67,6 +104,8 @@ export function EnrollmentPeriodModal({
   const startMs = startDate ? new Date(startDate).getTime() : null;
   const lockMs = lockDate ? new Date(lockDate).getTime() : null;
   const endMs = endDate ? new Date(endDate).getTime() : null;
+
+  const syStartMs = selectedYear?.start_date ? new Date(selectedYear.start_date).getTime() : null;
 
   const lockError =
     startMs !== null && lockMs !== null && lockMs < startMs
@@ -80,32 +119,48 @@ export function EnrollmentPeriodModal({
       ? "Closing date must be after the opening date."
       : "";
 
-  const dateHasError = !!lockError || !!endError;
+  const schoolYearError =
+    syStartMs !== null && endMs !== null && endMs >= syStartMs
+      ? "Enrollment period must end strictly before the school year starts."
+      : "";
+
+  const dateHasError = !!lockError || !!endError || !!schoolYearError;
   const formValid =
-    !!name.trim() && !!syId && !!startDate && !!endDate && !!lockDate && !dateHasError;
+    !!name.trim() && !!syId && !!startDate && !!endDate && !!lockDate &&
+    !!selectedYear && !!readiness?.ready && !dateHasError;
 
   const handleSubmit = async () => {
     if (!formValid) return;
-    if (isEdit && existing) {
-      await updateMutation.mutateAsync({
-        id: existing.id,
-        data: {
+    setFormError(null);
+    try {
+      if (isEdit && existing) {
+        await updateMutation.mutateAsync({
+          id: existing.id,
+          data: {
+            name: name.trim(),
+            start_date: startDate,
+            end_date: endDate,
+            lock_date: lockDate,
+            section_overflow_action: overflowAction,
+          },
+        });
+      } else {
+        await createMutation.mutateAsync({
           name: name.trim(),
+          school_year_id: syId,
           start_date: startDate,
           end_date: endDate,
           lock_date: lockDate,
-        },
-      });
-    } else {
-      await createMutation.mutateAsync({
-        name: name.trim(),
-        school_year_id: syId,
-        start_date: startDate,
-        end_date: endDate,
-        lock_date: lockDate,
-      });
+          section_overflow_action: overflowAction,
+        });
+      }
+      onClose();
+    } catch (err) {
+      const msg = isAxiosError(err)
+        ? (err.response?.data?.message ?? "Failed to save the enrollment period.")
+        : "Failed to save the enrollment period.";
+      setFormError(typeof msg === "string" ? msg : "Failed to save the enrollment period.");
     }
-    onClose();
   };
 
   return (
@@ -140,6 +195,38 @@ export function EnrollmentPeriodModal({
               selectedId={syId}
               onSelect={setSyId}
             />
+            {selectedYear && readiness && !readiness.ready && (
+              <p className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                <CircleAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                This school year is not ready
+                {readiness.blockingCount > 0
+                  ? ` (${readiness.blockingCount} blocking). Fix it before creating a period.`
+                  : ". Fix the warnings before creating a period."}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ep-overflow">When all matching sections are full</Label>
+            <Select
+              value={overflowAction}
+              onValueChange={(v) => setOverflowAction(v as SectionOverflowAction)}
+            >
+              <SelectTrigger id="ep-overflow" className="w-full">
+                <SelectValue placeholder="Choose an action" />
+              </SelectTrigger>
+              <SelectContent>
+                {OVERFLOW_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {OVERFLOW_OPTIONS.find((o) => o.value === overflowAction)?.hint ??
+                OVERFLOW_LABELS[overflowAction]}
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -173,15 +260,24 @@ export function EnrollmentPeriodModal({
               type="datetime-local"
               value={endDate}
               min={lockDate || startDate || undefined}
-              aria-invalid={!!endError}
-              className={endError ? "border-destructive" : undefined}
+              aria-invalid={!!endError || !!schoolYearError}
+              className={endError || schoolYearError ? "border-destructive" : undefined}
               onChange={(e) => setEndDate(e.target.value)}
             />
             {endError && <p className="text-xs text-destructive">{endError}</p>}
+            {schoolYearError && (
+              <p className="text-xs text-destructive">{schoolYearError}</p>
+            )}
           </div>
         </div>
 
         <DialogFooter>
+          {formError && (
+            <p className="flex items-start gap-1.5 text-xs text-destructive mr-auto w-full">
+              <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              {formError}
+            </p>
+          )}
           <Button variant="outline" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>

@@ -46,6 +46,7 @@ export const useCreateSection =
       {
         invalidateKeys: [
           queryKeys.admin.sections.all,
+          queryKeys.admin.schoolYears.readiness(),
         ],
       },
     );
@@ -72,6 +73,7 @@ export const useUpdateSection =
       {
         invalidateKeys: [
           queryKeys.admin.sections.all,
+          queryKeys.admin.schoolYears.readiness(),
         ],
       },
     );
@@ -89,6 +91,7 @@ export const useDeleteSection =
       {
         invalidateKeys: [
           queryKeys.admin.sections.all,
+          queryKeys.admin.schoolYears.readiness(),
         ],
       },
     );

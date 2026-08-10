@@ -119,6 +119,7 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
       onChange={(v) =>
         setValue("start_date", v, { shouldValidate: true, shouldDirty: true })
       }
+      disabled={(date) => date < parseLocalDateForCompare(new Date().toISOString().slice(0, 10))}
     />
     <input
       type="hidden"

@@ -12,7 +12,7 @@ import {
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { EnrollmentApplicationStatus } from '@prisma/client';
+import { EnrollmentApplicationStatus, SectionOverflowAction } from '@prisma/client';
 
 export class CreateEnrollmentPeriodDto {
   @IsString()
@@ -32,6 +32,10 @@ export class CreateEnrollmentPeriodDto {
 
   @IsDateString()
   lock_date!: string;
+
+  @IsOptional()
+  @IsEnum(SectionOverflowAction as unknown as object)
+  section_overflow_action?: SectionOverflowAction;
 }
 
 export class UpdateEnrollmentPeriodDto {
@@ -52,6 +56,10 @@ export class UpdateEnrollmentPeriodDto {
   @IsOptional()
   @IsDateString()
   lock_date?: string;
+
+  @IsOptional()
+  @IsEnum(SectionOverflowAction as unknown as object)
+  section_overflow_action?: SectionOverflowAction;
 }
 
 export class QueryApplicationsDto {

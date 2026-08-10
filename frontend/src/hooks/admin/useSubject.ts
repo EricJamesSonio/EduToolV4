@@ -27,14 +27,24 @@ export const useSubject = (id: string) => {
 export const useCreateSubject = () => {
   return useMutationWithInvalidation<Subject, Error, CreateSubjectRequest>(
     subjectApi.create,
-    { invalidateKeys: [queryKeys.admin.subjects.all] },
+    {
+      invalidateKeys: [
+        queryKeys.admin.subjects.all,
+        queryKeys.admin.schoolYears.readiness(),
+      ],
+    },
   );
 };
 
 export const useUpdateSubject = () => {
   return useMutationWithInvalidation<Subject, Error, { id: string; data: UpdateSubjectRequest }>(
     ({ id, data }: { id: string; data: UpdateSubjectRequest }) => subjectApi.update(id, data),
-    { invalidateKeys: [queryKeys.admin.subjects.all] },
+    {
+      invalidateKeys: [
+        queryKeys.admin.subjects.all,
+        queryKeys.admin.schoolYears.readiness(),
+      ],
+    },
   );
 };
 

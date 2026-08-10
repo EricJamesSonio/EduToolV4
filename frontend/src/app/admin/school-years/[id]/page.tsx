@@ -15,7 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cardGridClass } from "@/lib/utils";
-import { AlertTriangle, BookOpen } from "lucide-react";
+import { AlertTriangle, BookOpen, CircleAlert, CheckCircle2 } from "lucide-react";
+import type { SchoolYearReadiness } from "@/types/admin/school-year.types";
 
 export default function SchoolYearDetailPage({
   params,
@@ -34,6 +35,12 @@ export default function SchoolYearDetailPage({
   const { data: programs = [] } = useAsyncQuery(
     queryKeys.admin.programs.list({ schoolYearId: id }),
     () => programApi.getAll(id),
+    { enabled: !!schoolYear },
+  );
+
+  const { data: readiness } = useAsyncQuery<SchoolYearReadiness>(
+    queryKeys.admin.schoolYears.readinessDetail(id),
+    () => schoolYearApi.getReadiness(id),
     { enabled: !!schoolYear },
   );
 
@@ -108,6 +115,44 @@ export default function SchoolYearDetailPage({
         <div className="flex items-center gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span className="not-interactive">This school year has ended and is read-only.</span>
+        </div>
+      )}
+
+      {/* READINESS */}
+      {readiness && (
+        <div
+          className={`rounded-lg border px-4 py-3 ${
+            readiness.ready
+              ? "border-emerald-300/40 bg-emerald-50/50 dark:bg-emerald-950/20"
+              : "border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20"
+          }`}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            {readiness.ready ? (
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            ) : (
+              <CircleAlert className="h-4 w-4 text-amber-500 shrink-0" />
+            )}
+            <h3 className="text-sm font-semibold not-interactive">
+              {readiness.ready
+                ? "This school year is ready to use."
+                : `This school year is not ready (${readiness.blockingCount} blocking).`}
+            </h3>
+          </div>
+          {!readiness.ready && readiness.issues.length > 0 && (
+            <ul className="space-y-1 pl-6">
+              {readiness.issues.map((issue, i) => (
+                <li key={issue.ref?.id ?? `${issue.code}-${i}`} className="flex items-start gap-2 text-xs">
+                  <span
+                    className={`mt-1.5 h-1.5 w-1.5 rounded-full shrink-0 ${
+                      issue.severity === "blocking" ? "bg-amber-500" : "bg-sky-400"
+                    }`}
+                  />
+                  <span className="text-muted-foreground">{issue.message}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

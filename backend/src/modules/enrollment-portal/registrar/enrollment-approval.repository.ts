@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { Prisma, EnrollmentApplicationStatus } from '@prisma/client';
 
+export const DEFAULT_SECTION_CAPACITY = 32
+
 export interface SectionSelection {
   orgId: string;
   schoolYearId: string;
@@ -60,6 +62,70 @@ export class EnrollmentApprovalRepository {
       }
     }
     return null;
+  }
+
+  /**
+   * Same as findEligibleSections but runs on the caller's transaction client so
+   * the capacity check and any overflow handling stay atomic with an approval.
+   */
+  findEligibleSectionsTx(tx: Prisma.TransactionClient, sel: SectionSelection) {
+    const courseFilter = sel.courseId ? { course_id: sel.courseId } : { course_id: null };
+    const strandFilter = sel.strandId ? { strand_id: sel.strandId } : { strand_id: null };
+
+    return tx.section.findMany({
+      where: {
+        org_id: sel.orgId,
+        school_year_id: sel.schoolYearId,
+        level_id: sel.levelId,
+        deleted_at: null,
+        AND: [courseFilter, strandFilter],
+      },
+      orderBy: [{ order_index: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        capacity: true,
+        _count: {
+          select: {
+            studentEnrollments: { where: { status: 'active' } },
+          },
+        },
+      },
+    });
+  }
+
+  expandSectionCapacityTx(tx: Prisma.TransactionClient, sectionId: string, capacity: number) {
+    return tx.section.update({
+      where: { id: sectionId },
+      data: { capacity },
+      select: { id: true, name: true, capacity: true },
+    });
+  }
+
+  createOverflowSectionTx(
+    tx: Prisma.TransactionClient,
+    data: {
+      orgId: string;
+      schoolYearId: string;
+      levelId: string;
+      courseId: string | null;
+      strandId: string | null;
+      levelName: string;
+    },
+  ) {
+    const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return tx.section.create({
+      data: {
+        org_id: data.orgId,
+        school_year_id: data.schoolYearId,
+        level_id: data.levelId,
+        course_id: data.courseId,
+        strand_id: data.strandId,
+        name: `${data.levelName} Autogen-${suffix}`,
+        capacity: DEFAULT_SECTION_CAPACITY,
+        order_index: 0,
+      },
+    });
   }
 
   approveInTx(

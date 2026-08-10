@@ -29,6 +29,12 @@ enum AccountStatus {
   graduated
 }
 
+enum SectionOverflowAction {
+  auto_create
+  no_section
+  expand_capacity
+}
+
 enum EnrollmentStatus {
   active
   pending
@@ -1053,6 +1059,7 @@ model EnrollmentPeriod {
   end_date       DateTime
   lock_date      DateTime
   created_by     String
+  section_overflow_action SectionOverflowAction @default(no_section)
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
 

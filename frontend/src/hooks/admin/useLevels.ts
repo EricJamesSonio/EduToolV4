@@ -38,6 +38,7 @@ export const useUpdateDefaultLevels =
       {
         invalidateKeys: [
           queryKeys.admin.levels.all,
+          queryKeys.admin.schoolYears.readiness(),
         ],
       },
     );
@@ -79,6 +80,7 @@ export const useUpdateLevel = () => {
     {
       invalidateKeys: [
         queryKeys.admin.levels.all,
+        queryKeys.admin.schoolYears.readiness(),
       ],
     },
   );

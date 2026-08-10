@@ -9,6 +9,7 @@ import { EnrollmentApplicationStatus } from '@prisma/client';
 import { generateRandomCode } from '@/commons/utils/random-code.util';
 import { AuditLogService } from '@/modules/audit-log/audit-log.service';
 import { EnrollmentRegistrarRepository } from './enrollment-registrar.repository';
+import { SchoolYearReadinessService } from '@/modules/school-year/school-year-readiness.service';
 import { EnrollmentApprovalService } from './enrollment-approval.service';
 import {
   CreateEnrollmentPeriodDto,
@@ -40,6 +41,7 @@ export class EnrollmentRegistrarService {
     private readonly repo: EnrollmentRegistrarRepository,
     private readonly auditLogService: AuditLogService,
     private readonly approvalService: EnrollmentApprovalService,
+    private readonly readinessService: SchoolYearReadinessService,
   ) {}
 
   // ── Period management ────────────────────────────────────────────────────
@@ -49,6 +51,8 @@ export class EnrollmentRegistrarService {
     if (!schoolYear) throw new NotFoundException('School year not found for this organization.');
 
     this.assertPeriodDates(dto.start_date, dto.end_date, dto.lock_date);
+    this.assertBeforeSchoolYearStart(dto.end_date, schoolYear.start_date);
+    await this.readinessService.assertReady(orgId, schoolYear.id);
     const token = (await this.generateUniquePeriodToken(orgId)) as string;
 
     const period = await this.repo.createPeriod({
@@ -60,6 +64,7 @@ export class EnrollmentRegistrarService {
       endDate: new Date(dto.end_date),
       lockDate: new Date(dto.lock_date),
       createdBy: actorId,
+      sectionOverflowAction: dto.section_overflow_action,
     });
 
     await this.logAdmin(orgId, actorId, 'ENROLLMENT_PERIOD_CREATE', period.id, {
@@ -103,6 +108,7 @@ export class EnrollmentRegistrarService {
           end_date: p.end_date,
           lock_date: p.lock_date,
           created_by: p.created_by,
+          section_overflow_action: p.section_overflow_action,
           school_year: p.schoolYear,
           created_at: p.created_at,
           counts: c,
@@ -262,11 +268,16 @@ export class EnrollmentRegistrarService {
       start_date: dto.start_date ? new Date(dto.start_date) : period.start_date,
       end_date: dto.end_date ? new Date(dto.end_date) : period.end_date,
       lock_date: dto.lock_date ? new Date(dto.lock_date) : period.lock_date,
+      section_overflow_action: dto.section_overflow_action,
     };
     this.assertPeriodDates(
       next.start_date.toISOString(),
       next.end_date.toISOString(),
       next.lock_date.toISOString(),
+    );
+    this.assertBeforeSchoolYearStart(
+      next.end_date.toISOString(),
+      period.schoolYear?.start_date ?? null,
     );
 
     const updated = await this.repo.updatePeriod(id, next);
@@ -438,6 +449,19 @@ export class EnrollmentRegistrarService {
     }
   }
 
+  private assertBeforeSchoolYearStart(end: string, schoolYearStart: Date | null | undefined) {
+    if (!schoolYearStart) return;
+    const endDate = new Date(end);
+    if (Number.isNaN(endDate.getTime())) return;
+    const startDate = new Date(schoolYearStart);
+    startDate.setHours(0, 0, 0, 0);
+    if (endDate >= startDate) {
+      throw new BadRequestException(
+        'Enrollment period must end strictly before the school year starts.',
+      );
+    }
+  }
+
   private orgView(org: { id?: string | null; name?: string | null; slug?: string | null } | null) {
     return { id: org?.id ?? null, name: org?.name ?? null, slug: org?.slug ?? null };
   }
@@ -460,6 +484,7 @@ export class EnrollmentRegistrarService {
     end_date: Date;
     lock_date: Date;
     created_by: string;
+    section_overflow_action?: unknown;
   }) {
     return {
       id: period.id,
@@ -469,6 +494,7 @@ export class EnrollmentRegistrarService {
       end_date: period.end_date,
       lock_date: period.lock_date,
       created_by: period.created_by,
+      section_overflow_action: period.section_overflow_action,
     };
   }
 

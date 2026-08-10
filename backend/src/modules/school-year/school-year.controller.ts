@@ -4,6 +4,7 @@ import {
   Post,
   Get,
   Patch,
+  Delete,
   Body,
   Param,
   UseGuards,
@@ -11,6 +12,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { SchoolYearService } from './school-year.service';
+import { SchoolYearReadinessService } from './school-year-readiness.service';
 import { CreateSchoolYearDto, UpdateSchoolYearDto } from './dto/school-year.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
@@ -21,7 +23,10 @@ import { SchoolYearCreateResult } from './dto/school-year.dto'
 @Controller('school-years')
 @UseGuards(AuthGuard, RolesGuard)
 export class SchoolYearController {
-  constructor(private readonly schoolYearService: SchoolYearService) {}
+  constructor(
+    private readonly schoolYearService: SchoolYearService,
+    private readonly readinessService: SchoolYearReadinessService,
+  ) {}
 
   /**
    * POST /school-years  @Roles(ADMIN)
@@ -43,6 +48,27 @@ async create(
   @Get()
   async findAll(@CurrentUser('org_id') orgId: string) {
     return this.schoolYearService.findAll(orgId);
+  }
+
+  /**
+   * GET /school-years/readiness
+   * Lightweight per-year readiness summaries for the org — all roles can view.
+   */
+  @Get('readiness')
+  async getReadinessSummaries(@CurrentUser('org_id') orgId: string) {
+    return this.readinessService.summarizeAll(orgId);
+  }
+
+  /**
+   * GET /school-years/:id/readiness
+   * Full readiness detail (blocking + warnings) for a single school year.
+   */
+  @Get(':id/readiness')
+  async getReadiness(
+    @CurrentUser('org_id') orgId: string,
+    @Param('id') id: string,
+  ) {
+    return this.readinessService.detail(orgId, id, { includeWarnings: true });
   }
 
   /**
@@ -81,5 +107,21 @@ async create(
     @Body() dto: UpdateSchoolYearDto,
   ) {
     return this.schoolYearService.update(id, orgId, dto, actorId);
+  }
+
+  /**
+   * DELETE /school-years/:id  @Roles(ADMIN)
+   * Permanently deletes a school year only if it is pending and unused
+   * (no students, classes, sections, or curriculum data attached).
+   */
+  @Delete(':id')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') actorId: string,
+  ) {
+    return this.schoolYearService.remove(id, orgId, actorId);
   }
 }

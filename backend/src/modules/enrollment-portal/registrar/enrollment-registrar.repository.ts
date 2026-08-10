@@ -1,7 +1,7 @@
 // src/modules/enrollment-portal/registrar/enrollment-registrar.repository.ts
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
-import { EnrollmentApplicationStatus } from '@prisma/client';
+import { EnrollmentApplicationStatus, SectionOverflowAction } from '@prisma/client';
 
 export interface CreatePeriodData {
   orgId: string;
@@ -12,6 +12,7 @@ export interface CreatePeriodData {
   endDate: Date;
   lockDate: Date;
   createdBy: string;
+  sectionOverflowAction?: SectionOverflowAction;
 }
 
 export interface SearchApplicationsFilters {
@@ -33,7 +34,7 @@ export class EnrollmentRegistrarRepository {
   findSchoolYear(orgId: string, schoolYearId: string) {
     return this.db.schoolYear.findFirst({
       where: { id: schoolYearId, org_id: orgId },
-      select: { id: true },
+      select: { id: true, name: true, start_date: true, status: true },
     });
   }
 
@@ -62,6 +63,7 @@ export class EnrollmentRegistrarRepository {
         end_date: data.endDate,
         lock_date: data.lockDate,
         created_by: data.createdBy,
+        section_overflow_action: data.sectionOverflowAction ?? SectionOverflowAction.no_section,
       },
     });
   }
@@ -74,15 +76,22 @@ export class EnrollmentRegistrarRepository {
     });
   }
 
-  findPeriodById(orgId: string, id: string) {
+findPeriodById(orgId: string, id: string) {
     return this.db.enrollmentPeriod.findFirst({
       where: { id, org_id: orgId },
+      include: { schoolYear: { select: { id: true, start_date: true } } },
     });
   }
 
   updatePeriod(
     id: string,
-    data: { name?: string; start_date?: Date; end_date?: Date; lock_date?: Date },
+    data: {
+      name?: string;
+      start_date?: Date;
+      end_date?: Date;
+      lock_date?: Date;
+      section_overflow_action?: SectionOverflowAction;
+    },
   ) {
     return this.db.enrollmentPeriod.update({
       where: { id },
@@ -153,7 +162,9 @@ export class EnrollmentRegistrarRepository {
         strand: { select: { id: true, name: true } },
         level: { select: { id: true, name: true } },
         section: { select: { id: true, name: true } },
-        enrollmentPeriod: { select: { id: true, name: true, token: true } },
+        enrollmentPeriod: {
+          select: { id: true, name: true, token: true, section_overflow_action: true },
+        },
         schoolYear: { select: { id: true, name: true } },
       },
     });

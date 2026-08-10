@@ -5,6 +5,7 @@ import { AuditLogModule } from '@/modules/audit-log/audit-log.module';
 import { StudentModule } from '@/modules/student/student.module';
 import { StudentEnrollmentModule } from '@/modules/student-enrollment/student-enrollment.module';
 import { NotificationModule } from '@/modules/notification/notification.module';
+import { SchoolYearModule } from '@/modules/school-year/school-year.module';
 import { EnrollmentPortalController } from './enrollment-portal.controller';
 import { EnrollmentPortalService } from './enrollment-portal.service';
 import { EnrollmentPortalRepository } from './enrollment-portal.repository';
@@ -23,6 +24,7 @@ import { EnrollmentAutoLockService } from './registrar/enrollment-auto-lock.serv
     StudentModule,
     StudentEnrollmentModule,
     NotificationModule,
+    SchoolYearModule,
   ],
   controllers: [EnrollmentPortalController, EnrollmentRegistrarController],
   providers: [
