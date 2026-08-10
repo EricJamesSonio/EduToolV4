@@ -21,4 +21,8 @@ export const envValidationSchema = Joi.object({
   // time with a logged error.
   GMAIL_EMAIL: Joi.string().email().optional(),
   GMAIL_APP_PASSWORD: Joi.string().optional(),
+
+  // Giphy (Groupy GIF search). Optional — if unset the app still boots and
+  // GIF search returns a clear "not configured" error at request time.
+  GIPHY_API_KEY: Joi.string().optional(),
 });
