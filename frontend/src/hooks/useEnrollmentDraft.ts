@@ -56,6 +56,10 @@ export interface UseEnrollmentDraftResult {
   resetSession: () => void;
   /** Drops the stored draft + session once the application was submitted. */
   completeDraft: () => void;
+  /** Records a successful submission: turns the draft into a reproducible
+   *  application snapshot (status "pending") so a returning / re-verified
+   *  applicant sees their submission instead of starting a fresh create form. */
+  markSubmitted: (applicationCode: string) => void;
 }
 
 function normalize(value: string): string {
@@ -175,13 +179,57 @@ export function useEnrollmentDraft(
     setStep("identity");
   }, [email, orgSlug, periodToken]);
 
+  /** Marks the draft as submitted so the editable form isn't resurrected into
+   *  review. Deliberately KEEPS the verified session + application snapshot so
+   *  a returning applicant can see their code/status within the 2h window
+   *  without re-entering a second OTP. Only "End session" fully resets. */
   const completeDraft = useCallback(() => {
-    const key = normalize(email);
-    if (key) clearEnrollmentDraft(orgSlug, periodToken, key);
-    setSessionToken(null);
-    setEditMode(false);
-    setApplication(null);
-  }, [email, orgSlug, periodToken]);
+    setStep("success");
+  }, []);
+
+  /** After a successful create-mode submit, snapshot the drafted answers as a
+   *  pending application and switch to edit mode, so the user (and any future
+   *  return within the session) sees their submission rather than a blank form. */
+  const markSubmitted = useCallback(
+    (applicationCode: string) => {
+      const now = new Date().toISOString();
+      const app: EnrollmentApplicationView = {
+        id: "",
+        application_code: applicationCode,
+        first_name: draft.first_name,
+        middle_name: draft.middle_name || null,
+        last_name: draft.last_name,
+        age: draft.age ? Number(draft.age) : null,
+        address: draft.address || null,
+        contact_number: draft.contact_number || null,
+        last_school_graduated: draft.last_school_graduated || null,
+        program_id: draft.program_id,
+        course_id: draft.course_id || null,
+        strand_id: draft.strand_id || null,
+        level_id: draft.level_id,
+        status: "pending",
+        rejection_reason: null,
+        submitted_at: now,
+        updated_at: now,
+      };
+      setEditMode(true);
+      setApplication(app);
+      setStep("success");
+
+      const key = normalize(email);
+      if (key) {
+        saveEnrollmentDraft(orgSlug, periodToken, key, {
+          otpSent: false,
+          step: "success",
+          fields: sanitizeApplicationDraft(draft) as unknown as Record<string, string>,
+          sessionToken: sessionToken ?? undefined,
+          editMode: true,
+          application: app,
+        });
+      }
+    },
+    [draft, email, sessionToken, orgSlug, periodToken],
+  );
 
   return {
     email,
@@ -198,5 +246,6 @@ export function useEnrollmentDraft(
     activateVerifiedSession,
     resetSession,
     completeDraft,
+    markSubmitted,
   };
 }

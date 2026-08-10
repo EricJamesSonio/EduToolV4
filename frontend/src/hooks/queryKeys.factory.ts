@@ -186,6 +186,12 @@ export const queryKeys = {
       list: (filters?: Record<string, any>) => [...adminKeys.all, 'subjects', 'list', filters] as const,
       detail: (id: string) => [...adminKeys.all, 'subjects', 'detail', id] as const,
     },
+    concerns: {
+      all: [...adminKeys.all, 'concerns'] as const,
+      list: (filters?: Record<string, any>) => [...adminKeys.all, 'concerns', 'list', filters] as const,
+      detail: (id: string) => [...adminKeys.all, 'concerns', 'detail', id] as const,
+      categories: (filters?: Record<string, any>) => [...adminKeys.all, 'concerns', 'categories', filters] as const,
+    },
   },
 
   educator: {
@@ -284,6 +290,12 @@ export const queryKeys = {
     grades: {
       all: [...studentKeys.all, 'grades'] as const,
       list: (classId: string, filters?: Record<string, any>) => [...studentKeys.all, 'grades', 'list', classId, filters] as const,
+    },
+    concerns: {
+      all: [...studentKeys.all, 'concerns'] as const,
+      categories: () => [...studentKeys.all, 'concerns', 'categories'] as const,
+      mine: (filters?: Record<string, any>) => [...studentKeys.all, 'concerns', 'mine', filters] as const,
+      detail: (concernId: string) => [...studentKeys.all, 'concerns', 'detail', concernId] as const,
     },
     lessons: {
       all: [...studentKeys.all, 'lessons'] as const,
