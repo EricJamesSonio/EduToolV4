@@ -175,13 +175,11 @@ export class EnrollmentPortalRepository {
   }
 
   findApplicationByEmail(orgId: string, schoolYearId: string, email: string) {
-    return this.db.enrollmentApplication.findUnique({
+    return this.db.enrollmentApplication.findFirst({
       where: {
-        org_id_school_year_id_personal_email: {
-          org_id: orgId,
-          school_year_id: schoolYearId,
-          personal_email: email,
-        },
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        personal_email: { equals: email, mode: 'insensitive' },
       },
     });
   }
