@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
@@ -34,6 +35,7 @@ import type { Section } from "@/types/admin/section.types";
 
 export default function SectionsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { ensureOrganization } = useOrganizationGuard();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -208,6 +210,9 @@ export default function SectionsPage(): React.JSX.Element {
               sections={sections}
               levelMap={levelMap}
               programs={programs}
+              onView={(section) =>
+                router.push(`/admin/sections/${section.id}?schoolYearId=${schoolYearId}`)
+              }
               onEdit={setEditTarget}
               onDelete={setDeleteTarget}
             />
