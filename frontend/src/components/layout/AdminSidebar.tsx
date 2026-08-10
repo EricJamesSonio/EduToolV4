@@ -23,6 +23,7 @@ import {
   UserCog,
   Database,
   Inbox,
+  LifeBuoy,
 } from "lucide-react";
 
 const GROUPS = [
@@ -71,6 +72,12 @@ const GROUPS = [
     items: [
       { label: "Grade Lock", href: "/admin/grade-lock", icon: Lock, registrarVisible: false },
       { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText, registrarVisible: false },
+    ],
+  },
+  {
+    label: "Support",
+    items: [
+      { label: "Concerns", href: "/admin/concerns", icon: LifeBuoy, registrarVisible: true },
     ],
   },
 ];
