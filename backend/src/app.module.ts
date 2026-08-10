@@ -21,6 +21,7 @@ import { ProfileModule } from './modules/profile/profile.module';
 import { PublicModule } from './modules/public/public.module';
 import { EnrollmentPortalModule } from './modules/enrollment-portal/enrollment-portal.module';
 import { ConcernModule } from './modules/concern/concern.module';
+import { GroupyModule } from './modules/groupy/groupy.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { ConcernModule } from './modules/concern/concern.module';
     PublicModule,
     EnrollmentPortalModule,
     ConcernModule,
+    GroupyModule,
 
     HealthModule,
     UploadModule,
