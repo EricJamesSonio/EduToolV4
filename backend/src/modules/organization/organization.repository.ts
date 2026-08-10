@@ -1,5 +1,16 @@
 import { Injectable } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { DatabaseService } from '@/core/database/database.provider';
+
+function slugifyName(name: string): string {
+  const base =
+    name
+      .toLowerCase()
+      .replace(/&/g, 'and')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'org';
+  return `${base}-${randomBytes(4).toString('hex')}`;
+}
 
 @Injectable()
 export class OrganizationRepository {
@@ -31,6 +42,7 @@ async create(data: { name: string; description?: string; address?: string; email
   return this.db.organization.create({
     data: {
       name: data.name,
+      slug: slugifyName(data.name),
       description: data.description ?? null,
       address: data.address ?? null,
       email_extension: data.email_extension ?? undefined,
