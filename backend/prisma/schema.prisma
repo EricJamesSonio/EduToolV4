@@ -1010,6 +1010,64 @@ model MeetingChatMessage {
   message     String
   created_at  DateTime @default(now())
 }
+
+model ConcernCategory {
+  id         String   @id @default(uuid())
+  org_id     String
+  label      String
+  is_default Boolean  @default(false)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  concerns Concern[]
+
+  @@unique([org_id, label])
+}
+
+model Concern {
+  id                String        @id @default(uuid())
+  org_id            String
+  category_id       String
+  sender_account_id String
+  sender_role       Role
+  subject           String
+  status            ConcernStatus @default(open)
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  last_message_at   DateTime      @default(now())
+  resolved_by       String?
+  resolved_at       DateTime?
+
+  category ConcernCategory  @relation(fields: [category_id], references: [id])
+  messages ConcernMessage[]
+
+  @@index([org_id, sender_account_id])
+}
+
+model ConcernMessage {
+  id                String   @id @default(uuid())
+  org_id            String
+  concern_id        String
+  sender_account_id String
+  sender_role       Role
+  sender_name       String
+  body              String
+  created_at        DateTime @default(now())
+
+  concern Concern @relation(fields: [concern_id], references: [id])
+
+  @@index([concern_id])
+}
+
+model OrgConcernSetting {
+  id                  String    @id @default(uuid())
+  org_id              String    @unique
+  last_digest_sent_at DateTime?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+}
+
 model Otp {
   id                   String     @id @default(uuid())
   email                String
@@ -1025,6 +1083,11 @@ model Otp {
   expires_at           DateTime
   used_at              DateTime?
   created_at           DateTime  @default(now())
+}
+
+enum ConcernStatus {
+  open
+  resolved
 }
 
 enum RegistrationStatus {

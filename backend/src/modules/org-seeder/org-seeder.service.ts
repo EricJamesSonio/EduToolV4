@@ -49,6 +49,30 @@ export class OrgSeederService {
       },
     });
 
+    // One-row-per-org concern digest setting, mirroring OrgEnrollmentSetting.
+    await this.db.orgConcernSetting.upsert({
+      where: { org_id: ctx.orgId },
+      update: {},
+      create: { org_id: ctx.orgId },
+    });
+
+    // Seed default concern categories (idempotent per unique [org_id, label]).
+    const defaultConcernLabels = [
+      'Account Problem',
+      'Grade Problem',
+      'Technical Issue',
+      'Other',
+    ];
+    for (const label of defaultConcernLabels) {
+      await this.db.concernCategory.upsert({
+        where: {
+          org_id_label: { org_id: ctx.orgId, label },
+        },
+        update: {},
+        create: { org_id: ctx.orgId, label, is_default: true },
+      });
+    }
+
     await this.programSeeder.seed(ctx);
     await this.courseSeeder.seed(ctx);
     await this.strandSeeder.seed(ctx);
