@@ -19,19 +19,24 @@ interface SchoolYearReadinessDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   schoolYearId: string;
+  /** Pre-load the detail at the call site to render instantly (avoids a flash). */
+  readiness?: SchoolYearReadiness | null;
 }
 
 export function SchoolYearReadinessDialog({
   open,
   onOpenChange,
   schoolYearId,
+  readiness: providedReadiness = null,
 }: SchoolYearReadinessDialogProps) {
-  const { data: readiness, isLoading } = useAsyncQuery<SchoolYearReadiness>(
+  const shouldFetch = !providedReadiness;
+  const { data: fetchedReadiness, isLoading } = useAsyncQuery<SchoolYearReadiness>(
     queryKeys.admin.schoolYears.readinessDetail(schoolYearId),
     () => schoolYearApi.getReadiness(schoolYearId),
-    { enabled: open && !!schoolYearId },
+    { enabled: shouldFetch && open && !!schoolYearId },
   );
 
+  const readiness = providedReadiness ?? fetchedReadiness;
   const blocking = readiness?.issues.filter((i) => i.severity === "blocking") ?? [];
   const warnings = readiness?.issues.filter((i) => i.severity === "warning") ?? [];
 

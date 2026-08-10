@@ -1,7 +1,7 @@
 // ===== File: frontend/src/app/admin/school-years/SchoolYearCard.tsx =====
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -22,7 +22,7 @@ import { Eye, Calendar, CalendarX2, CheckCircle2, AlertCircle, CircleAlert, Tras
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/date.util";
 
-import type { SchoolYear, ReadinessSummary } from "@/types/admin/school-year.types";
+import type { SchoolYear, SchoolYearReadiness, ReadinessSummary } from "@/types/admin/school-year.types";
 
 // ---------------------------------------------------------------------------
 
@@ -67,9 +67,33 @@ export function SchoolYearCard({ year, hasActive, readiness }: Props): React.JSX
   const queryClient = useQueryClient();
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-const [readinessOpen, setReadinessOpen] = useState(false);
+  const [readinessOpen, setReadinessOpen] = useState(false);
+  const [preparedReadiness, setPreparedReadiness] =
+    useState<SchoolYearReadiness | null>(null);
 
-  const notReady = readiness ? !readiness.ready : false;
+  // The list summary (`readiness`) is coarse and can miss deep blocking issues
+  // (e.g. "Level has no subjects"). For pending years we load the authoritative
+  // readiness detail once so the button is grayed accurately and the click
+  // shows the real reasons immediately.
+  useEffect(() => {
+    if (year.status !== "pending" || hasActive) return;
+    let active = true;
+    schoolYearApi
+      .getReadiness(year.id)
+      .then((d) => {
+        if (active) setPreparedReadiness(d);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [year.id, year.status, hasActive]);
+
+  const notReady = preparedReadiness
+    ? !preparedReadiness.ready
+    : readiness
+      ? !readiness.ready
+      : false;
 
 const invalidateSchoolYears = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.admin.schoolYears.all });
@@ -131,6 +155,22 @@ const invalidateSchoolYears = () => {
 
   const isMutating =
     activateMutation.isPending || endMutation.isPending || deleteMutation.isPending;
+
+  const handleSetActiveClick = async () => {
+    if (isMutating) return;
+    try {
+      const detail =
+        preparedReadiness ?? (await schoolYearApi.getReadiness(year.id));
+      if (detail.ready) {
+        setConfirmAction("activate");
+      } else {
+        setPreparedReadiness(detail);
+        setReadinessOpen(true);
+      }
+    } catch {
+      setConfirmAction("activate");
+    }
+  };
 
   const handleConfirm = () => {
     if (confirmAction === "activate") activateMutation.mutate();
@@ -202,9 +242,7 @@ const invalidateSchoolYears = () => {
                   ? "text-muted-foreground border-muted-foreground/30 hover:bg-transparent cursor-not-allowed"
                   : "text-primary border-primary/30 hover:bg-primary/10"
               }
-              onClick={() =>
-                notReady ? setReadinessOpen(true) : setConfirmAction("activate")
-              }
+              onClick={handleSetActiveClick}
               disabled={isMutating}
             />
           )}
@@ -251,6 +289,7 @@ const invalidateSchoolYears = () => {
         open={readinessOpen}
         onOpenChange={setReadinessOpen}
         schoolYearId={year.id}
+        readiness={preparedReadiness}
       />
     </>
   );
