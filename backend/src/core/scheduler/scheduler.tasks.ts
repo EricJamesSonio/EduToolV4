@@ -6,6 +6,7 @@ import { NotificationService }       from '@/modules/notification/notification.s
 import { OrgEnrollmentSettingService } from '@/modules/org-enrollment-setting/org-enrollment-setting.service'
 import { EnrollmentAutoLockService } from '@/modules/enrollment-portal/registrar/enrollment-auto-lock.service'
 import { DatabaseService } from '@/core/database/database.provider'
+import { ConcernDigestService } from '@/modules/concern/digest/concern-digest.service'
 
 @Injectable()
 export class SchedulerTasks {
@@ -18,6 +19,7 @@ export class SchedulerTasks {
     private readonly orgEnrollmentSettingService: OrgEnrollmentSettingService,
     private readonly enrollmentAutoLockService: EnrollmentAutoLockService,
     private readonly db:                        DatabaseService,
+    private readonly concernDigestService:      ConcernDigestService,
   ) {}
 
   /**
@@ -67,6 +69,15 @@ export class SchedulerTasks {
       }
     } catch (err) {
       this.logger.error('Close expired drafts failed', err)
+    }
+  }
+
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  async handleConcernDigests() {
+    try {
+      await this.concernDigestService.processDueDigests();
+    } catch (err) {
+      this.logger.error('Concern digest scan failed', err);
     }
   }
 

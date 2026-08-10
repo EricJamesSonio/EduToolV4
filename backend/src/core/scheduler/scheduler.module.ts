@@ -6,6 +6,7 @@ import { SubmissionModule } from '@/modules/submission/submission.module';
 import { NotificationModule } from '@/modules/notification/notification.module';
 import { OrgEnrollmentSettingModule } from '@/modules/org-enrollment-setting/org-enrollment-setting.module';
 import { EnrollmentPortalModule } from '@/modules/enrollment-portal/enrollment-portal.module';
+import { ConcernDigestModule } from '@/modules/concern/digest/concern-digest.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { EnrollmentPortalModule } from '@/modules/enrollment-portal/enrollment-p
     NotificationModule,
     OrgEnrollmentSettingModule,
     EnrollmentPortalModule,
+    ConcernDigestModule,
   ],
   providers: [SchedulerTasks],
 })
