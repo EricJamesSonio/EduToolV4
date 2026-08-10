@@ -39,6 +39,7 @@ async function upsertAccount(params: {
       status: AccountStatus.active,
       deleted_at: null,
       org_id: orgId ?? null,
+      is_registrar: false,
     },
     create: {
       org_id: orgId ?? null,
@@ -46,6 +47,7 @@ async function upsertAccount(params: {
       email,
       password: hashed,
       status: AccountStatus.active,
+      is_registrar: false,
     },
   })
 

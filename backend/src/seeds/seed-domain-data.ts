@@ -1447,12 +1447,14 @@ async function main() {
       role: 'platform_owner',
       status: AccountStatus.active,
       deleted_at: null,
+      is_registrar: false,
     },
     create: {
       email: platformOwnerEmail,
       password: platformOwnerPw,
       role: 'platform_owner',
       status: AccountStatus.active,
+      is_registrar: false,
     },
   });
   await db.profile.upsert({
@@ -1507,6 +1509,7 @@ async function main() {
         status: AccountStatus.active,
         deleted_at: null,
         org_id: org.id,
+        is_registrar: false,
       },
       create: {
         org_id: org.id,
@@ -1514,6 +1517,7 @@ async function main() {
         password: adminPw,
         role: 'admin',
         status: AccountStatus.active,
+        is_registrar: false,
       },
     });
     await db.profile.upsert({
