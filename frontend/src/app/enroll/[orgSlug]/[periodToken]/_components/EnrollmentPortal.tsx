@@ -218,7 +218,6 @@ function ApplyFlow({
     application,
     activateVerifiedSession,
     resetSession,
-    completeDraft,
     markSubmitted,
   } = draftCtx;
 
@@ -346,7 +345,7 @@ function ApplyFlow({
         : await enrollmentPortalApi.createApplication(orgSlug, periodToken, sessionToken, payload);
       setCreatedCode(result.application_code);
       setStep("success");
-      completeDraft();
+      markSubmitted(result.application_code);
     } catch (err) {
       const httpErr = err as { response?: { status?: number; data?: unknown } };
       console.error("Application submit failed", httpErr?.response?.status, httpErr?.response?.data);
