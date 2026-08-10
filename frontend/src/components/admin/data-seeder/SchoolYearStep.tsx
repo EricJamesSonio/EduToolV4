@@ -10,6 +10,7 @@ import { Label }    from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn }       from "@/lib/utils"
 import { useOrganizationGuard } from "@/context/OrganizationGuardContext"
+import { startDateMin, endDateMin } from "@/lib/school-year-dates"
 import type { SchoolYear } from "@/types/admin/school-year.types"
 
 interface SchoolYearStepProps {
@@ -144,6 +145,7 @@ export function SchoolYearStep({
                   <Label className="text-xs">Start Date</Label>
                   <Input
                     type="date"
+                    min={startDateMin()}
                     value={startDate}
                     onChange={(e) => {
                       setStartDate(e.target.value)
@@ -158,6 +160,7 @@ export function SchoolYearStep({
                   <Label className="text-xs">End Date</Label>
                   <Input
                     type="date"
+                    min={endDateMin(startDate)}
                     value={endDate}
                     onChange={(e) => {
                       setEndDate(e.target.value)
