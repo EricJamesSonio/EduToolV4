@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2 } from "lucide-react";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WEEK_COLORS } from "@/lib/palette";
 import { PROGRAM_TYPE_COLORS } from "@/types/admin/program.types";
@@ -18,6 +18,7 @@ interface SectionTableProps {
     { name: string; programName: string; programId: string }
   >;
   programs: Program[];
+  onView: (section: Section) => void;
   onEdit: (section: Section) => void;
   onDelete: (section: Section) => void;
 }
@@ -26,6 +27,7 @@ export function SectionTable({
   sections,
   levelMap,
   programs,
+  onView,
   onEdit,
   onDelete,
 }: SectionTableProps): React.JSX.Element {
@@ -55,8 +57,14 @@ export function SectionTable({
     {
       header: "Name",
       accessorKey: "name",
-      cell: ({ getValue }) => (
-        <span className="font-medium not-interactive">{getValue<string>()}</span>
+      cell: ({ row }) => (
+        <button
+          onClick={() => onView(row.original)}
+          className="font-medium text-left hover:text-primary hover:underline transition-colors not-interactive"
+          title="View section details"
+        >
+          {row.original.name}
+        </button>
       ),
     },
     {
@@ -157,6 +165,16 @@ export function SectionTable({
 
         return (
           <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              onClick={() => onView(section)}
+              title="View section details"
+            >
+              <Eye className="h-3.5 w-3.5" />
+            </Button>
+
             <Button
               size="sm"
               variant="ghost"
