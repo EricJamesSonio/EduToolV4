@@ -172,7 +172,7 @@ export default function SchoolYearDetailPage({
             <p className="text-sm text-muted-foreground not-interactive">
               No programs for this school year.
             </p>
-            <Button size="sm" onClick={() => router.push(`/admin/programs?schoolYearId=${id}`)}>
+            <Button size="sm" onClick={() => router.push(`/admin/programs?schoolYearId=${id}&create=1`)}>
               <Plus className="mr-1.5 h-4 w-4" />
               Create Program
             </Button>
