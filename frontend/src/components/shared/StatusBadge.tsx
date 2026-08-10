@@ -81,6 +81,7 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   archived:  { label: "Archived",  className: "bg-muted text-muted-foreground border-border" },
   locked:    { label: "Locked",    className: "bg-muted text-muted-foreground border-border" },
   "auto-locked": { label: "Auto-Locked", className: "bg-muted text-muted-foreground border-border" },
+  resolved:  { label: "Resolved",  className: "bg-muted text-muted-foreground border-border" },
 
   // Blue-gray — transferred / excused
   transferred: { label: "Transferred", className: "badge-transferred" },
