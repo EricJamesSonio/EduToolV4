@@ -169,3 +169,30 @@ successfully.
 4. [ ] Add a program + level → button still grayed (missing sections/subjects) → reopen modal shows the remaining blocking issues live.
 5. [ ] Fully ready the year → button re-enables to normal color → clicking opens the activation confirm (not the readiness dialog).
 6. [ ] A ready year whose subject lacks a class → modal shows the `subject_no_class` entry under Warnings (sky), and activation still proceeds normally.
+
+## Follow-up — No past start date + shared date constraints
+The start date can no longer be set to a past date in **both** school-year creation UIs (backend
+validation already enforced this; this is a UX/discouragement improvement). The date-constraint logic
+was extracted so both places share a **single source of truth**.
+
+Changes:
+- NEW `frontend/src/lib/school-year-dates.ts` — shared date helpers:
+  - `parseLocalDate`, `todayLocal`, `toDateInput`.
+  - `startDatePickerDisabled(date)` — calendar `DatePicker` predicate blocking dates before today.
+  - `startDateMin()` — native `<input type="date">` `min` (today), so past days aren't selectable.
+  - `endDatePickerDisabled(date, startDate?)` — blocks past dates and dates before the chosen start.
+  - `endDateMin(startDate?)` — native input `min` = start date (or today when none chosen).
+- `CreateSchoolYearDialog.tsx` — Start Date uses `startDatePickerDisabled`; End Date uses
+  `endDatePickerDisabled(date, startDate)`. Removed the local `parseLocalDateForCompare`.
+- `data-seeder/SchoolYearStep.tsx` — Start Input now has `min={startDateMin()}`; End Input has
+  `min={endDateMin(startDate)}` (past dates and dates before start are unselectable).
+
+Verified: `npx tsc --noEmit` (only the pre-existing 42 test-file errors), eslint on the new util and
+both callers (only the app-wide `explicit-module-boundary-types` warning on the existing component),
+`npx next build` compiled successfully.
+
+### Manual QA — no past start date
+1. [ ] Create dialog: open Start Date calendar → all days before today are disabled; today + future selectable.
+2. [ ] Create dialog: pick a start → End Date calendar disables days before that start.
+3. [ ] Data Seeder: Start `<input type="date">` opens at today's month; past days are unselectable (`min`).
+4. [ ] Data Seeder: pick a start → End `<input>`'s `min` tracks the start (can't select earlier).
