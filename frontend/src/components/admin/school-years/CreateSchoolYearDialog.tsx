@@ -18,15 +18,14 @@ import { DatePicker } from "@/components/ui/date-picker";
 
 import type { CreateForm, ShortDurationWarning } from "./types/types";
 import { isShortDurationError } from "./utils/helpers";
+import {
+  startDatePickerDisabled,
+  endDatePickerDisabled,
+} from "@/lib/school-year-dates";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-}
-
-function parseLocalDateForCompare(value: string): Date {
-  const [y, m, d] = value.split("-").map(Number);
-  return new Date(y, m - 1, d);
 }
 
 export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Element {
@@ -119,7 +118,7 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
       onChange={(v) =>
         setValue("start_date", v, { shouldValidate: true, shouldDirty: true })
       }
-      disabled={(date) => date < parseLocalDateForCompare(new Date().toISOString().slice(0, 10))}
+      disabled={startDatePickerDisabled}
     />
     <input
       type="hidden"
@@ -136,7 +135,7 @@ export function CreateSchoolYearDialog({ open, onClose }: Props): React.JSX.Elem
       onChange={(v) =>
         setValue("end_date", v, { shouldValidate: true, shouldDirty: true })
       }
-      disabled={(date) => (startDate ? date < parseLocalDateForCompare(startDate) : false)}
+      disabled={(date) => endDatePickerDisabled(date, startDate)}
     />
     <input
       type="hidden"

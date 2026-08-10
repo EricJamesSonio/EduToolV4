@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
@@ -13,7 +14,6 @@ import { ConfirmDialog }      from "@/components/shared/ConfirmDialog";
 import { Skeleton }           from "@/components/ui/skeleton";
 import { Badge }              from "@/components/ui/badge";
 import { SectionFormDialog }  from "./SectionFormDialog";
-import { SectionDetailPanel } from "./SectionDetailPanel";
 import type { SectionFormValues } from "./SectionFormDialog";
 
 interface SectionsPanelProps {
@@ -31,10 +31,10 @@ export function SectionsPanel({
   courseId,
   strandId,
 }: SectionsPanelProps): React.JSX.Element {
+  const router  = useRouter();
   const [dialogOpen,    setDialogOpen]    = useState(false);
   const [editTarget,    setEditTarget]    = useState<Section | null>(null);
   const [deleteTarget,  setDeleteTarget]  = useState<Section | null>(null);
-  const [detailSection, setDetailSection] = useState<Section | null>(null);
   const [formError,     setFormError]     = useState<string | null>(null);
 
   const { data: sections = [], isLoading } = useAsyncQuery(
@@ -153,9 +153,11 @@ export function SectionsPanel({
                 key={sec.id}
                 className="flex items-center justify-between gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
               >
-                {/* Clickable left side → opens detail panel */}
+                {/* Clickable left side → opens dedicated section detail page */}
                 <button
-                  onClick={() => setDetailSection(sec)}
+                  onClick={() =>
+                    router.push(`/admin/programs/${level.program_id}/sections/${sec.id}`)
+                  }
                   className="flex items-center gap-2 min-w-0 flex-1 text-left"
                 >
                   <span className="text-xs font-medium truncate">{sec.name}</span>
@@ -202,16 +204,6 @@ export function SectionsPanel({
           </div>
         )}
       </div>
-
-      {/* Section detail panel */}
-      <SectionDetailPanel
-        section={detailSection}
-        schoolYearId={schoolYearId}
-        levelName={level.name}
-        isEnded={isEnded}
-        open={detailSection !== null}
-        onClose={() => setDetailSection(null)}
-      />
 
       {/* Create / edit dialogs */}
       {dialogOpen && (
