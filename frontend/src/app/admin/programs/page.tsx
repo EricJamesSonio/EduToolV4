@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
@@ -28,11 +28,13 @@ import type { AxiosError } from "axios";
 export default function ProgramsPage(): React.JSX.Element {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { ensureOrganization } = useOrganizationGuard();
 
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Program | null>(null);
+  const openedOnArrival = useRef(false);
 
   const { data: schoolYears = [], isLoading: syLoading } = useAsyncQuery(
     queryKeys.admin.schoolYears.list(),
@@ -51,6 +53,20 @@ export default function ProgramsPage(): React.JSX.Element {
     const active = schoolYears.find((sy) => sy.status === "active");
     setSelectedSchoolYearId(active?.id ?? schoolYears[0].id);
   }, [schoolYears, searchParams]);
+
+  // Auto-open the create-program modal when arriving via ?create=1
+  // (e.g. the "Create Program" button on the school year detail page).
+  // Opens once the school year is selected, but only once (never reopen on
+  // later selection changes), and clears the param so a refresh won't reopen.
+  useEffect(() => {
+    if (openedOnArrival.current) return;
+    if (!selectedSchoolYearId || searchParams.get("create") !== "1") return;
+    openedOnArrival.current = true;
+    setCreateOpen(true);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("create");
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [selectedSchoolYearId, searchParams, router]);
 
   const {
     data: programs,
