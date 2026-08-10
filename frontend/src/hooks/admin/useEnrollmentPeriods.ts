@@ -26,7 +26,10 @@ export const useCreateEnrollmentPeriod = (): UseMutationResult<
   return useMutationWithInvalidation<EnrollmentPeriod, Error, CreateEnrollmentPeriodInput>(
     (data) => enrollmentPortalApi.createPeriod(data),
     {
-      invalidateKeys: [queryKeys.admin.enrollmentPortal.periods.list()],
+      invalidateKeys: [
+        queryKeys.admin.enrollmentPortal.all,
+        queryKeys.admin.enrollmentPortal.periods.list(),
+      ],
       onSuccess: () => toast.success("Enrollment period created."),
       onError: (err: Error) =>
         toast.error((err as AxiosError<{ message?: string }>)?.response?.data?.message ?? "Failed to create enrollment period."),
@@ -46,7 +49,10 @@ export const useUpdateEnrollmentPeriod = (): UseMutationResult<
   >(
     ({ id, data }) => enrollmentPortalApi.updatePeriod(id, data),
     {
-      invalidateKeys: [queryKeys.admin.enrollmentPortal.periods.list()],
+      invalidateKeys: [
+        queryKeys.admin.enrollmentPortal.all,
+        queryKeys.admin.enrollmentPortal.periods.list(),
+      ],
       onSuccess: () => toast.success("Enrollment period updated."),
       onError: (err: Error) =>
         toast.error((err as AxiosError<{ message?: string }>)?.response?.data?.message ?? "Failed to update enrollment period."),
@@ -62,7 +68,10 @@ export const useDeleteEnrollmentPeriod = (): UseMutationResult<
   return useMutationWithInvalidation<{ success: boolean }, Error, string>(
     (id) => enrollmentPortalApi.deletePeriod(id),
     {
-      invalidateKeys: [queryKeys.admin.enrollmentPortal.periods.list()],
+      invalidateKeys: [
+        queryKeys.admin.enrollmentPortal.all,
+        queryKeys.admin.enrollmentPortal.periods.list(),
+      ],
       onSuccess: () => toast.success("Enrollment period deleted."),
       onError: (err: Error) =>
         toast.error((err as AxiosError<{ message?: string }>)?.response?.data?.message ?? "Failed to delete enrollment period."),
