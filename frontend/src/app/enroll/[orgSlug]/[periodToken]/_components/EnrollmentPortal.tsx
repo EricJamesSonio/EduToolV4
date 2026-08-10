@@ -17,12 +17,13 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { enrollmentPortalApi } from "@/api/public/enrollment-portal.api";
-import { useEnrollmentDraft } from "@/hooks/useEnrollmentDraft";
+import { useEnrollmentDraft, type UseEnrollmentDraftResult } from "@/hooks/useEnrollmentDraft";
 import { draftToApplicationPayload } from "@/utils/enrollmentApplication";
 import type {
   PublicPortalInfo,
   PublicProgram,
   PublicApplicationLookup,
+  EnrollmentApplicationView,
   ApplicationDraft,
   ApplicationDraftStep,
 } from "@/types/enrollment-portal.types";
@@ -74,6 +75,8 @@ export function EnrollmentPortal({
   const [catalog, setCatalog] = useState<PublicPortalInfo | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [view, setView] = useState<"apply" | "status">("apply");
+  const [submittedCode, setSubmittedCode] = useState<string | null>(null);
+  const draftCtx = useEnrollmentDraft(orgSlug, periodToken);
 
   useEffect(() => {
     let active = true;
@@ -148,10 +151,11 @@ export function EnrollmentPortal({
             orgSlug={orgSlug}
             periodToken={periodToken}
             catalog={catalog}
+            draftCtx={draftCtx}
           />
         )}
 
-        {catalog && view === "status" && <CheckStatus />}
+        {catalog && view === "status" && <CheckStatus draftCtx={draftCtx} />}
       </div>
     </main>
   );
@@ -193,15 +197,13 @@ function ApplyFlow({
   orgSlug,
   periodToken,
   catalog,
+  draftCtx,
 }: {
   orgSlug: string;
   periodToken: string;
   catalog: PublicPortalInfo;
+  draftCtx: UseEnrollmentDraftResult;
 }) {
-  const [busy, setBusy] = useState(false);
-  const [otpCode, setOtpCode] = useState("");
-  const [createdCode, setCreatedCode] = useState("");
-
   const {
     email,
     changeEmail,
@@ -217,7 +219,14 @@ function ApplyFlow({
     activateVerifiedSession,
     resetSession,
     completeDraft,
-  } = useEnrollmentDraft(orgSlug, periodToken);
+    markSubmitted,
+  } = draftCtx;
+
+  const [busy, setBusy] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [createdCode, setCreatedCode] = useState("");
+
+  const isLocked = !!application && (application.status === "locked" || application.status === "approved");
 
   const periodOpen = catalog.period.is_open;
 
@@ -351,6 +360,10 @@ function ApplyFlow({
       setBusy(false);
     }
   };
+
+  if (isLocked && application) {
+    return <LockedApplicationView application={application} />;
+  }
 
   return (
     <div className="space-y-4">
@@ -555,19 +568,27 @@ function PersonalStep({
 }) {
   const set = (key: keyof ApplicationDraft) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft({ [key]: e.target.value });
+  // Names: letters only plus common name punctuation (space, hyphen, apostrophe,
+  // period). Blocks digits and symbols at the input level.
+  const setText = (key: "first_name" | "middle_name" | "last_name") =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
+      setDraft({ [key]: e.target.value.replace(/[^A-Za-z' .-]/g, "") });
+  // Contact number: digits only, capped at 11.
+  const setContact = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setDraft({ contact_number: e.target.value.replace(/\D/g, "").slice(0, 11) });
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div className="space-y-2">
         <Label htmlFor="first_name">First name *</Label>
-        <Input id="first_name" value={draft.first_name} onChange={set("first_name")} />
+        <Input id="first_name" value={draft.first_name} onChange={setText("first_name")} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="middle_name">Middle name</Label>
-        <Input id="middle_name" value={draft.middle_name} onChange={set("middle_name")} />
+        <Input id="middle_name" value={draft.middle_name} onChange={setText("middle_name")} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="last_name">Last name *</Label>
-        <Input id="last_name" value={draft.last_name} onChange={set("last_name")} />
+        <Input id="last_name" value={draft.last_name} onChange={setText("last_name")} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="age">Age</Label>
@@ -579,7 +600,17 @@ function PersonalStep({
       </div>
       <div className="space-y-2">
         <Label htmlFor="contact_number">Contact number</Label>
-        <Input id="contact_number" value={draft.contact_number} onChange={set("contact_number")} />
+        <Input
+          id="contact_number"
+          inputMode="numeric"
+          maxLength={11}
+          placeholder="09171234567"
+          value={draft.contact_number}
+          onChange={setContact}
+        />
+        <p className="text-xs text-muted-foreground">
+          {draft.contact_number.length}/11 digits
+        </p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="last_school">Last school graduated</Label>
@@ -804,7 +835,7 @@ function SuccessStep({ applicationCode }: { applicationCode: string }) {
   );
 }
 
-function Row({ label, value }: { label: string; value?: string | number | null }) {
+function Row({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-4 px-3 py-2.5">
       <dt className="text-muted-foreground">{label}</dt>
@@ -813,7 +844,103 @@ function Row({ label, value }: { label: string; value?: string | number | null }
   );
 }
 
-function CheckStatus() {
+function LockedApplicationView({ application }: { application: EnrollmentApplicationView }) {
+  return (
+    <Card>
+      <CardContent className="py-6">
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+          <span>
+            Your application is <span className="font-semibold capitalize">{application.status}</span> and
+            has been locked for review. You can no longer edit it.
+          </span>
+        </div>
+        <dl className="mt-4 divide-y rounded-lg border text-sm">
+          <Row
+            label="Application code"
+            value={
+              <span className="font-mono font-semibold">{application.application_code}</span>
+            }
+          />
+          <Row
+            label="Status"
+            value={<span className="inline-flex items-center gap-2"><StatusPill status={application.status} /></span>}
+          />
+          <Row
+            label="Name"
+            value={[application.first_name, application.middle_name, application.last_name]
+              .filter(Boolean)
+              .join(" ")}
+          />
+        </dl>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CheckStatus({
+  draftCtx,
+}: {
+  draftCtx: UseEnrollmentDraftResult;
+}) {
+  const { application, email } = draftCtx;
+
+  // The applicant is already verified in a live session and has an existing
+  // application — surface the code + status directly instead of asking them to
+  // type it again.
+  if (application) {
+    return (
+      <Card>
+        <CardContent className="space-y-4 py-6">
+          <div className="space-y-2">
+            <div className="flex flex-col gap-2">
+              <span className="text-sm text-muted-foreground">Application code</span>
+              <div className="rounded-lg border bg-muted/40 px-4 py-3 font-mono text-2xl font-bold tracking-widest">
+                {application.application_code}
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Status</span>
+              <StatusPill status={application.status} />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Name</span>
+              <span className="text-sm font-medium">
+                {[application.first_name, application.middle_name, application.last_name]
+                  .filter(Boolean)
+                  .join(" ")}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Email</span>
+              <span className="text-sm font-medium">{email}</span>
+            </div>
+          </div>
+
+          {application.status === "rejected" && application.rejection_reason && (
+            <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              <span className="font-medium">Your application was not approved.</span>{" "}
+              {application.rejection_reason}
+            </p>
+          )}
+          {application.status === "locked" && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              Your application is locked for review — editing is disabled.
+            </p>
+          )}
+          {application.status === "approved" && (
+            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+              <span className="font-medium">Congratulations!</span> Your application has been approved.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return <LookupStatus />;
+}
+
+function LookupStatus() {
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [results, setResults] = useState<PublicApplicationLookup[] | null>(null);
