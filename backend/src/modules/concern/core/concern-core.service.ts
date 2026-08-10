@@ -1,36 +1,48 @@
 // src/modules/concern/core/concern-core.service.ts
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { ConcernCoreRepository } from './concern-core.repository';
-import { DatabaseService } from '@/core/database/database.provider';
+import { Role, ConcernStatus } from '@prisma/client';
 
 @Injectable()
 export class ConcernCoreService {
-  constructor(
-    private readonly repo: ConcernCoreRepository,
-    private readonly db: DatabaseService,
-  ) {}
+  constructor(private readonly repo: ConcernCoreRepository) {}
+
+  findOrgAdmins(orgId: string) {
+    return this.repo.findActiveAdmins(orgId);
+  }
+
+  listMine(
+    orgId: string,
+    accountId: string,
+    query: { page: number; limit: number },
+  ) {
+    return this.repo.listMine(orgId, accountId, query);
+  }
 
   async findActiveCategories(orgId: string) {
     return this.repo.findActiveCategories(orgId);
   }
 
+  findAllCategories(orgId: string) {
+    return this.repo.findAllCategories(orgId);
+  }
+
+  findCategoryById(orgId: string, categoryId: string) {
+    return this.repo.findCategoryByIdInOrg(orgId, categoryId);
+  }
+
   /**
    * Create a Concern + its first ConcernMessage atomically for a sender.
-   * The sender's identity always comes from the caller, never a client body.
+   * The sender identity always comes from the caller, never a client body.
    */
-  async createConcern(
+  createConcern(
     orgId: string,
     categoryId: string,
-    sender: { accountId: string; role: string; name: string },
+    sender: { accountId: string; role: Role; name: string },
     subject: string,
     body: string,
   ) {
-    const category = await this.repo.findActiveCategoryInOrg(orgId, categoryId);
-    if (!category) {
-      throw new NotFoundException('Category not found or inactive.');
-    }
-
-    const created = await this.repo.createConcernWithFirstMessage(orgId, {
+    return this.repo.createConcernWithFirstMessage(orgId, {
       categoryId,
       senderAccountId: sender.accountId,
       senderRole: sender.role,
@@ -38,41 +50,35 @@ export class ConcernCoreService {
       subject,
       body,
     });
+  }
 
-    return created;
+  /**
+   * Get a concern owned by a specific account (student path). Returns null if
+   * not found OR if ownership doesn't match — callers translate to 403/404.
+   */
+  async getOwnedById(orgId: string, concernId: string, accountId: string) {
+    const concern = await this.repo.findById(orgId, concernId);
+    if (!concern) throw new NotFoundException('Concern not found.');
+    if (concern.sender_account_id !== accountId) {
+      throw new ForbiddenException('You cannot access another user\'s concern.');
+    }
+    return concern;
   }
 
   /**
    * Append a ConcernMessage. Shared by the student reply and the staff reply
-   * paths. Returns the updated concern (with the resolved->open flip applied).
+   * paths. Applies the resolved->open auto-reopen rule.
    */
-  async addMessage(
+  addMessage(
     orgId: string,
     concernId: string,
-    sender: { accountId: string; role: string; name: string },
+    sender: { accountId: string; role: Role; name: string },
     body: string,
-    opts: { ownershipAccountId?: string } = {},
   ) {
-    let concern = await this.repo.findById(orgId, concernId);
-    if (!concern) throw new NotFoundException('Concern not found.');
-
-    if (opts.ownershipAccountId) {
-      // Student path: only the original sender can reply to their concern.
-      if (concern.sender_account_id !== opts.ownershipAccountId) {
-        throw new ForbiddenException('You can only reply to your own concerns.');
-      }
-    }
-
-    const updated = await this.repo.addMessageAndMaybeReopen(orgId, concernId, sender, body);
-
-    // Flip resolved -> open if the sender replies on a resolved concern
-    // (this repos the exact rule for both student and staff directions where
-    // the sender themselves is the one posting — the staff inbox handles its
-    // resolve/reopen separately).
-    return this.repo.findById(orgId, concernId);
+    return this.repo.addMessageAndMaybeReopen(orgId, concernId, sender, body);
   }
 
-  // ── Staff-visible helpers ───────────────────────────────────────────────
+  // ── Staff-path helpers (shared) ─────────────────────────────────────────
 
   async getById(orgId: string, concernId: string) {
     const concern = await this.repo.findById(orgId, concernId);
@@ -80,27 +86,30 @@ export class ConcernCoreService {
     return concern;
   }
 
-  async listStaff(orgId: string, query: {
-    status?: string;
-    categoryId?: string;
-    senderRole?: string;
-    page: number;
-    limit: number;
-  }) {
-    const { data, total } = await this.repo.listStaff(orgId, query);
-    return {
-      data,
-      meta: { total, page: query.page, limit: query.limit, totalPages: Math.ceil(total / query.limit) },
-    };
+  listStaff(
+    orgId: string,
+    query: {
+      status?: string;
+      categoryId?: string;
+      senderRole?: string;
+      page: number;
+      limit: number;
+    },
+  ) {
+    return this.repo.listStaff(orgId, {
+      status: query.status as ConcernStatus | undefined,
+      categoryId: query.categoryId,
+      senderRole: query.senderRole as Role | undefined,
+      page: query.page,
+      limit: query.limit,
+    });
   }
 
-  async resolve(orgId: string, concernId: string, actorId: string) {
-    const concern = await this.getById(orgId, concernId);
+  resolve(orgId: string, concernId: string, actorId: string) {
     return this.repo.setStatus(orgId, concernId, 'resolved', actorId);
   }
 
-  async reopen(orgId: string, concernId: string) {
-    const concern = await this.getById(orgId, concernId);
+  reopen(orgId: string, concernId: string) {
     return this.repo.setStatus(orgId, concernId, 'open', null);
   }
 }
