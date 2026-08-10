@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CalendarRange } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -54,12 +55,17 @@ interface EnrollmentPeriodModalProps {
   existing?: EnrollmentPeriod | null;
 }
 
-function toLocalDate(d?: string | null): string {
+function startOfDay(value: string): Date {
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function toDateOnly(d?: string | null): string {
   if (!d) return "";
   const dt = new Date(d);
   if (Number.isNaN(dt.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
 }
 
 export function EnrollmentPeriodModal({
@@ -93,9 +99,9 @@ export function EnrollmentPeriodModal({
     if (!open) return;
     setName(existing?.name ?? "");
     setSyId(existing?.school_year?.id ?? schoolYearId ?? "");
-    setStartDate(toLocalDate(existing?.start_date));
-    setEndDate(toLocalDate(existing?.end_date));
-    setLockDate(toLocalDate(existing?.lock_date));
+    setStartDate(toDateOnly(existing?.start_date));
+    setEndDate(toDateOnly(existing?.end_date));
+    setLockDate(toDateOnly(existing?.lock_date));
     setOverflowAction(existing?.section_overflow_action ?? "no_section");
   }, [open, existing, schoolYearId]);
 
@@ -106,6 +112,14 @@ export function EnrollmentPeriodModal({
   const endMs = endDate ? new Date(endDate).getTime() : null;
 
   const syStartMs = selectedYear?.start_date ? new Date(selectedYear.start_date).getTime() : null;
+
+  const datesUnavailable = !selectedYear || readiness?.ready !== true;
+  const today = startOfDay(new Date().toISOString().slice(0, 10));
+  const startDay = startDate ? startOfDay(startDate.slice(0, 10)) : null;
+  const lockDay = lockDate ? startOfDay(lockDate.slice(0, 10)) : null;
+  const syStartDay = selectedYear?.start_date
+    ? startOfDay(String(selectedYear.start_date).slice(0, 10))
+    : null;
 
   const lockError =
     startMs !== null && lockMs !== null && lockMs < startMs
@@ -204,6 +218,12 @@ export function EnrollmentPeriodModal({
                   : ". Fix the warnings before creating a period."}
               </p>
             )}
+            {datesUnavailable && (
+              <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                <CircleAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                Select a ready school year to configure the enrollment dates.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -231,38 +251,35 @@ export function EnrollmentPeriodModal({
 
           <div className="space-y-2">
             <Label htmlFor="ep-start">Opening date</Label>
-            <Input
-              id="ep-start"
-              type="datetime-local"
+            <DatePicker
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={setStartDate}
+              disabled={(date) => (datesUnavailable ? true : date < today)}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="ep-lock">Lock date</Label>
-            <Input
-              id="ep-lock"
-              type="datetime-local"
+            <DatePicker
               value={lockDate}
-              min={startDate || undefined}
-              aria-invalid={!!lockError}
-              className={lockError ? "border-destructive" : undefined}
-              onChange={(e) => setLockDate(e.target.value)}
+              onChange={setLockDate}
+              disabled={(date) =>
+                datesUnavailable ? true : startDay ? date < startDay : true
+              }
             />
             {lockError && <p className="text-xs text-destructive">{lockError}</p>}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="ep-end">Closing date</Label>
-            <Input
-              id="ep-end"
-              type="datetime-local"
+            <DatePicker
               value={endDate}
-              min={lockDate || startDate || undefined}
-              aria-invalid={!!endError || !!schoolYearError}
-              className={endError || schoolYearError ? "border-destructive" : undefined}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={setEndDate}
+              disabled={(date) =>
+                datesUnavailable ||
+                (lockDay ? date < lockDay : true) ||
+                (syStartDay ? date >= syStartDay : false)
+              }
             />
             {endError && <p className="text-xs text-destructive">{endError}</p>}
             {schoolYearError && (
