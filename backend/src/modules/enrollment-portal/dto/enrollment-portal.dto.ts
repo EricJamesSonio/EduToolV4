@@ -10,14 +10,17 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { IsGmailAddress } from '@/commons/validators/is-gmail-address.validator';
 
 export class SendEnrollmentOtpDto {
   @IsEmail()
+  @IsGmailAddress()
   email!: string;
 }
 
 export class VerifyEnrollmentOtpDto {
   @IsEmail()
+  @IsGmailAddress()
   email!: string;
 
   @IsString()
