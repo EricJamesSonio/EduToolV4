@@ -34,19 +34,60 @@ export class MailService {
     }
   }
 
-  async sendCredentialsEmail(to: string, password: string): Promise<void> {
+  async sendCredentialsEmail(
+    recipient: string,
+    loginEmail: string,
+    password: string,
+  ): Promise<void> {
+    const appName = this.configService.get<string>('APP_NAME') ?? 'EduTool';
+
+    try {
+      await this.transporter.sendMail({
+        from: `"${appName}" <${this.configService.get<string>('GMAIL_EMAIL')}>`,
+        to: recipient,
+        subject: `Your ${appName} Admin Account Credentials`,
+        html: this.credentialsTemplate(loginEmail, password, appName),
+      });
+      this.logger.log(`Credentials email sent to ${recipient}`);
+    } catch (error) {
+      this.logger.error(`Failed to send credentials email to ${recipient}`, error);
+      throw error;
+    }
+  }
+
+  async sendRejectionEmail(to: string, reason?: string): Promise<void> {
     const appName = this.configService.get<string>('APP_NAME') ?? 'EduTool';
 
     try {
       await this.transporter.sendMail({
         from: `"${appName}" <${this.configService.get<string>('GMAIL_EMAIL')}>`,
         to,
-        subject: `Your ${appName} Admin Account Credentials`,
-        html: this.credentialsTemplate(to, password, appName),
+        subject: `Update on your ${appName} Registration Request`,
+        html: this.rejectionTemplate(reason, appName),
       });
-      this.logger.log(`Credentials email sent to ${to}`);
+      this.logger.log(`Rejection email sent to ${to}`);
     } catch (error) {
-      this.logger.error(`Failed to send credentials email to ${to}`, error);
+      this.logger.error(`Failed to send rejection email to ${to}`, error);
+      throw error;
+    }
+  }
+
+  async sendRevisionNeededEmail(
+    to: string,
+    fieldNotes: Record<string, string>,
+  ): Promise<void> {
+    const appName = this.configService.get<string>('APP_NAME') ?? 'EduTool';
+
+    try {
+      await this.transporter.sendMail({
+        from: `"${appName}" <${this.configService.get<string>('GMAIL_EMAIL')}>`,
+        to,
+        subject: `Action needed: update your ${appName} Registration Request`,
+        html: this.revisionNeededTemplate(fieldNotes, appName),
+      });
+      this.logger.log(`Revision-needed email sent to ${to}`);
+    } catch (error) {
+      this.logger.error(`Failed to send revision-needed email to ${to}`, error);
       throw error;
     }
   }
@@ -190,6 +231,124 @@ export class MailService {
                     </div>
                     <p style="color:#6b7280;font-size:13px;line-height:1.5;margin:24px 0 0;">
                       This code expires in 10 minutes. If you did not request this, you can safely ignore this email.
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
+                    <p style="color:#9ca3af;font-size:12px;margin:0;text-align:center;">
+                      &copy; ${new Date().getFullYear()} ${appName}. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+  }
+
+  private rejectionTemplate(reason: string | undefined, appName: string): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"></head>
+      <body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 16px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                <tr>
+                  <td style="padding:0;background:linear-gradient(135deg,#1a1a2e,#16213e);">
+                    <div style="padding:32px 32px 24px;">
+                      <h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0;">${appName}</h1>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:32px;">
+                    <p style="color:#374151;font-size:15px;line-height:1.6;margin:0 0 24px;">
+                      Thank you for applying. We have reviewed your registration request.
+                    </p>
+                    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:20px;">
+                      <span style="color:#b91c1c;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Status: Not Approved</span>
+                      <p style="color:#7f1d1d;font-size:14px;line-height:1.5;margin:8px 0 0;">
+                        We are unable to approve your request at this time.
+                      </p>
+                    </div>
+                    ${reason ? `
+                    <div style="margin-top:20px;">
+                      <span style="color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Reason</span>
+                      <p style="color:#374151;font-size:14px;line-height:1.6;margin:4px 0 0;padding:12px;background:#f9fafb;border-radius:8px;">${reason}</p>
+                    </div>
+                    ` : ''}
+                    <p style="color:#6b7280;font-size:13px;line-height:1.5;margin:20px 0 0;">
+                      If you believe this is an error or your circumstances have changed, you are welcome to submit a new request.
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
+                    <p style="color:#9ca3af;font-size:12px;margin:0;text-align:center;">
+                      &copy; ${new Date().getFullYear()} ${appName}. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+  }
+
+  private revisionNeededTemplate(
+    fieldNotes: Record<string, string>,
+    appName: string,
+  ): string {
+    const rows = Object.entries(fieldNotes)
+      .map(
+        ([field, note]) => `
+                  <tr>
+                    <td style="padding:12px 0;border-bottom:1px solid #eef2f7;">
+                      <span style="color:#1a1a2e;font-size:13px;font-weight:700;font-family:monospace;display:block;">${field}</span>
+                      <span style="color:#6b7280;font-size:13px;line-height:1.5;display:block;margin-top:2px;">${note}</span>
+                    </td>
+                  </tr>`,
+      )
+      .join('');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"></head>
+      <body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 16px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                <tr>
+                  <td style="padding:0;background:linear-gradient(135deg,#1a1a2e,#16213e);">
+                    <div style="padding:32px 32px 24px;">
+                      <h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0;">${appName}</h1>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:32px;">
+                    <p style="color:#374151;font-size:15px;line-height:1.6;margin:0 0 24px;">
+                      Your registration request needs a few updates before it can be approved. Please review the items below:
+                    </p>
+                    <div style="background:#f0f4ff;border:1px solid #e0e7ff;border-radius:12px;padding:16px 20px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        ${rows}
+                      </table>
+                    </div>
+                    <p style="color:#6b7280;font-size:13px;line-height:1.5;margin:20px 0 0;">
+                      Log back in through the request form using your Gmail address and the verification code, fix the flagged fields, and resubmit. Your request will be reviewed again after you resubmit.
                     </p>
                   </td>
                 </tr>
