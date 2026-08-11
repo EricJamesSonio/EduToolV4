@@ -8,8 +8,8 @@ import { ConcernCategoryModule } from './category/concern-category.module';
 @Module({
   imports: [
     ConcernCoreModule,
-    ConcernStudentModule,
     ConcernStaffModule,
+    ConcernStudentModule,
     ConcernCategoryModule,
   ],
   exports: [ConcernCoreModule, ConcernStudentModule, ConcernStaffModule],
