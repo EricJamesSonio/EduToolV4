@@ -18,6 +18,7 @@ export interface GroupyMessage {
   sender_account_id: string;
   sender_role: string;
   sender_name: string;
+  sender_profile_image: string | null;
   type: GroupyMessageType;
   body: string | null;
   gif_url: string | null;
@@ -25,6 +26,25 @@ export interface GroupyMessage {
   poll_id: string | null;
   created_at: string;
   reactions: GroupyReaction[];
+}
+
+// A chat member (educator + active students) with the profile fields needed to
+// render avatars, plus their last-read pointer for the "seen by" row.
+export interface GroupyMember {
+  account_id: string;
+  role: "educator" | "student";
+  full_name: string | null;
+  profile_image: string | null;
+  last_read_message_id: string | null;
+}
+
+export interface GroupyMembersResponse {
+  me: GroupyMember | null;
+  members: GroupyMember[];
+}
+
+export interface GroupyUnreadStatus {
+  hasUnread: boolean;
 }
 
 export interface GroupyMessagesPage {
