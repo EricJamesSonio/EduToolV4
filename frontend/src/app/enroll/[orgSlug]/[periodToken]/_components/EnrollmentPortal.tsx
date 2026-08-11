@@ -870,6 +870,10 @@ function LockedApplicationView({ application }: { application: EnrollmentApplica
               .filter(Boolean)
               .join(" ")}
           />
+          <Row label="Age" value={application.age ?? null} />
+          <Row label="Address" value={application.address} />
+          <Row label="Contact number" value={application.contact_number} />
+          <Row label="Last school" value={application.last_school_graduated} />
         </dl>
       </CardContent>
     </Card>
