@@ -1183,6 +1183,7 @@ enum RegistrationStatus {
   pending
   approved
   rejected
+  needs_revision
 }
 
 model RegistrationRequest {
@@ -1195,6 +1196,9 @@ model RegistrationRequest {
   student_count        String?
   programs_departments String?
   status               RegistrationStatus @default(pending)
+  revision_notes       Json?
+  reviewed_by          String?
+  reviewed_at          DateTime?
   created_at           DateTime           @default(now())
   updated_at           DateTime           @updatedAt
 }
