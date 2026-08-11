@@ -16,8 +16,16 @@ import type { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto, RefreshTokenDto } from './dto/auth.dto';
 import { RegisterDto, VerifyOtpDto, ResendOtpDto } from './dto/register.dto';
+import {
+  SendAdminRequestOtpDto,
+  VerifyAdminRequestOtpDto,
+  SubmitAdminRequestDto,
+} from './dto/admin-request.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+import { AdminRequestSessionGuard } from './admin-request-session.guard';
+import { AdminRequestSession } from './admin-request-session.decorator';
+import type { AdminRequestSessionClaims } from './entity/admin-request-session.entity';
 
 @Controller('auth')
 export class AuthController {
@@ -134,5 +142,37 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async resendOtp(@Body() dto: ResendOtpDto) {
     return this.authService.resendOtp(dto);
+  }
+
+  // ─── Admin Request (public applicant side) ──────────────────────────────
+
+  @Post('admin-request/otp')
+  @HttpCode(HttpStatus.OK)
+  async sendAdminRequestOtp(@Body() dto: SendAdminRequestOtpDto) {
+    return this.authService.sendAdminRequestOtp(dto);
+  }
+
+  @Post('admin-request/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyAdminRequestOtp(@Body() dto: VerifyAdminRequestOtpDto) {
+    return this.authService.verifyAdminRequestOtp(dto);
+  }
+
+  @Get('admin-request/me')
+  @UseGuards(AdminRequestSessionGuard)
+  async getAdminRequestMe(
+    @AdminRequestSession() session: AdminRequestSessionClaims,
+  ) {
+    return this.authService.getAdminRequestMe(session);
+  }
+
+  @Post('admin-request/submit')
+  @UseGuards(AdminRequestSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  async submitAdminRequest(
+    @AdminRequestSession() session: AdminRequestSessionClaims,
+    @Body() dto: SubmitAdminRequestDto,
+  ) {
+    return this.authService.submitAdminRequest(session, dto);
   }
 }

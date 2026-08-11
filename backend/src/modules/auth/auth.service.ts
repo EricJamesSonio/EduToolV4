@@ -12,9 +12,20 @@ import { AccountStatus, OtpPurpose } from '@prisma/client';
 import { AuthRepository } from './auth.repository';
 import { LoginDto } from './dto/auth.dto';
 import { RegisterDto, VerifyOtpDto, ResendOtpDto } from './dto/register.dto';
+import {
+  SendAdminRequestOtpDto,
+  VerifyAdminRequestOtpDto,
+  SubmitAdminRequestDto,
+} from './dto/admin-request.dto';
 import { AuthTokens, TokenPayload } from './entity/auth.entity';
+import {
+  AdminRequestSessionClaims,
+  RegistrationRequestView,
+} from './entity/admin-request-session.entity';
 import { comparePassword, hashPassword } from '@/commons/utils/hash.util';
 import { MailService } from '@/modules/mail/mail.service';
+
+const SESSION_TTL = '2h';
 
 @Injectable()
 export class AuthService {
@@ -177,6 +188,123 @@ export class AuthService {
     }
 
     await this.authRepository.markOtpUsed(otp.id);
+  }
+
+  // ─── Admin Request (public applicant side) ───────────────────────────────
+  // Lifts the existing org-registration OTP flow (same OtpPurpose.org_registration
+  // mechanism) up to the Enrollment Portal's UX standard: personal-Gmail
+  // lookup, a time-limited session, and per-field revision flagging.
+
+  async sendAdminRequestOtp(
+    dto: SendAdminRequestOtpDto,
+  ): Promise<{ message: string }> {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await this.authRepository.createOtp({
+      email: dto.email,
+      code,
+      plan: null,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000),
+    });
+
+    await this.mailService.sendOtpEmail(dto.email, code);
+
+    return { message: 'Verification code sent to your email' };
+  }
+
+  async verifyAdminRequestOtp(
+    dto: VerifyAdminRequestOtpDto,
+  ): Promise<{
+    token: string;
+    mode: 'edit' | 'create';
+    request?: RegistrationRequestView;
+  }> {
+    const otp = await this.authRepository.findValidOtp(dto.email, dto.code);
+
+    if (!otp) {
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    if (otp.used_at) {
+      throw new BadRequestException('Verification code already used');
+    }
+
+    if (new Date() > otp.expires_at) {
+      throw new BadRequestException('Verification code has expired');
+    }
+
+    await this.authRepository.markOtpUsed(otp.id);
+
+    const existing = await this.authRepository.findRegistrationRequestByEmail(
+      dto.email,
+    );
+
+    const session: AdminRequestSessionClaims = {
+      type: 'admin-request',
+      email: dto.email,
+      requestId: existing?.id ?? null,
+    };
+
+    const token = this.jwtService.sign(session, { expiresIn: SESSION_TTL });
+
+    return {
+      token,
+      mode: existing ? 'edit' : 'create',
+      ...(existing ? { request: this.serializeRequest(existing) } : {}),
+    };
+  }
+
+  async getAdminRequestMe(session: AdminRequestSessionClaims): Promise<{
+    request: RegistrationRequestView | null;
+  }> {
+    if (!session.requestId) {
+      return { request: null };
+    }
+
+    const request = await this.authRepository.findRegistrationRequestById(
+      session.requestId,
+    );
+
+    return { request: request ? this.serializeRequest(request) : null };
+  }
+
+  async submitAdminRequest(
+    session: AdminRequestSessionClaims,
+    dto: SubmitAdminRequestDto,
+  ): Promise<{ request: RegistrationRequestView }> {
+    const request = await this.authRepository.submitRegistrationRequest({
+      email: session.email,
+      full_name: dto.full_name,
+      plan: dto.plan ?? null,
+      institution_name: dto.institution_name ?? null,
+      role: dto.role ?? null,
+      student_count: dto.student_count ?? null,
+      programs_departments: dto.programs_departments ?? null,
+    });
+
+    return { request: this.serializeRequest(request) };
+  }
+
+  private serializeRequest(request: any): RegistrationRequestView {
+    return {
+      id: request.id,
+      email: request.email,
+      full_name: request.full_name,
+      plan: request.plan,
+      institution_name: request.institution_name,
+      role: request.role,
+      student_count: request.student_count,
+      programs_departments: request.programs_departments,
+      status: request.status,
+      revision_notes: (request.revision_notes ?? null) as Record<
+        string,
+        string
+      > | null,
+      reviewed_by: request.reviewed_by,
+      reviewed_at: request.reviewed_at,
+      created_at: request.created_at,
+      updated_at: request.updated_at,
+    };
   }
 
   async refresh(incomingRefreshToken: string): Promise<AuthTokens> {

@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthRepository } from './auth.repository';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { AdminRequestSessionGuard } from './admin-request-session.guard';
 import { MailModule } from '@/modules/mail/mail.module';
 
 @Module({
@@ -26,7 +27,7 @@ import { MailModule } from '@/modules/mail/mail.module';
     MailModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthRepository, JwtStrategy],
+  providers: [AuthService, AuthRepository, JwtStrategy, AdminRequestSessionGuard],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

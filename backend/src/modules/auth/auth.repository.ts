@@ -1,7 +1,7 @@
 // @/modules/auth/auth.repository.ts
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
-import { OtpPurpose } from '@prisma/client';
+import { OtpPurpose, Prisma } from '@prisma/client';
 
 @Injectable()
 export class AuthRepository {
@@ -120,6 +120,61 @@ export class AuthRepository {
     programs_departments?: string | null;
   }) {
     return this.db.registrationRequest.create({ data });
+  }
+
+  async findRegistrationRequestByEmail(email: string) {
+    return this.db.registrationRequest.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+  /**
+   * Creates a fresh request if none exists for this email, otherwise updates
+   * the existing row in place. On any resubmission the revision flags are
+   * cleared entirely and status resets to 'pending' — full re-review, matching
+   * the Concern Center's auto-reopen convention.
+   */
+  async submitRegistrationRequest(data: {
+    email: string;
+    full_name: string;
+    plan: string | null;
+    institution_name?: string | null;
+    role?: string | null;
+    student_count?: string | null;
+    programs_departments?: string | null;
+  }) {
+    const existing = await this.findRegistrationRequestByEmail(data.email);
+
+    if (existing) {
+      return this.db.registrationRequest.update({
+        where: { id: existing.id },
+        data: {
+          full_name: data.full_name,
+          plan: data.plan,
+          institution_name: data.institution_name ?? null,
+          role: data.role ?? null,
+          student_count: data.student_count ?? null,
+          programs_departments: data.programs_departments ?? null,
+          status: 'pending' as any,
+          revision_notes: Prisma.JsonNull,
+          reviewed_by: null,
+          reviewed_at: null,
+        },
+      });
+    }
+
+    return this.db.registrationRequest.create({
+      data: {
+        email: data.email,
+        full_name: data.full_name,
+        plan: data.plan,
+        institution_name: data.institution_name ?? null,
+        role: data.role ?? null,
+        student_count: data.student_count ?? null,
+        programs_departments: data.programs_departments ?? null,
+      },
+    });
   }
 
   async findRegistrationRequests(params: {
