@@ -32,6 +32,12 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   const { data: tokenData, isLoading: tokenLoading } = useMeetingToken(meetingId);
   const meetingClassId = tokenData?.classId ?? "";
   const classId        = meetingClassId || urlClassId;
+  // Groupy-launched rooms return to the class chat instead of the meetings page
+  // (groupy meetings are ephemeral and never listed there).
+  const isGroupyRoom   = searchParams.get("origin") === "groupy";
+  const backUrl        = isGroupyRoom
+    ? `/student/classes/${classId}`
+    : `/student/classes/${classId}/meetings/${meetingId}`;
   const authToken      = useAuthStore.getState().accessToken ?? "";
   const meetingCtx     = useMeetingContext();
   const { user: currentUser } = useAuth();
@@ -125,7 +131,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
 
   const handleLeave = () => {
     meetingCtx.leaveMeeting();
-    router.push(`/student/classes/${classId}/meetings/${meetingId}`);
+    router.push(backUrl);
   };
 
   // ── Guards ────────────────────────────────────────────────────────────────
@@ -142,7 +148,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-4">
         <p className="text-sm text-muted-foreground">You are not authorized to join this meeting.</p>
-        <Button variant="outline" onClick={() => router.push(`/student/classes/${classId}/meetings`)}>
+        <Button variant="outline" onClick={() => router.push(backUrl)}>
           Back to Meetings
         </Button>
       </div>
