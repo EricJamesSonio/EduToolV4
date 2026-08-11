@@ -5,6 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
+import { MeetingService } from '../meeting/meeting.service';
+import { CreateMeetingDto } from '../meeting/dto/meeting.dto';
 import { GroupyRepository } from './groupy.repository';
 import { GroupyGateway } from './groupy.gateway';
 import { GROUPY_STICKERS, getGroupyStickerById } from './data/stickers.data';
@@ -26,6 +28,7 @@ export class GroupyService {
     private readonly groupyRepo: GroupyRepository,
     private readonly gateway: GroupyGateway,
     private readonly db: DatabaseService,
+    private readonly meetingService: MeetingService,
   ) {}
 
   // ── Membership helper (used by every endpoint AND gateway event) ──────────
@@ -142,6 +145,54 @@ export class GroupyService {
 
   getStickers() {
     return GROUPY_STICKERS;
+  }
+
+  // ── Start Meeting ───────────────────────────────────────────────────────────
+
+  async startMeeting(classId: string, orgId: string, user: CurrentUser) {
+    const cls = await this.db.class.findFirst({
+      where: { id: classId, org_id: orgId, deleted_at: null },
+      select: { educator_id: true },
+    });
+    if (!cls) throw new NotFoundException('Class not found.');
+
+    // Educator only — students cannot start a meeting.
+    if (cls.educator_id !== user.id) {
+      throw new ForbiddenException('Only the educator can start a meeting.');
+    }
+
+    const account = await this.db.account.findUnique({
+      where: { id: user.id },
+      include: { profile: true },
+    });
+    const senderName = account?.profile?.full_name ?? user.email ?? 'Unknown';
+
+    // Reuse the existing meeting creation path. An empty invitedStudentIds
+    // array makes MeetingService auto-invite the class's active roster.
+    const dto: CreateMeetingDto = {
+      title: 'Class Meeting',
+      startTime: new Date().toISOString(),
+    };
+    const meeting = await this.meetingService.create(classId, orgId, user.id, dto);
+    if (!meeting) {
+      throw new NotFoundException('Could not create the meeting.');
+    }
+
+    // Announce it as a system message on the Groupy stream. The body carries a
+    // JSON payload so the frontend can render a "Join" button from meetingId.
+    const message = await this.groupyRepo.createMessage({
+      orgId,
+      classId,
+      senderAccountId: user.id,
+      senderRole: (user.role ?? 'educator') as any,
+      senderName,
+      type: 'system',
+      body: JSON.stringify({ meetingId: meeting.id, title: meeting.title }),
+    });
+
+    this.gateway.emitMessageNew(message);
+
+    return { meetingId: meeting.id, message };
   }
 
   // ── DELETE /groupy/messages/:id ───────────────────────────────────────────
@@ -299,6 +350,38 @@ export class GroupyService {
     await this.assertMember(accountId, poll.class_id, orgId);
 
     return this.buildPollResults(pollId);
+  }
+
+  async getPollDetail(pollId: string, orgId: string, accountId: string) {
+    const poll = await this.groupyRepo.findPollById(pollId, orgId);
+    if (!poll) throw new NotFoundException('Poll not found.');
+
+    await this.assertMember(accountId, poll.class_id, orgId);
+
+    const counts = await this.groupyRepo.getPollResults(pollId);
+    const myVote = await this.groupyRepo.findVote(pollId, accountId);
+    const isEffectiveClosed =
+      poll.is_closed ||
+      (poll.closes_at !== null && poll.closes_at.getTime() < Date.now());
+    const totalVotes = counts.reduce((sum, o) => sum + o._count.votes, 0);
+
+    return {
+      id: poll.id,
+      class_id: poll.class_id,
+      question: poll.question,
+      closes_at: poll.closes_at,
+      is_closed: poll.is_closed,
+      isClosed: isEffectiveClosed,
+      created_by: poll.created_by,
+      totalVotes,
+      options: counts.map((o) => ({
+        id: o.id,
+        label: o.label,
+        order_index: o.order_index,
+        voteCount: o._count.votes,
+      })),
+      myVoteOptionId: myVote?.option_id ?? null,
+    };
   }
 
   private async buildPollResults(pollId: string) {

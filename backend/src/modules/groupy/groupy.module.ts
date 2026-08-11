@@ -6,9 +6,12 @@ import { GroupyController } from './groupy.controller';
 import { GroupyService } from './groupy.service';
 import { GroupyRepository } from './groupy.repository';
 import { GroupyGateway } from './groupy.gateway';
+import { GiphyService } from './giphy.service';
+import { MeetingModule } from '../meeting/meeting.module';
 
 @Module({
   imports: [
+    MeetingModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -21,7 +24,7 @@ import { GroupyGateway } from './groupy.gateway';
     }),
   ],
   controllers: [GroupyController],
-  providers: [GroupyService, GroupyRepository, GroupyGateway],
+  providers: [GroupyService, GroupyRepository, GroupyGateway, GiphyService],
   exports: [GroupyService],
 })
 export class GroupyModule {}

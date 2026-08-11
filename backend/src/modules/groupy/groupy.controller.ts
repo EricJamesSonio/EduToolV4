@@ -138,4 +138,22 @@ export class GroupyController {
   ) {
     return this.groupyService.getPollResults(pollId, orgId, accountId);
   }
+
+  @Get('polls/:pollId')
+  pollDetail(
+    @Param('pollId') pollId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') accountId: string,
+  ) {
+    return this.groupyService.getPollDetail(pollId, orgId, accountId);
+  }
+
+  @Post(':classId/start-meeting')
+  startMeeting(
+    @Param('classId') classId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.groupyService.startMeeting(classId, orgId, user);
+  }
 }
