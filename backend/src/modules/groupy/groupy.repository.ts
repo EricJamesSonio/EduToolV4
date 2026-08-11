@@ -225,7 +225,22 @@ export class GroupyRepository {
     });
   }
 
-  // ── Read receipts ──────────────────────────────────────────────────────────
+  // ── Meeting / read receipts ───────────────────────────────────────────────
+  // Newest running groupy meeting for the class (ephemeral, not ended/deleted).
+  async findActiveMeeting(classId: string, orgId: string) {
+    return this.db.meeting.findFirst({
+      where: {
+        class_id: classId,
+        org_id: orgId,
+        is_ephemeral: true,
+        deleted_at: null,
+        status: { not: 'ended' },
+      },
+      orderBy: { created_at: 'desc' },
+      select: { id: true, title: true },
+    });
+  }
+
   // One pointer per (class, account): the newest message that member has seen.
   async upsertReadReceipt(args: {
     orgId: string;

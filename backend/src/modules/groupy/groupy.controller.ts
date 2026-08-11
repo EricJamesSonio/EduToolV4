@@ -25,6 +25,7 @@ import {
   CreatePollDto,
   VotePollDto,
   ReportReadDto,
+  StartMeetingDto,
 } from './dto/groupy.dto';
 
 @Controller('groupy')
@@ -78,6 +79,15 @@ export class GroupyController {
     @CurrentUser('id') accountId: string,
   ) {
     return this.groupyService.getUnreadStatus(classId, orgId, accountId);
+  }
+
+  @Get(':classId/active-meeting')
+  activeMeeting(
+    @Param('classId') classId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') accountId: string,
+  ) {
+    return this.groupyService.getActiveMeeting(classId, orgId, accountId);
   }
 
   @Post(':classId/messages')
@@ -187,7 +197,13 @@ export class GroupyController {
     @Param('classId') classId: string,
     @CurrentUser('org_id') orgId: string,
     @CurrentUser() user: any,
+    @Body() dto: StartMeetingDto,
   ) {
-    return this.groupyService.startMeeting(classId, orgId, user);
+    return this.groupyService.startMeeting(
+      classId,
+      orgId,
+      user,
+      dto.invitedStudentIds,
+    );
   }
 }

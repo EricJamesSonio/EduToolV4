@@ -151,7 +151,12 @@ export class GroupyService {
 
   // ── Start Meeting ───────────────────────────────────────────────────────────
 
-  async startMeeting(classId: string, orgId: string, user: CurrentUser) {
+  async startMeeting(
+    classId: string,
+    orgId: string,
+    user: CurrentUser,
+    invitedStudentIds?: string[],
+  ) {
     const cls = await this.db.class.findFirst({
       where: { id: classId, org_id: orgId, deleted_at: null },
       select: { educator_id: true },
@@ -170,11 +175,14 @@ export class GroupyService {
     const senderName = account?.profile?.full_name ?? user.email ?? 'Unknown';
     const senderProfileImage = account?.profile?.profile_image ?? null;
 
-    // Reuse the existing meeting creation path. An empty invitedStudentIds
-    // array makes MeetingService auto-invite the class's active roster.
+    // Reuse the existing meeting creation path. An empty/undefined invitedStudentIds
+    // array makes MeetingService auto-invite the class's active roster. Ephemeral
+    // meetings are NOT shown on the meetings pages and are deleted when they end.
     const dto: CreateMeetingDto = {
       title: 'Class Meeting',
       startTime: new Date().toISOString(),
+      invitedStudentIds,
+      ephemeral: true,
     };
     const meeting = await this.meetingService.create(classId, orgId, user.id, dto);
     if (!meeting) {
@@ -391,6 +399,22 @@ export class GroupyService {
   }
 
   // ── Read receipts + unread flag ────────────────────────────────────────────
+
+  // Newest running groupy meeting for the class (if any), so the chat can show
+  // the Messenger-style active-call banner and mark ended meeting messages.
+  async getActiveMeeting(classId: string, orgId: string, accountId: string) {
+    await this.assertMember(accountId, classId, orgId);
+
+    const meeting = await this.groupyRepo.findActiveMeeting(classId, orgId);
+    if (!meeting) return { meeting: null };
+
+    return {
+      meeting: {
+        meetingId: meeting.id,
+        title: meeting.title,
+      },
+    };
+  }
 
   // Record that the caller has seen the chat up to a specific message, then
   // broadcast so everyone's "seen by" row updates in real time.
