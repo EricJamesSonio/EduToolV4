@@ -3,11 +3,11 @@
 import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { GroupyChatFeature } from "@/components/shared/groupy/GroupyChatFeature";
-import { useAuthStore } from "@/store/auth.store";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function StudentGroupyPage(): React.JSX.Element {
   const { classId } = useParams<{ classId: string }>();
-  const user = useAuthStore((s) => s.user);
+  const { user } = useAuth();
 
   if (!user) {
     return (
