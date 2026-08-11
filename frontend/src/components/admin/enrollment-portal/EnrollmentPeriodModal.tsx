@@ -254,7 +254,11 @@ export function EnrollmentPeriodModal({
             <DatePicker
               value={startDate}
               onChange={setStartDate}
-              disabled={(date) => (datesUnavailable ? true : date < today)}
+              disabled={(date) =>
+                datesUnavailable ||
+                date < today ||
+                (syStartDay ? date >= syStartDay : false)
+              }
             />
           </div>
 
