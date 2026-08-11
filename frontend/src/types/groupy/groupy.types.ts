@@ -47,6 +47,15 @@ export interface GroupyUnreadStatus {
   hasUnread: boolean;
 }
 
+export interface GroupyActiveMeetingInfo {
+  meetingId: string;
+  title: string;
+}
+
+export interface GroupyActiveMeeting {
+  meeting: GroupyActiveMeetingInfo | null;
+}
+
 export interface GroupyMessagesPage {
   messages: GroupyMessage[];
   nextCursor: string | null;
