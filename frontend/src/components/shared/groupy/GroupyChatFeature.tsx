@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { groupyApi } from "@/api/shared/groupy.api";
 import { useGroupyMessages } from "@/hooks/groupy/useGroupyMessages";
 import { useGroupySocket } from "@/hooks/groupy/useGroupySocket";
+import { useGroupyMembers, groupyMembersKey } from "@/hooks/groupy/useGroupyMembers";
 import {
   groupyMessagesKey,
   prependMessage,
@@ -13,7 +14,12 @@ import {
   upsertReaction,
   type GroupyPages,
 } from "@/hooks/groupy/groupyCache";
-import type { GroupyMessage, GroupyReactionType } from "@/types/groupy/groupy.types";
+import type {
+  GroupyMember,
+  GroupyMembersResponse,
+  GroupyMessage,
+  GroupyReactionType,
+} from "@/types/groupy/groupy.types";
 import { MessageList } from "./MessageList";
 import { SendBox } from "./SendBox";
 import { PollCreatorDialog } from "./PollCreatorDialog";
@@ -32,8 +38,11 @@ export function GroupyChatFeature({
 }: GroupyChatFeatureProps): React.JSX.Element {
   const queryClient = useQueryClient();
   const query = useGroupyMessages(classId);
+  const membersQuery = useGroupyMembers(classId);
   useGroupySocket({ classId });
   const [pollCreatorOpen, setPollCreatorOpen] = useState(false);
+  const [atBottom, setAtBottom] = useState(true);
+  const lastReportedReadRef = useRef<string | null>(null);
 
   const key = groupyMessagesKey(classId);
   const isEducator = role === "educator";
@@ -43,6 +52,34 @@ export function GroupyChatFeature({
     () => query.data?.pages.flatMap((p) => p.messages).slice().reverse() ?? [],
     [query.data]
   );
+
+  const newestId = messages[messages.length - 1]?.id ?? null;
+
+  // Members who have read the newest message — becomes the messenger-style
+  // "seen by" avatar row at the bottom of the last message.
+  const seenBy = useMemo<GroupyMember[]>(() => {
+    const others = membersQuery.data?.members ?? [];
+    if (!newestId) return [];
+    return others.filter((m) => m.last_read_message_id === newestId);
+  }, [membersQuery.data, newestId]);
+
+  // Auto-report "read" when the newest message is visible at the bottom.
+  useEffect(() => {
+    if (!atBottom || !newestId) return;
+    const me = membersQuery.data?.me;
+    if (me && me.last_read_message_id === newestId) {
+      lastReportedReadRef.current = newestId;
+      return;
+    }
+    if (lastReportedReadRef.current === newestId) return;
+
+    lastReportedReadRef.current = newestId;
+    const membersKey = groupyMembersKey(classId);
+    queryClient.setQueryData<GroupyMembersResponse>(membersKey, (old) =>
+      old?.me ? { ...old, me: { ...old.me, last_read_message_id: newestId } } : old
+    );
+    groupyApi.reportRead(classId, newestId).catch(() => {});
+  }, [atBottom, newestId, classId, membersQuery.data, queryClient]);
 
   const prepend = (message: GroupyMessage) => {
     queryClient.setQueryData(
@@ -119,6 +156,7 @@ export function GroupyChatFeature({
         messages={messages}
         currentUserId={currentUserId}
         role={role}
+        seenBy={seenBy}
         hasOlder={query.hasNextPage}
         loadingOlder={query.isFetchingNextPage}
         onLoadOlder={() =>
@@ -127,6 +165,7 @@ export function GroupyChatFeature({
         onDelete={handleDelete}
         onReact={handleReact}
         onRemoveReaction={handleRemoveReaction}
+        onAtBottomChange={setAtBottom}
       />
       <SendBox
         onSend={handleSend}

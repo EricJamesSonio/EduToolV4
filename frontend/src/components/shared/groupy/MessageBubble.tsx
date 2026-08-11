@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getProfileImageUrl } from "@/utils/profile.util";
 import type { GroupyMessage } from "@/types/groupy/groupy.types";
 import { useGroupyStickerAsset } from "@/hooks/groupy/useGroupyStickers";
 import { ReactionBar } from "./ReactionBar";
@@ -79,6 +81,23 @@ function renderBody(
   }
 }
 
+function SenderAvatar({ message }: { message: GroupyMessage }) {
+  const name = message.sender_name || "?";
+  const initials = name
+    .split(/\s+/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  return (
+    <Avatar className="mt-0.5 h-8 w-8 shrink-0">
+      <AvatarImage src={getProfileImageUrl(message.sender_profile_image)} alt={name} />
+      <AvatarFallback>{initials || "?"}</AvatarFallback>
+    </Avatar>
+  );
+}
+
 export function MessageBubble({
   message,
   currentUserId,
@@ -108,43 +127,49 @@ export function MessageBubble({
         </div>
       ) : (
         <div
-          className={cn("max-w-[85%] space-y-0.5", isOwn && "items-end flex flex-col")}
+          className={cn(
+            "flex items-start gap-2",
+            isOwn ? "justify-end" : "justify-start"
+          )}
         >
-          <p
-            className={cn(
-              "text-[11px] font-medium px-1",
-              isOwn ? "text-muted-foreground text-right" : "text-muted-foreground"
-            )}
-          >
-            {isOwn ? "You" : message.sender_name} · {time}
-          </p>
-          <div
-            className={cn(
-              "rounded-xl px-3 py-2 text-sm leading-relaxed break-words",
-              isOwn
-                ? "bg-primary text-primary-foreground rounded-tr-sm"
-                : "bg-muted text-foreground border border-border rounded-tl-sm"
-            )}
-          >
-            {renderBody(message, currentUserId, role)}
-          </div>
-          <div className={cn("flex items-center gap-2", isOwn && "justify-end")}>
-            <ReactionBar
-              messageId={message.id}
-              currentUserId={currentUserId}
-              reactions={message.reactions}
-              onReact={(t) => onReact(message.id, t)}
-              onRemove={() => onRemoveReaction(message.id)}
-            />
-            {isOwn && (
-              <button
-                type="button"
-                onClick={() => onDelete(message.id)}
-                className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
-              >
-                Delete
-              </button>
-            )}
+          {!isOwn && <SenderAvatar message={message} />}
+          <div className="max-w-[85%] space-y-0.5">
+            <p
+              className={cn(
+                "text-[11px] font-medium px-1",
+                isOwn ? "text-muted-foreground text-right" : "text-muted-foreground"
+              )}
+            >
+              {isOwn ? "You" : message.sender_name} · {time}
+            </p>
+            <div
+              className={cn(
+                "rounded-xl px-3 py-2 text-sm leading-relaxed break-words",
+                isOwn
+                  ? "bg-primary text-primary-foreground rounded-tr-sm"
+                  : "bg-muted text-foreground border border-border rounded-tl-sm"
+              )}
+            >
+              {renderBody(message, currentUserId, role)}
+            </div>
+            <div className={cn("flex items-center gap-2", isOwn && "justify-end")}>
+              <ReactionBar
+                messageId={message.id}
+                currentUserId={currentUserId}
+                reactions={message.reactions}
+                onReact={(t) => onReact(message.id, t)}
+                onRemove={() => onRemoveReaction(message.id)}
+              />
+              {isOwn && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(message.id)}
+                  className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

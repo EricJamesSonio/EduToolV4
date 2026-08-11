@@ -1,50 +1,79 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import type { GroupyMessage } from "@/types/groupy/groupy.types";
+import { useCallback, useEffect, useRef } from "react";
+import { Avatar, AvatarFallback, AvatarGroup, AvatarImage } from "@/components/ui/avatar";
+import { getProfileImageUrl } from "@/utils/profile.util";
+import type { GroupyMember, GroupyMessage } from "@/types/groupy/groupy.types";
 import { MessageBubble } from "./MessageBubble";
 
 interface MessageListProps {
   messages: GroupyMessage[];
   currentUserId: string;
   role: "educator" | "student";
+  // Members (other than the current user) who have read the newest message.
+  seenBy: GroupyMember[];
   hasOlder: boolean;
   loadingOlder: boolean;
   onLoadOlder: () => void;
   onDelete: (messageId: string) => void;
   onReact: (messageId: string, reactionType: "like" | "love" | "laugh" | "wow" | "sad") => void;
   onRemoveReaction: (messageId: string) => void;
+  onAtBottomChange: (atBottom: boolean) => void;
 }
+
+const BOTTOM_THRESHOLD = 80;
 
 export function MessageList({
   messages,
   currentUserId,
   role,
+  seenBy,
   hasOlder,
   loadingOlder,
   onLoadOlder,
   onDelete,
   onReact,
   onRemoveReaction,
+  onAtBottomChange,
 }: MessageListProps): React.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null);
   const newestIdRef = useRef<string | null>(null);
+  const nearBottomRef = useRef(true);
 
-  // Newest message id → jump to bottom when a new message arrives or on first load.
+  // Newest message id (display order is oldest → newest, so it's the last item).
   const newestId = messages[messages.length - 1]?.id ?? null;
+
+  const reportBottom = useCallback(
+    (atBottom: boolean) => {
+      if (nearBottomRef.current === atBottom) return;
+      nearBottomRef.current = atBottom;
+      onAtBottomChange(atBottom);
+    },
+    [onAtBottomChange]
+  );
+
+  // Jump to the bottom on first load, and on a new message only if the user is
+  // already near the bottom (so reading older messages isn't interrupted and
+  // unread state is preserved until they scroll down).
   useEffect(() => {
     if (!newestId) return;
     if (newestId !== newestIdRef.current) {
       newestIdRef.current = newestId;
-      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+      if (nearBottomRef.current) {
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+        reportBottom(true);
+      }
     }
-  }, [newestId]);
+  }, [newestId, reportBottom]);
 
   const handleScroll = () => {
     const el = scrollRef.current;
-    if (!el || !hasOlder || loadingOlder) return;
-    // Near the top → load an older page (cursor pagination backward).
-    if (el.scrollTop < 60) {
+    if (!el) return;
+
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < BOTTOM_THRESHOLD;
+    reportBottom(atBottom);
+
+    if (hasOlder && !loadingOlder && el.scrollTop < 60) {
       onLoadOlder();
     }
   };
@@ -82,6 +111,29 @@ export function MessageList({
           onRemoveReaction={onRemoveReaction}
         />
       ))}
+
+      {seenBy.length > 0 && (
+        <div className="flex justify-end gap-2 pt-1">
+          <AvatarGroup>
+            {seenBy.map((m) => {
+              const name = m.full_name || "?";
+              const initials = name
+                .split(/\s+/)
+                .map((p) => p[0])
+                .filter(Boolean)
+                .join("")
+                .slice(0, 2)
+                .toUpperCase();
+              return (
+                <Avatar key={m.account_id} title={name} className="h-6 w-6">
+                  <AvatarImage src={getProfileImageUrl(m.profile_image)} alt={name} />
+                  <AvatarFallback className="text-[10px]">{initials || "?"}</AvatarFallback>
+                </Avatar>
+              );
+            })}
+          </AvatarGroup>
+        </div>
+      )}
     </div>
   );
 }
