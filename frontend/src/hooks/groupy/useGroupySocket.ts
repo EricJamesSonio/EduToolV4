@@ -19,6 +19,10 @@ import {
   upsertReaction,
   type GroupyPages,
 } from "./groupyCache";
+import {
+  groupyMembersKey,
+} from "./useGroupyMembers";
+import type { GroupyMembersResponse } from "@/types/groupy/groupy.types";
 
 interface UseGroupySocketProps {
   classId: string;
@@ -126,6 +130,26 @@ export const useGroupySocket = ({
       "groupy:poll:closed",
       (payload: { pollId: string }) => {
         updatePoll(payload.pollId, applyPollClosed);
+      }
+    );
+
+    socket.on(
+      "groupy:read:updated",
+      (payload: { classId: string; accountId: string; lastReadMessageId: string }) => {
+        if (payload.classId !== classId) return;
+        if (!isActive) return;
+        const membersKey = groupyMembersKey(classId);
+        queryClient.setQueryData<GroupyMembersResponse>(membersKey, (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            members: old.members.map((m) =>
+              m.account_id === payload.accountId
+                ? { ...m, last_read_message_id: payload.lastReadMessageId }
+                : m
+            ),
+          };
+        });
       }
     );
 
