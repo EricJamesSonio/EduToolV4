@@ -143,14 +143,21 @@ export function useEnrollmentDraft(
       const saved = key ? loadEnrollmentDraft(orgSlug, periodToken, key) : null;
       const resumeStep = saved ? resumeApplicationStep(saved.step) : "personal";
 
+      // In edit mode the server application is authoritative — it always wins
+      // over any local draft fragment so a returning applicant sees their
+      // submitted data, never a blank/older form.
+      const serverDraft =
+        mode && serverApplication ? applicationToDraft(serverApplication) : undefined;
+      const localDraft = saved ? sanitizeApplicationDraft(saved.fields) : {};
+      const draft = {
+        ...emptyApplicationDraft,
+        ...(serverDraft ? serverDraft : localDraft),
+      };
+
       setSessionToken(token);
       setEditMode(mode);
       setApplication(mode && serverApplication ? serverApplication : null);
-      setDraft({
-        ...emptyApplicationDraft,
-        ...(mode && serverApplication ? applicationToDraft(serverApplication) : {}),
-        ...(saved ? sanitizeApplicationDraft(saved.fields) : {}),
-      });
+      setDraft(draft);
       setStep(resumeStep);
 
       // Persist the session immediately so a reload right after verify resumes.
@@ -158,7 +165,7 @@ export function useEnrollmentDraft(
         saveEnrollmentDraft(orgSlug, periodToken, key, {
           otpSent: false,
           step: resumeStep,
-          fields: sanitizeApplicationDraft(saved?.fields) as unknown as Record<string, string>,
+          fields: sanitizeApplicationDraft(draft) as unknown as Record<string, string>,
           sessionToken: token,
           editMode: mode,
           application: mode && serverApplication ? serverApplication : null,
