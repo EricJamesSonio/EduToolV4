@@ -8,11 +8,13 @@ import {
 } from 'class-validator'
 
 export enum ProgramType {
-  ELEMENTARY  = 'elementary',
-  HIGH_SCHOOL = 'high_school',
-  SENIOR_HIGH = 'senior_high',
-  COLLEGE     = 'college',
-  CUSTOM      = 'custom',
+  DAYCARE    = 'daycare',
+  KINDER     = 'kinder',
+  ELEMENTARY = 'elementary',
+  JHS        = 'jhs',
+  SHS        = 'shs',
+  COLLEGE    = 'college',
+  CUSTOM     = 'custom',
 }
 
 export class CreateProgramDto {
