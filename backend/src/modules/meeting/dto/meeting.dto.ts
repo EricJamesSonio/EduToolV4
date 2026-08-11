@@ -4,6 +4,7 @@ import {
   IsDateString,
   IsArray,
   IsUUID,
+  IsBoolean,
   MinLength,
   MaxLength,
 } from 'class-validator';
@@ -25,6 +26,10 @@ export class CreateMeetingDto {
   @IsArray()
   @IsUUID('all', { each: true })
   invitedStudentIds?: string[]; // empty = all enrolled students
+
+  @IsOptional()
+  @IsBoolean()
+  ephemeral?: boolean;
 }
 
 export class UpdateMeetingDto {
