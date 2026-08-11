@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { DatabaseService } from '@/core/database/database.provider';
 
-function slugifyName(name: string): string {
+export function slugifyName(name: string): string {
   const base =
     name
       .toLowerCase()
