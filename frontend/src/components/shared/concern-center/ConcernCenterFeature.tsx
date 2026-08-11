@@ -264,7 +264,11 @@ export function ConcernCenterFeature({
                     >
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-medium text-foreground">
-                          {m.sender_name || "Unknown"}
+                          {m.sender_account_id === thread.sender_account_id
+                            ? "You"
+                            : m.sender_role === "student"
+                              ? "You"
+                              : "Admin"}
                         </span>
                         <span className="text-muted-foreground">
                           {concernTime(m.created_at)}
