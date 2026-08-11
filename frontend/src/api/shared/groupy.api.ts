@@ -3,8 +3,10 @@ import type {
   GifSearchResult,
   GroupyMessage,
   GroupyMessagesPage,
+  GroupyMembersResponse,
   GroupyPollDetail,
   GroupyReactionType,
+  GroupyUnreadStatus,
   PollResultsSummary,
 } from "@/types/groupy/groupy.types";
 
@@ -54,6 +56,31 @@ export const groupyApi = {
       `/groupy/${classId}/messages`,
       { params: { cursor, limit } }
     );
+    return res.data.data;
+  },
+
+  getMembers: async (classId: string): Promise<GroupyMembersResponse> => {
+    const res = await client.get<{ success: boolean; data: GroupyMembersResponse }>(
+      `/groupy/${classId}/members`
+    );
+    return res.data.data;
+  },
+
+  getUnreadStatus: async (classId: string): Promise<GroupyUnreadStatus> => {
+    const res = await client.get<{ success: boolean; data: GroupyUnreadStatus }>(
+      `/groupy/${classId}/status`
+    );
+    return res.data.data;
+  },
+
+  reportRead: async (
+    classId: string,
+    lastMessageId: string
+  ): Promise<{ lastReadMessageId: string }> => {
+    const res = await client.post<{
+      success: boolean;
+      data: { lastReadMessageId: string };
+    }>(`/groupy/${classId}/read`, { lastMessageId });
     return res.data.data;
   },
 
