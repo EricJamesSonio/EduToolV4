@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class PlatformRegistrationRepository {
@@ -45,6 +46,37 @@ export class PlatformRegistrationRepository {
     return this.db.registrationRequest.update({
       where: { id },
       data: { status: status as any },
+    });
+  }
+
+  async markReviewed(
+    id: string,
+    status: 'approved' | 'rejected',
+    reviewedBy: string,
+  ) {
+    return this.db.registrationRequest.update({
+      where: { id },
+      data: {
+        status: status as any,
+        reviewed_by: reviewedBy,
+        reviewed_at: new Date(),
+      },
+    });
+  }
+
+  async markRequestRevision(
+    id: string,
+    fieldNotes: Record<string, string>,
+    reviewedBy: string,
+  ) {
+    return this.db.registrationRequest.update({
+      where: { id },
+      data: {
+        status: 'needs_revision' as any,
+        revision_notes: fieldNotes,
+        reviewed_by: reviewedBy,
+        reviewed_at: new Date(),
+      },
     });
   }
 }

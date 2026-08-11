@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Query,
   Body,
@@ -10,9 +11,13 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { PlatformRegistrationService } from './platform-registration.service';
-import { ApproveRequestDto } from './dto/approve-request.dto';
+import {
+  RejectRequestDto,
+  RequestRevisionDto,
+} from './dto/approve-request.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { PlatformOwnerGuard } from '@/modules/platform/guards/platform-owner.guard';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('platform/registration-requests')
 @UseGuards(AuthGuard, PlatformOwnerGuard)
@@ -40,15 +45,29 @@ export class PlatformRegistrationController {
   @HttpCode(HttpStatus.OK)
   async approve(
     @Param('id') id: string,
-    @Body() dto: ApproveRequestDto,
+    @CurrentUser('id') reviewerId: string,
   ) {
-    return this.service.approve(id, dto);
+    return this.service.approve(id, reviewerId);
   }
 
-  @Post(':id/reject')
+  @Patch(':id/reject')
   @HttpCode(HttpStatus.OK)
-  async reject(@Param('id') id: string) {
-    return this.service.reject(id);
+  async reject(
+    @Param('id') id: string,
+    @CurrentUser('id') reviewerId: string,
+    @Body() dto: RejectRequestDto,
+  ) {
+    return this.service.reject(id, reviewerId, dto);
+  }
+
+  @Patch(':id/request-revision')
+  @HttpCode(HttpStatus.OK)
+  async requestRevision(
+    @Param('id') id: string,
+    @CurrentUser('id') reviewerId: string,
+    @Body() dto: RequestRevisionDto,
+  ) {
+    return this.service.requestRevision(id, reviewerId, dto);
   }
 
   @Post(':id/send-credentials')
