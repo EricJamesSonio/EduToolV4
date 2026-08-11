@@ -10,11 +10,14 @@ import { GradeSummaryCard } from "@/components/student/class/overview/GradeSumma
 import { useStudentClass } from "@/hooks/student/useStudentClasses";
 import { useStudentAssessments } from "@/hooks/student/useStudentAssessments";
 import { useStudentGrades } from "@/hooks/student/useStudentGrades";
+import { useGroupyUnread } from "@/hooks/groupy/useGroupyUnread";
 import { Button } from "@/components/ui/button";
 
 export default function StudentClassDetailPage(): React.JSX.Element {
   const { classId } = useParams<{ classId: string }>();
   const router = useRouter();
+
+  const { data: groupyUnread } = useGroupyUnread(classId);
 
   const { data: classData, isLoading: classLoading } = useStudentClass(classId);
   const { data: assessments = [], isLoading: assessmentsLoading } = useStudentAssessments(classId);
@@ -34,11 +37,16 @@ export default function StudentClassDetailPage(): React.JSX.Element {
           <Button
             size="sm"
             variant="outline"
-            className="gap-1.5"
+            className="relative gap-1.5"
             onClick={() => router.push(`/student/classes/${classId}/groupy`)}
           >
             <MessageSquare className="h-3.5 w-3.5" />
             Class Chat
+            {groupyUnread?.hasUnread && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-white ring-2 ring-background">
+                !
+              </span>
+            )}
           </Button>
         }
       />

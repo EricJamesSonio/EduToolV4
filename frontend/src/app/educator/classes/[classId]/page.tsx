@@ -29,6 +29,7 @@ import { CardGrid } from "@/components/shared/CardGrid";
 import { Skeleton }   from "@/components/ui/skeleton";
 import { Badge }      from "@/components/ui/badge";
 import { Button }     from "@/components/ui/button";
+import { useGroupyUnread } from "@/hooks/groupy/useGroupyUnread";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -70,6 +71,8 @@ export default function EducatorClassOverviewPage({
   const { classId: id } = use(params);
   const router = useRouter();
   const base   = `/educator/classes/${id}`;
+
+  const { data: groupyUnread } = useGroupyUnread(id);
 
   const { data: cls, isLoading: clsLoading } = useAsyncQuery(
     queryKeys.educator.classes.detail(id),
@@ -306,8 +309,13 @@ if (clsLoading) {
               <button
                 key={link.href}
                 onClick={() => router.push(link.href)}
-                className="rounded-xl border bg-card p-3 sm:p-5 space-y-2 sm:space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200 group text-left"
+                className="relative rounded-xl border bg-card p-3 sm:p-5 space-y-2 sm:space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200 group text-left"
               >
+                {link.href.endsWith("/groupy") && groupyUnread?.hasUnread && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-white ring-2 ring-background">
+                    !
+                  </span>
+                )}
                 <div className={cn("rounded-md p-2 w-fit", color)}>
                   <Icon className="h-4 w-4" />
                 </div>
