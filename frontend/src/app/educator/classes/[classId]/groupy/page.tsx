@@ -3,7 +3,7 @@
 import { use } from "react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { GroupyChatFeature } from "@/components/shared/groupy/GroupyChatFeature";
-import { useAuthStore } from "@/store/auth.store";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Props {
   params: Promise<{ classId: string }>;
@@ -11,7 +11,7 @@ interface Props {
 
 export default function EducatorGroupyPage({ params }: Props): React.JSX.Element {
   const { classId } = use(params);
-  const user = useAuthStore((s) => s.user);
+  const { user } = useAuth();
 
   if (!user) {
     return (
