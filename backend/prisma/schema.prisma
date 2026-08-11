@@ -973,19 +973,34 @@ model GroupyMessage {
   id                String            @id @default(uuid())
   org_id            String
   class_id          String
-  sender_account_id String
-  sender_role       Role
-  sender_name       String
-  type              GroupyMessageType
-  body              String?
-  gif_url           String?
-  sticker_id        String?
-  poll_id           String?           @unique
-  created_at        DateTime          @default(now())
+  sender_account_id    String
+  sender_role          Role
+  sender_name          String
+  sender_profile_image String?
+  type                 GroupyMessageType
+  body                 String?
+  gif_url              String?
+  sticker_id           String?
+  poll_id              String?           @unique
+  created_at           DateTime          @default(now())
 
   class     Class            @relation(fields: [class_id], references: [id])
   poll      GroupyPoll?      @relation(fields: [poll_id], references: [id])
   reactions GroupyReaction[]
+}
+
+// Read receipt — the newest message each member has seen. Unique per class+member
+// (one "last seen" pointer per person). Broadcast so everyone's "seen by" row stays live.
+model GroupyReadReceipt {
+  id                   String   @id @default(uuid())
+  org_id               String
+  class_id             String
+  account_id           String
+  last_read_message_id String?
+  updated_at           DateTime @updatedAt
+
+  @@unique([class_id, account_id])
+  @@index([org_id, class_id])
 }
 
 model GroupyReaction {
