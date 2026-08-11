@@ -13,6 +13,14 @@ import {
 } from './dto/semester-template.dto'
 import { DatabaseService } from '@/core/database/database.provider'
 
+/** Format a Date as YYYY-MM-DD using LOCAL date parts (avoids UTC off-by-one). */
+function fmtLocalDate(d: Date): string {
+  const y = String(d.getFullYear())
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 @Injectable()
 export class SemesterTemplateService {
 constructor(
@@ -308,6 +316,12 @@ private async createPlaceholderSemesters(
 
     const breaks = calendar.breaks
 
+    if (breaks.length !== template.semesters.length) {
+      throw new BadRequestException(
+        `Template "${template.name}" has ${template.semesters.length} semester(s) but the program calendar has ${breaks.length} break point(s). Add or remove breaks so both counts match before auto-configuring dates.`,
+      )
+    }
+
     // Build semester periods from calendar breaks.
     // Each break IS a semester period. The gaps between breaks are no-class periods.
     const semPeriods: Array<{ start: Date; end: Date }> = []
@@ -316,9 +330,12 @@ private async createPlaceholderSemesters(
       const semStart = new Date(breaks[i].start_date)
       const semEnd   = new Date(breaks[i].end_date)
 
-      if (semStart <= semEnd) {
-        semPeriods.push({ start: semStart, end: semEnd })
+      if (semStart > semEnd) {
+        throw new BadRequestException(
+          `Break "${breaks[i].label}": start date must be before or equal to end date.`,
+        )
       }
+      semPeriods.push({ start: semStart, end: semEnd })
     }
 
     // Map each template semester to the corresponding teaching period
@@ -328,31 +345,37 @@ private async createPlaceholderSemesters(
       endDate:    string
     }> = []
 
-    for (let si = 0; si < template.semesters.length && si < semPeriods.length; si++) {
+    for (let si = 0; si < template.semesters.length; si++) {
       const sem = template.semesters[si]
       const period = semPeriods[si]
+      const termCount = sem.terms.length
+      if (termCount === 0) continue
+
       const totalDays = Math.round(
         (period.end.getTime() - period.start.getTime()) / (1000 * 60 * 60 * 24),
       ) + 1
-      const termCount = sem.terms.length
-      const daysPerTerm = termCount > 0 ? Math.floor(totalDays / termCount) : totalDays
+      // Ensure each term gets at least 1 day (never 0 / negative durations).
+      const daysPerTerm = Math.max(1, Math.floor(totalDays / termCount))
 
       for (let ti = 0; ti < termCount; ti++) {
         const term = sem.terms[ti]
         const tStart = new Date(period.start)
         tStart.setDate(tStart.getDate() + ti * daysPerTerm)
 
-        const tEnd = ti === termCount - 1
-          ? new Date(period.end)
-          : new Date(tStart)
-        if (ti < termCount - 1) {
-          tEnd.setDate(tStart.getDate() + daysPerTerm - 1)
+        let tEnd: Date
+        if (ti === termCount - 1) {
+          tEnd = new Date(period.end)
+        } else {
+          tEnd = new Date(period.start)
+          tEnd.setDate(tEnd.getDate() + (ti + 1) * daysPerTerm - 1)
         }
+
+        if (tEnd < tStart) tEnd = new Date(tStart)
 
         result.push({
           termId:    term.id ?? '',
-          startDate: tStart.toISOString().slice(0, 10),
-          endDate:   tEnd.toISOString().slice(0, 10),
+          startDate: fmtLocalDate(tStart),
+          endDate:   fmtLocalDate(tEnd),
         })
       }
     }
