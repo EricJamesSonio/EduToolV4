@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { AxiosError } from "axios";
 
+import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import { DataTable } from "@/components/shared/DataTable";
@@ -76,6 +77,7 @@ function lastActivity(iso?: string): string {
 }
 
 export default function AdminConcernsPage(): React.JSX.Element {
+  const { user: currentUser } = useAuth();
   const [filters, setFilters] = useState<ConcernFilters>(ALL_FILTERS);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
@@ -351,10 +353,15 @@ export default function AdminConcernsPage(): React.JSX.Element {
                   >
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-medium text-foreground">
-                        {m.sender_name || "Unknown"}
-                        <span className="ml-1.5 text-muted-foreground normal-case">
-                          ({m.sender_role})
-                        </span>
+                        {m.sender_account_id === currentUser?.id
+                          ? "You"
+                          : `${m.sender_role === "student"
+                              ? "Student"
+                              : m.sender_role === "educator"
+                                ? "Educator"
+                                : m.sender_role === "admin"
+                                  ? "Admin"
+                                  : m.sender_role}: ${m.sender_name || "Unknown"}`}
                       </span>
                       <span className="text-muted-foreground">{lastActivity(m.created_at)}</span>
                     </div>
