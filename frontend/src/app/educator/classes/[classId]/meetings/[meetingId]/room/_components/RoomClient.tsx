@@ -37,6 +37,15 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const { classId, meetingId } = useParams<{ classId: string; meetingId: string }>();
   const router = useRouter();
 
+  // Groupy-launched rooms return to the class chat instead of the meetings page
+  // (groupy meetings are ephemeral and never listed there).
+  const isGroupyRoom =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("origin") === "groupy";
+  const backUrl = isGroupyRoom
+    ? `/educator/classes/${classId}`
+    : `/educator/classes/${classId}/meetings/${meetingId}`;
+
   const { data: meeting }                            = useMeeting(classId, meetingId, { refetchInterval: 10000 });
   const { data: studentsRaw }                        = useEnrolledStudents(classId);
   const { data: tokenData, isLoading: tokenLoading } = useMeetingToken(meetingId);
@@ -178,14 +187,14 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const handleLeave = () => {
     finalizeAndSave();
     meetingCtx.leaveMeeting();
-    router.push(`/educator/classes/${classId}/meetings/${meetingId}`);
+    router.push(backUrl);
   };
 
   const handleEndMeeting = () => {
     finalizeAndSave();
     meetingCtx.leaveMeeting();
     endMeetingMutation.mutate(meetingId, {
-      onSuccess: () => router.push(`/educator/classes/${classId}/meetings/${meetingId}`),
+      onSuccess: () => router.push(backUrl),
     });
   };
 
@@ -222,7 +231,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-4">
         <p className="text-sm text-muted-foreground">You are not authorized to join this meeting.</p>
-        <Button variant="outline" onClick={() => router.push(`/educator/classes/${classId}/meetings`)}>
+        <Button variant="outline" onClick={() => router.push(backUrl)}>
           Back to Meetings
         </Button>
       </div>
