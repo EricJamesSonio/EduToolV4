@@ -72,3 +72,8 @@ export class VotePollDto {
   @IsString()
   optionId: string;
 }
+
+export class ReportReadDto {
+  @IsString()
+  lastMessageId: string;
+}
