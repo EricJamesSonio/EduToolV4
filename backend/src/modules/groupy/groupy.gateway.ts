@@ -151,6 +151,18 @@ export class GroupyGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .emit('groupy:poll:closed', { pollId: args.pollId });
   }
 
+  emitReadUpdated(args: {
+    classId: string;
+    accountId: string;
+    lastReadMessageId: string;
+  }) {
+    this.server.to(this.roomName(args.classId)).emit('groupy:read:updated', {
+      classId: args.classId,
+      accountId: args.accountId,
+      lastReadMessageId: args.lastReadMessageId,
+    });
+  }
+
   // ── Private helpers ───────────────────────────────────────────────────────
 
   private verifyToken(token: string): AuthPayload | null {

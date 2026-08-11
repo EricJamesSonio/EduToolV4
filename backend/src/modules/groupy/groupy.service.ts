@@ -99,6 +99,7 @@ export class GroupyService {
       include: { profile: true },
     });
     const senderName = account?.profile?.full_name ?? user.email ?? 'Unknown';
+    const senderProfileImage = account?.profile?.profile_image ?? null;
     const senderRole = (user.role ?? 'student') as any;
 
     const type = dto.type ?? 'text';
@@ -133,6 +134,7 @@ export class GroupyService {
       senderAccountId: user.id,
       senderRole,
       senderName,
+      senderProfileImage,
       type,
       body,
       gifUrl,
@@ -166,6 +168,7 @@ export class GroupyService {
       include: { profile: true },
     });
     const senderName = account?.profile?.full_name ?? user.email ?? 'Unknown';
+    const senderProfileImage = account?.profile?.profile_image ?? null;
 
     // Reuse the existing meeting creation path. An empty invitedStudentIds
     // array makes MeetingService auto-invite the class's active roster.
@@ -186,6 +189,7 @@ export class GroupyService {
       senderAccountId: user.id,
       senderRole: (user.role ?? 'educator') as any,
       senderName,
+      senderProfileImage,
       type: 'system',
       body: JSON.stringify({ meetingId: meeting.id, title: meeting.title }),
     });
