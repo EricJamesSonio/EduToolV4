@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { MessageSquare } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ClassInfoCard } from "@/components/student/class/overview/ClassInfoCard";
@@ -9,6 +10,7 @@ import { GradeSummaryCard } from "@/components/student/class/overview/GradeSumma
 import { useStudentClass } from "@/hooks/student/useStudentClasses";
 import { useStudentAssessments } from "@/hooks/student/useStudentAssessments";
 import { useStudentGrades } from "@/hooks/student/useStudentGrades";
+import { Button } from "@/components/ui/button";
 
 export default function StudentClassDetailPage(): React.JSX.Element {
   const { classId } = useParams<{ classId: string }>();
@@ -28,6 +30,17 @@ export default function StudentClassDetailPage(): React.JSX.Element {
           { label: "My Classes", href: "/student/classes" },
           { label: subjectName },
         ]}
+        actions={
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => router.push(`/student/classes/${classId}/groupy`)}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            Class Chat
+          </Button>
+        }
       />
 
       {classLoading ? (
