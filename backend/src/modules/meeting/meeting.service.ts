@@ -47,6 +47,7 @@ export class MeetingService {
       title: dto.title,
       description: dto.description,
       startTime: new Date(dto.startTime),
+      isEphemeral: dto.isEphemeral ?? false,
     });
 
     // Resolve invited student IDs
@@ -164,6 +165,13 @@ export class MeetingService {
 
     if (meeting.status === 'ended') {
       throw new BadRequestException('Meeting is already ended.');
+    }
+
+    // Ephemeral (Groupy) meetings are fully removed when ended — they aren't
+    // stored on the meetings pages and have no post-meeting record.
+    if (meeting.is_ephemeral) {
+      await this.meetingRepo.hardDelete(id);
+      return { success: true, message: 'Meeting ended.' };
     }
 
     await this.meetingRepo.updateStatus(id, 'ended');

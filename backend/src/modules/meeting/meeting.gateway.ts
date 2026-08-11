@@ -186,6 +186,15 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     // Clean up empty rooms
     if (room.participants.size === 0) {
       this.rooms.delete(meetingId);
+
+      // Ephemeral (Groupy) meetings are discarded once everyone leaves.
+      const auth = client.data?.auth as AuthPayload | undefined;
+      if (auth?.org_id) {
+        const meeting = await this.meetingRepo.findById(meetingId, auth.org_id);
+        if (meeting?.is_ephemeral) {
+          await this.meetingRepo.hardDelete(meetingId);
+        }
+      }
     }
   }
 

@@ -14,6 +14,7 @@ export class MeetingRepository {
     title: string;
     description?: string;
     startTime: Date;
+    isEphemeral?: boolean;
   }) {
     return this.db.meeting.create({
       data: {
@@ -24,6 +25,7 @@ export class MeetingRepository {
         description: data.description ?? null,
         start_time: data.startTime,
         status: 'scheduled',
+        is_ephemeral: data.isEphemeral ?? false,
       },
       include: { invites: true },
     });
@@ -31,7 +33,12 @@ export class MeetingRepository {
 
   async findAll(classId: string, orgId: string) {
     return this.db.meeting.findMany({
-      where: { class_id: classId, org_id: orgId, deleted_at: null },
+      where: {
+        class_id: classId,
+        org_id: orgId,
+        deleted_at: null,
+        is_ephemeral: false,
+      },
       include: { invites: true, join_requests: true },
       orderBy: { start_time: 'asc' },
     });
@@ -75,6 +82,10 @@ export class MeetingRepository {
       where: { id },
       data: { deleted_at: new Date() },
     });
+  }
+
+  async hardDelete(id: string) {
+    return this.db.meeting.delete({ where: { id } });
   }
 
   // ── Invites ───────────────────────────────────────────────────────────────
