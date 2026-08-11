@@ -1,6 +1,7 @@
 import client from "@/api/client";
 import type {
   GifSearchResult,
+  GroupyActiveMeeting,
   GroupyMessage,
   GroupyMessagesPage,
   GroupyMembersResponse,
@@ -69,6 +70,13 @@ export const groupyApi = {
   getUnreadStatus: async (classId: string): Promise<GroupyUnreadStatus> => {
     const res = await client.get<{ success: boolean; data: GroupyUnreadStatus }>(
       `/groupy/${classId}/status`
+    );
+    return res.data.data;
+  },
+
+  getActiveMeeting: async (classId: string): Promise<GroupyActiveMeeting> => {
+    const res = await client.get<{ success: boolean; data: GroupyActiveMeeting }>(
+      `/groupy/${classId}/active-meeting`
     );
     return res.data.data;
   },
@@ -161,10 +169,12 @@ export const groupyApi = {
   },
 
   startMeeting: async (
-    classId: string
+    classId: string,
+    invitedStudentIds?: string[]
   ): Promise<StartMeetingResponse> => {
     const res = await client.post<{ success: boolean; data: StartMeetingResponse }>(
-      `/groupy/${classId}/start-meeting`
+      `/groupy/${classId}/start-meeting`,
+      { invitedStudentIds }
     );
     return res.data.data;
   },
