@@ -1,11 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { Video } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { groupyApi } from "@/api/shared/groupy.api";
 import { useGroupyMessages } from "@/hooks/groupy/useGroupyMessages";
 import { useGroupySocket } from "@/hooks/groupy/useGroupySocket";
 import { useGroupyMembers, groupyMembersKey } from "@/hooks/groupy/useGroupyMembers";
+import {
+  useGroupyActiveMeeting,
+  groupyActiveMeetingKey,
+} from "@/hooks/groupy/useGroupyActiveMeeting";
 import {
   groupyMessagesKey,
   prependMessage,
@@ -23,7 +30,8 @@ import type {
 import { MessageList } from "./MessageList";
 import { SendBox } from "./SendBox";
 import { PollCreatorDialog } from "./PollCreatorDialog";
-import { StartMeetingButton } from "./StartMeetingButton";
+import { StartMeetingDialog } from "./StartMeetingDialog";
+import { ActiveMeetingBanner } from "./ActiveMeetingBanner";
 
 interface GroupyChatFeatureProps {
   classId: string;
@@ -36,11 +44,14 @@ export function GroupyChatFeature({
   role,
   currentUserId,
 }: GroupyChatFeatureProps): React.JSX.Element {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const query = useGroupyMessages(classId);
   const membersQuery = useGroupyMembers(classId);
+  const activeMeetingQuery = useGroupyActiveMeeting(classId);
   useGroupySocket({ classId });
   const [pollCreatorOpen, setPollCreatorOpen] = useState(false);
+  const [startMeetingOpen, setStartMeetingOpen] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const lastReportedReadRef = useRef<string | null>(null);
 
@@ -54,6 +65,14 @@ export function GroupyChatFeature({
   );
 
   const newestId = messages[messages.length - 1]?.id ?? null;
+
+  // Live groupy meeting for the class, if one exists right now.
+  const activeMeeting = useMemo(() => {
+    const data = activeMeetingQuery.data;
+    return data?.meeting
+      ? { meetingId: data.meeting.meetingId, title: data.meeting.title }
+      : null;
+  }, [activeMeetingQuery.data]);
 
   // Members who have read the newest message — becomes the messenger-style
   // "seen by" avatar row at the bottom of the last message.
@@ -137,8 +156,13 @@ export function GroupyChatFeature({
     setPollCreatorOpen(false);
   };
 
-  const handleMeetingStarted = () => {
-    query.refetch();
+  const handleMeetingStarted = (meetingId: string) => {
+    // Start a fresh active-meeting check and jump the educator into the room.
+    queryClient.invalidateQueries({ queryKey: groupyActiveMeetingKey(classId) });
+    const base = role === "educator" ? "/educator" : "/student";
+    router.push(
+      `${base}/classes/${classId}/meetings/${meetingId}/room?origin=groupy`
+    );
   };
 
   return (
@@ -149,14 +173,27 @@ export function GroupyChatFeature({
           <span className="text-[11px] text-muted-foreground capitalize">{role}</span>
         </div>
         {isEducator && (
-          <StartMeetingButton classId={classId} onStarted={handleMeetingStarted} />
+          <Button
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setStartMeetingOpen(true)}
+          >
+            <Video className="h-4 w-4" />
+            Start Meeting
+          </Button>
         )}
       </div>
+      <ActiveMeetingBanner
+        classId={classId}
+        role={role}
+        activeMeeting={activeMeeting}
+      />
       <MessageList
         messages={messages}
         currentUserId={currentUserId}
         role={role}
         seenBy={seenBy}
+        activeMeetingId={activeMeeting?.meetingId ?? null}
         hasOlder={query.hasNextPage}
         loadingOlder={query.isFetchingNextPage}
         onLoadOlder={() =>
@@ -179,6 +216,12 @@ export function GroupyChatFeature({
         onOpenChange={setPollCreatorOpen}
         classId={classId}
         onCreated={handlePollCreated}
+      />
+      <StartMeetingDialog
+        open={startMeetingOpen}
+        onOpenChange={setStartMeetingOpen}
+        classId={classId}
+        onStarted={handleMeetingStarted}
       />
     </div>
   );

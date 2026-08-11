@@ -12,6 +12,9 @@ interface MessageListProps {
   role: "educator" | "student";
   // Members (other than the current user) who have read the newest message.
   seenBy: GroupyMember[];
+  // Id of the currently live groupy meeting (if any) so meeting messages can
+  // show "ended" state once their meeting is gone.
+  activeMeetingId: string | null;
   hasOlder: boolean;
   loadingOlder: boolean;
   onLoadOlder: () => void;
@@ -28,6 +31,7 @@ export function MessageList({
   currentUserId,
   role,
   seenBy,
+  activeMeetingId,
   hasOlder,
   loadingOlder,
   onLoadOlder,
@@ -106,6 +110,7 @@ export function MessageList({
           message={msg}
           currentUserId={currentUserId}
           role={role}
+          activeMeetingId={activeMeetingId}
           onDelete={onDelete}
           onReact={onReact}
           onRemoveReaction={onRemoveReaction}

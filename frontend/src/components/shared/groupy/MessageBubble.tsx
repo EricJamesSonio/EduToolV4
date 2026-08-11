@@ -13,6 +13,8 @@ interface MessageBubbleProps {
   message: GroupyMessage;
   currentUserId: string;
   role: "educator" | "student";
+  // Id of the currently live groupy meeting (if any) for meeting messages.
+  activeMeetingId: string | null;
   onDelete: (messageId: string) => void;
   onReact: (messageId: string, reactionType: "like" | "love" | "laugh" | "wow" | "sad") => void;
   onRemoveReaction: (messageId: string) => void;
@@ -40,7 +42,8 @@ function StickerBody({ stickerId }: { stickerId: string }) {
 function renderBody(
   message: GroupyMessage,
   currentUserId: string,
-  role: "educator" | "student"
+  role: "educator" | "student",
+  activeMeetingId: string | null
 ): React.ReactNode {
   switch (message.type) {
     case "gif":
@@ -61,16 +64,21 @@ function renderBody(
       }
       if (meetingId) {
         const base = role === "educator" ? "/educator" : "/student";
-        const href = `${base}/classes/${message.class_id}/meetings/${meetingId}/room`;
+        const href = `${base}/classes/${message.class_id}/meetings/${meetingId}/room?origin=groupy`;
+        const isLive = activeMeetingId === meetingId;
         return (
           <div className="space-y-1.5">
             <p className="font-medium">{title || "A meeting has started"}.</p>
-            <Link
-              href={href}
-              className="inline-block rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Join
-            </Link>
+            {isLive ? (
+              <Link
+                href={href}
+                className="inline-block rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Join
+              </Link>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">This meeting has ended.</p>
+            )}
           </div>
         );
       }
@@ -102,6 +110,7 @@ export function MessageBubble({
   message,
   currentUserId,
   role,
+  activeMeetingId,
   onDelete,
   onReact,
   onRemoveReaction,
@@ -123,7 +132,7 @@ export function MessageBubble({
     >
       {isSystem ? (
         <div className="max-w-[85%] rounded-lg bg-accent/40 border border-border px-4 py-2.5 text-center text-xs text-muted-foreground">
-          {renderBody(message, currentUserId, role)}
+          {renderBody(message, currentUserId, role, activeMeetingId)}
         </div>
       ) : (
         <div
@@ -150,7 +159,7 @@ export function MessageBubble({
                   : "bg-muted text-foreground border border-border rounded-tl-sm"
               )}
             >
-              {renderBody(message, currentUserId, role)}
+              {renderBody(message, currentUserId, role, activeMeetingId)}
             </div>
             <div className={cn("flex items-center gap-2", isOwn && "justify-end")}>
               <ReactionBar
