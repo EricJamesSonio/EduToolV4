@@ -195,6 +195,27 @@ export class AuthService {
   // mechanism) up to the Enrollment Portal's UX standard: personal-Gmail
   // lookup, a time-limited session, and per-field revision flagging.
 
+  /**
+   * Blocks re-application once the personal Gmail has already produced an
+   * approved account. Detection is record-based (the RegistrationRequest row or
+   * the Profile.personal_email), NOT the login email — admins can change the
+   * generated login Gmail later, so we must track by the original record.
+   */
+  private async assertPersonalEmailNotAlreadyApproved(email: string) {
+    const request =
+      await this.authRepository.findRegistrationRequestByEmail(email);
+    if (request?.status === 'approved') {
+      throw new BadRequestException('You already have an approved account.');
+    }
+
+    const account = await this.authRepository.findAdminAccountByPersonalEmail(
+      email,
+    );
+    if (account) {
+      throw new BadRequestException('You already have an approved account.');
+    }
+  }
+
   async sendAdminRequestOtp(
     dto: SendAdminRequestOtpDto,
   ): Promise<{ message: string }> {
@@ -235,6 +256,8 @@ export class AuthService {
 
     await this.authRepository.markOtpUsed(otp.id);
 
+    await this.assertPersonalEmailNotAlreadyApproved(dto.email);
+
     const existing = await this.authRepository.findRegistrationRequestByEmail(
       dto.email,
     );
@@ -272,6 +295,8 @@ export class AuthService {
     session: AdminRequestSessionClaims,
     dto: SubmitAdminRequestDto,
   ): Promise<{ request: RegistrationRequestView }> {
+    await this.assertPersonalEmailNotAlreadyApproved(session.email);
+
     const request = await this.authRepository.submitRegistrationRequest({
       email: session.email,
       full_name: dto.full_name,

@@ -28,6 +28,24 @@ export class AuthRepository {
     });
   }
 
+  /**
+   * Finds an admin Account whose profile.personal_email matches the given
+   * personal Gmail (case-insensitive). The login email is system-generated and
+   * decoupled from the personal Gmail, so we must match on the profile's
+   * personal_email — the record, not the (possibly changed) login email.
+   */
+  async findAdminAccountByPersonalEmail(email: string) {
+    return this.db.account.findFirst({
+      where: {
+        role: 'admin',
+        deleted_at: null,
+        profile: {
+          personal_email: { equals: email, mode: 'insensitive' },
+        },
+      },
+    });
+  }
+
   async saveRefreshToken(accountId: string, hashedToken: string) {
     return this.db.profile.upsert({
       where: { account_id: accountId },
