@@ -77,3 +77,10 @@ export class ReportReadDto {
   @IsString()
   lastMessageId: string;
 }
+
+export class StartMeetingDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  invitedStudentIds?: string[]; // empty/undefined = invite the whole class roster
+}
