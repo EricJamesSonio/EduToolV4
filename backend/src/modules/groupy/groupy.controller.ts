@@ -24,6 +24,7 @@ import {
   SetReactionDto,
   CreatePollDto,
   VotePollDto,
+  ReportReadDto,
 } from './dto/groupy.dto';
 
 @Controller('groupy')
@@ -61,6 +62,24 @@ export class GroupyController {
     );
   }
 
+  @Get(':classId/members')
+  members(
+    @Param('classId') classId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') accountId: string,
+  ) {
+    return this.groupyService.getMembers(classId, orgId, accountId);
+  }
+
+  @Get(':classId/status')
+  unreadStatus(
+    @Param('classId') classId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') accountId: string,
+  ) {
+    return this.groupyService.getUnreadStatus(classId, orgId, accountId);
+  }
+
   @Post(':classId/messages')
   sendMessage(
     @Param('classId') classId: string,
@@ -69,6 +88,21 @@ export class GroupyController {
     @Body() dto: SendGroupyMessageDto,
   ) {
     return this.groupyService.sendMessage(classId, orgId, user, dto);
+  }
+
+  @Post(':classId/read')
+  reportRead(
+    @Param('classId') classId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') accountId: string,
+    @Body() dto: ReportReadDto,
+  ) {
+    return this.groupyService.reportRead(
+      classId,
+      orgId,
+      accountId,
+      dto.lastMessageId,
+    );
   }
 
   @Delete('messages/:id')

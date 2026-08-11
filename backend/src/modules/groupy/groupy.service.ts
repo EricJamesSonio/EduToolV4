@@ -287,6 +287,7 @@ export class GroupyService {
       include: { profile: true },
     });
     const senderName = account?.profile?.full_name ?? user.email ?? 'Unknown';
+    const senderProfileImage = account?.profile?.profile_image ?? null;
 
     const message = await this.groupyRepo.createPoll({
       orgId,
@@ -294,6 +295,7 @@ export class GroupyService {
       createdBy: user.id,
       senderRole: (user.role ?? 'educator') as any,
       senderName,
+      senderProfileImage,
       question: dto.question,
       options: dto.options,
     });
@@ -386,6 +388,65 @@ export class GroupyService {
       })),
       myVoteOptionId: myVote?.option_id ?? null,
     };
+  }
+
+  // ── Read receipts + unread flag ────────────────────────────────────────────
+
+  // Record that the caller has seen the chat up to a specific message, then
+  // broadcast so everyone's "seen by" row updates in real time.
+  async reportRead(
+    classId: string,
+    orgId: string,
+    accountId: string,
+    lastMessageId: string,
+  ) {
+    await this.assertMember(accountId, classId, orgId);
+
+    // Only accept pointers to a real message in this class.
+    const msg = await this.groupyRepo.findMessageById(lastMessageId, orgId);
+    if (!msg || msg.class_id !== classId) {
+      throw new BadRequestException('Invalid lastMessageId.');
+    }
+
+    await this.groupyRepo.upsertReadReceipt({
+      orgId,
+      classId,
+      accountId,
+      lastReadMessageId: lastMessageId,
+    });
+
+    this.gateway.emitReadUpdated({ classId, accountId, lastReadMessageId: lastMessageId });
+
+    return { lastReadMessageId: lastMessageId };
+  }
+
+  // Roster of members (educator + active students) with profile images and each
+  // one's last-read pointer — used to render the messenger-style "seen by" row.
+  async getMembers(classId: string, orgId: string, accountId: string) {
+    await this.assertMember(accountId, classId, orgId);
+
+    const members = await this.groupyRepo.listMembers(classId, orgId);
+    const me = members.find((m) => m.account_id === accountId) ?? null;
+    const others = members.filter((m) => m.account_id !== accountId);
+
+    return { me, members: others };
+  }
+
+  // Lightweight unread check for the Class Chat entry badge. True when there is
+  // at least one message the caller hasn't read yet.
+  async getUnreadStatus(classId: string, orgId: string, accountId: string) {
+    await this.assertMember(accountId, classId, orgId);
+
+    const [latest, receipt] = await Promise.all([
+      this.groupyRepo.findMessages({ classId, orgId, limit: 1 }),
+      this.groupyRepo.getReadReceipt(classId, accountId),
+    ]);
+
+    const lastMessage = latest[0] ?? null;
+    if (!lastMessage) return { hasUnread: false };
+
+    const hasUnread = receipt?.last_read_message_id !== lastMessage.id;
+    return { hasUnread };
   }
 
   private async buildPollResults(pollId: string) {

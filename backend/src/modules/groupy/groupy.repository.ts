@@ -134,6 +134,7 @@ export class GroupyRepository {
     createdBy: string;
     senderRole: Role;
     senderName: string;
+    senderProfileImage?: string | null;
     question: string;
     options: string[];
   }) {
@@ -163,6 +164,7 @@ export class GroupyRepository {
           sender_account_id: args.createdBy,
           sender_role: args.senderRole,
           sender_name: args.senderName,
+          sender_profile_image: args.senderProfileImage ?? null,
           type: 'poll',
           body: null,
           poll_id: poll.id,
