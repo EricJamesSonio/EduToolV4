@@ -28,6 +28,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { CardGrid } from "@/components/shared/CardGrid";
 import { Skeleton }   from "@/components/ui/skeleton";
 import { Badge }      from "@/components/ui/badge";
+import { Button }     from "@/components/ui/button";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -227,9 +228,20 @@ if (clsLoading) {
       title={enriched.subjectName ?? enriched.subjectId}
       breadcrumbs={[{ label: "My Classes", href: "/educator/classes" }]}
       actions={
-        <Badge variant="secondary" className="shrink-0">
-          {enriched.semesterName ?? "—"}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => router.push(`${base}/groupy`)}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            Class Chat
+          </Button>
+          <Badge variant="secondary" className="shrink-0">
+            {enriched.semesterName ?? "—"}
+          </Badge>
+        </div>
       }
     />
 
