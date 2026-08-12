@@ -70,6 +70,15 @@ export function MessageList({
     }
   }, [newestId, reportBottom]);
 
+  // Messenger-style infinite scroll up: keep filling in older messages until
+  // the list is tall enough to actually scroll, then backfill as the user
+  // reaches the top (see handleScroll).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !hasOlder || loadingOlder) return;
+    if (el.scrollHeight <= el.clientHeight) onLoadOlder();
+  }, [hasOlder, loadingOlder, messages.length, onLoadOlder]);
+
   const handleScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
@@ -88,15 +97,11 @@ export function MessageList({
       onScroll={handleScroll}
       className="flex-1 overflow-y-auto p-3 space-y-3"
     >
-      {hasOlder && (
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={onLoadOlder}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {loadingOlder ? "Loading older messages..." : "Load older messages"}
-          </button>
+      {loadingOlder && (
+        <div className="text-center py-1">
+          <span className="text-[11px] text-muted-foreground">
+            Loading older messages...
+          </span>
         </div>
       )}
       {messages.length === 0 && (

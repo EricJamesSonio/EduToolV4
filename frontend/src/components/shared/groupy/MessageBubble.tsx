@@ -1,8 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { toast } from "sonner";
+import { Ellipsis, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { getProfileImageUrl } from "@/utils/profile.util";
 import type { GroupyMessage } from "@/types/groupy/groupy.types";
 import { useGroupyStickerAsset } from "@/hooks/groupy/useGroupyStickers";
@@ -106,6 +115,67 @@ function SenderAvatar({ message }: { message: GroupyMessage }) {
   );
 }
 
+function messageCopyText(message: GroupyMessage): string {
+  switch (message.type) {
+    case "gif":
+      return message.gif_url ?? "";
+    case "poll":
+      return message.body || "Poll message";
+    case "sticker":
+      return message.body || "Sticker message";
+    default:
+      return message.body ?? "";
+  }
+}
+
+// Messenger-style action menu (Copy / Delete) on own messages.
+function MessageActions({
+  message,
+  isOwn,
+  onDelete,
+}: {
+  message: GroupyMessage;
+  isOwn: boolean;
+  onDelete: () => void;
+}): React.JSX.Element {
+  const handleCopy = async () => {
+    const text = messageCopyText(message);
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied to clipboard");
+    } catch {
+      toast.error("Could not copy message");
+    }
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="Message actions"
+        className="h-5 w-5 rounded-full text-muted-foreground opacity-0 hover:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100 flex items-center justify-center hover:bg-muted transition-opacity outline-none"
+      >
+        <Ellipsis className="h-4 w-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-36">
+        <DropdownMenuItem onClick={handleCopy}>Copy</DropdownMenuItem>
+        {isOwn && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              className="flex items-center gap-1.5"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function MessageBubble({
   message,
   currentUserId,
@@ -142,15 +212,22 @@ export function MessageBubble({
           )}
         >
           {!isOwn && <SenderAvatar message={message} />}
-          <div className="max-w-[85%] space-y-0.5">
-            <p
-              className={cn(
-                "text-[11px] font-medium px-1",
-                isOwn ? "text-muted-foreground text-right" : "text-muted-foreground"
-              )}
-            >
-              {isOwn ? "You" : message.sender_name} · {time}
-            </p>
+          <div className="max-w-[85%] flex-1 min-w-0 space-y-0.5">
+            <div className="flex items-center gap-1">
+              <p
+                className={cn(
+                  "text-[11px] font-medium px-1",
+                  isOwn ? "text-muted-foreground flex-1 text-right" : "text-muted-foreground"
+                )}
+              >
+                {isOwn ? "You" : message.sender_name} · {time}
+              </p>
+              <MessageActions
+                message={message}
+                isOwn={isOwn}
+                onDelete={() => onDelete(message.id)}
+              />
+            </div>
             <div
               className={cn(
                 "rounded-xl px-3 py-2 text-sm leading-relaxed break-words",
@@ -169,15 +246,6 @@ export function MessageBubble({
                 onReact={(t) => onReact(message.id, t)}
                 onRemove={() => onRemoveReaction(message.id)}
               />
-              {isOwn && (
-                <button
-                  type="button"
-                  onClick={() => onDelete(message.id)}
-                  className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
-                >
-                  Delete
-                </button>
-              )}
             </div>
           </div>
         </div>
