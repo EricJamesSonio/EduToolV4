@@ -17,9 +17,9 @@ const solutionsByRole = {
       eyebrow: "School setup",
       heading: "Set Up Your School in Minutes, Not Weeks",
       body:
-        "Stop wasting hours configuring programs, subjects, and levels. Relief-ED lets you structure your academic system exactly how your school operates—quickly and without frustration.",
+        "Stop wasting hours configuring departments, subjects, and levels. Relief-ED lets you structure your academic system exactly how your school operates—quickly and without frustration.",
       points: [
-        "Supports K–12, college, and custom programs",
+        "Supports K–12, college, and custom departments",
         "Flexible academic hierarchy that adapts to your system",
         "No rigid setup or limitations",
       ],

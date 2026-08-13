@@ -18,7 +18,7 @@ const resources: ResourceCard[] = [
     icon: <BookOpen className="h-5 w-5" />,
     title: "Getting Started",
     description:
-      "Set up your school structure, configure programs and levels, and get Relief-ED ready in minutes.",
+      "Set up your school structure, configure departments and levels, and get Relief-ED ready in minutes.",
     slug: "getting-started",
     color: "bg-blue-500/10 text-blue-500",
   },
@@ -45,7 +45,7 @@ const resources: ResourceCard[] = [
     icon: <Layout className="h-5 w-5" />,
     title: "Ready-Made Templates",
     description:
-      "Use pre-configured setups for SHS, college programs, and other common school structures.",
+      "Use pre-configured setups for SHS, college departments, and other common school structures.",
     slug: "templates",
     color: "bg-purple-500/10 text-purple-500",
   },

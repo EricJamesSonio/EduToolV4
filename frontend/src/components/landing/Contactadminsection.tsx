@@ -13,7 +13,7 @@ const checklist = [
   "Institution Name: Your school, college, or educational organization name",
   "Your Role: Your position in the institution (e.g., Principal, IT Director)",
   "Student Count: Approximate number of students in your institution",
-  "Programs/Departments: Number of programs or departments you manage",
+  "Departments: Number of departments you manage",
   "Specific Needs: Any custom features or integrations you require",
 ];
 

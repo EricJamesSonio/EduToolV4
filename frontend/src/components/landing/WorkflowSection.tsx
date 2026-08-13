@@ -2,7 +2,7 @@
 
 const steps = [
   "Create your organization",
-  "Add academic programs",
+  "Add academic departments",
   "Enroll educators",
   "Register students",
   "Configure grading & assessments",
@@ -43,9 +43,9 @@ export function WorkflowSection() {
                 <p className="font-semibold text-foreground group-hover:text-primary transition-colors duration-200 not-interactive">{step}</p>
                 <p className="text-base text-muted-foreground mt-0.5 not-interactive">
                   {index === 0 && "Set up your institution profile, add school details, and configure preferences"}
-                  {index === 1 && "Define programs like College, SHS, Elementary with custom levels and sections"}
+                  {index === 1 && "Define departments like College, SHS, Elementary with custom levels and sections"}
                   {index === 2 && "Create educator accounts and assign them to classes and subjects"}
-                  {index === 3 && "Enroll students into programs, sections, and set up their academic records"}
+                  {index === 3 && "Enroll students into departments, sections, and set up their academic records"}
                   {index === 4 && "Set up grading schemes, scales, and enable the assessment generator for automatic scoring"}
                   {index === 5 && "Monitor classes, track grades, hold video meetings, and manage day-to-day operations"}
                 </p>

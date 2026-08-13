@@ -4,7 +4,7 @@ import { Building2, BookOpen, Calendar, Zap, Users, GraduationCap, BrainCircuit,
 
 const features = [
   { icon: Building2, title: "Organization Management", description: "Create and manage independent school environments with dedicated configurations and users.", color: "bg-blue-500/10 text-blue-500" },
-  { icon: BookOpen, title: "Academic Structure", description: "Build custom programs, levels, sections, subjects, and classes.", color: "bg-emerald-500/10 text-emerald-500" },
+  { icon: BookOpen, title: "Academic Structure", description: "Build custom departments, levels, sections, subjects, and classes.", color: "bg-emerald-500/10 text-emerald-500" },
   { icon: Calendar, title: "Academic Calendar System", description: "Manage reusable academic calendars and institutional schedules.", color: "bg-purple-500/10 text-purple-500" },
   { icon: Zap, title: "Quick Setup Tools", description: "Generate academic structures instantly through predefined templates.", color: "bg-amber-500/10 text-amber-500" },
   { icon: Users, title: "Educator Workspace", description: "Manage classes, subjects, and student grading.", color: "bg-teal-500/10 text-teal-500" },
