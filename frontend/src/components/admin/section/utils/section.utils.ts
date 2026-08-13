@@ -18,7 +18,7 @@ export function enrichLevels(
     const program = programMap[l.program_id];
     return {
       ...l,
-      programName: program?.name     ?? "Unknown Program",
+      programName: program?.name     ?? "Unknown Department",
       programType: program?.type     ?? "custom",
       courses:     program?.courses  ?? [],
       strands:     program?.strands  ?? [],
