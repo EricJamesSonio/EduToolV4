@@ -47,12 +47,11 @@ export default function ProgramDetailPage({
     return (
       <div className="rounded-lg border bg-card px-6 py-12 text-center">
         <p className="text-sm text-muted-foreground not-interactive">
-          Program not found.
+          Department not found.
         </p>
       </div>
     );
   }
-
   const showCourses = program.type === "college";
   const showStrands = program.type === "shs";
   const schoolYearId = program.schoolYearId;
@@ -63,7 +62,7 @@ export default function ProgramDetailPage({
         title={program.name}
         breadcrumbs={[
           { label: "Admin" },
-          { label: "Programs", href: "/admin/programs" },
+          { label: "Departments", href: "/admin/programs" },
           { label: program.name },
         ]}
         actions={
@@ -126,7 +125,7 @@ export default function ProgramDetailPage({
         />
       )}
 
-      {/* LEVELS — only for programs without courses/strands */}
+      {/* LEVELS — only for departments without courses/strands */}
       {!showCourses && !showStrands && schoolYearId && (
         <ProgramLevelsSection
           programId={id}
