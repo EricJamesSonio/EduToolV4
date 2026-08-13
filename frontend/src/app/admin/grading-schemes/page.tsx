@@ -231,7 +231,7 @@ export default function GradingSchemesPage(): React.JSX.Element {
                     </h2>
 
                     <Badge variant="outline">
-                      {programs.length} programs
+                      {programs.length} departments
                     </Badge>
                   </div>
 
