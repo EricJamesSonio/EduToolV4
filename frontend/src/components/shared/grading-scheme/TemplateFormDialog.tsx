@@ -180,14 +180,14 @@ export function TemplateFormDialog({
 
             {showProgramType && (
               <div className="space-y-1.5">
-                <Label>Program type (optional)</Label>
+                <Label>Department type (optional)</Label>
                 <Select
                   value={programType}
                   onValueChange={(value) => setProgramType(value ?? "")}
                   disabled={isSaving}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="All programs" />
+                    <SelectValue placeholder="All departments" />
                   </SelectTrigger>
                   <SelectContent>
                     {PROGRAM_TYPES.map((pt) => (
