@@ -255,7 +255,7 @@ if (clsLoading) {
           <DetailItem icon={BookOpen} label="Subject" value={enriched.subjectName ?? enriched.subjectId} />
 
           {enriched.programName && (
-            <DetailItem icon={GraduationCap} label="Program" value={enriched.programName} />
+            <DetailItem icon={GraduationCap} label="Department" value={enriched.programName} />
           )}
 
           {enriched.courseName && (
