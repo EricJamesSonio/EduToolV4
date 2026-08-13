@@ -159,7 +159,7 @@ export default function GradingGuidePage() {
         </h3>
         <div className="space-y-3 mb-8">
           {[
-            { title: "Lock Scope", desc: "Locks can be applied at different levels: entire school year, specific program, level, or section" },
+            { title: "Lock Scope", desc: "Locks can be applied at different levels: entire school year, specific department, level, or section" },
             { title: "Prevent Editing", desc: "Once locked, educators cannot modify grades unless an admin grants override permission" },
             { title: "Override Option", desc: "Admins can override locks for specific grades if corrections are needed" },
             { title: "Audit Trail", desc: "All lock/unlock actions are logged for compliance and record-keeping" },
@@ -177,7 +177,7 @@ export default function GradingGuidePage() {
           {[
             "Go to Admin Dashboard, Grade Locks",
             "Click 'Create Lock'",
-            "Select the scope (school year, program, level, or section)",
+            "Select the scope (school year, department, level, or section)",
             "Choose lock status: Active or Inactive",
             "Save the lock configuration",
           ].map((step, idx) => (
