@@ -66,7 +66,7 @@ export function RequestViewDialog({ request, onClose, onApprove, onReject }: Vie
               <DetailRow label="Institution" value={request.institution_name ?? ""} />
               <DetailRow label="Role" value={request.role ?? ""} />
               <DetailRow label="Student Count" value={request.student_count ?? ""} />
-              <DetailRow label="Programs / Depts" value={request.programs_departments ?? ""} />
+              <DetailRow label="Departments" value={request.programs_departments ?? ""} />
               <DetailRow label="Plan" value={request.plan ?? ""} />
             </div>
 
