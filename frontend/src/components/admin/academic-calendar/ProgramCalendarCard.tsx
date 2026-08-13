@@ -101,20 +101,41 @@ export function ProgramCalendarCard({
       setStartDate(calendar.startDate.slice(0, 10));
       setEndDate(calendar.endDate.slice(0, 10));
       setNotes(calendar.notes ?? "");
-      setBreaks(
-        calendar.breaks.map((b) => ({
+      setBreaks([
+        ...calendar.breaks.map((b) => ({
           label: b.label,
           startDate: (b.startDate as string).slice(0, 10),
           endDate: (b.endDate as string).slice(0, 10),
         })),
-      );
+      ]);
     } else {
       setStartDate(schoolYearStart?.slice(0, 10) ?? "");
       setEndDate(schoolYearEnd?.slice(0, 10) ?? "");
-      setNotes(""); setBreaks([]);
+      setNotes("");
+      setBreaks(seedDefaultBreaks());
     }
+    // Ensure at least two break slots on entering edit mode (placeholders only —
+    // never persisted unless the user explicitly saves).
+    setBreaks((prev) =>
+      prev.length >= 2 ? prev : padToTwoBreaks(prev),
+    );
     setEditing(true);
     setExpanded(true);
+  }
+
+  function padToTwoBreaks(prev: CalendarBreak[]): CalendarBreak[] {
+    const base = [...prev];
+    while (base.length < 2) {
+      base.push({ label: `Break ${base.length + 1}`, startDate: "", endDate: "" });
+    }
+    return base;
+  }
+
+  function seedDefaultBreaks(): CalendarBreak[] {
+    return [
+      { label: "Break 1", startDate: "", endDate: "" },
+      { label: "Break 2", startDate: "", endDate: "" },
+    ];
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -122,6 +143,9 @@ export function ProgramCalendarCard({
 
   const activeBreaks = breaks.filter((b) => b.startDate && b.endDate);
   const validationErrors: string[] = [];
+  if (activeBreaks.length < 2) {
+    validationErrors.push("At least two semester breaks are required before saving.");
+  }
   if (activeBreaks.length > 0) {
     if (activeBreaks[0].startDate !== startDate) {
       validationErrors.push("First break start must match the calendar start date.");

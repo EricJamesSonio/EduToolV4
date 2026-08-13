@@ -1,6 +1,7 @@
 // frontend/src/components/admin/academic-calendar/BreakEditor.tsx
 "use client";
 
+import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { CalendarBreak } from "@/api/admin/program-calendar.api";
@@ -26,11 +27,13 @@ function nextDay(iso: string) {
 }
 
 export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Props) {
+  const [blockedMsg, setBlockedMsg] = useState("");
   const lastIdx = breaks.length - 1;
   const isLockedStart = (idx: number) => idx === 0 && breaks.length > 0;
   const isLockedEnd   = (idx: number) => idx === lastIdx && breaks.length > 0;
 
   function addBreak() {
+    clearBlocked();
     let startVal = "";
     let endVal   = "";
     if (breaks.length === 0) {
@@ -68,7 +71,17 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
   }
 
   function remove(idx: number) {
+    // Enforce a minimum of two breaks — block when only two exist.
+    if (breaks.length <= 2) {
+      setBlockedMsg("A minimum of two breaks is required. You cannot remove a break when only two exist.");
+      return;
+    }
+    setBlockedMsg("");
     onChange(breaks.filter((_, i) => i !== idx));
+  }
+
+  function clearBlocked() {
+    if (blockedMsg) setBlockedMsg("");
   }
 
   return (
@@ -82,11 +95,12 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
             <div className="flex items-center justify-between">
               <Input
                 value={b.label}
-                onChange={(e) => update(idx, "label", e.target.value)}
+                onChange={(e) => { clearBlocked(); update(idx, "label", e.target.value); }}
                 placeholder="Break label"
                 className="h-7 text-xs w-40 border-0 bg-transparent p-0 font-medium focus-visible:ring-0"
               />
               <button
+                type="button"
                 onClick={() => remove(idx)}
                 className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
               >
@@ -99,7 +113,7 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
                 <Input
                   type="date"
                   value={b.startDate}
-                  onChange={(e) => update(idx, "startDate", e.target.value)}
+                  onChange={(e) => { clearBlocked(); update(idx, "startDate", e.target.value); }}
                   className={`h-8 text-xs ${lockStart ? "opacity-50 pointer-events-none" : ""}`}
                   readOnly={lockStart}
                   tabIndex={lockStart ? -1 : undefined}
@@ -113,7 +127,7 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
                 <Input
                   type="date"
                   value={b.endDate}
-                  onChange={(e) => update(idx, "endDate", e.target.value)}
+                  onChange={(e) => { clearBlocked(); update(idx, "endDate", e.target.value); }}
                   className={`h-8 text-xs ${lockEnd ? "opacity-50 pointer-events-none" : ""}`}
                   readOnly={lockEnd}
                   tabIndex={lockEnd ? -1 : undefined}
@@ -126,7 +140,13 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
           </div>
         );
       })}
+      {blockedMsg && (
+        <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2">
+          <p className="text-xs text-destructive">{blockedMsg}</p>
+        </div>
+      )}
       <button
+        type="button"
         onClick={addBreak}
         className="flex items-center gap-1.5 text-xs text-primary hover:underline"
       >
