@@ -91,7 +91,7 @@ function WelcomeView({ onSetup, onDismiss }: { onSetup: () => void; onDismiss: (
       <ul className="space-y-2">
         {[
           "Set up and manage your school organization",
-          "Create programs, levels, and sections",
+          "Create departments, levels, and sections",
           "Enroll students and assign educators",
           "Configure grading scales and assessments",
         ].map((f, i) => (

@@ -33,7 +33,7 @@ export function OrganizationRequiredDialog({
           </div>
           <DialogDescription>
             You must create an organization first before you can manage school
-            years, programs, enrollments, and other records. Create one now to
+            years, departments, enrollments, and other records. Create one now to
             continue.
           </DialogDescription>
         </DialogHeader>

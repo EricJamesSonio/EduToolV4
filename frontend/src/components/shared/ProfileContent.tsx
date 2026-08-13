@@ -29,8 +29,12 @@ import {
   Save,
   UserRound,
   AtSign,
+  Send,
+  KeyRound,
 } from "lucide-react";
 import type { AccountStatus, Role } from "@/types/auth.types";
+
+const GMAIL_RE = /^[^\s@]+@gmail\.com$/i;
 
 function getInitials(name: string): string {
   return name
@@ -123,6 +127,12 @@ export function ProfileContent(): React.JSX.Element {
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState("");
   const [personalEmail, setPersonalEmail] = useState("");
+  const [changingEmail, setChangingEmail] = useState(false);
+  const [changeStep, setChangeStep] = useState<"enter-email" | "enter-code">("enter-email");
+  const [newEmail, setNewEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [changeBusy, setChangeBusy] = useState(false);
+  const [changeError, setChangeError] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -148,6 +158,61 @@ export function ProfileContent(): React.JSX.Element {
     setPersonalEmail(next.personalEmail ?? "");
     setUser(next);
     queryClient.setQueryData(queryKeys.auth.me(), next);
+  }
+
+  const getBackendError = (err: unknown): string => {
+    const message = (err as any)?.response?.data?.message;
+    if (Array.isArray(message)) return message.join(", ");
+    return message ?? "Something went wrong. Please try again.";
+  };
+
+  async function handleSendEmailChangeCode() {
+    setChangeError("");
+    const trimmed = newEmail.trim();
+
+    if (!GMAIL_RE.test(trimmed)) {
+      setChangeError("Please enter a valid Gmail address (e.g. jane@gmail.com).");
+      return;
+    }
+    if (trimmed.toLowerCase() === (personalEmail ?? "").toLowerCase()) {
+      setChangeError("That email is already your current personal email.");
+      return;
+    }
+
+    setChangeBusy(true);
+    try {
+      const res = await profileApi.changePersonalEmailRequest(trimmed);
+      toast.success(res.message);
+      setOtpCode("");
+      setChangeStep("enter-code");
+    } catch (err) {
+      setChangeError(getBackendError(err));
+    } finally {
+      setChangeBusy(false);
+    }
+  }
+
+  async function handleVerifyEmailChange() {
+    setChangeError("");
+    if (otpCode.length !== 6) {
+      setChangeError("Please enter your 6-digit verification code.");
+      return;
+    }
+
+    setChangeBusy(true);
+    try {
+      await profileApi.changePersonalEmailVerify(newEmail.trim(), otpCode);
+      publishUser({ ...user, personalEmail: newEmail.trim() });
+      toast.success("Personal email updated");
+      setChangingEmail(false);
+      setChangeStep("enter-email");
+      setNewEmail("");
+      setOtpCode("");
+    } catch (err) {
+      setChangeError(getBackendError(err));
+    } finally {
+      setChangeBusy(false);
+    }
   }
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -182,7 +247,6 @@ export function ProfileContent(): React.JSX.Element {
     try {
       const updated = await profileApi.updateProfile({
         fullName,
-        personalEmail: personalEmail.trim() === "" ? null : personalEmail.trim(),
       });
       publishUser(updated);
       toast.success("Profile updated");
@@ -194,8 +258,7 @@ export function ProfileContent(): React.JSX.Element {
   }
 
   const hasChanges =
-    (fullName ?? "") !== (user.fullName ?? "") ||
-    (personalEmail ?? "") !== (user.personalEmail ?? "");
+    (fullName ?? "") !== (user.fullName ?? "");
 
   return (
     <div className="space-y-6">
@@ -304,38 +367,20 @@ export function ProfileContent(): React.JSX.Element {
             <CardContent className="px-6 py-5">
               <h3 className="text-sm font-semibold text-foreground mb-4">Edit details</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="fullName" className="text-xs text-muted-foreground">
-                      Full name
-                    </Label>
-                    <div className="relative">
-                      <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="full-name"
-                        className="pl-9"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Your full name"
-                        maxLength={200}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="personal-email" className="flex items-center text-muted-foreground">
-                      Personal email
-                    </Label>
-                    <div className="relative">
-                      <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="personal-email"
-                        className="pl-9"
-                        type="email"
-                        value={personalEmail}
-                        onChange={(e) => setPersonalEmail(e.target.value)}
-                        placeholder="Optional personal email"
-                      />
-                    </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="fullName" className="text-xs text-muted-foreground">
+                    Full name
+                  </Label>
+                  <div className="relative">
+                    <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="full-name"
+                      className="pl-9"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Your full name"
+                      maxLength={200}
+                    />
                   </div>
                 </div>
 
@@ -350,6 +395,129 @@ export function ProfileContent(): React.JSX.Element {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+
+          {/* Personal email (change via OTP) */}
+          <Card className="border-border/60">
+            <CardContent className="px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Personal email</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5 max-w-sm">
+                    Used for your own contact details. Changing it requires a
+                    verification code sent to the new Gmail address.
+                  </p>
+                </div>
+                {!changingEmail && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setChangingEmail(true);
+                      setChangeStep("enter-email");
+                      setChangeError("");
+                      setNewEmail("");
+                      setOtpCode("");
+                    }}
+                  >
+                    Change
+                  </Button>
+                )}
+              </div>
+
+              {!changingEmail ? (
+                <p className="text-sm font-semibold text-foreground mt-4">
+                  {personalEmail || <span className="text-muted-foreground font-normal">Not set</span>}
+                </p>
+              ) : changeStep === "enter-email" ? (
+                <div className="mt-4 space-y-3">
+                  <div className="relative">
+                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      className="pl-9"
+                      value={newEmail}
+                      onChange={(e) => {
+                        setNewEmail(e.target.value);
+                        setChangeError("");
+                      }}
+                      placeholder="you@gmail.com"
+                    />
+                  </div>
+                  {changeError && (
+                    <p className="text-xs text-red-600">{changeError}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      onClick={handleSendEmailChangeCode}
+                      disabled={changeBusy}
+                    >
+                      {changeBusy ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4 mr-2" />
+                      )}
+                      Send code
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setChangingEmail(false)}
+                      disabled={changeBusy}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  <div className="relative">
+                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      inputMode="numeric"
+                      maxLength={6}
+                      className="pl-9"
+                      value={otpCode}
+                      onChange={(e) => {
+                        setOtpCode(e.target.value.replace(/\D/g, ""));
+                        setChangeError("");
+                      }}
+                      placeholder="6-digit code sent to your new email"
+                    />
+                  </div>
+                  {changeError && (
+                    <p className="text-xs text-red-600">{changeError}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      onClick={handleVerifyEmailChange}
+                      disabled={changeBusy}
+                    >
+                      {changeBusy ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      Verify &amp; save
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setChangingEmail(false);
+                        setChangeError("");
+                      }}
+                      disabled={changeBusy}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
