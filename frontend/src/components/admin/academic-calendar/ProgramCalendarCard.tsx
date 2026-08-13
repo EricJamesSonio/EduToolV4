@@ -108,12 +108,13 @@ export function ProgramCalendarCard({
           endDate: (b.endDate as string).slice(0, 10),
         })),
       ]);
-    } else {
-      setStartDate(schoolYearStart?.slice(0, 10) ?? "");
-      setEndDate(schoolYearEnd?.slice(0, 10) ?? "");
-      setNotes("");
-      setBreaks(seedDefaultBreaks());
-    }
+} else {
+  const initialStart = schoolYearStart?.slice(0, 10) ?? "";
+  setStartDate(initialStart); 
+  setEndDate(schoolYearEnd?.slice(0, 10) ?? "");
+  setNotes("");
+  setBreaks(seedDefaultBreaks(initialStart));
+}
     // Ensure at least two break slots on entering edit mode (placeholders only —
     // never persisted unless the user explicitly saves).
     setBreaks((prev) =>
@@ -131,12 +132,12 @@ export function ProgramCalendarCard({
     return base;
   }
 
-  function seedDefaultBreaks(): CalendarBreak[] {
-    return [
-      { label: "Break 1", startDate: "", endDate: "" },
-      { label: "Break 2", startDate: "", endDate: "" },
-    ];
-  }
+function seedDefaultBreaks(seedStart: string): CalendarBreak[] {
+  return [
+    { label: "Break 1", startDate: seedStart, endDate: "" },
+    { label: "Break 2", startDate: "", endDate: "" },
+  ];
+}
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const hasCalendar = calendar !== null && calendar !== undefined;

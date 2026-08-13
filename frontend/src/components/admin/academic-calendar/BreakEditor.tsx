@@ -1,7 +1,6 @@
-// frontend/src/components/admin/academic-calendar/BreakEditor.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { CalendarBreak } from "@/api/admin/program-calendar.api";
@@ -32,15 +31,38 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
   const isLockedStart = (idx: number) => idx === 0 && breaks.length > 0;
   const isLockedEnd   = (idx: number) => idx === lastIdx && breaks.length > 0;
 
+  // Keep the first break's start and the last break's end permanently locked
+  // to the calendar boundaries — including when the parent calendar's start/end
+  // change AFTER breaks were already seeded or loaded (e.g. new-calendar setup
+  // where schoolYearStart resolves after the initial seed, or an admin edits
+  // the top-level Start Date field). Without this, a locked/readOnly field can
+  // get stuck holding a stale or empty value with no way for the user to fix it.
+  useEffect(() => {
+    if (breaks.length === 0) return;
+
+    const needsStartSync = breaks[0].startDate !== calendarStart;
+    const needsEndSync = breaks[breaks.length - 1].endDate !== calendarEnd;
+    if (!needsStartSync && !needsEndSync) return;
+
+    const updated = breaks.map((b, i) => {
+      if (i === 0 && needsStartSync) return { ...b, startDate: calendarStart };
+      if (i === breaks.length - 1 && needsEndSync) return { ...b, endDate: calendarEnd };
+      return b;
+    });
+    onChange(updated);
+    // Intentionally excludes `breaks`/`onChange` — this should only re-run when
+    // the calendar boundary values themselves change, not on every break edit,
+    // or it would fight with update()'s own cascading logic below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calendarStart, calendarEnd, breaks.length]);
+
   function addBreak() {
     clearBlocked();
     let startVal = "";
     let endVal   = "";
     if (breaks.length === 0) {
-      // First break: start = calendar start, end = empty (user fills)
       startVal = calendarStart;
     } else {
-      // Subsequent break: start = day after previous break end
       const prevEnd = breaks[breaks.length - 1].endDate;
       startVal = prevEnd ? nextDay(prevEnd) : "";
     }
@@ -53,7 +75,6 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
   function update(idx: number, field: keyof CalendarBreak, value: string) {
     const updated = breaks.map((b, i) => (i === idx ? { ...b, [field]: value } : b));
 
-    // Auto-advance next break start when this break's end changes
     if (field === "endDate") {
       for (let i = idx + 1; i < updated.length; i++) {
         const prevEnd = updated[i - 1].endDate;
@@ -61,7 +82,6 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
           updated[i] = { ...updated[i], startDate: nextDay(prevEnd) };
         }
       }
-      // Last break end always = calendarEnd (locked in the view, but we auto-set)
       if (updated.length > 0) {
         updated[updated.length - 1] = { ...updated[updated.length - 1], endDate: calendarEnd };
       }
@@ -71,7 +91,6 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
   }
 
   function remove(idx: number) {
-    // Enforce a minimum of two breaks — block when only two exist.
     if (breaks.length <= 2) {
       setBlockedMsg("A minimum of two breaks is required. You cannot remove a break when only two exist.");
       return;
@@ -114,8 +133,8 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
                   type="date"
                   value={b.startDate}
                   onChange={(e) => { clearBlocked(); update(idx, "startDate", e.target.value); }}
-                  className={`h-8 text-xs ${lockStart ? "opacity-50 pointer-events-none" : ""}`}
-                  readOnly={lockStart}
+                  className={`h-8 text-xs ${lockStart ? "opacity-50" : ""}`}
+                  disabled={lockStart}
                   tabIndex={lockStart ? -1 : undefined}
                 />
                 {lockStart && (
@@ -128,8 +147,8 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
                   type="date"
                   value={b.endDate}
                   onChange={(e) => { clearBlocked(); update(idx, "endDate", e.target.value); }}
-                  className={`h-8 text-xs ${lockEnd ? "opacity-50 pointer-events-none" : ""}`}
-                  readOnly={lockEnd}
+                  className={`h-8 text-xs ${lockEnd ? "opacity-50" : ""}`}
+                  disabled={lockEnd}
                   tabIndex={lockEnd ? -1 : undefined}
                 />
                 {lockEnd && (
