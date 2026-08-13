@@ -81,6 +81,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
           token: tokenData.token, uid: tokenData.uid,
         },
         authToken,
+        origin: isGroupyRoom ? "groupy" : "scheduled",
       });
     }
     return () => { meetingCtx.minimize(); };
@@ -223,10 +224,23 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleToggleMic   = async () => { await toggleMic();    setMicOn((v) => !v); };
   const handleToggleCam   = async () => { await toggleCamera(); setCamOn((v) => !v); };
-  const handleToggleHand  = () => { handRaised ? lowerHand() : raiseHand(); setHandRaised((v) => !v); };
+  const handleToggleHand  = () => { if (handRaised) lowerHand(); else raiseHand(); setHandRaised((v) => !v); };
   const handleTogglePanel = (panel: NonNullable<SidePanelType>) =>
     setSidePanel((p) => (p === panel ? null : isGroupyRoom && panel !== "participants" ? p : panel));
   const handleRespond     = (reqId: string, status: "accepted" | "declined") => respondMutation.mutate({ reqId, status });
+
+  const handleToggleFullscreen = () => {
+    if (isGroupyRoom) {
+      // Groupy meetings started from the class chat: exiting fullscreen
+      // returns to the chat with the call minimized (mini player keeps the
+      // camera live). For regular meetings the button only toggles the
+      // fullscreen overlay.
+      meetingCtx.minimize();
+      router.push(backUrl);
+    } else {
+      setIsFullscreen((v) => !v);
+    }
+  };
 
   const handleLeave = () => {
     exitedToChatRef.current = true;
@@ -238,12 +252,25 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const handleEndMeeting = () => {
     exitedToChatRef.current = true;
     finalizeAndSave();
-    meetingCtx.leaveMeeting();
+    // End the meeting first, then disconnect. Disconnecting before the end
+    // request can hard-delete an ephemeral Groupy meeting the moment the room
+    // empties, which makes the end call below 404 on an already-gone meeting.
     endMeetingMutation.mutate(meetingId, {
-      onSuccess: () => router.push(backUrl),
+      onSuccess: () => {
+        meetingCtx.leaveMeeting();
+        router.push(backUrl);
+      },
       onError: (err) => {
+        // A 404 means the meeting is already gone (e.g. cleaned up when the
+        // room emptied) — effectively ended, so exit silently.
+        if ((err as { response?: { status?: number } })?.response?.status === 404) {
+          meetingCtx.leaveMeeting();
+          router.push(backUrl);
+          return;
+        }
         console.error("End meeting failed:", err);
         toast.error("Failed to end the meeting. Please try again.");
+        meetingCtx.leaveMeeting();
         router.push(backUrl);
       },
     });
@@ -513,7 +540,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         onToggleHand={handleToggleHand}
         onToggleReactions={() => setShowReactions((v) => !v)}
         onTogglePresentation={() => !isGroupyRoom && (isPresenting ? handleStopPresentation() : setShowPresModal(true))}
-        onToggleFullscreen={() => setIsFullscreen((v) => !v)}
+        onToggleFullscreen={handleToggleFullscreen}
         onToggleSidePanel={handleTogglePanel}
         onToggleOverflow={() => setOverflowOpen((v) => !v)}
         onLeave={handleLeave}
