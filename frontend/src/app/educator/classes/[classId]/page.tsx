@@ -222,7 +222,6 @@ if (clsLoading) {
     { icon: BarChart2,     label: "Grades",      description: "View and compute term grades",           href: `${base}/grades`      },
     { icon: ClipboardList, label: "Grading scheme",      description: "Grading scheme for this class",          href: `${base}/grading-scheme`      },
     { icon: Video,         label: "Meetings",    description: "Schedule and manage video sessions",     href: `${base}/meetings`    },
-    { icon: MessageSquare, label: "Class Chat",  description: "Chat with the class in real time",        href: `${base}/groupy`      },
   ];
 
   return (
