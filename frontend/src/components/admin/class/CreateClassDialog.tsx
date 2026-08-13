@@ -182,7 +182,7 @@ export function CreateClassDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label>Program</Label>
+              <Label>Department</Label>
               <Select
                 value={selectedProgramId}
                 onValueChange={(v) => setValue("programId", v ?? "")}
@@ -190,7 +190,7 @@ export function CreateClassDialog({
               >
                 <SelectTrigger>
                   <span>
-                    {programs.find((p) => p.id === selectedProgramId)?.name ?? "Select program"}
+                    {programs.find((p) => p.id === selectedProgramId)?.name ?? "Select department"}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
@@ -213,7 +213,7 @@ export function CreateClassDialog({
                 <SelectTrigger>
                   <span>
                     {!selectedProgramId
-                      ? "Select a program first"
+                      ? "Select a department first"
                       : programMissingTemplate
                         ? "No template assigned"
                         : semesters.length === 0
@@ -224,7 +224,7 @@ export function CreateClassDialog({
                 <SelectContent>
                   {semesters.length === 0 ? (
                     <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No semesters for this program
+                      No semesters for this department
                     </div>
                   ) : (
                     semesters.map((s) => (

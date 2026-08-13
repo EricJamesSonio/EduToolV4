@@ -15,7 +15,7 @@ export function SemesterTemplateWarning({ onDiscard }: SemesterTemplateWarningPr
           No semester template assigned
         </p>
         <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5 not-interactive">
-          This program doesn&apos;t have a semester template yet. Classes can&apos;t be
+          This department doesn&apos;t have a semester template yet. Classes can&apos;t be
           created until one is assigned.
         </p>
         <button
