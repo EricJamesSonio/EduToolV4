@@ -26,8 +26,8 @@ export default function ProgramSectionDetailPage({
 
   const breadcrumbs = [
     { label: "Admin" },
-    { label: "Programs", href: "/admin/programs" },
-    { label: program?.name ?? "Program", href: `/admin/programs/${programId}` },
+    { label: "Departments", href: "/admin/programs" },
+    { label: program?.name ?? "Department", href: `/admin/programs/${programId}` },
     { label: section?.name ?? "Section" },
   ];
 
@@ -38,10 +38,10 @@ export default function ProgramSectionDetailPage({
       isLoading={programLoading || isLoading}
       isEnded={false}
       backHref={`/admin/programs/${programId}`}
-      backLabel={`Back to ${program?.name ?? "program"}`}
+      backLabel={`Back to ${program?.name ?? "department"}`}
       breadcrumbs={breadcrumbs}
       context={[
-        { label: "Program", value: program?.name ?? "—" },
+        { label: "Department", value: program?.name ?? "—" },
         { label: "Level", value: level?.name ?? "—" },
         { label: "School Year", value: schoolYearName || "—" },
         {
