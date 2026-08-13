@@ -45,7 +45,7 @@ export default function SectionDetailPage({
 
   const context = [
     { label: "School Year", value: schoolYearName || "—" },
-    { label: "Program", value: program?.name ?? "—" },
+    { label: "Department", value: program?.name ?? "—" },
     {
       label: "Course",
       value: course ? (course.code ? `${course.code} — ${course.name}` : course.name) : "—",
