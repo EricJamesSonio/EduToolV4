@@ -22,6 +22,7 @@ import { Hand, MessageSquare, Presentation, Users, Smile, Maximize, Minimize } f
 
 // ── NEW: import the overlay ───────────────────────────────────────────────────
 import { ReactionOverlay } from "@/components/meeting/ReactionOverlay";
+import { groupyApi } from "@/api/shared/groupy.api";
 
 export default function StudentMeetingRoomClient(): React.JSX.Element {
   const { meetingId } = useParams<{ meetingId: string }>();
@@ -36,7 +37,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   // (groupy meetings are ephemeral and never listed there).
   const isGroupyRoom   = searchParams.get("origin") === "groupy";
   const backUrl        = isGroupyRoom
-    ? `/student/classes/${classId}`
+    ? `/student/classes/${classId}/groupy`
     : `/student/classes/${classId}/meetings/${meetingId}`;
   const authToken      = useAuthStore.getState().accessToken ?? "";
   const meetingCtx     = useMeetingContext();
@@ -123,13 +124,55 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
     }
   }, [remoteUsers, featuredUid]);
 
+  // ── Groupy rooms: trip back to the class chat when the meeting ends ───────
+  // Ephemeral meetings are hard-deleted once the host ends them / everyone
+  // leaves, so confirmed "no active meeting" returns us to the chat — no
+  // blank screen or manual navigation for participants.
+  const exitedToChatRef = useRef(false);
+  useEffect(() => {
+    if (!isGroupyRoom) return;
+    let disposed = false;
+    const check = async () => {
+      if (!meetingCtx.joined || exitedToChatRef.current) return;
+      try {
+        const data = await groupyApi.getActiveMeeting(classId);
+        if (disposed || exitedToChatRef.current) return;
+        if (!data.meeting || data.meeting.meetingId !== meetingId) {
+          exitedToChatRef.current = true;
+          router.push(backUrl);
+        }
+      } catch {
+        // transient network error — keep polling
+      }
+    };
+    const id = setInterval(check, 4000);
+    return () => {
+      disposed = true;
+      clearInterval(id);
+    };
+  }, [isGroupyRoom, classId, meetingId, backUrl, router, meetingCtx.joined]);
+
+  // ── Host ended the meeting: force-exit immediately ────────────────────────
+  // The backend broadcasts "meeting:ended" through the socket the moment the
+  // end call succeeds, so every connected client leaves the room right away
+  // instead of waiting for the next poll tick.
+  useEffect(() => {
+    if (!meetingCtx.meetingEnded || exitedToChatRef.current) return;
+    exitedToChatRef.current = true;
+    meetingCtx.leaveMeeting();
+    router.push(backUrl);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meetingCtx.meetingEnded, backUrl]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleToggleMic   = async () => { await toggleMic();    setMicOn((v) => !v); };
   const handleToggleCam   = async () => { await toggleCamera(); setCamOn((v) => !v); };
   const handleToggleHand  = () => { handRaised ? lowerHand() : raiseHand(); setHandRaised((v) => !v); };
-  const handleTogglePanel = (panel: NonNullable<SidePanelType>) => setSidePanel((p) => p === panel ? null : panel);
+  const handleTogglePanel = (panel: NonNullable<SidePanelType>) =>
+    setSidePanel((p) => (p === panel ? null : isGroupyRoom && panel !== "participants" ? p : panel));
 
   const handleLeave = () => {
+    exitedToChatRef.current = true;
     meetingCtx.leaveMeeting();
     router.push(backUrl);
   };
@@ -163,7 +206,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
     )}>
       <div className="flex-1 flex overflow-hidden relative bg-zinc-950">
 
-        {isPresenting ? (
+        {isPresenting && !isGroupyRoom ? (
           <PresentationView
             presentation={presentation}
             currentSlide={currentSlide}
@@ -191,7 +234,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
 
         {sidePanel && (
           <SidePanel title={sidePanel} onClose={() => setSidePanel(null)}>
-            {sidePanel === "chat" ? (
+            {!isGroupyRoom && sidePanel === "chat" ? (
               <ChatPanel messages={chatMessages} currentUserId={currentUserId} onSend={sendChatMessage} />
             ) : (
               <ParticipantsPanel
@@ -215,7 +258,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
         open={overflowOpen}
         onClose={() => setOverflowOpen(false)}
         actions={[
-          ...(isPresenting
+          ...(isPresenting && !isGroupyRoom
             ? [{
                 key: "slides",
                 label: "Slides",
@@ -226,16 +269,18 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
                 },
               }]
             : []),
-          {
-            key: "chat",
-            label: "Chat",
-            icon: MessageSquare,
-            active: sidePanel === "chat",
-            onClick: () => {
-              setOverflowOpen(false);
-              handleTogglePanel("chat");
-            },
-          },
+          ...(isGroupyRoom
+            ? []
+            : [{
+                key: "chat",
+                label: "Chat",
+                icon: MessageSquare,
+                active: sidePanel === "chat",
+                onClick: () => {
+                  setOverflowOpen(false);
+                  handleTogglePanel("chat");
+                },
+              }]),
           {
             key: "participants",
             label: participants.length > 0 ? `${participants.length}` : "People",
@@ -287,6 +332,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
         overflowOpen={overflowOpen}
         sidePanel={sidePanel}
         participantCount={participants.length}
+        simplified={isGroupyRoom}
         onToggleMic={handleToggleMic}
         onToggleCam={handleToggleCam}
         onToggleHand={handleToggleHand}
