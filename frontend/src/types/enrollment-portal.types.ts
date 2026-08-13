@@ -70,11 +70,13 @@ export interface EnrollmentApplicationView {
   updated_at: string;
 }
 
-export interface VerifyOtpResult {
-  mode: "create" | "edit";
-  token: string;
-  application?: EnrollmentApplicationView;
-}
+export type VerifyOtpResult =
+  | { blocked: true; message: string }
+  | {
+      mode: "create" | "edit";
+      token: string;
+      application?: EnrollmentApplicationView;
+    };
 
 export interface PublicApplicationLookup {
   application_code: string;
