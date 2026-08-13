@@ -1,6 +1,10 @@
 // backend/src/modules/school-year/school-year-readiness.service.ts
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 
 export type ReadinessSeverity = 'blocking' | 'warning';
@@ -9,7 +13,15 @@ export interface ReadinessIssue {
   code: string;
   severity: ReadinessSeverity;
   message: string;
-  ref?: { type: 'program' | 'course' | 'strand' | 'level' | 'subject'; id: string; name: string };
+  /** How many entities are affected by this issue (absent on legacy per-entity issues). */
+  count?: number;
+  /** Optional detail list of affected entities, capped (see pushList). */
+  entities?: { id: string; name: string }[];
+  ref?: {
+    type: 'program' | 'course' | 'strand' | 'level' | 'subject';
+    id: string;
+    name: string;
+  };
 }
 
 export interface ReadinessResult {
@@ -37,13 +49,7 @@ export class SchoolYearReadinessService {
    * Full readiness detail for a single school year.
    * Throws 404 when the school year does not exist in the org.
    */
-  async detail(
-    orgId: string,
-    schoolYearId: string,
-    options: { includeWarnings?: boolean } = {},
-  ): Promise<ReadinessResult> {
-    const { includeWarnings = true } = options;
-
+  async detail(orgId: string, schoolYearId: string): Promise<ReadinessResult> {
     const schoolYear = await this.db.schoolYear.findFirst({
       where: { id: schoolYearId, org_id: orgId },
       select: {
@@ -100,7 +106,11 @@ export class SchoolYearReadinessService {
         const courses = await this.db.course.findMany({
           where: { program_id: program.id, org_id: orgId },
           orderBy: { name: 'asc' },
-          select: { id: true, name: true, _count: { select: { levels: true } } },
+          select: {
+            id: true,
+            name: true,
+            _count: { select: { levels: true } },
+          },
         });
         for (const course of courses) {
           this.push(issues, {
@@ -115,7 +125,11 @@ export class SchoolYearReadinessService {
         const strands = await this.db.strand.findMany({
           where: { program_id: program.id, org_id: orgId },
           orderBy: { name: 'asc' },
-          select: { id: true, name: true, _count: { select: { levels: true } } },
+          select: {
+            id: true,
+            name: true,
+            _count: { select: { levels: true } },
+          },
         });
         for (const strand of strands) {
           this.push(issues, {
@@ -162,28 +176,191 @@ export class SchoolYearReadinessService {
       });
     }
 
-    if (includeWarnings) {
-      const levelIds = levels.map((l) => l.id);
-      const subjects = await this.db.subject.findMany({
-        where: { org_id: orgId, level_id: { in: levelIds } },
-        orderBy: { name: 'asc' },
-        select: {
-          id: true,
-          name: true,
-          _count: { select: { classes: { where: { deleted_at: null } } } },
-        },
-      });
+    // ----------------------------------------------------------------------
+    // Overview's hard-block checklist (all blocking, no override).
+    // Empty-school-year rule: a year with zero programs already fails via
+    // `no_programs` above, so a year with nothing configured is NOT ready —
+    // this is deliberate, not an oversight.
+    // ----------------------------------------------------------------------
 
-      for (const subject of subjects) {
-        this.push(issues, {
-          code: 'subject_no_class',
-          severity: 'warning',
-          ref: { type: 'subject', id: subject.id, name: subject.name },
-          message: `Subject "${subject.name}" has no classes created.`,
-          when: subject._count.classes === 0,
-        });
+    const levelIds = levels.map((l) => l.id);
+    const programIds = programs.map((p) => p.id);
+    const courses = await this.db.course.findMany({
+      where: { school_year_id: schoolYearId, org_id: orgId },
+      select: { id: true, name: true },
+    });
+    const strands = await this.db.strand.findMany({
+      where: { school_year_id: schoolYearId, org_id: orgId },
+      select: { id: true, name: true },
+    });
+    const courseIds = courses.map((c) => c.id);
+    const strandIds = strands.map((s) => s.id);
+
+    // 1. Every subject scoped to this school year (via level/program/course/strand)
+    //    has at least one Class.
+    const subjects = await this.db.subject.findMany({
+      where: {
+        org_id: orgId,
+        OR: [
+          { level_id: { in: levelIds } },
+          { program_id: { in: programIds } },
+          { course_id: { in: courseIds } },
+          { strand_id: { in: strandIds } },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        _count: { select: { classes: { where: { deleted_at: null } } } },
+      },
+    });
+    this.pushList(issues, {
+      code: 'subject_no_class',
+      items: subjects
+        .filter((s) => s._count.classes === 0)
+        .map((s) => ({ id: s.id, name: s.name })),
+      message: (count) =>
+        `${count} subject(s) in this school year have no class created.`,
+    });
+
+    // 2. Every Section (school_year_id = this year) has at least one Class.
+    //    Section has no Class relation in the schema, so use a count comparison.
+    const sectionClassCounts = await this.db.class.groupBy({
+      by: ['section_id'],
+      where: { org_id: orgId, deleted_at: null },
+      _count: { _all: true },
+    });
+    const sectionsWithClasses = new Set<string>(
+      sectionClassCounts
+        .filter((r) => r.section_id !== null)
+        .map((r) => r.section_id as string),
+    );
+    const sections = await this.db.section.findMany({
+      where: { school_year_id: schoolYearId, org_id: orgId, deleted_at: null },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    this.pushList(issues, {
+      code: 'section_no_class',
+      items: sections.filter((s) => !sectionsWithClasses.has(s.id)),
+      message: (count) =>
+        `${count} section(s) in this school year have no class created.`,
+    });
+
+    // 3. Every Program in this school year has a ProgramCalendar.
+    const programsWithoutCalendar = await this.db.program.findMany({
+      where: {
+        school_year_id: schoolYearId,
+        org_id: orgId,
+        programCalendars: { none: {} },
+      },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    this.pushList(issues, {
+      code: 'program_no_calendar',
+      items: programsWithoutCalendar,
+      message: (count) =>
+        `${count} program(s) have no academic calendar set up.`,
+    });
+
+    // 5. Every Program in this school year has a GradingScaleAssignment.
+    const programsWithoutScale = await this.db.program.findMany({
+      where: {
+        school_year_id: schoolYearId,
+        org_id: orgId,
+        gradingScaleAssignments: { none: {} },
+      },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    this.pushList(issues, {
+      code: 'program_no_grading_scale',
+      items: programsWithoutScale,
+      message: (count) => `${count} program(s) have no grading scale assigned.`,
+    });
+
+    // 4. Every Program has a ProgramSemesterAssignment, AND every term in that
+    //    assignment's template has a ProgramSemesterTermDate with dates filled.
+    //    (ProgramSemesterTermDate.start_date/end_date are non-null, so "has a
+    //    date, filled" reduces to "has a term-date row for every template term".)
+    const programSem = await this.db.program.findMany({
+      where: { school_year_id: schoolYearId, org_id: orgId },
+      select: {
+        id: true,
+        name: true,
+        semesterAssignment: {
+          select: {
+            id: true,
+            template: {
+              select: {
+                semesters: { select: { terms: { select: { id: true } } } },
+              },
+            },
+          },
+        },
+      },
+    });
+    const termDateCounts = await this.db.programSemesterTermDate.groupBy({
+      by: ['assignment_id'],
+      where: { org_id: orgId },
+      _count: { _all: true },
+    });
+    const termDateByAssignment = new Map<number | string, number>();
+    for (const row of termDateCounts)
+      termDateByAssignment.set(row.assignment_id, row._count._all);
+    const noAssignment: { id: string; name: string }[] = [];
+    const incompleteDates: { id: string; name: string }[] = [];
+    for (const prog of programSem) {
+      const assignment = prog.semesterAssignment;
+      if (!assignment) {
+        noAssignment.push({ id: prog.id, name: prog.name });
+        continue;
+      }
+      const requiredTerms = assignment.template.semesters.reduce(
+        (sum, sem) => sum + sem.terms.length,
+        0,
+      );
+      const presentDates = termDateByAssignment.get(assignment.id) ?? 0;
+      if (presentDates < requiredTerms) {
+        incompleteDates.push({ id: prog.id, name: prog.name });
       }
     }
+    this.pushList(issues, {
+      code: 'program_no_semester_assignment',
+      items: noAssignment,
+      message: (count) =>
+        `${count} program(s) have no semester template assigned.`,
+    });
+    this.pushList(issues, {
+      code: 'program_semester_dates_incomplete',
+      items: incompleteDates,
+      message: (count) =>
+        `${count} program(s) have incomplete semester term dates.`,
+    });
+
+    // 6. Every Class in this school year has at least one GradingScheme.
+    const classesWithoutScheme = await this.db.class.findMany({
+      where: {
+        school_year_id: schoolYearId,
+        org_id: orgId,
+        deleted_at: null,
+        gradingSchemes: { none: {} },
+      },
+      select: { id: true, subject: { select: { name: true } } },
+      orderBy: { created_at: 'asc' },
+    });
+    this.pushList(issues, {
+      code: 'class_no_grading_scheme',
+      items: classesWithoutScheme.map((c) => ({
+        id: c.id,
+        name: c.subject?.name ?? c.id,
+      })),
+      message: (count) => `${count} class(es) have no grading scheme.`,
+    });
+
+    // 7. Educator assignment is structurally guaranteed by the non-nullable
+    //    Class.educator_id column, so no runtime check is required.
 
     return this.buildResult(issues);
   }
@@ -221,7 +398,12 @@ export class SchoolYearReadinessService {
 
     const summaries: Record<string, ReadinessSummary> = {};
     for (const sy of schoolYears) {
-      const blockingCount = this.summaryBlockingCount(sy, programByYear, levelByYear, sectionByYear);
+      const blockingCount = this.summaryBlockingCount(
+        sy,
+        programByYear,
+        levelByYear,
+        sectionByYear,
+      );
       summaries[sy.id] = {
         schoolYearId: sy.id,
         ready: blockingCount === 0,
@@ -240,7 +422,7 @@ export class SchoolYearReadinessService {
   async assertReady(orgId: string, schoolYearId: string): Promise<void> {
     let result: ReadinessResult;
     try {
-      result = await this.detail(orgId, schoolYearId, { includeWarnings: false });
+      result = await this.detail(orgId, schoolYearId);
     } catch (err) {
       if (err instanceof NotFoundException) {
         throw new BadRequestException('School year not found.');
@@ -267,7 +449,9 @@ export class SchoolYearReadinessService {
   // ---------------------------------------------------------------------------
 
   private buildResult(issues: ReadinessIssue[]): ReadinessResult {
-    const blockingCount = issues.filter((i) => i.severity === 'blocking').length;
+    const blockingCount = issues.filter(
+      (i) => i.severity === 'blocking',
+    ).length;
     return {
       ready: blockingCount === 0,
       blockingCount,
@@ -287,7 +471,33 @@ export class SchoolYearReadinessService {
     issues.push(issue);
   }
 
-  private toMap(rows: Array<Record<string, any>>, key: string): Map<string, number> {
+  /**
+   * Pushes a single aggregated blocking issue from a list of affected entities,
+   * carrying the total `count` and a capped `entities` detail list.
+   */
+  private pushList(
+    issues: ReadinessIssue[],
+    args: {
+      code: string;
+      message: (count: number) => string;
+      items: { id: string; name: string }[];
+    },
+    cap = 10,
+  ): void {
+    if (args.items.length === 0) return;
+    issues.push({
+      code: args.code,
+      severity: 'blocking',
+      message: args.message(args.items.length),
+      count: args.items.length,
+      entities: args.items.slice(0, cap),
+    });
+  }
+
+  private toMap(
+    rows: Array<Record<string, any>>,
+    key: string,
+  ): Map<string, number> {
     const map = new Map<string, number>();
     for (const row of rows) {
       const count = row._count?._all ?? row._count;

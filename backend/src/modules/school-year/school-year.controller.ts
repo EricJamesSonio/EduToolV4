@@ -68,7 +68,7 @@ async create(
     @CurrentUser('org_id') orgId: string,
     @Param('id') id: string,
   ) {
-    return this.readinessService.detail(orgId, id, { includeWarnings: true });
+    return this.readinessService.detail(orgId, id);
   }
 
   /**
