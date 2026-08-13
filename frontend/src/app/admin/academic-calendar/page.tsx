@@ -17,7 +17,7 @@ type PageTab = "holidays" | "programs";
 
 const TABS: { key: PageTab; label: string; icon: React.ReactNode }[] = [
   { key: "holidays", label: "Holiday Base Calendar", icon: <Globe        className="h-4 w-4" /> },
-  { key: "programs", label: "Program Calendars",     icon: <CalendarRange className="h-4 w-4" /> },
+  { key: "programs", label: "Department Calendars",  icon: <CalendarRange className="h-4 w-4" /> },
 ];
 
 export default function AcademicCalendarPage(): React.JSX.Element {
