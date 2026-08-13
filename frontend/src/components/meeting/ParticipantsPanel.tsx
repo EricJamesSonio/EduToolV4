@@ -82,6 +82,29 @@ function FullscreenView({
     return () => cancelAnimationFrame(raf);
   }, [isLocal, localVideo, participant.userId, remoteUsers, videoId]);
 
+  // Re-target the track back to the main room element when the fullscreen
+  // overlay unmounts. play() moves the track to a new element, so without
+  // this the local camera / remote video would stay stuck on a removed node.
+  const remoteUsersRef = useRef(remoteUsers);
+  remoteUsersRef.current = remoteUsers;
+  useEffect(() => {
+    return () => {
+      if (isLocal) {
+        const target = document.getElementById("local-video-grid")
+          ? "local-video-grid"
+          : "local-video-pip";
+        localVideo?.play(target);
+      } else {
+        const remote = remoteUsersRef.current.find((u) => {
+          const el = document.querySelector(`[data-user-id="${participant.userId}"]`);
+          return el && String(u.uid) === (el as HTMLElement).dataset.uid;
+        }) ?? remoteUsersRef.current[0];
+        remote?.videoTrack?.play(`remote-${remote?.uid}`);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-[9999] bg-black flex flex-col"
@@ -143,6 +166,25 @@ function GridView({
       .filter((p) => p.userId !== currentUserId)
       .map((p) => ({ userId: p.userId, name: p.name, isLocal: false })),
   ];
+
+  // Re-target every track back to its main room element when the grid closes.
+  // play() moves a track to a new element, so without this restore the local
+  // camera (and remote videos) would stay stuck on the removed grid nodes.
+  const localVideoRef = useRef(localVideo);
+  localVideoRef.current = localVideo;
+  const remoteUsersRef = useRef(remoteUsers);
+  remoteUsersRef.current = remoteUsers;
+  useEffect(() => {
+    return () => {
+      const localTarget = document.getElementById("local-video-grid")
+        ? "local-video-grid"
+        : "local-video-pip";
+      localVideoRef.current?.play(localTarget);
+      remoteUsersRef.current.forEach((u) => {
+        if (u.videoTrack) u.videoTrack.play(`remote-${u.uid}`);
+      });
+    };
+  }, []);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => {
