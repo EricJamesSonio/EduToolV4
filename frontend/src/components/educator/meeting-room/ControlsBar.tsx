@@ -21,6 +21,8 @@ interface ControlsBarProps {
   participantCount: number;
   pendingRequestCount: number;
   isEndingMeeting: boolean;
+  // Simplified (Groupy) meetings omit presenter/chat/join-request controls.
+  simplified?: boolean;
   onToggleMic: () => void;
   onToggleCam: () => void;
   onToggleHand: () => void;
@@ -37,7 +39,7 @@ export function ControlsBar({
   connected, micOn, camOn, handRaised,
   isPresenting, isFullscreen, showReactions, overflowOpen,
   sidePanel, participantCount, pendingRequestCount,
-  isEndingMeeting,
+  isEndingMeeting, simplified,
   onToggleMic, onToggleCam, onToggleHand, onToggleReactions,
   onTogglePresentation, onToggleFullscreen, onToggleSidePanel, onToggleOverflow,
   onLeave, onEnd,
@@ -69,23 +71,27 @@ export function ControlsBar({
         <Smile className="h-5 w-5" />
       </ControlBtn>
 
-      <ControlBtn
-        onClick={onTogglePresentation}
-        active={isPresenting}
-        label={isPresenting ? "Stop" : "Present"}
-        hideOnMobile
-      >
-        <Monitor className="h-5 w-5" />
-      </ControlBtn>
+      {!simplified && (
+        <ControlBtn
+          onClick={onTogglePresentation}
+          active={isPresenting}
+          label={isPresenting ? "Stop" : "Present"}
+          hideOnMobile
+        >
+          <Monitor className="h-5 w-5" />
+        </ControlBtn>
+      )}
 
-      <ControlBtn
-        onClick={() => onToggleSidePanel("chat")}
-        active={sidePanel === "chat"}
-        label="Chat"
-        hideOnMobile
-      >
-        <MessageSquare className="h-5 w-5" />
-      </ControlBtn>
+      {!simplified && (
+        <ControlBtn
+          onClick={() => onToggleSidePanel("chat")}
+          active={sidePanel === "chat"}
+          label="Chat"
+          hideOnMobile
+        >
+          <MessageSquare className="h-5 w-5" />
+        </ControlBtn>
+      )}
 
       <ControlBtn
         onClick={onToggleFullscreen}
@@ -105,21 +111,23 @@ export function ControlsBar({
         <Users className="h-5 w-5" />
       </ControlBtn>
 
-      <div className="relative">
-        <ControlBtn
-          onClick={() => onToggleSidePanel("join-requests")}
-          active={sidePanel === "join-requests"}
-          label="Requests"
-          hideOnMobile
-        >
-          <UserPlus className="h-5 w-5" />
-        </ControlBtn>
-        {pendingRequestCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 h-4 w-4 flex items-center justify-center rounded-full bg-warning text-warning-foreground text-[9px] font-bold pointer-events-none">
-            {pendingRequestCount}
-          </span>
-        )}
-      </div>
+      {!simplified && (
+        <div className="relative">
+          <ControlBtn
+            onClick={() => onToggleSidePanel("join-requests")}
+            active={sidePanel === "join-requests"}
+            label="Requests"
+            hideOnMobile
+          >
+            <UserPlus className="h-5 w-5" />
+          </ControlBtn>
+          {pendingRequestCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 h-4 w-4 flex items-center justify-center rounded-full bg-warning text-warning-foreground text-[9px] font-bold pointer-events-none">
+              {pendingRequestCount}
+            </span>
+          )}
+        </div>
+      )}
 
       <ControlBtn onClick={onToggleOverflow} active={overflowOpen} label="More" mobileOnly>
         <MoreHorizontal className="h-5 w-5" />
