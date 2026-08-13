@@ -162,11 +162,11 @@ export function StudentHierarchyFilter({ value, onChange }: Props): React.JSX.El
           <Select value={value.programId ?? ALL} onValueChange={(v) => { if (v !== null) selectProgram(v); }}>
             <SelectTrigger className="w-44 h-9 text-sm">
               <span className="truncate text-sm">
-                {selectedProgram ? selectedProgram.name : "All Programs"}
+                {selectedProgram ? selectedProgram.name : "All Departments"}
               </span>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL}>All Programs</SelectItem>
+              <SelectItem value={ALL}>All Departments</SelectItem>
               {programs.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
               ))}

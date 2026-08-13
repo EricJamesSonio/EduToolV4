@@ -217,7 +217,7 @@ export function CreateStudentDialog({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Program, level, and section can be assigned via
+            Department, level, and section can be assigned via
             enrollment after creation.
           </p>
 

@@ -52,7 +52,7 @@ export function StudentTable({ data, onView, onResetPassword }: StudentTableProp
       ),
     },
     {
-      header: "Program",
+      header: "Department",
       accessorFn: (row) => row.programName ?? "—",
       cell: ({ getValue }) => (
         <span className="text-sm text-muted-foreground not-interactive">{getValue<string>()}</span>
