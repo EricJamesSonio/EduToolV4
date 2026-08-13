@@ -63,7 +63,7 @@ export default function EnrollmentApplicationsPage(): React.JSX.Element {
       { accessorKey: "full_name", header: "Name" },
       { accessorKey: "personal_email", header: "Email" },
       {
-        header: "Program / Level",
+        header: "Department / Level",
         cell: ({ row }) => (
           <span>
             {row.original.level}
