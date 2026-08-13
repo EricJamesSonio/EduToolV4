@@ -21,9 +21,13 @@ export function MeetingMiniPlayer(): React.JSX.Element | null {
 
   if (!meeting.isInMeeting || !meeting.isMinimized) return null;
 
-  const roomPath = meeting.role === "educator"
-    ? `/educator/classes/${meeting.classId}/meetings/${meeting.meetingId}/room`
-    : `/student/meetings/${meeting.meetingId}/room?classId=${meeting.classId}`;
+  const roomPath = meeting.origin === "groupy"
+    ? meeting.role === "educator"
+      ? `/educator/classes/${meeting.classId}/meetings/${meeting.meetingId}/room?origin=groupy`
+      : `/student/classes/${meeting.classId}/meetings/${meeting.meetingId}/room?origin=groupy`
+    : meeting.role === "educator"
+      ? `/educator/classes/${meeting.classId}/meetings/${meeting.meetingId}/room`
+      : `/student/meetings/${meeting.meetingId}/room?classId=${meeting.classId}`;
 
   const handleReturn = () => {
     meeting.maximize();
