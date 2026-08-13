@@ -74,13 +74,13 @@ export function EnrolledStudentTable({
     },
     {
       id: "programs",
-      header: "Programs",
+      header: "Departments",
       cell: ({ row }) => {
         const progs = row.original.programEnrollments;
         if (!progs?.length) {
           return (
             <span className="text-xs text-muted-foreground italic not-interactive">
-              No program assigned
+              No department assigned
             </span>
           );
         }
@@ -122,7 +122,7 @@ export function EnrolledStudentTable({
               disabled={isUnenrolled}
             >
               <GraduationCap className="h-3.5 w-3.5" />
-              Program
+              Department
             </Button>
             <Button
               variant="ghost"

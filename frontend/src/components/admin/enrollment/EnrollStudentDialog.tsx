@@ -197,7 +197,7 @@ export function EnrollStudentDialog({
         <ConfirmDialog
           open
           title="Enroll students?"
-          message={`Are you sure you want to enroll ${selected.length} student${selected.length > 1 ? "s" : ""} in the program?`}
+          message={`Are you sure you want to enroll ${selected.length} student${selected.length > 1 ? "s" : ""} in the department?`}
           confirmLabel="Enroll"
           isLoading={isLoading}
           onConfirm={handleConfirm}

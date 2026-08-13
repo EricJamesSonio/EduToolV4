@@ -107,25 +107,25 @@ export function ProgramEnrollmentDialog({
       title={
         <span className="flex items-center gap-2">
           <GraduationCap className="h-4 w-4" />
-          Assign Program
+          Assign Department
         </span>
       }
       description={
         <>
-          Assigning program for{" "}
+          Assigning department for{" "}
           <span className="font-medium text-foreground">{student.fullName}</span>
         </>
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Program <span className="text-destructive">*</span></Label>
+            <Label>Department <span className="text-destructive">*</span></Label>
             <Select
               value={watch("program_id")}
               onValueChange={(v) => setValue("program_id", v ?? "")}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select program" />
+                <SelectValue placeholder="Select department" />
               </SelectTrigger>
               <SelectContent>
                 {programs.map((p) => (
@@ -202,7 +202,7 @@ export function ProgramEnrollmentDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={!programId || isLoading}>
-              {isLoading ? "Saving..." : "Assign Program"}
+              {isLoading ? "Saving..." : "Assign Department"}
             </Button>
           </div>
         </form>

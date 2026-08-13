@@ -54,9 +54,9 @@ export function EnrollmentTab({ schoolYearId, isEnded }: Props) {
               </p>
             </div>
             <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
-              <p className="text-xs text-muted-foreground not-interactive">Program Enrollments</p>
+              <p className="text-xs text-muted-foreground not-interactive">Department Enrollments</p>
               <p className="text-2xl font-semibold not-interactive">{totalProgEnrollments}</p>
-              <p className="text-xs text-muted-foreground not-interactive">across all programs</p>
+              <p className="text-xs text-muted-foreground not-interactive">across all departments</p>
             </div>
           </div>
         )}
@@ -69,10 +69,10 @@ export function EnrollmentTab({ schoolYearId, isEnded }: Props) {
           <Users className="h-8 w-8" />
         </div>
         <p className="text-sm font-medium text-muted-foreground not-interactive">
-          Enroll students from the Programs tab
+          Enroll students from the Departments tab
         </p>
         <p className="text-xs text-muted-foreground max-w-sm mx-auto not-interactive">
-          Navigate to a program, then drill down to a level or course to view
+          Navigate to a department, then drill down to a level or course to view
           and enroll students directly into their academic scope.
         </p>
       </div>
