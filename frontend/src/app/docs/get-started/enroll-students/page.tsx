@@ -9,7 +9,7 @@ export default function EnrollStudentsPage() {
           How to Enroll Students
         </h1>
         <p className="text-lg text-muted-foreground">
-          Learn the step-by-step process to add students to programs, levels,
+          Learn the step-by-step process to add students to departments, levels,
            sections, and classes in Relief-ED.
         </p>
       </div>
@@ -19,7 +19,7 @@ export default function EnrollStudentsPage() {
           Understanding Enrollment Flow
         </h3>
         <p className="text-sm text-muted-foreground">
-          Students are enrolled in a hierarchy: Program to Level to Section to
+          Students are enrolled in a hierarchy: Department to Level to Section to
           Class. Each level represents a different scope of enrollment.
         </p>
       </div>
@@ -41,7 +41,7 @@ export default function EnrollStudentsPage() {
               "Go to Admin Dashboard, Students",
               "Click 'Add Student' button",
               "Fill in student details (name, email, ID)",
-              "Select program, level, and section",
+              "Select department, level, and section",
               "Optionally assign to specific classes",
               "Click 'Save'",
             ].map((step, idx) => (
@@ -75,7 +75,7 @@ export default function EnrollStudentsPage() {
             <ul className="text-xs text-muted-foreground space-y-1">
               <li>- All fields are required</li>
               <li>- Email must be unique</li>
-              <li>- Program and level must already exist in your system</li>
+              <li>- Department and level must already exist in your system</li>
             </ul>
           </div>
 
@@ -130,7 +130,7 @@ export default function EnrollStudentsPage() {
         </h2>
         <div className="space-y-3">
           {[
-            { title: "Set up structure first", desc: "Ensure all programs, levels, and sections exist before enrolling students." },
+            { title: "Set up structure first", desc: "Ensure all departments, levels, and sections exist before enrolling students." },
             { title: "Use bulk import for scale", desc: "CSV import is much faster for schools with 100+ students." },
             { title: "Verify emails", desc: "Make sure email addresses are unique. Duplicate emails will cause import failures." },
             { title: "Plan class assignments", desc: "Decide early which educators teach which classes to make assignments smoother." },
