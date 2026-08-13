@@ -74,6 +74,10 @@ export function GroupyChatFeature({
       : null;
   }, [activeMeetingQuery.data]);
 
+  // True once the active-meeting status has been fetched at least once, so
+  // meeting messages don't flash "ended" while the status is still unknown.
+  const meetingStatusKnown = activeMeetingQuery.data !== undefined;
+
   // Members who have read the newest message — becomes the messenger-style
   // "seen by" avatar row at the bottom of the last message.
   const seenBy = useMemo<GroupyMember[]>(() => {
@@ -194,6 +198,7 @@ export function GroupyChatFeature({
         role={role}
         seenBy={seenBy}
         activeMeetingId={activeMeeting?.meetingId ?? null}
+        meetingStatusKnown={meetingStatusKnown}
         hasOlder={query.hasNextPage}
         loadingOlder={query.isFetchingNextPage}
         onLoadOlder={() =>

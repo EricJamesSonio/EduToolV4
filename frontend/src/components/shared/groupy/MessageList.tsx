@@ -15,6 +15,8 @@ interface MessageListProps {
   // Id of the currently live groupy meeting (if any) so meeting messages can
   // show "ended" state once their meeting is gone.
   activeMeetingId: string | null;
+  // Whether the active-meeting status has been confirmed (see MessageBubble).
+  meetingStatusKnown: boolean;
   hasOlder: boolean;
   loadingOlder: boolean;
   onLoadOlder: () => void;
@@ -32,6 +34,7 @@ export function MessageList({
   role,
   seenBy,
   activeMeetingId,
+  meetingStatusKnown,
   hasOlder,
   loadingOlder,
   onLoadOlder,
@@ -116,6 +119,7 @@ export function MessageList({
           currentUserId={currentUserId}
           role={role}
           activeMeetingId={activeMeetingId}
+          meetingStatusKnown={meetingStatusKnown}
           onDelete={onDelete}
           onReact={onReact}
           onRemoveReaction={onRemoveReaction}

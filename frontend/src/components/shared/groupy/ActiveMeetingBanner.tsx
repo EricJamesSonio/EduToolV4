@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { PhoneIncoming } from "lucide-react";
+import { PhoneCall, PhoneIncoming } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ActiveMeetingBannerProps {
@@ -12,6 +12,12 @@ interface ActiveMeetingBannerProps {
 
 // Messenger-style active-call strip shown below the chat header while a
 // groupy meeting is running. Joining routes to the meeting room.
+//
+// State depends on who is looking:
+//   - Educator (host): the call was started by them, so it is "ongoing" —
+//     never "incoming". Shown when they left without ending it.
+//   - Student (participant): the call is coming in from the class, so it is
+//     "incoming" with a Join action.
 export function ActiveMeetingBanner({
   classId,
   role,
@@ -21,6 +27,7 @@ export function ActiveMeetingBanner({
 
   if (!activeMeeting) return null;
 
+  const isHost = role === "educator";
   const base = role === "educator" ? "/educator" : "/student";
   const handleJoin = () =>
     router.push(
@@ -31,11 +38,11 @@ export function ActiveMeetingBanner({
     <div className="border-b border-border bg-muted/50 px-4 py-2 flex items-center justify-between gap-3">
       <div className="flex items-center gap-2 min-w-0">
         <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <PhoneIncoming className="h-4 w-4" />
+          {isHost ? <PhoneCall className="h-4 w-4" /> : <PhoneIncoming className="h-4 w-4" />}
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium leading-tight text-amber-500">
-            Incoming call…
+            {isHost ? "Ongoing call…" : "Incoming call…"}
           </p>
           <p className="text-[11px] text-muted-foreground truncate">
             {activeMeeting.title || "Class Meeting"}
