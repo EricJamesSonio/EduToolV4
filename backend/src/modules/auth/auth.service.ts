@@ -24,8 +24,11 @@ import {
 } from './entity/admin-request-session.entity';
 import { comparePassword, hashPassword } from '@/commons/utils/hash.util';
 import { MailService } from '@/modules/mail/mail.service';
+import { PersonalEmailRegistryService } from '@/commons/services/personal-email-registry.service';
 
 const SESSION_TTL = '2h';
+const PERSONAL_EMAIL_IN_USE_MESSAGE =
+  'This Gmail is already linked to an account in EduTool.';
 
 @Injectable()
 export class AuthService {
@@ -34,6 +37,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly personalEmailRegistry: PersonalEmailRegistryService,
   ) {}
 
   async login(dto: LoginDto): Promise<AuthTokens> {
@@ -235,11 +239,10 @@ export class AuthService {
 
   async verifyAdminRequestOtp(
     dto: VerifyAdminRequestOtpDto,
-  ): Promise<{
-    token: string;
-    mode: 'edit' | 'create';
-    request?: RegistrationRequestView;
-  }> {
+  ): Promise<
+    | { blocked: true; message: string }
+    | { token: string; mode: 'edit' | 'create'; request?: RegistrationRequestView }
+  > {
     const otp = await this.authRepository.findValidOtp(dto.email, dto.code);
 
     if (!otp) {
@@ -256,7 +259,11 @@ export class AuthService {
 
     await this.authRepository.markOtpUsed(otp.id);
 
-    await this.assertPersonalEmailNotAlreadyApproved(dto.email);
+    // Global check across all accounts (not just admins) — blocks before any
+    // session is issued or any existing application data is returned.
+    if (await this.personalEmailRegistry.isPersonalEmailInUse(dto.email)) {
+      return { blocked: true, message: PERSONAL_EMAIL_IN_USE_MESSAGE };
+    }
 
     const existing = await this.authRepository.findRegistrationRequestByEmail(
       dto.email,

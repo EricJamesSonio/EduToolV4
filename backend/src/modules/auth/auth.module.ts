@@ -28,6 +28,6 @@ import { MailModule } from '@/modules/mail/mail.module';
   ],
   controllers: [AuthController],
   providers: [AuthService, AuthRepository, JwtStrategy, AdminRequestSessionGuard],
-  exports: [AuthService, JwtModule],
+  exports: [AuthService, AuthRepository, JwtModule],
 })
 export class AuthModule {}
