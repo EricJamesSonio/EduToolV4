@@ -214,7 +214,7 @@ const SEARCH_COLUMNS: ColumnDef<ApplicationListItem>[] = [
   { accessorKey: "application_code", header: "Code", size: 90, cell: (c) => <span className="font-mono">{c.row.original.application_code}</span> },
   { header: "Name", cell: (c) => c.row.original.full_name },
   { header: "Email", cell: (c) => c.row.original.personal_email },
-  { header: "Program", cell: (c) => c.row.original.program },
+  { header: "Department", cell: (c) => c.row.original.program },
   {
     accessorKey: "status",
     header: "Status",
@@ -419,16 +419,16 @@ export default function EnrollmentPortalDashboardPage(): React.JSX.Element {
           {/* Programs overview */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold">Programs &amp; Courses</h2>
+              <h2 className="text-base font-semibold">Departments &amp; Courses</h2>
               <span className="text-sm text-muted-foreground">
-                {programs.length} program{programs.length !== 1 ? "s" : ""}
+                {programs.length} department{programs.length !== 1 ? "s" : ""}
               </span>
             </div>
             {programs.length === 0 ? (
               <EmptyState
                 icon={Inbox}
-                title="No programs set up for this school year"
-                description="Programs are defined per school year. Add programs before applicants can choose them."
+                title="No departments set up for this school year"
+                description="Departments are defined per school year. Add departments before applicants can choose them."
               />
             ) : (
               <div className="space-y-2">
