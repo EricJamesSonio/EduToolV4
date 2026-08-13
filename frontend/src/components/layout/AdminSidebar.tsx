@@ -42,7 +42,7 @@ const GROUPS = [
     label: "Academic",
     items: [
       { label: "School Years", href: "/admin/school-years", icon: CalendarDays, registrarVisible: false },
-      { label: "Programs", href: "/admin/programs", icon: BookOpen, registrarVisible: false },
+      { label: "Departments", href: "/admin/programs", icon: BookOpen, registrarVisible: false },
       { label: "Sections", href: "/admin/sections", icon: Layers },
       { label: "Subjects", href: "/admin/subjects", icon: FlaskConical, registrarVisible: false },
       { label: "Academic Calendar", href: "/admin/academic-calendar", icon: CalendarRange, registrarVisible: false },
