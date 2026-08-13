@@ -46,7 +46,7 @@ export default function HelpPage() {
         </h2>
         <div className="space-y-3">
           {[
-            { q: "What makes Relief-ED different from other school management systems?", a: "Relief-ED is built for flexibility. Unlike rigid systems, Relief-ED lets you define your own programs, levels, and structures. It is equally suited for SHS schools, colleges, or custom educational setups." },
+            { q: "What makes Relief-ED different from other school management systems?", a: "Relief-ED is built for flexibility. Unlike rigid systems, Relief-ED lets you define your own departments, levels, and structures. It is equally suited for SHS schools, colleges, or custom educational setups." },
             { q: "Is Relief-ED a cloud-based system?", a: "Yes, Relief-ED is fully cloud-based and multi-tenant. Your school data is secure, isolated, and accessible from anywhere with an internet connection." },
             { q: "How many students can I enroll?", a: "There is no hard limit. Relief-ED scales to thousands of students. Performance is optimized for large schools." },
             { q: "Can I integrate Relief-ED with other systems?", a: "Yes, Relief-ED provides API endpoints for integration. Contact support to discuss your specific needs." },
@@ -167,8 +167,8 @@ export default function HelpPage() {
           {[
             { problem: "I cannot log in", solution: "Check that your email and password are correct. If you forgot your password, click 'Forgot Password' on the login page." },
             { problem: "Grades are not displaying correctly", solution: "Refresh your browser (Ctrl+F5 or Cmd+Shift+R). If the issue persists, clear your browser cache or try a different browser." },
-            { problem: "Students do not appear in my class roster", solution: "Verify students are enrolled in the correct program and level. Check the School Year selector. You might be viewing a different year." },
-            { problem: "CSV import is failing", solution: "Check the CSV format matches the template. Common issues include duplicate emails, missing required fields, or program names that do not exist." },
+            { problem: "Students do not appear in my class roster", solution: "Verify students are enrolled in the correct department and level. Check the School Year selector. You might be viewing a different year." },
+            { problem: "CSV import is failing", solution: "Check the CSV format matches the template. Common issues include duplicate emails, missing required fields, or department names that do not exist." },
           ].map((item, idx) => (
             <div key={idx} className="rounded-xl border bg-card p-4 space-y-2">
               <h4 className="font-semibold text-foreground">{item.problem}</h4>
