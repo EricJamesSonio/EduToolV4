@@ -12,6 +12,7 @@ import {
   verifyAdminRequestOtp,
   submitAdminRequest,
 } from "@/api/auth/register.api";
+import { AccountAlreadyLinkedNotice } from "@/components/shared/AccountAlreadyLinkedNotice";
 
 const GMAIL_RE = /^[^\s@]+@gmail\.com$/i;
 
@@ -137,6 +138,7 @@ function RegisterPageContent() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [blockedMessage, setBlockedMessage] = useState("");
 
   // Seed the chosen plan into the form fields on first mount if not already set.
   const [initializedPlan, setInitializedPlan] = useState(false);
@@ -162,6 +164,7 @@ function RegisterPageContent() {
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setBlockedMessage("");
 
     if (!email || !GMAIL_RE.test(email)) {
       setError("Please enter a valid Gmail address (e.g. jane@gmail.com).");
@@ -205,6 +208,16 @@ function RegisterPageContent() {
     setLoading(true);
     try {
       const result = await verifyAdminRequestOtp({ email, code });
+      if ("blocked" in result) {
+        // The email already belongs to an account elsewhere in the system.
+        // Show the message, clear the session, and step back to the email
+        // screen so the applicant can try a different Gmail. Do NOT continue
+        // into the form and do NOT render any prior application data.
+        setBlockedMessage(result.message);
+        resetSession();
+        setCode("");
+        return;
+      }
       activateVerifiedSession(result.token, result.mode, result.request);
       setCode("");
     } catch (err) {
@@ -283,6 +296,10 @@ function RegisterPageContent() {
         </div>
 
         <div className="rounded-xl border bg-card p-6 space-y-4">
+          {blockedMessage && (
+            <AccountAlreadyLinkedNotice message={blockedMessage} />
+          )}
+
           {error && (
             <div className="rounded-lg bg-destructive/10 text-destructive text-sm px-4 py-3">
               {error}
@@ -390,7 +407,7 @@ function RegisterPageContent() {
                 />
 
                 <RadioGroup
-                  label="Programs / Departments"
+                  label="Departments"
                   options={["1–5", "6–15", "16–30", "30+"]}
                   value={value("programs_departments")}
                   onChange={(val) => patchFields({ programs_departments: toOption(val) })}
@@ -437,7 +454,7 @@ function RegisterPageContent() {
                   <p><span className="font-medium">Institution:</span> {value("institution_name")}</p>
                   <p><span className="font-medium">Role:</span> {value("role")}</p>
                   <p><span className="font-medium">Students:</span> {value("student_count")}</p>
-                  <p><span className="font-medium">Programs/Depts:</span> {value("programs_departments")}</p>
+                  <p><span className="font-medium">Departments:</span> {value("programs_departments")}</p>
                 </div>
               )}
               <Button className="w-full" variant="outline" onClick={() => router.push("/")}>
