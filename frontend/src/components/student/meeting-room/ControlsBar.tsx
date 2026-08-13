@@ -45,6 +45,8 @@ interface ControlsBarProps {
   overflowOpen: boolean;
   sidePanel: SidePanelType;
   participantCount: number;
+  // Simplified (Groupy) meetings omit the chat control.
+  simplified?: boolean;
   onToggleMic: () => void;
   onToggleCam: () => void;
   onToggleHand: () => void;
@@ -57,7 +59,7 @@ interface ControlsBarProps {
 
 export function ControlsBar({
   connected, micOn, camOn, handRaised, isFullscreen, overflowOpen,
-  sidePanel, participantCount,
+  sidePanel, participantCount, simplified,
   onToggleMic, onToggleCam, onToggleHand, onToggleReactions,
   onToggleFullscreen, onToggleSidePanel, onToggleOverflow, onLeave,
 }: ControlsBarProps) {
@@ -88,9 +90,11 @@ export function ControlsBar({
         <Smile className="h-5 w-5" />
       </Btn>
 
-      <Btn onClick={() => onToggleSidePanel("chat")} active={sidePanel === "chat"} label="Chat" hideOnMobile>
-        <MessageSquare className="h-5 w-5" />
-      </Btn>
+      {!simplified && (
+        <Btn onClick={() => onToggleSidePanel("chat")} active={sidePanel === "chat"} label="Chat" hideOnMobile>
+          <MessageSquare className="h-5 w-5" />
+        </Btn>
+      )}
 
       <Btn onClick={onToggleFullscreen} active={isFullscreen} label={isFullscreen ? "Exit Full" : "Full Screen"} hideOnMobile>
         {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
