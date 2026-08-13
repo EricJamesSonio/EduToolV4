@@ -23,7 +23,7 @@ export const GUIDES: Record<string, GuideContent> = {
       { title: "Overview", content: "Dashboard shows key system metrics at a glance." },
       { title: "School Year Selector", content: "Switch between school years to view data." },
       { title: "Statistics Cards", content: "Shows students, educators, classes, and pending students." },
-      { title: "Enrollment Breakdown", content: "Displays program, level, section, and student counts." },
+      { title: "Enrollment Breakdown", content: "Displays department, level, section, and student counts." },
     ],
   },
 
@@ -33,16 +33,16 @@ export const GUIDES: Record<string, GuideContent> = {
     steps: [
       { title: "Organization Details", content: "Update school name and description." },
       { title: "Email Extension", content: "Required before creating users (students/educators)." },
-      { title: "Data Seeder", content: "Generate programs, levels, courses, sections, and strands." },
+      { title: "Data Seeder", content: "Generate departments, levels, courses, sections, and strands." },
     ],
   },
 
   admin_academic_calendar: {
     title: "Academic Calendar",
-    description: "Manage holidays and program schedules",
+    description: "Manage holidays and department schedules",
     steps: [
-      { title: "Holiday Calendar", content: "Set global holidays for all programs." },
-      { title: "Program Calendar", content: "Configure program-specific schedules and breaks." },
+      { title: "Holiday Calendar", content: "Set global holidays for all departments." },
+      { title: "Department Calendar", content: "Configure department-specific schedules and breaks." },
       { title: "School Year Switch", content: "Manage calendars per academic year." },
     ],
   },
@@ -92,7 +92,7 @@ export const GUIDES: Record<string, GuideContent> = {
     description: "Define grading ranges",
     steps: [
       { title: "Create Scales", content: "Define grade ranges like Excellent, Good, etc." },
-      { title: "Assign to Programs", content: "Link scales to academic programs." },
+      { title: "Assign to Departments", content: "Link scales to academic departments." },
     ],
   },
 
@@ -101,15 +101,15 @@ export const GUIDES: Record<string, GuideContent> = {
     description: "Manage grading structure templates",
     steps: [
       { title: "Create Schemes", content: "Define weight distribution (e.g. 40/30/30)." },
-      { title: "Assign to Classes", content: "Apply schemes to programs or classes." },
+      { title: "Assign to Classes", content: "Apply schemes to departments or classes." },
     ],
   },
 
   admin_programs: {
-    title: "Programs",
-    description: "Manage academic programs",
+    title: "Departments",
+    description: "Manage academic departments",
     steps: [
-      { title: "Create Programs", content: "Add academic programs like STEM or ABM." },
+      { title: "Create Departments", content: "Add academic departments like STEM or ABM." },
       { title: "Delete Rules", content: "Cannot delete if linked to levels or courses." },
     ],
   },
@@ -128,7 +128,7 @@ export const GUIDES: Record<string, GuideContent> = {
     description: "Manage class sections",
     steps: [
       { title: "Create Sections", content: "Assign sections to levels." },
-      { title: "Filters", content: "Filter by program, level, and course." },
+      { title: "Filters", content: "Filter by department, level, and course." },
     ],
   },
 
@@ -136,8 +136,8 @@ export const GUIDES: Record<string, GuideContent> = {
     title: "Semester Settings",
     description: "Configure semester structures",
     steps: [
-      { title: "Templates", content: "Define semester structures per program type." },
-      { title: "Assign", content: "Assign templates to programs." },
+      { title: "Templates", content: "Define semester structures per department type." },
+      { title: "Assign", content: "Assign templates to departments." },
     ],
   },
 
@@ -146,7 +146,7 @@ export const GUIDES: Record<string, GuideContent> = {
     description: "Manage student accounts",
     steps: [
       { title: "Create Students", content: "Add or import students via CSV." },
-      { title: "Filters", content: "Filter by status, section, and program." },
+      { title: "Filters", content: "Filter by status, section, and department." },
       { title: "Credentials", content: "Download or export login credentials." },
     ],
   },
@@ -156,7 +156,7 @@ export const GUIDES: Record<string, GuideContent> = {
     description: "Manage school subjects",
     steps: [
       { title: "Create Subjects", content: "Add new subjects with types and levels." },
-      { title: "Categories", content: "Organize subjects by program, course, and strand." },
+      { title: "Categories", content: "Organize subjects by department, course, and strand." },
     ],
   },
 };
