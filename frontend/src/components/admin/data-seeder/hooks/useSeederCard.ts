@@ -193,7 +193,7 @@ export function useSeederCard() {
         queryKeys.admin.subjects.all,
       ],
       onSuccess: () => {
-        toast.success("Seed completed! Your programs, levels, and subjects are ready.");
+        toast.success("Seed completed! Your departments, levels, and subjects are ready.");
         setCollapsed(true);
         resetAll();
       },
@@ -207,7 +207,7 @@ export function useSeederCard() {
       return;
     }
     if (selectedPrograms.size === 0) {
-      toast.error("Select at least one program.");
+      toast.error("Select at least one department.");
       return;
     }
 
@@ -318,9 +318,9 @@ seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesBy
   const summaryText = !selectedSchoolYearId
     ? "Select a school year to begin."
     : selectedPrograms.size === 0
-      ? "Select at least one program."
+      ? "Select at least one department."
       : [
-          `${selectedPrograms.size} program(s)`,
+          `${selectedPrograms.size} department(s)`,
           totalLevelCount > 0 && `${totalLevelCount} level(s)`,
           totalSectionCount > 0 && `${totalSectionCount} section(s)`,
           selectedPrograms.has("college") && `${Array.from(selectedCourses).length} course(s)`,
@@ -334,7 +334,7 @@ seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesBy
           .join(" · ");
 
   const summaryItems: { label: string; value: number }[] = [
-    { label: "Programs", value: selectedPrograms.size },
+    { label: "Departments", value: selectedPrograms.size },
     ...(totalLevelCount > 0 ? [{ label: "Levels", value: totalLevelCount }] : []),
     ...(totalSectionCount > 0 ? [{ label: "Sections", value: totalSectionCount }] : []),
     ...(selectedPrograms.has("college")
