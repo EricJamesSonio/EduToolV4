@@ -1,9 +1,30 @@
-import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator'
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator'
+import { IsGmailAddress } from '@/commons/validators/is-gmail-address.validator'
 
 export class UpdatePersonalEmailDto {
   @IsOptional()
   @IsEmail({}, { message: 'personalEmail must be a valid email address' })
   personalEmail?: string | null
+}
+
+export class ChangePersonalEmailRequestDto {
+  @IsGmailAddress()
+  newEmail!: string
+}
+
+export class ChangePersonalEmailVerifyDto {
+  @IsGmailAddress()
+  newEmail!: string
+
+  @IsString()
+  @IsNotEmpty({ message: 'code must not be empty' })
+  code!: string
 }
 
 export class UpdateProfileDto {
