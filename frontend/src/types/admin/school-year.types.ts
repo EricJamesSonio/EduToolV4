@@ -16,6 +16,10 @@ export interface ReadinessIssue {
   code:     string;
   severity: ReadinessSeverity;
   message:  string;
+  /** How many entities are affected by this issue (aggregated checks only). */
+  count?:   number;
+  /** Optional detail list of affected entities (aggregated checks only). */
+  entities?: { id: string; name: string }[];
   ref?:     {
     type: "program" | "course" | "strand" | "level" | "subject";
     id:   string;
