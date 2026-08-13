@@ -4,6 +4,7 @@ import { seedId } from './seed-id';
 import { SeedContext } from './seed-context';
 import type { SeedResult, OrgSeedOptions } from './seed-context';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { DEFAULT_CONCERN_CATEGORIES } from '../concern/data/default-categories.data';
 
 import { ProgramSeederService } from './seeders/program-seeder.service';
 import { CourseSeederService } from './seeders/course-seeder.service';
@@ -57,13 +58,7 @@ export class OrgSeederService {
     });
 
     // Seed default concern categories (idempotent per unique [org_id, label]).
-    const defaultConcernLabels = [
-      'Account Problem',
-      'Grade Problem',
-      'Technical Issue',
-      'Other',
-    ];
-    for (const label of defaultConcernLabels) {
+    for (const label of DEFAULT_CONCERN_CATEGORIES) {
       await this.db.concernCategory.upsert({
         where: {
           org_id_label: { org_id: ctx.orgId, label },
