@@ -36,7 +36,7 @@ export function SubjectTable({
   } else if (selectedStrandId !== "all") {
     emptyDescription = `No ${activeTab} subjects for this strand yet.`;
   } else if (selectedProgramId !== "all") {
-    emptyDescription = `No ${activeTab} subjects for this program yet.`;
+    emptyDescription = `No ${activeTab} subjects for this department yet.`;
   } else {
     emptyDescription = `No ${activeTab} subjects found for this school year.`;
   }
@@ -47,7 +47,7 @@ export function SubjectTable({
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>
             Minor subjects can be shared to courses, strands, or levels within
-            their program.
+            their department.
           </span>
         </div>
       )}

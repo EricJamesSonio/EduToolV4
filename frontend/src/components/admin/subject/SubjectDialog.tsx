@@ -272,7 +272,7 @@ export function SubjectDialog({
       {/* Program — create only, always shown */}
       {!isEdit && (
         <div className="space-y-1.5">
-          <Label>Program</Label>
+          <Label>Department</Label>
           <Select
             value={selectedProgramId}
             onValueChange={(v) => {
@@ -283,9 +283,9 @@ export function SubjectDialog({
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select a program">
+              <SelectValue placeholder="Select a department">
                 {programs.find((p) => p.id === selectedProgramId)?.name ??
-                  "Select a program"}
+                  "Select a department"}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -298,7 +298,7 @@ export function SubjectDialog({
           </Select>
           {isMinor && (
             <p className="text-xs text-muted-foreground">
-              Minor subjects can only be shared within this program.
+              Minor subjects can only be shared within this department.
             </p>
           )}
         </div>
@@ -387,7 +387,7 @@ export function SubjectDialog({
             <SelectValue
               placeholder={
                 !isEdit && !selectedProgramId
-                  ? "Select a program first"
+                  ? "Select a department first"
                   : isEdit
                     ? "Select a level"
                     : hasCourses && !selectedCourseId
@@ -420,7 +420,7 @@ export function SubjectDialog({
                   ? "Select a course to see levels"
                   : hasStrands && !selectedStrandId
                     ? "Select a strand to see levels"
-                    : "No levels for this program"}
+                    : "No levels for this department"}
               </div>
             )}
           </SelectContent>

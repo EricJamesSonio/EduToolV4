@@ -73,22 +73,22 @@ export function SubjectFilters({
             }}
           >
             <SelectTrigger className="w-48 h-9 text-sm">
-              <SelectValue placeholder="All Programs">
+              <SelectValue placeholder="All Departments">
                 {selectedProgramId === "all"
-                  ? "All Programs"
+                  ? "All Departments"
                   : (programs.find((p) => p.id === selectedProgramId)?.name ??
-                    "All Programs")}
+                    "All Departments")}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Programs</SelectItem>
+              <SelectItem value="all">All Departments</SelectItem>
               {programsLoading ? (
                 <div className="p-2 text-sm text-muted-foreground">
-                  Loading programs...
+                  Loading departments...
                 </div>
               ) : programs.length === 0 ? (
                 <div className="p-2 text-sm text-muted-foreground">
-                  No programs found
+                  No departments found
                 </div>
               ) : (
                 programs.map((program) => (
@@ -168,7 +168,7 @@ export function SubjectFilters({
               <SelectValue
                 placeholder={
                   selectedProgramId === "all"
-                    ? "Select program first"
+                    ? "Select department first"
                     : hasSubGroups && !subGroupSatisfied
                       ? isCollege
                         ? "Select course first"
@@ -178,7 +178,7 @@ export function SubjectFilters({
               >
                 {filterLevelId === "all"
                   ? selectedProgramId === "all"
-                    ? "Select program first"
+                    ? "Select department first"
                     : hasSubGroups && !subGroupSatisfied
                       ? isCollege
                         ? "Select course first"

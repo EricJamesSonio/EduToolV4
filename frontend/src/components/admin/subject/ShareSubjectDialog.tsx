@@ -246,9 +246,9 @@ export function ShareSubjectDialog({
           {/* Description based on program type */}
           <p className="text-sm text-muted-foreground">
             {isCollege &&
-              "Showing courses within the same program."}
+              "Showing courses within the same department."}
             {isSHS &&
-              "Showing strands within the same program."}
+              "Showing strands within the same department."}
             {isSimple &&
               "Showing the level this subject belongs to."}
           </p>
@@ -305,7 +305,7 @@ export function ShareSubjectDialog({
               {!hasTargets && (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No eligible targets found. Ensure courses or
-                  strands exist under this program and level.
+                  strands exist under this department and level.
                 </p>
               )}
             </div>
