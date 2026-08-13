@@ -331,7 +331,7 @@ export default function EnrollWorkspacePage() {
     },
     {
       accessorKey: "programName",
-      header: "Program",
+      header: "Department",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">{row.original.programName}</span>
       ),
@@ -428,7 +428,7 @@ export default function EnrollWorkspacePage() {
     const list: StepDef[] = [
       {
         key: "program",
-        label: "Program",
+        label: "Department",
         description: program?.name,
         status: (programId ? "done" : "active") as StepStatus,
         onClick: programId
