@@ -79,7 +79,7 @@ export function useEnrichedLevels(
     for (const l of levels) {
       map[l.id] = {
         name: l.name,
-        programName: l.programName ?? "Unknown Program",
+        programName: l.programName ?? "Unknown Department",
         programId: l.program_id ?? "",
       };
     }
