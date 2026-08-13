@@ -160,7 +160,7 @@ export default function SchoolYearDetailPage({
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold text-base not-interactive">Programs</h3>
+          <h3 className="font-semibold text-base not-interactive">Departments</h3>
           <Badge variant="secondary" className="text-xs font-normal">
             {programs.length}
           </Badge>
@@ -170,11 +170,11 @@ export default function SchoolYearDetailPage({
           <div className="rounded-lg border bg-card px-6 py-10 text-center space-y-3">
             <BookOpen className="h-10 w-10 text-muted-foreground/30 mx-auto" />
             <p className="text-sm text-muted-foreground not-interactive">
-              No programs for this school year.
+              No departments for this school year.
             </p>
             <Button size="sm" onClick={() => router.push(`/admin/programs?schoolYearId=${id}&create=1`)}>
               <Plus className="mr-1.5 h-4 w-4" />
-              Create Program
+              Create Department
             </Button>
           </div>
         ) : (
