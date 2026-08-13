@@ -11,6 +11,29 @@ describe('ProfileService', () => {
     findAccountWithProfile: jest.fn(),
   };
 
+  const authRepository = {
+    createOtp: jest.fn(),
+    findValidOtp: jest.fn(),
+    markOtpUsed: jest.fn(),
+  };
+
+  const mailService = {
+    sendOtpEmail: jest.fn(),
+  };
+
+  const personalEmailRegistry = {
+    isPersonalEmailInUse: jest.fn().mockResolvedValue(false),
+  };
+
+  function createService(): ProfileService {
+    return new ProfileService(
+      profileRepository as never,
+      authRepository as never,
+      mailService as never,
+      personalEmailRegistry as never,
+    );
+  }
+
   const accountWithProfile = {
     id: 'acc-1',
     org_id: 'org-1',
@@ -31,13 +54,13 @@ describe('ProfileService', () => {
   });
 
   it('should be defined', () => {
-    expect(new ProfileService(profileRepository as never)).toBeDefined();
+    expect(createService()).toBeDefined();
   });
 
   describe('getProfile', () => {
     it('returns the mapped profile for the account', async () => {
       profileRepository.findAccountWithProfile.mockResolvedValue(accountWithProfile);
-      service = new ProfileService(profileRepository as never);
+      service = createService();
 
       const result = await service.getProfile('acc-1');
 
@@ -58,7 +81,7 @@ describe('ProfileService', () => {
 
     it('throws NotFoundException when account is missing', async () => {
       profileRepository.findAccountWithProfile.mockResolvedValue(null);
-      service = new ProfileService(profileRepository as never);
+      service = createService();
 
       await expect(service.getProfile('nope')).rejects.toBeInstanceOf(NotFoundException);
     });
@@ -69,7 +92,7 @@ describe('ProfileService', () => {
       profileRepository.findByAccountId.mockResolvedValue({ id: 'p-1' });
       profileRepository.updateProfile.mockResolvedValue({ id: 'p-1' });
       profileRepository.findAccountWithProfile.mockResolvedValue(accountWithProfile);
-      service = new ProfileService(profileRepository as never);
+      service = createService();
 
       const result = await service.updateProfile('acc-1', {
         fullName: 'Jane Doe',
@@ -87,7 +110,7 @@ describe('ProfileService', () => {
 
     it('throws NotFoundException when profile is missing', async () => {
       profileRepository.findByAccountId.mockResolvedValue(null);
-      service = new ProfileService(profileRepository as never);
+      service = createService();
 
       await expect(service.updateProfile('nope', { fullName: 'X' })).rejects.toBeInstanceOf(
         NotFoundException,
