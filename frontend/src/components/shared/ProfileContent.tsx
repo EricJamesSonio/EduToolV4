@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { AxiosError } from "axios";
 import { getProfileImageUrl } from "@/utils/profile.util";
 import apiClient from "@/api/client";
 import { profileApi } from "@/api/profile.api";
@@ -161,7 +162,7 @@ export function ProfileContent(): React.JSX.Element {
   }
 
   const getBackendError = (err: unknown): string => {
-    const message = (err as any)?.response?.data?.message;
+    const message = (err as AxiosError<{ message?: string | string[] }>)?.response?.data?.message;
     if (Array.isArray(message)) return message.join(", ");
     return message ?? "Something went wrong. Please try again.";
   };
@@ -202,7 +203,8 @@ export function ProfileContent(): React.JSX.Element {
     setChangeBusy(true);
     try {
       await profileApi.changePersonalEmailVerify(newEmail.trim(), otpCode);
-      publishUser({ ...user, personalEmail: newEmail.trim() });
+      const updated = await profileApi.getProfile();
+      publishUser(updated);
       toast.success("Personal email updated");
       setChangingEmail(false);
       setChangeStep("enter-email");

@@ -4,7 +4,7 @@
 // response that BOTH the admin-request and enrollment-portal flows get back
 // from their OTP-verify calls — one component so both render it identically
 // (deliberately generic: it never reveals the existing account's role).
-export function AccountAlreadyLinkedNotice({ message }: { message: string }) {
+export function AccountAlreadyLinkedNotice({ message }: { message: string }): React.JSX.Element {
   return (
     <div
       role="alert"
