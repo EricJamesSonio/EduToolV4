@@ -46,7 +46,7 @@ export function HolidayBaseTab({ year }: HolidayBaseTabProps) {
       invalidateKeys: [queryKeys.admin.holidayConfig.list(), queryKeys.admin.programCalendar.all],
       onSuccess: (res) => {
         const syncMsg = res.synced > 0
-          ? ` Re-synced ${res.synced} program calendar${res.synced !== 1 ? "s" : ""} automatically.`
+          ? ` Re-synced ${res.synced} department calendar${res.synced !== 1 ? "s" : ""} automatically.`
           : "";
         toast.success(`Holiday configuration saved.${syncMsg}`);
         setDirty(false);
@@ -61,7 +61,7 @@ export function HolidayBaseTab({ year }: HolidayBaseTabProps) {
       invalidateKeys: [queryKeys.admin.holidayConfig.list(), queryKeys.admin.programCalendar.all],
       onSuccess: (res) => {
         const msg = res.added.length > 0
-          ? `Seeded ${res.added.length} default holidays (${res.skipped} already present). Synced ${res.synced} program calendars.`
+          ? `Seeded ${res.added.length} default holidays (${res.skipped} already present). Synced ${res.synced} department calendars.`
           : `All ${res.skipped} default holidays already enabled. No new holidays added.`;
         toast.success(msg);
       },
@@ -102,7 +102,7 @@ export function HolidayBaseTab({ year }: HolidayBaseTabProps) {
         <Info className="h-4 w-4 text-info shrink-0 mt-0.5" />
         <p className="text-xs text-info leading-relaxed not-interactive">
           This is the <strong>org-wide Holiday Base Calendar</strong> — reused across all school years.
-          Configure which holidays apply once here. When you save, all existing program academic
+          Configure which holidays apply once here. When you save, all existing department academic
           calendars are automatically updated to reflect the changes.
         </p>
       </div>
