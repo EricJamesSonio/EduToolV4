@@ -201,7 +201,7 @@ function CourseGroup({
         <div className="divide-y bg-muted/5">
           {levels.length === 0 ? (
             <p className="pl-14 pr-4 py-3 text-xs text-muted-foreground">
-              No levels yet for this program.
+              No levels yet for this department.
             </p>
           ) : (
             levels.map((level) => (
@@ -334,7 +334,7 @@ export function ProgramGroup({
                 <div className="px-4 py-8 text-center">
                   <Layers className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">
-                    No levels yet for this program.
+                    No levels yet for this department.
                   </p>
                   {!isEnded && (
                     <button
