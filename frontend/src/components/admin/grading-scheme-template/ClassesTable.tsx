@@ -35,7 +35,7 @@ export function ClassesTable({
     },
     {
       accessorKey: "programName",
-      header: "Program",
+      header: "Department",
     },
     {
       id: "actions",

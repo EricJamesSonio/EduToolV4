@@ -97,7 +97,7 @@ export function ApplyTemplateModal({
               </p>
               {selectedTemplate.programType && (
                 <p className="text-sm">
-                  <span className="font-medium">Program Type:</span>{" "}
+                  <span className="font-medium">Department Type:</span>{" "}
                   <span className="text-muted-foreground">
                     {selectedTemplate.programType}
                   </span>

@@ -218,7 +218,7 @@ export function TemplateAssignmentPanel({
     () => [
       {
         id: "name",
-        header: "Program",
+        header: "Department",
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
             {row.original.assignedTemplateName ? (
@@ -323,7 +323,7 @@ export function TemplateAssignmentPanel({
       },
       {
         id: "program",
-        header: "Program",
+        header: "Department",
         cell: ({ row }) => (
           <Badge variant="outline" className={typeBadge(row.original.programType)}>
             {PROGRAM_TYPE_LABELS[
@@ -422,7 +422,7 @@ export function TemplateAssignmentPanel({
             onClick={() => setSelectedMode("program")}
           >
             <Layers className="h-3.5 w-3.5 mr-2" />
-            Assign to Program
+            Assign to Department
           </Button>
           <Button
             size="sm"
@@ -439,8 +439,8 @@ export function TemplateAssignmentPanel({
             <DataTable
               columns={programColumns}
               data={programRows}
-              emptyTitle="No programs found"
-              emptyDescription="No programs exist for this school year."
+              emptyTitle="No departments found"
+              emptyDescription="No departments exist for this school year."
             />
           </div>
         )}
@@ -477,7 +477,7 @@ export function TemplateAssignmentPanel({
             </DialogHeader>
 
             <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-              <p className="text-xs text-muted-foreground not-interactive">Program</p>
+              <p className="text-xs text-muted-foreground not-interactive">Department</p>
               <p className="font-medium text-sm not-interactive">{assignTarget.name}</p>
               <Badge variant="outline" className={typeBadge(assignTarget.type)}>
                 {PROGRAM_TYPE_LABELS[
@@ -498,7 +498,7 @@ export function TemplateAssignmentPanel({
                 <SelectContent>
                   {compatibleTemplates.length === 0 ? (
                     <div className="px-3 py-2 text-xs text-muted-foreground not-interactive">
-                      No templates available for this program type
+                      No templates available for this department type
                     </div>
                   ) : (
                     compatibleTemplates.map((template, i) => (
