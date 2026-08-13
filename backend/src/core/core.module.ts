@@ -13,6 +13,7 @@ import { DatabaseModule } from './database/database.module';
 import { LoggerModule } from './logger/logger.module';
 import { AiModule } from './ai/ai.module';
 import { MailModule } from '@/modules/mail/mail.module';
+import { PersonalEmailRegistryModule } from '@/commons/services/personal-email-registry.module';
 
 @Global()
 @Module({
@@ -27,6 +28,7 @@ import { MailModule } from '@/modules/mail/mail.module';
     LoggerModule,
     AiModule,
     MailModule,
+    PersonalEmailRegistryModule,
   ],
   exports: [DatabaseModule, LoggerModule, ConfigModule, AiModule],
 })
