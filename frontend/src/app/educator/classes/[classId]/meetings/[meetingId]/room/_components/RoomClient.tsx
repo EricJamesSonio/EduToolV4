@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ import { ReactionOverlay } from "@/components/meeting/ReactionOverlay";
 import { useMeetingAttendance } from "@/hooks/meeting/useMeetingAttendance";
 import { AttendanceSummaryPanel } from "@/components/educator/meeting-room/AttendanceSummaryPanel";
 import { saveAttendance } from "@/utils/meetingAttendanceStorage";
+import { groupyApi } from "@/api/shared/groupy.api";
 
 export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const { classId, meetingId } = useParams<{ classId: string; meetingId: string }>();
@@ -43,7 +45,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("origin") === "groupy";
   const backUrl = isGroupyRoom
-    ? `/educator/classes/${classId}`
+    ? `/educator/classes/${classId}/groupy`
     : `/educator/classes/${classId}/meetings/${meetingId}`;
 
   const { data: meeting }                            = useMeeting(classId, meetingId, { refetchInterval: 10000 });
@@ -92,6 +94,47 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     startPresentation, stopPresentation, changeSlide,
     latestReaction, latestHandRaise,
   } = meetingCtx;
+
+  // ── Groupy rooms: trip back to the class chat when the meeting ends ───────
+  // Ephemeral meetings are hard-deleted the moment everyone leaves / the host
+  // ends them, so once "no active meeting" is confirmed the client returns to
+  // the chat automatically — no blank screen or manual navigation.
+  const exitedToChatRef = useRef(false);
+  useEffect(() => {
+    if (!isGroupyRoom) return;
+    let disposed = false;
+    const check = async () => {
+      if (!meetingCtx.joined || exitedToChatRef.current) return;
+      try {
+        const data = await groupyApi.getActiveMeeting(classId);
+        if (disposed || exitedToChatRef.current) return;
+        if (!data.meeting || data.meeting.meetingId !== meetingId) {
+          exitedToChatRef.current = true;
+          router.push(backUrl);
+        }
+      } catch {
+        // transient network error — keep polling
+      }
+    };
+    const id = setInterval(check, 4000);
+    return () => {
+      disposed = true;
+      clearInterval(id);
+    };
+  }, [isGroupyRoom, classId, meetingId, backUrl, router, meetingCtx.joined]);
+
+  // ── Host ended the meeting: force-exit immediately ────────────────────────
+  // The backend broadcasts "meeting:ended" through the socket as soon as the
+  // end call succeeds, so every connected client (host + students) leaves the
+  // room now instead of waiting for the next poll tick.
+  useEffect(() => {
+    if (!meetingCtx.meetingEnded || exitedToChatRef.current) return;
+    exitedToChatRef.current = true;
+    finalizeAndSave();
+    meetingCtx.leaveMeeting();
+    router.push(backUrl);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meetingCtx.meetingEnded, backUrl]);
 
   // ── Attendance tracking ───────────────────────────────────────────────────
   const { records, formatDuration, flushSessions } = useMeetingAttendance(participants);
@@ -181,20 +224,28 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
   const handleToggleMic   = async () => { await toggleMic();    setMicOn((v) => !v); };
   const handleToggleCam   = async () => { await toggleCamera(); setCamOn((v) => !v); };
   const handleToggleHand  = () => { handRaised ? lowerHand() : raiseHand(); setHandRaised((v) => !v); };
-  const handleTogglePanel = (panel: NonNullable<SidePanelType>) => setSidePanel((p) => p === panel ? null : panel);
+  const handleTogglePanel = (panel: NonNullable<SidePanelType>) =>
+    setSidePanel((p) => (p === panel ? null : isGroupyRoom && panel !== "participants" ? p : panel));
   const handleRespond     = (reqId: string, status: "accepted" | "declined") => respondMutation.mutate({ reqId, status });
 
   const handleLeave = () => {
+    exitedToChatRef.current = true;
     finalizeAndSave();
     meetingCtx.leaveMeeting();
     router.push(backUrl);
   };
 
   const handleEndMeeting = () => {
+    exitedToChatRef.current = true;
     finalizeAndSave();
     meetingCtx.leaveMeeting();
     endMeetingMutation.mutate(meetingId, {
       onSuccess: () => router.push(backUrl),
+      onError: (err) => {
+        console.error("End meeting failed:", err);
+        toast.error("Failed to end the meeting. Please try again.");
+        router.push(backUrl);
+      },
     });
   };
 
@@ -246,7 +297,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     )}>
       <div className="flex-1 flex overflow-hidden relative min-h-0 bg-zinc-950">
 
-        {isPresenting ? (
+        {isPresenting && !isGroupyRoom ? (
           <PresentationView
             presentation={presentation}
             currentSlide={currentSlide}
@@ -283,13 +334,22 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         {sidePanel && (
           <SidePanel
             title={
-              sidePanel === "join-requests"                  ? "Join Requests"
-              : sidePanel === "participants" && meetingEnded ? "Attendance Summary"
+              !isGroupyRoom && sidePanel === "join-requests"    ? "Join Requests"
+              : !isGroupyRoom && sidePanel === "participants" && meetingEnded ? "Attendance Summary"
               : sidePanel
             }
             onClose={() => setSidePanel(null)}
           >
-            {sidePanel === "chat" ? (
+            {isGroupyRoom ? (
+              <ParticipantsPanel
+                participants={participants}
+                remoteUsers={remoteUsers}
+                currentUserId={currentUserId}
+                currentUserName={currentUserName}
+                localVideo={localVideo}
+                role="educator"
+              />
+            ) : sidePanel === "chat" ? (
               <ChatPanel
                 messages={chatMessages}
                 currentUserId={currentUserId}
@@ -320,7 +380,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
           </SidePanel>
         )}
 
-        {pendingRequests.length > 0 && !sidePanel && (
+        {pendingRequests.length > 0 && !sidePanel && !isGroupyRoom && (
           <div className="absolute top-3 right-4 z-10">
             <button
               onClick={() => setSidePanel("join-requests")}
@@ -340,7 +400,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         open={overflowOpen}
         onClose={() => setOverflowOpen(false)}
         actions={[
-          ...(isPresenting
+          ...(isPresenting && !isGroupyRoom
             ? [{
                 key: "slides",
                 label: "Slides",
@@ -351,30 +411,34 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
                 },
               }]
             : []),
-          {
-            key: "present",
-            label: isPresenting ? "Stop" : "Present",
-            icon: Monitor,
-            active: isPresenting,
-            onClick: () => {
-              setOverflowOpen(false);
-              if (isPresenting) {
-                handleStopPresentation();
-              } else {
-                setShowPresModal(true);
-              }
-            },
-          },
-          {
-            key: "chat",
-            label: "Chat",
-            icon: MessageSquare,
-            active: sidePanel === "chat",
-            onClick: () => {
-              setOverflowOpen(false);
-              handleTogglePanel("chat");
-            },
-          },
+          ...(isGroupyRoom
+            ? []
+            : [{
+                key: "present",
+                label: isPresenting ? "Stop" : "Present",
+                icon: Monitor,
+                active: isPresenting,
+                onClick: () => {
+                  setOverflowOpen(false);
+                  if (isPresenting) {
+                    handleStopPresentation();
+                  } else {
+                    setShowPresModal(true);
+                  }
+                },
+              }]),
+          ...(isGroupyRoom
+            ? []
+            : [{
+                key: "chat",
+                label: "Chat",
+                icon: MessageSquare,
+                active: sidePanel === "chat",
+                onClick: () => {
+                  setOverflowOpen(false);
+                  handleTogglePanel("chat");
+                },
+              }]),
           {
             key: "participants",
             label: participants.length > 0 ? `${participants.length}` : "People",
@@ -385,17 +449,19 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
               handleTogglePanel("participants");
             },
           },
-          {
-            key: "join-requests",
-            label: "Requests",
-            icon: UserPlus,
-            active: sidePanel === "join-requests",
-            badge: pendingRequests.length,
-            onClick: () => {
-              setOverflowOpen(false);
-              handleTogglePanel("join-requests");
-            },
-          },
+          ...(isGroupyRoom
+            ? []
+            : [{
+                key: "join-requests",
+                label: "Requests",
+                icon: UserPlus,
+                active: sidePanel === "join-requests",
+                badge: pendingRequests.length,
+                onClick: () => {
+                  setOverflowOpen(false);
+                  handleTogglePanel("join-requests");
+                },
+              }]),
           {
             key: "reactions",
             label: "React",
@@ -441,11 +507,12 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         participantCount={participants.length}
         pendingRequestCount={pendingRequests.length}
         isEndingMeeting={endMeetingMutation.isPending}
+        simplified={isGroupyRoom}
         onToggleMic={handleToggleMic}
         onToggleCam={handleToggleCam}
         onToggleHand={handleToggleHand}
         onToggleReactions={() => setShowReactions((v) => !v)}
-        onTogglePresentation={() => isPresenting ? handleStopPresentation() : setShowPresModal(true)}
+        onTogglePresentation={() => !isGroupyRoom && (isPresenting ? handleStopPresentation() : setShowPresModal(true))}
         onToggleFullscreen={() => setIsFullscreen((v) => !v)}
         onToggleSidePanel={handleTogglePanel}
         onToggleOverflow={() => setOverflowOpen((v) => !v)}
@@ -453,13 +520,15 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
         onEnd={handleEndMeeting}
       />
 
-      <PresentationSelectorModal
-        open={showPresModal}
-        onClose={() => setShowPresModal(false)}
-        onSelect={handleSelectPresentation}
-        onShareScreen={handleShareScreen}
-        classId={classId}
-      />
+      {!isGroupyRoom && (
+        <PresentationSelectorModal
+          open={showPresModal}
+          onClose={() => setShowPresModal(false)}
+          onSelect={handleSelectPresentation}
+          onShareScreen={handleShareScreen}
+          classId={classId}
+        />
+      )}
     </div>
   );
 }
