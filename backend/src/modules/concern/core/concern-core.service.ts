@@ -20,10 +20,14 @@ export class ConcernCoreService {
   }
 
   async findActiveCategories(orgId: string) {
+    // Self-healing: guarantee defaults exist so the list is never empty.
+    await this.repo.ensureDefaultCategories(orgId);
     return this.repo.findActiveCategories(orgId);
   }
 
-  findAllCategories(orgId: string) {
+  async findAllCategories(orgId: string) {
+    // Self-healing: guarantee defaults exist so the list is never empty.
+    await this.repo.ensureDefaultCategories(orgId);
     return this.repo.findAllCategories(orgId);
   }
 

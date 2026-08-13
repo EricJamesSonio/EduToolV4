@@ -2,10 +2,41 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { Prisma, Role, ConcernStatus } from '@prisma/client';
+import { DEFAULT_CONCERN_CATEGORIES } from '../data/default-categories.data';
 
 @Injectable()
 export class ConcernCoreRepository {
   constructor(private readonly db: DatabaseService) {}
+
+  /**
+   * Idempotently backfill any missing default categories for an org. Existing
+   * rows (including deactivated ones) are left untouched — only labels that do
+   * not yet exist are created, so the category list is never empty while admin
+   * decisions (deactivation/rename) are respected.
+   */
+  async ensureDefaultCategories(orgId: string) {
+    const existing = await this.db.concernCategory.findMany({
+      where: {
+        org_id: orgId,
+        label: { in: [...DEFAULT_CONCERN_CATEGORIES] },
+      },
+      select: { label: true },
+    });
+    const existingLabels = new Set(existing.map((c) => c.label));
+    const missing = [...DEFAULT_CONCERN_CATEGORIES].filter(
+      (label) => !existingLabels.has(label),
+    );
+    if (missing.length === 0) return;
+
+    await this.db.concernCategory.createMany({
+      data: missing.map((label) => ({
+        org_id: orgId,
+        label,
+        is_default: true,
+      })),
+      skipDuplicates: true,
+    });
+  }
 
   findActiveCategories(orgId: string) {
     return this.db.concernCategory.findMany({
