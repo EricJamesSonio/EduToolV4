@@ -38,6 +38,10 @@ interface UseMeetingSocketReturn {
   latestReaction: IncomingReaction | null;
   /** Latest hand-raise event (fires when a participant raises their hand) */
   latestHandRaise: IncomingHandRaise | null;
+  /** True once the host ends the meeting — all connected clients must exit. */
+  meetingEnded: boolean;
+  /** Reset the ended flag (used when leaving / starting a new meeting). */
+  clearMeetingEnded: () => void;
   sendChat: (message: string) => void;
   raiseHand: () => void;
   lowerHand: () => void;
@@ -65,6 +69,7 @@ export const useMeetingSocket = ({
   const [presentationId,   setPresentationId]    = useState<string | null>(null);
   const [latestReaction,   setLatestReaction]    = useState<IncomingReaction | null>(null);
   const [latestHandRaise,  setLatestHandRaise]   = useState<IncomingHandRaise | null>(null);
+  const [meetingEnded,     setMeetingEnded]      = useState(false);
 
   // Track previous participants to detect hand-raise changes
   const prevParticipantsRef = useRef<MeetingParticipant[]>([]);
@@ -81,6 +86,7 @@ let isActive = true;
 // lingers in state and re-triggers ReactionOverlay on rejoin.
 setLatestReaction(null);
 setLatestHandRaise(null);
+setMeetingEnded(false);
 prevParticipantsRef.current = [];
 
 const socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
@@ -234,6 +240,12 @@ const socket = io(`${process.env.NEXT_PUBLIC_WS_URL}/meeting`, {
       setPresentationId(null);
     });
 
+    // The host ended the meeting — force everyone out of the room immediately.
+    socket.on("meeting:ended", () => {
+      if (!isActive) return;
+      setMeetingEnded(true);
+    });
+
 return () => {
   isActive = false;
   if (selfEchoTimerRef.current) {       // ← ADD: cancel any pending self-echo
@@ -311,6 +323,10 @@ return () => {
     setLatestHandRaise(null);
   }, []);
 
+  const clearMeetingEnded = useCallback(() => {
+    setMeetingEnded(false);
+  }, []);
+
   return {
     socket: socketRef.current,
     connected,
@@ -321,6 +337,8 @@ return () => {
     presentationId,
     latestReaction,
     latestHandRaise,
+    meetingEnded,
+    clearMeetingEnded,
     sendChat,
     raiseHand,
     lowerHand,

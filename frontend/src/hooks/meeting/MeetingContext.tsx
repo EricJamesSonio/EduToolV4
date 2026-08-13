@@ -35,6 +35,8 @@ interface MeetingContextValue {
   presentationId: string | null;
   latestReaction: IncomingReaction | null;
   latestHandRaise: IncomingHandRaise | null;
+  /** True once the host ends the meeting — connected clients must exit. */
+  meetingEnded: boolean;
   sendChat: (message: string) => void;
   raiseHand: () => void;
   lowerHand: () => void;
@@ -96,6 +98,8 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     changeSlide, startPresentation, stopPresentation,
     latestReaction,   // ← plain destructure
     latestHandRaise,
+    meetingEnded,
+    clearMeetingEnded,
     clearLatestReaction,
     clearLatestHandRaise,
   } = useMeetingSocket(socketProps);
@@ -121,10 +125,11 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const leaveMeeting = useCallback(() => {
+    clearMeetingEnded();
     setLeaving(true);
     setIsMinimized(false);
     setMeetingParams(null);
-  }, []);
+  }, [clearMeetingEnded]);
 
   const minimize = useCallback(() => setIsMinimized(true), []);
   const maximize = useCallback(() => setIsMinimized(false), []);
@@ -144,6 +149,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     // Gate overlay values — null when not in a session so stale data never leaks
     latestReaction:  meetingParams ? latestReaction  : null,
     latestHandRaise: meetingParams ? latestHandRaise : null,
+    meetingEnded,
 
     sendChat, raiseHand, lowerHand, sendReaction,
     changeSlide, startPresentation, stopPresentation,
