@@ -166,7 +166,7 @@ export function GradingScaleAssignmentSection({
     () => [
       {
         id: "name",
-        header: "Program",
+        header: "Department",
         cell: ({ row }) => (
           <div className="space-y-1">
             <span className="font-medium text-sm not-interactive">{row.original.name}</span>
@@ -240,7 +240,7 @@ export function GradingScaleAssignmentSection({
   return (
     <>
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold not-interactive">Assign to Programs</h2>
+        <h2 className="text-lg font-semibold not-interactive">Assign to Departments</h2>
 
         <div className="rounded-lg border p-4 bg-muted/30">
           <SchoolYearSelector
@@ -263,8 +263,8 @@ export function GradingScaleAssignmentSection({
               <DataTable
                 columns={programColumns}
                 data={programsWithScales}
-                emptyTitle="No programs"
-                emptyDescription="No programs found for this school year."
+                emptyTitle="No departments"
+                emptyDescription="No departments found for this school year."
               />
             )}
           </>
@@ -290,7 +290,7 @@ export function GradingScaleAssignmentSection({
             </DialogHeader>
 
             <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-              <p className="text-xs text-muted-foreground not-interactive">Program</p>
+              <p className="text-xs text-muted-foreground not-interactive">Department</p>
               <p className="font-medium text-sm not-interactive">{assignTarget.name}</p>
               <Badge
                 variant="outline"
@@ -317,7 +317,7 @@ export function GradingScaleAssignmentSection({
                 <SelectContent>
                   {compatibleScales.length === 0 ? (
                     <div className="px-3 py-2 text-xs text-muted-foreground not-interactive">
-                      No scales available for this program type
+                      No scales available for this department type
                     </div>
                   ) : (
                     compatibleScales.map((scale, i) => (

@@ -145,13 +145,13 @@ export function CreateGradingScaleDialog({
 
           {/* Program Type */}
           <div className="space-y-1.5">
-            <Label>Program Type</Label>
+            <Label>Department Type</Label>
             <Select
               value={programType}
               onValueChange={(v) => setValue("programType", v ?? "")}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select program type" />
+                <SelectValue placeholder="Select department type" />
               </SelectTrigger>
               <SelectContent>
                 {PROGRAM_TYPE_VALUES.map((pt) => (
@@ -163,7 +163,7 @@ export function CreateGradingScaleDialog({
             </Select>
             {!programType && submitted && (
               <p className="text-xs text-destructive">
-                Program type is required.
+                Department type is required.
               </p>
             )}
           </div>
