@@ -67,6 +67,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
           token: tokenData.token, uid: tokenData.uid,
         },
         authToken,
+        origin: isGroupyRoom ? "groupy" : "scheduled",
       });
     }
     return () => { meetingCtx.minimize(); };
@@ -167,9 +168,22 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleToggleMic   = async () => { await toggleMic();    setMicOn((v) => !v); };
   const handleToggleCam   = async () => { await toggleCamera(); setCamOn((v) => !v); };
-  const handleToggleHand  = () => { handRaised ? lowerHand() : raiseHand(); setHandRaised((v) => !v); };
+  const handleToggleHand  = () => { if (handRaised) lowerHand(); else raiseHand(); setHandRaised((v) => !v); };
   const handleTogglePanel = (panel: NonNullable<SidePanelType>) =>
     setSidePanel((p) => (p === panel ? null : isGroupyRoom && panel !== "participants" ? p : panel));
+
+  const handleToggleFullscreen = () => {
+    if (isGroupyRoom) {
+      // Groupy meetings started from the class chat: exiting fullscreen
+      // returns to the chat with the call minimized (mini player keeps the
+      // camera live). For regular meetings the button only toggles the
+      // fullscreen overlay.
+      meetingCtx.minimize();
+      router.push(backUrl);
+    } else {
+      setIsFullscreen((v) => !v);
+    }
+  };
 
   const handleLeave = () => {
     exitedToChatRef.current = true;
@@ -337,7 +351,7 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
         onToggleCam={handleToggleCam}
         onToggleHand={handleToggleHand}
         onToggleReactions={() => setShowReactions((v) => !v)}
-        onToggleFullscreen={() => setIsFullscreen((v) => !v)}
+        onToggleFullscreen={handleToggleFullscreen}
         onToggleSidePanel={handleTogglePanel}
         onToggleOverflow={() => setOverflowOpen((v) => !v)}
         onLeave={handleLeave}
