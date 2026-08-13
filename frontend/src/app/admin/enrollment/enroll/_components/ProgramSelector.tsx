@@ -112,7 +112,7 @@ export function LevelSelector({ levels, isLoading, onSelect }: LevelSelectorProp
     return (
       <div className="rounded-xl border bg-card px-6 py-12 text-center">
         <Layers className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-        <p className="text-sm font-medium text-muted-foreground">No levels available for this program.</p>
+        <p className="text-sm font-medium text-muted-foreground">No levels available for this department.</p>
       </div>
     );
   }

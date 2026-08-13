@@ -52,7 +52,7 @@ export function ClassEnrollmentPanel({
 
       <div className="p-4 space-y-3">
         <p className="text-xs text-muted-foreground">
-          Select a class to enroll students from this program and level into it.
+          Select a class to enroll students from this department and level into it.
         </p>
 
         {isLoading ? (
@@ -65,7 +65,7 @@ export function ClassEnrollmentPanel({
           <div className="py-12 text-center space-y-2">
             <CalendarDays className="h-10 w-10 text-muted-foreground/30 mx-auto" />
             <p className="text-sm font-medium text-muted-foreground">No classes found</p>
-            <p className="text-xs text-muted-foreground">No classes are available for this program and level.</p>
+            <p className="text-xs text-muted-foreground">No classes are available for this department and level.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -147,7 +147,7 @@ export function ClassEnrollmentPanel({
                             No eligible students
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Enroll students into this program and level first.
+                            Enroll students into this department and level first.
                           </p>
                         </div>
                       ) : (

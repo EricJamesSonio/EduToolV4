@@ -122,7 +122,7 @@ export function EnrollStudentPanel({
       {leftTab === "pending" && (
         <div className="p-4 space-y-3">
           <p className="text-xs text-muted-foreground">
-            Students enrolled in a program who haven&apos;t been assigned to a section yet.
+            Students enrolled in a department who haven&apos;t been assigned to a section yet.
           </p>
           <DataTable
             columns={contextColumns}
