@@ -51,11 +51,13 @@ export interface AdminRequestView {
   updated_at: string;
 }
 
-export interface AdminRequestVerifyResult {
-  token: string;
-  mode: "edit" | "create";
-  request?: AdminRequestView;
-}
+export type AdminRequestVerifyResult =
+  | { blocked: true; message: string }
+  | {
+      token: string;
+      mode: "edit" | "create";
+      request?: AdminRequestView;
+    };
 
 export interface AdminRequestSubmitPayload {
   full_name: string;
