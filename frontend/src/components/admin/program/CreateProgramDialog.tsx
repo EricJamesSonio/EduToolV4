@@ -54,12 +54,12 @@ export function CreateProgramDialog({
     mutationFn: (values: CreateForm) => {
       if (!schoolYearId) {
         // Prevent sending invalid data
-        throw new Error("Cannot create program: school year not selected.");
+        throw new Error("Cannot create department: school year not selected.");
       }
       return programApi.create({ ...values, schoolYearId });
     },
     onSuccess: () => {
-      toast.success("Program created.");
+      toast.success("Department created.");
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.programs.list({ schoolYearId }) });
       reset();
       onClose();
@@ -69,7 +69,7 @@ export function CreateProgramDialog({
         err instanceof AxiosError
           ? err?.response?.data?.message
           : err.message;
-      toast.error(message ?? "Failed to create program.");
+      toast.error(message ?? "Failed to create department.");
     },
   });
 
@@ -79,13 +79,13 @@ export function CreateProgramDialog({
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title="New Program" size="sm">
+    <Modal open={open} onClose={handleClose} title="New Department" size="sm">
         <form
           onSubmit={handleSubmit((v) => mutation.mutate(v))}
           className="space-y-4"
         >
           <div className="space-y-1.5">
-            <Label htmlFor="prog-name">Program Name</Label>
+            <Label htmlFor="prog-name">Department Name</Label>
             <Input
               id="prog-name"
               placeholder="e.g. Bachelor of Science in IT"

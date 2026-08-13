@@ -71,13 +71,13 @@ export function EditProgramDialog({
       },
       {
         onSuccess: () => {
-          toast.success("Program updated.");
+          toast.success("Department updated.");
           handleClose();
         },
         onError: (err) => {
           const axiosErr = err as AxiosError<{ message: string }>;
           toast.error(
-            axiosErr?.response?.data?.message ?? "Failed to update program."
+            axiosErr?.response?.data?.message ?? "Failed to update department."
           );
         },
       }
@@ -85,12 +85,12 @@ export function EditProgramDialog({
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title="Edit Program" size="sm">
+    <Modal open={open} onClose={handleClose} title="Edit Department" size="sm">
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Name */}
           <div className="space-y-1.5">
-            <Label>Program Name</Label>
+            <Label>Department Name</Label>
             <Input
               {...register("name", {
                 required: "Name is required",
