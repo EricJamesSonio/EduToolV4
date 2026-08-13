@@ -161,12 +161,12 @@ export default function EnrollmentPage() {
         { studentId: programTarget.id, data },
         {
           onSuccess: () => {
-            toast.success("Program assigned.");
+            toast.success("Department assigned.");
             setProgramTarget(null);
           },
           onError: (err: unknown) => {
             const e = err as { response?: { data?: { message?: string } } };
-            toast.error(e?.response?.data?.message ?? "Failed to assign program.");
+            toast.error(e?.response?.data?.message ?? "Failed to assign department.");
           },
         },
       );
@@ -219,7 +219,7 @@ export default function EnrollmentPage() {
     },
     {
       id: "programs",
-      header: "Programs",
+      header: "Departments",
       cell: ({ row }) => {
         const { pe } = row.original;
         return (
@@ -367,9 +367,9 @@ export default function EnrollmentPage() {
                   </p>
                 </div>
                 <div className="rounded-lg border bg-card px-4 py-3 space-y-1">
-                  <p className="text-xs text-muted-foreground not-interactive">Program Enrollments</p>
+                  <p className="text-xs text-muted-foreground not-interactive">Department Enrollments</p>
                   <p className="text-2xl font-semibold not-interactive">{totalProgramEnrollments}</p>
-                  <p className="text-xs text-muted-foreground not-interactive">across all programs (this page)</p>
+                  <p className="text-xs text-muted-foreground not-interactive">across all departments (this page)</p>
                 </div>
               </div>
             )}
@@ -412,7 +412,7 @@ export default function EnrollmentPage() {
 
             <TabsContent value="pending" className="pt-4 space-y-2">
               <p className="text-xs text-muted-foreground px-1">
-                Students enrolled in a program who haven&apos;t been assigned to a
+                Students enrolled in a department who haven&apos;t been assigned to a
                 section yet (current page only).
               </p>
               <DataTable
@@ -432,7 +432,7 @@ export default function EnrollmentPage() {
                   Section Assignment
                 </p>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  Bulk-assign or reassign students to sections across programs and
+                  Bulk-assign or reassign students to sections across departments and
                   levels. This view helps you manage section rosters efficiently.
                 </p>
               </div>
