@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { enrollmentPortalApi } from "@/api/public/enrollment-portal.api";
+import { AccountAlreadyLinkedNotice } from "@/components/shared/AccountAlreadyLinkedNotice";
 import { useEnrollmentDraft, type UseEnrollmentDraftResult } from "@/hooks/useEnrollmentDraft";
 import { draftToApplicationPayload } from "@/utils/enrollmentApplication";
 import type {
@@ -190,7 +191,7 @@ function StepIndicator({ step }: { step: Step }) {
 }
 
 function ps(i: number): string {
-  return ["Email", "Personal Info", "Program", "Review"][i];
+  return ["Email", "Personal Info", "Department", "Review"][i];
 }
 
 function ApplyFlow({
@@ -224,6 +225,7 @@ function ApplyFlow({
   const [busy, setBusy] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [createdCode, setCreatedCode] = useState("");
+  const [blockedMessage, setBlockedMessage] = useState("");
 
   const isLocked = !!application && (application.status === "locked" || application.status === "approved");
 
@@ -235,6 +237,7 @@ function ApplyFlow({
       return;
     }
     setBusy(true);
+    setBlockedMessage("");
     try {
       await enrollmentPortalApi.requestOtp(orgSlug, periodToken, email);
       setOtpSent(true);
@@ -249,8 +252,18 @@ function ApplyFlow({
   const handleVerifyOtp = async () => {
     if (!email || otpCode.length !== 6) return;
     setBusy(true);
+    setBlockedMessage("");
     try {
       const result = await enrollmentPortalApi.verifyOtp(orgSlug, periodToken, email, otpCode);
+      if ("blocked" in result) {
+        // The email already belongs to an account elsewhere in the system.
+        // Show the message and go back to the identity step so the applicant
+        // can try a different email. Do NOT open a session or continue.
+        setBlockedMessage(result.message);
+        setOtpSent(false);
+        setOtpCode("");
+        return;
+      }
       setOtpSent(true);
       activateVerifiedSession(result.token, result.mode === "edit", result.application ?? null);
     } catch (err) {
@@ -322,17 +335,17 @@ function ApplyFlow({
       return;
     }
     if (!draft.program_id || !selectedProgram) {
-      toast.error("Your saved program is no longer available. Please pick it again.");
+      toast.error("Your saved department is no longer available. Please pick it again.");
       setStep("program");
       return;
     }
     if (needsCourseOrStrand(selectedProgram) && !draft.course_id && !draft.strand_id) {
-      toast.error("Select a course or strand for this program.");
+      toast.error("Select a course or strand for this department.");
       setStep("program");
       return;
     }
     if (!draft.level_id) {
-      toast.error("Select a level for this program.");
+      toast.error("Select a level for this department.");
       setStep("program");
       return;
     }
@@ -384,6 +397,9 @@ function ApplyFlow({
       )}
 
       <StepIndicator step={step} />
+      {blockedMessage && (
+        <AccountAlreadyLinkedNotice message={blockedMessage} />
+      )}
       {editMode && application?.status === "rejected" && application.rejection_reason && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
           <p className="font-medium">Your application was not approved</p>
@@ -434,7 +450,7 @@ function ApplyFlow({
               onBack={() => setStep("personal")}
               onNext={() => {
                 if (!draft.program_id || !draft.level_id) {
-                  toast.error("Select a program and a level.");
+                  toast.error("Select a department and a level.");
                   return;
                 }
                 if (
@@ -442,7 +458,7 @@ function ApplyFlow({
                   !draft.course_id &&
                   !draft.strand_id
                 ) {
-                  toast.error("Select a course or strand for this program.");
+                  toast.error("Select a course or strand for this department.");
                   return;
                 }
                 setStep("review");
@@ -670,7 +686,7 @@ function ProgramStep({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Program</Label>
+        <Label>Department</Label>
         <Select
           value={draft.program_id || ""}
           onValueChange={(v) =>
@@ -678,7 +694,7 @@ function ProgramStep({
           }
         >
           <SelectTrigger>
-            <span className="truncate">{selectedProgram?.name ?? "Select a program"}</span>
+            <span className="truncate">{selectedProgram?.name ?? "Select a department"}</span>
           </SelectTrigger>
           <SelectContent>
             {programs.map((p) => (
@@ -797,7 +813,7 @@ function ReviewStep({
         <Row label="Address" value={draft.address} />
         <Row label="Contact number" value={draft.contact_number} />
         <Row label="Last school graduated" value={draft.last_school_graduated} />
-        <Row label="Program" value={program?.name} />
+        <Row label="Department" value={program?.name} />
         {course ? <Row label="Course" value={`${course.name}${course.code ? ` (${course.code})` : ""}`} /> : null}
         {strand ? <Row label="Strand" value={strand.name} /> : null}
         <Row label="Level" value={level?.name} />
