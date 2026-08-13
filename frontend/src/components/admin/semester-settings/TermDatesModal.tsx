@@ -150,7 +150,7 @@ export function TermDatesModal({
       <ConfirmDialog
         open={confirmSaveOpen}
         title="Save term dates?"
-        description="This will overwrite any previously saved term dates for this program."
+        description="This will overwrite any previously saved term dates for this department."
         confirmLabel="Save"
         onConfirm={handleSaveDates}
         onCancel={() => setConfirmSaveOpen(false)}

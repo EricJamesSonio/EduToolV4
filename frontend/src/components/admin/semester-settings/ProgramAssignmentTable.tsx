@@ -123,7 +123,7 @@ function ProgramTableRowActions({
       <ConfirmDialog
         open={removeConfirmOpen}
         title="Remove template assignment?"
-        description="This will remove the current template assignment and all configured term dates for this program."
+        description="This will remove the current template assignment and all configured term dates for this department."
         confirmLabel="Yes, remove"
         onConfirm={() => {
           setRemoveConfirmOpen(false)
@@ -207,7 +207,7 @@ export function ProgramAssignmentTable({
   if (programTypes.length === 0) {
     return (
       <p className="text-sm text-muted-foreground not-interactive">
-        No programs found for this school year.
+        No departments found for this school year.
       </p>
     );
   }
@@ -230,7 +230,7 @@ export function ProgramAssignmentTable({
           const columns = [
             {
               accessorKey: "name",
-              header: "Program",
+              header: "Department",
               cell: ({ row }: { row: { original: { id: string } } }) => {
                 const prog = programs.find((p) => p.id === row.original.id);
                 if (!prog) return null;
@@ -284,8 +284,8 @@ export function ProgramAssignmentTable({
                   columns={columns}
                   data={tableData}
                   isLoading={false}
-                  emptyTitle="No programs"
-                  emptyDescription="No programs found for this type."
+                  emptyTitle="No departments"
+                  emptyDescription="No departments found for this type."
                 />
               </div>
 
@@ -293,7 +293,7 @@ export function ProgramAssignmentTable({
                 <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
                   <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
                   <p className="text-[11px] text-amber-700 not-interactive">
-                    Some programs don&apos;t have a template assigned yet.
+                    Some departments don&apos;t have a template assigned yet.
                   </p>
                 </div>
               )}

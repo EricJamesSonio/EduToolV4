@@ -187,7 +187,7 @@ export function TemplateFormDialog({
   const handleSubmit = () => {
     if (!name.trim()) return toast.error("Template name is required.");
     if (!isEdit && !programType)
-      return toast.error("Program type is required.");
+      return toast.error("Department type is required.");
     if (semesters.length === 0)
       return toast.error("Add at least one semester.");
 
@@ -232,7 +232,7 @@ export function TemplateFormDialog({
       open={open}
       onClose={onClose}
       title={isEdit ? "Edit Template" : "New Semester Template"}
-      description="Templates are reusable across school years — assign them per program."
+      description="Templates are reusable across school years — assign them per department."
       size="2xl"
     >
 
@@ -249,7 +249,7 @@ export function TemplateFormDialog({
           {!isEdit && !initialProgramType && (
             <div className="space-y-1.5">
               <Label>
-                Program Type <span className="text-destructive">*</span>
+                Department Type <span className="text-destructive">*</span>
               </Label>
               <Select
                 value={programType}
@@ -259,7 +259,7 @@ export function TemplateFormDialog({
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select program type" />
+                  <SelectValue placeholder="Select department type" />
                 </SelectTrigger>
                 <SelectContent>
                   {(Object.entries(PROGRAM_TYPE_LABELS) as [

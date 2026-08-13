@@ -46,11 +46,11 @@ export function AssignmentSection({
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-base font-semibold tracking-tight not-interactive">
-            Assign to Programs
+            Assign to Departments
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5 not-interactive">
             Select a school year to assign semester templates and configure term
-            dates for its programs.
+            dates for its departments.
           </p>
         </div>
 
@@ -77,7 +77,7 @@ export function AssignmentSection({
       {/* Programs Assignment Table */}
       {!selectedYearId ? (
         <p className="text-sm text-muted-foreground not-interactive">
-          Select a school year to view programs.
+          Select a school year to view departments.
         </p>
       ) : (
         <ProgramAssignmentTable
