@@ -20,6 +20,7 @@ interface MeetingContextValue {
   meetingId: string;
   classId: string;
   role: "educator" | "student";
+  origin: "groupy" | "scheduled";
   joined: boolean;
   localAudio: ILocalAudioTrack | null;
   localVideo: ILocalVideoTrack | null;
@@ -50,6 +51,8 @@ interface MeetingContextValue {
     role: "educator" | "student";
     tokenData: MeetingTokenData;
     authToken: string;
+    /** Where the meeting was launched from — Groupy rooms return to the chat. */
+    origin?: "groupy" | "scheduled";
   }) => void;
   leaveMeeting: () => void;
   minimize: () => void;
@@ -73,6 +76,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     role: "educator" | "student";
     tokenData: MeetingTokenData;
     authToken: string;
+    origin: "groupy" | "scheduled";
   } | null>(null);
 
   const [isMinimized, setIsMinimized] = useState(false);
@@ -118,8 +122,9 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     role: "educator" | "student";
     tokenData: MeetingTokenData;
     authToken: string;
+    origin?: "groupy" | "scheduled";
   }) => {
-    setMeetingParams(params);
+    setMeetingParams({ ...params, origin: params.origin ?? "scheduled" });
     setIsMinimized(false);
     setLeaving(false);
   }, []);
@@ -140,6 +145,7 @@ export function MeetingProvider({ children }: { children: React.ReactNode }) {
     meetingId: meetingParams?.meetingId ?? "",
     classId:   meetingParams?.classId   ?? "",
     role:      meetingParams?.role      ?? "student",
+    origin:    meetingParams?.origin    ?? "scheduled",
 
     joined, localAudio, localVideo, remoteUsers,
     toggleMic, toggleCamera, shareScreen,
