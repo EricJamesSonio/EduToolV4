@@ -18,7 +18,7 @@ import {
   listItemIconClass,
   listItemTitleClass,
 } from "@/components/shared/ListItemCard";
-import { Eye, Calendar, CalendarX2, CheckCircle2, AlertCircle, CircleAlert, Trash2 } from "lucide-react";
+import { Eye, Calendar, CalendarX2, CheckCircle2, AlertCircle, CircleAlert, Trash2, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/date.util";
 
@@ -115,6 +115,25 @@ const invalidateSchoolYears = () => {
       setConfirmAction(null);
     },
     onError: (err: unknown) => {
+      if (isAxiosError(err)) {
+        const data = err.response?.data as
+          | { issues?: SchoolYearReadiness["issues"] }
+          | undefined;
+        if (Array.isArray(data?.issues) && data.issues.length > 0) {
+          // Mark-ready was rejected because the school year is not ready.
+          // Surface the backend's checklist instead of a generic error toast.
+          const blockingCount = data.issues.filter((i) => i.severity === "blocking").length;
+          setPreparedReadiness({
+            ready: false,
+            blockingCount,
+            warningCount: data.issues.length - blockingCount,
+            issues: data.issues,
+          });
+          setReadinessOpen(true);
+          setConfirmAction(null);
+          return;
+        }
+      }
       const msg = isAxiosError(err)
         ? (err.response?.data?.message ?? "Failed to activate.")
         : "Failed to activate.";
@@ -169,6 +188,18 @@ const invalidateSchoolYears = () => {
       }
     } catch {
       setConfirmAction("activate");
+    }
+  };
+
+  const handleCheckReadinessClick = async () => {
+    if (isMutating) return;
+    try {
+      const detail =
+        preparedReadiness ?? (await schoolYearApi.getReadiness(year.id));
+      setPreparedReadiness(detail);
+      setReadinessOpen(true);
+    } catch {
+      toast.error("Failed to load readiness.");
     }
   };
 
@@ -243,6 +274,16 @@ const invalidateSchoolYears = () => {
                   : "text-primary border-primary/30 hover:bg-primary/10"
               }
               onClick={handleSetActiveClick}
+              disabled={isMutating}
+            />
+          )}
+
+          {year.status === "pending" && (
+            <ListItemCardAction
+              icon={ListChecks}
+              label="Check readiness"
+              className="text-muted-foreground border-muted-foreground/20 hover:bg-muted/50"
+              onClick={handleCheckReadinessClick}
               disabled={isMutating}
             />
           )}

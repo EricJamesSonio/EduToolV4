@@ -64,12 +64,12 @@ export function ProgramsTab({ schoolYearId, isEnded }: ProgramsTabProps): React.
       <div className="rounded-lg border bg-card px-6 py-12 text-center">
         <BookOpen className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
         <p className="text-sm font-medium text-muted-foreground not-interactive">
-          No programs for this school year
+          No departments for this school year
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          Add programs from the{" "}
+          Add departments from the{" "}
           <Link href="/admin/programs" className="text-primary hover:underline">
-            Programs page
+            Departments page
           </Link>{" "}
           or run the data seeder from Organization settings.
         </p>

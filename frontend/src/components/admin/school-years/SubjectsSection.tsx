@@ -259,7 +259,7 @@ export function SubjectsSection({
               filterCourseId !== "all" ||
               filterStrandId !== "all"
                 ? "No subjects match the selected filters."
-                : `No ${activeTab} subjects for this program yet.`
+                : `No ${activeTab} subjects for this department yet.`
             }
           />
         </div>

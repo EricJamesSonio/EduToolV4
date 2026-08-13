@@ -79,7 +79,7 @@ export function ProgramDetailView({
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ChevronLeft className="h-4 w-4" />
-        Programs
+        Departments
       </button>
 
       {/* Program header */}
