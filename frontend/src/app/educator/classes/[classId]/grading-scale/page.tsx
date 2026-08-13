@@ -156,7 +156,7 @@ export default function GradingScalePage({ params }: Props) {
             No grading scale configured
           </p>
           <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-            Your administrator hasn't set up a grading scale for this program yet.
+            Your administrator hasn't set up a grading scale for this department yet.
             Grades will use raw scores until a scale is assigned.
           </p>
         </div>
@@ -168,7 +168,7 @@ export default function GradingScalePage({ params }: Props) {
               <div>
                 <p className="text-base font-semibold">{scale.name}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Applied to this class's program
+                  Applied to this class's department
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
