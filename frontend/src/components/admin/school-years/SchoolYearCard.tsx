@@ -18,7 +18,7 @@ import {
   listItemIconClass,
   listItemTitleClass,
 } from "@/components/shared/ListItemCard";
-import { Eye, Calendar, CalendarX2, CheckCircle2, AlertCircle, CircleAlert, Trash2, ListChecks } from "lucide-react";
+import { Eye, Calendar, CalendarX2, CheckCircle2, AlertCircle, CircleAlert, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/date.util";
 
@@ -280,9 +280,19 @@ const invalidateSchoolYears = () => {
 
           {year.status === "pending" && (
             <ListItemCardAction
-              icon={ListChecks}
-              label="Check readiness"
-              className="text-muted-foreground border-muted-foreground/20 hover:bg-muted/50"
+              icon={notReady ? CircleAlert : CheckCircle2}
+              label={notReady ? "Not ready" : "Ready"}
+              iconOnly
+              title={
+                notReady
+                  ? "Not ready — click to see what needs attention"
+                  : "Ready — click to view readiness"
+              }
+              className={
+                notReady
+                  ? "text-amber-500 border-amber-500/30 hover:bg-amber-500/10"
+                  : "text-emerald-500 border-emerald-500/40 hover:bg-emerald-500/10"
+              }
               onClick={handleCheckReadinessClick}
               disabled={isMutating}
             />
