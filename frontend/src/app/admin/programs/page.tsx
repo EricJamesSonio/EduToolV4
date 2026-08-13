@@ -77,14 +77,14 @@ export default function ProgramsPage(): React.JSX.Element {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => programApi.delete(id),
     onSuccess: () => {
-      toast.success("Program deleted.");
+      toast.success("Department deleted.");
       if (selectedSchoolYearId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.admin.programs.list({ schoolYearId: selectedSchoolYearId }) });
       }
       setDeleteTarget(null);
     },
     onError: (err: AxiosError<{ message: string }>) => {
-      toast.error(err?.response?.data?.message ?? "Failed to delete program.");
+      toast.error(err?.response?.data?.message ?? "Failed to delete department.");
       setDeleteTarget(null);
     },
   });
@@ -96,7 +96,7 @@ export default function ProgramsPage(): React.JSX.Element {
       <EmptyState
         icon={CalendarDays}
         title="No school years found"
-        description="Create a school year first before managing programs."
+        description="Create a school year first before managing departments."
       />
     );
   }
@@ -104,7 +104,7 @@ export default function ProgramsPage(): React.JSX.Element {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Programs"
+        title="Departments"
         actions={
           <div className="flex items-center gap-2">
             <HelpGuide slug="admin_programs" />
@@ -122,7 +122,7 @@ export default function ProgramsPage(): React.JSX.Element {
         <div className="flex items-center justify-end gap-2">
           <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
             <Plus className="mr-2 h-4 w-4" />
-            Add Program
+            Add Department
           </Button>
         </div>
       )}
@@ -133,9 +133,9 @@ export default function ProgramsPage(): React.JSX.Element {
         isEmpty={!programsLoading && !programsError && !programs?.length}
         empty={{
           icon: BookOpen,
-          title: "No programs for this school year",
+          title: "No departments for this school year",
           description:
-            "Add a program manually or run the data seeder from the Organization page.",
+            "Add a department manually or run the data seeder from the Organization page.",
         }}
         loading={
           <CardGrid className="xl:grid-cols-3">
@@ -163,9 +163,9 @@ export default function ProgramsPage(): React.JSX.Element {
       {deleteTarget && (
         <ConfirmDialog
           open
-          title="Delete this program?"
+          title="Delete this department?"
           message={`Delete "${deleteTarget.name}"? This cannot be undone. Make sure it has no levels, courses, or strands assigned to it first.`}
-          confirmLabel="Delete Program"
+          confirmLabel="Delete Department"
           destructive
           isLoading={deleteMutation.isPending}
           onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
