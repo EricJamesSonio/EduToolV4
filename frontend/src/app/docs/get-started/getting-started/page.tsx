@@ -19,7 +19,7 @@ export default function GettingStartedPage() {
       <div className="grid md:grid-cols-3 gap-4 mb-12">
         {[
           { num: "1", title: "Create Organization", desc: "Set up your school details" },
-          { num: "2", title: "Define Structure", desc: "Configure programs and levels" },
+          { num: "2", title: "Define Structure", desc: "Configure departments and levels" },
           { num: "3", title: "Use Seeder", desc: "Auto-generate academic setup" },
         ].map((step) => (
           <div key={step.num} className="rounded-xl border bg-card p-5 space-y-3">
@@ -73,7 +73,7 @@ export default function GettingStartedPage() {
           {
             title: "2. Define Your Academic Structure",
             content:
-              "Create your programs (e.g., College, Senior High School) and assign levels to each. This structure forms the foundation of your school's organization.",
+              "Create your departments (e.g., College, Senior High School) and assign levels to each. This structure forms the foundation of your school's organization.",
           },
           {
             title: "3. Use the Organization Seeder (Optional)",
@@ -83,7 +83,7 @@ export default function GettingStartedPage() {
           {
             title: "4. Configure Grading (Recommended)",
             content:
-              "Set up grading scales and schemes before educators start entering grades. You can create global templates that are reused across programs.",
+              "Set up grading scales and schemes before educators start entering grades. You can create global templates that are reused across departments.",
           },
         ].map((step, idx) => (
           <div key={idx} className="mb-5 rounded-xl border bg-card p-6 space-y-2">
