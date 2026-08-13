@@ -100,14 +100,14 @@ export function SectionLevelFilter({
         onValueChange={(v) => onProgramChange(v ?? "all")}
       >
         <SelectTrigger className="w-52">
-          <SelectValue placeholder="All Programs">
+          <SelectValue placeholder="All Departments">
             {filterProgramId === "all"
-              ? "All Programs"
-              : (selectedProgram?.name ?? "All Programs")}
+              ? "All Departments"
+              : (selectedProgram?.name ?? "All Departments")}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Programs</SelectItem>
+          <SelectItem value="all">All Departments</SelectItem>
           {programs.map((p) => (
             <SelectItem key={p.id} value={p.id}>
               {p.name}
@@ -180,7 +180,7 @@ export function SectionLevelFilter({
           <SelectValue
             placeholder={
               filterProgramId === "all"
-                ? "Select program first"
+                ? "Select department first"
                 : hasSubGroups && !subGroupSatisfied
                   ? isCollege
                     ? "Select course first"
@@ -190,7 +190,7 @@ export function SectionLevelFilter({
           >
             {filterLevelId === "all"
               ? filterProgramId === "all"
-                ? "Select program first"
+                ? "Select department first"
                 : hasSubGroups && !subGroupSatisfied
                   ? isCollege
                     ? "Select course first"

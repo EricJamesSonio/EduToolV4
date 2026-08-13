@@ -224,7 +224,7 @@ export function SectionDialog({
       {/* Program */}
       {!isEdit && (
         <div className="space-y-1.5">
-          <Label>Program</Label>
+          <Label>Department</Label>
           <Select
             value={selectedProgramId}
             onValueChange={(v) => {
@@ -235,8 +235,8 @@ export function SectionDialog({
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select a program">
-                {selectedProgram?.name ?? "Select a program"}
+              <SelectValue placeholder="Select a department">
+                {selectedProgram?.name ?? "Select a department"}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -270,7 +270,7 @@ export function SectionDialog({
             <SelectContent>
               {courses.length === 0 ? (
                 <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                  No courses for this program
+                  No courses for this department
                 </div>
               ) : (
                 courses.map((c) => (
@@ -304,7 +304,7 @@ export function SectionDialog({
             <SelectContent>
               {strands.length === 0 ? (
                 <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                  No strands for this program
+                  No strands for this department
                 </div>
               ) : (
                 strands.map((s) => (
@@ -335,7 +335,7 @@ export function SectionDialog({
             <SelectContent>
               {filteredLevels.length === 0 ? (
                 <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                  No levels for this program
+                  No levels for this department
                 </div>
               ) : (
                 filteredLevels.map((level) => (

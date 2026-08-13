@@ -68,7 +68,7 @@ export function SectionTable({
       ),
     },
     {
-      header: "Program / Course / Level",
+      header: "Department / Course / Level",
       id: "context",
       cell: ({ row }) => {
         const section = row.original;
