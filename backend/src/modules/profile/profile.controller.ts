@@ -2,11 +2,17 @@ import {
   Controller,
   Patch,
   Get,
+  Post,
   Body,
   UseGuards,
 } from '@nestjs/common'
 import { ProfileService }          from './profile.service'
-import { UpdatePersonalEmailDto, UpdateProfileDto }  from './dto/profile.dto'
+import {
+  ChangePersonalEmailRequestDto,
+  ChangePersonalEmailVerifyDto,
+  UpdatePersonalEmailDto,
+  UpdateProfileDto,
+}                                  from './dto/profile.dto'
 import { AuthGuard }               from '@/commons/guards/auth.guard'
 import { RolesGuard }              from '@/commons/guards/role.guard'
 import { CurrentUser }             from '@/commons/decorators/current-user.decorator'
@@ -35,5 +41,21 @@ export class ProfileController {
     @Body() dto: UpdatePersonalEmailDto,
   ) {
     return this.profileService.updatePersonalEmail(accountId, dto)
+  }
+
+  @Post('personal-email/change-request')
+  async requestPersonalEmailChange(
+    @CurrentUser('id') accountId: string,
+    @Body() dto: ChangePersonalEmailRequestDto,
+  ) {
+    return this.profileService.requestPersonalEmailChange(accountId, dto)
+  }
+
+  @Post('personal-email/change-verify')
+  async verifyPersonalEmailChange(
+    @CurrentUser('id') accountId: string,
+    @Body() dto: ChangePersonalEmailVerifyDto,
+  ) {
+    return this.profileService.verifyPersonalEmailChange(accountId, dto)
   }
 }
