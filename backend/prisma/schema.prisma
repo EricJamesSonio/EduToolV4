@@ -76,6 +76,7 @@ enum GradingMode {
 enum OtpPurpose {
   org_registration
   enrollment_verification
+  personal_email_change
 }
 
 enum EnrollmentApplicationStatus {
@@ -154,7 +155,7 @@ model Profile {
   account_id     String   @unique
   full_name      String
   metadata       Json?
-  personal_email String?
+  personal_email String?  @unique
   profile_image  String?  @default("profile/default.png")
   created_at     DateTime @default(now())
 
