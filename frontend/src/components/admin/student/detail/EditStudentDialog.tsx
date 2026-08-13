@@ -168,7 +168,7 @@ export function EditStudentDialog({
             </div>
 
             <p className="text-xs text-muted-foreground">
-              To change program, level, or section — update the student&apos;s enrollment instead.
+              To change department, level, or section — update the student&apos;s enrollment instead.
             </p>
           </div>
         </div>

@@ -39,7 +39,7 @@ export function StudentEnrollmentsList({
           variant="outline"
           onClick={onEnroll}
           disabled={!hasProgram}
-          title={!hasProgram ? "Please enroll the student in a program first" : ""}
+          title={!hasProgram ? "Please enroll the student in a department first" : ""}
         >
           <Plus className="mr-1.5 h-4 w-4" />
           Enroll in Class

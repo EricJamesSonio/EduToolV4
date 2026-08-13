@@ -110,7 +110,7 @@ const [moveTarget, setMoveTarget] = useState<{
             value={
               allProgramEnrollments.length === 0 ? (
                 <span className="text-muted-foreground font-normal not-interactive">
-                  Not enrolled in any program yet.
+                  Not enrolled in any department yet.
                 </span>
               ) : (
                 <div className="space-y-3 mt-1">

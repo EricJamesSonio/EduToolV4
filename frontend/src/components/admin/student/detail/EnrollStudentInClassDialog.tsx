@@ -87,7 +87,7 @@ export function EnrollStudentInClassDialog({
                     classesLoading
                       ? "Loading classes..."
                       : classes.length === 0
-                        ? "No classes available for this program"
+                        ? "No classes available for this department"
                         : "Select a class"
                   }
                 />
@@ -102,7 +102,7 @@ export function EnrollStudentInClassDialog({
             </Select>
             {classes.length === 0 && !classesLoading && (
               <p className="text-xs text-muted-foreground">
-                No classes match the student&apos;s program. Ensure the subject&apos;s program is set.
+                No classes match the student&apos;s department. Ensure the subject&apos;s department is set.
               </p>
             )}
           </div>
