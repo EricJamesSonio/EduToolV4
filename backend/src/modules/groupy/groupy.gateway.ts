@@ -96,6 +96,30 @@ export class GroupyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await client.leave(this.roomName(classId));
   }
 
+  // ── Meeting join announcements (called by MeetingGateway) ─────────────────
+
+  // Persist a "[name] joined" system message on the Groupy stream and push it
+  // to anyone currently watching the class chat. Used when a student joins a
+  // Groupy (ephemeral) meeting so everyone in the chat sees who is coming in.
+  async announceMemberJoined(
+    classId: string,
+    orgId: string,
+    accountId: string,
+    name: string,
+  ) {
+    const message = await this.groupyRepo.createMessage({
+      orgId,
+      classId,
+      senderAccountId: accountId,
+      senderRole: 'student',
+      senderName: name,
+      type: 'system',
+      body: `${name} joined`,
+    });
+    this.emitMessageNew(message);
+    return message;
+  }
+
   // ── Broadcast helpers (called by GroupyService) ───────────────────────────
 
   emitMessageNew(message: { class_id: string } & Record<string, unknown>) {

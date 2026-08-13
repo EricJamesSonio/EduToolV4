@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
@@ -11,7 +11,7 @@ import { MeetingModule } from '../meeting/meeting.module';
 
 @Module({
   imports: [
-    MeetingModule,
+    forwardRef(() => MeetingModule),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -25,6 +25,6 @@ import { MeetingModule } from '../meeting/meeting.module';
   ],
   controllers: [GroupyController],
   providers: [GroupyService, GroupyRepository, GroupyGateway, GiphyService],
-  exports: [GroupyService],
+  exports: [GroupyService, GroupyGateway],
 })
 export class GroupyModule {}
