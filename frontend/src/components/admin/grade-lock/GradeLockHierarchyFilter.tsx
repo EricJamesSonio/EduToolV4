@@ -125,7 +125,7 @@ export function GradeLockHierarchyFilter({
             <Select value={selectedProgram} onValueChange={(v) => { if (v !== null) onProgramChange(v); }}>
               <SelectTrigger className="w-44">
                 <SelectValue>
-                  {selectedProgramObj?.name ?? "Select Program"}
+                  {selectedProgramObj?.name ?? "Select Department"}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
