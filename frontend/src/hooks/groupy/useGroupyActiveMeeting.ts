@@ -18,8 +18,11 @@ export const useGroupyActiveMeeting = (
   return useQuery({
     queryKey: groupyActiveMeetingKey(classId),
     queryFn: () => groupyApi.getActiveMeeting(classId),
+    // Fetch fresh on every chat entry so meeting messages never show a stale
+    // "ended" state while the meeting is actually live.
     refetchInterval: 15000,
+    refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    staleTime: 10_000,
+    staleTime: 0,
   });
 };

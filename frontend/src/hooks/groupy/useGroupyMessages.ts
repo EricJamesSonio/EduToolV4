@@ -20,6 +20,8 @@ export const useGroupyMessages = (
     getNextPageParam: (last) =>
       last.hasMore && last.nextCursor ? last.nextCursor : undefined,
     staleTime: 30_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   return query;

@@ -15,6 +15,10 @@ export const useGroupyMembers = (
   return useQuery({
     queryKey: groupyMembersKey(classId),
     queryFn: () => groupyApi.getMembers(classId),
-    staleTime: 60_000,
+    // Always re-sync on entry/focus: read-receipt ("seen by") states must be
+    // fresh when the user returns to the chat, not served from a stale cache.
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 };
