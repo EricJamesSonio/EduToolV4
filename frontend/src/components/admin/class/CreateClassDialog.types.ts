@@ -34,4 +34,10 @@ export interface CreateClassDialogProps {
   defaultSubjectId?: string;
   schoolYearId:      string | null;
   schoolYearName:    string | null;
+  defaultProgramId?:  string;
+  defaultSemesterId?: string;
+  defaultTrackId?:    string;
+  defaultLevelId?:    string;
+  defaultSectionId?:  string;
+ 
 }

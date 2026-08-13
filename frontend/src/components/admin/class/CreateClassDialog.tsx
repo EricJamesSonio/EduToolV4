@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect , useRef} from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
@@ -33,15 +33,36 @@ export function CreateClassDialog({
   defaultSubjectId,
   schoolYearId,
   schoolYearName,
+    defaultProgramId,
+  defaultSemesterId,
+  defaultTrackId,
+  defaultLevelId,
+  defaultSectionId,
 }: CreateClassDialogProps): React.JSX.Element {
   const router      = useRouter();
 
-  const draft    = loadClassDraft();
-  const hasDraft = !!draft && Object.keys(draft).length > 0;
+  const rawDraft = loadClassDraft();
+  // A defaultProgramId only ever arrives from an active preset (page.tsx only
+  // passes it when presetActive is true). If a preset is active, it wins
+  // outright — the existing draft is not read for this session at all.
+  const presetActive = !!defaultProgramId;
+  const draft    = presetActive ? null : rawDraft;
+  const hasDraft = !presetActive && !!rawDraft && Object.keys(rawDraft).length > 0;
 
   const methods = useForm<CreateClassForm>({
     defaultValues: {
       ...EMPTY_DEFAULTS,
+        // Preset only applies when there's no in-progress draft to restore —
+      // a draft represents unsaved work and always wins.
+      ...(!hasDraft
+        ? {
+            programId:  defaultProgramId  ?? EMPTY_DEFAULTS.programId,
+            semesterId: defaultSemesterId ?? EMPTY_DEFAULTS.semesterId,
+            trackId:    defaultTrackId    ?? EMPTY_DEFAULTS.trackId,
+            levelId:    defaultLevelId    ?? EMPTY_DEFAULTS.levelId,
+            sectionId:  defaultSectionId  ?? EMPTY_DEFAULTS.sectionId,
+          }
+       : {}),
       ...draft,
       subjectId: defaultSubjectId ?? draft?.subjectId ?? "",
     },
@@ -81,30 +102,36 @@ export function CreateClassDialog({
 
   // ── Cascade resets ──────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    setValue("semesterId", "");
-    setValue("trackId",   "");
-    setValue("levelId",   "");
-    setValue("sectionId", "");
-    setValue("subjectId", "");
-  }, [selectedProgramId, setValue]);
+const skipProgramReset = useRef(true);
+   useEffect(() => {
+    if (skipProgramReset.current) { skipProgramReset.current = false; return; }
+     setValue("semesterId", "");
+     setValue("trackId",   "");
+     setValue("levelId",   "");
+     setValue("sectionId", "");
+     setValue("subjectId", "");
+   }, [selectedProgramId, setValue]);
 
-  useEffect(() => {
-    setValue("levelId",   "");
-    setValue("sectionId", "");
-    setValue("subjectId", "");
-  }, [selectedTrackId, setValue]);
+  const skipTrackReset = useRef(true);
+   useEffect(() => {
+    if (skipTrackReset.current) { skipTrackReset.current = false; return; }
+     setValue("levelId",   "");
+     setValue("sectionId", "");
+     setValue("subjectId", "");
+   }, [selectedTrackId, setValue]);
 
-  useEffect(() => {
-    setValue("sectionId", "");
-    setValue("subjectId", "");
-  }, [selectedLevelId, setValue]);
+  const skipLevelReset = useRef(true);
+   useEffect(() => {
+    if (skipLevelReset.current) { skipLevelReset.current = false; return; }
+     setValue("sectionId", "");
+     setValue("subjectId", "");
+   }, [selectedLevelId, setValue]);
 
-  useEffect(() => {
-    setValue("subjectId", "");
-  }, [selectedSectionId, setValue]);
-
-  // ── Submit ──────────────────────────────────────────────────────────────────
+  const skipSectionReset = useRef(true);
+   useEffect(() => {
+    if (skipSectionReset.current) { skipSectionReset.current = false; return; }
+     setValue("subjectId", "");
+   }, [selectedSectionId, setValue]);
 
   const mutation = useMutationWithInvalidation(
     (values: CreateClassForm) => {
@@ -167,7 +194,12 @@ export function CreateClassDialog({
                 Draft restored
               </Badge>
             )}
-          </span>
+            {presetActive && (
+              <Badge variant="secondary" className="text-xs font-normal">
+                Preset applied
+              </Badge>
+            )}
+          </span> 
         } size="lg">
 
         <FormProvider {...methods}>
