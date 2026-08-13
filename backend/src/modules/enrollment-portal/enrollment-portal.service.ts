@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '@/modules/auth/auth.service';
 import { MailService } from '@/modules/mail/mail.service';
 import { generateRandomCode } from '@/commons/utils/random-code.util';
+import { PersonalEmailRegistryService } from '@/commons/services/personal-email-registry.service';
 import { EnrollmentPortalRepository } from './enrollment-portal.repository';
 import { resolveSelectionShape } from './enrollment-selection.mapper';
 import { resultToApplicationView } from './serializers';
@@ -33,6 +34,7 @@ export class EnrollmentPortalService {
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
+    private readonly personalEmailRegistry: PersonalEmailRegistryService,
   ) {}
 
   verifySessionToken(token: string): EnrollmentSessionClaims {
@@ -99,6 +101,16 @@ export class EnrollmentPortalService {
     this.assertAcceptingApplications(period);
 
     await this.authService.verifyEnrollmentOtp(dto.email, dto.code, org.id);
+
+    // Global check across all accounts (not just this org / students) — blocks
+    // before any session is issued or any existing application data is returned.
+    if (await this.personalEmailRegistry.isPersonalEmailInUse(dto.email)) {
+      return {
+        blocked: true,
+        message: 'This Gmail is already linked to an account in EduTool.',
+      };
+    }
+
     await this.assertEmailNotAlreadyCommitted(org.id, dto.email);
 
     const existing = await this.repo.findApplicationByEmail(
