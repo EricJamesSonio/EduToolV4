@@ -22,8 +22,8 @@ export default function TemplatesPage() {
           {[
             { title: "Save Time", desc: "Skip repetitive configuration. Get started in minutes instead of hours." },
             { title: "Best Practices", desc: "Templates follow proven school structures and grading practices." },
-            { title: "Consistency", desc: "Ensure all programs follow the same structure and standards." },
-            { title: "Reusable", desc: "Apply the same template across multiple programs or years." },
+            { title: "Consistency", desc: "Ensure all departments follow the same structure and standards." },
+            { title: "Reusable", desc: "Apply the same template across multiple departments or years." },
           ].map((item, idx) => (
             <div key={idx} className="rounded-xl border bg-card p-5 space-y-2">
               <h3 className="font-heading font-semibold text-foreground">{item.title}</h3>
@@ -83,7 +83,7 @@ export default function TemplatesPage() {
               College / University
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Flexible structure for degree programs with majors and specializations
+              Flexible structure for degree departments with majors and specializations
             </p>
           </div>
           <div className="grid sm:grid-cols-2 gap-5">
@@ -91,7 +91,7 @@ export default function TemplatesPage() {
               <h4 className="font-semibold text-foreground mb-2">Structure:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>- 1st Year through 4th Year</li>
-                <li>- Program-specific courses</li>
+                <li>- Department-specific courses</li>
                 <li>- Flexible course grouping</li>
                 <li>- Support for honors and regular sections</li>
               </ul>
@@ -155,7 +155,7 @@ export default function TemplatesPage() {
             { title: "Access Templates", desc: "Go to Admin Dashboard, Organization or School Year Settings" },
             { title: "Browse Available Templates", desc: "View all pre-made templates with descriptions and preview" },
             { title: "Select a Template", desc: "Choose the template that matches your school structure" },
-            { title: "Review Configuration", desc: "See what will be created: programs, levels, grading scheme, etc." },
+            { title: "Review Configuration", desc: "See what will be created: departments, levels, grading scheme, etc." },
             { title: "Apply Template", desc: "Click 'Apply' to automatically create the entire structure" },
             { title: "Customize (Optional)", desc: "Fine-tune any settings after template is applied" },
           ].map((step, idx) => (
