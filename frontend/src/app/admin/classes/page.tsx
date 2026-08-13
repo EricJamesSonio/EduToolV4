@@ -8,6 +8,8 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import { GraduationCap, Plus } from "lucide-react";
+import { useClassPreset } from "@/hooks/admin/useClassPreset";
+import { ClassPresetButton } from "@/components/admin/class/ClassPresetButton";
 
 import { classApi, DEFAULT_PAGE_SIZE } from "@/api/admin/class.api";
 import type { PaginatedResponse } from "@/types/api.types";
@@ -141,12 +143,18 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
     () => semesterApi.getAll(),
   );
 
-  // ── Pre-fetch for CreateClassDialog ──────────────────────────────────────────
-  const { data: programsRaw } = useAsyncQuery(
-    queryKeys.admin.programs.list({ schoolYearId: selectedSchoolYearId }),
-    () => programApi.getAll(selectedSchoolYearId!),
-    { enabled: !!selectedSchoolYearId },
-  );
+   const { data: programsRaw } = useAsyncQuery(
+     queryKeys.admin.programs.list({ schoolYearId: selectedSchoolYearId }),
+     () => programApi.getAll(selectedSchoolYearId!),
+     { enabled: !!selectedSchoolYearId },
+   );
+  const programsForPreset = toArray<{ id: string; name: string }>(programsRaw);
+
+  const { preset, savePreset, setEnabled, clearPreset } = useClassPreset(selectedSchoolYearId);
+
+  // Only trust the preset if its department still exists for this school year.
+  const presetActive =
+    !!preset?.enabled && programsForPreset.some((p) => p.id === preset.programId);
 
   const { data: levelsRaw } = useAsyncQuery(
     queryKeys.admin.levels.list({ schoolYearId: selectedSchoolYearId }),
@@ -261,6 +269,13 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
 
       {selectedSchoolYearId && (
         <div className="flex items-center justify-end gap-2">
+          <ClassPresetButton
+            schoolYearId={selectedSchoolYearId}
+            preset={preset}
+            savePreset={savePreset}
+            setEnabled={setEnabled}
+            clearPreset={clearPreset}
+          />
           <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
             <Plus className="mr-1.5 h-4 w-4" />
             New Class
@@ -319,7 +334,13 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
      schoolYearId={selectedSchoolYearId}
      schoolYearName={
        schoolYears.find((sy) => sy.id === selectedSchoolYearId)?.name ?? null
+
      }
+          defaultProgramId={presetActive ? preset!.programId : undefined}
+     defaultSemesterId={presetActive ? preset!.semesterId : undefined}
+     defaultTrackId={presetActive ? preset!.trackId : undefined}
+     defaultLevelId={presetActive ? preset!.levelId : undefined}
+     defaultSectionId={presetActive ? preset!.sectionId : undefined}
    />
       )}
 
