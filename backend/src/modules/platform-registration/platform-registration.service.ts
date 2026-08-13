@@ -7,7 +7,6 @@ import { hashPassword } from '@/commons/utils/hash.util';
 import { generatePassword } from '@/commons/utils/password.util';
 import { generateAdminLoginEmail } from '@/commons/utils/admin-login-email.util';
 import { DatabaseService } from '@/core/database/database.provider';
-import { slugifyName } from '@/modules/organization/organization.repository';
 import { PlatformRegistrationRepository } from './platform-registration.repository';
 import { MailService } from '@/modules/mail/mail.service';
 import { RequestRevisionDto, RejectRequestDto } from './dto/approve-request.dto';
@@ -68,18 +67,11 @@ export class PlatformRegistrationService {
     const password = generatePassword();
     const hashedPassword = await hashPassword(password);
 
-    // Create the Organization (name from the request; slug via the same
-    // generator the Enrollment Portal uses) and link the newly created admin.
-    const organization = await this.db.organization.create({
-      data: {
-        name: request.institution_name ?? request.full_name,
-        slug: slugifyName(request.institution_name ?? request.full_name),
-      },
-    });
-
+    // Approval creates the Account + Profile only. No Organization is
+    // auto-created — the admin sets one up themselves after first login
+    // (org_id stays null, which drives the existing org-setup guard).
     const account = await this.db.account.create({
       data: {
-        org_id: organization.id,
         email: loginEmail,
         password: hashedPassword,
         role: 'admin' as any,
@@ -92,11 +84,6 @@ export class PlatformRegistrationService {
         },
       },
       include: { profile: true },
-    });
-
-    await this.db.organization.update({
-      where: { id: organization.id },
-      data: { admin_account_id: account.id },
     });
 
     await this.repo.markReviewed(id, 'approved', reviewedBy);
@@ -113,7 +100,6 @@ export class PlatformRegistrationService {
       email: account.email,
       fullName: account.profile?.full_name ?? '',
       password,
-      orgId: organization.id,
     };
   }
 
