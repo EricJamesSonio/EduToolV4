@@ -86,7 +86,7 @@ const enrollmentColumns: ColumnDef<EnrollmentBreakdownRow>[] = [
   },
   {
     accessorKey: "programName",
-    header: "Program / Course",
+    header: "Department / Course",
     cell: ({ row }) => <span className="text-muted-foreground">{row.original.programName}</span>,
   },
   {
