@@ -9,6 +9,7 @@ import {
   Send,
   CheckCircle2,
   RotateCcw,
+  UserRound,
 } from "lucide-react";
 import type { AxiosError } from "axios";
 
@@ -32,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CategoryManagerDialog } from "@/components/admin/concern/CategoryManagerDialog";
+import { ConcernStudentDetailsDialog } from "@/components/admin/concern/ConcernStudentDetailsDialog";
 
 import {
   useStaffConcerns,
@@ -83,6 +85,7 @@ export default function AdminConcernsPage(): React.JSX.Element {
   const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
   const [selectedId, setSelectedId] = useState<string>();
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
+  const [studentDetailsOpen, setStudentDetailsOpen] = useState(false);
   const [replyBody, setReplyBody] = useState("");
 
   const request: ListStaffFilters = useMemo(() => {
@@ -320,6 +323,16 @@ export default function AdminConcernsPage(): React.JSX.Element {
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-1">
+                    {thread.sender_role === "student" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setStudentDetailsOpen(true)}
+                      >
+                        <UserRound className="mr-1.5 h-3.5 w-3.5" />
+                        Student Details
+                      </Button>
+                    )}
                     {resolved ? (
                       <Button
                         size="sm"
@@ -400,6 +413,12 @@ export default function AdminConcernsPage(): React.JSX.Element {
       <CategoryManagerDialog
         open={categoryManagerOpen}
         onClose={() => setCategoryManagerOpen(false)}
+      />
+
+      <ConcernStudentDetailsDialog
+        studentId={thread?.sender_account_id ?? null}
+        open={studentDetailsOpen}
+        onClose={() => setStudentDetailsOpen(false)}
       />
     </div>
   );
