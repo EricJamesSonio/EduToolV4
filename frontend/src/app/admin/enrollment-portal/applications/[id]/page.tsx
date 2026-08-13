@@ -127,7 +127,7 @@ export default function ApplicationDetailPage({
           <CardContent>
             <dl className="divide-y">
               <Row label="Code" value={<span className="font-mono">{app.application_code}</span>} />
-              <Row label="Program" value={app.program?.name} />
+              <Row label="Department" value={app.program?.name} />
               <Row label="Course" value={app.course?.name} />
               <Row label="Strand" value={app.strand?.name} />
               <Row label="Level" value={app.level?.name} />
