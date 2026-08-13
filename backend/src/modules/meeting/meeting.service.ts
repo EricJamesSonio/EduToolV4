@@ -6,6 +6,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { MeetingRepository } from './meeting.repository';
+import { MeetingGateway } from './meeting.gateway';
 import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '../enrollment/enrollment.repository';
 import { NotificationService } from '../notification/notification.service';
@@ -24,6 +25,7 @@ export class MeetingService {
     private readonly enrollmentRepo: EnrollmentRepository,
     private readonly notificationService: NotificationService,
     private readonly auditLog: AuditLogService,
+    private readonly meetingGateway: MeetingGateway,
   ) {}
 
   // ── POST /classes/:classId/meetings ───────────────────────────────────────
@@ -47,7 +49,7 @@ export class MeetingService {
       title: dto.title,
       description: dto.description,
       startTime: new Date(dto.startTime),
-      isEphemeral: dto.isEphemeral ?? false,
+      isEphemeral: dto.ephemeral ?? false,
     });
 
     // Resolve invited student IDs
@@ -171,19 +173,22 @@ export class MeetingService {
     // stored on the meetings pages and have no post-meeting record.
     if (meeting.is_ephemeral) {
       await this.meetingRepo.hardDelete(id);
-      return { success: true, message: 'Meeting ended.' };
+    } else {
+      await this.meetingRepo.updateStatus(id, 'ended');
+
+      await this.auditLog.logActivityEvent({
+        orgId,
+        actorId: educatorId,
+        action: 'meeting_ended',
+        entityType: 'class',
+        entityId: classId,
+        metadata: { meetingId: id },
+      });
     }
 
-    await this.meetingRepo.updateStatus(id, 'ended');
-
-    await this.auditLog.logActivityEvent({
-      orgId,
-      actorId: educatorId,
-      action: 'meeting_ended',
-      entityType: 'class',
-      entityId: classId,
-      metadata: { meetingId: id },
-    });
+    // Kick everyone still connected out of the room so no one lingers in a
+    // session that no longer exists (or is now closed).
+    this.meetingGateway.server.to(id).emit('meeting:ended', { meetingId: id });
 
     return { success: true, message: 'Meeting ended.' };
   }

@@ -8,11 +8,12 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { forwardRef, Inject, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { MeetingRepository } from './meeting.repository';
 import { DatabaseService } from '@/core/database/database.provider';
+import { GroupyGateway } from '../groupy/groupy.gateway';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,9 @@ class RoomState {
   currentSlide = 0;    // lesson presentation sync
   isPresenting = false;
   presentationId?: string;
+  // Students already announced in the class chat for this meeting session.
+  // Guards against re-announcing on socket reconnect / page refresh.
+  announcedJoins = new Set<string>();
 
   getParticipantList() {
     return Array.from(this.participants.values()).map((p) => ({
@@ -79,6 +83,8 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     private readonly config: ConfigService,
     private readonly meetingRepo: MeetingRepository,
     private readonly db: DatabaseService,
+    @Inject(forwardRef(() => GroupyGateway))
+    private readonly groupyGateway: GroupyGateway,
   ) {}
 
   // ── Connection ────────────────────────────────────────────────────────────
@@ -127,6 +133,11 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       // Join socket.io room
       await client.join(meetingId);
 
+      // Lifecycle: a created meeting becomes "active" once someone joins.
+      if (meeting.status === 'scheduled') {
+        await this.meetingRepo.updateStatus(meetingId, 'active');
+      }
+
       // Update in-memory state
       if (!this.rooms.has(meetingId)) this.rooms.set(meetingId, new RoomState());
       const room = this.rooms.get(meetingId)!;
@@ -139,6 +150,27 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
         handRaised: false,
         joinedAt: new Date(),
       });
+
+      // Groupy (ephemeral) meetings: announce the student in the class chat so
+      // everyone sees "[name] joined". Best-effort — a failure here must never
+      // break the meeting join, so it is isolated from the shared try/catch.
+      if (payload.role === 'student' && meeting.is_ephemeral) {
+        if (!room.announcedJoins.has(payload.sub)) {
+          room.announcedJoins.add(payload.sub);
+          try {
+            await this.groupyGateway.announceMemberJoined(
+              meeting.class_id,
+              payload.org_id,
+              payload.sub,
+              name,
+            );
+          } catch (err) {
+            this.logger.error(
+              `[${meetingId}] failed to announce join for ${name}: ${err}`,
+            );
+          }
+        }
+      }
 
       // Send room state to the joining client
       client.emit('room:state', {

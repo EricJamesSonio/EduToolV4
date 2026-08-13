@@ -85,7 +85,14 @@ export class MeetingRepository {
   }
 
   async hardDelete(id: string) {
-    return this.db.meeting.delete({ where: { id } });
+    // Invites / join requests hold RESTRICT FKs on the meeting, and orphaned
+    // chat rows would leak — remove all dependents before deleting the row.
+    return this.db.$transaction([
+      this.db.meetingInvite.deleteMany({ where: { meeting_id: id } }),
+      this.db.meetingJoinRequest.deleteMany({ where: { meeting_id: id } }),
+      this.db.meetingChatMessage.deleteMany({ where: { meeting_id: id } }),
+      this.db.meeting.delete({ where: { id } }),
+    ]);
   }
 
   // ── Invites ───────────────────────────────────────────────────────────────
