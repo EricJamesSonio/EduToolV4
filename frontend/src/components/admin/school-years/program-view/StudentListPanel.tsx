@@ -102,7 +102,7 @@ export function StudentListPanel({
               await enrollInProgram.mutateAsync({ studentId: s.id, data: enrollContext });
               successCount++;
             } catch {
-              toast.error(`Failed to assign program for student ${s.id}`);
+              toast.error(`Failed to assign department for student ${s.id}`);
             }
           }
           if (successCount > 0) {
