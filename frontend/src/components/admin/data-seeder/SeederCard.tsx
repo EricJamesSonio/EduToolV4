@@ -103,7 +103,7 @@ export function SeederCard() {
           )}
         >
           {/* Programs */}
-          <Card id="programs" icon={Layers} title="Programs">
+          <Card id="programs" icon={Layers} title="Departments">
             <ProgramStep
               selectedPrograms={selectedPrograms}
               disabledProgramTypes={existingProgramTypes}
@@ -240,7 +240,7 @@ export function SeederCard() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground not-interactive text-center py-1">
-                  Select a school year and at least one program to review what will be seeded.
+                  Select a school year and at least one department to review what will be seeded.
                 </p>
               )}
 

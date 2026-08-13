@@ -39,7 +39,7 @@ export function GradingSchemeStep({
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground not-interactive">
-            Select which grading scheme templates to create for your programs:
+            Select which grading scheme templates to create for your departments:
           </p>
           {applicableSchemes.map((scheme) => {
             const isSelected = gradingSchemesByProgram[scheme.programType] !== false

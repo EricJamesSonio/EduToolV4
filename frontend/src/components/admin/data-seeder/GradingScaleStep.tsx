@@ -35,12 +35,12 @@ export function GradingScaleStep({
         </p>
       ) : programs.length === 0 ? (
         <p className="text-xs text-muted-foreground not-interactive">
-          Select programs above to configure their grading scales.
+          Select departments above to configure their grading scales.
         </p>
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground not-interactive">
-            Assign one grading scale per program. Each scale will be saved and applied to that program &apos;s levels.
+            Assign one grading scale per department. Each scale will be saved and applied to that department &apos;s levels.
           </p>
           {programs.map((prog) => {
             const selectedPresetKey = gradingScaleByProgram[prog] ?? GRADING_SCALE_PRESETS[0].key
