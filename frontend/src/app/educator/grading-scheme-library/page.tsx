@@ -107,7 +107,7 @@ export default function GradingSchemeLibraryPage() {
         <EmptyState
           icon={Library}
           title="No Templates Available"
-          description="No grading scheme templates match the programs you're currently assigned to. Create a template or ask an admin to add one for your program."
+          description="No grading scheme templates match the departments you're currently assigned to. Create a template or ask an admin to add one for your department."
         />
       ) : (
         <div className="space-y-2">
