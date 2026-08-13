@@ -161,12 +161,24 @@ export class MeetingService {
     orgId: string,
     educatorId: string,
   ) {
-    const meeting = await this.assertEducatorOwnsMeeting(
-      id, classId, orgId, educatorId,
-    );
+    let meeting;
+    try {
+      meeting = await this.assertEducatorOwnsMeeting(
+        id, classId, orgId, educatorId,
+      );
+    } catch (err) {
+      // Already gone — e.g. an ephemeral Groupy meeting hard-deleted the
+      // moment its room emptied, or a duplicate end call raced in. Ending an
+      // already-ended meeting is a no-op, so treat it as success instead of
+      // surfacing a 404 to the client.
+      if (err instanceof NotFoundException) {
+        return { success: true, message: 'Meeting already ended.' };
+      }
+      throw err;
+    }
 
     if (meeting.status === 'ended') {
-      throw new BadRequestException('Meeting is already ended.');
+      return { success: true, message: 'Meeting already ended.' };
     }
 
     // Ephemeral (Groupy) meetings are fully removed when ended — they aren't
