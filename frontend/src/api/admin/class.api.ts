@@ -1,5 +1,6 @@
 import client from "@/api/client";
 import type { Class, ClassSchedule } from "@/types/admin/class.types";
+import type { Student } from "@/types/admin/student.types";
 import type { PaginatedResponse } from "@/types/api.types";
 
 export const DEFAULT_PAGE_SIZE = 20;
@@ -210,6 +211,18 @@ export const classApi = {
     if (Array.isArray(res.data)) return res.data;
     const d = res.data as ApiResponse<EnrollmentResponse[]>;
     return Array.isArray(d?.data) ? d.data : [];
+  },
+
+  // Only students matching the class's program / course / strand / level
+  getEligibleStudents: async (
+    classId: string,
+    search?: string
+  ): Promise<Student[]> => {
+    const res = await client.get<ApiResponse<Student[]>>(
+      `/classes/${classId}/eligible-students`,
+      { params: search ? { search } : undefined },
+    );
+    return res.data?.data ?? [];
   },
 
   enroll: async (
