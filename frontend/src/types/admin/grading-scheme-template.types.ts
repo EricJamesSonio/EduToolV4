@@ -46,3 +46,9 @@ export interface ProgramTemplateAssignment {
   templateName: string | null;
   classCount: number;
 }
+
+export interface ClassTemplateAssignment {
+  classId: string;
+  templateId: string;
+  templateName: string;
+}

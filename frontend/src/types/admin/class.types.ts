@@ -46,4 +46,5 @@ export interface Class {
   levelName?: string;
   courseName?: string;
   strandName?: string;
+  templateId?: string | null;
 }
