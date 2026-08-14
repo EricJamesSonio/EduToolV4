@@ -37,40 +37,51 @@ export function SectionsPanel({
   const [deleteTarget,  setDeleteTarget]  = useState<Section | null>(null);
   const [formError,     setFormError]     = useState<string | null>(null);
 
+  const effectiveCourseId = courseId ?? level.course_id ?? undefined;
+  const effectiveStrandId = strandId ?? level.strand_id ?? undefined;
+
   const { data: sections = [], isLoading } = useAsyncQuery(
     queryKeys.admin.sections.list({
       schoolYearId,
       levelId: level.id,
-      ...(courseId ? { courseId } : {}),
-      ...(strandId ? { strandId } : {}),
+      ...(effectiveCourseId ? { courseId: effectiveCourseId } : {}),
+      ...(effectiveStrandId ? { strandId: effectiveStrandId } : {}),
     }),
     () => sectionApi.getAll(schoolYearId, level.id),
   );
 
   const visibleSections = sections.filter((s) => {
-    if (courseId) {
+    if (effectiveCourseId) {
       const sc = s as Section & { course_id?: string | null };
-      return sc.course_id === courseId || sc.course_id == null;
+      return sc.course_id === effectiveCourseId || sc.course_id == null;
     }
-    if (strandId) {
+    if (effectiveStrandId) {
       const ss = s as Section & { strand_id?: string | null };
-      return ss.strand_id === strandId || ss.strand_id == null;
+      return ss.strand_id === effectiveStrandId || ss.strand_id == null;
     }
     return true;
   });
+
+  const sectionCacheKeys = [
+    queryKeys.admin.sections.all,
+    queryKeys.admin.levels.list({ schoolYearId }),
+    queryKeys.admin.programs.list({ schoolYearId }),
+    queryKeys.admin.enrichedLevels.list({ schoolYearId }),
+    queryKeys.admin.schoolYears.readiness(),
+  ];
 
   const createMutation = useMutationWithInvalidation(
     (vals: SectionFormValues) =>
       sectionApi.create({
         levelId:      level.id,
         schoolYearId,
-        courseId:     courseId ?? undefined,
-        strandId:     strandId ?? undefined,
+        courseId:     effectiveCourseId,
+        strandId:     effectiveStrandId,
         name:         vals.name,
         capacity:     Number(vals.capacity),
       }),
     {
-      invalidateKeys: [queryKeys.admin.sections.all],
+      invalidateKeys: sectionCacheKeys,
       onSuccess: () => {
         toast.success("Section created.");
         setDialogOpen(false);
@@ -88,7 +99,7 @@ export function SectionsPanel({
         capacity: Number(vals.capacity),
       }),
     {
-      invalidateKeys: [queryKeys.admin.sections.all],
+      invalidateKeys: sectionCacheKeys,
       onSuccess: () => {
         toast.success("Section updated.");
         setEditTarget(null);
@@ -102,7 +113,7 @@ export function SectionsPanel({
   const deleteMutation = useMutationWithInvalidation(
     (id: string) => sectionApi.delete(id),
     {
-      invalidateKeys: [queryKeys.admin.sections.all],
+      invalidateKeys: sectionCacheKeys,
       onSuccess: () => {
         toast.success("Section deleted.");
         setDeleteTarget(null);
