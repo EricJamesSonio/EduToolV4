@@ -7,7 +7,10 @@ import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ComponentType, GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
 
-const COMPONENT_TYPES: { value: ComponentType; label: string }[] = [
+// Exported so other components (e.g. GradingSchemeEditor) can reuse the same
+// canonical list/order — used for picking smart defaults and for computing
+// which types are "already used" across rows.
+export const COMPONENT_TYPES: { value: ComponentType; label: string }[] = [
   { value: "written_work",         label: "Written Work" },
   { value: "performance_task",     label: "Performance Task" },
   { value: "quarterly_assessment", label: "Quarterly Assessment" },
@@ -42,17 +45,20 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 interface GradingSchemeComponentRowProps {
-  index:     number;
-  row:       GradingSchemeComponentDto;
-  disabled:  boolean;
-  onChange:  (index: number, field: keyof GradingSchemeComponentDto, value: string | number | boolean) => void;
-  onDelete:  (index: number) => void;
+  index:      number;
+  row:        GradingSchemeComponentDto;
+  disabled:   boolean;
+  /** Types already selected by OTHER rows — these get grayed out / disabled in this row's dropdown. */
+  usedTypes?:  ComponentType[];
+  onChange:   (index: number, field: keyof GradingSchemeComponentDto, value: string | number | boolean) => void;
+  onDelete:   (index: number) => void;
 }
 
 export function GradingSchemeComponentRow({
   index,
   row,
   disabled,
+  usedTypes = [],
   onChange,
   onDelete,
 }: GradingSchemeComponentRowProps) {
@@ -79,11 +85,24 @@ export function GradingSchemeComponentRow({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {COMPONENT_TYPES.map((t) => (
-            <SelectItem key={t.value} value={t.value}>
-              {t.label}
-            </SelectItem>
-          ))}
+          {COMPONENT_TYPES.map((t) => {
+            const isTakenElsewhere = t.value !== row.type && usedTypes.includes(t.value);
+            return (
+              <SelectItem
+                key={t.value}
+                value={t.value}
+                disabled={isTakenElsewhere}
+                className={cn(isTakenElsewhere && "text-muted-foreground")}
+              >
+                {t.label}
+                {isTakenElsewhere && (
+                  <span className="ml-1 text-xs text-muted-foreground not-interactive">
+                    (already added)
+                  </span>
+                )}
+              </SelectItem>
+            );
+          })}
         </SelectContent>
       </Select>
 

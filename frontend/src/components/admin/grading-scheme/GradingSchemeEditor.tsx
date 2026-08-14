@@ -5,18 +5,64 @@ import { toast } from "sonner";
 import { Lock, Plus, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { GradingSchemeComponentRow } from "./GradingSchemeComponentRow";
+import { GradingSchemeComponentRow, COMPONENT_TYPES } from "./GradingSchemeComponentRow";
 import { useUpdateGradingScheme } from "@/hooks/admin/useGradingSchemes";
 import { cn } from "@/lib/utils";
-import type { GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
+import type { ComponentType, GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
 import type { AxiosError } from "axios";
 
-const DEFAULT_ROW = (): GradingSchemeComponentDto => ({
-  name:       "",
-  type:       "quiz",
-  weight:     0,
-  isOptional: false,
-});
+// Local-only shape: `_touched` tracks whether the USER manually typed a weight
+// for this row. Untouched rows are the ones we're allowed to auto-rebalance.
+// It's stripped out before anything is sent to the API.
+type EditableRow = GradingSchemeComponentDto & { _touched?: boolean };
+
+// The 4 categories every new scheme starts with, in the order they're added.
+const DEFAULT_TYPES: ComponentType[] = ["quiz", "exam", "activity", "project"];
+
+/** Splits `total` into `n` whole-number shares that sum exactly to `total`. */
+function splitEqually(total: number, n: number): number[] {
+  if (n <= 0) return [];
+  const base = Math.floor(total / n);
+  const remainder = total - base * n;
+  // give the first `remainder` shares one extra point so the total is exact
+  return Array.from({ length: n }, (_, i) => base + (i < remainder ? 1 : 0));
+}
+
+/** Seeds a brand-new scheme with 4 helper categories, weights split evenly to 100. */
+function makeDefaultRows(): EditableRow[] {
+  const weights = splitEqually(100, DEFAULT_TYPES.length);
+  return DEFAULT_TYPES.map((type, i) => ({
+    name:       "",
+    type,
+    weight:     weights[i],
+    isOptional: false,
+    _touched:   false,
+  }));
+}
+
+/**
+ * Re-splits 100% evenly across every row the user hasn't manually edited,
+ * leaving any row they've typed a weight into completely alone.
+ */
+function rebalanceWeights(rows: EditableRow[]): EditableRow[] {
+  const touchedSum = rows.reduce(
+    (sum, r) => sum + (r._touched ? Number(r.weight) || 0 : 0),
+    0
+  );
+  const untouchedCount = rows.filter((r) => !r._touched).length;
+  if (untouchedCount === 0) return rows;
+
+  const remaining = Math.max(0, 100 - touchedSum);
+  const shares = splitEqually(remaining, untouchedCount);
+
+  let shareIdx = 0;
+  return rows.map((r) => {
+    if (r._touched) return r;
+    const weight = shares[shareIdx];
+    shareIdx += 1;
+    return { ...r, weight };
+  });
+}
 
 export function GradingSchemeEditor() {
   const scheme = undefined as
@@ -25,11 +71,13 @@ export function GradingSchemeEditor() {
   const isLoading = false;
   const updateMutation = useUpdateGradingScheme();
 
-  const [rows, setRows]               = useState<GradingSchemeComponentDto[]>([]);
+  const [rows, setRows]               = useState<EditableRow[]>([]);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (scheme) {
+      // Existing scheme: load as-is and treat every saved weight as "touched"
+      // (fixed) so adding a new category later won't silently reshuffle them.
       setRows(
         (scheme.components ?? []).map((c) => ({
           name:       c.name,
@@ -37,10 +85,14 @@ export function GradingSchemeEditor() {
           weight:     c.weight,
           isOptional: c.isOptional,
           maxScore:   c.maxScore ?? undefined,
+          _touched:   true,
         }))
       );
+    } else if (!isLoading) {
+      // Brand-new scheme: seed the 4 helper defaults, evenly split.
+      setRows(makeDefaultRows());
     }
-  }, [scheme]);
+  }, [scheme, isLoading]);
 
   const totalWeight = rows.reduce((sum, r) => sum + (Number(r.weight) || 0), 0);
   const isLocked    = scheme?.isLocked ?? false;
@@ -52,21 +104,46 @@ export function GradingSchemeEditor() {
     value: string | number | boolean
   ) => {
     setRows((prev) =>
-      prev.map((r, i) => (i === index ? { ...r, [field]: value } : r))
+      prev.map((r, i) => {
+        if (i !== index) return r;
+        const updated: EditableRow = { ...r, [field]: value };
+        // Once the user edits a weight themselves, it's off-limits to auto-rebalancing.
+        if (field === "weight") updated._touched = true;
+        return updated;
+      })
     );
   };
 
-  const handleAdd = () => setRows((prev) => [...prev, DEFAULT_ROW()]);
+  const handleAdd = () => {
+    setRows((prev) => {
+      const usedTypes = new Set(prev.map((r) => r.type));
+      const nextType =
+        COMPONENT_TYPES.find((t) => !usedTypes.has(t.value))?.value ?? "custom";
+
+      const newRow: EditableRow = {
+        name:       "",
+        type:       nextType,
+        weight:     0,
+        isOptional: false,
+        _touched:   false,
+      };
+
+      return rebalanceWeights([...prev, newRow]);
+    });
+  };
 
   const handleDeleteConfirm = () => {
     if (deleteIndex === null) return;
-    setRows((prev) => prev.filter((_, i) => i !== deleteIndex));
+    setRows((prev) => rebalanceWeights(prev.filter((_, i) => i !== deleteIndex)));
     setDeleteIndex(null);
   };
 
   const handleSave = () => {
+    // Strip the local-only _touched flag before sending to the API.
+    const payload: GradingSchemeComponentDto[] = rows.map(({ _touched, ...rest }) => rest);
+
     updateMutation.mutate(
-      { components: rows } as any,
+      { components: payload } as any,
       {
         onSuccess: () => toast.success("Grading scheme saved."),
         onError: (err: unknown) => {
@@ -118,6 +195,7 @@ export function GradingSchemeEditor() {
             index={i}
             row={row}
             disabled={isLocked || updateMutation.isPending}
+            usedTypes={rows.filter((_, j) => j !== i).map((r) => r.type)}
             onChange={handleChange}
             onDelete={(idx) => setDeleteIndex(idx)}
           />
