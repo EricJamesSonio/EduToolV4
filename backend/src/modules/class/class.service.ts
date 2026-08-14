@@ -369,6 +369,16 @@ export class ClassService {
     return this.classRepository.findEnrolledStudents(classId, orgId);
   }
 
+  async getEligibleStudents(
+    classId: string,
+    orgId: string,
+    search?: string,
+  ) {
+    const cls = await this.classRepository.findById(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
+    return this.classRepository.findEligibleStudents(classId, orgId, search);
+  }
+
   async getEnrollments(id: string, orgId: string) {
     const cls = await this.classRepository.findById(id, orgId);
     if (!cls) throw new NotFoundException('Class not found.');

@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { DatabaseService } from '@/core/database/database.provider';
+import { resolveSubjectAcademicStructure } from '../enrollment/enrollment-eligibility.util';
 
 @Injectable()
 export class ClassRepository {
@@ -269,6 +271,121 @@ export class ClassRepository {
       fullName: p.full_name,
       email: p.account.email,
     }));
+  }
+
+  /**
+   * Returns only students whose academic structure matches the class's subject
+   * (same program, and same course/strand/level when the class requires them),
+   * enrolled for the class's school year, not already enrolled in the class,
+   * and whose account is active. Unused `search` filters by name / Student ID.
+   */
+  async findEligibleStudents(
+    classId: string,
+    orgId: string,
+    search?: string,
+  ) {
+    const cls = await this.db.class.findFirst({
+      where: { id: classId, org_id: orgId, deleted_at: null },
+      select: { school_year_id: true, section_id: true, subject_id: true },
+    });
+    if (!cls) return null;
+
+    const subjectStructure = await resolveSubjectAcademicStructure(
+      this.db,
+      cls.subject_id,
+      orgId,
+    );
+    if (!subjectStructure.programId) return [];
+
+    const enrolled = await this.db.enrollment.findMany({
+      where: { class_id: classId, org_id: orgId, status: { not: 'removed' } },
+      select: { student_id: true },
+    });
+    const enrolledIds = new Set(enrolled.map((e) => e.student_id));
+
+    const speWhere: Prisma.StudentProgramEnrollmentWhereInput = {
+      org_id: orgId,
+      status: 'active',
+      program_id: subjectStructure.programId,
+      ...(subjectStructure.courseIds.length > 0
+        ? { course_id: { in: subjectStructure.courseIds } }
+        : {}),
+      ...(subjectStructure.strandIds.length > 0
+        ? { strand_id: { in: subjectStructure.strandIds } }
+        : {}),
+      ...(subjectStructure.levelIds.length > 0
+        ? { level_id: { in: subjectStructure.levelIds } }
+        : {}),
+      ...(cls.section_id ? { section_id: cls.section_id } : {}),
+      studentSchoolYear: { school_year_id: cls.school_year_id },
+    };
+
+    const spEnrollments = await this.db.studentProgramEnrollment.findMany({
+      where: speWhere,
+      include: {
+        studentSchoolYear: { select: { student_id: true } },
+        program: { select: { name: true } },
+        level: { select: { name: true } },
+        course: { select: { name: true } },
+        strand: { select: { name: true } },
+        section: { select: { name: true } },
+      },
+    });
+
+    // One record per student (dedupe across multiple program enrollments).
+    const byStudent = new Map<string, (typeof spEnrollments)[number]>();
+    for (const pe of spEnrollments) {
+      const studentId = pe.studentSchoolYear.student_id;
+      if (enrolledIds.has(studentId) || byStudent.has(studentId)) continue;
+      byStudent.set(studentId, pe);
+    }
+
+    if (byStudent.size === 0) return [];
+
+    const accounts = await this.db.account.findMany({
+      where: {
+        id: { in: [...byStudent.keys()] },
+        org_id: orgId,
+        role: 'student',
+        status: 'active',
+        deleted_at: null,
+        ...(search
+          ? {
+              OR: [
+                { profile: { full_name: { contains: search, mode: 'insensitive' } } },
+                { profile: { metadata: { path: ['studentId'], string_contains: search } } },
+              ],
+            }
+          : {}),
+      },
+      include: { profile: true },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return accounts.map((account) => {
+      const meta = account.profile?.metadata;
+      const metaObj =
+        meta && typeof meta === 'object' && !Array.isArray(meta)
+          ? (meta as Record<string, any>)
+          : {};
+      const pe = byStudent.get(account.id);
+      return {
+        id: account.id,
+        orgId: account.org_id,
+        email: account.email,
+        status: account.status,
+        fullName: account.profile?.full_name ?? null,
+        studentId: metaObj['studentId'] ?? null,
+        levelId: pe?.level_id ?? metaObj['levelId'] ?? null,
+        levelName: pe?.level?.name ?? null,
+        sectionId: pe?.section_id ?? metaObj['sectionId'] ?? null,
+        sectionName: pe?.section?.name ?? null,
+        programName: pe?.program?.name ?? null,
+        courseName: pe?.course?.name ?? null,
+        strandName: pe?.strand?.name ?? null,
+        createdAt: account.created_at,
+      };
+    });
   }
 
   async replaceSchedules(

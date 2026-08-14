@@ -97,6 +97,16 @@ export class ClassController {
     return this.classService.getEnrolledStudents(id, orgId);
   }
 
+  @Get(':id/eligible-students')
+  @Roles('admin')
+  async getEligibleStudents(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+    @Query('search') search?: string,
+  ) {
+    return this.classService.getEligibleStudents(id, orgId, search);
+  }
+
   @Patch(':classId/enrollments/:enrollmentId')
   @Roles('admin')
   async updateEnrollment(
