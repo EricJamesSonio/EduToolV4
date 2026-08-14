@@ -22,14 +22,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { GradingSchemeComponentRow } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
+import { GradingSchemeComponentRow, COMPONENT_TYPES } from "@/components/admin/grading-scheme/GradingSchemeComponentRow";
 import { cn } from "@/lib/utils";
 
 import type {
   GradingSchemeTemplate,
   CreateGradingSchemeTemplateDto,
 } from "@/types/admin/grading-scheme-template.types";
-import type { GradingSchemeComponentDto } from "@/types/admin/grading-scheme.types";
+import type {
+  ComponentType,
+  GradingSchemeComponentDto,
+} from "@/types/admin/grading-scheme.types";
 import {
   PROGRAM_TYPE_VALUES,
   PROGRAM_TYPE_LABELS,
@@ -41,12 +44,58 @@ const PROGRAM_TYPES = PROGRAM_TYPE_VALUES.map((value) => ({
   label: PROGRAM_TYPE_LABELS[value as ProgramType],
 }));
 
-const DEFAULT_ROW = (): GradingSchemeComponentDto => ({
-  name: "",
-  type: "quiz",
-  weight: 0,
-  isOptional: false,
-});
+// Local-only shape: `_touched` tracks whether the USER manually typed a weight
+// for this row. Untouched rows are the only ones auto-rebalanced on add/remove.
+// It's stripped out before anything is sent to the API.
+type EditableRow = GradingSchemeComponentDto & { _touched?: boolean };
+
+// Smart defaults every new template starts with, in order.
+const DEFAULT_TYPES: ComponentType[] = ["quiz", "exam", "activity", "project"];
+
+/** Splits `total` into `n` whole-number shares that sum exactly to `total`. */
+function splitEqually(total: number, n: number): number[] {
+  if (n <= 0) return [];
+  const base = Math.floor(total / n);
+  const remainder = total - base * n;
+  // give the first `remainder` shares one extra point so the total is exact
+  return Array.from({ length: n }, (_, i) => base + (i < remainder ? 1 : 0));
+}
+
+/** Seeds a brand-new template with 4 helper categories, weights split evenly to 100. */
+function makeDefaultRows(): EditableRow[] {
+  const weights = splitEqually(100, DEFAULT_TYPES.length);
+  return DEFAULT_TYPES.map((type, i) => ({
+    name:       "",
+    type,
+    weight:     weights[i],
+    isOptional: false,
+    _touched:   false,
+  }));
+}
+
+/**
+ * Re-splits 100% evenly across every row the user hasn't manually edited,
+ * leaving any row they've typed a weight into completely alone.
+ */
+function rebalanceWeights(rows: EditableRow[]): EditableRow[] {
+  const touchedSum = rows.reduce(
+    (sum, r) => sum + (r._touched ? Number(r.weight) || 0 : 0),
+    0
+  );
+  const untouchedCount = rows.filter((r) => !r._touched).length;
+  if (untouchedCount === 0) return rows;
+
+  const remaining = Math.max(0, 100 - touchedSum);
+  const shares = splitEqually(remaining, untouchedCount);
+
+  let shareIdx = 0;
+  return rows.map((r) => {
+    if (r._touched) return r;
+    const weight = shares[shareIdx];
+    shareIdx += 1;
+    return { ...r, weight };
+  });
+}
 
 interface SharedTemplateFormDialogProps {
   open: boolean;
@@ -69,7 +118,7 @@ export function TemplateFormDialog({
 
   const [name, setName] = useState("");
   const [programType, setProgramType] = useState<string>("");
-  const [rows, setRows] = useState<GradingSchemeComponentDto[]>([DEFAULT_ROW()]);
+  const [rows, setRows] = useState<EditableRow[]>([]);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -86,13 +135,14 @@ export function TemplateFormDialog({
                 weight: c.weight,
                 maxScore: c.maxScore ?? undefined,
                 isOptional: false,
+                _touched: true,
               }))
-            : [DEFAULT_ROW()]
+            : makeDefaultRows()
         );
       } else {
         setName("");
         setProgramType("");
-        setRows([DEFAULT_ROW()]);
+        setRows(makeDefaultRows());
       }
     }
   }, [open, template]);
@@ -109,14 +159,31 @@ export function TemplateFormDialog({
     field: keyof GradingSchemeComponentDto,
     value: string | number | boolean
   ) => {
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+    setRows((prev) =>
+      prev.map((r, i) => {
+        if (i !== index) return r;
+        const updated: EditableRow = { ...r, [field]: value };
+        // Once the user edits a weight themselves, it's off-limits to auto-rebalancing.
+        if (field === "weight") updated._touched = true;
+        return updated;
+      })
+    );
   };
 
-  const handleAdd = () => setRows((prev) => [...prev, DEFAULT_ROW()]);
+  const handleAdd = () =>
+    setRows((prev) => {
+      const usedTypes = new Set(prev.map((r) => r.type));
+      const nextType =
+        COMPONENT_TYPES.find((t) => !usedTypes.has(t.value))?.value ?? "custom";
+      return rebalanceWeights([
+        ...prev,
+        { name: "", type: nextType, weight: 0, isOptional: false, _touched: false },
+      ]);
+    });
 
   const handleDeleteConfirm = () => {
     if (deleteIndex === null) return;
-    setRows((prev) => prev.filter((_, i) => i !== deleteIndex));
+    setRows((prev) => rebalanceWeights(prev.filter((_, i) => i !== deleteIndex)));
     setDeleteIndex(null);
   };
 
@@ -222,6 +289,7 @@ export function TemplateFormDialog({
                   index={i}
                   row={row}
                   disabled={isSaving}
+                  usedTypes={rows.filter((_, j) => j !== i).map((r) => r.type)}
                   onChange={handleChange}
                   onDelete={setDeleteIndex}
                 />
