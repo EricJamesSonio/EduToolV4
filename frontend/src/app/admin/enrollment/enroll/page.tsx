@@ -7,13 +7,16 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowLeft } from "lucide-react";
+import { Search, ArrowLeft, AlertCircle } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
+import { schoolYearApi } from "@/api/admin/school-year.api";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { useSchoolYears } from "@/hooks/admin/useSchoolYears";
@@ -27,7 +30,7 @@ import {
   useUpdateProgramEnrollment,
 } from "@/hooks/admin/useStudentEnrollment";
 import { useSections } from "@/hooks/admin/useSchoolYears";
-import { useClasses, useEnrollStudent } from "@/hooks/admin/useClasses";
+import { useClasses, useEnrollStudent, useClassEnrollments } from "@/hooks/admin/useClasses";
 import { useSubjects } from "@/hooks/admin/useSubject";
 import { useEducators } from "@/hooks/admin/useEducators";
 import { useSemesters } from "@/hooks/admin/useSemester";
@@ -40,6 +43,7 @@ import type {
   EnrollStudentProgramRequest,
 } from "@/types/admin/student-enrollment.types";
 import type { Class } from "@/types/admin/class.types";
+import type { SchoolYearReadiness } from "@/types/admin/school-year.types";
 
 import {
   ProgramSelector,
@@ -64,6 +68,7 @@ export default function EnrollWorkspacePage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [readyBlockOpen, setReadyBlockOpen] = useState(false);
   const [leftTab, setLeftTab] = useState<"all" | "pending" | "enroll">("all");
 
   const [sectionAssignments, setSectionAssignments] = useState<Record<string, string>>({});
@@ -76,6 +81,15 @@ export default function EnrollWorkspacePage() {
   const enrollInProgramMutation = useEnrollInProgram(schoolYearId);
   const updateProgEnrollMutation = useUpdateProgramEnrollment(schoolYearId);
   const enrollInClassMutation = useEnrollStudent();
+  const classEnrollmentsQuery = useClassEnrollments(expandedClassId ?? "");
+  const { data: schoolYears = [] } = useSchoolYears();
+
+  const { data: readiness } = useAsyncQuery<SchoolYearReadiness>(
+    queryKeys.admin.schoolYears.readinessDetail(schoolYearId),
+    () => schoolYearApi.getReadiness(schoolYearId),
+    { enabled: !!schoolYearId },
+  );
+  const isSchoolYearReady = readiness ? readiness.ready : false;
 
   const toggleClassStudent = useCallback((classId: string, studentId: string) => {
     setClassStudentSelections((prev) => {
@@ -96,6 +110,10 @@ export default function EnrollWorkspacePage() {
   }, []);
 
   const handleEnrollInClass = useCallback(async (cls: Class) => {
+    if (!isSchoolYearReady) {
+      setReadyBlockOpen(true);
+      return;
+    }
     const selections = classStudentSelections[cls.id];
     if (!selections || selections.size === 0) return;
 
@@ -121,7 +139,7 @@ export default function EnrollWorkspacePage() {
         return next;
       });
     }
-  }, [classStudentSelections, enrollInClassMutation]);
+  }, [classStudentSelections, enrollInClassMutation, isSchoolYearReady]);
 
   const handleAssignSection = useCallback(
     (programEnrollmentId: string, sectionId: string) => {
@@ -139,7 +157,6 @@ export default function EnrollWorkspacePage() {
     [updateProgEnrollMutation],
   );
 
-  const { data: schoolYears = [] } = useSchoolYears();
   const { data: programs = [], isLoading: progLoading } = usePrograms(schoolYearId || null);
   const { data: allLevels = [], isLoading: levelsLoading } = useLevelsByYear(schoolYearId);
   const { data: allStudents = [], isLoading: studentsLoading } = useStudents({});
@@ -147,7 +164,7 @@ export default function EnrollWorkspacePage() {
   const enrollments = Array.isArray(enrollmentsResponse)
     ? enrollmentsResponse
     : enrollmentsResponse?.data ?? [];
-  const { data: sections = [], isLoading: sectionsLoading } = useSections(schoolYearId || null, levelId || undefined);
+  const { data: sections = [], isLoading: sectionsLoading } = useSections(schoolYearId || null, levelId || undefined, courseId || undefined, strandId || undefined);
 
   const { data: classesRaw = [], isLoading: classesLoading } = useClasses({ schoolYearId: schoolYearId || undefined });
   const { data: subjectsRaw = [], isLoading: subjectsLoading } = useSubjects();
@@ -163,8 +180,26 @@ export default function EnrollWorkspacePage() {
   const level = allLevels.find((l) => l.id === levelId) ?? null;
 
   const programLevels = useMemo(
-    () => allLevels.filter((l) => l.program_id === programId),
-    [allLevels, programId],
+    () => {
+      // A college course shows only ITS OWN levels; an SHS strand shows only
+      // ITS strand levels. Never the levels of another course/strand in the
+      // same department. When a course/strand has no levels of its own, fall
+      // back to department-wide (program-scoped) levels — the same precedence
+      // the public enrollment portal uses. Programs without courses/strands
+      // simply use their program-scoped levels.
+      if (courseId) {
+        const courseLevels = allLevels.filter((l) => l.course_id === courseId);
+        if (courseLevels.length > 0) return courseLevels;
+      }
+      if (strandId) {
+        const strandLevels = allLevels.filter((l) => l.strand_id === strandId);
+        if (strandLevels.length > 0) return strandLevels;
+      }
+      return allLevels.filter(
+        (l) => l.program_id === programId && !l.course_id && !l.strand_id,
+      );
+    },
+    [allLevels, programId, courseId, strandId],
   );
 
   const handleProgramChange = useCallback((v: string) => {
@@ -191,6 +226,12 @@ export default function EnrollWorkspacePage() {
     semestersRaw.forEach((s) => map.set(s.id, s));
     return map;
   }, [semestersRaw]);
+
+  const sectionMap = useMemo(() => {
+    const map = new Map<string, string>();
+    sections.forEach((s) => map.set(s.id, s.name));
+    return map;
+  }, [sections]);
 
   const studentMap = useMemo(() => {
     const map = new Map<string, { fullName: string; studentId: string | null }>();
@@ -219,8 +260,9 @@ export default function EnrollWorkspacePage() {
       subjectName: subjectMap.get(cls.subjectId)?.title ?? cls.subjectName ?? "Unnamed Subject",
       educatorName: educatorMap.get(cls.educatorId)?.fullName ?? cls.educatorName ?? "No educator",
       semesterName: semesterMap.get(cls.semesterId)?.name ?? cls.semesterName ?? "—",
+      sectionName: cls.sectionId ? sectionMap.get(cls.sectionId) : cls.sectionName,
     }));
-  }, [classesRaw, schoolYearId, programId, courseId, strandId, levelId, subjectMap, educatorMap, semesterMap]);
+  }, [classesRaw, schoolYearId, programId, courseId, strandId, levelId, subjectMap, educatorMap, semesterMap, sectionMap]);
 
   const enrolledIds = useMemo(
     () => new Set(enrollments.map((e) => e.student_id)),
@@ -285,32 +327,57 @@ export default function EnrollWorkspacePage() {
     );
   }, [enrollments, programId, courseId, strandId, levelId]);
 
-  const studentsEligibleForClassEnrollment = useMemo(() => {
-    if (!programId || !levelId) return [];
+  const eligibleStudentsByClass = useMemo(() => {
+    if (!programId || !levelId) return {};
 
-    const seen = new Set<string>();
-    const result: { id: string; fullName: string; studentId: string | null }[] = [];
+    const bySection = new Map<string, { id: string; fullName: string; studentId: string | null }[]>();
 
     for (const enr of allContextEnrollments) {
-      const inContext = enr.programEnrollments.some(
-        (pe) =>
-          pe.program_id === programId &&
-          pe.level?.id === levelId &&
-          (!courseId || pe.course?.id === courseId) &&
-          (!strandId || pe.strand?.id === strandId),
-      );
-      if (inContext && !seen.has(enr.student_id)) {
-        seen.add(enr.student_id);
-        const info = studentMap.get(enr.student_id);
-        result.push({
-          id: enr.student_id,
-          fullName: info?.fullName ?? "Unknown Student",
-          studentId: info?.studentId ?? null,
-        });
+      const info = studentMap.get(enr.student_id);
+      if (!info) continue;
+      const entry = {
+        id: enr.student_id,
+        fullName: info.fullName,
+        studentId: info.studentId,
+      };
+
+      for (const pe of enr.programEnrollments) {
+        if (pe.program_id !== programId) continue;
+        if (pe.level?.id !== levelId) continue;
+        if (courseId && pe.course?.id !== courseId) continue;
+        if (strandId && pe.strand?.id !== strandId) continue;
+        if (!pe.section?.id) continue;
+        const list = bySection.get(pe.section.id) ?? [];
+        if (!list.some((s) => s.id === entry.id)) list.push(entry);
+        bySection.set(pe.section.id, list);
       }
     }
-    return result;
-  }, [programId, levelId, courseId, strandId, allContextEnrollments, studentMap]);
+
+    const map: Record<string, { id: string; fullName: string; studentId: string | null }[]> = {};
+    for (const cls of filteredClasses) {
+      map[cls.id] = cls.sectionId ? bySection.get(cls.sectionId) ?? [] : [];
+    }
+    return map;
+  }, [programId, levelId, courseId, strandId, allContextEnrollments, studentMap, filteredClasses]);
+
+  const enrolledStudentsByClass = useMemo(() => {
+    const map: Record<
+      string,
+      { id: string; studentId: string | null; fullName: string; status: "active" | "pending" | "removed" }[]
+    > = {};
+    if (expandedClassId) {
+      map[expandedClassId] = (classEnrollmentsQuery.data ?? []).map((enr) => {
+        const info = studentMap.get(enr.student_id);
+        return {
+          id: enr.student_id,
+          studentId: info?.studentId ?? null,
+          fullName: enr.student_name ?? info?.fullName ?? "Unknown Student",
+          status: enr.status,
+        };
+      });
+    }
+    return map;
+  }, [expandedClassId, classEnrollmentsQuery.data, studentMap]);
 
   const pageLoading = progLoading || levelsLoading || studentsLoading || enrollLoading || classesLoading || subjectsLoading || educatorsLoading || semestersLoading;
 
@@ -384,6 +451,14 @@ export default function EnrollWorkspacePage() {
       },
     },
   ], [sections, sectionAssignments, updateProgEnrollMutation, handleAssignSection]);
+
+  function handleConfirmEnrollClick() {
+    if (!isSchoolYearReady) {
+      setReadyBlockOpen(true);
+      return;
+    }
+    setConfirmOpen(true);
+  }
 
   async function handleEnroll() {
     const students = allStudents.filter((s) => selected.has(s.id));
@@ -572,7 +647,8 @@ export default function EnrollWorkspacePage() {
               selected={selected}
               onToggleAll={toggleAll}
               onToggle={toggle}
-              onConfirmEnroll={() => setConfirmOpen(true)}
+              onConfirmEnroll={handleConfirmEnrollClick}
+              enrollBlocked={!isSchoolYearReady}
               bulkEnrollPending={bulkEnrollMutation.isPending}
             />
 
@@ -581,15 +657,43 @@ export default function EnrollWorkspacePage() {
               isLoading={classesLoading}
               expandedClassId={expandedClassId}
               onToggleExpand={(id) => setExpandedClassId(expandedClassId === id ? null : id)}
-              eligibleStudents={studentsEligibleForClassEnrollment}
+              eligibleStudentsByClass={eligibleStudentsByClass}
+              enrolledStudentsByClass={enrolledStudentsByClass}
+              classEnrollmentsLoading={classEnrollmentsQuery.isLoading}
               classStudentSelections={classStudentSelections}
               onToggleStudent={toggleClassStudent}
               onToggleAllStudents={toggleAllClassStudents}
               onEnrollInClass={handleEnrollInClass}
+              enrollBlocked={!isSchoolYearReady}
               enrollingClassIds={enrollingClassIds}
             />
           </div>
         </>
+      )}
+
+      {readyBlockOpen && (
+        <ConfirmDialog
+          open
+          title="School year not ready"
+          destructive
+          confirmLabel="Go to School Years"
+          message="The selected school year is not ready for enrollment yet. Please resolve the following before enrolling students:"
+          description={
+            <ul className="mt-2 space-y-1">
+              {(readiness?.issues.filter((i) => i.severity === "blocking") ?? []).map((issue, i) => (
+                <li key={issue.ref?.id ?? `${issue.code}-${i}`} className="flex items-start gap-2 text-xs">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <span>{issue.message}</span>
+                </li>
+              ))}
+            </ul>
+          }
+          onOpenChange={(o) => { if (!o) setReadyBlockOpen(false); }}
+          onConfirm={() => {
+            setReadyBlockOpen(false);
+            router.push("/admin/school-years");
+          }}
+        />
       )}
 
       {confirmOpen && (
