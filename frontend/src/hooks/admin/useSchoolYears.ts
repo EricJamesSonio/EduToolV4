@@ -32,12 +32,16 @@ const schoolYearKeys = {
   sections: (
     schoolYearId: string | null,
     levelId?: string,
+    courseId?: string,
+    strandId?: string,
   ) =>
     [
       "admin",
       "sections",
       schoolYearId,
       levelId,
+      courseId,
+      strandId,
     ] as const,
 
   courses: (
@@ -153,17 +157,23 @@ export const usePrograms = (
 export const useSections = (
   schoolYearId: string | null,
   levelId?: string,
+  courseId?: string,
+  strandId?: string,
 ) => {
   return useAsyncQuery(
     schoolYearKeys.sections(
       schoolYearId,
       levelId,
+      courseId,
+      strandId,
     ),
 
     () =>
       sectionApi.getAll(
         schoolYearId!,
         levelId,
+        courseId,
+        strandId,
       ),
 
     {

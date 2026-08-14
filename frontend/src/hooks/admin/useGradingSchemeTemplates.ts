@@ -177,6 +177,22 @@ export const useGradingSchemeProgramAssignments = (
 }
 
 
+// Query: Class assignments
+
+export const useGradingSchemeClassAssignments = (
+  schoolYearId?: string | null,
+) => {
+  return useAsyncQuery(
+    queryKeys.admin.gradingSchemeTemplates.classAssignments(schoolYearId),
+    () =>
+      adminGradingSchemeTemplateApi.getClassAssignments(
+        schoolYearId ?? undefined,
+      ),
+    { enabled: !!schoolYearId },
+  )
+}
+
+
 // Mutation: Remove program assignment
 
 export const useRemoveGradingSchemeProgramAssignment =
