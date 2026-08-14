@@ -90,6 +90,7 @@ interface RawClass {
   course_name?:      string | null;
   strand_name?:      string | null;
   _count?:           { enrollments: number };
+  template_id?:      string | null;
 }
 
 interface ApiResponse<T> {
@@ -144,6 +145,7 @@ function mapClass(raw: RawClass): Class {
     levelName: raw.level_name ?? undefined,
     courseName: raw.course_name ?? undefined,
     strandName: raw.strand_name ?? undefined,
+    templateId: raw.template_id ?? null,
   };
 }
 

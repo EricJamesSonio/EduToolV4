@@ -5,6 +5,7 @@ import type {
   CreateGradingSchemeTemplateDto,
   ApplyTemplateToClassDto,
   ProgramTemplateAssignment,
+  ClassTemplateAssignment,
 } from '@/types/admin/grading-scheme-template.types'
 
 interface ApiResponse<T> {
@@ -92,6 +93,19 @@ export const adminGradingSchemeTemplateApi = {
   ): Promise<ProgramTemplateAssignment[]> => {
     const res = await client.get<ApiResponse<ProgramTemplateAssignment[]>>(
       `/grading-scheme-templates/assignments/program`,
+      {
+        params: schoolYearId ? { schoolYearId } : undefined,
+      }
+    )
+    return res.data.data
+  },
+
+  // Get the template currently applied to each class
+  getClassAssignments: async (
+    schoolYearId?: string
+  ): Promise<ClassTemplateAssignment[]> => {
+    const res = await client.get<ApiResponse<ClassTemplateAssignment[]>>(
+      `/grading-scheme-templates/assignments/class`,
       {
         params: schoolYearId ? { schoolYearId } : undefined,
       }
