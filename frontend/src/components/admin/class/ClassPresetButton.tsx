@@ -54,25 +54,25 @@ export function ClassPresetButton({
   // These only fire from real picks made inside this modal — never from the
   // initial population of an existing preset — since they're plain state
   // setters in onValueChange, not a watch-based effect.
-  const handleProgramChange = (v: string) => {
+  const handleProgramChange = (v: string | null) => {
     setProgramId(v ?? "");
     setSemesterId("");
     setTrackId("");
     setLevelId("");
     setSectionId("");
   };
-  const handleSemesterChange = (v: string) => {
+  const handleSemesterChange = (v: string | null) => {
     setSemesterId(v ?? "");
     setTrackId("");
     setLevelId("");
     setSectionId("");
   };
-  const handleTrackChange = (v: string) => {
+  const handleTrackChange = (v: string | null) => {
     setTrackId(v ?? "");
     setLevelId("");
     setSectionId("");
   };
-  const handleLevelChange = (v: string) => {
+  const handleLevelChange = (v: string | null) => {
     setLevelId(v ?? "");
     setSectionId("");
   };

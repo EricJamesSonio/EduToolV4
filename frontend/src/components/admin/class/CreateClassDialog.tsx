@@ -101,10 +101,15 @@ export function CreateClassDialog({
   );
 
   // ── Cascade resets ──────────────────────────────────────────────────────────
+  // Fire only when a field changes after mount (user action). A plain
+  // useRef(true) "skip first run" guard is not StrictMode-safe: dev mode runs
+  // effects twice on mount, so the second pass would wipe pre-filled preset
+  // values. Tracking the previous value instead only resets on real changes.
 
-const skipProgramReset = useRef(true);
+  const prevProgramId = useRef(selectedProgramId);
    useEffect(() => {
-    if (skipProgramReset.current) { skipProgramReset.current = false; return; }
+    if (prevProgramId.current === selectedProgramId) return;
+    prevProgramId.current = selectedProgramId;
      setValue("semesterId", "");
      setValue("trackId",   "");
      setValue("levelId",   "");
@@ -112,24 +117,27 @@ const skipProgramReset = useRef(true);
      setValue("subjectId", "");
    }, [selectedProgramId, setValue]);
 
-  const skipTrackReset = useRef(true);
+  const prevTrackId = useRef(selectedTrackId);
    useEffect(() => {
-    if (skipTrackReset.current) { skipTrackReset.current = false; return; }
+    if (prevTrackId.current === selectedTrackId) return;
+    prevTrackId.current = selectedTrackId;
      setValue("levelId",   "");
      setValue("sectionId", "");
      setValue("subjectId", "");
    }, [selectedTrackId, setValue]);
 
-  const skipLevelReset = useRef(true);
+  const prevLevelId = useRef(selectedLevelId);
    useEffect(() => {
-    if (skipLevelReset.current) { skipLevelReset.current = false; return; }
+    if (prevLevelId.current === selectedLevelId) return;
+    prevLevelId.current = selectedLevelId;
      setValue("sectionId", "");
      setValue("subjectId", "");
    }, [selectedLevelId, setValue]);
 
-  const skipSectionReset = useRef(true);
+  const prevSectionId = useRef(selectedSectionId);
    useEffect(() => {
-    if (skipSectionReset.current) { skipSectionReset.current = false; return; }
+    if (prevSectionId.current === selectedSectionId) return;
+    prevSectionId.current = selectedSectionId;
      setValue("subjectId", "");
    }, [selectedSectionId, setValue]);
 
