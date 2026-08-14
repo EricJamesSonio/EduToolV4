@@ -216,6 +216,8 @@ export function ProgramLevelsSection({
                 level={level}
                 schoolYearId={schoolYearId}
                 isEnded={false}
+                courseId={level.course_id ?? undefined}
+                strandId={level.strand_id ?? undefined}
               />
             </div>
           ))}
