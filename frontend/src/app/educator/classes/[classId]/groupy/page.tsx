@@ -23,9 +23,11 @@ export default function EducatorGroupyPage({ params }: Props): React.JSX.Element
   }
 
   return (
-    <div className="space-y-4">
-      <PageHeader title="Class Chat" />
-      <div className="rounded-lg border bg-card overflow-hidden h-[calc(100vh-12rem)]">
+    <div className="flex h-[calc(100vh-76px-3rem)] flex-col overflow-x-hidden">
+      <div className="shrink-0">
+        <PageHeader title="Class Chat" />
+      </div>
+      <div className="flex-1 min-h-0 rounded-lg border bg-card overflow-hidden">
         <GroupyChatFeature
           classId={classId}
           role="educator"
