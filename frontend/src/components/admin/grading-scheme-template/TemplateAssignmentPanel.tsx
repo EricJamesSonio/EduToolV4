@@ -1,7 +1,7 @@
 // frontend/src/components/admin/grading-scheme-template/TemplateAssignmentPanel.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { AlertCircle, Check, CheckCircle2, Layers, X } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
@@ -30,6 +30,7 @@ import {
   useApplyTemplateToClass,
   useApplyTemplateToProgram,
   useGradingSchemeProgramAssignments,
+  useGradingSchemeClassAssignments,
   useRemoveGradingSchemeProgramAssignment,
 } from "@/hooks/admin/useGradingSchemeTemplates";
 import type { GradingSchemeTemplate } from "@/types/admin/grading-scheme-template.types";
@@ -40,6 +41,7 @@ interface ClassInfo {
   id: string;
   name: string;
   programId?: string;
+  templateId?: string | null;
 }
 
 interface ProgramInfo {
@@ -111,15 +113,62 @@ export function TemplateAssignmentPanel({
   const { data: assignments = [], isLoading: assignmentsLoading } =
     useGradingSchemeProgramAssignments(schoolYearId);
 
+  const { data: classAssignments = [], isLoading: classAssignmentsLoading } =
+    useGradingSchemeClassAssignments(schoolYearId);
+
   const applyToProgram = useApplyTemplateToProgram();
   const applyToClass = useApplyTemplateToClass();
   const removeAssignment = useRemoveGradingSchemeProgramAssignment();
   const isPending = applyToProgram.isPending || applyToClass.isPending || removeAssignment.isPending;
 
-  const refreshAssignments = () =>
+  const refreshAssignments = () => {
     queryClient.invalidateQueries({
       queryKey: ["admin", "gradingSchemeTemplates", "programAssignments"],
     });
+    queryClient.invalidateQueries({
+      queryKey: ["admin", "gradingSchemeTemplates", "classAssignments"],
+    });
+  };
+
+  // Hydrate the class table with the templates actually applied to each class
+  // (inherited via department apply or auto-applied on class creation).
+  useEffect(() => {
+    setClassTemplates((prev) => {
+      const next = { ...prev };
+      for (const prog of programs) {
+        for (const cls of prog.classes) {
+          if (cls.templateId && next[cls.id] === undefined) {
+            next[cls.id] = cls.templateId;
+          }
+        }
+      }
+      return next;
+    });
+    setAppliedClasses((prev) => {
+      const next = new Set(prev);
+      for (const prog of programs) {
+        for (const cls of prog.classes) {
+          if (cls.templateId) next.add(cls.id);
+        }
+      }
+      return next;
+    });
+    // Merge freshest per-class assignments from the dedicated endpoint too.
+    if (classAssignments.length > 0) {
+      setClassTemplates((prev) => {
+        const next = { ...prev };
+        for (const a of classAssignments) {
+          if (next[a.classId] === undefined) next[a.classId] = a.templateId;
+        }
+        return next;
+      });
+      setAppliedClasses((prev) => {
+        const next = new Set(prev);
+        for (const a of classAssignments) next.add(a.classId);
+        return next;
+      });
+    }
+  }, [programs, classAssignments]);
 
   const getTemplateName = (id: string) =>
     templates.find((t) => t.id === id)?.name ?? id;
@@ -358,6 +407,7 @@ export function TemplateAssignmentPanel({
                           templates.find((t) => t.id === id)?.name ?? id;
                         toast.success(`Applied "${name}" to "${cls.name}".`);
                         setAppliedClasses((prev) => new Set(prev).add(cls.id));
+                        refreshAssignments();
                       },
                       onError: (e) => {
                         const err = e as AxiosError<{ message: string }>;
@@ -401,7 +451,7 @@ export function TemplateAssignmentPanel({
     [classTemplates, appliedClasses, templates, isPending, applyToClass],
   );
 
-  if (isLoading || assignmentsLoading) {
+  if (isLoading || assignmentsLoading || classAssignmentsLoading) {
     return (
       <div className="space-y-3">
         {[1, 2].map((i) => (
