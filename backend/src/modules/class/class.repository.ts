@@ -66,6 +66,12 @@ export class ClassRepository {
         select: { enrollments: true },
       },
       schedules: true,
+      gradingSchemes: {
+        where: { template_id: { not: null } },
+        orderBy: { created_at: 'desc' as const },
+        take: 1,
+        select: { template_id: true },
+      },
       subject: {
         select: {
           id: true,

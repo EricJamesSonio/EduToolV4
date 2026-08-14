@@ -156,23 +156,23 @@ export class ClassService {
 
     await this.classRepository.replaceSchedules(orgId, cls.id, slots);
 
-    // Best-effort auto-apply: if a grading-scheme template is in effect for the
-    // class's program, stamp it onto the newly created class. Never blocks class
-    // creation on failure.
-    this.gradingSchemeTemplateService
-      .autoApplyForNewClass(
+    // Auto-apply: if a grading-scheme template is in effect for the class's
+    // program, stamp it onto the newly created class so it is inherited
+    // immediately. Never blocks class creation on failure.
+    try {
+      await this.gradingSchemeTemplateService.autoApplyForNewClass(
         orgId,
         cls.id,
         programId,
         dto.schoolYearId,
         programType,
-      )
-      .catch((err) => {
-        console.error(
-          `[ClassService] Failed to auto-apply grading scheme template for class ${cls.id}:`,
-          err,
-        );
-      });
+      );
+    } catch (err) {
+      console.error(
+        `[ClassService] Failed to auto-apply grading scheme template for class ${cls.id}:`,
+        err,
+      );
+    }
 
     this.attendanceService
       .generateSessionsForClass(cls.id, orgId)
@@ -227,6 +227,8 @@ export class ClassService {
         return {
           ...cls,
           program_id: programId,
+          template_id:
+            (cls as any).gradingSchemes?.[0]?.template_id ?? null,
           subject_name: subject?.name ?? null,
           program_name:
             subject?.program?.name ??
