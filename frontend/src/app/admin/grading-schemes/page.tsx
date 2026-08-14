@@ -156,6 +156,7 @@ export default function GradingSchemesPage(): React.JSX.Element {
             cls.subjectName ??
             cls.subjectId,
           programId: cls.programId,
+          templateId: cls.templateId ?? null,
         })),
     }));
   }, [programs, classes]);
