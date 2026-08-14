@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { UserRoundCheck, Users, CheckSquare } from "lucide-react";
+import { UserRoundCheck, Users, CheckSquare, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,6 +43,7 @@ interface EnrollStudentPanelProps {
   onToggleAll: () => void;
   onToggle: (id: string) => void;
   onConfirmEnroll: () => void;
+  enrollBlocked: boolean;
   bulkEnrollPending: boolean;
   /** Enroll student tab loading */
 }
@@ -69,6 +70,7 @@ export function EnrollStudentPanel({
   onToggleAll,
   onToggle,
   onConfirmEnroll,
+  enrollBlocked,
   bulkEnrollPending,
 }: EnrollStudentPanelProps) {
   const mapEnrollments = (
@@ -258,21 +260,33 @@ export function EnrollStudentPanel({
           )}
 
           {filtered.length > 0 && (
-            <div className="flex items-center justify-between px-5 py-3 border-t">
+            <div className="flex items-center justify-between gap-3 px-5 py-3 border-t">
               <p className="text-xs text-muted-foreground">
                 {selected.size > 0
                   ? `${selected.size} student${selected.size > 1 ? "s" : ""} selected`
                   : "Select students to enroll"}
               </p>
-              <Button
-                size="sm"
-                onClick={onConfirmEnroll}
-                disabled={selected.size === 0 || bulkEnrollPending}
-              >
-                {bulkEnrollPending
-                  ? "Enrolling..."
-                  : `Enroll ${selected.size > 0 ? `(${selected.size})` : ""}`}
-              </Button>
+              {enrollBlocked ? (
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    School year not ready
+                  </p>
+                  <Button size="sm" variant="outline" onClick={onConfirmEnroll}>
+                    See why
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={onConfirmEnroll}
+                  disabled={selected.size === 0 || bulkEnrollPending}
+                >
+                  {bulkEnrollPending
+                    ? "Enrolling..."
+                    : `Enroll ${selected.size > 0 ? `(${selected.size})` : ""}`}
+                </Button>
+              )}
             </div>
           )}
         </div>
