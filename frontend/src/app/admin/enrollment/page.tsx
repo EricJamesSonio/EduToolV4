@@ -30,8 +30,11 @@ import {
   useEnrollInProgram,
   useUpdateProgramEnrollment,
 } from "@/hooks/admin/useStudentEnrollment";
+import { useAsyncQuery } from "@/hooks/hook-factory.utils";
+import { queryKeys } from "@/hooks/queryKeys.factory";
+import { schoolYearApi } from "@/api/admin/school-year.api";
 
-import { Plus, Users, BookOpen, UserRoundCheck, Layers, ClipboardList, Settings, ChevronDown } from "lucide-react";
+import { Plus, Users, BookOpen, UserRoundCheck, Layers, ClipboardList, Settings, ChevronDown, CircleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 
@@ -41,6 +44,7 @@ import type {
   ProgramEnrollmentSnapshot,
   EnrollStudentProgramRequest,
 } from "@/types/admin/student-enrollment.types";
+import type { SchoolYearReadiness } from "@/types/admin/school-year.types";
 
 interface PendingSectionRow {
   enrollment: StudentSchoolYearEnrollment;
@@ -86,6 +90,12 @@ export default function EnrollmentPage() {
   const { data: allStudents = [] } = useStudents();
 
   const selectedSchoolYear = schoolYears.find((sy) => sy.id === schoolYearId);
+
+  const { data: readiness } = useAsyncQuery<SchoolYearReadiness>(
+    queryKeys.admin.schoolYears.readinessDetail(schoolYearId ?? ""),
+    () => schoolYearApi.getReadiness(schoolYearId!),
+    { enabled: !!schoolYearId },
+  );
 
   // ── Student lookup map ──────────────────────────────
 
@@ -191,9 +201,9 @@ export default function EnrollmentPage() {
   );
 
   const handleEnrollClick = useCallback(() => {
-    if (!schoolYearId) return;
+    if (!schoolYearId || !readiness?.ready) return;
     router.push(`/admin/enrollment/enroll?schoolYearId=${schoolYearId}`);
-  }, [schoolYearId, router]);
+  }, [schoolYearId, readiness?.ready, router]);
 
   // ── Pending section columns ─────────────────────────
 
@@ -330,12 +340,35 @@ export default function EnrollmentPage() {
             <Button
               size="sm"
               onClick={() => ensureOrganization(handleEnrollClick)}
-              disabled={isEnded}
+              disabled={isEnded || !readiness?.ready}
+              title={
+                readiness && !readiness.ready
+                  ? "This school year is not ready. Fix the blocking issues first."
+                  : undefined
+              }
             >
               <Plus className="mr-1.5 h-4 w-4" />
               Enroll Students
             </Button>
           </div>
+
+          {readiness && !readiness.ready && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3">
+              <CircleAlert className="mt-0.5 h-4 w-4 text-amber-500 shrink-0" />
+              <div className="text-xs">
+                <p className="font-medium text-amber-700 dark:text-amber-400">
+                  This school year is not ready
+                  {readiness.blockingCount > 0
+                    ? ` (${readiness.blockingCount} blocking).`
+                    : "."}
+                </p>
+                <p className="text-muted-foreground mt-1">
+                  Resolve the blocking issues before enrolling students. You can still
+                  review existing enrollments below.
+                </p>
+              </div>
+            </div>
+          )}
 
           {settingsOpen && (
             <div className="animate-fade-in">
