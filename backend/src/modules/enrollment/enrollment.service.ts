@@ -5,15 +5,23 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common'
+import { DatabaseService } from '@/core/database/database.provider'
 import { EnrollmentRepository } from './enrollment.repository'
 import { UpdateEnrollmentDto, PrerequisiteCheckResultDto } from './dto/enrollment.dto'
+import {
+  resolveSubjectAcademicStructure,
+  isEligibleForClassStructure,
+} from './enrollment-eligibility.util'
 
 // Minimum passing score — adjust if your grading scale differs per org
 const PASSING_SCORE = 75
 
 @Injectable()
 export class EnrollmentService {
-  constructor(private readonly enrollmentRepository: EnrollmentRepository) {}
+  constructor(
+    private readonly enrollmentRepository: EnrollmentRepository,
+    private readonly db: DatabaseService,
+  ) {}
 
   // ── Prerequisite gate ───────────────────────────────────────────────────
 
@@ -75,6 +83,44 @@ export class EnrollmentService {
 
   // ── Enrollment CRUD ─────────────────────────────────────────────────────
 
+  /**
+   * STRICT gate: a student may only be enrolled in a class when they belong to
+   * the same academic structure the class's subject requires — program, and
+   * (when the class defines them) course/strand and level. Students with no
+   * complete academic placement are rejected.
+   */
+  private async assertAcademicEligibility(
+    classId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    const cls = await this.enrollmentRepository.findClassEnrollmentContext(
+      classId,
+      orgId,
+    )
+    if (!cls) throw new NotFoundException('Class not found.')
+
+    const [subjectStructure, studentStructure] = await Promise.all([
+      resolveSubjectAcademicStructure(this.db, cls.subject_id, orgId),
+      this.enrollmentRepository.findStudentAcademicStructure(
+        studentId,
+        orgId,
+        cls.school_year_id,
+      ),
+    ])
+
+    if (
+      !isEligibleForClassStructure(subjectStructure, studentStructure, cls.section_id)
+    ) {
+      const reason = !studentStructure
+        ? 'The student has no active academic placement for this school year.'
+        : 'The student does not belong to the same program, course/strand, or level assigned to this class.'
+      throw new BadRequestException(
+        `Student is not eligible for this class. ${reason}`,
+      )
+    }
+  }
+
   async enroll(
     classId: string,
     subjectId: string,
@@ -83,6 +129,9 @@ export class EnrollmentService {
     studentId: string,
     orgId: string,
   ) {
+    // 0. Academic structure gate — must match before anything else
+    await this.assertAcademicEligibility(classId, studentId, orgId)
+
     // 1. Prerequisite gate — block before any other checks
     const eligibility = await this.checkEligibility(subjectId, studentId, orgId)
     if (!eligibility.eligible) {

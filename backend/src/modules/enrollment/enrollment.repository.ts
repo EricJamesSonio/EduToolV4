@@ -1,9 +1,47 @@
 import { Injectable } from '@nestjs/common'
 import { DatabaseService } from '@/core/database/database.provider'
+import type { StudentAcademicStructure } from './enrollment-eligibility.util'
 
 @Injectable()
 export class EnrollmentRepository {
   constructor(private readonly db: DatabaseService) {}
+
+  // Fetches the academic context of a class needed for eligibility checks.
+  async findClassEnrollmentContext(classId: string, orgId: string) {
+    return this.db.class.findFirst({
+      where: { id: classId, org_id: orgId, deleted_at: null },
+      select: { subject_id: true, school_year_id: true, section_id: true },
+    })
+  }
+
+  // Resolves a student's active program enrollment for a given school year.
+  // Returns null when the student has no (or no complete) academic placement,
+  // in which case they must be treated as ineligible.
+  async findStudentAcademicStructure(
+    studentId: string,
+    orgId: string,
+    schoolYearId: string,
+  ): Promise<StudentAcademicStructure | null> {
+    const ssy = await this.db.studentSchoolYear.findFirst({
+      where: { org_id: orgId, student_id: studentId, school_year_id: schoolYearId },
+      include: {
+        programEnrollments: {
+          where: { status: 'active' },
+        },
+      },
+    })
+
+    const pe = ssy?.programEnrollments?.[0]
+    if (!pe) return null
+
+    return {
+      programId: pe.program_id,
+      levelId: pe.level_id,
+      courseId: pe.course_id,
+      strandId: pe.strand_id,
+      sectionId: pe.section_id,
+    }
+  }
 
   async create(data: {
     orgId: string
