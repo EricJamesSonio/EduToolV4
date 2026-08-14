@@ -15,6 +15,8 @@ interface Props extends LevelListSharedProps {
   groupId: string;
   groupType: "course" | "strand";
   levels: Level[]; // 🔥 IMPORTANT
+  courseId?: string;
+  strandId?: string;
 }
 
 export function GroupBlock({
@@ -22,6 +24,8 @@ export function GroupBlock({
   groupId,
   groupType,
   levels = [],   // 🔥 DEFAULT FIX HERE
+  courseId,
+  strandId,
   ...props
 }: Props) {
   const [collapsed, setCollapsed] = useState(false);
@@ -51,6 +55,8 @@ export function GroupBlock({
         <LevelList
           levels={scopedLevels}
           {...props}
+          courseId={courseId}
+          strandId={strandId}
         />
       )}
     </div>
@@ -75,6 +81,7 @@ export function CourseGroupBlock({
       groupId={course.id}
       groupType="course"
       levels={levels} // 🔥 NO FILTERING
+      courseId={course.id}
       {...props}
     />
   );
@@ -91,6 +98,7 @@ export function StrandGroupBlock({
       groupId={strand.id}
       groupType="strand"
       levels={levels}
+      strandId={strand.id}
       {...props}
     />
   );
