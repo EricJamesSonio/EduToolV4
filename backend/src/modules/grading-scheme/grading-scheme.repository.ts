@@ -90,13 +90,24 @@ export class GradingSchemeRepository {
   async update(
     id:    string,
     orgId: string,
-    data: { name?: string; components?: GradingSchemeComponentDto[] },
+    data: {
+      name?: string;
+      components?: GradingSchemeComponentDto[];
+      templateId?: string | null;
+    },
   ) {
     const updated = await this.db.$transaction(async (tx) => {
       if (data.name !== undefined) {
         await tx.gradingScheme.update({
           where: { id },
           data:  { name: data.name },
+        });
+      }
+
+      if (data.templateId !== undefined) {
+        await tx.gradingScheme.update({
+          where: { id },
+          data:  { template_id: data.templateId },
         });
       }
 
@@ -136,7 +147,11 @@ export class GradingSchemeRepository {
     const existing = await this.findByClassId(classId, orgId);
 
     if (existing) {
-      return this.update(existing.id, orgId, { name, components });
+      return this.update(existing.id, orgId, {
+        name,
+        components,
+        templateId,
+      });
     }
 
     return this.create(orgId, classId, templateId, name, components);
