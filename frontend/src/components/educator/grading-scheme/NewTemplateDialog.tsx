@@ -258,6 +258,7 @@ export function NewTemplateDialog({
                   index={i}
                   row={row}
                   disabled={isBusy}
+                  usedTypes={rows.filter((_, j) => j !== i).map((r) => r.type)}
                   onChange={handleChange}
                   onDelete={setDeleteIndex}
                 />

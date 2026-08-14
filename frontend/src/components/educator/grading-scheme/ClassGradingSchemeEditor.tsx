@@ -226,6 +226,7 @@ export function ClassGradingSchemeEditor({
               index={i}
               row={row}
               disabled={isLocked || isBusy}
+              usedTypes={rows.filter((_, j) => j !== i).map((r) => r.type)}
               onChange={handleChange}
               onDelete={setDeleteIndex}
             />
