@@ -87,6 +87,7 @@ export const queryKeys = {
       list: (filters?: Record<string, any>) => [...adminKeys.all, 'gradingSchemeTemplates', 'list', filters] as const,
       detail: (id: string) => [...adminKeys.all, 'gradingSchemeTemplates', 'detail', id] as const,
       programAssignments: (schoolYearId?: string | null) => [...adminKeys.all, 'gradingSchemeTemplates', 'programAssignments', schoolYearId ?? null] as const,
+      classAssignments: (schoolYearId?: string | null) => [...adminKeys.all, 'gradingSchemeTemplates', 'classAssignments', schoolYearId ?? null] as const,
     },
     holidayConfig: {
       all: [...adminKeys.all, 'holidayConfig'] as const,
