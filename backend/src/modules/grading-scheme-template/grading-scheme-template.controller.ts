@@ -80,6 +80,15 @@ export class GradingSchemeTemplateController {
     return this.service.getProgramAssignments(orgId, schoolYearId);
   }
 
+  @Get('assignments/class')
+  @Roles('admin')
+  async getClassAssignments(
+    @CurrentUser('org_id') orgId: string,
+    @Query('schoolYearId') schoolYearId?: string,
+  ) {
+    return this.service.getClassAssignments(orgId, schoolYearId);
+  }
+
   @Delete('assignments/program/:programId')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)

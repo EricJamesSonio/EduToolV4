@@ -175,6 +175,65 @@ export class GradingSchemeTemplateService {
     return assignments;
   }
 
+  /**
+   * Return the template currently stamped on each class's grading scheme.
+   * Used by the admin "Assign to Class" panel so it can reflect the actual
+   * template inherited by every class (including ones auto-applied on creation).
+   */
+  async getClassAssignments(
+    orgId: string,
+    schoolYearId?: string,
+  ): Promise<Array<{ classId: string; templateId: string; templateName: string }>> {
+    const classes = await this.db.class.findMany({
+      where: {
+        org_id:     orgId,
+        deleted_at: null,
+        ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
+      },
+      select: { id: true },
+    });
+    if (classes.length === 0) return [];
+
+    const schemes = await this.db.gradingScheme.findMany({
+      where: {
+        org_id:      orgId,
+        class_id:    { in: classes.map((c) => c.id) },
+        template_id: { not: null },
+      },
+      select: { class_id: true, template_id: true },
+    });
+
+    const templateIds = Array.from(
+      new Set(schemes.map((s) => s.template_id!).filter(Boolean)),
+    );
+    const templates = templateIds.length
+      ? await this.db.gradingSchemeTemplate.findMany({
+          where: { id: { in: templateIds }, org_id: orgId },
+          select: { id: true, name: true },
+        })
+      : [];
+    const nameById = new Map(templates.map((t) => [t.id, t.name]));
+
+    const byClass = new Map<string, { templateId: string; templateName: string }>();
+    for (const scheme of schemes) {
+      if (!scheme.template_id) continue;
+      const name = nameById.get(scheme.template_id);
+      if (!name) continue;
+      byClass.set(scheme.class_id, {
+        templateId: scheme.template_id,
+        templateName: name,
+      });
+    }
+
+    return classes
+      .filter((c) => byClass.has(c.id))
+      .map((c) => ({
+        classId:  c.id,
+        templateId: byClass.get(c.id)!.templateId,
+        templateName: byClass.get(c.id)!.templateName,
+      }));
+  }
+
   async removeProgramAssignment(
     orgId: string,
     programId: string,
