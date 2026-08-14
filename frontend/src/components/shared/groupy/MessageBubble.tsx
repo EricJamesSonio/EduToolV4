@@ -252,12 +252,12 @@ export function MessageBubble({
   return (
     <div
       className={cn(
-        "flex w-full",
+        "flex w-full min-w-0",
         isSystem ? "justify-center" : isOwn ? "justify-end" : "justify-start"
       )}
     >
       {isSystem ? (
-        <div className="max-w-[85%] rounded-lg bg-accent/40 border border-border px-4 py-2.5 text-center text-xs text-muted-foreground">
+        <div className="max-w-[80%] min-w-0 rounded-lg bg-accent/40 border border-border px-4 py-2.5 text-center text-xs text-muted-foreground">
           {renderBody(message, currentUserId, role, activeMeetingId, meetingStatusKnown)}
         </div>
       ) : (
@@ -268,10 +268,10 @@ export function MessageBubble({
           )}
         >
           {!isOwn && <SenderAvatar message={message} />}
-          <div className="max-w-[85%] flex-1 min-w-0 space-y-0.5">
+          <div className="max-w-[80%] min-w-0 space-y-0.5">
             <p
               className={cn(
-                "text-[11px] font-medium px-1",
+                "text-[11px] font-medium px-1 break-words",
                 isOwn ? "text-muted-foreground text-right" : "text-muted-foreground"
               )}
             >

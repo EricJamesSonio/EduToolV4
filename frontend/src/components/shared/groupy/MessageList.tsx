@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { Avatar, AvatarFallback, AvatarGroup, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarImage } from "@/components/ui/avatar";
 import { getProfileImageUrl } from "@/utils/profile.util";
 import type { GroupyMember, GroupyMessage } from "@/types/groupy/groupy.types";
 import { MessageBubble } from "./MessageBubble";
@@ -27,6 +27,9 @@ interface MessageListProps {
 }
 
 const BOTTOM_THRESHOLD = 80;
+// How many "seen by" avatars to show before collapsing the rest into a +N badge
+// so a busy chat can never push the seen row wider than the container.
+const MAX_SEEN_AVATARS = 4;
 
 export function MessageList({
   messages,
@@ -98,7 +101,7 @@ export function MessageList({
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto p-3 space-y-3"
+      className="flex-1 min-h-0 w-full min-w-0 overflow-y-auto overflow-x-hidden p-3 space-y-3"
     >
       {loadingOlder && (
         <div className="text-center py-1">
@@ -127,9 +130,9 @@ export function MessageList({
       ))}
 
       {seenBy.length > 0 && (
-        <div className="flex justify-end gap-2 pt-1">
-          <AvatarGroup>
-            {seenBy.map((m) => {
+        <div className="flex justify-end pt-1">
+          <AvatarGroup className="w-fit">
+            {seenBy.slice(0, MAX_SEEN_AVATARS).map((m) => {
               const name = m.full_name || "?";
               const initials = name
                 .split(/\s+/)
@@ -139,12 +142,15 @@ export function MessageList({
                 .slice(0, 2)
                 .toUpperCase();
               return (
-                <Avatar key={m.account_id} title={name} className="h-6 w-6">
+                <Avatar key={m.account_id} size="sm" title={name}>
                   <AvatarImage src={getProfileImageUrl(m.profile_image)} alt={name} />
                   <AvatarFallback className="text-[10px]">{initials || "?"}</AvatarFallback>
                 </Avatar>
               );
             })}
+            {seenBy.length > MAX_SEEN_AVATARS && (
+              <AvatarGroupCount>+{seenBy.length - MAX_SEEN_AVATARS}</AvatarGroupCount>
+            )}
           </AvatarGroup>
         </div>
       )}

@@ -62,7 +62,7 @@ export function PollMessageCard({
   const maxVotes = Math.max(1, ...poll.options.map((o) => o.voteCount));
 
   return (
-    <div className="min-w-[260px] max-w-full space-y-2">
+    <div className="w-full min-w-0 max-w-full space-y-2">
       <p className="text-sm font-semibold">{poll.question}</p>
 
       <div className="space-y-1.5">

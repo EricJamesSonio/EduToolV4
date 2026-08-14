@@ -170,7 +170,7 @@ export function GroupyChatFeature({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full w-full min-w-0 flex-col overflow-hidden">
       <div className="border-b border-border px-4 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Class Chat</h2>
