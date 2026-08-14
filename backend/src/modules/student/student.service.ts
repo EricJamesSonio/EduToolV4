@@ -22,8 +22,13 @@ import {
 } from './student.utils';
 import { hashPassword } from '@/commons/utils/hash.util';
 import { Prisma } from '@prisma/client';
+import { DatabaseService } from '@/core/database/database.provider';
 import { ClassRepository } from '../class/class.repository';
 import { EnrollmentRepository } from '../enrollment/enrollment.repository';
+import {
+  resolveSubjectAcademicStructure,
+  isEligibleForClassStructure,
+} from '../enrollment/enrollment-eligibility.util';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { OrganizationService } from '../organization/organization.service';
 
@@ -42,6 +47,7 @@ export class StudentService {
     private readonly enrollmentRepo: EnrollmentRepository,
     private readonly auditLogService: AuditLogService,   // ← INJECTED
     private readonly organizationService: OrganizationService,
+    private readonly db: DatabaseService,
   ) {}
 
   private extractMeta(account: Record<string, any>): Record<string, any> {
@@ -474,6 +480,28 @@ export class StudentService {
 
     const cls = await this.classRepository.findById(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
+
+    // ── Academic structure gate ──────────────────────────────────────────
+    // Strict: student must belong to the class's program, course/strand, and level.
+    const [subjectStructure, studentStructure] = await Promise.all([
+      resolveSubjectAcademicStructure(this.db, cls.subject_id, orgId),
+      this.enrollmentRepo.findStudentAcademicStructure(
+        studentId,
+        orgId,
+        cls.school_year_id,
+      ),
+    ]);
+
+    if (
+      !isEligibleForClassStructure(subjectStructure, studentStructure, cls.section_id)
+    ) {
+      const reason = !studentStructure
+        ? 'The student has no active academic placement for this school year.'
+        : 'The student does not belong to the same program, course/strand, or level assigned to this class.';
+      throw new BadRequestException(
+        `Student is not eligible for this class. ${reason}`,
+      );
+    }
 
     const duplicate = await this.enrollmentRepo.findDuplicate(
       studentId,
