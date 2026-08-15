@@ -278,23 +278,27 @@ async findAll(
   async update(
     id: string,
     data: {
-      name?:      string;
-      levelId?:   string | null;
-      courseId?:  string | null;
-      strandId?:  string | null;
-      yearLevel?: string | null;
-      termLabel?: string | null;
+      name?:        string;
+      subjectType?: string;
+      programId?:   string;
+      levelId?:     string | null;
+      courseId?:    string | null;
+      strandId?:    string | null;
+      yearLevel?:   string | null;
+      termLabel?:   string | null;
     },
   ) {
     const subject = await this.db.subject.update({
       where: { id },
       data: {
-        ...(data.name      !== undefined ? { name:       data.name }               : {}),
-        ...(data.levelId   !== undefined ? { level_id:   { set: data.levelId } }   : {}),
-        ...(data.courseId  !== undefined ? { course_id:  { set: data.courseId } }  : {}),
-        ...(data.strandId  !== undefined ? { strand_id:  { set: data.strandId } }  : {}),
-        ...(data.yearLevel !== undefined ? { year_level: { set: data.yearLevel } } : {}),
-        ...(data.termLabel !== undefined ? { term_label: { set: data.termLabel } } : {}),
+        ...(data.name        !== undefined ? { name:        data.name }                : {}),
+        ...(data.subjectType !== undefined ? { subject_type: data.subjectType }        : {}),
+        ...(data.programId   !== undefined ? { program_id:   data.programId }          : {}),
+        ...(data.levelId     !== undefined ? { level_id:     { set: data.levelId } }   : {}),
+        ...(data.courseId    !== undefined ? { course_id:    { set: data.courseId } }  : {}),
+        ...(data.strandId    !== undefined ? { strand_id:    { set: data.strandId } }  : {}),
+        ...(data.yearLevel   !== undefined ? { year_level:   { set: data.yearLevel } } : {}),
+        ...(data.termLabel   !== undefined ? { term_label:   { set: data.termLabel } } : {}),
       },
     });
     const [enriched] = await this.enrichSubjects([subject]);
@@ -345,6 +349,12 @@ async findAll(
   async removeSharing(sharingId: string, orgId: string) {
     return this.db.subjectSharing.deleteMany({
       where: { id: sharingId, org_id: orgId },
+    });
+  }
+
+  async clearSharings(subjectId: string, orgId: string) {
+    return this.db.subjectSharing.deleteMany({
+      where: { subject_id: subjectId, org_id: orgId },
     });
   }
 

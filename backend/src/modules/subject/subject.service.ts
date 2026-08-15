@@ -129,11 +129,48 @@ private mapToResponse(subject: any) {
       );
     }
 
+    const programChanged =
+      !!dto.programId && dto.programId !== subject.program_id;
+    const typeChanged =
+      !!dto.subjectType && dto.subjectType !== subject.subject_type;
+    const scopeChanged = programChanged || typeChanged;
+
+    // When the subject is reassigned to another department (or its type
+    // changes), re-validate that the required course/strand/level are provided
+    // for the target program type.
+    if (scopeChanged) {
+      const program = await this.subjectRepository.findProgramById(
+        dto.programId ?? subject.program_id,
+        orgId,
+      );
+      if (!program) throw new NotFoundException('Program not found.');
+      this.validateSubjectScope(
+        {
+          subjectType: dto.subjectType ?? subject.subject_type,
+          courseId:    dto.courseId,
+          strandId:    dto.strandId,
+          levelId:     dto.levelId,
+        } as CreateSubjectDto,
+        program.type,
+      );
+    }
+
+    // Moving a subject to another department invalidates its existing
+    // course/strand/level sharings, so drop them to keep data consistent.
+    if (programChanged) {
+      await this.subjectRepository.clearSharings(id, orgId);
+    }
+
     const updated = await this.subjectRepository.update(id, {
-      name:      dto.name,
-      levelId:   dto.levelId,
-      courseId:  dto.courseId,
-      strandId:  dto.strandId,
+      name:        dto.name,
+      subjectType: dto.subjectType,
+      programId:   programChanged ? dto.programId : undefined,
+      levelId:
+        scopeChanged && dto.levelId === undefined ? null : dto.levelId,
+      courseId:
+        scopeChanged && dto.courseId === undefined ? null : dto.courseId,
+      strandId:
+        scopeChanged && dto.strandId === undefined ? null : dto.strandId,
       yearLevel: dto.yearLevel,
       termLabel: dto.termLabel,
     });
