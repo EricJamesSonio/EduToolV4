@@ -50,6 +50,15 @@ export class UpdateSubjectDto {
   name?: string;
 
   @IsOptional()
+  @IsString()
+  @IsIn(['major', 'minor'])
+  subjectType?: 'major' | 'minor';
+
+  @IsOptional()
+  @IsUUID()
+  programId?: string;
+
+  @IsOptional()
   @IsUUID()
   levelId?: string;
 
