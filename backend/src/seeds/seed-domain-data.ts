@@ -32,7 +32,7 @@ import {
 } from '../modules/org-seeder/data/subjects';
 import { seedId } from '../modules/org-seeder/seed-id';
 import { computeTermDates } from '../modules/org-seeder/utils/date-calculator.util';
-import { slugifyName } from '@/modules/organization/organization.repository'; 
+import { slugifyName } from '../modules/organization/organization.repository'; 
 
 import { SCHOOLS } from './data/schools';
 import { ADMINS } from './data/admins';
@@ -1487,22 +1487,33 @@ async function main() {
     const emailExt = slugify(school.name);
     const adminPw = await bcrypt.hash(admin.password, SALT_ROUNDS);
 
-    const org = await db.organization.upsert({
+    let org = await db.organization.findUnique({
       where: { email_extension: emailExt },
-      update: {
-        name: school.name,
-        address: school.address,
-        logo_url: school.logo_url,
-        slug: slugifyName(school.name), // ✅ keep consistent with repo
-      },
-      create: {
-        name: school.name,
-        address: school.address,
-        logo_url: school.logo_url,
-        email_extension: emailExt,
-        slug: slugifyName(school.name), // ✅ SAME logic as repository
-      },
     });
+
+    if (org) {
+      // Keep an existing slug stable (idempotent seed) but backfill one for any
+      // organization that was created without it — same logic as the repository.
+      org = await db.organization.update({
+        where: { id: org.id },
+        data: {
+          name: school.name,
+          address: school.address,
+          logo_url: school.logo_url,
+          ...(org.slug ? {} : { slug: slugifyName(school.name) }),
+        },
+      });
+    } else {
+      org = await db.organization.create({
+        data: {
+          name: school.name,
+          address: school.address,
+          logo_url: school.logo_url,
+          email_extension: emailExt,
+          slug: slugifyName(school.name),
+        },
+      });
+    }
 
     const account = await db.account.upsert({
       where: { email: admin.email },

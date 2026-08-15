@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_backend_prisma_migrations_20260416083507_add_lesson_unique_constraint_migration_sql", "label": "migration.sql", "file_type": "code", "source_file": "backend/prisma/migrations/20260416083507_add_lesson_unique_constraint/migration.sql", "source_location": null}], "edges": []}

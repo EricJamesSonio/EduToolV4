@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_backend_prisma_migrations_20260812010000_add_personal_email_change_otp_purpose_migration_sql", "label": "migration.sql", "file_type": "code", "source_file": "backend/prisma/migrations/20260812010000_add_personal_email_change_otp_purpose/migration.sql", "source_location": null}], "edges": []}

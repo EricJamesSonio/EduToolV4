@@ -1,5 +1,6 @@
 import { PrismaClient, Role, AccountStatus } from '@prisma/client'
 import * as bcrypt from 'bcrypt'
+import { slugifyName } from '../modules/organization/organization.repository'
 import { SCHOOLS } from './data/schools'
 import { ADMINS } from './data/admins'
 
@@ -87,20 +88,32 @@ async function main() {
     const school = SCHOOLS[i]
 
     const emailExt = slugify(school.name)
-    const org = await db.organization.upsert({
+
+    // Reuse the same slug-generation logic as the normal application flow so
+    // seeded organizations get a valid, URL-safe slug. Only fill a missing slug
+    // so re-running the seed never invalidates already-shared enrollment links.
+    const existingOrg = await db.organization.findUnique({
       where: { email_extension: emailExt },
-      update: {
-        name: school.name,
-        address: school.address,
-        logo_url: school.logo_url,
-      },
-      create: {
-        name: school.name,
-        address: school.address,
-        logo_url: school.logo_url,
-        email_extension: emailExt,
-      },
     })
+    const org = existingOrg
+      ? await db.organization.update({
+          where: { id: existingOrg.id },
+          data: {
+            name: school.name,
+            address: school.address,
+            logo_url: school.logo_url,
+            ...(existingOrg.slug ? {} : { slug: slugifyName(school.name) }),
+          },
+        })
+      : await db.organization.create({
+          data: {
+            name: school.name,
+            address: school.address,
+            logo_url: school.logo_url,
+            email_extension: emailExt,
+            slug: slugifyName(school.name),
+          },
+        })
 
     const account = await upsertAccount({
       email: admin.email,

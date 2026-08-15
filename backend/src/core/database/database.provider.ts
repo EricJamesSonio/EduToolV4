@@ -16,6 +16,16 @@ export class DatabaseService
       process.env.DB_SSL_REJECT_UNAUTHORIZED === 'false';
 
     let connectionString = process.env.DATABASE_URL;
+
+    // DATABASE_URL is required for the database connection.
+    // process.env values are typed as string | undefined, so validate it
+    // before using string methods on it.
+    if (!connectionString) {
+      throw new Error(
+        'DATABASE_URL environment variable is required',
+      );
+    }
+
     let ssl: { rejectUnauthorized: boolean } | undefined;
 
     if (skipVerify) {
@@ -25,11 +35,19 @@ export class DatabaseService
       // override any explicit ssl option. Strip it so the ssl option below is
       // honored (TLS still used, only chain verification skipped at runtime).
       const queryIndex = connectionString.lastIndexOf('?');
+
       if (queryIndex !== -1) {
-        const params = new URLSearchParams(connectionString.slice(queryIndex + 1));
+        const params = new URLSearchParams(
+          connectionString.slice(queryIndex + 1),
+        );
+
         params.delete('sslmode');
+
         const query = params.toString();
-        connectionString = connectionString.slice(0, queryIndex) + (query ? `?${query}` : '');
+
+        connectionString =
+          connectionString.slice(0, queryIndex) +
+          (query ? `?${query}` : '');
       }
     }
 
@@ -37,7 +55,9 @@ export class DatabaseService
       connectionString,
       ...(ssl ? { ssl } : {}),
     });
+
     const adapter = new PrismaPg(pool);
+
     super({ adapter });
   }
 
