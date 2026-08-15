@@ -32,6 +32,7 @@ export default function SubjectsPage(): React.JSX.Element {
   const { ensureOrganization } = useOrganizationGuard();
 
   const [createOpen,    setCreateOpen]    = useState(false);
+  const [editTarget,    setEditTarget]    = useState<Subject | null>(null);
   const [lockTarget,    setLockTarget]    = useState<Subject | null>(null);
   const [unlockTarget,  setUnlockTarget]  = useState<Subject | null>(null);
   const [searchQuery,   setSearchQuery]   = useState("");
@@ -148,6 +149,7 @@ export default function SubjectsPage(): React.JSX.Element {
           selectedCourseId={filters.selectedCourseId}
           selectedStrandId={filters.selectedStrandId}
           selectedProgramId={filters.selectedProgramId}
+          onEditClick={setEditTarget}
           onLockClick={setLockTarget}
           onUnlockClick={setUnlockTarget}
         />
@@ -202,6 +204,20 @@ export default function SubjectsPage(): React.JSX.Element {
     }}
   />
 )}
+
+      {editTarget && (
+        <SubjectDialog
+          subject={editTarget}
+          levels={levels}
+          schoolYearId={filters.selectedSchoolYearId ?? undefined}
+          defaultSubjectType={editTarget.subjectType}
+          open
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects.all });
+          }}
+        />
+      )}
 
       {lockTarget && (
         <ConfirmDialog
