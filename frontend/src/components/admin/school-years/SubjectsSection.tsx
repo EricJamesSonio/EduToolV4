@@ -45,6 +45,7 @@ export function SubjectsSection({
   const [filterCourseId, setFilterCourseId] = useState<string>("all");
   const [filterStrandId, setFilterStrandId] = useState<string>("all");
   const [createOpen,     setCreateOpen]     = useState(false);
+  const [editTarget,     setEditTarget]     = useState<Subject | null>(null);
   const [lockTarget,     setLockTarget]     = useState<Subject | null>(null);
   const [unlockTarget,   setUnlockTarget]   = useState<Subject | null>(null);
 
@@ -125,7 +126,7 @@ export function SubjectsSection({
     },
   });
 
-  const columns = useSubjectColumns(setLockTarget, setUnlockTarget);
+  const columns = useSubjectColumns(setEditTarget, setLockTarget, setUnlockTarget);
 
   return (
     <>
@@ -276,6 +277,22 @@ export function SubjectsSection({
           onSaved={() => {
             invalidate();
             setCreateOpen(false);
+          }}
+        />
+      )}
+
+      {/* Edit dialog */}
+      {editTarget && (
+        <SubjectDialog
+          subject={editTarget}
+          levels={programLevels}
+          schoolYearId={schoolYearId}
+          defaultSubjectType={editTarget.subjectType}
+          open
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            invalidate();
+            setEditTarget(null);
           }}
         />
       )}
