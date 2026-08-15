@@ -3,7 +3,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
-import { Lock, LockOpen, Eye } from "lucide-react";
+import { Lock, LockOpen, Eye, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { WEEK_COLORS } from "@/lib/palette";
 import type { Subject } from "@/types/admin/subject.types";
 
 export function useSubjectColumns(
+  onEdit: (subject: Subject) => void,
   onLock: (subject: Subject) => void,
   onUnlock: (subject: Subject) => void
 ): ColumnDef<Subject>[] {
@@ -50,15 +51,6 @@ export function useSubjectColumns(
       },
     },
     {
-      header: "Educator",
-      accessorKey: "educatorName",
-      cell: (info) => (
-        <span className="text-sm text-muted-foreground">
-          {info.getValue<string>() ?? "Unassigned"}
-        </span>
-      ),
-    },
-    {
       header: "Lock Status",
       accessorKey: "lockStatus",
       cell: (info) => {
@@ -86,6 +78,15 @@ export function useSubjectColumns(
         const locked = row.lockStatus === "locked";
         return (
           <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              disabled={locked}
+              onClick={() => onEdit(row)}
+            >
+              <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
+            </Button>
             <Button
               size="sm"
               variant="ghost"

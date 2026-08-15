@@ -99,12 +99,22 @@ export function SubjectDialog({
     { enabled: !!schoolYearId && !isEdit },
   );
 
-  // Fetch programs first
+  // Fetch programs first (also in edit mode so subjects can be moved across departments)
   const { data: programs = [] } = useAsyncQuery(
     queryKeys.admin.programs.list({ schoolYearId }),
     () => programApi.getAll(schoolYearId!),
-    { enabled: !!schoolYearId && !isEdit },
+    { enabled: !!schoolYearId },
   );
+
+  // In edit mode the parent may pass filter-scoped levels, so fetch the full
+  // school-year set to allow reassigning to any department/level.
+  const { data: allLevels = [] } = useAsyncQuery(
+    [...queryKeys.admin.levels.all, 'all', schoolYearId] as const,
+    () => levelApi.getBySchoolYear(schoolYearId!),
+    { enabled: !!schoolYearId && isEdit },
+  );
+
+  const baseLevels = isEdit ? allLevels : levels;
 
   // Then detect program type
   const selectedProgram = programs.find((p) => p.id === selectedProgramId);
@@ -137,7 +147,7 @@ export function SubjectDialog({
       ? courseLevels
       : hasStrands && selectedStrandId
         ? strandLevels
-        : levels.filter((l) => l.program_id === selectedProgramId);
+        : baseLevels.filter((l) => l.program_id === selectedProgramId);
 
   const mutation = useMutationWithInvalidation(
     (values: SubjectFormValues) => {
@@ -145,9 +155,11 @@ export function SubjectDialog({
         name: values.name,
         subjectType: values.subjectType,
         programId: values.programId || undefined,
-        levelId: isMinor ? values.levelId || undefined : values.levelId,
-        courseId: values.courseId || undefined,
-        strandId: values.strandId || undefined,
+        // When editing, empty selections clear the previous department-scoped
+        // course/strand/level so a subject can be moved cleanly across programs.
+        levelId: values.levelId || (isEdit ? null : undefined),
+        courseId: values.courseId || (isEdit ? null : undefined),
+        strandId: values.strandId || (isEdit ? null : undefined),
       };
       return isEdit
         ? subjectApi.update(subject!.id, payload as UpdateSubjectRequest)
@@ -228,8 +240,8 @@ export function SubjectDialog({
 
   const isSubmitDisabled =
     mutation.isPending ||
-    (!isEdit && !selectedProgramId) ||
-    (!isEdit && !selectedLevelId && !isMinor) ||
+    !selectedProgramId ||
+    (!selectedLevelId && !isMinor) ||
     (isMajorCollege && !selectedCourseId) ||
     (isMajorSHS && !selectedStrandId) ||
     (isMinorSubject && !selectedLevelId);
@@ -269,43 +281,41 @@ export function SubjectDialog({
         </div>
       )}
 
-      {/* Program — create only, always shown */}
-      {!isEdit && (
-        <div className="space-y-1.5">
-          <Label>Department</Label>
-          <Select
-            value={selectedProgramId}
-            onValueChange={(v) => {
-              setValue("programId", v ?? "");
-              setValue("levelId", "");
-              setValue("courseId", "");
-              setValue("strandId", "");
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select a department">
-                {programs.find((p) => p.id === selectedProgramId)?.name ??
-                  "Select a department"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {programs.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {isMinor && (
-            <p className="text-xs text-muted-foreground">
-              Minor subjects can only be shared within this department.
-            </p>
-          )}
-        </div>
-      )}
+      {/* Department — always shown (create + edit) */}
+      <div className="space-y-1.5">
+        <Label>Department</Label>
+        <Select
+          value={selectedProgramId}
+          onValueChange={(v) => {
+            setValue("programId", v ?? "");
+            setValue("levelId", "");
+            setValue("courseId", "");
+            setValue("strandId", "");
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select a department">
+              {programs.find((p) => p.id === selectedProgramId)?.name ??
+                "Select a department"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {programs.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {isMinor && (
+          <p className="text-xs text-muted-foreground">
+            Minor subjects can only be shared within this department.
+          </p>
+        )}
+      </div>
 
       {/* Course — for College programs (before Level) */}
-      {!isEdit && !isMinor && hasCourses && (
+      {!isMinor && hasCourses && (
         <div className="space-y-1.5">
           <Label>
             Course <span className="text-destructive">*</span>
@@ -337,7 +347,7 @@ export function SubjectDialog({
       )}
 
       {/* Strand — for SHS programs (before Level) */}
-      {!isEdit && !isMinor && hasStrands && (
+      {!isMinor && hasStrands && (
         <div className="space-y-1.5">
           <Label>
             Strand <span className="text-destructive">*</span>
@@ -370,51 +380,42 @@ export function SubjectDialog({
 
       {/* Level — now comes AFTER course/strand, filtered by course/strand */}
       <div className="space-y-1.5">
-        <Label>
-          Level{" "}
-          {isMinor && (
-            <span className="text-muted-foreground font-normal">
-              (optional for minor)
-            </span>
-          )}
-        </Label>
+        <Label>Level</Label>
         <Select
           value={selectedLevelId}
           onValueChange={(v) => setValue("levelId", v ?? "")}
-          disabled={!isEdit && !selectedProgramId}
+          disabled={!selectedProgramId}
         >
           <SelectTrigger>
             <SelectValue
               placeholder={
-                !isEdit && !selectedProgramId
+                !selectedProgramId
                   ? "Select a department first"
-                  : isEdit
-                    ? "Select a level"
-                    : hasCourses && !selectedCourseId
-                      ? "Select a course first"
-                      : hasStrands && !selectedStrandId
-                        ? "Select a strand first"
-                        : "Select a level"
-              }
-            >
-              {!isEdit
-                ? filteredLevels.find((l) => l.id === selectedLevelId)?.name ??
-                  (hasCourses && !selectedCourseId
+                  : hasCourses && !selectedCourseId
                     ? "Select a course first"
                     : hasStrands && !selectedStrandId
                       ? "Select a strand first"
-                      : "Select a level")
-                : levels.find((l) => l.id === selectedLevelId)?.name ?? "Select a level"}
+                      : "Select a level"
+              }
+            >
+              {filteredLevels.find((l) => l.id === selectedLevelId)?.name ??
+                (!selectedProgramId
+                  ? "Select a department first"
+                  : hasCourses && !selectedCourseId
+                    ? "Select a course first"
+                    : hasStrands && !selectedStrandId
+                      ? "Select a strand first"
+                      : "Select a level")}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {isMinor && <SelectItem value="">— None —</SelectItem>}
-            {(!isEdit ? filteredLevels : levels).map((level) => (
+            {filteredLevels.map((level) => (
               <SelectItem key={level.id} value={level.id}>
                 {level.name}
               </SelectItem>
             ))}
-            {!isEdit && selectedProgramId && filteredLevels.length === 0 && (
+            {selectedProgramId && filteredLevels.length === 0 && (
               <div className="px-3 py-4 text-center text-xs text-muted-foreground">
                 {hasCourses && !selectedCourseId
                   ? "Select a course to see levels"

@@ -11,6 +11,7 @@ interface SubjectTableProps {
   selectedCourseId: string;
   selectedStrandId: string;
   selectedProgramId: string;
+  onEditClick: (subject: Subject) => void;
   onLockClick: (subject: Subject) => void;
   onUnlockClick: (subject: Subject) => void;
 }
@@ -23,10 +24,11 @@ export function SubjectTable({
   selectedCourseId,
   selectedStrandId,
   selectedProgramId,
+  onEditClick,
   onLockClick,
   onUnlockClick,
 }: SubjectTableProps) {
-  const columns = useSubjectColumns(onLockClick, onUnlockClick);
+  const columns = useSubjectColumns(onEditClick, onLockClick, onUnlockClick);
 
   let emptyDescription = "";
   if (filterLevelId !== "all") {
