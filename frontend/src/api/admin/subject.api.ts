@@ -30,9 +30,11 @@ export interface CreateSubjectRequest {
 
 export interface UpdateSubjectRequest {
   name?: string;
-  levelId?: string;
-  courseId?: string;
-  strandId?: string;
+  subjectType?: SubjectType;
+  programId?: string;         // ✅ allows reassigning to another department
+  levelId?: string | null;
+  courseId?: string | null;
+  strandId?: string | null;
   yearLevel?: string;
   termLabel?: string;
 }
