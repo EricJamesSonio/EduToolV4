@@ -12,13 +12,12 @@ import {
 } from "lucide-react";
 import { subjectApi } from "@/api/admin/subject.api";
 import { levelApi } from "@/api/admin/level.api";
-import { educatorApi } from "@/api/admin/educator.api";
 import { schoolYearApi } from "@/api/admin/school-year.api";
 import { useUnshareSubject } from "@/hooks/admin/useSubject";
 import type { Subject, SubjectSharing } from "@/types/admin/subject.types";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ShareSubjectDialog } from "@/components/admin/subject/ShareSubjectDialog";
-import { EditSubjectDialog } from "@/components/admin/subject/EditSubjectDialog";
+import { SubjectDialog } from "@/components/admin/subject/SubjectDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -151,11 +150,6 @@ export default function SubjectDetailPage({
     () => levelApi.getAll(),
   );
 
-  const { data: educators = [] } = useAsyncQuery(
-    queryKeys.admin.educators.list(),
-    () => educatorApi.getAll(),
-  );
-
   const { data: schoolYears = [] } = useAsyncQuery(
     queryKeys.admin.schoolYears.list(),
     schoolYearApi.getAll,
@@ -272,14 +266,6 @@ export default function SubjectDetailPage({
           )}
         </div>
         <div className="flex items-center gap-4 px-4 py-3">
-          <span className="w-36 text-sm text-muted-foreground shrink-0 not-interactive">Educator</span>
-          <span className="text-sm">
-            {subject.educatorName ?? (
-              <span className="text-muted-foreground">Unassigned</span>
-            )}
-          </span>
-        </div>
-        <div className="flex items-center gap-4 px-4 py-3">
           <span className="w-36 text-sm text-muted-foreground shrink-0 not-interactive">Lock Status</span>
           <span className="text-sm">{isLocked ? "Locked" : "Unlocked"}</span>
         </div>
@@ -306,12 +292,17 @@ export default function SubjectDetailPage({
       </div>
 
       {editOpen && (
-        <EditSubjectDialog
+        <SubjectDialog
           subject={subject}
           levels={levels}
-          educators={educators}
+          schoolYearId={activeSchoolYearId || undefined}
+          defaultSubjectType={subject.subjectType}
           open={editOpen}
           onClose={() => setEditOpen(false)}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects.detail(id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects.all });
+          }}
         />
       )}
 
