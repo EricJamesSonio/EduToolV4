@@ -32,6 +32,7 @@ import {
 } from '../modules/org-seeder/data/subjects';
 import { seedId } from '../modules/org-seeder/seed-id';
 import { computeTermDates } from '../modules/org-seeder/utils/date-calculator.util';
+import { slugifyName } from '@/modules/organization/organization.repository'; 
 
 import { SCHOOLS } from './data/schools';
 import { ADMINS } from './data/admins';
@@ -1492,12 +1493,14 @@ async function main() {
         name: school.name,
         address: school.address,
         logo_url: school.logo_url,
+        slug: slugifyName(school.name), // ✅ keep consistent with repo
       },
       create: {
         name: school.name,
         address: school.address,
         logo_url: school.logo_url,
         email_extension: emailExt,
+        slug: slugifyName(school.name), // ✅ SAME logic as repository
       },
     });
 
