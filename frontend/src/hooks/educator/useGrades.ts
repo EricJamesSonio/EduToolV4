@@ -1,6 +1,6 @@
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { gradeApi, ManualScoreDto } from "@/api/educator/grade.api";
+import { gradeApi, ManualScoreDto, AssessmentStatusOverrideResult } from "@/api/educator/grade.api";
 import type { TermGrades } from "@/types/educator/grade.types";
 
 export const useClassGrades = (classId: string) => {
@@ -46,5 +46,30 @@ export const useUnlockStudent = (classId: string) => {
     ({ termId, studentId }: { termId: string; studentId: string }) =>
       gradeApi.unlockStudent(classId, termId, studentId),
     { invalidateKeys: [queryKeys.educator.grades.list(classId, '')] },
+  );
+};
+
+export const useAssessmentStatusOverride = (classId: string, termId: string) => {
+  return useMutationWithInvalidation(
+    ({
+      studentId,
+      assessmentId,
+      overrideStatus,
+    }: {
+      studentId: string;
+      assessmentId: string;
+      overrideStatus: "MISSING" | "EXEMPTED" | null;
+    }): Promise<AssessmentStatusOverrideResult | { deleted: number }> =>
+      overrideStatus === null
+        ? gradeApi.deleteAssessmentStatusOverride(classId, studentId, assessmentId)
+        : gradeApi.setAssessmentStatusOverride(classId, studentId, assessmentId, {
+            overrideStatus,
+          }),
+    {
+      invalidateKeys: [
+        queryKeys.educator.grades.list(classId, termId),
+        queryKeys.educator.grades.list(classId, ''),
+      ],
+    },
   );
 };
