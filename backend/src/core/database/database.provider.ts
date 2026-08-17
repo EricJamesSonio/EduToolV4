@@ -12,8 +12,7 @@ export class DatabaseService
     // Docker/the containerized env talks to the DB over TLS but the remote
     // chain is self-signed for the managed Postgres. Opt-in (via env) to
     // skip chain verification only there, leaving local dev untouched.
-    const skipVerify =
-      process.env.DB_SSL_REJECT_UNAUTHORIZED === 'false';
+    const skipVerify = process.env.DB_SSL_REJECT_UNAUTHORIZED === 'false';
 
     let connectionString = process.env.DATABASE_URL;
 
@@ -21,9 +20,7 @@ export class DatabaseService
     // process.env values are typed as string | undefined, so validate it
     // before using string methods on it.
     if (!connectionString) {
-      throw new Error(
-        'DATABASE_URL environment variable is required',
-      );
+      throw new Error('DATABASE_URL environment variable is required');
     }
 
     let ssl: { rejectUnauthorized: boolean } | undefined;
@@ -46,8 +43,7 @@ export class DatabaseService
         const query = params.toString();
 
         connectionString =
-          connectionString.slice(0, queryIndex) +
-          (query ? `?${query}` : '');
+          connectionString.slice(0, queryIndex) + (query ? `?${query}` : '');
       }
     }
 

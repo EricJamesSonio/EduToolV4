@@ -2,17 +2,12 @@
 // Data access layer for dashboard data
 
 import { Injectable } from '@nestjs/common';
-import {
-  DashboardStatsDto
-} from './dto/dashboard-stats.dto';
+import { DashboardStatsDto } from './dto/dashboard-stats.dto';
 import {
   AcademicContextDto,
-  GradeLockStatus
+  GradeLockStatus,
 } from './dto/academic-context.dto';
-import {
-  AlertDto,
-  AlertType
-} from './dto/alerts.dto';
+import { AlertDto, AlertType } from './dto/alerts.dto';
 
 @Injectable()
 export class DashboardRepository {

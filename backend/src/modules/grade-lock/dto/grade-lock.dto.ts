@@ -8,82 +8,82 @@ import {
   IsIn,
   IsNotEmpty,
   Min,
-} from 'class-validator'
+} from 'class-validator';
 
-export const LOCK_TYPES = ['hard', 'soft', 'flexible'] as const
-export type LockType = (typeof LOCK_TYPES)[number]
+export const LOCK_TYPES = ['hard', 'soft', 'flexible'] as const;
+export type LockType = (typeof LOCK_TYPES)[number];
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 export class CreateGradeLockSettingDto {
   @IsString()
   @IsNotEmpty()
-  name: string
+  name: string;
 
   @IsOptional()
   @IsString()
-  description?: string
+  description?: string;
 
   @IsIn(LOCK_TYPES)
-  lockType: LockType
+  lockType: LockType;
 
   @IsOptional()
   @IsDateString()
-  lock_deadline?: string
+  lock_deadline?: string;
 
   @IsOptional()
   @IsInt()
   @Min(0)
-  deadlineDays?: number
+  deadlineDays?: number;
 
   @IsBoolean()
-  allowOverride: boolean
+  allowOverride: boolean;
 
   @IsOptional()
   @IsBoolean()
-  is_default?: boolean
+  is_default?: boolean;
 }
 
 export class UpdateGradeLockSettingDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  name?: string
+  name?: string;
 
   @IsOptional()
   @IsString()
-  description?: string
+  description?: string;
 
   @IsOptional()
   @IsIn(LOCK_TYPES)
-  lockType?: LockType
+  lockType?: LockType;
 
   @IsOptional()
   @IsDateString()
-  lock_deadline?: string
+  lock_deadline?: string;
 
   @IsOptional()
   @IsInt()
   @Min(0)
-  deadlineDays?: number
+  deadlineDays?: number;
 
   @IsOptional()
   @IsBoolean()
-  allowOverride?: boolean
+  allowOverride?: boolean;
 
   @IsOptional()
   @IsBoolean()
-  is_default?: boolean
+  is_default?: boolean;
 }
 
 // ─── Assignment ───────────────────────────────────────────────────────────────
 
 export class AssignSettingDto {
   @IsUUID()
-  class_id: string
+  class_id: string;
 
   @IsUUID()
-  setting_id: string
+  setting_id: string;
 }
 
 // ─── Lock Actions ─────────────────────────────────────────────────────────────
@@ -91,19 +91,19 @@ export class AssignSettingDto {
 export class LockClassDto {
   @IsOptional()
   @IsString()
-  reason?: string
+  reason?: string;
 }
 
 export class UnlockClassDto {
   @IsString()
   @IsNotEmpty()
-  reason: string
+  reason: string;
 }
 
 export class OverrideGradeLockDto {
   @IsString()
   @IsNotEmpty()
-  reason: string
+  reason: string;
 }
 
 // ─── Unlock Requests ───────────────────────────────────────────────────────────
@@ -111,23 +111,23 @@ export class OverrideGradeLockDto {
 export class RequestUnlockDto {
   @IsString()
   @IsNotEmpty()
-  reason: string
+  reason: string;
 }
 
 export class GrantUnlockDto {
   @IsString()
   @IsNotEmpty()
-  reason: string
+  reason: string;
 
   @IsOptional()
   @IsDateString()
-  newDeadline?: string
+  newDeadline?: string;
 }
 
 export class DenyUnlockDto {
   @IsString()
   @IsNotEmpty()
-  reason: string
+  reason: string;
 }
 
 // ─── Query ────────────────────────────────────────────────────────────────────
@@ -135,9 +135,9 @@ export class DenyUnlockDto {
 export class QueryGradeLockDto {
   @IsOptional()
   @IsUUID()
-  schoolYearId?: string
+  schoolYearId?: string;
 
   @IsOptional()
   @IsUUID()
-  semesterId?: string
+  semesterId?: string;
 }

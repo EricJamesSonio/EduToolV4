@@ -1,22 +1,22 @@
-import { ProgramType } from '../dto/program.dto'
+import { ProgramType } from '../dto/program.dto';
 
 export class CourseSnapshot {
-  id!:   string
-  name!: string
-  code!: string | null
+  id!: string;
+  name!: string;
+  code!: string | null;
 }
 
 export class StrandSnapshot {
-  id!:   string
-  name!: string
+  id!: string;
+  name!: string;
 }
 
 export class ProgramEntity {
-  id!:           string
-  orgId!:        string
-  schoolYearId!: string  // ← add this
-  name!:         string
-  type!:         ProgramType
-  courses!:      CourseSnapshot[]
-  strands!:      StrandSnapshot[]
+  id!: string;
+  orgId!: string;
+  schoolYearId!: string; // ← add this
+  name!: string;
+  type!: ProgramType;
+  courses!: CourseSnapshot[];
+  strands!: StrandSnapshot[];
 }

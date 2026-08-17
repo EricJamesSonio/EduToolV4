@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PresentationRepository } from './presentation.repository';
 import { LessonRepository } from '../lesson/lesson.repository';
-import { generateSlidesFromLesson, SlideInput } from './utils/slide-generator.utils';
+import {
+  generateSlidesFromLesson,
+  SlideInput,
+} from './utils/slide-generator.utils';
 
 @Injectable()
 export class PresentationService {
@@ -10,12 +13,17 @@ export class PresentationService {
     private readonly lessonRepo: LessonRepository,
   ) {}
 
-  async create(orgId: string, classId: string, educatorId: string, dto: {
-    lessonId: string;
-    title: string;
-    template?: string;
-    settings?: Record<string, any>;
-  }) {
+  async create(
+    orgId: string,
+    classId: string,
+    educatorId: string,
+    dto: {
+      lessonId: string;
+      title: string;
+      template?: string;
+      settings?: Record<string, any>;
+    },
+  ) {
     const lesson = await this.lessonRepo.findById(dto.lessonId, orgId);
     if (!lesson) throw new NotFoundException('Lesson not found');
 
@@ -43,7 +51,11 @@ export class PresentationService {
     return presentation;
   }
 
-  async update(id: string, orgId: string, dto: { title?: string; template?: string; settings?: Record<string, any> }) {
+  async update(
+    id: string,
+    orgId: string,
+    dto: { title?: string; template?: string; settings?: Record<string, any> },
+  ) {
     const existing = await this.repo.findById(id, orgId);
     if (!existing) throw new NotFoundException('Presentation not found');
     return this.repo.update(id, dto);
@@ -55,7 +67,11 @@ export class PresentationService {
     await this.repo.delete(id);
   }
 
-  async generateSlides(orgId: string, presentationId: string, slides: SlideInput[]) {
+  async generateSlides(
+    orgId: string,
+    presentationId: string,
+    slides: SlideInput[],
+  ) {
     const presentation = await this.repo.findById(presentationId, orgId);
     if (!presentation) throw new NotFoundException('Presentation not found');
 
@@ -69,7 +85,10 @@ export class PresentationService {
     const presentation = await this.repo.findById(presentationId, orgId);
     if (!presentation) throw new NotFoundException('Presentation not found');
 
-    const lesson = await this.lessonRepo.findById(presentation.lesson_id, orgId);
+    const lesson = await this.lessonRepo.findById(
+      presentation.lesson_id,
+      orgId,
+    );
     if (!lesson) throw new NotFoundException('Lesson not found');
 
     const slides = generateSlidesFromLesson(lesson);

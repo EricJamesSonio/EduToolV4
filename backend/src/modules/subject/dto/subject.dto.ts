@@ -1,6 +1,13 @@
 import {
-  IsString, IsOptional, IsUUID, IsIn, IsInt,
-  MinLength, MaxLength, Min, ValidateIf,
+  IsString,
+  IsOptional,
+  IsUUID,
+  IsIn,
+  IsInt,
+  MinLength,
+  MaxLength,
+  Min,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 

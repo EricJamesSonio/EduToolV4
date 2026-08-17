@@ -1,5 +1,9 @@
 // src/modules/concern/core/concern-core.service.ts
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ConcernCoreRepository } from './concern-core.repository';
 import { Role, ConcernStatus } from '@prisma/client';
 
@@ -64,7 +68,7 @@ export class ConcernCoreService {
     const concern = await this.repo.findById(orgId, concernId);
     if (!concern) throw new NotFoundException('Concern not found.');
     if (concern.sender_account_id !== accountId) {
-      throw new ForbiddenException('You cannot access another user\'s concern.');
+      throw new ForbiddenException("You cannot access another user's concern.");
     }
     return concern;
   }

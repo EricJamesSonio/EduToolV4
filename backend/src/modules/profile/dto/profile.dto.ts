@@ -4,41 +4,41 @@ import {
   IsOptional,
   IsString,
   MaxLength,
-} from 'class-validator'
-import { IsGmailAddress } from '@/commons/validators/is-gmail-address.validator'
+} from 'class-validator';
+import { IsGmailAddress } from '@/commons/validators/is-gmail-address.validator';
 
 export class UpdatePersonalEmailDto {
   @IsOptional()
   @IsEmail({}, { message: 'personalEmail must be a valid email address' })
-  personalEmail?: string | null
+  personalEmail?: string | null;
 }
 
 export class ChangePersonalEmailRequestDto {
   @IsGmailAddress()
-  newEmail!: string
+  newEmail!: string;
 }
 
 export class ChangePersonalEmailVerifyDto {
   @IsGmailAddress()
-  newEmail!: string
+  newEmail!: string;
 
   @IsString()
   @IsNotEmpty({ message: 'code must not be empty' })
-  code!: string
+  code!: string;
 }
 
 export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   @MaxLength(200, { message: 'fullName must be at most 200 characters' })
-  fullName?: string
+  fullName?: string;
 
   @IsOptional()
   @IsEmail({}, { message: 'personalEmail must be a valid email address' })
-  personalEmail?: string | null
+  personalEmail?: string | null;
 
   @IsOptional()
   @IsString()
   @MaxLength(500, { message: 'profileImage must be at most 500 characters' })
-  profileImage?: string
+  profileImage?: string;
 }

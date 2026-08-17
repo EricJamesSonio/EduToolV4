@@ -9,6 +9,11 @@ import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository
 @Module({
   imports: [],
   controllers: [TranscriptStudentController],
-  providers: [TranscriptStudentService, GradeRepository, ClassRepository, EnrollmentRepository],
+  providers: [
+    TranscriptStudentService,
+    GradeRepository,
+    ClassRepository,
+    EnrollmentRepository,
+  ],
 })
 export class TranscriptStudentModule {}

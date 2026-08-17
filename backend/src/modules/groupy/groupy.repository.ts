@@ -74,9 +74,7 @@ export class GroupyRepository {
       where: {
         class_id: args.classId,
         org_id: args.orgId,
-        ...(args.cursorDate
-          ? { created_at: { lt: args.cursorDate } }
-          : {}),
+        ...(args.cursorDate ? { created_at: { lt: args.cursorDate } } : {}),
       },
       orderBy: { created_at: 'desc' },
       take: args.limit,
@@ -267,7 +265,9 @@ export class GroupyRepository {
 
   async getReadReceipt(classId: string, accountId: string) {
     return this.db.groupyReadReceipt.findUnique({
-      where: { class_id_account_id: { class_id: classId, account_id: accountId } },
+      where: {
+        class_id_account_id: { class_id: classId, account_id: accountId },
+      },
     });
   }
 
@@ -298,9 +298,9 @@ export class GroupyRepository {
       select: { student_id: true },
     });
 
-    const studentIds = enrollments.map((e) => e.student_id).filter(
-      (sid) => sid !== cls.educator_id,
-    );
+    const studentIds = enrollments
+      .map((e) => e.student_id)
+      .filter((sid) => sid !== cls.educator_id);
     const students = studentIds.length
       ? await this.db.profile.findMany({
           where: { account_id: { in: studentIds } },

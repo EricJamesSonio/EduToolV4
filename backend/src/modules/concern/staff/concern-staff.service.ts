@@ -4,10 +4,7 @@ import { ConcernCoreService } from '../core/concern-core.service';
 import { NotificationService } from '@/modules/notification/notification.service';
 import { DatabaseService } from '@/core/database/database.provider';
 import { Role } from '@prisma/client';
-import {
-  ReplyConcernDto,
-  QueryStaffConcernDto,
-} from '../dto/concern.dto';
+import { ReplyConcernDto, QueryStaffConcernDto } from '../dto/concern.dto';
 
 @Injectable()
 export class ConcernStaffService {

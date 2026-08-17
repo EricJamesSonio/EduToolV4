@@ -50,7 +50,10 @@ export class MailService {
       });
       this.logger.log(`Credentials email sent to ${recipient}`);
     } catch (error) {
-      this.logger.error(`Failed to send credentials email to ${recipient}`, error);
+      this.logger.error(
+        `Failed to send credentials email to ${recipient}`,
+        error,
+      );
       throw error;
     }
   }
@@ -116,7 +119,10 @@ export class MailService {
       });
       this.logger.log(`Student credentials email sent to ${recipient}`);
     } catch (error) {
-      this.logger.error(`Failed to send student credentials email to ${recipient}`, error);
+      this.logger.error(
+        `Failed to send student credentials email to ${recipient}`,
+        error,
+      );
       throw error;
     }
   }
@@ -134,16 +140,28 @@ export class MailService {
         from: `"${appName}" <${this.configService.get<string>('GMAIL_EMAIL')}>`,
         to,
         subject: `${orgName} — Application Submitted`,
-        html: this.applicationConfirmationTemplate(firstName, code, orgName, appName),
+        html: this.applicationConfirmationTemplate(
+          firstName,
+          code,
+          orgName,
+          appName,
+        ),
       });
       this.logger.log(`Application confirmation email sent to ${to}`);
     } catch (error) {
-      this.logger.error(`Failed to send application confirmation email to ${to}`, error);
+      this.logger.error(
+        `Failed to send application confirmation email to ${to}`,
+        error,
+      );
       throw error;
     }
   }
 
-  private credentialsTemplate(email: string, password: string, appName: string): string {
+  private credentialsTemplate(
+    email: string,
+    password: string,
+    appName: string,
+  ): string {
     return `
       <!DOCTYPE html>
       <html>
@@ -250,7 +268,10 @@ export class MailService {
     `;
   }
 
-  private rejectionTemplate(reason: string | undefined, appName: string): string {
+  private rejectionTemplate(
+    reason: string | undefined,
+    appName: string,
+  ): string {
     return `
       <!DOCTYPE html>
       <html>
@@ -278,12 +299,16 @@ export class MailService {
                         We are unable to approve your request at this time.
                       </p>
                     </div>
-                    ${reason ? `
+                    ${
+                      reason
+                        ? `
                     <div style="margin-top:20px;">
                       <span style="color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Reason</span>
                       <p style="color:#374151;font-size:14px;line-height:1.6;margin:4px 0 0;padding:12px;background:#f9fafb;border-radius:8px;">${reason}</p>
                     </div>
-                    ` : ''}
+                    `
+                        : ''
+                    }
                     <p style="color:#6b7280;font-size:13px;line-height:1.5;margin:20px 0 0;">
                       If you believe this is an error or your circumstances have changed, you are welcome to submit a new request.
                     </p>
@@ -386,7 +411,11 @@ export class MailService {
     }
   }
 
-  private concernDigestTemplate(count: number, s: string, appName: string): string {
+  private concernDigestTemplate(
+    count: number,
+    s: string,
+    appName: string,
+  ): string {
     return `
       <!DOCTYPE html>
       <html>

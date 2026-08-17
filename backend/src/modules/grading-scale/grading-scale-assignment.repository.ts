@@ -40,7 +40,11 @@ export class GradingScaleAssignmentRepository {
     });
   }
 
-  async findByProgramAndYear(orgId: string, programId: string, schoolYearId: string) {
+  async findByProgramAndYear(
+    orgId: string,
+    programId: string,
+    schoolYearId: string,
+  ) {
     return this.db.gradingScaleAssignment.findFirst({
       where: {
         org_id: orgId,

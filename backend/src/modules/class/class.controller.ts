@@ -43,7 +43,10 @@ export class ClassController {
 
   @Get()
   @Roles('admin', 'educator')
-  async findAll(@CurrentUser('org_id') orgId: string, @Query() query: QueryClassDto) {
+  async findAll(
+    @CurrentUser('org_id') orgId: string,
+    @Query() query: QueryClassDto,
+  ) {
     return this.classService.findAll(orgId, query);
   }
 
@@ -87,13 +90,19 @@ export class ClassController {
 
   @Get(':id/enrollments')
   @Roles('admin', 'educator')
-  async getEnrollments(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
+  async getEnrollments(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
     return this.classService.getEnrollments(id, orgId);
   }
 
   @Get(':id/students')
   @Roles('admin', 'educator')
-  async getEnrolledStudents(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
+  async getEnrolledStudents(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string,
+  ) {
     return this.classService.getEnrolledStudents(id, orgId);
   }
 
@@ -115,7 +124,12 @@ export class ClassController {
     @CurrentUser('org_id') orgId: string,
     @Body() dto: UpdateEnrollmentDto,
   ) {
-    return this.classService.updateEnrollment(classId, enrollmentId, orgId, dto);
+    return this.classService.updateEnrollment(
+      classId,
+      enrollmentId,
+      orgId,
+      dto,
+    );
   }
 
   @Delete(':classId/enrollments/:enrollmentId')
@@ -127,7 +141,12 @@ export class ClassController {
     @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') actorId: string,
   ) {
-    return this.classService.removeEnrollment(classId, enrollmentId, orgId, actorId);
+    return this.classService.removeEnrollment(
+      classId,
+      enrollmentId,
+      orgId,
+      actorId,
+    );
   }
 
   @Post(':id/reassign-educator')
@@ -135,7 +154,7 @@ export class ClassController {
   async reassignEducator(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
-    @CurrentUser('id') adminId: string,    
+    @CurrentUser('id') adminId: string,
     @Body() dto: ReassignEducatorDto,
   ) {
     return this.classService.reassignEducator(id, orgId, dto, adminId);

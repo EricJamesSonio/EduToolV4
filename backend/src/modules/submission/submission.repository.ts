@@ -55,8 +55,12 @@ export class SubmissionRepository {
       data: {
         status: data.status as any,
         ...(data.score !== undefined ? { score: data.score } : {}),
-        ...(data.systemSectionScore !== undefined ? { system_section_score: data.systemSectionScore } : {}),
-        ...(data.submittedAt !== undefined ? { submitted_at: data.submittedAt } : {}),
+        ...(data.systemSectionScore !== undefined
+          ? { system_section_score: data.systemSectionScore }
+          : {}),
+        ...(data.submittedAt !== undefined
+          ? { submitted_at: data.submittedAt }
+          : {}),
       },
     });
   }

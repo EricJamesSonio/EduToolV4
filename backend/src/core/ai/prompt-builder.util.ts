@@ -13,7 +13,8 @@ export function buildChunkPrompt(
     },
     multiple_choice: {
       example: `{"number": N, "type": "multiple_choice", "section": "...", "question": "...", "choices": ["Option A", "Option B", "Option C", "Option D"], "correct_answer": "Option A"}`,
-      rules: '"choices" must be exactly 4 options. "correct_answer" must exactly match one of the 4 choices',
+      rules:
+        '"choices" must be exactly 4 options. "correct_answer" must exactly match one of the 4 choices',
     },
     true_false: {
       example: `{"number": N, "type": "true_false", "section": "...", "question": "...", "answer": "True"}`,
@@ -29,7 +30,8 @@ export function buildChunkPrompt(
     },
   };
 
-  const { example, rules } = exampleAndRules[type] ?? exampleAndRules.identification;
+  const { example, rules } =
+    exampleAndRules[type] ?? exampleAndRules.identification;
 
   return `Generate exactly ${count} ${type} questions from the lesson below.
 Use ONLY content from these sections: ${sections.join(', ')}

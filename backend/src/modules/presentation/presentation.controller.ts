@@ -1,9 +1,21 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Body, Param, HttpCode, HttpStatus, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { PresentationService } from './presentation.service';
-import { CreatePresentationDto, UpdatePresentationDto, GenerateSlidesDto } from './dto/presentation.dto';
+import {
+  CreatePresentationDto,
+  UpdatePresentationDto,
+  GenerateSlidesDto,
+} from './dto/presentation.dto';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 
@@ -41,10 +53,7 @@ export class PresentationController {
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async findOne(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     return this.service.findOne(id, orgId);
   }
 
@@ -60,10 +69,7 @@ export class PresentationController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async delete(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     await this.service.delete(id, orgId);
   }
 

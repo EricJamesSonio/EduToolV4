@@ -1,5 +1,9 @@
 // @/modules/assessment/core/assessment-core.service.ts
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { AssessmentRepository } from './assessment-core.repository';
 
 @Injectable()
@@ -14,7 +18,11 @@ export class AssessmentCoreService {
     return assessment;
   }
 
-  async findAssessmentsByClass(classId: string, orgId: string, filters: { termId?: string; type?: string } = {}) {
+  async findAssessmentsByClass(
+    classId: string,
+    orgId: string,
+    filters: { termId?: string; type?: string } = {},
+  ) {
     return this.repo.findAll(classId, orgId, filters);
   }
 
@@ -48,7 +56,8 @@ export class AssessmentCoreService {
   }
 
   assertBelongsToClass(assessment: any, classId: string) {
-    if (assessment.class_id !== classId) throw new ForbiddenException('Invalid class access.');
+    if (assessment.class_id !== classId)
+      throw new ForbiddenException('Invalid class access.');
   }
 
   // ───────── HYBRID GRADING HELPERS ─────────
@@ -130,7 +139,11 @@ export class AssessmentCoreService {
     };
   }
 
-  buildAssessmentDetail(assessment: any, questions: any[] | null, locked: boolean) {
+  buildAssessmentDetail(
+    assessment: any,
+    questions: any[] | null,
+    locked: boolean,
+  ) {
     return {
       id: assessment.id,
       type: assessment.type,
@@ -142,11 +155,19 @@ export class AssessmentCoreService {
       showBreakdown: assessment.show_breakdown ?? false,
       manualMaxScore: assessment.manual_max_score ?? null,
       locked,
-      ...(locked ? {} : { questions: questions?.map((q) => this.mapQuestion(q)) }),
+      ...(locked
+        ? {}
+        : { questions: questions?.map((q) => this.mapQuestion(q)) }),
     };
   }
 
-  buildResult(submission: any, assessment: any, isGradeLocked: boolean, questions: any[] = [], answers: any[] = []) {
+  buildResult(
+    submission: any,
+    assessment: any,
+    isGradeLocked: boolean,
+    questions: any[] = [],
+    answers: any[] = [],
+  ) {
     const canView = this.canViewScore(assessment, isGradeLocked);
     const answerMap = new Map(answers.map((a: any) => [a.question_id, a]));
 

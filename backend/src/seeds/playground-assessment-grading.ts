@@ -36,7 +36,11 @@ import { GradingSchemeService } from '@/modules/grading-scheme/grading-scheme.se
 import { AssessmentEducatorService } from '@/modules/assessment/educator/assessment-educator.service';
 import { SubmissionService } from '@/modules/submission/submission.service';
 import { GradeEducatorService } from '@/modules/grade/educator/grade-educator.service';
-import { CreateAssessmentDto, GradeEssayDto, GradingMode } from '@/modules/assessment/dto/assessment.dto';
+import {
+  CreateAssessmentDto,
+  GradeEssayDto,
+  GradingMode,
+} from '@/modules/assessment/dto/assessment.dto';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -67,7 +71,10 @@ const SEM2_TERMS = [
 
 const log = (msg: string) => console.log(`[playground] ${msg}`);
 
-async function step(label: string, fn: () => Promise<unknown> | unknown): Promise<void> {
+async function step(
+  label: string,
+  fn: () => Promise<unknown> | unknown,
+): Promise<void> {
   try {
     await fn();
     log(`PASS ${label}`);
@@ -91,7 +98,8 @@ async function main() {
   // `--cleanup <orgId>` only runs cleanup for an existing org (e.g. a leftover
   // from a previously interrupted run) and exits.
   const cleanupArgIdx = process.argv.indexOf('--cleanup');
-  const cleanupOrgId = cleanupArgIdx >= 0 ? process.argv[cleanupArgIdx + 1] : undefined;
+  const cleanupOrgId =
+    cleanupArgIdx >= 0 ? process.argv[cleanupArgIdx + 1] : undefined;
 
   const orgId = `pg-${uuid()}`;
   const schoolYearId = `pg-sy-${uuid()}`;
@@ -176,7 +184,11 @@ async function main() {
             endDate: SY_END,
             notes: 'Playground calendar — 2 semesters, first ends Aug 15',
             breaks: [
-              { label: 'Semester 1', startDate: SY_START, endDate: '2026-08-15' },
+              {
+                label: 'Semester 1',
+                startDate: SY_START,
+                endDate: '2026-08-15',
+              },
               { label: 'Semester 2', startDate: '2026-08-16', endDate: SY_END },
             ],
           },
@@ -190,36 +202,40 @@ async function main() {
     let subjectId = '';
     let schemeTemplateId = '';
 
-    await step('resolve program / level / subject / scheme template', async () => {
-      const program = await db.program.findFirst({
-        where: { org_id: orgId, type: 'elementary' },
-      });
-      if (!program) throw new Error('elementary program not seeded.');
-      programId = program.id;
+    await step(
+      'resolve program / level / subject / scheme template',
+      async () => {
+        const program = await db.program.findFirst({
+          where: { org_id: orgId, type: 'elementary' },
+        });
+        if (!program) throw new Error('elementary program not seeded.');
+        programId = program.id;
 
-      const grade1 = await db.level.findFirst({
-        where: { org_id: orgId, program_id: programId, name: 'Grade 1' },
-      });
-      if (!grade1) throw new Error('Grade 1 level not seeded.');
-      grade1LevelId = grade1.id;
+        const grade1 = await db.level.findFirst({
+          where: { org_id: orgId, program_id: programId, name: 'Grade 1' },
+        });
+        if (!grade1) throw new Error('Grade 1 level not seeded.');
+        grade1LevelId = grade1.id;
 
-      const mapeh = await db.subject.findFirst({
-        where: {
-          org_id: orgId,
-          program_id: programId,
-          level_id: grade1LevelId,
-          name: 'MAPEH',
-        },
-      });
-      if (!mapeh) throw new Error('MAPEH Grade 1 subject not seeded.');
-      subjectId = mapeh.id;
+        const mapeh = await db.subject.findFirst({
+          where: {
+            org_id: orgId,
+            program_id: programId,
+            level_id: grade1LevelId,
+            name: 'MAPEH',
+          },
+        });
+        if (!mapeh) throw new Error('MAPEH Grade 1 subject not seeded.');
+        subjectId = mapeh.id;
 
-      const schemeTpl = await db.gradingSchemeTemplate.findFirst({
-        where: { org_id: orgId, program_type: 'elementary' },
-      });
-      if (!schemeTpl) throw new Error('elementary grading scheme template not seeded.');
-      schemeTemplateId = schemeTpl.id;
-    });
+        const schemeTpl = await db.gradingSchemeTemplate.findFirst({
+          where: { org_id: orgId, program_type: 'elementary' },
+        });
+        if (!schemeTpl)
+          throw new Error('elementary grading scheme template not seeded.');
+        schemeTemplateId = schemeTpl.id;
+      },
+    );
 
     // ── 4. accounts ──────────────────────────────────────────────────────────
     await step('create educator + student accounts', async () => {
@@ -257,7 +273,9 @@ async function main() {
           full_name: 'Playground Student',
         },
       });
-      log(`educator (${educator.id}) / student (${student.id}) created — password "${SEED_PASSWORD}"`);
+      log(
+        `educator (${educator.id}) / student (${student.id}) created — password "${SEED_PASSWORD}"`,
+      );
     });
 
     // ── 5. academic placement (studentSchoolYear → program enrollment) ───────
@@ -298,13 +316,22 @@ async function main() {
           },
         },
       });
-      if (!assignment) throw new Error('No semester template assigned to elementary program.');
+      if (!assignment)
+        throw new Error('No semester template assigned to elementary program.');
 
-      const termDates: Array<{ termId: string; startDate: string; endDate: string }> = [];
+      const termDates: Array<{
+        termId: string;
+        startDate: string;
+        endDate: string;
+      }> = [];
       assignment.template.semesters.forEach((sem, si) => {
         const per = si === 0 ? SEM1_TERMS : SEM2_TERMS;
         sem.terms.forEach((t, ti) => {
-          termDates.push({ termId: t.id, startDate: per[ti][0], endDate: per[ti][1] });
+          termDates.push({
+            termId: t.id,
+            startDate: per[ti][0],
+            endDate: per[ti][1],
+          });
         });
       });
 
@@ -313,32 +340,38 @@ async function main() {
       const sem1 = await db.semester.findFirst({
         where: { org_id: orgId, school_year_id: schoolYearId, name: '1st' },
       });
-      if (!sem1) throw new Error('First semester row was not created by saveTermDates.');
+      if (!sem1)
+        throw new Error('First semester row was not created by saveTermDates.');
       sem1Id = sem1.id;
       termId = assignment.template.semesters[0].terms[0].id;
 
-      log(`term dates set — Semester 1 runs ${fmt(sem1.start_date)} → ${fmt(sem1.end_date)} (ENDED)`);
+      log(
+        `term dates set — Semester 1 runs ${fmt(sem1.start_date)} → ${fmt(sem1.end_date)} (ENDED)`,
+      );
       log(`class will use template term id ${termId}`);
     });
 
     // ── 7. class (MAPEH Grade 1, first semester) ─────────────────────────────
-    await step('create MAPEH Grade 1 class (semester ended 2026-08-15)', async () => {
-      const cls = await classService.create(
-        orgId,
-        {
-          subjectId,
-          educatorId,
-          schoolYearId,
-          semesterId: sem1Id,
-          capacity: 40,
-          schedules: [{ weekday: 1, startTime: '08:00', endTime: '09:00' }],
-        },
-        actorId,
-      );
-      if (!cls) throw new Error('Class creation returned null.');
-      classId = cls.id;
-      log(`class ${classId} created`);
-    });
+    await step(
+      'create MAPEH Grade 1 class (semester ended 2026-08-15)',
+      async () => {
+        const cls = await classService.create(
+          orgId,
+          {
+            subjectId,
+            educatorId,
+            schoolYearId,
+            semesterId: sem1Id,
+            capacity: 40,
+            schedules: [{ weekday: 1, startTime: '08:00', endTime: '09:00' }],
+          },
+          actorId,
+        );
+        if (!cls) throw new Error('Class creation returned null.');
+        classId = cls.id;
+        log(`class ${classId} created`);
+      },
+    );
 
     // ── 8. apply grading scheme to the class ─────────────────────────────────
     await step('apply Elementary Scheme to class', async () => {
@@ -351,7 +384,14 @@ async function main() {
 
     // ── 9. enroll student (prerequisite gate must pass for MAPEH Gr 1) ───────
     await step('enroll student in the class', async () => {
-      await enrollmentService.enroll(classId, subjectId, sem1Id, 40, studentId, orgId);
+      await enrollmentService.enroll(
+        classId,
+        subjectId,
+        sem1Id,
+        40,
+        studentId,
+        orgId,
+      );
     });
 
     // ── 10. create MANUAL assessment for Term 1 ──────────────────────────────
@@ -365,14 +405,21 @@ async function main() {
         gradingMode: GradingMode.MANUAL,
         manualMaxScore: 10,
         showBreakdown: true,
-        manualInstructions: 'Perform and describe the activity. Show your work clearly.',
+        manualInstructions:
+          'Perform and describe the activity. Show your work clearly.',
         releaseDate: SY_START, // released Aug 1 (past)
         endDate: '2026-12-31', // still open so the student can submit "now"
       };
-      const assessment = await assessmentService.create(classId, orgId, educatorId, dto);
+      const assessment = await assessmentService.create(
+        classId,
+        orgId,
+        educatorId,
+        dto,
+      );
       assessmentId = assessment.id;
       const questions = (assessment as any).questions ?? [];
-      if (!questions.length) throw new Error('No questions created for manual assessment.');
+      if (!questions.length)
+        throw new Error('No questions created for manual assessment.');
       manualQuestionId = questions[0].id;
       log(`assessment ${assessmentId} created (manual, 1 question)`);
     });
@@ -383,9 +430,16 @@ async function main() {
       await submissionService.saveDraft(assessmentId, orgId, studentId, {
         answers: [{ questionId: manualQuestionId, answer: 'My answer draft.' }],
       });
-      const finished = await submissionService.finish(assessmentId, orgId, studentId, {
-        answers: [{ questionId: manualQuestionId, answer: 'My final answer.' }],
-      });
+      const finished = await submissionService.finish(
+        assessmentId,
+        orgId,
+        studentId,
+        {
+          answers: [
+            { questionId: manualQuestionId, answer: 'My final answer.' },
+          ],
+        },
+      );
       submissionId = finished.submissionId;
       log(`submitted (${submissionId})`);
     });
@@ -393,16 +447,34 @@ async function main() {
     // ── 12. educator grades the essay ────────────────────────────────────────
     await step('educator gradeEssay (8/10)', async () => {
       const dto: GradeEssayDto = { score: 8 };
-      await assessmentService.gradeEssay(assessmentId, submissionId, orgId, educatorId, dto);
+      await assessmentService.gradeEssay(
+        assessmentId,
+        submissionId,
+        orgId,
+        educatorId,
+        dto,
+      );
     });
 
     // ── 13. compute grades for Term 1 ────────────────────────────────────────
-    const computed = { grade: null as { final_score: number; final_grade: string } | null };
+    const computed = {
+      grade: null as { final_score: number; final_grade: string } | null,
+    };
     await step('computeGrades(Term 1)', async () => {
-      const result = await gradeEducatorService.computeGrades(classId, termId, orgId, educatorId);
+      const result = await gradeEducatorService.computeGrades(
+        classId,
+        termId,
+        orgId,
+        educatorId,
+      );
       log(`computeGrades → ${JSON.stringify(result)}`);
       computed.grade = await db.grade.findFirst({
-        where: { org_id: orgId, student_id: studentId, class_id: classId, term_id: termId },
+        where: {
+          org_id: orgId,
+          student_id: studentId,
+          class_id: classId,
+          term_id: termId,
+        },
         select: { final_score: true, final_grade: true },
       });
     });
@@ -412,7 +484,11 @@ async function main() {
       include: { components: true },
     });
     const scale = await db.gradingScaleAssignment.findFirst({
-      where: { org_id: orgId, program_id: programId, school_year_id: schoolYearId },
+      where: {
+        org_id: orgId,
+        program_id: programId,
+        school_year_id: schoolYearId,
+      },
       include: { grading_scale: true },
     });
 
@@ -423,9 +499,13 @@ async function main() {
     log(`semester 1     : 2026-08-01 → 2026-08-15 (ENDED)`);
     log(`assessment     : ${assessmentId} (manual, type=activity)`);
     log(`grading scheme : ${scheme?.name ?? '-'}`);
-    log(`  components   : ${scheme?.components.map((c) => `${c.name}(${c.type},${c.weight})`).join(', ') ?? '-'}`);
+    log(
+      `  components   : ${scheme?.components.map((c) => `${c.name}(${c.type},${c.weight})`).join(', ') ?? '-'}`,
+    );
     log(`grading scale  : ${scale?.grading_scale?.name ?? '-'}`);
-    log(`TERM 1 GRADE   : score=${computed.grade?.final_score ?? '?'}  grade=${computed.grade?.final_grade ?? '?'}`);
+    log(
+      `TERM 1 GRADE   : score=${computed.grade?.final_score ?? '?'}  grade=${computed.grade?.final_grade ?? '?'}`,
+    );
     log('======================================================');
     log('Students should be able to see this grade in the app.');
   } finally {
@@ -434,55 +514,136 @@ async function main() {
       await cleanup(db, orgId, schoolYearId);
       log('Cleanup complete. (Use --keep to preserve the data.)');
     } else {
-      log(`--- --keep set: preserved org ${orgId} (school year ${schoolYearId}) ---`);
+      log(
+        `--- --keep set: preserved org ${orgId} (school year ${schoolYearId}) ---`,
+      );
     }
     await app.close();
   }
 }
 
-async function cleanup(db: DatabaseService, orgId: string, schoolYearId: string): Promise<void> {
+async function cleanup(
+  db: DatabaseService,
+  orgId: string,
+  schoolYearId: string,
+): Promise<void> {
   const common = { org_id: orgId };
   const attempts: Array<[string, () => Promise<unknown>]> = [
     ['audit logs', () => db.auditLog.deleteMany({ where: common })],
-    ['concern categories', () => db.concernCategory.deleteMany({ where: common })],
-    ['org concern settings', () => db.orgConcernSetting.deleteMany({ where: common })],
-    ['org enrollment settings', () => db.orgEnrollmentSetting.deleteMany({ where: common })],
-    ['submission answers', () => db.submissionAnswer.deleteMany({ where: common })],
+    [
+      'concern categories',
+      () => db.concernCategory.deleteMany({ where: common }),
+    ],
+    [
+      'org concern settings',
+      () => db.orgConcernSetting.deleteMany({ where: common }),
+    ],
+    [
+      'org enrollment settings',
+      () => db.orgEnrollmentSetting.deleteMany({ where: common }),
+    ],
+    [
+      'submission answers',
+      () => db.submissionAnswer.deleteMany({ where: common }),
+    ],
     ['submissions', () => db.submission.deleteMany({ where: common })],
     ['questions', () => db.question.deleteMany({ where: common })],
     ['assessments', () => db.assessment.deleteMany({ where: common })],
-    ['grade lock events', () => db.gradeLockEvent.deleteMany({ where: common })],
+    [
+      'grade lock events',
+      () => db.gradeLockEvent.deleteMany({ where: common }),
+    ],
     ['grade locks', () => db.gradeLock.deleteMany({ where: common })],
-    ['grade lock settings', () => db.gradeLockSetting.deleteMany({ where: common })],
+    [
+      'grade lock settings',
+      () => db.gradeLockSetting.deleteMany({ where: common }),
+    ],
     ['manual scores', () => db.manualScore.deleteMany({ where: common })],
     ['grades', () => db.grade.deleteMany({ where: common })],
-    ['attendance records', () => db.attendanceRecord.deleteMany({ where: common })],
-    ['attendance sessions', () => db.attendanceSession.deleteMany({ where: common })],
-    ['class ownership logs', () => db.classOwnershipLog.deleteMany({ where: common })],
+    [
+      'attendance records',
+      () => db.attendanceRecord.deleteMany({ where: common }),
+    ],
+    [
+      'attendance sessions',
+      () => db.attendanceSession.deleteMany({ where: common }),
+    ],
+    [
+      'class ownership logs',
+      () => db.classOwnershipLog.deleteMany({ where: common }),
+    ],
     ['enrollments', () => db.enrollment.deleteMany({ where: common })],
     ['class schedules', () => db.classSchedule.deleteMany({ where: common })],
     // GradingScheme references class_id, so it must go before Class rows.
-    ['grading scheme components', () => db.gradingSchemeComponent.deleteMany({ where: common })],
+    [
+      'grading scheme components',
+      () => db.gradingSchemeComponent.deleteMany({ where: common }),
+    ],
     ['grading schemes', () => db.gradingScheme.deleteMany({ where: common })],
     ['classes', () => db.class.deleteMany({ where: common })],
-    ['student program enrollments', () => db.studentProgramEnrollment.deleteMany({ where: common })],
-    ['student school years', () => db.studentSchoolYear.deleteMany({ where: common })],
+    [
+      'student program enrollments',
+      () => db.studentProgramEnrollment.deleteMany({ where: common }),
+    ],
+    [
+      'student school years',
+      () => db.studentSchoolYear.deleteMany({ where: common }),
+    ],
     ['terms', () => db.term.deleteMany({ where: common })],
     ['semesters', () => db.semester.deleteMany({ where: common })],
-    ['program semester term dates', () => db.programSemesterTermDate.deleteMany({ where: common })],
-    ['program semester assignments', () => db.programSemesterAssignment.deleteMany({ where: common })],
-    ['semester template terms', () => db.semesterTemplateTerm.deleteMany({ where: common })],
-    ['semester template items', () => db.semesterTemplateItem.deleteMany({ where: common })],
-    ['semester templates', () => db.semesterTemplate.deleteMany({ where: common })],
-    ['grading scale assignments', () => db.gradingScaleAssignment.deleteMany({ where: common })],
+    [
+      'program semester term dates',
+      () => db.programSemesterTermDate.deleteMany({ where: common }),
+    ],
+    [
+      'program semester assignments',
+      () => db.programSemesterAssignment.deleteMany({ where: common }),
+    ],
+    [
+      'semester template terms',
+      () => db.semesterTemplateTerm.deleteMany({ where: common }),
+    ],
+    [
+      'semester template items',
+      () => db.semesterTemplateItem.deleteMany({ where: common }),
+    ],
+    [
+      'semester templates',
+      () => db.semesterTemplate.deleteMany({ where: common }),
+    ],
+    [
+      'grading scale assignments',
+      () => db.gradingScaleAssignment.deleteMany({ where: common }),
+    ],
     ['grading scales', () => db.gradingScale.deleteMany({ where: common })],
-    ['grading scheme template components', () => db.gradingSchemeTemplateComponent.deleteMany({ where: common })],
-    ['grading scheme templates', () => db.gradingSchemeTemplate.deleteMany({ where: common })],
-    ['program calendar holidays', () => db.programCalendarHoliday.deleteMany({ where: common })],
-    ['program calendar terms', () => db.programCalendarTerm.deleteMany({ where: common })],
-    ['program calendar breaks', () => db.programCalendarBreak.deleteMany({ where: common })],
-    ['program calendars', () => db.programCalendar.deleteMany({ where: common })],
-    ['subject prerequisites', () => db.subjectPrerequisite.deleteMany({ where: common })],
+    [
+      'grading scheme template components',
+      () => db.gradingSchemeTemplateComponent.deleteMany({ where: common }),
+    ],
+    [
+      'grading scheme templates',
+      () => db.gradingSchemeTemplate.deleteMany({ where: common }),
+    ],
+    [
+      'program calendar holidays',
+      () => db.programCalendarHoliday.deleteMany({ where: common }),
+    ],
+    [
+      'program calendar terms',
+      () => db.programCalendarTerm.deleteMany({ where: common }),
+    ],
+    [
+      'program calendar breaks',
+      () => db.programCalendarBreak.deleteMany({ where: common }),
+    ],
+    [
+      'program calendars',
+      () => db.programCalendar.deleteMany({ where: common }),
+    ],
+    [
+      'subject prerequisites',
+      () => db.subjectPrerequisite.deleteMany({ where: common }),
+    ],
     ['subject sharings', () => db.subjectSharing.deleteMany({ where: common })],
     ['subjects', () => db.subject.deleteMany({ where: common })],
     ['sections', () => db.section.deleteMany({ where: common })],
@@ -497,11 +658,18 @@ async function cleanup(db: DatabaseService, orgId: string, schoolYearId: string)
     try {
       await fn();
     } catch (err) {
-      log(`cleanup skip ${label}: ${err instanceof Error ? err.message : String(err)}`);
+      log(
+        `cleanup skip ${label}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
-  const accountIds = (await db.account.findMany({ where: { org_id: orgId }, select: { id: true } })).map((a) => a.id);
+  const accountIds = (
+    await db.account.findMany({
+      where: { org_id: orgId },
+      select: { id: true },
+    })
+  ).map((a) => a.id);
   if (accountIds.length) {
     await db.profile.deleteMany({ where: { account_id: { in: accountIds } } });
     await db.account.deleteMany({ where: { id: { in: accountIds } } });

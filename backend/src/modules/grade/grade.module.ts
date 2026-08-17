@@ -6,12 +6,8 @@ import { GradeStudentModule } from './student/grade-student.module';
 import { GradeRepository } from './grade.repository';
 
 @Module({
-  imports: [
-    GradeCoreModule,
-    GradeEducatorModule,
-    GradeStudentModule,
-  ],
-  providers: [GradeRepository], 
+  imports: [GradeCoreModule, GradeEducatorModule, GradeStudentModule],
+  providers: [GradeRepository],
   exports: [GradeCoreModule, GradeEducatorModule, GradeRepository],
 })
 export class GradeModule {}

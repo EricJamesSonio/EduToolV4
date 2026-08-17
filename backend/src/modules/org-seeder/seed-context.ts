@@ -120,7 +120,7 @@ export class SeedContext {
     this.selectedStrands = new Set(options.strands ?? []);
     this.excludedLevelSet = new Set(options.excludedLevels ?? []);
     this.excludedSubjSet = new Set(options.excludedSubjects ?? []);
-    this.excludedLevelSubjects = (options.excludedLevelSubjects ?? {}) as Record<string, string[]>;
+    this.excludedLevelSubjects = options.excludedLevelSubjects ?? {};
     this.levelConfigs = options.levelConfigs ?? {};
     this.sectionConfigs = options.sectionConfigs ?? {};
     this.gradingScales = options.gradingScales ?? {};
@@ -154,9 +154,12 @@ export class SeedContext {
     courseCode?: string,
   ): boolean {
     if (this.excludedSubjSet.has(name)) return false;
-    if (levelName && this.excludedLevelSubjects[levelName]?.includes(name)) return false;
-    if (strandName && this.excludedLevelSubjects[strandName]?.includes(name)) return false;
-    if (courseCode && this.excludedLevelSubjects[courseCode]?.includes(name)) return false;
+    if (levelName && this.excludedLevelSubjects[levelName]?.includes(name))
+      return false;
+    if (strandName && this.excludedLevelSubjects[strandName]?.includes(name))
+      return false;
+    if (courseCode && this.excludedLevelSubjects[courseCode]?.includes(name))
+      return false;
     return true;
   }
 }

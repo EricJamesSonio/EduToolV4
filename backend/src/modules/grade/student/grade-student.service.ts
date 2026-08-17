@@ -1,4 +1,8 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { GradeRepository } from '../grade.repository';
 import { EnrollmentRepository } from 'src/modules/enrollment/enrollment.repository';
 import { GradeCoreService, SchemeCategory } from '../core/grade-core.service';
@@ -84,9 +88,7 @@ export class GradeStudentService {
               ? sum + cat.weight
               : sum;
           }
-          const catAssessments = assessments.filter(
-            (a) => a.type === cat.type,
-          );
+          const catAssessments = assessments.filter((a) => a.type === cat.type);
           const hasActive = catAssessments.some((a) =>
             studentSubs.some(
               (s) =>

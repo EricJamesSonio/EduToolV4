@@ -27,19 +27,20 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 export class SemesterController {
   constructor(private readonly semesterService: SemesterService) {}
 
-@Post()
-@Roles('admin')
-async create(
-  @CurrentUser('org_id') orgId: string,  // <-- change here
-  @Body() dto: CreateSemesterDto,
-) {
-  return this.semesterService.create(orgId, dto);
-}
+  @Post()
+  @Roles('admin')
+  async create(
+    @CurrentUser('org_id') orgId: string, // <-- change here
+    @Body() dto: CreateSemesterDto,
+  ) {
+    return this.semesterService.create(orgId, dto);
+  }
 
-@Get()
-async findAll(@CurrentUser('org_id') orgId: string) { // <-- change here
-  return this.semesterService.findAll(orgId);
-}
+  @Get()
+  async findAll(@CurrentUser('org_id') orgId: string) {
+    // <-- change here
+    return this.semesterService.findAll(orgId);
+  }
 
   @Patch(':id')
   @Roles('admin')
@@ -51,15 +52,15 @@ async findAll(@CurrentUser('org_id') orgId: string) { // <-- change here
     return this.semesterService.update(id, orgId, dto);
   }
 
-@Delete(':id')
-@Roles('admin')
-@HttpCode(HttpStatus.NO_CONTENT)
-async remove(
-  @Param('id') id: string,
-  @CurrentUser('org_id') orgId: string, // <-- change here
-) {
-  await this.semesterService.remove(id, orgId);
-}
+  @Delete(':id')
+  @Roles('admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser('org_id') orgId: string, // <-- change here
+  ) {
+    await this.semesterService.remove(id, orgId);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

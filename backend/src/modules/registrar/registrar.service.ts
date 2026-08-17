@@ -138,7 +138,9 @@ export class RegistrarService {
 
     const localPart = username.trim().replace(/^@+/, '').toLowerCase();
     if (!localPart || localPart.includes('@')) {
-      throw new BadRequestException('Username must not include an email extension.');
+      throw new BadRequestException(
+        'Username must not include an email extension.',
+      );
     }
 
     const base = extension

@@ -5,7 +5,10 @@ import { DatabaseService } from '@/core/database/database.provider';
 export class UploadService {
   constructor(private readonly db: DatabaseService) {}
 
-  async saveProfileImage(accountId: string, relativePath: string): Promise<string> {
+  async saveProfileImage(
+    accountId: string,
+    relativePath: string,
+  ): Promise<string> {
     const profile = await this.db.profile.findUnique({
       where: { account_id: accountId },
     });
@@ -31,7 +34,10 @@ export class UploadService {
     return profile?.profile_image ?? null;
   }
 
-  async saveOrganizationLogo(orgId: string, relativePath: string): Promise<string> {
+  async saveOrganizationLogo(
+    orgId: string,
+    relativePath: string,
+  ): Promise<string> {
     const org = await this.db.organization.findUnique({
       where: { id: orgId },
     });

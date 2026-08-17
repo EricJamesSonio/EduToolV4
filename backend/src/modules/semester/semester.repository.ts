@@ -2,7 +2,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 
-
 @Injectable()
 export class SemesterRepository {
   constructor(private readonly db: DatabaseService) {}
@@ -30,7 +29,7 @@ export class SemesterRepository {
   async findAll(orgId: string) {
     return this.db.semester.findMany({
       where: { org_id: orgId },
-      include: { terms: true },  // Phase 3: add relation to schema
+      include: { terms: true }, // Phase 3: add relation to schema
       orderBy: { start_date: 'asc' },
     });
   }
@@ -68,7 +67,10 @@ export class SemesterRepository {
     });
   }
 
-  async countBySchoolYear(orgId: string, schoolYearId: string): Promise<number> {
+  async countBySchoolYear(
+    orgId: string,
+    schoolYearId: string,
+  ): Promise<number> {
     return this.db.semester.count({
       where: { org_id: orgId, school_year_id: schoolYearId },
     });

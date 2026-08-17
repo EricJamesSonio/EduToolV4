@@ -20,11 +20,27 @@ describe('GradeEducatorService — proof tests (Lane 1 item 2)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new GradeEducatorService(repo as any, new GradeCoreService(), auditLog as any);
+    service = new GradeEducatorService(
+      repo as any,
+      new GradeCoreService(),
+      auditLog as any,
+    );
     jest.spyOn(service as any, 'resolveGradingScale').mockResolvedValue({
       ranges: [
-        { minPercent: 75, maxPercent: 100, gradeValue: 'Pass', remark: '', isPassing: true },
-        { minPercent: 50, maxPercent: 74, gradeValue: 'Fail', remark: '', isPassing: false },
+        {
+          minPercent: 75,
+          maxPercent: 100,
+          gradeValue: 'Pass',
+          remark: '',
+          isPassing: true,
+        },
+        {
+          minPercent: 50,
+          maxPercent: 74,
+          gradeValue: 'Fail',
+          remark: '',
+          isPassing: false,
+        },
       ],
     });
   });
@@ -48,8 +64,20 @@ describe('GradeEducatorService — proof tests (Lane 1 item 2)', () => {
       { id: 'a2', type: 'exam', total_items: 20 },
     ];
     const subs = [
-      { student_id: 's-1', assessment_id: 'a1', status: 'graded', score: 10, manual_score: 10 },
-      { student_id: 's-1', assessment_id: 'a2', status: 'graded', score: 15, manual_score: 15 },
+      {
+        student_id: 's-1',
+        assessment_id: 'a1',
+        status: 'graded',
+        score: 10,
+        manual_score: 10,
+      },
+      {
+        student_id: 's-1',
+        assessment_id: 'a2',
+        status: 'graded',
+        score: 15,
+        manual_score: 15,
+      },
     ];
 
     repo.findClassWithSubject.mockResolvedValue(cls);
@@ -70,7 +98,12 @@ describe('GradeEducatorService — proof tests (Lane 1 item 2)', () => {
 
     // Correct behavior: before writing, the service must consult the existing
     // row's lock state. It does not — the existing locked row is never read.
-    expect(repo.findByStudent).toHaveBeenCalledWith('s-1', 'class-1', 'term-1', 'org-1');
+    expect(repo.findByStudent).toHaveBeenCalledWith(
+      's-1',
+      'class-1',
+      'term-1',
+      'org-1',
+    );
   });
 
   it('PROOF: recompute upserts a NEW final score into the locked row (88 Pass -> recomputed 62.5 Fail)', async () => {
@@ -92,8 +125,20 @@ describe('GradeEducatorService — proof tests (Lane 1 item 2)', () => {
       { id: 'a2', type: 'exam', total_items: 20 },
     ];
     const subs = [
-      { student_id: 's-1', assessment_id: 'a1', status: 'graded', score: 10, manual_score: 10 },
-      { student_id: 's-1', assessment_id: 'a2', status: 'graded', score: 15, manual_score: 15 },
+      {
+        student_id: 's-1',
+        assessment_id: 'a1',
+        status: 'graded',
+        score: 10,
+        manual_score: 10,
+      },
+      {
+        student_id: 's-1',
+        assessment_id: 'a2',
+        status: 'graded',
+        score: 15,
+        manual_score: 15,
+      },
     ];
 
     repo.findClassWithSubject.mockResolvedValue(cls);
@@ -101,7 +146,11 @@ describe('GradeEducatorService — proof tests (Lane 1 item 2)', () => {
     repo.findSubmissionsForTerm.mockResolvedValue(subs);
     repo.findAssessmentsForTerm.mockResolvedValue(assessments);
     repo.findManualScores.mockResolvedValue([]);
-    repo.findByStudent.mockResolvedValue({ is_locked: true, final_score: 88, final_grade: 'Pass' });
+    repo.findByStudent.mockResolvedValue({
+      is_locked: true,
+      final_score: 88,
+      final_grade: 'Pass',
+    });
 
     await service.recomputeStudentGrade('class-1', 'term-1', 's-1', 'org-1');
 

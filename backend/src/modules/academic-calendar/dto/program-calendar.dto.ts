@@ -1,8 +1,13 @@
 // backend/src/modules/academic-calendar/dto/program-calendar.dto.ts
 
 import {
-  IsString, IsOptional, IsUUID, IsDateString,
-  IsArray, ValidateNested, MaxLength,
+  IsString,
+  IsOptional,
+  IsUUID,
+  IsDateString,
+  IsArray,
+  ValidateNested,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 

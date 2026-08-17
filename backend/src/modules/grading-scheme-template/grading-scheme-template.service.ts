@@ -28,7 +28,9 @@ export class GradingSchemeTemplateService {
     private readonly db: DatabaseService,
   ) {}
 
-  private validateWeights(components: GradingSchemeTemplateComponentDto[]): void {
+  private validateWeights(
+    components: GradingSchemeTemplateComponentDto[],
+  ): void {
     if (components.length === 0) {
       throw new BadRequestException('At least one component is required.');
     }
@@ -59,7 +61,8 @@ export class GradingSchemeTemplateService {
 
   async findById(id: string, orgId: string) {
     const template = await this.repo.findById(id, orgId);
-    if (!template) throw new NotFoundException('Grading scheme template not found.');
+    if (!template)
+      throw new NotFoundException('Grading scheme template not found.');
     return template;
   }
 
@@ -72,11 +75,12 @@ export class GradingSchemeTemplateService {
     await this.findById(id, orgId); // throws if not found
     if (dto.components) this.validateWeights(dto.components);
     const updated = await this.repo.update(id, orgId, {
-      name:        dto.name,
+      name: dto.name,
       programType: dto.programType,
-      components:  dto.components,
+      components: dto.components,
     });
-    if (!updated) throw new NotFoundException('Grading scheme template not found.');
+    if (!updated)
+      throw new NotFoundException('Grading scheme template not found.');
     return updated;
   }
 
@@ -94,7 +98,11 @@ export class GradingSchemeTemplateService {
     orgId: string,
     programId: string,
     schoolYearId?: string,
-  ): Promise<{ templateId: string; templateName: string; classCount: number } | null> {
+  ): Promise<{
+    templateId: string;
+    templateName: string;
+    classCount: number;
+  } | null> {
     const classIds = await this.gradingSchemeRepo.findClassIdsByProgram(
       programId,
       orgId,
@@ -104,8 +112,8 @@ export class GradingSchemeTemplateService {
 
     const schemes = await this.db.gradingScheme.findMany({
       where: {
-        org_id:      orgId,
-        class_id:    { in: classIds },
+        org_id: orgId,
+        class_id: { in: classIds },
         template_id: { not: null },
       },
       select: { template_id: true, created_at: true },
@@ -117,11 +125,15 @@ export class GradingSchemeTemplateService {
       const key = scheme.template_id!;
       const entry = usage.get(key) ?? { count: 0, latest: 0 };
       entry.count += 1;
-      entry.latest = Math.max(entry.latest, new Date(scheme.created_at).getTime());
+      entry.latest = Math.max(
+        entry.latest,
+        new Date(scheme.created_at).getTime(),
+      );
       usage.set(key, entry);
     }
 
-    let best: { templateId: string; count: number; latest: number } | null = null;
+    let best: { templateId: string; count: number; latest: number } | null =
+      null;
     for (const [templateId, entry] of usage.entries()) {
       if (
         !best ||
@@ -162,12 +174,12 @@ export class GradingSchemeTemplateService {
           schoolYearId,
         );
         return {
-          programId:   program.id,
+          programId: program.id,
           programName: program.name,
           programType: program.type,
-          templateId:  resolved?.templateId ?? null,
+          templateId: resolved?.templateId ?? null,
           templateName: resolved?.templateName ?? null,
-          classCount:  resolved?.classCount ?? 0,
+          classCount: resolved?.classCount ?? 0,
         };
       }),
     );
@@ -183,10 +195,12 @@ export class GradingSchemeTemplateService {
   async getClassAssignments(
     orgId: string,
     schoolYearId?: string,
-  ): Promise<Array<{ classId: string; templateId: string; templateName: string }>> {
+  ): Promise<
+    Array<{ classId: string; templateId: string; templateName: string }>
+  > {
     const classes = await this.db.class.findMany({
       where: {
-        org_id:     orgId,
+        org_id: orgId,
         deleted_at: null,
         ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
       },
@@ -196,8 +210,8 @@ export class GradingSchemeTemplateService {
 
     const schemes = await this.db.gradingScheme.findMany({
       where: {
-        org_id:      orgId,
-        class_id:    { in: classes.map((c) => c.id) },
+        org_id: orgId,
+        class_id: { in: classes.map((c) => c.id) },
         template_id: { not: null },
       },
       select: { class_id: true, template_id: true },
@@ -214,7 +228,10 @@ export class GradingSchemeTemplateService {
       : [];
     const nameById = new Map(templates.map((t) => [t.id, t.name]));
 
-    const byClass = new Map<string, { templateId: string; templateName: string }>();
+    const byClass = new Map<
+      string,
+      { templateId: string; templateName: string }
+    >();
     for (const scheme of schemes) {
       if (!scheme.template_id) continue;
       const name = nameById.get(scheme.template_id);
@@ -228,7 +245,7 @@ export class GradingSchemeTemplateService {
     return classes
       .filter((c) => byClass.has(c.id))
       .map((c) => ({
-        classId:  c.id,
+        classId: c.id,
         templateId: byClass.get(c.id)!.templateId,
         templateName: byClass.get(c.id)!.templateName,
       }));
@@ -248,7 +265,11 @@ export class GradingSchemeTemplateService {
       return { success: true, removedCount: 0 };
     }
 
-    const resolved = await this.resolveProgramTemplate(orgId, programId, schoolYearId);
+    const resolved = await this.resolveProgramTemplate(
+      orgId,
+      programId,
+      schoolYearId,
+    );
     if (!resolved) {
       return { success: true, removedCount: 0 };
     }
@@ -257,8 +278,8 @@ export class GradingSchemeTemplateService {
     // leaving educator-customized / other-template schemes untouched.
     const schemes = await this.db.gradingScheme.findMany({
       where: {
-        org_id:      orgId,
-        class_id:    { in: classIds },
+        org_id: orgId,
+        class_id: { in: classIds },
         template_id: resolved.templateId,
       },
       select: { id: true },
@@ -322,85 +343,85 @@ export class GradingSchemeTemplateService {
     );
   }
 
- async applyToClass(orgId: string, dto: ApplyTemplateToClassDto) {
-  // Get template
-  const template = await this.findById(dto.templateId, orgId);
+  async applyToClass(orgId: string, dto: ApplyTemplateToClassDto) {
+    // Get template
+    const template = await this.findById(dto.templateId, orgId);
 
-  // Guard: template program type must match the target class's program type
-  const classProgramType = await getClassProgramType(
-    this.db,
-    dto.classId,
-    orgId,
-  );
-  if (template.programType && classProgramType !== template.programType) {
-    throw new BadRequestException(
-      `Template type "${template.programType}" does not match the class program type "${classProgramType}".`,
+    // Guard: template program type must match the target class's program type
+    const classProgramType = await getClassProgramType(
+      this.db,
+      dto.classId,
+      orgId,
+    );
+    if (template.programType && classProgramType !== template.programType) {
+      throw new BadRequestException(
+        `Template type "${template.programType}" does not match the class program type "${classProgramType}".`,
+      );
+    }
+
+    // Create/update grading scheme for the class
+    return this.gradingSchemeRepo.upsertForClass(
+      orgId,
+      dto.classId,
+      dto.templateId,
+      dto.name ?? template.name,
+      template.components.map((c) => ({
+        name: c.name,
+        type: c.type,
+        weight: c.weight,
+        maxScore: c.maxScore,
+        isOptional: false,
+      })),
     );
   }
 
-  // Create/update grading scheme for the class
-  return this.gradingSchemeRepo.upsertForClass(
-    orgId,
-    dto.classId,
-    dto.templateId,
-    dto.name ?? template.name,
-    template.components.map((c) => ({
-      name: c.name,
-      type: c.type,
-      weight: c.weight,
-      maxScore: c.maxScore,
-      isOptional: false,
-    })),
-  );
-}
+  async applyToProgram(orgId: string, dto: ApplyTemplateToProgramDto) {
+    // Get template
+    const template = await this.findById(dto.templateId, orgId);
 
-async applyToProgram(orgId: string, dto: ApplyTemplateToProgramDto) {
-  // Get template
-  const template = await this.findById(dto.templateId, orgId);
+    // Guard: template program type must match the target program type
+    const program = await this.db.program.findFirst({
+      where: { id: dto.programId, org_id: orgId },
+      select: { type: true },
+    });
+    if (!program) {
+      throw new NotFoundException('Program not found.');
+    }
+    if (template.programType && program.type !== template.programType) {
+      throw new BadRequestException(
+        `Template type "${template.programType}" does not match program type "${program.type}".`,
+      );
+    }
 
-  // Guard: template program type must match the target program type
-  const program = await this.db.program.findFirst({
-    where: { id: dto.programId, org_id: orgId },
-    select: { type: true },
-  });
-  if (!program) {
-    throw new NotFoundException('Program not found.');
-  }
-  if (template.programType && program.type !== template.programType) {
-    throw new BadRequestException(
-      `Template type "${template.programType}" does not match program type "${program.type}".`,
+    // Get all class IDs under the program
+    const classIds = await this.gradingSchemeRepo.findClassIdsByProgram(
+      dto.programId,
+      orgId,
     );
+
+    if (classIds.length === 0) {
+      return { success: true, appliedCount: 0 };
+    }
+
+    // Create/update grading scheme for each class
+    const results = await Promise.all(
+      classIds.map((classId) =>
+        this.gradingSchemeRepo.upsertForClass(
+          orgId,
+          classId,
+          dto.templateId,
+          template.name,
+          template.components.map((c) => ({
+            name: c.name,
+            type: c.type,
+            weight: c.weight,
+            maxScore: c.maxScore,
+            isOptional: false,
+          })),
+        ),
+      ),
+    );
+
+    return { success: true, appliedCount: results.length };
   }
-
-  // Get all class IDs under the program
-  const classIds = await this.gradingSchemeRepo.findClassIdsByProgram(
-    dto.programId,
-    orgId,
-  );
-
-if (classIds.length === 0) {
-  return { success: true, appliedCount: 0 };
-}
-
-  // Create/update grading scheme for each class
-  const results = await Promise.all(
-    classIds.map((classId) =>
-      this.gradingSchemeRepo.upsertForClass(
-        orgId,
-        classId,
-        dto.templateId,
-        template.name,
-        template.components.map((c) => ({
-          name: c.name,
-          type: c.type,
-          weight: c.weight,
-          maxScore: c.maxScore,
-          isOptional: false,
-        })),
-      )
-    )
-  );
-
-  return { success: true, appliedCount: results.length };
-}
 }

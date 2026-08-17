@@ -7,7 +7,12 @@ import { AnalyticsModule } from '@/modules/analytics/analytics.module';
 import { OrgEnrollmentSettingModule } from '@/modules/org-enrollment-setting/org-enrollment-setting.module';
 
 @Module({
-  imports: [AuditLogModule, NotificationModule, AnalyticsModule, OrgEnrollmentSettingModule],
+  imports: [
+    AuditLogModule,
+    NotificationModule,
+    AnalyticsModule,
+    OrgEnrollmentSettingModule,
+  ],
   exports: [AuditLogModule, NotificationModule, AnalyticsModule],
 })
 export class SystemDomainModule {}

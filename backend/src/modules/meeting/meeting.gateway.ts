@@ -47,7 +47,7 @@ interface ChatMessage {
 class RoomState {
   participants = new Map<string, RoomParticipant>(); // socketId → participant
   chatHistory: ChatMessage[] = [];
-  currentSlide = 0;    // lesson presentation sync
+  currentSlide = 0; // lesson presentation sync
   isPresenting = false;
   presentationId?: string;
   // Students already announced in the class chat for this meeting session.
@@ -71,7 +71,9 @@ class RoomState {
   namespace: 'meeting',
   cors: { origin: '*', credentials: true },
 })
-export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class MeetingGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer() server: Server;
   private readonly logger = new Logger(MeetingGateway.name);
 
@@ -93,7 +95,10 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     try {
       const token =
         (client.handshake.auth?.token as string) ??
-        (client.handshake.headers?.authorization as string)?.replace('Bearer ', '');
+        (client.handshake.headers?.authorization as string)?.replace(
+          'Bearer ',
+          '',
+        );
 
       if (!token) return this.kick(client, 'Missing token');
 
@@ -104,12 +109,17 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       const meetingId = client.handshake.query?.meetingId as string;
       if (!meetingId) return this.kick(client, 'Missing meetingId');
 
-      const meeting = await this.meetingRepo.findById(meetingId, payload.org_id);
+      const meeting = await this.meetingRepo.findById(
+        meetingId,
+        payload.org_id,
+      );
       if (!meeting) return this.kick(client, 'Meeting not found');
-      if (meeting.status === 'ended') return this.kick(client, 'Meeting has ended');
+      if (meeting.status === 'ended')
+        return this.kick(client, 'Meeting has ended');
 
       // Access check
-      const isEducator = payload.role === 'educator' && meeting.educator_id === payload.sub;
+      const isEducator =
+        payload.role === 'educator' && meeting.educator_id === payload.sub;
       const isInvited =
         payload.role === 'student' &&
         (await this.meetingRepo.isStudentInvited(meetingId, payload.sub));
@@ -139,7 +149,8 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       }
 
       // Update in-memory state
-      if (!this.rooms.has(meetingId)) this.rooms.set(meetingId, new RoomState());
+      if (!this.rooms.has(meetingId))
+        this.rooms.set(meetingId, new RoomState());
       const room = this.rooms.get(meetingId)!;
       room.participants.set(client.id, {
         socketId: client.id,
@@ -332,7 +343,8 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('webrtc:offer')
   handleOffer(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { targetUserId: string; offer: RTCSessionDescriptionInit },
+    @MessageBody()
+    data: { targetUserId: string; offer: RTCSessionDescriptionInit },
   ) {
     this.relayToUser(client, data.targetUserId, 'webrtc:offer', {
       fromUserId: client.data.auth?.sub,
@@ -343,7 +355,8 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('webrtc:answer')
   handleAnswer(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { targetUserId: string; answer: RTCSessionDescriptionInit },
+    @MessageBody()
+    data: { targetUserId: string; answer: RTCSessionDescriptionInit },
   ) {
     this.relayToUser(client, data.targetUserId, 'webrtc:answer', {
       fromUserId: client.data.auth?.sub,
@@ -354,7 +367,8 @@ export class MeetingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @SubscribeMessage('webrtc:ice')
   handleIce(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { targetUserId: string; candidate: RTCIceCandidateInit },
+    @MessageBody()
+    data: { targetUserId: string; candidate: RTCIceCandidateInit },
   ) {
     this.relayToUser(client, data.targetUserId, 'webrtc:ice', {
       fromUserId: client.data.auth?.sub,

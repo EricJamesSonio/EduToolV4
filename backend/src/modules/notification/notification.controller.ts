@@ -41,10 +41,7 @@ export class NotificationController {
    */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async dismiss(
-    @Param('id') id: string,
-    @CurrentUser('id') accountId: string,
-  ) {
+  async dismiss(@Param('id') id: string, @CurrentUser('id') accountId: string) {
     await this.notificationService.dismiss(id, accountId);
   }
 }

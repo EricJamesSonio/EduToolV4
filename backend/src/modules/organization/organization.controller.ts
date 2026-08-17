@@ -9,31 +9,31 @@ import {
   UseGuards,
   NotFoundException,
   BadRequestException,
-} from '@nestjs/common'
-import { OrganizationService } from './organization.service'
+} from '@nestjs/common';
+import { OrganizationService } from './organization.service';
 import {
   CreateOrganizationDto,
   UpdateOrganizationDto,
   SeedOrganizationDto,
-} from './dto/organization.dto'
-import { AuthGuard } from '@/commons/guards/auth.guard'
-import { RolesGuard } from '@/commons/guards/role.guard'
-import { Roles } from '@/commons/decorators/roles.decorator'
-import { CurrentUser } from '@/commons/decorators/current-user.decorator'
+} from './dto/organization.dto';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { Roles } from '@/commons/decorators/roles.decorator';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 // ✅ NEW: DTOs for validation endpoints
 interface ValidateEmailExtensionDto {
-  emailExtension: string
+  emailExtension: string;
 }
 
 interface ValidateEmailExtensionResponse {
-  isUnique: boolean
-  message?: string
+  isUnique: boolean;
+  message?: string;
 }
 
 interface CheckAccountsResponse {
-  hasAccounts: boolean
-  count: number
+  hasAccounts: boolean;
+  count: number;
 }
 
 @Controller('organization')
@@ -47,19 +47,19 @@ export class OrganizationController {
     @CurrentUser('id') adminId: string,
     @Body() dto: CreateOrganizationDto,
   ) {
-    return this.orgService.create(adminId, dto)
+    return this.orgService.create(adminId, dto);
   }
 
   @Get()
   @Roles('admin')
   async getOwn(@CurrentUser('org_id') orgId: string | null) {
-    const org = await this.orgService.getOwn(orgId)
+    const org = await this.orgService.getOwn(orgId);
 
     if (!org) {
-      throw new NotFoundException('Organization not found.')
+      throw new NotFoundException('Organization not found.');
     }
 
-    return org
+    return org;
   }
 
   @Patch()
@@ -69,7 +69,7 @@ export class OrganizationController {
     @CurrentUser('id') actorId: string,
     @Body() dto: UpdateOrganizationDto,
   ) {
-    return this.orgService.update(orgId, dto, actorId)
+    return this.orgService.update(orgId, dto, actorId);
   }
 
   @Post('seed')
@@ -79,7 +79,7 @@ export class OrganizationController {
     @CurrentUser('id') actorId: string,
     @Body() dto: SeedOrganizationDto,
   ) {
-    return this.orgService.seed(orgId, dto, actorId)
+    return this.orgService.seed(orgId, dto, actorId);
   }
 
   // ========================================================================
@@ -106,14 +106,14 @@ export class OrganizationController {
     @Body() dto: ValidateEmailExtensionDto,
     @CurrentUser('org_id') orgId: string,
   ): Promise<ValidateEmailExtensionResponse> {
-    const cleaned = dto.emailExtension.trim().replace(/^@/, '')
+    const cleaned = dto.emailExtension.trim().replace(/^@/, '');
 
     // Empty check
     if (!cleaned) {
       return {
         isUnique: false,
         message: 'Email extension cannot be empty.',
-      }
+      };
     }
 
     // Format validation
@@ -122,14 +122,14 @@ export class OrganizationController {
         isUnique: false,
         message:
           'Extension contains invalid characters. Use only letters, numbers, dots, and hyphens.',
-      }
+      };
     }
 
     // Check uniqueness
     const isUnique = await this.orgService.isEmailExtensionUnique(
       cleaned,
       orgId,
-    )
+    );
 
     return {
       isUnique,
@@ -139,7 +139,7 @@ export class OrganizationController {
             message:
               'This email extension is already in use by another organization.',
           }),
-    }
+    };
   }
 
   /**
@@ -157,16 +157,14 @@ export class OrganizationController {
     @CurrentUser('org_id') orgId: string,
   ): Promise<CheckAccountsResponse> {
     if (!orgId) {
-      throw new BadRequestException(
-        'No organization found for this account.',
-      )
+      throw new BadRequestException('No organization found for this account.');
     }
 
-    const count = await this.orgService.countAccounts(orgId)
+    const count = await this.orgService.countAccounts(orgId);
 
     return {
       hasAccounts: count > 0,
       count,
-    }
+    };
   }
 }

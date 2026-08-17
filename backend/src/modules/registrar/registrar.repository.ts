@@ -37,7 +37,12 @@ export class RegistrarRepository {
 
   async findAll(
     orgId: string,
-    filters: { search?: string; status?: string; page?: number; limit?: number },
+    filters: {
+      search?: string;
+      status?: string;
+      page?: number;
+      limit?: number;
+    },
   ) {
     const { search, status, page = 1, limit = 20 } = filters;
 
@@ -85,14 +90,26 @@ export class RegistrarRepository {
 
   async findById(id: string, orgId: string) {
     return this.db.account.findFirst({
-      where: { id, org_id: orgId, role: 'admin', is_registrar: true, deleted_at: null },
+      where: {
+        id,
+        org_id: orgId,
+        role: 'admin',
+        is_registrar: true,
+        deleted_at: null,
+      },
       include: { profile: true },
     });
   }
 
   async findByEmail(email: string, orgId: string) {
     return this.db.account.findFirst({
-      where: { email, org_id: orgId, role: 'admin', is_registrar: true, deleted_at: null },
+      where: {
+        email,
+        org_id: orgId,
+        role: 'admin',
+        is_registrar: true,
+        deleted_at: null,
+      },
     });
   }
 

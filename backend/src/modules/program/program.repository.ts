@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common'
-import { DatabaseService } from '@/core/database/database.provider'
+import { Injectable } from '@nestjs/common';
+import { DatabaseService } from '@/core/database/database.provider';
 
 const PROGRAM_LIST_INCLUDE = {
   courses: {
@@ -10,7 +10,7 @@ const PROGRAM_LIST_INCLUDE = {
     select: { id: true, name: true },
     orderBy: { name: 'asc' as const },
   },
-}
+};
 
 const PROGRAM_STATS_INCLUDE_COLLEGE = {
   courses: {
@@ -18,8 +18,11 @@ const PROGRAM_STATS_INCLUDE_COLLEGE = {
     include: {
       subjects: {
         select: {
-          id: true, name: true,
-          year_level: true, term_label: true, is_locked: true,
+          id: true,
+          name: true,
+          year_level: true,
+          term_label: true,
+          is_locked: true,
         },
         orderBy: [
           { year_level: 'asc' as const },
@@ -29,7 +32,7 @@ const PROGRAM_STATS_INCLUDE_COLLEGE = {
       },
     },
   },
-}
+};
 
 const PROGRAM_STATS_INCLUDE_SENIOR_HIGH = {
   strands: {
@@ -37,8 +40,11 @@ const PROGRAM_STATS_INCLUDE_SENIOR_HIGH = {
     include: {
       subjects: {
         select: {
-          id: true, name: true,
-          year_level: true, term_label: true, is_locked: true,
+          id: true,
+          name: true,
+          year_level: true,
+          term_label: true,
+          is_locked: true,
         },
         orderBy: [
           { year_level: 'asc' as const },
@@ -48,14 +54,14 @@ const PROGRAM_STATS_INCLUDE_SENIOR_HIGH = {
       },
     },
   },
-}
+};
 
 const PROGRAM_STATS_INCLUDE_DEFAULT = {
   levels: {
     select: { id: true, name: true },
     orderBy: { name: 'asc' as const },
   },
-}
+};
 
 const PROGRAM_DETAIL_INCLUDE = {
   courses: {
@@ -63,8 +69,11 @@ const PROGRAM_DETAIL_INCLUDE = {
     include: {
       subjects: {
         select: {
-          id: true, name: true,
-          year_level: true, term_label: true, is_locked: true,
+          id: true,
+          name: true,
+          year_level: true,
+          term_label: true,
+          is_locked: true,
         },
         orderBy: [
           { year_level: 'asc' as const },
@@ -79,8 +88,11 @@ const PROGRAM_DETAIL_INCLUDE = {
     include: {
       subjects: {
         select: {
-          id: true, name: true,
-          year_level: true, term_label: true, is_locked: true,
+          id: true,
+          name: true,
+          year_level: true,
+          term_label: true,
+          is_locked: true,
         },
         orderBy: [
           { year_level: 'asc' as const },
@@ -90,13 +102,18 @@ const PROGRAM_DETAIL_INCLUDE = {
       },
     },
   },
-}
+};
 
 @Injectable()
 export class ProgramRepository {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(private readonly db: DatabaseService) {}
 
-  async create(data: { orgId: string; schoolYearId: string; name: string; type: string }) {
+  async create(data: {
+    orgId: string;
+    schoolYearId: string;
+    name: string;
+    type: string;
+  }) {
     return this.db.program.create({
       data: {
         org_id: data.orgId,
@@ -105,7 +122,7 @@ export class ProgramRepository {
         type: data.type,
       },
       include: PROGRAM_LIST_INCLUDE,
-    })
+    });
   }
 
   async findAll(
@@ -133,7 +150,7 @@ export class ProgramRepository {
         }),
       },
       orderBy: { name: 'asc' },
-    })
+    });
   }
 
   async findAllWithStats(
@@ -154,10 +171,10 @@ export class ProgramRepository {
         type: true,
       },
       orderBy: { name: 'asc' },
-    })
+    });
 
     // Fetch related data based on program type
-    const programIds = programs.map(p => p.id)
+    const programIds = programs.map((p) => p.id);
 
     const [levels, courses, strands] = await Promise.all([
       this.db.level.findMany({
@@ -175,48 +192,57 @@ export class ProgramRepository {
         select: { id: true, name: true, program_id: true },
         orderBy: { name: 'asc' },
       }),
-    ])
+    ]);
 
     // Group related data by program_id
-    const levelsByProgram = levels.reduce((acc, level) => {
-      if (!acc[level.program_id]) acc[level.program_id] = []
-      acc[level.program_id].push(level)
-      return acc
-    }, {} as Record<string, any[]>)
+    const levelsByProgram = levels.reduce(
+      (acc, level) => {
+        if (!acc[level.program_id]) acc[level.program_id] = [];
+        acc[level.program_id].push(level);
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
 
-    const coursesByProgram = courses.reduce((acc, course) => {
-      if (!acc[course.program_id]) acc[course.program_id] = []
-      acc[course.program_id].push(course)
-      return acc
-    }, {} as Record<string, any[]>)
+    const coursesByProgram = courses.reduce(
+      (acc, course) => {
+        if (!acc[course.program_id]) acc[course.program_id] = [];
+        acc[course.program_id].push(course);
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
 
-    const strandsByProgram = strands.reduce((acc, strand) => {
-      if (!acc[strand.program_id]) acc[strand.program_id] = []
-      acc[strand.program_id].push(strand)
-      return acc
-    }, {} as Record<string, any[]>)
+    const strandsByProgram = strands.reduce(
+      (acc, strand) => {
+        if (!acc[strand.program_id]) acc[strand.program_id] = [];
+        acc[strand.program_id].push(strand);
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
 
     // Combine programs with their stats
-    return programs.map(program => ({
+    return programs.map((program) => ({
       ...program,
       levels: levelsByProgram[program.id] || [],
       courses: coursesByProgram[program.id] || [],
       strands: strandsByProgram[program.id] || [],
-    }))
+    }));
   }
 
   async findById(id: string, orgId: string) {
     return this.db.program.findFirst({
       where: { id, org_id: orgId },
       include: PROGRAM_DETAIL_INCLUDE,
-    })
+    });
   }
 
   async findByNameAndYear(name: string, orgId: string, schoolYearId: string) {
     return this.db.program.findFirst({
       where: { name, org_id: orgId, school_year_id: schoolYearId },
       select: { id: true },
-    })
+    });
   }
 
   async update(id: string, data: { name?: string; type?: string }) {
@@ -227,25 +253,31 @@ export class ProgramRepository {
         ...(data.type !== undefined ? { type: data.type } : {}),
       },
       include: PROGRAM_LIST_INCLUDE,
-    })
+    });
   }
 
   async delete(id: string) {
-    return this.db.program.delete({ where: { id } })
+    return this.db.program.delete({ where: { id } });
   }
 
   async hasLevels(programId: string): Promise<boolean> {
-    const count = await this.db.level.count({ where: { program_id: programId } })
-    return count > 0
+    const count = await this.db.level.count({
+      where: { program_id: programId },
+    });
+    return count > 0;
   }
 
   async hasCourses(programId: string): Promise<boolean> {
-    const count = await this.db.course.count({ where: { program_id: programId } })
-    return count > 0
+    const count = await this.db.course.count({
+      where: { program_id: programId },
+    });
+    return count > 0;
   }
 
   async hasStrands(programId: string): Promise<boolean> {
-    const count = await this.db.strand.count({ where: { program_id: programId } })
-    return count > 0
+    const count = await this.db.strand.count({
+      where: { program_id: programId },
+    });
+    return count > 0;
   }
 }

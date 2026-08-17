@@ -103,7 +103,12 @@ export class MeetingService {
 
   // ── GET /classes/:classId/meetings/:id ───────────────────────────────────
 
-  async findOne(id: string, classId: string, orgId: string, educatorId: string) {
+  async findOne(
+    id: string,
+    classId: string,
+    orgId: string,
+    educatorId: string,
+  ) {
     const cls = await this.classRepo.findById(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
     if (cls.educator_id !== educatorId) {
@@ -128,7 +133,10 @@ export class MeetingService {
     dto: UpdateMeetingDto,
   ) {
     const meeting = await this.assertEducatorOwnsMeeting(
-      id, classId, orgId, educatorId,
+      id,
+      classId,
+      orgId,
+      educatorId,
     );
 
     if (meeting.status === 'ended') {
@@ -164,7 +172,10 @@ export class MeetingService {
     let meeting;
     try {
       meeting = await this.assertEducatorOwnsMeeting(
-        id, classId, orgId, educatorId,
+        id,
+        classId,
+        orgId,
+        educatorId,
       );
     } catch (err) {
       // Already gone — e.g. an ephemeral Groupy meeting hard-deleted the
@@ -218,9 +229,7 @@ export class MeetingService {
     // Check if student is already invited — no need to request
     const isInvited = await this.meetingRepo.isStudentInvited(id, studentId);
     if (isInvited) {
-      throw new ConflictException(
-        'You are already invited to this meeting.',
-      );
+      throw new ConflictException('You are already invited to this meeting.');
     }
 
     // Check for existing pending request
@@ -232,7 +241,9 @@ export class MeetingService {
     }
 
     const request = await this.meetingRepo.createJoinRequest(
-      orgId, id, studentId,
+      orgId,
+      id,
+      studentId,
     );
 
     // Notify educator
@@ -273,7 +284,9 @@ export class MeetingService {
     }
 
     if (request.status !== 'pending') {
-      throw new BadRequestException('This request has already been responded to.');
+      throw new BadRequestException(
+        'This request has already been responded to.',
+      );
     }
 
     const updated = await this.meetingRepo.updateJoinRequest(reqId, dto.status);
@@ -295,11 +308,7 @@ export class MeetingService {
 
   // ── GET /student/classes/:classId/meetings ────────────────────────────────
 
-  async findAllForStudent(
-    classId: string,
-    orgId: string,
-    studentId: string,
-  ) {
+  async findAllForStudent(classId: string, orgId: string, studentId: string) {
     await this.assertStudentEnrolled(classId, studentId, orgId);
 
     const meetings = await this.meetingRepo.findAll(classId, orgId);
@@ -312,9 +321,8 @@ export class MeetingService {
       startTime: m.start_time,
       status: m.status,
       isInvited: m.invites.some((i: any) => i.student_id === studentId),
-      joinRequest: m.join_requests.find(
-        (r: any) => r.student_id === studentId,
-      ) ?? null,
+      joinRequest:
+        m.join_requests.find((r: any) => r.student_id === studentId) ?? null,
     }));
   }
 
@@ -340,9 +348,9 @@ export class MeetingService {
       startTime: meeting.start_time,
       status: meeting.status,
       isInvited: meeting.invites.some((i: any) => i.student_id === studentId),
-      joinRequest: meeting.join_requests.find(
-        (r: any) => r.student_id === studentId,
-      ) ?? null,
+      joinRequest:
+        meeting.join_requests.find((r: any) => r.student_id === studentId) ??
+        null,
     };
   }
 
@@ -370,7 +378,9 @@ export class MeetingService {
     orgId: string,
   ) {
     const enrollment = await this.enrollmentRepo.findOneByStudentAndClass(
-      classId, studentId, orgId,
+      classId,
+      studentId,
+      orgId,
     );
     if (!enrollment) {
       throw new ForbiddenException('You are not enrolled in this class.');

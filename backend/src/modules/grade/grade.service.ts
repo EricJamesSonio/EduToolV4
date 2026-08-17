@@ -11,9 +11,9 @@ import { SetManualScoreDto } from './dto/grade.dto';
 // (e.g. type String @default("manual")) so components can map to assessment.type.
 // Until then, component.name.toLowerCase() is used as the type discriminator.
 interface SchemeCategory {
-  name: string;    // e.g. "Quiz", "Exam", "Activity"
-  type: string;    // maps to assessment.type: quiz | exam | activity | manual
-  weight: number;  // e.g. 0.3 = 30%
+  name: string; // e.g. "Quiz", "Exam", "Activity"
+  type: string; // maps to assessment.type: quiz | exam | activity | manual
+  weight: number; // e.g. 0.3 = 30%
   maxScore?: number | null;
   is_optional: boolean;
 }
@@ -66,43 +66,59 @@ export class GradeService {
     return this.repo.findByClass(classId, orgId);
   }
 
-async getGradesByClass(classId: string, orgId: string, educatorId: string) {
-  console.log('[GradeService] getGradesByClass called — new path');
-  await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-  const cls = await this.repo.findClassWithSubject(classId, orgId);
-  if (!cls) throw new NotFoundException('Class not found.');
+  async getGradesByClass(classId: string, orgId: string, educatorId: string) {
+    console.log('[GradeService] getGradesByClass called — new path');
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    const cls = await this.repo.findClassWithSubject(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
 
-  const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
-  console.log('[GradeService] terms from template:', terms.map((t) => ({ id: t.id, name: t.name })));
-
-  const results: any[] = [];
-
-  for (const term of terms) {
-    const termResult = await this.buildTermResult(
-      classId, term.id, term.name, orgId, cls,
-      { id: term.semesterIndex.toString(), name: term.semesterName },
+    const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
+    console.log(
+      '[GradeService] terms from template:',
+      terms.map((t) => ({ id: t.id, name: t.name })),
     );
-    results.push(termResult);
+
+    const results: any[] = [];
+
+    for (const term of terms) {
+      const termResult = await this.buildTermResult(
+        classId,
+        term.id,
+        term.name,
+        orgId,
+        cls,
+        { id: term.semesterIndex.toString(), name: term.semesterName },
+      );
+      results.push(termResult);
+    }
+
+    return results;
   }
 
-  return results;
-}
+  async getGradesByTerm(
+    classId: string,
+    termId: string,
+    orgId: string,
+    educatorId: string,
+  ) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    const cls = await this.repo.findClassWithSubject(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
 
-async getGradesByTerm(classId: string, termId: string, orgId: string, educatorId: string) {
-  await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-  const cls = await this.repo.findClassWithSubject(classId, orgId);
-  if (!cls) throw new NotFoundException('Class not found.');
+    const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
+    const term = terms.find((t) => t.id === termId);
 
-  const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
-  const term = terms.find((t) => t.id === termId);
-
-  return this.buildTermResult(
-    classId, termId,
-    term?.name ?? '',
-    orgId, cls,
-    term ? { id: term.semesterIndex.toString(), name: term.semesterName } : undefined,
-  );
-}
+    return this.buildTermResult(
+      classId,
+      termId,
+      term?.name ?? '',
+      orgId,
+      cls,
+      term
+        ? { id: term.semesterIndex.toString(), name: term.semesterName }
+        : undefined,
+    );
+  }
 
   async computeGrades(
     classId: string,
@@ -120,20 +136,34 @@ async getGradesByTerm(classId: string, termId: string, orgId: string, educatorId
     }
 
     const scheme = await this.repo.findGradingSchemeForClass(classId, orgId);
-    if (!scheme) throw new NotFoundException('No grading scheme found for this class.');
+    if (!scheme)
+      throw new NotFoundException('No grading scheme found for this class.');
     const categories = componentsToCategories(scheme.components);
 
     const gradingScale = await this.resolveGradingScale(cls, orgId);
-    if (!gradingScale) throw new NotFoundException('No grading scale found for this class.');
+    if (!gradingScale)
+      throw new NotFoundException('No grading scale found for this class.');
     const ranges = gradingScale.ranges as unknown as GradeRange[];
 
-    const submissions = await this.repo.findSubmissionsForTerm(classId, termId, orgId);
-    const manualScores = await this.repo.findManualScores(classId, termId, orgId);
+    const submissions = await this.repo.findSubmissionsForTerm(
+      classId,
+      termId,
+      orgId,
+    );
+    const manualScores = await this.repo.findManualScores(
+      classId,
+      termId,
+      orgId,
+    );
 
     let computed = 0;
     for (const studentId of enrolledStudentIds) {
-      const studentSubmissions = submissions.filter((s) => s.student_id === studentId);
-      const studentManuals = manualScores.filter((m) => m.student_id === studentId);
+      const studentSubmissions = submissions.filter(
+        (s) => s.student_id === studentId,
+      );
+      const studentManuals = manualScores.filter(
+        (m) => m.student_id === studentId,
+      );
 
       const finalScore = this.computeWeightedScore(
         studentSubmissions,
@@ -142,7 +172,14 @@ async getGradesByTerm(classId: string, termId: string, orgId: string, educatorId
       );
       const finalGrade = this.resolveGrade(finalScore, ranges);
 
-      await this.repo.upsert({ orgId, studentId, classId, termId, finalScore, finalGrade });
+      await this.repo.upsert({
+        orgId,
+        studentId,
+        classId,
+        termId,
+        finalScore,
+        finalGrade,
+      });
       computed++;
     }
 
@@ -168,7 +205,12 @@ async getGradesByTerm(classId: string, termId: string, orgId: string, educatorId
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
 
-    const grade = await this.repo.findByStudent(studentId, classId, termId, orgId);
+    const grade = await this.repo.findByStudent(
+      studentId,
+      classId,
+      termId,
+      orgId,
+    );
     if (grade?.is_locked) {
       throw new ForbiddenException(
         'Grade is locked. Admin must unlock before manual scores can be changed.',
@@ -196,18 +238,26 @@ async getGradesByTerm(classId: string, termId: string, orgId: string, educatorId
     return saved;
   }
 
-private async buildTermResult(
-  classId: string,
-  termId: string,
-  termName: string,
-  orgId: string,
-  cls: any,
-  semesterInfo?: { id: string; name: string },
-) {
-  const enrolledStudentIds: string[] = cls.enrollments.map((e: any) => e.student_id);
+  private async buildTermResult(
+    classId: string,
+    termId: string,
+    termName: string,
+    orgId: string,
+    cls: any,
+    semesterInfo?: { id: string; name: string },
+  ) {
+    const enrolledStudentIds: string[] = cls.enrollments.map(
+      (e: any) => e.student_id,
+    );
 
-  const [submissions, grades, manualScores, scheme, studentProfiles, termAssessments] =
-    await Promise.all([
+    const [
+      submissions,
+      grades,
+      manualScores,
+      scheme,
+      studentProfiles,
+      termAssessments,
+    ] = await Promise.all([
       this.repo.findSubmissionsForTerm(classId, termId, orgId),
       this.repo.findByClassAndTerm(classId, termId, orgId),
       this.repo.findManualScores(classId, termId, orgId),
@@ -216,79 +266,83 @@ private async buildTermResult(
       this.repo.findAssessmentsForTerm(classId, termId, orgId), // was dropped before
     ]);
 
-  const categories = scheme ? componentsToCategories(scheme.components) : [];
-  const gradeMap = new Map(grades.map((g) => [g.student_id, g]));
+    const categories = scheme ? componentsToCategories(scheme.components) : [];
+    const gradeMap = new Map(grades.map((g) => [g.student_id, g]));
 
-  // Key: `${studentId}:${assessmentId}` → submission row
-  const subLookup = new Map<string, any>();
-  for (const s of submissions) {
-    subLookup.set(`${s.student_id}:${s.assessment_id}`, s);
-  }
+    // Key: `${studentId}:${assessmentId}` → submission row
+    const subLookup = new Map<string, any>();
+    for (const s of submissions) {
+      subLookup.set(`${s.student_id}:${s.assessment_id}`, s);
+    }
 
-  const students = enrolledStudentIds.map((studentId) => {
-    const profile = studentProfiles.get(studentId);
-    const studentSubs = submissions.filter((s) => s.student_id === studentId);
-    const studentManuals = manualScores.filter((m) => m.student_id === studentId);
+    const students = enrolledStudentIds.map((studentId) => {
+      const profile = studentProfiles.get(studentId);
+      const studentSubs = submissions.filter((s) => s.student_id === studentId);
+      const studentManuals = manualScores.filter(
+        (m) => m.student_id === studentId,
+      );
 
-    // Build one entry per term assessment regardless of submission existence
-    const assessmentScores = termAssessments.map((a) => {
-      const s = subLookup.get(`${studentId}:${a.id}`);
+      // Build one entry per term assessment regardless of submission existence
+      const assessmentScores = termAssessments.map((a) => {
+        const s = subLookup.get(`${studentId}:${a.id}`);
+        return {
+          assessmentId: a.id,
+          type: a.type,
+          title: a.title ?? null,
+          score: s?.score ?? null,
+          manualScore: s?.manual_score ?? null,
+          totalItems: a.total_items,
+          status: s?.status ?? 'not_started',
+          isMissed: s?.is_missed ?? false,
+          isExempted: s?.is_exempted ?? false,
+          created_at: a.created_at,
+          submissionId: s?.id ?? undefined,
+        };
+      });
+
+      const totalActiveWeight = categories.reduce((sum, cat) => {
+        if (cat.type === 'manual') {
+          return studentManuals.some(
+            (m) => m.category.toLowerCase() === cat.name.toLowerCase(),
+          )
+            ? sum + cat.weight
+            : sum;
+        }
+        const hasActive = studentSubs.some(
+          (s) =>
+            s.assessment.type === cat.type &&
+            s.status !== 'exempted' &&
+            !s.is_exempted,
+        );
+        return hasActive ? sum + cat.weight : sum;
+      }, 0);
+
+      const categoryBreakdown = this.buildCategoryBreakdown(
+        studentSubs,
+        studentManuals,
+        categories,
+        totalActiveWeight,
+      );
+
       return {
-        assessmentId: a.id,
-        type: a.type,
-        title: a.title ?? null,
-        score: s?.score ?? null,
-        manualScore: s?.manual_score ?? null,
-        totalItems: a.total_items,
-        status: s?.status ?? 'not_started',
-        isMissed: s?.is_missed ?? false,
-        isExempted: s?.is_exempted ?? false,
-        created_at: a.created_at,
-        submissionId: s?.id ?? undefined,
+        studentId,
+        studentName: profile?.name ?? 'Unknown',
+        studentCode: profile?.code ?? '',
+        grade: gradeMap.get(studentId) ?? null,
+        assessmentScores,
+        categoryBreakdown,
       };
     });
 
-    const totalActiveWeight = categories.reduce((sum, cat) => {
-      if (cat.type === 'manual') {
-        return studentManuals.some(
-          (m) => m.category.toLowerCase() === cat.name.toLowerCase(),
-        )
-          ? sum + cat.weight
-          : sum;
-      }
-      const hasActive = studentSubs.some(
-        (s) =>
-          s.assessment.type === cat.type &&
-          s.status !== 'exempted' &&
-          !s.is_exempted,
-      );
-      return hasActive ? sum + cat.weight : sum;
-    }, 0);
-
-    const categoryBreakdown = this.buildCategoryBreakdown(
-      studentSubs,
-      studentManuals,
-      categories,
-      totalActiveWeight,
-    );
-
     return {
-      studentId,
-      studentName: profile?.name ?? 'Unknown',
-      studentCode: profile?.code ?? '',
-      grade: gradeMap.get(studentId) ?? null,
-      assessmentScores,
-      categoryBreakdown,
+      termId,
+      termName,
+      students,
+      ...(semesterInfo
+        ? { semesterId: semesterInfo.id, semesterName: semesterInfo.name }
+        : {}),
     };
-  });
-
-  return {
-    termId,
-    termName,
-    students,
-    ...(semesterInfo ? { semesterId: semesterInfo.id, semesterName: semesterInfo.name } : {}),
-  };
-}
+  }
 
   private computeWeightedScore(
     submissions: any[],
@@ -331,7 +385,8 @@ private async buildTermResult(
           const totalItems = s.assessment.total_items;
           return totalItems > 0 ? (rawScore / totalItems) * 100 : 0;
         });
-        const average = percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+        const average =
+          percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
         totalWeightedScore += average * weight;
         totalWeight += weight;
       }
@@ -379,7 +434,8 @@ private async buildTermResult(
               ? (rawScore / s.assessment.total_items) * 100
               : 0;
           });
-          rawAverage = percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+          rawAverage =
+            percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
         }
 
         if (exemptedCount > 0 && nonExemptedSubs.length === 0) {

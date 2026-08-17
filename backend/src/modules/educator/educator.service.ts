@@ -23,7 +23,7 @@ export class EducatorService {
     private readonly educatorRepository: EducatorRepository,
     private readonly classService: ClassService,
     private readonly organizationService: OrganizationService,
-  ) { }
+  ) {}
 
   // ── POST /educators ─────────────────────────────────────────────────────────
 
@@ -103,25 +103,36 @@ export class EducatorService {
 
     const localPart = emailName.trim().replace(/^@+/, '');
     if (!localPart || localPart.includes('@')) {
-      throw new BadRequestException('Email name must not include an email extension.');
+      throw new BadRequestException(
+        'Email name must not include an email extension.',
+      );
     }
 
-    const base = extension.replace(/^@/, '').replace(/\.(student|educator)\./g, '.').trim();
+    const base = extension
+      .replace(/^@/, '')
+      .replace(/\.(student|educator)\./g, '.')
+      .trim();
     const dotIdx = base.indexOf('.');
-    const domain = dotIdx >= 0
-      ? `${base.slice(0, dotIdx)}.educator${base.slice(dotIdx)}`
-      : `educator.${base}`;
+    const domain =
+      dotIdx >= 0
+        ? `${base.slice(0, dotIdx)}.educator${base.slice(dotIdx)}`
+        : `educator.${base}`;
 
     return `${localPart}@${domain}`.toLowerCase();
   }
 
   // ── POST /educators/bulk ─────────────────────────────────────────────────────
 
-  async bulkCreate(orgId: string, entries: Array<{ fullName: string; id: string }>) {
-    const sanitized = entries.map((e) => ({
-      fullName: this.sanitizeName(e.fullName),
-      id: e.id.trim(),
-    })).filter((e) => e.fullName.length >= 2 && e.id.length >= 1);
+  async bulkCreate(
+    orgId: string,
+    entries: Array<{ fullName: string; id: string }>,
+  ) {
+    const sanitized = entries
+      .map((e) => ({
+        fullName: this.sanitizeName(e.fullName),
+        id: e.id.trim(),
+      }))
+      .filter((e) => e.fullName.length >= 2 && e.id.length >= 1);
 
     if (sanitized.length === 0) {
       throw new BadRequestException('No valid entries provided.');
@@ -144,7 +155,10 @@ export class EducatorService {
 
     // Check for existing emails in batch
     const allEmails = withEmails.map((e) => e.email);
-    const existing = await this.educatorRepository.findEmailsInBatch(allEmails, orgId);
+    const existing = await this.educatorRepository.findEmailsInBatch(
+      allEmails,
+      orgId,
+    );
     if (existing.length > 0) {
       throw new ConflictException(
         `Emails already exist: ${existing.join(', ')}. Remove duplicates and retry.`,
@@ -153,7 +167,10 @@ export class EducatorService {
 
     // Create all accounts
     const created: Array<{
-      fullName: string; email: string; educatorId: string; plainPassword: string;
+      fullName: string;
+      email: string;
+      educatorId: string;
+      plainPassword: string;
     }> = [];
 
     for (const { fullName, email, id } of withEmails) {
@@ -177,7 +194,7 @@ export class EducatorService {
   private sanitizeName(name: string): string {
     return name
       .replace(/[^a-zA-Z\s]/g, '') // strip symbols and numbers
-      .replace(/\s+/g, ' ')        // collapse whitespace
+      .replace(/\s+/g, ' ') // collapse whitespace
       .trim();
   }
 
@@ -204,7 +221,9 @@ export class EducatorService {
       throw new NotFoundException('Educator not found.');
     }
 
-    return (await this.withClassCounts(orgId, [this.formatAccount(account)]))[0];
+    return (
+      await this.withClassCounts(orgId, [this.formatAccount(account)])
+    )[0];
   }
 
   // ── PATCH /educators/:id ────────────────────────────────────────────────────
@@ -223,7 +242,10 @@ export class EducatorService {
 
     // Guard: new email must be unique within org
     if (email && email !== account.email) {
-      const emailTaken = await this.educatorRepository.findByEmail(email, orgId);
+      const emailTaken = await this.educatorRepository.findByEmail(
+        email,
+        orgId,
+      );
       if (emailTaken) {
         throw new ConflictException(
           'An account with this email already exists in the organization.',
@@ -232,12 +254,14 @@ export class EducatorService {
     }
 
     const updated = await this.educatorRepository.updateProfile(id, {
-      fullName:     dto.fullName,
+      fullName: dto.fullName,
       email,
       profileImage: dto.profileImage,
     });
 
-    return (await this.withClassCounts(orgId, [this.formatAccount(updated)]))[0];
+    return (
+      await this.withClassCounts(orgId, [this.formatAccount(updated)])
+    )[0];
   }
 
   async updateStatus(id: string, orgId: string, dto: UpdateEducatorStatusDto) {
@@ -248,7 +272,9 @@ export class EducatorService {
     }
 
     const updated = await this.educatorRepository.updateStatus(id, dto.status);
-    return (await this.withClassCounts(orgId, [this.formatAccount(updated)]))[0];
+    return (
+      await this.withClassCounts(orgId, [this.formatAccount(updated)])
+    )[0];
   }
 
   /**
@@ -265,7 +291,8 @@ export class EducatorService {
 
     // Phase 3 hook: check for active classes
     const hasClasses = await this.classService.hasActiveClasses(id, orgId);
-    if (hasClasses) throw new ConflictException('Reassign all active classes first.');
+    if (hasClasses)
+      throw new ConflictException('Reassign all active classes first.');
 
     await this.educatorRepository.softDelete(id);
   }

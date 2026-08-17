@@ -13,17 +13,36 @@ export class AssessmentStudentController {
   constructor(private readonly service: AssessmentStudentService) {}
 
   @Get()
-  getAssessments(@Param('classId') classId: string, @CurrentUser('orgId') orgId: string, @CurrentUser('id') studentId: string) {
+  getAssessments(
+    @Param('classId') classId: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') studentId: string,
+  ) {
     return this.service.getAssessments(classId, orgId, studentId);
   }
 
   @Get(':id')
-  getAssessmentDetail(@Param('classId') classId: string, @Param('id') assessmentId: string, @CurrentUser('orgId') orgId: string, @CurrentUser('id') studentId: string) {
-    return this.service.getAssessmentDetail(classId, assessmentId, orgId, studentId);
+  getAssessmentDetail(
+    @Param('classId') classId: string,
+    @Param('id') assessmentId: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') studentId: string,
+  ) {
+    return this.service.getAssessmentDetail(
+      classId,
+      assessmentId,
+      orgId,
+      studentId,
+    );
   }
 
   @Get(':id/result')
-  getResult(@Param('classId') classId: string, @Param('id') assessmentId: string, @CurrentUser('orgId') orgId: string, @CurrentUser('id') studentId: string) {
+  getResult(
+    @Param('classId') classId: string,
+    @Param('id') assessmentId: string,
+    @CurrentUser('orgId') orgId: string,
+    @CurrentUser('id') studentId: string,
+  ) {
     return this.service.getResult(classId, assessmentId, orgId, studentId);
   }
 }

@@ -59,12 +59,16 @@ describe('ProfileService', () => {
 
   describe('getProfile', () => {
     it('returns the mapped profile for the account', async () => {
-      profileRepository.findAccountWithProfile.mockResolvedValue(accountWithProfile);
+      profileRepository.findAccountWithProfile.mockResolvedValue(
+        accountWithProfile,
+      );
       service = createService();
 
       const result = await service.getProfile('acc-1');
 
-      expect(profileRepository.findAccountWithProfile).toHaveBeenCalledWith('acc-1');
+      expect(profileRepository.findAccountWithProfile).toHaveBeenCalledWith(
+        'acc-1',
+      );
       expect(result).toEqual({
         id: 'acc-1',
         orgId: 'org-1',
@@ -83,7 +87,9 @@ describe('ProfileService', () => {
       profileRepository.findAccountWithProfile.mockResolvedValue(null);
       service = createService();
 
-      await expect(service.getProfile('nope')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.getProfile('nope')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
@@ -91,7 +97,9 @@ describe('ProfileService', () => {
     it('updates allowed fields and returns the refreshed profile', async () => {
       profileRepository.findByAccountId.mockResolvedValue({ id: 'p-1' });
       profileRepository.updateProfile.mockResolvedValue({ id: 'p-1' });
-      profileRepository.findAccountWithProfile.mockResolvedValue(accountWithProfile);
+      profileRepository.findAccountWithProfile.mockResolvedValue(
+        accountWithProfile,
+      );
       service = createService();
 
       const result = await service.updateProfile('acc-1', {
@@ -112,9 +120,9 @@ describe('ProfileService', () => {
       profileRepository.findByAccountId.mockResolvedValue(null);
       service = createService();
 
-      await expect(service.updateProfile('nope', { fullName: 'X' })).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.updateProfile('nope', { fullName: 'X' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

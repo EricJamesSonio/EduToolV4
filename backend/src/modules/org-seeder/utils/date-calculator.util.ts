@@ -1,16 +1,16 @@
-import type { SemesterTemplateDef } from '../data/semester-templates.data'
+import type { SemesterTemplateDef } from '../data/semester-templates.data';
 
 export interface ComputedTermDate {
-  termId:    string
-  startDate: Date
-  endDate:   Date
+  termId: string;
+  startDate: Date;
+  endDate: Date;
 }
 
 export interface ComputedSemesterDate {
-  name:      string
-  startDate: Date
-  endDate:   Date
-  terms:     ComputedTermDate[]
+  name: string;
+  startDate: Date;
+  endDate: Date;
+  terms: ComputedTermDate[];
 }
 
 /**
@@ -24,28 +24,29 @@ export interface ComputedSemesterDate {
  *                    order: semester[0].terms, semester[1].terms, ...
  */
 export function computeTermDates(
-  syStart:  Date,
-  syEnd:    Date,
+  syStart: Date,
+  syEnd: Date,
   template: SemesterTemplateDef,
-  termIds:  string[],
+  termIds: string[],
 ): ComputedTermDate[] {
-  const totalMs    = syEnd.getTime() - syStart.getTime()
-  const totalTerms = template.semesters.reduce((n, s) => n + s.terms.length, 0)
+  const totalMs = syEnd.getTime() - syStart.getTime();
+  const totalTerms = template.semesters.reduce((n, s) => n + s.terms.length, 0);
 
-  if (totalTerms === 0 || termIds.length !== totalTerms) return []
+  if (totalTerms === 0 || termIds.length !== totalTerms) return [];
 
-  const termDurationMs = Math.floor(totalMs / totalTerms)
-  const results: ComputedTermDate[] = []
+  const termDurationMs = Math.floor(totalMs / totalTerms);
+  const results: ComputedTermDate[] = [];
 
   termIds.forEach((termId, i) => {
-    const startDate = new Date(syStart.getTime() + i * termDurationMs)
+    const startDate = new Date(syStart.getTime() + i * termDurationMs);
     // Last term ends exactly on syEnd to avoid rounding gaps
-    const endDate   = i === totalTerms - 1
-      ? syEnd
-      : new Date(syStart.getTime() + (i + 1) * termDurationMs - 1)
+    const endDate =
+      i === totalTerms - 1
+        ? syEnd
+        : new Date(syStart.getTime() + (i + 1) * termDurationMs - 1);
 
-    results.push({ termId, startDate, endDate })
-  })
+    results.push({ termId, startDate, endDate });
+  });
 
-  return results
+  return results;
 }

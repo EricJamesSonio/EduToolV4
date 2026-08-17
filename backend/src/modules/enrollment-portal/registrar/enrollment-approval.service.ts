@@ -6,7 +6,11 @@
 // inside a single DB transaction so an approval either fully materializes
 // (Account + Profile + StudentSchoolYear + StudentProgramEnrollment +
 // status=approved) or rolls back — never halfway.
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { StudentService } from '@/modules/student/student.service';
 import { StudentEnrollmentService } from '@/modules/student-enrollment/student-enrollment.service';
@@ -33,7 +37,10 @@ export class EnrollmentApprovalService {
   ) {}
 
   async approve(orgId: string, actorId: string, applicationId: string) {
-    const app = await this.registrarRepo.findApplicationDetail(orgId, applicationId);
+    const app = await this.registrarRepo.findApplicationDetail(
+      orgId,
+      applicationId,
+    );
     if (!app) throw new NotFoundException('Application not found.');
 
     if (app.status !== 'pending') {
@@ -43,7 +50,8 @@ export class EnrollmentApprovalService {
     }
 
     const overflowAction =
-      app.enrollmentPeriod?.section_overflow_action ?? SectionOverflowAction.no_section;
+      app.enrollmentPeriod?.section_overflow_action ??
+      SectionOverflowAction.no_section;
 
     const fullName = [app.first_name, app.middle_name, app.last_name]
       .filter(Boolean)
@@ -63,10 +71,14 @@ export class EnrollmentApprovalService {
       });
 
       let target: { id: string; name: string; capacity: number } | null =
-        candidates.find((c) => c._count.studentEnrollments < c.capacity) ?? null;
+        candidates.find((c) => c._count.studentEnrollments < c.capacity) ??
+        null;
 
       if (!target) {
-        if (overflowAction === SectionOverflowAction.expand_capacity && candidates.length) {
+        if (
+          overflowAction === SectionOverflowAction.expand_capacity &&
+          candidates.length
+        ) {
           const full = candidates[0];
           const capacity = full._count.studentEnrollments + 1;
           await this.repo.expandSectionCapacityTx(tx, full.id, capacity);
@@ -80,7 +92,11 @@ export class EnrollmentApprovalService {
             strandId: app.strand_id,
             levelName: app.level?.name ?? 'Level',
           });
-          target = { id: created.id, name: created.name, capacity: created.capacity };
+          target = {
+            id: created.id,
+            name: created.name,
+            capacity: created.capacity,
+          };
         }
         // no_section (or unrecoverable) → leave section null and notify below.
       }
@@ -107,7 +123,10 @@ export class EnrollmentApprovalService {
       await this.enrollmentService.enrollStudent(
         app.school_year_id,
         orgId,
-        { student_id: account.id, notes: `Enrolled via portal application ${app.application_code}` },
+        {
+          student_id: account.id,
+          notes: `Enrolled via portal application ${app.application_code}`,
+        },
         actorId,
         tx,
       );
@@ -118,16 +137,21 @@ export class EnrollmentApprovalService {
         orgId,
         {
           program_id: app.program_id,
-          level_id:   app.level_id,
-          course_id:  app.course_id ?? undefined,
-          strand_id:  app.strand_id ?? undefined,
+          level_id: app.level_id,
+          course_id: app.course_id ?? undefined,
+          strand_id: app.strand_id ?? undefined,
           section_id: target?.id ?? undefined,
         },
         actorId,
         tx,
       );
 
-      const approved = await this.repo.approveInTx(tx, applicationId, actorId, account.id);
+      const approved = await this.repo.approveInTx(
+        tx,
+        applicationId,
+        actorId,
+        account.id,
+      );
 
       return { account, plainPassword, approved, section: target };
     });
@@ -136,7 +160,11 @@ export class EnrollmentApprovalService {
 
     // Best-effort post-transaction side effects — never block approval.
     this.mailService
-      .sendStudentCredentialsEmail(app.personal_email, result.account.email, result.plainPassword)
+      .sendStudentCredentialsEmail(
+        app.personal_email,
+        result.account.email,
+        result.plainPassword,
+      )
       .catch(() => {});
 
     if (!section) {
@@ -166,12 +194,15 @@ export class EnrollmentApprovalService {
     };
   }
 
-  private async notifyCapacityFull(orgId: string, app: {
-    personal_email: string;
-    application_code: string;
-    first_name: string;
-    last_name: string;
-  }) {
+  private async notifyCapacityFull(
+    orgId: string,
+    app: {
+      personal_email: string;
+      application_code: string;
+      first_name: string;
+      last_name: string;
+    },
+  ) {
     const registrars = await this.repo.findRegistrarAccounts(orgId);
     if (registrars.length === 0) return;
     await this.notificationService.createBulkNotifications(
@@ -192,7 +223,9 @@ export class EnrollmentApprovalService {
   }
 
   private buildEmailName(fullName: string, suffix: string) {
-    const slug = (fullName || 'student').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const slug = (fullName || 'student')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
     return `${slug || 'student'}${suffix.slice(0, 4)}`;
   }
 }

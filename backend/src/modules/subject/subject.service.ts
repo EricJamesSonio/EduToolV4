@@ -18,34 +18,37 @@ import {
 export class SubjectService {
   constructor(private readonly subjectRepository: SubjectRepository) {}
 
-private mapToResponse(subject: any) {
-  return {
-    id:           subject.id,
-    orgId:        subject.org_id,
-    title:        subject.name,
-    subjectType:  subject.subject_type ?? 'major',
-    programId:    subject.program_id ?? null,
-    programName:  subject.program?.name ?? null,
-    programType:  subject.program?.type ?? null,
-    realProgramId: subject.program_id ?? null,
-    levelId:      subject.level_id ?? null,
-    levelName:    subject.levelName ?? null,
-    courseId:     subject.course_id ?? null,
-    courseName:   subject.courseName ?? null,
-    strandId:     subject.strand_id ?? null,
-    strandName:   subject.strandName ?? null,
-    lockStatus:   subject.is_locked ? 'locked' : 'unlocked',
-    yearLevel:    subject.year_level ?? null,
-    termLabel:    subject.term_label ?? null,
-    prerequisites: subject.prerequisites ?? [],
-    prereqFor:     subject.prereqFor ?? [],
-    sharings:      subject.sharings ?? [],
-    createdAt:     subject.created_at ?? null,
-    updatedAt:     subject.updated_at ?? null,
-  };
-}
+  private mapToResponse(subject: any) {
+    return {
+      id: subject.id,
+      orgId: subject.org_id,
+      title: subject.name,
+      subjectType: subject.subject_type ?? 'major',
+      programId: subject.program_id ?? null,
+      programName: subject.program?.name ?? null,
+      programType: subject.program?.type ?? null,
+      realProgramId: subject.program_id ?? null,
+      levelId: subject.level_id ?? null,
+      levelName: subject.levelName ?? null,
+      courseId: subject.course_id ?? null,
+      courseName: subject.courseName ?? null,
+      strandId: subject.strand_id ?? null,
+      strandName: subject.strandName ?? null,
+      lockStatus: subject.is_locked ? 'locked' : 'unlocked',
+      yearLevel: subject.year_level ?? null,
+      termLabel: subject.term_label ?? null,
+      prerequisites: subject.prerequisites ?? [],
+      prereqFor: subject.prereqFor ?? [],
+      sharings: subject.sharings ?? [],
+      createdAt: subject.created_at ?? null,
+      updatedAt: subject.updated_at ?? null,
+    };
+  }
 
-  private validateSubjectScope(dto: CreateSubjectDto, programType: string): void {
+  private validateSubjectScope(
+    dto: CreateSubjectDto,
+    programType: string,
+  ): void {
     const type = dto.subjectType ?? 'major';
 
     if (type === 'major') {
@@ -65,47 +68,48 @@ private mapToResponse(subject: any) {
     }
 
     if (type === 'minor' && !dto.levelId) {
-      throw new BadRequestException(
-        'Minor subjects must specify a levelId.',
-      );
+      throw new BadRequestException('Minor subjects must specify a levelId.');
     }
   }
 
   async create(orgId: string, dto: CreateSubjectDto) {
-    const program = await this.subjectRepository.findProgramById(dto.programId, orgId);
+    const program = await this.subjectRepository.findProgramById(
+      dto.programId,
+      orgId,
+    );
     if (!program) throw new NotFoundException('Program not found.');
 
     this.validateSubjectScope(dto, program.type);
 
     const subject = await this.subjectRepository.create({
       orgId,
-      name:        dto.name,
+      name: dto.name,
       subjectType: dto.subjectType,
-      programId:   dto.programId,
-      levelId:     dto.levelId,
-      courseId:    dto.courseId,
-      strandId:    dto.strandId,
-      yearLevel:   dto.yearLevel,
-      termLabel:   dto.termLabel,
+      programId: dto.programId,
+      levelId: dto.levelId,
+      courseId: dto.courseId,
+      strandId: dto.strandId,
+      yearLevel: dto.yearLevel,
+      termLabel: dto.termLabel,
     });
     return this.mapToResponse(subject);
   }
 
   async findAll(orgId: string, query: QuerySubjectDto) {
-    const page  = query.page ?? 1;
+    const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
     const { data, total } = await this.subjectRepository.findAll(orgId, {
       schoolYearId: query.schoolYearId,
-      programId:    query.programId,
-      levelId:      query.levelId,
-      search:       query.search,
-      courseId:     query.courseId,
-      strandId:     query.strandId,
-      scope:        query.scope,
-      yearLevel:    query.yearLevel,
-      termLabel:    query.termLabel,
-      subjectType:  query.subjectType,
+      programId: query.programId,
+      levelId: query.levelId,
+      search: query.search,
+      courseId: query.courseId,
+      strandId: query.strandId,
+      scope: query.scope,
+      yearLevel: query.yearLevel,
+      termLabel: query.termLabel,
+      subjectType: query.subjectType,
       page,
       limit,
     });
@@ -149,9 +153,9 @@ private mapToResponse(subject: any) {
       this.validateSubjectScope(
         {
           subjectType: dto.subjectType ?? subject.subject_type,
-          courseId:    dto.courseId,
-          strandId:    dto.strandId,
-          levelId:     dto.levelId,
+          courseId: dto.courseId,
+          strandId: dto.strandId,
+          levelId: dto.levelId,
         } as CreateSubjectDto,
         program.type,
       );
@@ -164,11 +168,10 @@ private mapToResponse(subject: any) {
     }
 
     const updated = await this.subjectRepository.update(id, {
-      name:        dto.name,
+      name: dto.name,
       subjectType: dto.subjectType,
-      programId:   programChanged ? dto.programId : undefined,
-      levelId:
-        scopeChanged && dto.levelId === undefined ? null : dto.levelId,
+      programId: programChanged ? dto.programId : undefined,
+      levelId: scopeChanged && dto.levelId === undefined ? null : dto.levelId,
       courseId:
         scopeChanged && dto.courseId === undefined ? null : dto.courseId,
       strandId:
@@ -181,16 +184,18 @@ private mapToResponse(subject: any) {
 
   async lock(id: string, orgId: string) {
     const subject = await this.subjectRepository.findById(id, orgId);
-    if (!subject)         throw new NotFoundException('Subject not found.');
-    if (subject.is_locked) throw new BadRequestException('Subject is already locked.');
+    if (!subject) throw new NotFoundException('Subject not found.');
+    if (subject.is_locked)
+      throw new BadRequestException('Subject is already locked.');
     const updated = await this.subjectRepository.setLocked(id, true);
     return this.mapToResponse(updated);
   }
 
   async unlock(id: string, orgId: string) {
     const subject = await this.subjectRepository.findById(id, orgId);
-    if (!subject)          throw new NotFoundException('Subject not found.');
-    if (!subject.is_locked) throw new BadRequestException('Subject is already unlocked.');
+    if (!subject) throw new NotFoundException('Subject not found.');
+    if (!subject.is_locked)
+      throw new BadRequestException('Subject is already unlocked.');
     const updated = await this.subjectRepository.setLocked(id, false);
     return this.mapToResponse(updated);
   }
@@ -204,77 +209,86 @@ private mapToResponse(subject: any) {
   }
 
   async share(id: string, orgId: string, dto: ShareSubjectDto) {
-    const targets = [dto.courseId, dto.strandId, dto.levelId].filter(Boolean)
+    const targets = [dto.courseId, dto.strandId, dto.levelId].filter(Boolean);
     if (targets.length !== 1) {
       throw new BadRequestException(
         'Exactly one of courseId, strandId, or levelId must be provided.',
-      )
+      );
     }
 
     // Get raw data first for validation (need unmapped properties)
-    const rawSubject = await this.subjectRepository.findById(id, orgId)
-    if (!rawSubject) throw new NotFoundException('Subject not found.')
+    const rawSubject = await this.subjectRepository.findById(id, orgId);
+    if (!rawSubject) throw new NotFoundException('Subject not found.');
 
     // Now check the actual properties on the raw subject object
     // Note: findById returns mapped response, so we need to check unmapped properties
     // The repository returns mapped data, so we need to be careful here
-    
+
     if (rawSubject.subjectType !== 'minor') {
-      throw new BadRequestException('Only minor subjects can be shared.')
+      throw new BadRequestException('Only minor subjects can be shared.');
     }
 
     if (!rawSubject.programId) {
       throw new BadRequestException(
         'Minor subject must have a programId before sharing.',
-      )
+      );
     }
 
     if (!rawSubject.levelId) {
       throw new BadRequestException(
         'Minor subject must have a levelId before sharing.',
-      )
+      );
     }
 
     if (dto.courseId) {
-      const course = await this.subjectRepository.findCourseById(dto.courseId, orgId)
-      if (!course) throw new NotFoundException('Course not found.')
+      const course = await this.subjectRepository.findCourseById(
+        dto.courseId,
+        orgId,
+      );
+      if (!course) throw new NotFoundException('Course not found.');
       if (course.program_id !== rawSubject.programId) {
         throw new BadRequestException(
           'Target course does not belong to the same program as this subject.',
-        )
+        );
       }
     }
 
     if (dto.strandId) {
-      const strand = await this.subjectRepository.findStrandById(dto.strandId, orgId)
-      if (!strand) throw new NotFoundException('Strand not found.')
+      const strand = await this.subjectRepository.findStrandById(
+        dto.strandId,
+        orgId,
+      );
+      if (!strand) throw new NotFoundException('Strand not found.');
       if (strand.program_id !== rawSubject.programId) {
         throw new BadRequestException(
           'Target strand does not belong to the same program as this subject.',
-        )
+        );
       }
     }
 
     if (dto.levelId) {
-      const level = await this.subjectRepository.findLevelById(dto.levelId, orgId)
-      if (!level) throw new NotFoundException('Level not found.')
+      const level = await this.subjectRepository.findLevelById(
+        dto.levelId,
+        orgId,
+      );
+      if (!level) throw new NotFoundException('Level not found.');
       if (level.program_id !== rawSubject.programId) {
         throw new BadRequestException(
           'Target level does not belong to the same program as this subject.',
-        )
+        );
       }
       if (dto.levelId !== rawSubject.levelId) {
         throw new BadRequestException(
           'Minor subject can only be shared to its own level.',
-        )
+        );
       }
     }
 
     return this.subjectRepository.addSharing(id, orgId, {
       courseId: dto.courseId,
       strandId: dto.strandId,
-      levelId:  dto.levelId,
-    })
+      levelId: dto.levelId,
+    });
   }
 
   async unshare(id: string, sharingId: string, orgId: string) {

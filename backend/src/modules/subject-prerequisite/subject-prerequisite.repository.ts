@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common'
-import { DatabaseService } from '@/core/database/database.provider'
-import { CreatePrerequisiteDto } from './dto/subject-prerequisite.dto'
+import { Injectable } from '@nestjs/common';
+import { DatabaseService } from '@/core/database/database.provider';
+import { CreatePrerequisiteDto } from './dto/subject-prerequisite.dto';
 
 @Injectable()
 export class SubjectPrerequisiteRepository {
@@ -13,10 +13,14 @@ export class SubjectPrerequisiteRepository {
         subject_id: dto.subject_id,
         prerequisite_id: dto.prerequisite_id,
       },
-    })
+    });
   }
 
-  async bulkCreate(org_id: string, subject_id: string, prerequisite_ids: string[]) {
+  async bulkCreate(
+    org_id: string,
+    subject_id: string,
+    prerequisite_ids: string[],
+  ) {
     return this.db.subjectPrerequisite.createMany({
       data: prerequisite_ids.map((prerequisite_id) => ({
         org_id,
@@ -24,7 +28,7 @@ export class SubjectPrerequisiteRepository {
         prerequisite_id,
       })),
       skipDuplicates: true,
-    })
+    });
   }
 
   async findBySubject(subject_id: string, org_id: string) {
@@ -35,23 +39,23 @@ export class SubjectPrerequisiteRepository {
           select: { id: true, name: true, year_level: true, term_label: true },
         },
       },
-    })
+    });
   }
 
   async findOne(subject_id: string, prerequisite_id: string, org_id: string) {
     return this.db.subjectPrerequisite.findFirst({
       where: { subject_id, prerequisite_id, org_id },
-    })
+    });
   }
 
   async delete(id: string) {
-    return this.db.subjectPrerequisite.delete({ where: { id } })
+    return this.db.subjectPrerequisite.delete({ where: { id } });
   }
 
   async deleteAllForSubject(subject_id: string, org_id: string) {
     return this.db.subjectPrerequisite.deleteMany({
       where: { subject_id, org_id },
-    })
+    });
   }
 
   // Fetch all prerequisite subjects + the student's Grade records for them in one query
@@ -70,11 +74,11 @@ export class SubjectPrerequisiteRepository {
           },
         },
       },
-    })
+    });
 
-    if (prereqs.length === 0) return []
+    if (prereqs.length === 0) return [];
 
-    const prerequisiteSubjectIds = prereqs.map((p) => p.prerequisite_id)
+    const prerequisiteSubjectIds = prereqs.map((p) => p.prerequisite_id);
 
     // Find classes the student was enrolled in that used those subjects
     const grades = await this.db.grade.findMany({
@@ -91,12 +95,13 @@ export class SubjectPrerequisiteRepository {
           select: { subject_id: true },
         },
       },
-    })
+    });
 
     return prereqs.map((p) => ({
       subject_id: p.prerequisite_id,
       subject_name: p.prerequisite.name,
-      grade: grades.find((g) => g.class.subject_id === p.prerequisite_id) ?? null,
-    }))
+      grade:
+        grades.find((g) => g.class.subject_id === p.prerequisite_id) ?? null,
+    }));
   }
 }

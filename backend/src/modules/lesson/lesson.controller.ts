@@ -13,7 +13,11 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { LessonService } from './lesson.service';
-import { CreateLessonDto, UpdateLessonDto, QueryLessonDto } from './dto/lesson.dto';
+import {
+  CreateLessonDto,
+  UpdateLessonDto,
+  QueryLessonDto,
+} from './dto/lesson.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
@@ -51,14 +55,14 @@ export class LessonController {
   }
 
   @Get('week-structure')
-@Roles('educator', 'student')
-getWeekStructure(
-  @Param('classId') classId: string,
-  @CurrentUser('org_id') orgId: string,
-  @CurrentUser('id') educatorId: string,
-) {
-  return this.lessonService.getWeekStructure(classId, orgId, educatorId);
-}
+  @Roles('educator', 'student')
+  getWeekStructure(
+    @Param('classId') classId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.lessonService.getWeekStructure(classId, orgId, educatorId);
+  }
 
   // GET /classes/:classId/lessons/:id
   @Get(':id')
@@ -105,8 +109,6 @@ getWeekStructure(
   ) {
     return this.lessonService.getConcept(id, orgId, educatorId);
   }
-
-
 
   // POST /classes/:classId/lessons/:id/re-extract
   @Post(':id/re-extract')
@@ -167,6 +169,11 @@ export class StudentLessonController {
     @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') studentId: string,
   ) {
-    return this.lessonService.getStudentLesson(classId, lessonId, studentId, orgId);
+    return this.lessonService.getStudentLesson(
+      classId,
+      lessonId,
+      studentId,
+      orgId,
+    );
   }
 }

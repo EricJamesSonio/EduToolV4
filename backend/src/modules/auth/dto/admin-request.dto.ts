@@ -1,10 +1,5 @@
 // src/modules/auth/dto/admin-request.dto.ts
-import {
-  IsString,
-  IsNotEmpty,
-  MinLength,
-  IsOptional,
-} from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, IsOptional } from 'class-validator';
 import { IsGmailAddress } from '@/commons/validators/is-gmail-address.validator';
 
 export class SendAdminRequestOtpDto {

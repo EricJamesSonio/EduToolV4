@@ -109,7 +109,12 @@ describe('AnalyticsService', () => {
 
     const result = await service.getEnrollmentBreakdown('org1', 'sy1');
 
-    expect(repo.getEnrollmentBreakdown).toHaveBeenCalledWith('org1', 'sy1', 1, 20);
+    expect(repo.getEnrollmentBreakdown).toHaveBeenCalledWith(
+      'org1',
+      'sy1',
+      1,
+      20,
+    );
     expect(result.meta.total).toBe(1);
     expect(result.data).toHaveLength(1);
     expect(result.data[0].levelSection).toBe('Grade 1 - A');
@@ -120,7 +125,7 @@ describe('AnalyticsService', () => {
   it('should return empty analytics if no grades', async () => {
     repo.getLockedGrades.mockResolvedValue([]);
 
-    const result = await service.getGradeAnalytics('org1', {} as any, 'sy1');
+    const result = await service.getGradeAnalytics('org1', {}, 'sy1');
 
     expect(result).toEqual({
       passingRate: 0,
@@ -135,7 +140,7 @@ describe('AnalyticsService', () => {
       { final_score: 90, final_grade: 'A' },
     ]);
 
-    const result = await service.getGradeAnalytics('org1', {} as any, 'sy1');
+    const result = await service.getGradeAnalytics('org1', {}, 'sy1');
 
     expect(result.passingRate).toBeCloseTo(2 / 3);
     expect(result.distribution).toEqual({

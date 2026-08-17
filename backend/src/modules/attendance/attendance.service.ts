@@ -25,7 +25,10 @@ export class AttendanceService {
   // =========================================================
   // 🔥 MAIN FIXED GENERATOR (SYNCED WITH LESSON LOGIC)
   // =========================================================
-  async generateSessionsForClass(classId: string, orgId: string): Promise<void> {
+  async generateSessionsForClass(
+    classId: string,
+    orgId: string,
+  ): Promise<void> {
     const cls = await this.db.class.findUnique({
       where: { id: classId },
       include: { schedules: true },
@@ -115,16 +118,16 @@ export class AttendanceService {
     // ── Scope to the class's semester only ──────────────────────────────
     // Find which template semester matches the class's actual semester
     // by checking date-range overlap.
-    let classSemesterStart: Date | null = null
-    let classSemesterEnd: Date | null = null
+    let classSemesterStart: Date | null = null;
+    let classSemesterEnd: Date | null = null;
     if (cls.semester_id) {
       const actualSem = await this.db.semester.findUnique({
         where: { id: cls.semester_id },
         select: { start_date: true, end_date: true },
-      })
+      });
       if (actualSem) {
-        classSemesterStart = actualSem.start_date
-        classSemesterEnd = actualSem.end_date
+        classSemesterStart = actualSem.start_date;
+        classSemesterEnd = actualSem.end_date;
       }
     }
 
@@ -137,16 +140,24 @@ export class AttendanceService {
       if (classSemesterStart && classSemesterEnd) {
         const semTermDates = (sem.terms ?? [])
           .map((t: any) => termDatesMap.get(t.id))
-          .filter(Boolean) as Array<{ start: Date; end: Date }>
+          .filter(Boolean) as Array<{ start: Date; end: Date }>;
 
-        const semStart = semTermDates.length > 0
-          ? new Date(Math.min(...semTermDates.map((d) => d.start.getTime())))
-          : null
-        const semEnd = semTermDates.length > 0
-          ? new Date(Math.max(...semTermDates.map((d) => d.end.getTime())))
-          : null
+        const semStart =
+          semTermDates.length > 0
+            ? new Date(Math.min(...semTermDates.map((d) => d.start.getTime())))
+            : null;
+        const semEnd =
+          semTermDates.length > 0
+            ? new Date(Math.max(...semTermDates.map((d) => d.end.getTime())))
+            : null;
 
-        if (!semStart || !semEnd || semEnd < classSemesterStart || semStart > classSemesterEnd) continue
+        if (
+          !semStart ||
+          !semEnd ||
+          semEnd < classSemesterStart ||
+          semStart > classSemesterEnd
+        )
+          continue;
       }
 
       const terms = sem.terms ?? [];
@@ -182,9 +193,7 @@ export class AttendanceService {
     if (sessions.length > 0) {
       await this.attendanceRepo.createManySessions(sessions);
       await this.lessonService.syncLessonsFromAttendance(classId, orgId);
-      
     }
-    
   }
 
   // =========================================================
@@ -214,10 +223,7 @@ export class AttendanceService {
       const acc = accountsMap.get(e.student_id);
       return {
         id: e.student_id,
-        name:
-          acc?.profile?.full_name ??
-          acc?.email?.split('@')[0] ??
-          'Unknown',
+        name: acc?.profile?.full_name ?? acc?.email?.split('@')[0] ?? 'Unknown',
         code: acc?.email?.split('@')[0] ?? e.student_id.slice(0, 8),
       };
     });

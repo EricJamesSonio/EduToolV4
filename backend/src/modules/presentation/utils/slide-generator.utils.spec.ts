@@ -25,7 +25,9 @@ describe('splitIntoSentences', () => {
   });
 
   it('preserves e.g. and i.e. abbreviations', () => {
-    const result = splitIntoSentences('Some colors (e.g. red, blue) are nice. They are primary.');
+    const result = splitIntoSentences(
+      'Some colors (e.g. red, blue) are nice. They are primary.',
+    );
     expect(result).toEqual([
       'Some colors (e.g. red, blue) are nice.',
       'They are primary.',
@@ -46,15 +48,23 @@ describe('splitIntoSentences', () => {
   });
 
   it('handles a single sentence without trailing punctuation', () => {
-    expect(splitIntoSentences('Just one sentence')).toEqual(['Just one sentence']);
+    expect(splitIntoSentences('Just one sentence')).toEqual([
+      'Just one sentence',
+    ]);
   });
 
   it('normalizes excess whitespace', () => {
-    expect(splitIntoSentences('Hello.    World.')).toEqual(['Hello.', 'World.']);
+    expect(splitIntoSentences('Hello.    World.')).toEqual([
+      'Hello.',
+      'World.',
+    ]);
   });
 
   it('handles newlines as whitespace', () => {
-    expect(splitIntoSentences('Line one.\nLine two.')).toEqual(['Line one.', 'Line two.']);
+    expect(splitIntoSentences('Line one.\nLine two.')).toEqual([
+      'Line one.',
+      'Line two.',
+    ]);
   });
 
   it('handles ellipsis without false split', () => {
@@ -85,7 +95,9 @@ describe('detectTitle', () => {
   });
 
   it('returns false for very long lines (>8 words)', () => {
-    expect(detectTitle('This is a very long title that exceeds eight words easily')).toBe(false);
+    expect(
+      detectTitle('This is a very long title that exceeds eight words easily'),
+    ).toBe(false);
   });
 
   it('returns true for a single capitalized word', () => {
@@ -124,7 +136,11 @@ describe('groupIntoSlides', () => {
   });
 
   it('splits into multiple slides when word limit is exceeded', () => {
-    const sentences = Array.from({ length: 5 }, () => 'This is a ten word sentence that will add up quickly over the limit.');
+    const sentences = Array.from(
+      { length: 5 },
+      () =>
+        'This is a ten word sentence that will add up quickly over the limit.',
+    );
     const slides = groupIntoSlides(sentences, MAX_WORDS);
     expect(slides.length).toBeGreaterThan(1);
   });
@@ -194,7 +210,8 @@ describe('groupIntoSlides', () => {
 
 describe('parseSections', () => {
   it('parses ## headings into sections', () => {
-    const detail = '## Overview\nSome overview content.\n## Details\nSpecific details here.';
+    const detail =
+      '## Overview\nSome overview content.\n## Details\nSpecific details here.';
     const sections = parseSections(detail);
     expect(sections).toHaveLength(2);
     expect(sections[0].heading).toBe('Overview');
@@ -275,7 +292,8 @@ describe('generateSlidesFromLesson', () => {
     const lesson = {
       title: 'Lesson',
       description: 'Desc.',
-      detail: '## Intro\nIntroduction content here.\n## Core\nCore content here.',
+      detail:
+        '## Intro\nIntroduction content here.\n## Core\nCore content here.',
     };
     const slides = generateSlidesFromLesson(lesson, MAX_WORDS);
     const contentSlides = slides.filter((s) => s.lessonSection !== 'title');
@@ -288,10 +306,17 @@ describe('generateSlidesFromLesson', () => {
     const lesson = {
       title: 'Lesson',
       description: 'Desc.',
-      detail: '## Long Section\n' + Array.from({ length: 10 }, () => 'This is a short sentence with few words.').join(' '),
+      detail:
+        '## Long Section\n' +
+        Array.from(
+          { length: 10 },
+          () => 'This is a short sentence with few words.',
+        ).join(' '),
     };
     const slides = generateSlidesFromLesson(lesson, 20);
-    const sectionSlides = slides.filter((s) => s.lessonSection === 'long_section');
+    const sectionSlides = slides.filter(
+      (s) => s.lessonSection === 'long_section',
+    );
     expect(sectionSlides.length).toBeGreaterThan(1);
   });
 

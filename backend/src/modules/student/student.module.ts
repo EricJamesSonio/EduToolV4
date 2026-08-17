@@ -8,13 +8,16 @@ import { StudentRepository } from './student.repository';
 import { SectionModule } from '@/modules/section/section.module';
 import { ClassModule } from '../class/class.module';
 import { EnrollmentRepository } from '../enrollment/enrollment.repository';
-import { AuditLogModule } from '../audit-log/audit-log.module'
+import { AuditLogModule } from '../audit-log/audit-log.module';
 import { OrganizationModule } from '../organization/organization.module';
 
 @Module({
   imports: [
     MulterModule.register({ storage: memoryStorage() }),
-    SectionModule, ClassModule, AuditLogModule, OrganizationModule,
+    SectionModule,
+    ClassModule,
+    AuditLogModule,
+    OrganizationModule,
   ],
   controllers: [StudentController],
   providers: [StudentService, StudentRepository, EnrollmentRepository],

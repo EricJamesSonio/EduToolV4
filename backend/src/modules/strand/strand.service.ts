@@ -1,7 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
-import { StrandRepository } from './strand.repository'
-import { CreateStrandDto, UpdateStrandDto, StrandQueryDto } from './dto/strand.dto'
-import { StrandEntity, StrandSubjectEntity, StrandSubjectPrerequisiteEntity } from './entity/strand.entity'
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { StrandRepository } from './strand.repository';
+import {
+  CreateStrandDto,
+  UpdateStrandDto,
+  StrandQueryDto,
+} from './dto/strand.dto';
+import {
+  StrandEntity,
+  StrandSubjectEntity,
+  StrandSubjectPrerequisiteEntity,
+} from './entity/strand.entity';
 
 @Injectable()
 export class StrandService {
@@ -9,58 +17,72 @@ export class StrandService {
 
   private mapToEntity(raw: Record<string, any>): StrandEntity {
     return {
-      id:        raw.id as string,
-      orgId:     raw.org_id as string,
+      id: raw.id as string,
+      orgId: raw.org_id as string,
       programId: raw.program_id as string,
-      name:      raw.name as string,
+      name: raw.name as string,
       createdAt: raw.created_at as Date | undefined,
       subjects: Array.isArray(raw.subjects)
-        ? raw.subjects.map((s: Record<string, any>): StrandSubjectEntity => ({
-            id:        s.id as string,
-            name:      s.name as string,
-            yearLevel: s.year_level as number,
-            termLabel: s.term_label as string,
-            prerequisites: Array.isArray(s.prerequisites)
-              ? s.prerequisites.map((p: Record<string, any>): StrandSubjectPrerequisiteEntity => ({
-                  prerequisite: {
-                    id:   p.prerequisite?.id as string,
-                    name: p.prerequisite?.name as string,
-                  },
-                }))
-              : undefined,
-          }))
+        ? raw.subjects.map(
+            (s: Record<string, any>): StrandSubjectEntity => ({
+              id: s.id as string,
+              name: s.name as string,
+              yearLevel: s.year_level as number,
+              termLabel: s.term_label as string,
+              prerequisites: Array.isArray(s.prerequisites)
+                ? s.prerequisites.map(
+                    (
+                      p: Record<string, any>,
+                    ): StrandSubjectPrerequisiteEntity => ({
+                      prerequisite: {
+                        id: p.prerequisite?.id as string,
+                        name: p.prerequisite?.name as string,
+                      },
+                    }),
+                  )
+                : undefined,
+            }),
+          )
         : undefined,
-    }
+    };
   }
 
   async create(orgId: string, dto: CreateStrandDto): Promise<StrandEntity> {
-    const raw = await this.strandRepository.create(orgId, dto)
-    return this.mapToEntity(raw as Record<string, any>)
+    const raw = await this.strandRepository.create(orgId, dto);
+    return this.mapToEntity(raw as Record<string, any>);
   }
 
   async findAll(orgId: string, query: StrandQueryDto): Promise<StrandEntity[]> {
-    if (!query.schoolYearId) return []
-    const rows = await this.strandRepository.findAll(orgId, query.schoolYearId, query.program_id)
-    return rows.map((r) => this.mapToEntity(r as Record<string, any>))
+    if (!query.schoolYearId) return [];
+    const rows = await this.strandRepository.findAll(
+      orgId,
+      query.schoolYearId,
+      query.program_id,
+    );
+    return rows.map((r) => this.mapToEntity(r as Record<string, any>));
   }
 
   async findOne(id: string, orgId: string): Promise<StrandEntity> {
-    const raw = await this.strandRepository.findOne(id, orgId)
-    if (!raw) throw new NotFoundException('Strand not found')
-    return this.mapToEntity(raw as Record<string, any>)
+    const raw = await this.strandRepository.findOne(id, orgId);
+    if (!raw) throw new NotFoundException('Strand not found');
+    return this.mapToEntity(raw as Record<string, any>);
   }
 
-  async update(id: string, orgId: string, dto: UpdateStrandDto): Promise<StrandEntity> {
-    const exists = await this.strandRepository.existsInOrg(id, orgId)
-    if (!exists) throw new NotFoundException('Strand not found')
-    const raw = await this.strandRepository.update(id, orgId, dto)
-    return this.mapToEntity(raw as Record<string, any>)
+  async update(
+    id: string,
+    orgId: string,
+    dto: UpdateStrandDto,
+  ): Promise<StrandEntity> {
+    const exists = await this.strandRepository.existsInOrg(id, orgId);
+    if (!exists) throw new NotFoundException('Strand not found');
+    const raw = await this.strandRepository.update(id, orgId, dto);
+    return this.mapToEntity(raw as Record<string, any>);
   }
 
   async remove(id: string, orgId: string): Promise<{ deleted: boolean }> {
-    const exists = await this.strandRepository.existsInOrg(id, orgId)
-    if (!exists) throw new NotFoundException('Strand not found')
-    await this.strandRepository.delete(id, orgId)
-    return { deleted: true }
+    const exists = await this.strandRepository.existsInOrg(id, orgId);
+    if (!exists) throw new NotFoundException('Strand not found');
+    await this.strandRepository.delete(id, orgId);
+    return { deleted: true };
   }
 }

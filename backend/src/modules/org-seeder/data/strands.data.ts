@@ -9,6 +9,6 @@ export const SHS_STRAND_DEFS = [
   { name: 'Agri-Fishery' },
   { name: 'Sports' },
   { name: 'Arts and Design' },
-]
+];
 
-export const SHS_STRANDS = SHS_STRAND_DEFS.map((s) => s.name)
+export const SHS_STRANDS = SHS_STRAND_DEFS.map((s) => s.name);

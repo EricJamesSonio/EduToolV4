@@ -24,7 +24,7 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 @Controller('levels')
 @UseGuards(AuthGuard, RolesGuard)
 export class LevelController {
-  constructor(private readonly levelService: LevelService) { }
+  constructor(private readonly levelService: LevelService) {}
 
   @Post('add-next')
   @Roles('admin')
@@ -32,7 +32,11 @@ export class LevelController {
     @CurrentUser('org_id') orgId: string,
     @Body() dto: { programId: string; schoolYearId: string },
   ) {
-    return this.levelService.addNextLevel(orgId, dto.programId, dto.schoolYearId);
+    return this.levelService.addNextLevel(
+      orgId,
+      dto.programId,
+      dto.schoolYearId,
+    );
   }
 
   @Post('bulk-generate')
@@ -51,17 +55,29 @@ export class LevelController {
   ) {
     // Filter by course if courseId is provided
     if (query.courseId && query.schoolYearId) {
-      return this.levelService.getByCourse(orgId, query.schoolYearId, query.courseId);
+      return this.levelService.getByCourse(
+        orgId,
+        query.schoolYearId,
+        query.courseId,
+      );
     }
 
     // Filter by strand if strandId is provided
     if (query.strandId && query.schoolYearId) {
-      return this.levelService.getByStrand(orgId, query.schoolYearId, query.strandId);
+      return this.levelService.getByStrand(
+        orgId,
+        query.schoolYearId,
+        query.strandId,
+      );
     }
 
     // Filter by program (only program-scoped levels, not course/strand scoped)
     if (query.programId && query.schoolYearId) {
-      return this.levelService.getByProgram(orgId, query.programId, query.schoolYearId);
+      return this.levelService.getByProgram(
+        orgId,
+        query.programId,
+        query.schoolYearId,
+      );
     }
 
     // Otherwise, return all levels for school year (or all if no school year)

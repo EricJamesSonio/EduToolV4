@@ -252,6 +252,23 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
 
+  frontend-unit-tests:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run test -- --ci
+
   frontend-build:
     needs: [changes, frontend-lint, frontend-typecheck]
     if: needs.changes.outputs.frontend == 'true'
@@ -284,6 +301,7 @@ jobs:
       - backend-e2e-tests
       - frontend-lint
       - frontend-typecheck
+      - frontend-unit-tests
       - frontend-build
     runs-on: ubuntu-latest
     steps:
@@ -297,6 +315,7 @@ jobs:
             "${{ needs.backend-e2e-tests.result }}" \
             "${{ needs.frontend-lint.result }}" \
             "${{ needs.frontend-typecheck.result }}" \
+            "${{ needs.frontend-unit-tests.result }}" \
             "${{ needs.frontend-build.result }}"; do
             if [[ "$result" != "success" && "$result" != "skipped" ]]; then
               echo "A required job did not succeed (result: $result)"

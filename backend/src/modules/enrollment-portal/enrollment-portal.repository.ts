@@ -136,7 +136,12 @@ export class EnrollmentPortalRepository {
     levelId: string,
   ) {
     return this.db.level.findFirst({
-      where: { id: levelId, org_id: orgId, school_year_id: schoolYearId, program_id: programId },
+      where: {
+        id: levelId,
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        program_id: programId,
+      },
       select: { id: true, course_id: true, strand_id: true },
     });
   }
@@ -262,7 +267,10 @@ export class EnrollmentPortalRepository {
   findApplicationForLookup(code: string, email?: string) {
     return this.db.enrollmentApplication.findMany({
       where: email
-        ? { application_code: code, personal_email: { equals: email, mode: 'insensitive' } }
+        ? {
+            application_code: code,
+            personal_email: { equals: email, mode: 'insensitive' },
+          }
         : { application_code: code },
       orderBy: { created_at: 'desc' },
       select: {

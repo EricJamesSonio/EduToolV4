@@ -1,6 +1,13 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common'
-import { GradeLockRepository } from './grade-lock.repository'
-import type { CreateGradeLockSettingDto, UpdateGradeLockSettingDto } from './dto/grade-lock.dto'
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
+import { GradeLockRepository } from './grade-lock.repository';
+import type {
+  CreateGradeLockSettingDto,
+  UpdateGradeLockSettingDto,
+} from './dto/grade-lock.dto';
 
 @Injectable()
 export class GradeLockSettingsService {
@@ -8,7 +15,7 @@ export class GradeLockSettingsService {
 
   async createSetting(orgId: string, dto: CreateGradeLockSettingDto) {
     if (dto.is_default) {
-      await this.repo.clearDefaultSettings(orgId)
+      await this.repo.clearDefaultSettings(orgId);
     }
 
     return this.repo.createSetting(orgId, {
@@ -19,29 +26,37 @@ export class GradeLockSettingsService {
       deadlineDays: dto.deadlineDays ?? null,
       allowOverride: dto.allowOverride,
       is_default: dto.is_default ?? false,
-    })
+    });
   }
 
   async getSettings(orgId: string) {
-    const settings = await this.repo.findAllSettings(orgId)
+    const settings = await this.repo.findAllSettings(orgId);
     return settings.map((s) => ({
       ...s,
       used_in_classes: s._count.gradeLocks,
       _count: undefined,
-    }))
+    }));
   }
 
   async getSetting(orgId: string, settingId: string) {
-    const setting = await this.repo.findSettingById(orgId, settingId)
-    if (!setting) throw new NotFoundException('Grade lock setting not found')
-    return { ...setting, used_in_classes: setting._count.gradeLocks, _count: undefined }
+    const setting = await this.repo.findSettingById(orgId, settingId);
+    if (!setting) throw new NotFoundException('Grade lock setting not found');
+    return {
+      ...setting,
+      used_in_classes: setting._count.gradeLocks,
+      _count: undefined,
+    };
   }
 
-  async updateSetting(orgId: string, settingId: string, dto: UpdateGradeLockSettingDto) {
-    await this.getSetting(orgId, settingId)
+  async updateSetting(
+    orgId: string,
+    settingId: string,
+    dto: UpdateGradeLockSettingDto,
+  ) {
+    await this.getSetting(orgId, settingId);
 
     if (dto.is_default) {
-      await this.repo.clearDefaultSettings(orgId, settingId)
+      await this.repo.clearDefaultSettings(orgId, settingId);
     }
 
     return this.repo.updateSetting(settingId, {
@@ -52,24 +67,29 @@ export class GradeLockSettingsService {
         lock_deadline: dto.lock_deadline ? new Date(dto.lock_deadline) : null,
       }),
       ...(dto.deadlineDays !== undefined && { deadlineDays: dto.deadlineDays }),
-      ...(dto.allowOverride !== undefined && { allowOverride: dto.allowOverride }),
+      ...(dto.allowOverride !== undefined && {
+        allowOverride: dto.allowOverride,
+      }),
       ...(dto.is_default !== undefined && { is_default: dto.is_default }),
-    })
+    });
   }
 
   async deleteSetting(orgId: string, settingId: string) {
-    await this.getSetting(orgId, settingId)
+    await this.getSetting(orgId, settingId);
 
-    const activeCount = await this.repo.countActiveLocksForSetting(orgId, settingId)
+    const activeCount = await this.repo.countActiveLocksForSetting(
+      orgId,
+      settingId,
+    );
     if (activeCount > 0) {
       throw new ConflictException(
         `Cannot delete: ${activeCount} class(es) are currently locked with this setting`,
-      )
+      );
     }
 
-    await this.repo.deleteLocksForSetting(orgId, settingId)
-    await this.repo.deleteSetting(settingId)
+    await this.repo.deleteLocksForSetting(orgId, settingId);
+    await this.repo.deleteSetting(settingId);
 
-    return { success: true }
+    return { success: true };
   }
 }

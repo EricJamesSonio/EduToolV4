@@ -27,18 +27,24 @@ export type ProgramType =
   | 'custom';
 
 export class CreateSemesterTemplateTermDto {
-  @IsString() @MinLength(1) @MaxLength(100)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
   name!: string;
 
-  @IsInt() @Min(1)
+  @IsInt()
+  @Min(1)
   orderIndex!: number;
 }
 
 export class CreateSemesterTemplateItemDto {
-  @IsString() @MinLength(1) @MaxLength(100)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
   name!: string;
 
-  @IsInt() @Min(1)
+  @IsInt()
+  @Min(1)
   orderIndex!: number;
 
   @IsArray()
@@ -49,7 +55,9 @@ export class CreateSemesterTemplateItemDto {
 }
 
 export class CreateSemesterTemplateDto {
-  @IsString() @MinLength(1) @MaxLength(100)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
   name!: string;
 
   @IsIn(['daycare', 'kinder', 'elementary', 'jhs', 'shs', 'college', 'custom'])
@@ -64,7 +72,9 @@ export class CreateSemesterTemplateDto {
 
 export class UpdateSemesterTemplateDto {
   @IsOptional()
-  @IsString() @MinLength(1) @MaxLength(100)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
   name?: string;
 
   @IsOptional()

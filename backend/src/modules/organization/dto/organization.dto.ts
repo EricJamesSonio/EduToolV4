@@ -13,31 +13,31 @@ import {
   ValidateNested,
   IsBoolean,
   IsDateString,
-} from 'class-validator'
-import { Type } from 'class-transformer'
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateOrganizationDto {
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  name!: string
+  name!: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  description?: string
+  description?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(200)
-  address?: string
+  address?: string;
 
   @IsOptional()
   @IsString()
   @Matches(/^@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
     message: 'emailExtension must be a valid domain like @relief-ed.ph',
   })
-  emailExtension?: string
+  emailExtension?: string;
 }
 
 export class UpdateOrganizationDto {
@@ -45,151 +45,151 @@ export class UpdateOrganizationDto {
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  name?: string
+  name?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  description?: string
+  description?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(200)
-  address?: string
+  address?: string;
 
   @IsOptional()
   @IsString()
   @Matches(/^@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
     message: 'emailExtension must be a valid domain like @relief-ed.ph',
   })
-  emailExtension?: string
+  emailExtension?: string;
 }
 
 export class GradingScaleRangeDto {
   @IsString()
-  label!: string
+  label!: string;
 
   @IsNumber()
-  minScore!: number
+  minScore!: number;
 
   @IsNumber()
-  maxScore!: number
+  maxScore!: number;
 
   @IsString()
-  gradeValue!: string
+  gradeValue!: string;
 }
 
 export class GradingScalePayloadDto {
   @IsString()
-  presetKey!: string
+  presetKey!: string;
 
   @IsString()
-  name!: string
+  name!: string;
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => GradingScaleRangeDto)
-  ranges!: GradingScaleRangeDto[]
+  ranges!: GradingScaleRangeDto[];
 }
 
 export class SectionItemDto {
   @IsString()
-  name!: string
+  name!: string;
 
   @IsNumber()
-  capacity!: number
+  capacity!: number;
 }
 
 export class SeedProgramCalendarBreakDto {
   @IsString()
-  label!: string
+  label!: string;
 
   @IsDateString()
-  startDate!: string
+  startDate!: string;
 
   @IsDateString()
-  endDate!: string
+  endDate!: string;
 }
 
 export class SeedProgramCalendarDto {
   @IsDateString()
-  startDate!: string
+  startDate!: string;
 
   @IsDateString()
-  endDate!: string
+  endDate!: string;
 
   @IsOptional()
   @IsString()
-  notes?: string
+  notes?: string;
 
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => SeedProgramCalendarBreakDto)
-  breaks?: SeedProgramCalendarBreakDto[]
+  breaks?: SeedProgramCalendarBreakDto[];
 }
 
 export class SeedOrganizationDto {
   @IsUUID()
-  schoolYearId!: string
+  schoolYearId!: string;
 
   @IsArray()
   @IsString({ each: true })
-  programs!: string[]
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  courses?: string[]
+  programs!: string[];
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  strands?: string[]
+  courses?: string[];
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  excludedLevels?: string[]
+  strands?: string[];
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  excludedSubjects?: string[]
+  excludedLevels?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  excludedSubjects?: string[];
 
   @IsOptional()
   @IsObject()
-  excludedLevelSubjects?: Record<string, string[]>
+  excludedLevelSubjects?: Record<string, string[]>;
 
   @IsOptional()
   @IsObject()
-  levelConfigs?: Record<string, string[]>
+  levelConfigs?: Record<string, string[]>;
 
   @IsOptional()
   @IsObject()
-  sectionConfigs?: Record<string, SectionItemDto[]>
+  sectionConfigs?: Record<string, SectionItemDto[]>;
 
   @IsOptional()
   @IsObject()
-  gradingScales?: Record<string, GradingScalePayloadDto>
+  gradingScales?: Record<string, GradingScalePayloadDto>;
 
   @IsOptional()
   @IsBoolean()
-  seedGradingScales?: boolean
+  seedGradingScales?: boolean;
 
   @IsOptional()
   @IsBoolean()
-  seedGradingSchemes?: boolean
+  seedGradingSchemes?: boolean;
 
   @IsOptional()
   @IsBoolean()
-  seedSemesterTemplates?: boolean
+  seedSemesterTemplates?: boolean;
 
   @IsOptional()
   @IsBoolean()
-  seedProgramCalendars?: boolean
+  seedProgramCalendars?: boolean;
 
   @IsOptional()
   @IsObject()
-  programCalendars?: Record<string, SeedProgramCalendarDto>
+  programCalendars?: Record<string, SeedProgramCalendarDto>;
 }

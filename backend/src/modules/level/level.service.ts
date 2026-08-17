@@ -121,11 +121,11 @@ export class LevelService {
    */
   async createOne(orgId: string, dto: CreateLevelDto) {
     return this.levelRepository.create(orgId, {
-      programId:    dto.programId,
+      programId: dto.programId,
       schoolYearId: dto.schoolYearId,
-      name:         dto.name,
-      courseId:     dto.courseId,
-      strandId:     dto.strandId,
+      name: dto.name,
+      courseId: dto.courseId,
+      strandId: dto.strandId,
     });
   }
 
@@ -290,8 +290,8 @@ export class LevelService {
         orgId,
         programId: dto.programId,
         schoolYearId: dto.schoolYearId,
-        courseId:     dto.courseId,
-        strandId:     dto.strandId,
+        courseId: dto.courseId,
+        strandId: dto.strandId,
         name,
       })),
     );

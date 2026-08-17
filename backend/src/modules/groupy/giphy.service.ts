@@ -53,7 +53,8 @@ export class GiphyService {
     return data
       .map((g) => ({
         id: g.id ?? '',
-        previewUrl: g.images?.fixed_width?.url ?? g.images?.original?.url ?? null,
+        previewUrl:
+          g.images?.fixed_width?.url ?? g.images?.original?.url ?? null,
         url: g.images?.original?.url ?? null,
       }))
       .filter((r) => r.id && r.url);

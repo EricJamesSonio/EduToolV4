@@ -36,19 +36,13 @@ describe('AssessmentCoreService', () => {
   describe('assertBelongsToClass', () => {
     it('throws when assessment belongs to another class', () => {
       expect(() =>
-        service.assertBelongsToClass(
-          { class_id: 'class-a' },
-          'class-b',
-        ),
+        service.assertBelongsToClass({ class_id: 'class-a' }, 'class-b'),
       ).toThrow(ForbiddenException);
     });
 
     it('allows matching class', () => {
       expect(() =>
-        service.assertBelongsToClass(
-          { class_id: 'class-a' },
-          'class-a',
-        ),
+        service.assertBelongsToClass({ class_id: 'class-a' }, 'class-a'),
       ).not.toThrow();
     });
   });
@@ -81,30 +75,17 @@ describe('AssessmentCoreService', () => {
 
   describe('canViewScore', () => {
     it('prevents score viewing before publication', () => {
-      expect(
-        service.canViewScore(
-          { is_published: false },
-          false,
-        ),
-      ).toBe(false);
+      expect(service.canViewScore({ is_published: false }, false)).toBe(false);
     });
 
     it('allows viewing when grade lock enabled', () => {
-      expect(
-        service.canViewScore(
-          { is_published: false },
-          true,
-        ),
-      ).toBe(true);
+      expect(service.canViewScore({ is_published: false }, true)).toBe(true);
     });
   });
 
   describe('buildResultWithSections', () => {
     it('defaults null scores to zero', () => {
-      const result = service.buildResultWithSections(
-        {},
-        {},
-      );
+      const result = service.buildResultWithSections({}, {});
 
       expect(result).toEqual({
         systemScore: 0,

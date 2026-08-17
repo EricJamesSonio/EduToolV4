@@ -32,7 +32,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
-  ) { }
+  ) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -57,8 +57,12 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies?.refreshToken ?? this.getCookie(req, 'refreshToken');
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken =
+      req.cookies?.refreshToken ?? this.getCookie(req, 'refreshToken');
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
     }
@@ -93,7 +97,7 @@ export class AuthController {
     return {
       httpOnly: true,
       secure: isProd, // 'none' cookies are rejected by browsers without secure:true
-      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       path: '/',
     };
   }
@@ -107,10 +111,11 @@ export class AuthController {
     res.clearCookie('refreshToken', this.getCookieOptions());
 
     // Also try to clear the server-side refresh token hash
-    const refreshToken = req.cookies?.refreshToken ?? this.getCookie(req, 'refreshToken');
+    const refreshToken =
+      req.cookies?.refreshToken ?? this.getCookie(req, 'refreshToken');
     if (refreshToken) {
       try {
-        const payload = this.jwtService.decode(refreshToken) as { sub: string } | null;
+        const payload = this.jwtService.decode(refreshToken);
         if (payload?.sub) {
           await this.authService.logout(payload.sub);
         }

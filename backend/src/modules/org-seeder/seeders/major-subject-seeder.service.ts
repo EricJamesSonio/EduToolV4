@@ -14,7 +14,14 @@ export class MajorSubjectSeederService {
     );
 
     for (const s of subjectDefs) {
-      if (!ctx.shouldSeedSubject(s.name, s.levelName, s.strandName ?? undefined, s.courseCode ?? undefined)) {
+      if (
+        !ctx.shouldSeedSubject(
+          s.name,
+          s.levelName,
+          s.strandName ?? undefined,
+          s.courseCode ?? undefined,
+        )
+      ) {
         ctx.result.subjects.skipped++;
         continue;
       }

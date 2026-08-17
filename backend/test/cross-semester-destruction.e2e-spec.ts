@@ -75,7 +75,11 @@ function seedArgs(
   orgId: string,
   schoolYearId: string,
   actorId: string,
-  calendar: { startDate: string; endDate: string; breaks: { label: string; startDate: string; endDate: string }[] },
+  calendar: {
+    startDate: string;
+    endDate: string;
+    breaks: { label: string; startDate: string; endDate: string }[];
+  },
 ): OrgSeedOptions & { actorId: string } {
   return {
     orgId,
@@ -108,7 +112,9 @@ runSuite('Cross-year semester template destruction (Lane 1 item 4)', () => {
     });
   }
 
-  async function termDateCountForProgram(schoolYearId: string): Promise<number> {
+  async function termDateCountForProgram(
+    schoolYearId: string,
+  ): Promise<number> {
     const program = await findProgramForYear(schoolYearId);
     if (!program) return -1;
     const assignment = await db.programSemesterAssignment.findUnique({
@@ -129,7 +135,9 @@ runSuite('Cross-year semester template destruction (Lane 1 item 4)', () => {
     db = app.get(DatabaseService);
     orgSeeder = app.get(OrgSeederService);
 
-    await db.organization.create({ data: { id: orgId, name: `E2E Cross-Sem ${orgId}` } });
+    await db.organization.create({
+      data: { id: orgId, name: `E2E Cross-Sem ${orgId}` },
+    });
     for (const sy of [SY1, SY2, SY3]) {
       await db.schoolYear.create({
         data: {
@@ -144,11 +152,13 @@ runSuite('Cross-year semester template destruction (Lane 1 item 4)', () => {
     }
 
     log(`Seeding YEAR 1 (2 breaks, 2026-06 -> 2027-03)`);
-    await orgSeeder.seedOrg(seedArgs(orgId, SY1.id, actorId, {
-      startDate: SY1.start,
-      endDate: SY1.end,
-      breaks: twoBreaks(SY1.start, SY1.end),
-    }));
+    await orgSeeder.seedOrg(
+      seedArgs(orgId, SY1.id, actorId, {
+        startDate: SY1.start,
+        endDate: SY1.end,
+        breaks: twoBreaks(SY1.start, SY1.end),
+      }),
+    );
   }, 180000);
 
   it('PROOF (A): a structurally-matching SECOND school year produces ZERO term dates for its assignment', async () => {
@@ -156,12 +166,16 @@ runSuite('Cross-year semester template destruction (Lane 1 item 4)', () => {
     log(`year1 term dates: ${y1Dates}`);
     expect(y1Dates).toBe(6);
 
-    log(`Seeding YEAR 2 (same 2 breaks, 2027-06 -> 2028-03) — structure matches`);
-    await orgSeeder.seedOrg(seedArgs(orgId, SY2.id, actorId, {
-      startDate: SY2.start,
-      endDate: SY2.end,
-      breaks: twoBreaks(SY2.start, SY2.end),
-    }));
+    log(
+      `Seeding YEAR 2 (same 2 breaks, 2027-06 -> 2028-03) — structure matches`,
+    );
+    await orgSeeder.seedOrg(
+      seedArgs(orgId, SY2.id, actorId, {
+        startDate: SY2.start,
+        endDate: SY2.end,
+        breaks: twoBreaks(SY2.start, SY2.end),
+      }),
+    );
 
     const y2Assignment = await db.programSemesterAssignment.findUnique({
       where: { program_id: (await findProgramForYear(SY2.id))!.id },
@@ -180,12 +194,16 @@ runSuite('Cross-year semester template destruction (Lane 1 item 4)', () => {
     log(`year1 term dates BEFORE year3 seed: ${y1Before}`);
     expect(y1Before).toBe(6); // year 2's matching seed must not have touched them
 
-    log(`Seeding YEAR 3 (3 breaks, 2028-06 -> 2029-03) — structure differs, template rebuild`);
-    await orgSeeder.seedOrg(seedArgs(orgId, SY3.id, actorId, {
-      startDate: SY3.start,
-      endDate: SY3.end,
-      breaks: threeBreaks(SY3.start, SY3.end),
-    }));
+    log(
+      `Seeding YEAR 3 (3 breaks, 2028-06 -> 2029-03) — structure differs, template rebuild`,
+    );
+    await orgSeeder.seedOrg(
+      seedArgs(orgId, SY3.id, actorId, {
+        startDate: SY3.start,
+        endDate: SY3.end,
+        breaks: threeBreaks(SY3.start, SY3.end),
+      }),
+    );
 
     const y1After = await termDateCountForProgram(SY1.id);
     log(`year1 term dates AFTER year3 seed: ${y1After}`);
@@ -204,54 +222,95 @@ runSuite('Cross-year semester template destruction (Lane 1 item 4)', () => {
         await fn();
         log(`cleaned ${label}`);
       } catch (err) {
-        log(`CLEANUP FAIL @ ${label}: ${err instanceof Error ? err.message : err}`);
+        log(
+          `CLEANUP FAIL @ ${label}: ${err instanceof Error ? err.message : err}`,
+        );
       }
     };
 
     await step('semester term dates', () =>
-      db.programSemesterTermDate.deleteMany({ where: { org_id: orgId } }));
+      db.programSemesterTermDate.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('semester assignments', () =>
-      db.programSemesterAssignment.deleteMany({ where: { org_id: orgId } }));
+      db.programSemesterAssignment.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('semester template terms', () =>
-      db.semesterTemplateTerm.deleteMany({ where: { org_id: orgId } }));
+      db.semesterTemplateTerm.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('semester template items', () =>
-      db.semesterTemplateItem.deleteMany({ where: { org_id: orgId } }));
+      db.semesterTemplateItem.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('semester templates', () =>
-      db.semesterTemplate.deleteMany({ where: { org_id: orgId } }));
+      db.semesterTemplate.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('program calendar holidays', () =>
-      db.programCalendarHoliday.deleteMany({ where: { org_id: orgId } }));
+      db.programCalendarHoliday.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('program calendar terms', () =>
-      db.programCalendarTerm.deleteMany({ where: { org_id: orgId } }));
+      db.programCalendarTerm.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('program calendar breaks', () =>
-      db.programCalendarBreak.deleteMany({ where: { org_id: orgId } }));
+      db.programCalendarBreak.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('program calendars', () =>
-      db.programCalendar.deleteMany({ where: { org_id: orgId } }));
+      db.programCalendar.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('subject prerequisites', () =>
-      db.subjectPrerequisite.deleteMany({ where: { org_id: orgId } }));
+      db.subjectPrerequisite.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('subject sharings', () =>
-      db.subjectSharing.deleteMany({ where: { org_id: orgId } }));
-    await step('subjects', () => db.subject.deleteMany({ where: { org_id: orgId } }));
-    await step('sections', () => db.section.deleteMany({ where: { org_id: orgId } }));
-    await step('levels', () => db.level.deleteMany({ where: { org_id: orgId } }));
-    await step('strands', () => db.strand.deleteMany({ where: { org_id: orgId } }));
-    await step('courses', () => db.course.deleteMany({ where: { org_id: orgId } }));
-    await step('programs', () => db.program.deleteMany({ where: { org_id: orgId } }));
+      db.subjectSharing.deleteMany({ where: { org_id: orgId } }),
+    );
+    await step('subjects', () =>
+      db.subject.deleteMany({ where: { org_id: orgId } }),
+    );
+    await step('sections', () =>
+      db.section.deleteMany({ where: { org_id: orgId } }),
+    );
+    await step('levels', () =>
+      db.level.deleteMany({ where: { org_id: orgId } }),
+    );
+    await step('strands', () =>
+      db.strand.deleteMany({ where: { org_id: orgId } }),
+    );
+    await step('courses', () =>
+      db.course.deleteMany({ where: { org_id: orgId } }),
+    );
+    await step('programs', () =>
+      db.program.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('grading scale assignments', () =>
-      db.gradingScaleAssignment.deleteMany({ where: { org_id: orgId } }));
-    await step('grading scales', () => db.gradingScale.deleteMany({ where: { org_id: orgId } }));
+      db.gradingScaleAssignment.deleteMany({ where: { org_id: orgId } }),
+    );
+    await step('grading scales', () =>
+      db.gradingScale.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('grading scheme components', () =>
-      db.gradingSchemeTemplateComponent.deleteMany({ where: { org_id: orgId } }));
+      db.gradingSchemeTemplateComponent.deleteMany({
+        where: { org_id: orgId },
+      }),
+    );
     await step('grading scheme templates', () =>
-      db.gradingSchemeTemplate.deleteMany({ where: { org_id: orgId } }));
+      db.gradingSchemeTemplate.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('concern categories', () =>
-      db.concernCategory.deleteMany({ where: { org_id: orgId } }));
+      db.concernCategory.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('org concern settings', () =>
-      db.orgConcernSetting.deleteMany({ where: { org_id: orgId } }));
+      db.orgConcernSetting.deleteMany({ where: { org_id: orgId } }),
+    );
     await step('org enrollment settings', () =>
-      db.orgEnrollmentSetting.deleteMany({ where: { org_id: orgId } }));
-    await step('audit logs', () => db.auditLog.deleteMany({ where: { org_id: orgId } }));
-    await step('school years', () => db.schoolYear.deleteMany({ where: { org_id: orgId } }));
-    await step('organization', () => db.organization.deleteMany({ where: { id: orgId } }));
+      db.orgEnrollmentSetting.deleteMany({ where: { org_id: orgId } }),
+    );
+    await step('audit logs', () =>
+      db.auditLog.deleteMany({ where: { org_id: orgId } }),
+    );
+    await step('school years', () =>
+      db.schoolYear.deleteMany({ where: { org_id: orgId } }),
+    );
+    await step('organization', () =>
+      db.organization.deleteMany({ where: { id: orgId } }),
+    );
     await app.close();
   }, 90000);
 });

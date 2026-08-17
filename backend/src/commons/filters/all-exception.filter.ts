@@ -15,7 +15,10 @@ export class AllExceptionFilter implements ExceptionFilter {
     console.error(exception);
 
     // Multer (file upload) errors → friendly 400 instead of a generic 500
-    if (exception?.name === 'MulterError' && exception?.code === 'LIMIT_FILE_SIZE') {
+    if (
+      exception?.name === 'MulterError' &&
+      exception?.code === 'LIMIT_FILE_SIZE'
+    ) {
       return response.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         statusCode: HttpStatus.BAD_REQUEST,
@@ -34,11 +37,13 @@ export class AllExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const body = exception.getResponse();
-      return response.status(status).json(
-        typeof body === 'object'
-          ? { success: false, statusCode: status, ...body }
-          : { success: false, statusCode: status, message: body },
-      );
+      return response
+        .status(status)
+        .json(
+          typeof body === 'object'
+            ? { success: false, statusCode: status, ...body }
+            : { success: false, statusCode: status, message: body },
+        );
     }
 
     // Only true unknowns get 500

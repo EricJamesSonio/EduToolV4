@@ -128,9 +128,9 @@ describe('AcademicCalendarService', () => {
     it('should throw if not found', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(
-        service.update('1', 'org1', {}),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update('1', 'org1', {})).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw if invalid date range', async () => {

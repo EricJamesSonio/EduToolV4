@@ -38,32 +38,37 @@ export class OrganizationRepository {
     return !!account?.org_id;
   }
 
-async create(data: { name: string; description?: string; address?: string; email_extension?: string }) {
-  return this.db.organization.create({
-    data: {
-      name: data.name,
-      slug: slugifyName(data.name),
-      description: data.description ?? null,
-      address: data.address ?? null,
-      email_extension: data.email_extension ?? undefined,
-    },
-  });
-}
-
-async update(
-  orgId: string,
-  data: {
-    name?: string;
+  async create(data: {
+    name: string;
     description?: string;
     address?: string;
     email_extension?: string;
-  },
-) {
-  return this.db.organization.update({
-    where: { id: orgId },
-    data,
-  });
-}
+  }) {
+    return this.db.organization.create({
+      data: {
+        name: data.name,
+        slug: slugifyName(data.name),
+        description: data.description ?? null,
+        address: data.address ?? null,
+        email_extension: data.email_extension ?? undefined,
+      },
+    });
+  }
+
+  async update(
+    orgId: string,
+    data: {
+      name?: string;
+      description?: string;
+      address?: string;
+      email_extension?: string;
+    },
+  ) {
+    return this.db.organization.update({
+      where: { id: orgId },
+      data,
+    });
+  }
 
   async linkToAdmin(adminId: string, orgId: string) {
     return this.db.account.update({

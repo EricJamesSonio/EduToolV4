@@ -34,7 +34,7 @@ export class SchoolYearService {
     private readonly gradingScaleService: GradingScaleService,
     private readonly auditLogService: AuditLogService,
     private readonly readinessService: SchoolYearReadinessService,
-  ) { }
+  ) {}
 
   // ---------------------------------------------------------------------------
   // Date validation helpers
@@ -97,14 +97,20 @@ export class SchoolYearService {
 
     await this.levelService.seedFromDefaults(orgId, schoolYear.id, {});
 
-    this.auditLogService.logAdminAction({
-      orgId,
-      actorId,
-      action: 'school_year_created',
-      entityType: 'school_year',
-      entityId: schoolYear.id,
-      metadata: { name: dto.name, start_date: dto.start_date, end_date: dto.end_date },
-    }).catch(() => {});
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'school_year_created',
+        entityType: 'school_year',
+        entityId: schoolYear.id,
+        metadata: {
+          name: dto.name,
+          start_date: dto.start_date,
+          end_date: dto.end_date,
+        },
+      })
+      .catch(() => {});
 
     return {
       data: schoolYear,
@@ -141,7 +147,12 @@ export class SchoolYearService {
     return this.schoolYearRepository.findActive(orgId);
   }
 
-  async update(id: string, orgId: string, dto: UpdateSchoolYearDto, actorId: string) {
+  async update(
+    id: string,
+    orgId: string,
+    dto: UpdateSchoolYearDto,
+    actorId: string,
+  ) {
     const schoolYear = await this.schoolYearRepository.findById(id, orgId);
     if (!schoolYear) throw new NotFoundException('School year not found.');
 
@@ -174,14 +185,16 @@ export class SchoolYearService {
       end_date: dto.end_date,
     });
 
-    this.auditLogService.logAdminAction({
-      orgId,
-      actorId,
-      action: 'school_year_updated',
-      entityType: 'school_year',
-      entityId: id,
-      metadata: { name: dto.name },
-    }).catch(() => {});
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'school_year_updated',
+        entityType: 'school_year',
+        entityId: id,
+        metadata: { name: dto.name },
+      })
+      .catch(() => {});
 
     return updated;
   }
@@ -237,13 +250,15 @@ export class SchoolYearService {
 
     await this.subjectService.unlockAllForOrg(orgId);
 
-    this.auditLogService.logAdminAction({
-      orgId,
-      actorId,
-      action: 'school_year_activated',
-      entityType: 'school_year',
-      entityId: id,
-    }).catch(() => {});
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'school_year_activated',
+        entityType: 'school_year',
+        entityId: id,
+      })
+      .catch(() => {});
 
     return result;
   }
@@ -261,13 +276,15 @@ export class SchoolYearService {
     await this.schoolYearRepository.updateStatus(id, 'ended');
     await this.schoolYearRepository.unenrollAllStudents(id, orgId);
 
-    this.auditLogService.logAdminAction({
-      orgId,
-      actorId,
-      action: 'school_year_ended',
-      entityType: 'school_year',
-      entityId: id,
-    }).catch(() => {});
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'school_year_ended',
+        entityType: 'school_year',
+        entityId: id,
+      })
+      .catch(() => {});
 
     return this.schoolYearRepository.findById(id, orgId);
   }
@@ -291,14 +308,16 @@ export class SchoolYearService {
 
     await this.schoolYearRepository.delete(id);
 
-    this.auditLogService.logAdminAction({
-      orgId,
-      actorId,
-      action: 'school_year_deleted',
-      entityType: 'school_year',
-      entityId: id,
-      metadata: { name: schoolYear.name },
-    }).catch(() => {});
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'school_year_deleted',
+        entityType: 'school_year',
+        entityId: id,
+        metadata: { name: schoolYear.name },
+      })
+      .catch(() => {});
 
     return { id, deleted: true };
   }

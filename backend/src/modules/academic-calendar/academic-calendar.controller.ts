@@ -76,10 +76,7 @@ export class AcademicCalendarController {
   @Delete(':id')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(
-    @Param('id') id: string,
-    @CurrentUser('orgId') orgId: string,
-  ) {
+  async remove(@Param('id') id: string, @CurrentUser('orgId') orgId: string) {
     await this.calendarService.remove(id, orgId);
   }
 }
