@@ -815,6 +815,23 @@ model Assessment {
   show_breakdown   Boolean     @default(false)
 
   submissions Submission[]
+  gradingOverrides AssessmentGradingOverride[]
+}
+
+model AssessmentGradingOverride {
+  id            String   @id @default(uuid())
+  org_id        String
+  assessment_id String
+  student_id    String
+  include       Boolean  @default(true)
+  reason        String?
+  created_by    String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  assessment Assessment @relation(fields: [assessment_id], references: [id], onDelete: Cascade)
+
+  @@unique([assessment_id, student_id])
 }
 
 model Question {
