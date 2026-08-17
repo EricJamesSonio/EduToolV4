@@ -12,6 +12,7 @@ export class RegistrarRepository {
     email: string;
     hashedPassword: string;
     username: string;
+    fullName?: string;
   }) {
     return this.db.account.create({
       data: {
@@ -23,7 +24,7 @@ export class RegistrarRepository {
         is_registrar: true,
         profile: {
           create: {
-            full_name: data.username,
+            full_name: data.fullName?.trim() || data.username,
             metadata: {
               registrarUsername: data.username,
             },

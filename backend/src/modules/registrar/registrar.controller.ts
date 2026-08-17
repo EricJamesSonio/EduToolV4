@@ -31,7 +31,7 @@ export class RegistrarController {
 
   /**
    * POST /registrars  @Roles(ADMIN)
-   * Admin creates a registrar account (username only, org-based email generated).
+   * Admin creates a registrar account (username + full name, org-based email generated).
    * Returns plain password once for distribution.
    */
   @Post()

@@ -42,6 +42,7 @@ export class RegistrarService {
       email,
       hashedPassword,
       username: dto.username,
+      fullName: dto.fullName,
     });
 
     return {
@@ -49,7 +50,8 @@ export class RegistrarService {
       orgId: account.org_id,
       email: account.email,
       status: account.status,
-      username: account.profile?.full_name ?? dto.username,
+      username: dto.username,
+      fullName: account.profile?.full_name ?? dto.username,
       plainPassword,
       createdAt: account.created_at,
     };
@@ -160,7 +162,8 @@ export class RegistrarService {
       orgId: account.org_id,
       email: account.email,
       status: account.status,
-      username: account.profile?.full_name ?? null,
+      username: meta?.registrarUsername ?? account.profile?.full_name ?? null,
+      fullName: account.profile?.full_name ?? null,
       createdAt: account.created_at,
     };
   }
