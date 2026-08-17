@@ -1,0 +1,59 @@
+﻿node.exe : FAIL src/modules/grade/__TEST__/grade-educator.service.spec.ts
+At line:1 char:1
++ & "C:\/node.exe" "C:\Users\Windows 10\AppData\Roaming\npm/node_module ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (FAIL src/module...service.spec.ts:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  GradeEducatorService ΓÇö proof tests (Lane 1 item 2)
+    ├ù PROOF: recomputeStudentGrade overwrites an existing LOCKED grade row (no lock guard) (16 ms)
+    ├ù PROOF: recompute upserts a NEW final score into the locked row (88 Pass -> recomputed 62.5 Fail) (8 ms)
+
+  ΓùÅ GradeEducatorService ΓÇö proof tests (Lane 1 item 2) ΓÇ║ PROOF: recomputeStudentGrade overwrites an existing 
+LOCKED grade row (no lock guard)
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: "s-1", "class-1", "term-1", "org-1"
+
+    Number of calls: 0
+
+    [0m [90m 69 |[39m     [90m// Correct behavior: before writing, the service must consult the existing[39m
+     [90m 70 |[39m     [90m// row's lock state. It does not ΓÇö the existing locked row is never read.[39m
+    [31m[1m>[22m[39m[90m 71 |[39m     
+expect(repo[33m.[39mfindByStudent)[33m.[39mtoHaveBeenCalledWith([32m's-1'[39m[33m,[39m 
+[32m'class-1'[39m[33m,[39m [32m'term-1'[39m[33m,[39m [32m'org-1'[39m)[33m;[39m
+     [90m    |[39m                                [31m[1m^[22m[39m
+     [90m 72 |[39m   })[33m;[39m
+     [90m 73 |[39m
+     [90m 74 |[39m   it([32m'PROOF: recompute upserts a NEW final score into the locked row (88 Pass -> recomputed 
+62.5 Fail)'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (src/modules/grade/__TEST__/grade-educator.service.spec.ts:71:32)
+
+  ΓùÅ GradeEducatorService ΓÇö proof tests (Lane 1 item 2) ΓÇ║ PROOF: recompute upserts a NEW final score into the 
+locked row (88 Pass -> recomputed 62.5 Fail)
+
+    expect(jest.fn()).not.toHaveBeenCalled()
+
+    Expected number of calls: 0
+    Received number of calls: 1
+
+    1: {"classId": "class-1", "finalGrade": "Fail", "finalScore": 62.5, "orgId": "org-1", "studentId": "s-1", 
+"termId": "term-1"}
+
+    [0m [90m 106 |[39m     [90m// Correct behavior: a locked grade (88 / Pass) must NOT be overwritten.[39m
+     [90m 107 |[39m     [90m// The recompute currently rewrites it to the recomputed 62.5 / Fail.[39m
+    [31m[1m>[22m[39m[90m 108 |[39m     
+expect(repo[33m.[39mupsert)[33m.[39mnot[33m.[39mtoHaveBeenCalled()[33m;[39m
+     [90m     |[39m                             [31m[1m^[22m[39m
+     [90m 109 |[39m   })[33m;[39m
+     [90m 110 |[39m })[33m;[39m[0m
+
+      at Object.<anonymous> (src/modules/grade/__TEST__/grade-educator.service.spec.ts:108:29)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 2 total
+Snapshots:   0 total
+Time:        3.558 s, estimated 4 s
+Ran all test suites matching /src\\modules\\grade\\__TEST__\\grade-educator.service.spec.ts/i.

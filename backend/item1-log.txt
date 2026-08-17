@@ -1,0 +1,93 @@
+﻿node.exe : FAIL src/modules/grade/__TEST__/grade-core.service.spec.ts
+At line:1 char:1
++ & "C:\/node.exe" "C:\Users\Windows 10\AppData\Roaming\npm/node_module ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (FAIL src/module...service.spec.ts:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  GradeCoreService ΓÇö proof tests (Lane 1 item 1)
+    ├ù PROOF: a fully-exempted category with maxScore set scores 0 at full weight (17 ms)
+    ΓêÜ PROOF: the SAME exemption WITHOUT maxScore drops the category and renormalizes (100) (2 ms)
+    ├ù PROOF: mergeHybridScores sums system+manual with no cap ΓÇö can exceed 100% (4 ms)
+    ├ù PROOF: resolveGrade maps an out-of-range score to 'N/A' instead of clamping or erroring (2 ms)
+    ├ù PROOF: resolveGrade falls between contiguous integer ranges -> 'N/A' for fractional scores (2 ms)
+
+  ΓùÅ GradeCoreService ΓÇö proof tests (Lane 1 item 1) ΓÇ║ PROOF: a fully-exempted category with maxScore set scores 0 
+at full weight
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 100
+    Received: 50
+
+    [0m [90m 49 |[39m     [90m// Correct behavior: exempted category contributes nothing (its weight is[39m
+     [90m 50 |[39m     [90m// dropped), so the weighted score is the exam score alone = 100.[39m
+    [31m[1m>[22m[39m[90m 51 |[39m     expect(result)[33m.[39mtoBe([35m100[39m)[33m;[39m
+     [90m    |[39m                    [31m[1m^[22m[39m
+     [90m 52 |[39m   })[33m;[39m
+     [90m 53 |[39m
+     [90m 54 |[39m   it([32m'PROOF: the SAME exemption WITHOUT maxScore drops the category and renormalizes 
+(100)'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (src/modules/grade/__TEST__/grade-core.service.spec.ts:51:20)
+
+  ΓùÅ GradeCoreService ΓÇö proof tests (Lane 1 item 1) ΓÇ║ PROOF: mergeHybridScores sums system+manual with no cap ΓÇö 
+can exceed 100%
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 40
+    Received:    80
+
+    [0m [90m 78 |[39m     [90m// Correct behavior: a hybrid grade may not exceed the assessment total[39m
+     [90m 79 |[39m     [90m// (total_items 40 => 100%). Summing to 80 exceeds any sane cap.[39m
+    [31m[1m>[22m[39m[90m 80 |[39m     expect(merged)[33m.[39mtoBeLessThanOrEqual([35m40[39m)[33m;[39m
+     [90m    |[39m                    [31m[1m^[22m[39m
+     [90m 81 |[39m   })[33m;[39m
+     [90m 82 |[39m
+     [90m 83 |[39m   it([32m"PROOF: resolveGrade maps an out-of-range score to 'N/A' instead of clamping or 
+erroring"[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (src/modules/grade/__TEST__/grade-core.service.spec.ts:80:20)
+
+  ΓùÅ GradeCoreService ΓÇö proof tests (Lane 1 item 1) ΓÇ║ PROOF: resolveGrade maps an out-of-range score to 'N/A' 
+instead of clamping or erroring
+
+    expect(received).not.toBe(expected) // Object.is equality
+
+    Expected: not "N/A"
+
+    [0m [90m 90 |[39m     [90m// Correct behavior: a real numeric score must resolve to a grade, not[39m
+     [90m 91 |[39m     [90m// silently become 'N/A'.[39m
+    [31m[1m>[22m[39m[90m 92 |[39m     expect(core[33m.[39mresolveGrade([35m150[39m[33m,[39m 
+ranges))[33m.[39mnot[33m.[39mtoBe([32m'N/A'[39m)[33m;[39m
+     [90m    |[39m                                                [31m[1m^[22m[39m
+     [90m 93 |[39m   })[33m;[39m
+     [90m 94 |[39m
+     [90m 95 |[39m   it([32m"PROOF: resolveGrade falls between contiguous integer ranges -> 'N/A' for fractional 
+scores"[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (src/modules/grade/__TEST__/grade-core.service.spec.ts:92:48)
+
+  ΓùÅ GradeCoreService ΓÇö proof tests (Lane 1 item 1) ΓÇ║ PROOF: resolveGrade falls between contiguous integer ranges 
+-> 'N/A' for fractional scores
+
+    expect(received).not.toBe(expected) // Object.is equality
+
+    Expected: not "N/A"
+
+    [0m [90m 101 |[39m     [90m// 79.95 is inside both-conceptual-range (between 79 and 80) but matches[39m
+     [90m 102 |[39m     [90m// neither inclusive range. Correct behavior: resolve to a grade.[39m
+    [31m[1m>[22m[39m[90m 103 |[39m     expect(core[33m.[39mresolveGrade([35m79.95[39m[33m,[39m 
+ranges))[33m.[39mnot[33m.[39mtoBe([32m'N/A'[39m)[33m;[39m
+     [90m     |[39m                                                  [31m[1m^[22m[39m
+     [90m 104 |[39m   })[33m;[39m
+     [90m 105 |[39m })[33m;[39m[0m
+
+      at Object.<anonymous> (src/modules/grade/__TEST__/grade-core.service.spec.ts:103:50)
+
+Test Suites: 1 failed, 1 total
+Tests:       4 failed, 1 passed, 5 total
+Snapshots:   0 total
+Time:        2.982 s, estimated 3 s
+Ran all test suites matching /src\\modules\\grade\\__TEST__\\grade-core.service.spec.ts/i.
