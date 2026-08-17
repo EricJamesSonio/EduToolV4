@@ -1,4 +1,11 @@
-import { test, expect, type APIRequestContext, type APIResponse } from "@playwright/test";
+import {
+  test,
+  expect,
+  type APIRequestContext,
+  type APIResponse,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 import {
   API_BASE,
   apiLogin,
@@ -54,8 +61,11 @@ export const run: {
   };
   programIds: Record<string, string>;
   courseId?: string;
+  scaleName?: string;
   scaleId?: string;
   schemeTemplateIds: Record<string, string>;
+  schemeTemplateName?: string;
+  semesterTemplateName?: string;
   semesterTemplateId?: string;
 } = {
   platformEmail: "platform@edutool.dev",
@@ -75,6 +85,26 @@ const adminHeaders = async (
 // Unwrap the ResponseInterceptor envelope `{ success, data }`.
 const unwrapData = async <T>(res: APIResponse): Promise<T> =>
   (await res.json()).data as T;
+
+// Several admin pages wrap dialog-open buttons in `ensureOrganization()`,
+// which silently drops the click while the org query is still loading. Retry
+// the click until the dialog actually appears so the test is timing-proof.
+const openDialog = async (
+  page: Page,
+  trigger: Locator,
+  content: Locator,
+): Promise<void> => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await trigger.click();
+    try {
+      await content.waitFor({ state: "visible", timeout: 1500 });
+      return;
+    } catch {
+      // The click was dropped (org still loading); try again.
+    }
+  }
+  await content.waitFor({ state: "visible", timeout: 15_000 });
+};
 
 test.describe.configure({ mode: "serial" });
 
@@ -314,7 +344,12 @@ test("Phase 2 — section for the generated JHS level (UI)", async ({ page, requ
   const headers = await adminHeaders(request);
 
   await test.step("create section bound to the JHS level", async () => {
+    // Same guard-race handling as Phase 1: "New Section" is wrapped in
+    // ensureOrganization, which bails while GET /organization is still loading.
+    const orgResp = waitForApi(page, "GET", "/organization");
     await page.goto("/admin/sections");
+    await orgResp;
+
     await page.getByRole("button", { name: "New Section" }).first().click();
 
     const dialog = page.locator('[data-slot="dialog-content"]');
@@ -717,5 +752,648 @@ test("Phase 2 — educator role cannot create classes (RBAC)", async ({ request 
 
   console.log(
     `[Phase 2] extension=@${run.orgExtension} | program=${run.jhsProgramName} | levels=${run.levelIds?.length} | section=${run.sectionName} | educator=${run.educatorEmail} | class=${run.classItem?.id} | enrolled students=${run.student1?.fullName}`,
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 3 — Grading Scale: create an org-scoped scale via the UI, assign it to
+// the JHS department for the run's school year, and verify via the API.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("Phase 3 — grading scale created (UI) and assigned to the JHS department", async ({
+  page,
+  request,
+}) => {
+  const headers = await adminHeaders(request);
+
+  await test.step("admin login and open grading scales", async () => {
+    await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
+    await page.goto("/admin/grading-scales");
+    await expect(page.getByRole("button", { name: "New Scale" }).first()).toBeVisible();
+  });
+
+  await test.step("create the JHS grading scale via the dialog", async () => {
+    const modal = page.locator('[data-slot="dialog-content"]');
+    await openDialog(page, page.getByRole("button", { name: "New Scale" }).first(), modal);
+
+    run.scaleName = uniqueName("E2E Scale");
+    await modal.getByPlaceholder("e.g. Standard Grading Scale").fill(run.scaleName);
+
+    await modal.getByRole("combobox").click();
+    await page.getByRole("option", { name: "Junior High School", exact: true }).click();
+
+    const scaleResp = waitForApi(page, "POST", "/grading-scales");
+    await modal.getByRole("button", { name: "Create Scale" }).click();
+    const resp = await scaleResp;
+
+    const scale = (await resp.json()).data;
+    run.scaleId = scale.id;
+    expect(scale.name).toBe(run.scaleName);
+    expect(scale.programType).toBe("jhs");
+    expect(scale.ranges).toHaveLength(2);
+
+    await waitForToast(page, "Grading scale created.");
+    await expect(page.locator('[data-slot="dialog-content"]')).toBeHidden();
+  });
+
+  await test.step("assign the scale to the JHS department", async () => {
+    // The assignment section renders only once at least one scale exists.
+    await expect(page.getByText("Assign to Departments", { exact: true })).toBeVisible();
+
+    const row = page.getByRole("row").filter({ hasText: run.jhsProgramName! });
+    await row.getByRole("button", { name: "Assign" }).click();
+
+    const dialog = page.locator('[data-slot="dialog-content"]');
+    await dialog.getByRole("combobox").click();
+    await page.getByRole("option").filter({ hasText: run.scaleName! }).click();
+
+    const assignResp = waitForApi(
+      page,
+      "POST",
+      `/grading-scales/programs/${run.jhsProgramId}/grading-scale`,
+    );
+    await dialog.getByRole("button", { name: "Yes, Assign" }).click();
+    await assignResp;
+
+    await waitForToast(page, "Grading scale assigned successfully.");
+    await expect(row.getByText(run.scaleName!, { exact: true })).toBeVisible();
+  });
+
+  await test.step("assignment is registered via the API", async () => {
+    const res = await request.get(`${API_BASE}/grading-scales/assignments`, {
+      params: { schoolYearId: run.schoolYearId },
+      headers,
+    });
+    expect(res.status()).toBe(200);
+    const list = await unwrapData<
+      Array<{ programId: string; gradingScaleId: string }>
+    >(res);
+    const match = list.find((a) => a.programId === run.jhsProgramId);
+    expect(match?.gradingScaleId).toBe(run.scaleId);
+  });
+
+  console.log(
+    `[Phase 3] scale=${run.scaleName} (${run.scaleId}) assigned to ${run.jhsProgramId}`,
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 4 — Grading Scheme: create a JHS-scoped grading scheme template via the
+// UI (4 default components, weights auto-balanced to 100), apply it to the JHS
+// program, and verify the program assignment through the API.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("Phase 4 — grading scheme template created (UI) and applied to the JHS program", async ({
+  page,
+  request,
+}) => {
+  const headers = await adminHeaders(request);
+
+  await test.step("admin login and open grading scheme templates", async () => {
+    await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
+    await page.goto("/admin/grading-schemes");
+    await expect(page.getByRole("button", { name: "New Template" }).first()).toBeVisible();
+  });
+
+  await test.step("create the JHS grading scheme template", async () => {
+    const dialog = page.locator('[data-slot="dialog-content"]');
+    await openDialog(page, page.getByRole("button", { name: "New Template" }).first(), dialog);
+
+    run.schemeTemplateName = uniqueName("E2E Scheme");
+    await dialog.getByPlaceholder('e.g. "Standard Semester Scheme"').fill(run.schemeTemplateName);
+
+    // The dialog has 5 comboboxes: 1 "Department type" select plus one Type
+    // select per category row. Target the department one by its placeholder.
+    await dialog
+      .getByRole("combobox")
+      .filter({ hasText: "All departments" })
+      .click();
+    await page.getByRole("option", { name: "Junior High School", exact: true }).click();
+
+    const tplResp = waitForApi(page, "POST", "/grading-scheme-templates");
+    await dialog.getByRole("button", { name: "Save" }).click();
+    const resp = await tplResp;
+
+    const template = (await resp.json()).data;
+    run.schemeTemplateIds.jhs = template.id;
+    expect(template.name).toBe(run.schemeTemplateName);
+    expect(template.programType).toBe("jhs");
+    expect(template.components).toHaveLength(4);
+
+    await expect(page.locator('[data-slot="dialog-content"]')).toBeHidden();
+  });
+
+  await test.step("apply the template to the JHS department", async () => {
+    await expect(page.getByText("Template Assignment", { exact: true })).toBeVisible();
+
+    const row = page.getByRole("row").filter({ hasText: run.jhsProgramName! });
+    await row.getByRole("button", { name: "Assign" }).click();
+
+    const dialog = page.locator('[data-slot="dialog-content"]');
+    await dialog.getByRole("combobox").click();
+    await page.getByRole("option").filter({ hasText: run.schemeTemplateName! }).click();
+
+    const applyResp = waitForApi(
+      page,
+      "POST",
+      "/grading-scheme-templates/apply/program",
+    );
+    await dialog.getByRole("button", { name: "Yes, Assign" }).click();
+    const resp = await applyResp;
+
+    const result = (await resp.json()).data as {
+      success: boolean;
+      appliedCount: number;
+    };
+    expect(result.success).toBe(true);
+    // The JHS subject → class pair created in Phase 2 lives under this program.
+    expect(result.appliedCount).toBeGreaterThanOrEqual(1);
+
+    await waitForToast(page, "Applied");
+    await expect(row.getByText(run.schemeTemplateName!, { exact: true })).toBeVisible();
+  });
+
+  await test.step("program assignment registers the template via the API", async () => {
+    const res = await request.get(
+      `${API_BASE}/grading-scheme-templates/assignments/program`,
+      { params: { schoolYearId: run.schoolYearId }, headers },
+    );
+    expect(res.status()).toBe(200);
+    const list = await unwrapData<
+      Array<{ programId: string; templateId: string | null }>
+    >(res);
+    const match = list.find((a) => a.programId === run.jhsProgramId);
+    expect(match?.templateId).toBe(run.schemeTemplateIds.jhs);
+  });
+
+  console.log(
+    `[Phase 4] scheme template=${run.schemeTemplateName} (${run.schemeTemplateIds.jhs}) applied to ${run.jhsProgramId}`,
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 5 — Academic Calendar: set up the JHS department calendar with two
+// semester breaks so the Phase 6 semester template (2 semesters) can be assigned.
+// Verified via the per-program calendar endpoint.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("Phase 5 — JHS department calendar with two semester breaks", async ({
+  page,
+  request,
+}) => {
+  const headers = await adminHeaders(request);
+
+  const syStart = "2026-08-20";
+  const syEnd = "2027-06-30";
+  const break1End = "2026-12-18";
+  const break2Start = "2026-12-19";
+
+  await test.step("admin login and open the department calendars tab", async () => {
+    await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
+    await page.goto("/admin/academic-calendar");
+    await page.getByRole("button", { name: "Department Calendars" }).click();
+    await expect(
+      page.getByText(run.jhsProgramName!, { exact: true }).first(),
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
+  await test.step("create the JHS calendar with two breaks", async () => {
+    const card = page
+      .locator("div.rounded-lg.border.bg-card.overflow-hidden")
+      .filter({ hasText: run.jhsProgramName! })
+      .first();
+    await card.getByRole("button", { name: "Setup Calendar" }).click();
+
+    // Break 1's start is locked to the calendar start; setting its end date
+    // cascades Break 2's start to the next day, and Break 2's end stays locked
+    // to the calendar end (the school-year end).
+    const breakBlocks = card.locator("div.rounded-lg.border.bg-muted\\/20");
+    await expect(breakBlocks).toHaveCount(2);
+    await breakBlocks.nth(0).locator('input[type="date"]').nth(1).fill(break1End);
+
+    const createResp = waitForApi(page, "POST", "/program-calendars");
+    await card.getByRole("button", { name: "Create Calendar" }).click();
+    const resp = await createResp;
+
+    const calendar = (await resp.json()).data;
+    expect(calendar.programId).toBe(run.jhsProgramId);
+    expect(calendar.startDate).toMatch(/^2026-08-20/);
+    expect(calendar.endDate).toMatch(/^2027-06-30/);
+    expect(calendar.breaks).toHaveLength(2);
+
+    await waitForToast(page, "Calendar created.");
+  });
+
+  await test.step("calendar is queryable per program with persisted breaks", async () => {
+    const res = await request.get(`${API_BASE}/program-calendars/by-program`, {
+      params: { programId: run.jhsProgramId, schoolYearId: run.schoolYearId },
+      headers,
+    });
+    expect(res.status()).toBe(200);
+    const calendar = await unwrapData<{
+      id: string;
+      startDate: string;
+      endDate: string;
+      breaks: Array<{ label: string; startDate: string; endDate: string }>;
+    }>(res);
+    expect(calendar.startDate).toMatch(/^2026-08-20/);
+    const breaks = calendar.breaks.map((b) => ({
+      label: b.label,
+      startDate: b.startDate.slice(0, 10),
+      endDate: b.endDate.slice(0, 10),
+    }));
+    expect(breaks[0]).toMatchObject({
+      label: "Break 1",
+      startDate: syStart,
+      endDate: break1End,
+    });
+    expect(breaks[1]).toMatchObject({
+      label: "Break 2",
+      startDate: break2Start,
+      endDate: syEnd,
+    });
+  });
+
+  console.log(
+    `[Phase 5] calendar for ${run.jhsProgramId}: breaks [${break1End}, ${break2Start}] within ${syStart} → ${syEnd}`,
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 6 — Semester Settings: create a JHS semester template via the UI (the
+// 2-semester default pre-filled when the department type is picked), assign it
+// to the JHS department through the term-dates modal using auto-configured
+// dates, and verify the assignment + term dates through the API.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("Phase 6 — JHS semester template created and assigned with term dates", async ({
+  page,
+  request,
+}) => {
+  const headers = await adminHeaders(request);
+
+  await test.step("admin login and open semester settings", async () => {
+    await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
+    await page.goto("/admin/semester-settings");
+    await expect(page.getByRole("button", { name: "New Template" }).first()).toBeVisible();
+  });
+
+  await test.step("create the JHS semester template", async () => {
+    await page.getByRole("button", { name: "New Template" }).first().click();
+    const dialog = page.locator('[data-slot="dialog-content"]');
+
+    run.semesterTemplateName = uniqueName("E2E Semester");
+    await dialog.getByPlaceholder('e.g. "Standard 2-Semester"').fill(run.semesterTemplateName);
+
+    // Picking "Junior High School" pre-fills the 2-semester × 4-terms default.
+    await dialog.getByRole("combobox").click();
+    await page
+      .getByRole("option")
+      .filter({ hasText: "Junior High School (Grades 7-10)" })
+      .click();
+
+    const tplResp = waitForApi(page, "POST", "/semester-templates");
+    await dialog.getByRole("button", { name: "Create Template" }).click();
+    const resp = await tplResp;
+
+    const template = (await resp.json()).data;
+    run.semesterTemplateId = template.id;
+    expect(template.name).toBe(run.semesterTemplateName);
+    expect(template.program_type).toBe("jhs");
+    expect(template.semesters).toHaveLength(2);
+
+    await waitForToast(page, "Template created.");
+  });
+
+  await test.step("assign the template with auto-configured term dates", async () => {
+    await expect(page.getByText("Assign to Departments", { exact: true })).toBeVisible();
+
+    const row = page.getByRole("row").filter({ hasText: run.jhsProgramName! });
+    await row.getByRole("combobox").click();
+    await page.getByRole("option").filter({ hasText: run.semesterTemplateName! }).click();
+
+    const modal = page.locator('[data-slot="dialog-content"]').last();
+    await expect(modal.getByText("Configure Term Dates", { exact: true })).toBeVisible();
+
+    // View mode → edit mode → auto-fill dates from the calendar breaks.
+    await modal.getByRole("button", { name: "Edit" }).click();
+    const defaultsResp = waitForApi(page, "GET", "/default-term-dates");
+    await modal.getByRole("button", { name: "Auto-Configure Dates" }).click();
+    await defaultsResp;
+
+    const applyBtn = modal.getByRole("button", { name: "Apply Template" });
+    await expect(applyBtn).toBeEnabled();
+    const assignResp = waitForApi(page, "POST", "/semester-templates/assignments");
+    await applyBtn.click();
+
+    const confirm = page.getByRole("alertdialog");
+    await expect(confirm.getByText("Save term dates?", { exact: true })).toBeVisible();
+    await confirm.getByRole("button", { name: "Save" }).click();
+    await assignResp;
+
+    await waitForToast(page, "Template assigned with term dates.");
+  });
+
+  await test.step("assignment with term dates is registered via the API", async () => {
+    const res = await request.get(
+      `${API_BASE}/semester-templates/assignments/by-school-year`,
+      { params: { schoolYearId: run.schoolYearId }, headers },
+    );
+    expect(res.status()).toBe(200);
+    const list = await unwrapData<
+      Array<{
+        program_id: string;
+        template_id: string;
+        termDates?: Array<{ term_id: string; start_date: string; end_date: string }>;
+      }>
+    >(res);
+    const match = list.find((a) => a.program_id === run.jhsProgramId);
+    expect(match?.template_id).toBe(run.semesterTemplateId);
+    expect(match?.termDates).toHaveLength(8);
+  });
+
+  console.log(
+    `[Phase 6] semester template=${run.semesterTemplateName} (${run.semesterTemplateId}) assigned to ${run.jhsProgramId}`,
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 7 — Class enrollment lifecycle (UI + API): enrolling the students
+// created in Phase 2 into the class, the gating rule (same department AND level
+// where the class is registered), duplicate/capacity/removal behaviors, and the
+// year-end guard. The auto-unenroll SCRUB itself is proven at the backend layer
+// (backend/test/lane1-item9-enrollment-auto-unenroll.e2e-spec.ts) because the
+// API only ends an ACTIVE school year while this suite's year is `pending`.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("Phase 7 — class enrollment lifecycle: gating, duplicates, capacity, and year-end guard", async ({
+  page,
+  request,
+}) => {
+  const headers = await adminHeaders(request);
+
+  let classBId = "";
+  let classCId = "";
+  let classDId = "";
+  let classEId = "";
+  let student4Id = "";
+  let student5Id = "";
+
+  const createSubject = async (name: string, minorLevelId?: string) => {
+    const res = await request.post(`${API_BASE}/subjects`, {
+      data: {
+        name: uniqueName(name),
+        subjectType: minorLevelId ? "minor" : "major",
+        programId: run.jhsProgramId,
+        ...(minorLevelId ? { levelId: minorLevelId } : {}),
+      },
+      headers,
+    });
+    expect(res.status()).toBe(201);
+    return (await unwrapData<{ id: string }>(res)).id;
+  };
+
+  const createClass = async (subjectId: string, capacity: number, weekday: number, sectionId?: string) => {
+    const res = await request.post(`${API_BASE}/classes`, {
+      data: {
+        subjectId,
+        educatorId: run.educatorId,
+        ...(sectionId ? { sectionId } : {}),
+        schoolYearId: run.schoolYearId,
+        semesterId: run.semesterId,
+        capacity,
+        schedules: [{ weekday, startTime: "08:00", endTime: "09:30" }],
+      },
+      headers,
+    });
+    expect(res.status()).toBe(201);
+    return (await unwrapData<{ id: string }>(res)).id;
+  };
+
+  const enrollStudent = (classId: string, studentId: string) =>
+    request.post(`${API_BASE}/classes/${classId}/enroll`, {
+      data: { studentId },
+      headers,
+    });
+
+  const enrollmentsOf = async (classId: string) =>
+    unwrapData<Array<{ id: string; student_id: string; status: string }>>(
+      await request.get(`${API_BASE}/classes/${classId}/enrollments`, { headers }),
+    );
+
+  const eligibleOf = async (classId: string) =>
+    unwrapData<Array<{ id: string }>>(
+      await request.get(`${API_BASE}/classes/${classId}/eligible-students`, { headers }),
+    );
+
+  const placeJhsStudent = async (name: string, levelId: string) => {
+    const created = await request.post(`${API_BASE}/students`, {
+      data: {
+        fullName: uniqueName(name),
+        emailName: uniqueUsername("stu"),
+        studentId: uniqueStudentNumber("STU"),
+      },
+      headers,
+    });
+    expect(created.status()).toBe(201);
+    const student = await unwrapData<{ id: string }>(created);
+    await request.post(`${API_BASE}/school-years/${run.schoolYearId}/enrollments`, {
+      data: { student_id: student.id },
+      headers,
+    });
+    const pe = await request.post(
+      `${API_BASE}/school-years/${run.schoolYearId}/enrollments/students/${student.id}/programs`,
+      { data: { program_id: run.jhsProgramId, level_id: levelId }, headers },
+    );
+    expect(pe.status()).toBe(201);
+    return { studentId: student.id, programEnrollmentId: (await unwrapData<{ id: string }>(pe)).id };
+  };
+
+  await test.step("build extra JHS classes and students for the enrollment tests", async () => {
+    const subjectB = await createSubject("Elective Math");
+    const subjectD = await createSubject("Elective Science");
+    // Minor subject bound to level[0] → the class inherits a LEVEL constraint.
+    const subjectE = await createSubject("Elective English", run.levelIds![0]);
+
+    // classB = UI enroll target; classC reuses subjectB to prove the
+    // "same subject in the same semester" duplicate guard; classD has
+    // capacity 1 to prove the overflow branch; classE is the level-gating target.
+    classBId = await createClass(subjectB, 30, 2, run.sectionId);
+    classCId = await createClass(subjectB, 30, 3, run.sectionId);
+    classDId = await createClass(subjectD, 1, 4, run.sectionId);
+    classEId = await createClass(subjectE, 30, 5);
+
+    // student4: JHS + level[0] + Section A → eligible for the level/section
+    // bound classes (used for the overflow candidate).
+    const s4 = await placeJhsStudent("Student Four", run.levelIds![0]);
+    student4Id = s4.studentId;
+    await request.patch(
+      `${API_BASE}/school-years/${run.schoolYearId}/enrollments/programs/${s4.programEnrollmentId}`,
+      { data: { section_id: run.sectionId }, headers },
+    );
+
+    // student5: JHS but on a DIFFERENT level → proves the same-level rule.
+    const s5 = await placeJhsStudent("Student Five", run.levelIds![1]);
+    student5Id = s5.studentId;
+
+    expect(classBId).toBeTruthy();
+    expect(student4Id).toBeTruthy();
+    expect(student5Id).toBeTruthy();
+  });
+
+  await test.step("UI: admin enrolls the eligible JHS student via the class roster", async () => {
+    await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
+    await page.goto(`/admin/classes/${classBId}`);
+
+    await expect(page.getByText("Enrolled Students", { exact: true })).toBeVisible();
+    await expect(page.getByText("No students enrolled yet.", { exact: true })).toBeVisible();
+
+    await page.getByRole("button", { name: "Enroll Student" }).click();
+    const dialog = page.locator('[data-slot="dialog-content"]');
+    await expect(dialog).toBeVisible();
+
+    // The dialog itself states the gating rule under test.
+    await expect(
+      dialog.getByText(
+        "Only students matching this class's program, course/strand, and level are listed.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+
+    // student1 (same JHS program + level + section) is the ONLY eligible one.
+    await expect(
+      dialog.getByRole("button").filter({ hasText: run.student1!.fullName }),
+    ).toBeVisible();
+    await expect(
+      dialog.getByRole("button").filter({ hasText: run.student2!.fullName }),
+    ).toHaveCount(0);
+    await expect(
+      dialog.getByRole("button").filter({ hasText: run.student3!.fullName }),
+    ).toHaveCount(0);
+
+    await dialog.getByRole("button").filter({ hasText: run.student1!.fullName }).click();
+    await waitForToast(page, "Student enrolled.");
+    await expect(dialog).toBeHidden();
+
+    // Roster now lists student1 (active).
+    await expect(
+      page
+        .locator("div.rounded-lg.border.bg-card.overflow-hidden.divide-y")
+        .first()
+        .getByText(run.student1!.fullName),
+    ).toBeVisible();
+  });
+
+  await test.step("duplicate enrollments are rejected (same class + same subject/semester)", async () => {
+    const sameClass = await enrollStudent(classBId, run.student1!.id);
+    expect(sameClass.status()).toBe(409);
+    expect(((await sameClass.json()) as { message: string }).message).toContain(
+      "Student is already enrolled in this class.",
+    );
+
+    const sameSubjectSem = await enrollStudent(classCId, run.student1!.id);
+    expect(sameSubjectSem.status()).toBe(409);
+    expect(((await sameSubjectSem.json()) as { message: string }).message).toContain(
+      "Student is already enrolled in a class for this subject in the same semester.",
+    );
+  });
+
+  await test.step("enrollment requires the same department AND level where the class is registered", async () => {
+    // classE is registered against level[0] (minor subject binding). student1 is
+    // placed on level[0] → enrollable; student5 is on level[1] → rejected.
+    const ok = await enrollStudent(classEId, run.student1!.id);
+    expect(ok.status()).toBe(201);
+
+    const wrongLevel = await enrollStudent(classEId, student5Id);
+    expect(wrongLevel.status()).toBe(400);
+    expect(((await wrongLevel.json()) as { message: string }).message).toContain(
+      "Student is not eligible for this class",
+    );
+    expect(((await wrongLevel.json()) as { message: string }).message).toContain(
+      "The student does not belong to the same program, course/strand, or level assigned to this class.",
+    );
+
+    // eligible-students mirrors the rule: only the level[0] JHS candidate is
+    // offered; the enrolled student and the wrong-level student are not.
+    const eligible = await eligibleOf(classEId);
+    const ids = eligible.map((s) => s.id);
+    expect(ids).toContain(student4Id);
+    expect(ids).not.toContain(run.student1!.id);
+    expect(ids).not.toContain(student5Id);
+  });
+
+  await test.step("status transitions + removal + re-enroll on the class enrollment", async () => {
+    let enrollments = await enrollmentsOf(classBId);
+    const enr = enrollments.find((e) => e.student_id === run.student1!.id)!;
+    expect(enr.status).toBe("active");
+
+    const pending = await request.patch(
+      `${API_BASE}/classes/${classBId}/enrollments/${enr.id}`,
+      { data: { status: "pending" }, headers },
+    );
+    expect(pending.status()).toBe(200);
+    enrollments = await enrollmentsOf(classBId);
+    expect(enrollments.find((e) => e.id === enr.id)?.status).toBe("pending");
+
+    const backToActive = await request.patch(
+      `${API_BASE}/classes/${classBId}/enrollments/${enr.id}`,
+      { data: { status: "active" }, headers },
+    );
+    expect(backToActive.status()).toBe(200);
+
+    const removed = await request.delete(
+      `${API_BASE}/classes/${classBId}/enrollments/${enr.id}`,
+      { headers },
+    );
+    expect(removed.status()).toBe(200);
+    enrollments = await enrollmentsOf(classBId);
+    expect(enrollments.some((e) => e.student_id === run.student1!.id)).toBe(false);
+
+    // A previously-removed enrollment does not block a fresh row.
+    const reEnroll = await enrollStudent(classBId, run.student1!.id);
+    expect(reEnroll.status()).toBe(201);
+    enrollments = await enrollmentsOf(classBId);
+    expect(
+      enrollments.some((e) => e.student_id === run.student1!.id && e.status === "active"),
+    ).toBe(true);
+
+    // Removing the already-removed original row is a conflict.
+    const doubleRemove = await request.delete(
+      `${API_BASE}/classes/${classBId}/enrollments/${enr.id}`,
+      { headers },
+    );
+    expect(doubleRemove.status()).toBe(409);
+    expect(((await doubleRemove.json()) as { message: string }).message).toContain(
+      "Enrollment has already been removed.",
+    );
+  });
+
+  await test.step("capacity overflow is reported, not an error", async () => {
+    const fill = await enrollStudent(classDId, run.student1!.id);
+    expect(fill.status()).toBe(201);
+    expect(((await fill.json()) as { data: { status: string } }).data.status).toBe("active");
+
+    const overflow = await enrollStudent(classDId, student4Id);
+    expect(overflow.status()).toBe(201);
+    const body = (await overflow.json()) as {
+      data: { overflow: boolean; message: string };
+    };
+    expect(body.data.overflow).toBe(true);
+    expect(body.data.message).toContain("Class is at full capacity (1 students)");
+  });
+
+  await test.step("a pending school year cannot be ended directly (guard)", async () => {
+    const res = await request.patch(
+      `${API_BASE}/school-years/${run.schoolYearId}/end`,
+      { headers },
+    );
+    expect(res.status()).toBe(400);
+    expect(((await res.json()) as { message: string }).message).toContain(
+      "A pending school year cannot be ended. Activate it first.",
+    );
+  });
+
+  console.log(
+    `[Phase 7] enrolled ${run.student1!.fullName} into ${classBId}; gating/dup/overflow/status guards verified; SY end guard verified for ${run.schoolYearId}`,
   );
 });

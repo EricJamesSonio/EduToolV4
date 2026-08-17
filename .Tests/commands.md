@@ -45,6 +45,9 @@ npx playwright test
 # Headed (visible browser) — macOS/Linux
 HEADED=1 npx playwright test
 
+# run new script
+npm run test:e2e:headed
+
 # Headed — Windows PowerShell
 $env:HEADED=1; npx playwright test
 
