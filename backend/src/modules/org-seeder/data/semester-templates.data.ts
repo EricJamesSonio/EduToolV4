@@ -15,127 +15,43 @@ export type SemesterTemplateDef = {
   semesters:   SemesterItemDef[]
 }
 
+const GENERIC_TERMS: TermDef[] = [
+  { name: 'Term 1', order_index: 0 },
+  { name: 'Term 2', order_index: 1 },
+  { name: 'Term 3', order_index: 2 },
+]
+
+const ORDINALS = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th']
+
+/**
+ * Builds a generic semester template with `semesterCount` semesters, each
+ * containing the same generic "Term 1/2/3" rows. The seed flow calls this with
+ * the calendar's period count so the template always matches the Academic
+ * Calendar (never a skipped auto-registration). Users rename later.
+ */
+export function buildGenericTemplate(
+  name: string,
+  programType: string,
+  semesterCount: number,
+): SemesterTemplateDef {
+  return {
+    name,
+    programType,
+    semesters: Array.from({ length: semesterCount }, (_, i) => ({
+      name:       ORDINALS[i] ?? `${i + 1}th Semester`,
+      order_index: i,
+      terms:      GENERIC_TERMS.map((t) => ({ ...t })),
+    })),
+  }
+}
+
 export const SEMESTER_TEMPLATES: SemesterTemplateDef[] = [
-  {
-    name:        'Daycare / Kinder Template',
-    programType: 'daycare',   // also reused for kinder — same structure
-    semesters: [
-      {
-        name:        'Whole Year',
-        order_index: 0,
-        terms: [
-          { name: '1st Quarter', order_index: 0 },
-          { name: '2nd Quarter', order_index: 1 },
-          { name: '3rd Quarter', order_index: 2 },
-          { name: '4th Quarter', order_index: 3 },
-        ],
-      },
-    ],
-  },
-  {
-    name:        'Kinder Template',
-    programType: 'kinder',
-    semesters: [
-      {
-        name:        'Whole Year',
-        order_index: 0,
-        terms: [
-          { name: '1st Quarter', order_index: 0 },
-          { name: '2nd Quarter', order_index: 1 },
-          { name: '3rd Quarter', order_index: 2 },
-          { name: '4th Quarter', order_index: 3 },
-        ],
-      },
-    ],
-  },
-  {
-    name:        'Elementary Semester Template',
-    programType: 'elementary',
-    semesters: [
-      {
-        name:        '1st Semester',
-        order_index: 0,
-        terms: [
-          { name: '1st Quarter', order_index: 0 },
-          { name: '2nd Quarter', order_index: 1 },
-        ],
-      },
-      {
-        name:        '2nd Semester',
-        order_index: 1,
-        terms: [
-          { name: '3rd Quarter', order_index: 0 },
-          { name: '4th Quarter', order_index: 1 },
-        ],
-      },
-    ],
-  },
-  {
-    name:        'Junior High School Semester Template',
-    programType: 'jhs',
-    semesters: [
-      {
-        name:        '1st Semester',
-        order_index: 0,
-        terms: [
-          { name: '1st Quarter', order_index: 0 },
-          { name: '2nd Quarter', order_index: 1 },
-        ],
-      },
-      {
-        name:        '2nd Semester',
-        order_index: 1,
-        terms: [
-          { name: '3rd Quarter', order_index: 0 },
-          { name: '4th Quarter', order_index: 1 },
-        ],
-      },
-    ],
-  },
-  {
-    name:        'Senior High School Semester Template',
-    programType: 'shs',
-    semesters: [
-      {
-        name:        '1st Semester',
-        order_index: 0,
-        terms: [
-          { name: '1st Quarter', order_index: 0 },
-          { name: '2nd Quarter', order_index: 1 },
-        ],
-      },
-      {
-        name:        '2nd Semester',
-        order_index: 1,
-        terms: [
-          { name: '3rd Quarter', order_index: 0 },
-          { name: '4th Quarter', order_index: 1 },
-        ],
-      },
-    ],
-  },
-  {
-    name:        'College Semester Template',
-    programType: 'college',
-    semesters: [
-      {
-        name:        '1st Semester',
-        order_index: 0,
-        terms: [
-          { name: 'Midterm', order_index: 0 },
-          { name: 'Finals',  order_index: 1 },
-        ],
-      },
-      {
-        name:        '2nd Semester',
-        order_index: 1,
-        terms: [
-          { name: 'Midterm', order_index: 0 },
-          { name: 'Finals',  order_index: 1 },
-        ],
-      },
-    ],
-  },
+  buildGenericTemplate('Daycare / Kinder Template', 'daycare', 2),
+  buildGenericTemplate('Kinder Template', 'kinder', 2),
+  buildGenericTemplate('Elementary Semester Template', 'elementary', 2),
+  buildGenericTemplate('Junior High School Semester Template', 'jhs', 2),
+  buildGenericTemplate('Senior High School Semester Template', 'shs', 2),
+  buildGenericTemplate('College Semester Template', 'college', 2),
 ]
 
 /** Maps a programType to its template def for quick lookup */
