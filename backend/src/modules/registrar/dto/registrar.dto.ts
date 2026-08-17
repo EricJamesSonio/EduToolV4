@@ -20,8 +20,13 @@ export enum RegistrarStatus {
 export class CreateRegistrarDto {
   @IsString()
   @MinLength(2)
-  @MaxLength(100)
+  @MaxLength(30)
   username: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  fullName?: string;
 }
 
 // ── GET /registrars ───────────────────────────────────────────────────────────
