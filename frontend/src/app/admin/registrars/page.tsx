@@ -32,7 +32,7 @@ export default function RegistrarsPage(): React.JSX.Element {
   const [resetTarget, setResetTarget]   = useState<Registrar | null>(null);
   const [statusTarget, setStatusTarget] = useState<Registrar | null>(null);
   const [newCredentials, setNewCredentials] = useState<{
-    username: string; email: string; password: string;
+    username: string; email: string; password: string; fullName?: string;
   } | null>(null);
 
   const {
@@ -64,6 +64,7 @@ export default function RegistrarsPage(): React.JSX.Element {
         setResetTarget(null);
         setNewCredentials({
           username: resetTarget.username,
+          fullName: resetTarget.fullName,
           email: resetTarget.email,
           password: result.plainPassword,
         });
@@ -198,7 +199,7 @@ export default function RegistrarsPage(): React.JSX.Element {
         open={resetTarget !== null}
         onOpenChange={(o) => { if (!o) setResetTarget(null); }}
         title="Reset password?"
-        message={`This will generate a new password for ${resetTarget?.username}. The old password will stop working immediately.`}
+        message={`This will generate a new password for ${resetTarget?.fullName ?? resetTarget?.username}. The old password will stop working immediately.`}
         confirmLabel="Reset Password"
         destructive
         isLoading={resetMutation.isPending}
@@ -212,8 +213,8 @@ export default function RegistrarsPage(): React.JSX.Element {
         title={statusTarget?.status === "active" ? "Suspend registrar?" : "Activate registrar?"}
         message={
           statusTarget?.status === "active"
-            ? `${statusTarget?.username} will no longer be able to log in. You can reactivate them anytime.`
-            : `${statusTarget?.username} will regain access to their account.`
+            ? `${statusTarget?.fullName ?? statusTarget?.username} will no longer be able to log in. You can reactivate them anytime.`
+            : `${statusTarget?.fullName ?? statusTarget?.username} will regain access to their account.`
         }
         confirmLabel={statusTarget?.status === "active" ? "Suspend" : "Activate"}
         destructive={statusTarget?.status === "active"}
