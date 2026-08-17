@@ -20,24 +20,25 @@ export default function SlideThumbnails({ slides, currentSlideIndex, template, o
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLDivElement>(null);
 
-  // Keep the active slide thumbnail in view as the slide changes
+  // Keep the active slide thumbnail in view as the slide changes — works for
+  // both the desktop rail and the mobile filmstrip sheet.
   useEffect(() => {
-    if (variant !== "rail") return;
     const container = scrollRef.current;
     const active = activeRef.current;
     if (!container || !active) return;
 
-    const containerTop = container.getBoundingClientRect().top;
-    const containerBottom = container.getBoundingClientRect().bottom;
-    const activeTop = active.getBoundingClientRect().top;
-    const activeBottom = active.getBoundingClientRect().bottom;
-    const PADDING = 8;
+    const containerRect = container.getBoundingClientRect();
+    const activeRect = active.getBoundingClientRect();
 
-    if (activeTop < containerTop + PADDING) {
-      container.scrollTop -= (containerTop + PADDING) - activeTop;
-    } else if (activeBottom > containerBottom - PADDING) {
-      container.scrollTop += activeBottom - (containerBottom - PADDING);
-    }
+    const activeTop = activeRect.top - containerRect.top;
+    const activeBottom = activeRect.bottom - containerRect.top;
+
+    // Already fully visible — leave it alone (avoids a jumpy scroll on mount).
+    if (activeTop >= 0 && activeBottom <= container.clientHeight) return;
+
+    // Otherwise scroll the active slide to the center of the rail.
+    const targetTop = activeTop + activeRect.height / 2 - container.clientHeight / 2;
+    container.scrollTo({ top: targetTop, behavior: "smooth" });
   }, [currentSlideIndex, variant]);
 
   const cleanTitle = (slide: Slide) =>
