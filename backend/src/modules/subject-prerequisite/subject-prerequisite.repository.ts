@@ -17,13 +17,18 @@ export class SubjectPrerequisiteRepository {
   }
 
   async bulkCreate(org_id: string, subject_id: string, prerequisite_ids: string[]) {
-    return this.db.subjectPrerequisite.createMany({
-      data: prerequisite_ids.map((prerequisite_id) => ({
-        org_id,
-        subject_id,
-        prerequisite_id,
-      })),
-      skipDuplicates: true,
+    return this.db.$transaction(async (tx) => {
+      await tx.subjectPrerequisite.deleteMany({
+        where: { subject_id, org_id },
+      })
+      return tx.subjectPrerequisite.createMany({
+        data: prerequisite_ids.map((prerequisite_id) => ({
+          org_id,
+          subject_id,
+          prerequisite_id,
+        })),
+        skipDuplicates: true,
+      })
     })
   }
 
@@ -48,12 +53,6 @@ export class SubjectPrerequisiteRepository {
     return this.db.subjectPrerequisite.delete({ where: { id } })
   }
 
-  async deleteAllForSubject(subject_id: string, org_id: string) {
-    return this.db.subjectPrerequisite.deleteMany({
-      where: { subject_id, org_id },
-    })
-  }
-
   // Fetch all prerequisite subjects + the student's Grade records for them in one query
   async getPrerequisitesWithGrades(
     subject_id: string,
@@ -76,7 +75,9 @@ export class SubjectPrerequisiteRepository {
 
     const prerequisiteSubjectIds = prereqs.map((p) => p.prerequisite_id)
 
-    // Find classes the student was enrolled in that used those subjects
+    // Find classes the student was enrolled in that used those subjects.
+    // Ordered by the effective academic period (school year start) so the
+    // "latest grade wins" resolution below is deterministic across school years.
     const grades = await this.db.grade.findMany({
       where: {
         org_id,
@@ -86,6 +87,10 @@ export class SubjectPrerequisiteRepository {
           subject_id: { in: prerequisiteSubjectIds },
         },
       },
+      orderBy: [
+        { class: { schoolYear: { start_date: 'asc' } } },
+        { id: 'asc' },
+      ],
       include: {
         class: {
           select: { subject_id: true },
@@ -93,10 +98,13 @@ export class SubjectPrerequisiteRepository {
       },
     })
 
-    return prereqs.map((p) => ({
-      subject_id: p.prerequisite_id,
-      subject_name: p.prerequisite.name,
-      grade: grades.find((g) => g.class.subject_id === p.prerequisite_id) ?? null,
-    }))
+    return prereqs.map((p) => {
+      const matches = grades.filter((g) => g.class.subject_id === p.prerequisite_id)
+      return {
+        subject_id: p.prerequisite_id,
+        subject_name: p.prerequisite.name,
+        grade: matches.length > 0 ? matches[matches.length - 1] : null,
+      }
+    })
   }
 }
