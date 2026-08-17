@@ -13,6 +13,7 @@ import { LevelSectionSeederService } from './seeders/level-section-seeder.servic
 import { GradingScaleSeederService } from './seeders/grading-scale-seeder.service';
 import { GradingSchemeSeederService } from './seeders/grading-scheme-seeder.service';
 import { SemesterTemplateSeederService } from './seeders/semester-template-seeder.service';
+import { ProgramCalendarSeederService } from './seeders/program-calendar-seeder.service';
 import { MajorSubjectSeederService } from './seeders/major-subject-seeder.service';
 import { MinorSubjectSeederService } from './seeders/minor-subject-seeder.service';
 import { PrerequisiteSeederService } from './seeders/prerequisite-seeder.service';
@@ -30,6 +31,7 @@ export class OrgSeederService {
     private readonly gradingScaleSeeder: GradingScaleSeederService,
     private readonly gradingSchemeSeeder: GradingSchemeSeederService,
     private readonly semesterTemplateSeeder: SemesterTemplateSeederService,
+    private readonly programCalendarSeeder: ProgramCalendarSeederService,
     private readonly majorSubjectSeeder: MajorSubjectSeederService,
     private readonly minorSubjectSeeder: MinorSubjectSeederService,
     private readonly prerequisiteSeeder: PrerequisiteSeederService,
@@ -84,6 +86,7 @@ export class OrgSeederService {
     if (ctx.seedGradingSchemes) {
       await this.gradingSchemeSeeder.seed(ctx);
     }
+    await this.programCalendarSeeder.seed(ctx);
     if (ctx.seedSemesterTemplates) {
       await this.semesterTemplateSeeder.seed(ctx);
     }

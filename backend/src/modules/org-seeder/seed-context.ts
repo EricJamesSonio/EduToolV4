@@ -16,6 +16,9 @@ export interface SeedResult {
   gradingScales: SeedCount;
   gradingSchemeTemplates: SeedCount;
   semesterTemplates: SeedCount;
+  programCalendars: SeedCount;
+  /** Non-fatal issues surfaced to the admin (e.g. template not auto-registered due to calendar mismatch). */
+  warnings: string[];
 }
 
 export function emptyCount(): SeedCount {
@@ -35,6 +38,19 @@ export interface GradingScaleOption {
   ranges: GradingScaleRangeOption[];
 }
 
+export interface ProgramCalendarBreakSeed {
+  label: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface ProgramCalendarSeedOption {
+  startDate: string;
+  endDate: string;
+  notes?: string;
+  breaks?: ProgramCalendarBreakSeed[];
+}
+
 export interface OrgSeedOptions {
   orgId: string;
   schoolYearId: string;
@@ -50,6 +66,8 @@ export interface OrgSeedOptions {
   seedGradingScales?: boolean;
   seedGradingSchemes?: boolean;
   seedSemesterTemplates?: boolean;
+  seedProgramCalendars?: boolean;
+  programCalendars?: Record<string, ProgramCalendarSeedOption>;
 }
 
 export class SeedContext {
@@ -70,6 +88,9 @@ export class SeedContext {
   readonly seedGradingSchemes: boolean;
   readonly seedSemesterTemplates: boolean;
 
+  readonly seedProgramCalendars: boolean;
+  readonly programCalendars: Record<string, ProgramCalendarSeedOption>;
+
   readonly programMap: Record<string, string> = {};
   readonly courseMap: Record<string, string> = {};
   readonly strandMap: Record<string, string> = {};
@@ -86,6 +107,8 @@ export class SeedContext {
     gradingScales: emptyCount(),
     gradingSchemeTemplates: emptyCount(),
     semesterTemplates: emptyCount(),
+    programCalendars: emptyCount(),
+    warnings: [],
   };
 
   constructor(db: DatabaseService, options: OrgSeedOptions) {
@@ -104,6 +127,8 @@ export class SeedContext {
     this.seedGradingScales = options.seedGradingScales ?? true;
     this.seedGradingSchemes = options.seedGradingSchemes ?? true;
     this.seedSemesterTemplates = options.seedSemesterTemplates ?? true;
+    this.seedProgramCalendars = options.seedProgramCalendars ?? false;
+    this.programCalendars = options.programCalendars ?? {};
   }
 
   shouldSeedProgram(key: string): boolean {
