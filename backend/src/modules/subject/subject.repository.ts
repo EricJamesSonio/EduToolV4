@@ -18,20 +18,40 @@ export class SubjectRepository {
   private async enrichSubjects(subjects: any[]) {
     if (!subjects.length) return subjects;
 
-    const levelIds = [...new Set(subjects.map((s) => s.level_id).filter(Boolean))];
+    const levelIds  = [...new Set(subjects.map((s) => s.level_id).filter(Boolean))];
+    const courseIds = [...new Set(subjects.map((s) => s.course_id).filter(Boolean))];
+    const strandIds = [...new Set(subjects.map((s) => s.strand_id).filter(Boolean))];
 
-    const levels = levelIds.length
-      ? await this.db.level.findMany({
-          where:  { id: { in: levelIds } },
-          select: { id: true, name: true },
-        })
-      : [];
+    const [levels, courses, strands] = await Promise.all([
+      levelIds.length
+        ? this.db.level.findMany({
+            where:  { id: { in: levelIds } },
+            select: { id: true, name: true },
+          })
+        : [],
+      courseIds.length
+        ? this.db.course.findMany({
+            where:  { id: { in: courseIds } },
+            select: { id: true, name: true },
+          })
+        : [],
+      strandIds.length
+        ? this.db.strand.findMany({
+            where:  { id: { in: strandIds } },
+            select: { id: true, name: true },
+          })
+        : [],
+    ]);
 
-    const levelMap = Object.fromEntries(levels.map((l) => [l.id, l.name]));
+    const levelMap  = Object.fromEntries(levels.map((l) => [l.id, l.name]));
+    const courseMap = Object.fromEntries(courses.map((c) => [c.id, c.name]));
+    const strandMap = Object.fromEntries(strands.map((s) => [s.id, s.name]));
 
     return subjects.map((s) => ({
       ...s,
-      levelName: levelMap[s.level_id] ?? null,
+      levelName:  levelMap[s.level_id]   ?? null,
+      courseName: s.course_id ? (courseMap[s.course_id] ?? null) : null,
+      strandName: s.strand_id ? (strandMap[s.strand_id] ?? null) : null,
     }));
   }
 
