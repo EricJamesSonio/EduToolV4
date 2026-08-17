@@ -6,7 +6,7 @@ import { AppModule } from '@/app.module';
 describe('AppController (e2e)', () => {
   let app: INestApplication; // ✅ just INestApplication, no <App>
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -15,10 +15,17 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
+  afterAll(async () => {
+    await app.close();
+  });
+
   it('/ (GET)', () => {
     return request(app.getHttpServer())
       .get('/')
       .expect(200)
-      .expect('Hello World!');
+      .expect((res) => {
+        expect(res.body.status).toBe('ok');
+        expect(res.body.message).toBe('Backend is running 🚀');
+      });
   });
 });
