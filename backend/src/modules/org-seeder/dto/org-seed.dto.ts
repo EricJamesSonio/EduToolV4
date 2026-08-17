@@ -8,6 +8,7 @@ import {
   ValidateNested,
   IsObject,
   IsBoolean,
+  IsDateString,
 } from 'class-validator'
 import { Type } from 'class-transformer'
 
@@ -44,6 +45,35 @@ class GradingScaleOptionDto {
   @ValidateNested({ each: true })
   @Type(() => GradingScaleRangeDto)
   ranges!: GradingScaleRangeDto[]
+}
+
+export class ProgramCalendarBreakSeedDto {
+  @IsString()
+  label!: string
+
+  @IsDateString()
+  startDate!: string
+
+  @IsDateString()
+  endDate!: string
+}
+
+export class ProgramCalendarSeedDto {
+  @IsDateString()
+  startDate!: string
+
+  @IsDateString()
+  endDate!: string
+
+  @IsOptional()
+  @IsString()
+  notes?: string
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProgramCalendarBreakSeedDto)
+  breaks?: ProgramCalendarBreakSeedDto[]
 }
 
 export class OrgSeedDto {
@@ -97,6 +127,14 @@ export class OrgSeedDto {
   @IsOptional()
   @IsBoolean()
   seedSemesterTemplates?: boolean
+
+  @IsOptional()
+  @IsBoolean()
+  seedProgramCalendars?: boolean
+
+  @IsOptional()
+  @IsObject()
+  programCalendars?: Record<string, ProgramCalendarSeedDto>
 
   // new "other" field
   @IsObject()
