@@ -26,6 +26,19 @@ export interface GradingScalePayload {
   ranges:    GradingScaleRangePayload[]
 }
 
+export interface ProgramCalendarBreakPayload {
+  label:     string
+  startDate: string
+  endDate:   string
+}
+
+export interface ProgramCalendarPayload {
+  startDate: string
+  endDate:   string
+  notes?:    string
+  breaks?:   ProgramCalendarBreakPayload[]
+}
+
 export interface SeedOrganizationRequest {
   schoolYearId:          string
   programs:              string[]
@@ -39,6 +52,19 @@ export interface SeedOrganizationRequest {
   sectionConfigs?:       Record<string, { name: string; capacity: number }[]>
   seedGradingSchemes?:    boolean
   seedSemesterTemplates?: boolean
+  seedProgramCalendars?:  boolean
+  programCalendars?:      Record<string, ProgramCalendarPayload>
+}
+
+export interface SeedResultData {
+  warnings?: string[]
+  [key: string]: unknown
+}
+
+export interface SeedOrgResponse {
+  success: boolean
+  message: string
+  result?: SeedResultData
 }
 
 export const organizationApi = {
@@ -74,8 +100,9 @@ export const organizationApi = {
     return res.data.data
   },
 
-  seedOrg: async (data: SeedOrganizationRequest): Promise<void> => {
-    await client.post("/organization/seed", data)
+  seedOrg: async (data: SeedOrganizationRequest): Promise<SeedOrgResponse> => {
+    const res = await client.post<{ success: boolean; data: SeedOrgResponse }>("/organization/seed", data)
+    return res.data.data
   },
 
   validateEmailExtension: async (emailExtension: string): Promise<{ isUnique: boolean; message?: string }> => {

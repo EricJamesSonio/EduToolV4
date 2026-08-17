@@ -76,7 +76,9 @@ interface SubjectResponse {
   levelName?: string | null;
 
   courseId: string | null;
+  courseName?: string | null;
   strandId?: string | null;
+  strandName?: string | null;
 
   educatorId?: string | null;
   educatorName?: string | null;
@@ -121,7 +123,9 @@ function mapSubject(s: SubjectResponse): Subject {
     levelName: s.levelName ?? null,
 
     courseId: s.courseId,
+    courseName: s.courseName ?? null,
     strandId: s.strandId ?? null,
+    strandName: s.strandName ?? null,
 
     educatorId: s.educatorId ?? null,
     educatorName: s.educatorName ?? null,

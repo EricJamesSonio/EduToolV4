@@ -7,6 +7,7 @@ export const MAX_SELECT_LIMIT = 5000;
 
 export interface CreateRegistrarRequest {
   username: string;
+  fullName?: string;
 }
 
 export interface CreateRegistrarResponse extends Registrar {
