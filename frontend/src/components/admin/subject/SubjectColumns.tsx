@@ -33,6 +33,22 @@ export function useSubjectColumns(
       ),
     },
     {
+      header: "Course / Strand",
+      cell: (info) => {
+        const row = info.row.original;
+        const name = row.courseName ?? row.strandName;
+        if (!name) return <span className="text-sm text-muted-foreground">—</span>;
+        return (
+          <Badge
+            variant="outline"
+            className="text-xs border px-2 py-0.5 font-normal"
+          >
+            {name}
+          </Badge>
+        );
+      },
+    },
+    {
       header: "Level",
       accessorKey: "levelName",
       cell: (info) => {
