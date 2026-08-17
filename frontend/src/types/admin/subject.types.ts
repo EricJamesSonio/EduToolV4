@@ -30,7 +30,9 @@ export interface Subject {
   levelName: string | null;
 
   courseId: string | null;
+  courseName: string | null;
   strandId: string | null;
+  strandName: string | null;
 
   educatorId: string | null;
   educatorName: string | null;

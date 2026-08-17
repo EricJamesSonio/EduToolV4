@@ -3,6 +3,7 @@ export interface Registrar {
   orgId:     string;
   email:     string;
   username:  string;
+  fullName?: string;
   status?:   string;
   createdAt: string;
 }
