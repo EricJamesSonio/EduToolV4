@@ -14,14 +14,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import type { ProgramType } from "@/types/admin/program.types";
 
-const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
+const PROGRAM_TYPE_LABELS: Partial<Record<ProgramType, string>> = {
   daycare:    "Daycare",
   kinder:     "Kindergarten",
   elementary: "Elementary",
   jhs:        "Junior High School",
   shs:        "Senior High School",
   college:    "College",
-  custom:     "Custom",
 };
 
 interface EditProgramForm {

@@ -4,7 +4,7 @@ import { PROGRAM_TYPE_LABELS, PROGRAM_TYPE_VALUES } from "@/types/admin/program.
 export { PROGRAM_TYPE_LABELS };
 
 export const PROGRAM_TYPE_OPTIONS: { value: ProgramType; label: string }[] = 
-  PROGRAM_TYPE_VALUES.map((value) => ({
+  PROGRAM_TYPE_VALUES.filter((value) => value !== "custom").map((value) => ({
     value,
     label: PROGRAM_TYPE_LABELS[value],
   }));
