@@ -14,6 +14,8 @@ export interface AssessmentScore {
   manualSectionScore?: number | null;
   isMissed?: boolean;
   isExempted?: boolean;
+  included?: boolean;
+  inclusionReason?: string;
   created_at?: string | null;
 }
 
