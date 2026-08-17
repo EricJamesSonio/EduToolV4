@@ -355,7 +355,22 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
     if (!cls) return;
 
     const existing = await this.repo.findByStudent(studentId, classId, termId, orgId);
-    if (existing?.is_locked) return;
+    if (existing?.is_locked) {
+      await this.auditLog.logActivityEvent({
+        orgId,
+        actorId: 'system',
+        action: 'grade_recompute_skipped_locked',
+        entityType: 'class',
+        entityId: classId,
+        metadata: {
+          termId,
+          studentId,
+          existingFinalScore: existing.final_score,
+          existingFinalGrade: existing.final_grade,
+        },
+      });
+      return;
+    }
 
     const [
       scheme,
