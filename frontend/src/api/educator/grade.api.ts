@@ -6,6 +6,33 @@ export interface ManualScoreDto {
   score: number;
 }
 
+export interface AssessmentStatusOverrideDto {
+  overrideStatus: "MISSING" | "EXEMPTED";
+  reason?: string | null;
+}
+
+export interface AssessmentStatusInfo {
+  assessmentId: string;
+  title?: string | null;
+  effectiveDate?: string | null;
+  status: string;
+  countsTowardGrade: boolean;
+  reason: string;
+  overrideId?: string;
+  overrideStatus?: "MISSING" | "EXEMPTED";
+  overrideReason?: string | null;
+  overriddenBy?: string;
+  overriddenAt?: string;
+}
+
+export interface AssessmentStatusOverrideResult {
+  overrideId: string;
+  overrideStatus: "MISSING" | "EXEMPTED";
+  overrideReason: string | null;
+  overriddenBy: string;
+  overriddenAt: string;
+}
+
 export interface TermOption {
   termId: string;
   termName: string;
@@ -79,5 +106,39 @@ export const gradeApi = {
     await apiClient.patch(
       `/classes/${classId}/grades/${termId}/students/${studentId}/unlock`,
     );
+  },
+
+  getAssessmentStatuses: async (
+    classId: string,
+    studentId: string,
+  ): Promise<AssessmentStatusInfo[]> => {
+    const { data } = await apiClient.get<Envelope<AssessmentStatusInfo[]>>(
+      `/classes/${classId}/grades/students/${studentId}/assessments/status`
+    );
+    return data.data;
+  },
+
+  setAssessmentStatusOverride: async (
+    classId: string,
+    studentId: string,
+    assessmentId: string,
+    dto: AssessmentStatusOverrideDto,
+  ): Promise<AssessmentStatusOverrideResult> => {
+    const { data } = await apiClient.post<Envelope<AssessmentStatusOverrideResult>>(
+      `/classes/${classId}/grades/students/${studentId}/assessments/${assessmentId}/override`,
+      dto
+    );
+    return data.data;
+  },
+
+  deleteAssessmentStatusOverride: async (
+    classId: string,
+    studentId: string,
+    assessmentId: string,
+  ): Promise<{ deleted: number }> => {
+    const { data } = await apiClient.delete<Envelope<{ deleted: number }>>(
+      `/classes/${classId}/grades/students/${studentId}/assessments/${assessmentId}/override`
+    );
+    return data.data;
   },
 };
