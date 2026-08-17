@@ -54,8 +54,11 @@ export const run: {
   };
   programIds: Record<string, string>;
   courseId?: string;
+  scaleName?: string;
   scaleId?: string;
   schemeTemplateIds: Record<string, string>;
+  schemeTemplateName?: string;
+  semesterTemplateName?: string;
   semesterTemplateId?: string;
 } = {
   platformEmail: "platform@edutool.dev",

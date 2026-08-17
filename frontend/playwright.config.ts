@@ -6,7 +6,6 @@ export default defineConfig({
   workers: 1,
   timeout: 60_000,
   expect: { timeout: 15_000 },
-  actionTimeout: 15_000,
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: [["list"]],
@@ -16,6 +15,11 @@ export default defineConfig({
     trace: "on-first-retry",
     video: "on",
     screenshot: "only-on-failure",
+    actionTimeout: 15_000,
+    viewport: null,
+    launchOptions: {
+      args: ["--start-maximized"],
+    },
   },
   webServer: [
     {
