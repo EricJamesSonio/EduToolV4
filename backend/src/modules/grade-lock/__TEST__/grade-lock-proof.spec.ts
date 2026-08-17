@@ -102,7 +102,7 @@ describe('Grade-lock chain — proof tests (Lane 1 item 3)', () => {
     it('PROOF: granting with a newDeadline does NOT persist it onto the GradeLockSetting', async () => {
       // Setting's lock_deadline is already in the past -> the hourly sweep will
       // select this lock again AFTER it has been unlocked by the grant.
-      const setting = { lock_deadline: new Date(Date.now() - 60_000), deadlineDays: null };
+      const setting = { id: 's1', lock_deadline: new Date(Date.now() - 60_000), deadlineDays: null };
 
       const repo = {
         findClassById: jest.fn().mockResolvedValue({ id: 'c1', educator_id: 'e1' }),
@@ -117,9 +117,10 @@ describe('Grade-lock chain — proof tests (Lane 1 item 3)', () => {
 
       await requests.grantUnlock('c1', 'u1', 'org-1', { reason: 'allow regrade', newDeadline: future });
 
-      // Correct behavior: a granted newDeadline must be written to the setting
-      // so the auto-lock sweep does not re-lock the class within the hour.
-      expect(repo.updateSetting).toHaveBeenCalledWith('c1', expect.objectContaining({ lock_deadline: future }));
+      // Correct behavior: a granted newDeadline must be written to the SETTING
+      // (keyed by the setting's id, not the class id) so the auto-lock sweep
+      // does not re-lock the class within the hour.
+      expect(repo.updateSetting).toHaveBeenCalledWith('s1', expect.objectContaining({ lock_deadline: future }));
     });
   });
 

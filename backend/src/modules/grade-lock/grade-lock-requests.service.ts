@@ -18,8 +18,7 @@ export class GradeLockRequestsService {
     const gradeLock = await this.repo.findLockByClassIdWithSubject(classId)
 
     const hasPendingRequest = gradeLock
-      ? (await this.repo.findEventsByClassId(orgId, classId))
-          .some((e) => e.type === 'unlock_request')
+      ? this.hasPendingUnlockRequest(await this.repo.findEventsByClassId(orgId, classId))
       : false
 
     const { isExpired, deadline } = gradeLock?.setting
@@ -55,7 +54,7 @@ export class GradeLockRequestsService {
     if (!gradeLock.is_locked) throw new BadRequestException('Class is not locked')
 
     const events = await this.repo.findEventsByClassId(orgId, classId)
-    if (events.some((e) => e.type === 'unlock_request')) {
+    if (this.hasPendingUnlockRequest(events)) {
       throw new ConflictException('An unlock request is already pending for this class')
     }
 
@@ -83,6 +82,13 @@ export class GradeLockRequestsService {
     if (!gradeLock.is_locked) throw new BadRequestException('Class is not locked')
 
     const updated = await this.repo.setUnlocked(classId)
+
+    if (dto.newDeadline) {
+      await this.repo.updateSetting(
+        gradeLock.setting.id,
+        { lock_deadline: dto.newDeadline as unknown as Date },
+      )
+    }
 
     const metadata: Record<string, any> = {
       granted_by: userId,
@@ -139,5 +145,21 @@ export class GradeLockRequestsService {
     }).catch(() => {})
 
     return { success: true }
+  }
+
+  // A request is only pending while no grant/deny resolution is newer than
+  // it — a resolved request must not block a fresh request. Events are sorted
+  // newest-first here so the logic holds regardless of the caller's ordering.
+  private hasPendingUnlockRequest(events: Array<{ type: string; created_at?: Date | string }>): boolean {
+    const sorted = [...events].sort((a, b) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0
+      return tb - ta
+    })
+    for (const e of sorted) {
+      if (e.type === 'grant_unlock' || e.type === 'deny_unlock') return false
+      if (e.type === 'unlock_request') return true
+    }
+    return false
   }
 }
