@@ -55,7 +55,12 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npx prisma generate
-      - run: npm run lint
+      # NOTE: the "lint" script in package.json runs eslint with --fix, which
+      # rewrites files on the runner and then discards them — it never actually
+      # gates the PR on unfixed style violations. Running eslint directly here
+      # (same glob, no --fix) so this job checks what's actually committed.
+      - name: Lint (check only, no --fix)
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
 
   backend-typecheck:
     needs: changes
@@ -74,6 +79,29 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npx tsc --noEmit -p tsconfig.json
+
+  # tsc --noEmit only checks types — it does not exercise the actual production
+  # build pipeline (nest build), which may use the SWC compiler (@swc/core,
+  # @swc/cli, swc-loader are all present in devDependencies). SWC strips types
+  # without fully checking them and can fail in ways tsc won't catch, so this
+  # job verifies the real build artifact compiles, mirroring frontend-build.
+  backend-build:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run build
 
   backend-unit-tests:
     needs: [changes, backend-lint]
@@ -251,6 +279,7 @@ jobs:
     needs:
       - backend-lint
       - backend-typecheck
+      - backend-build
       - backend-unit-tests
       - backend-e2e-tests
       - frontend-lint
@@ -263,6 +292,7 @@ jobs:
           for result in \
             "${{ needs.backend-lint.result }}" \
             "${{ needs.backend-typecheck.result }}" \
+            "${{ needs.backend-build.result }}" \
             "${{ needs.backend-unit-tests.result }}" \
             "${{ needs.backend-e2e-tests.result }}" \
             "${{ needs.frontend-lint.result }}" \
