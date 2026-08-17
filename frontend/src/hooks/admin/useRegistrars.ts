@@ -9,12 +9,12 @@ import { toast } from "sonner";
 // CREATE
 // ─────────────────────────────────────────────
 export const useCreateRegistrar = (): UseMutationResult<
-  { id: string; username: string; email: string; plainPassword: string },
+  { id: string; username: string; fullName?: string; email: string; plainPassword: string },
   Error,
   CreateRegistrarRequest
 > =>
   useMutationWithInvalidation<
-    { id: string; username: string; email: string; plainPassword: string },
+    { id: string; username: string; fullName?: string; email: string; plainPassword: string },
     Error,
     CreateRegistrarRequest
   >(
