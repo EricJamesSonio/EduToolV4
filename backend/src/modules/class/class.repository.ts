@@ -164,6 +164,26 @@ export class ClassRepository {
     });
   }
 
+  /**
+   * Returns a Map<educatorId, classCount> counting only non-deleted classes.
+   * Empty input returns an empty Map (avoids a pointless `in: []` query).
+   */
+  async countAssignedClasses(orgId: string, educatorIds: string[]): Promise<Map<string, number>> {
+    if (educatorIds.length === 0) return new Map();
+
+    const rows = await this.db.class.groupBy({
+      by: ['educator_id'],
+      where: {
+        org_id: orgId,
+        educator_id: { in: educatorIds },
+        deleted_at: null,
+      },
+      _count: { _all: true },
+    });
+
+    return new Map(rows.map((r) => [r.educator_id, r._count._all]));
+  }
+
   async findActiveClassesByEducator(educatorId: string, orgId: string) {
     return this.db.class.findMany({
       where: {

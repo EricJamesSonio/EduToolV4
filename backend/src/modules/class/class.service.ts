@@ -507,6 +507,13 @@ export class ClassService {
     return classes.length > 0;
   }
 
+  async getEducatorClassCounts(
+    orgId: string,
+    educatorIds: string[],
+  ): Promise<Map<string, number>> {
+    return this.classRepository.countAssignedClasses(orgId, educatorIds);
+  }
+
   async getEducatorClasses(educatorId: string, orgId: string) {
     return this.classRepository.findActiveClassesByEducator(educatorId, orgId);
   }
