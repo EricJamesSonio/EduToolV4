@@ -51,6 +51,8 @@ export function useSeederCard() {
     }
   }, [schoolYears, selectedSchoolYearId]);
 
+  const selectedSchoolYear = schoolYears.find((sy) => sy.id === selectedSchoolYearId);
+
   const createSchoolYearMutation = useMutationWithInvalidation(
     ({
       name,
@@ -150,6 +152,8 @@ export function useSeederCard() {
     sectionConfigs,
     seedGradingSchemes,
     seedSemesterTemplates,
+    seedProgramCalendars,
+    programCalendarConfigs,
     resetAll,
   } = seedState;
 
@@ -192,8 +196,14 @@ export function useSeederCard() {
         queryKeys.admin.levels.all,
         queryKeys.admin.subjects.all,
       ],
-      onSuccess: () => {
-        toast.success("Seed completed! Your departments, levels, and subjects are ready.");
+      onSuccess: (result) => {
+        const warnings: string[] = result?.result?.warnings ?? [];
+        if (warnings.length > 0) {
+          warnings.slice(0, 3).forEach((w) => toast.warning(w));
+          toast.success("Seed completed with some notices (see above).");
+        } else {
+          toast.success("Seed completed! Your departments, levels, and subjects are ready.");
+        }
         setCollapsed(true);
         resetAll();
       },
@@ -252,6 +262,27 @@ export function useSeederCard() {
         )
       : undefined;
 
+    const programCalendars =
+      seedProgramCalendars
+        ? Object.fromEntries(
+            Array.from(selectedPrograms)
+              .filter(
+                (p) => !!programCalendarConfigs[p]?.startDate && !!programCalendarConfigs[p]?.endDate,
+              )
+              .map((p) => [
+                p,
+                {
+                  startDate: programCalendarConfigs[p].startDate,
+                  endDate: programCalendarConfigs[p].endDate,
+                  notes: programCalendarConfigs[p].notes?.trim() || undefined,
+                  breaks: programCalendarConfigs[p].breaks
+                    .filter((b) => b.startDate && b.endDate)
+                    .map(({ label, startDate, endDate }) => ({ label, startDate, endDate })),
+                },
+              ]),
+          )
+        : undefined;
+
     seedMutation.mutate({
       schoolYearId: selectedSchoolYearId,
       programs: Array.from(selectedPrograms),
@@ -264,6 +295,8 @@ export function useSeederCard() {
 seedGradingScales: seedGradingScale ? true : false,
 seedGradingSchemes: seedGradingSchemes ? Object.values(gradingSchemesByProgram).some(Boolean) : false,
 seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesByProgram).some(Boolean) : false,
+seedProgramCalendars: !!programCalendars && Object.keys(programCalendars).length > 0,
+programCalendars,
     });
   }
 
@@ -314,6 +347,11 @@ seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesBy
   const selectedSemesterTemplates = Array.from(selectedPrograms).filter(
     (p) => semesterTemplatesByProgram[p] !== false,
   ).length;
+  const selectedProgramCalendars = seedProgramCalendars
+    ? Array.from(selectedPrograms).filter(
+        (p) => !!programCalendarConfigs[p]?.startDate && !!programCalendarConfigs[p]?.endDate,
+      ).length
+    : 0;
 
   const summaryText = !selectedSchoolYearId
     ? "Select a school year to begin."
@@ -329,6 +367,7 @@ seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesBy
           seedGradingScale && `${Object.keys(resolvedGradingScales).length} grading scale(s)`,
           seedState.seedGradingSchemes && `${selectedGradingSchemes} grading scheme(s)`,
           seedState.seedSemesterTemplates && `${selectedSemesterTemplates} semester template(s)`,
+          seedProgramCalendars && `${selectedProgramCalendars} department calendar(s)`,
         ]
           .filter(Boolean)
           .join(" · ");
@@ -354,6 +393,9 @@ seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesBy
     ...(seedState.seedSemesterTemplates && selectedSemesterTemplates > 0
       ? [{ label: "Semester Templates", value: selectedSemesterTemplates }]
       : []),
+    ...(seedProgramCalendars && selectedProgramCalendars > 0
+      ? [{ label: "Department Calendars", value: selectedProgramCalendars }]
+      : []),
   ];
 
   const derivedSelectedLevels = new Set(
@@ -368,6 +410,7 @@ seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesBy
     syLoading,
     selectedSchoolYearId,
     setSelectedSchoolYearId,
+    selectedSchoolYear,
     handleCreateSchoolYear,
     handleConfirmShortDuration,
     pendingSchoolYear,

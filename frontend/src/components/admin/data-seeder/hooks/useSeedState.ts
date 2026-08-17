@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import type { CalendarBreak } from "@/api/admin/program-calendar.api"
 import {
   COLLEGE_COURSES,
   COLLEGE_YEAR_LABELS,
@@ -23,6 +24,24 @@ export interface ProgramLevelConfig {
 }
 
 export type SectionConfig = { name: string; capacity: number }[]
+
+export interface ProgramCalendarDraft {
+  startDate: string
+  endDate: string
+  notes: string
+  breaks: CalendarBreak[]
+}
+
+function defaultCalendarBreaks(startDate: string): CalendarBreak[] {
+  return [
+    { label: "Break 1", startDate, endDate: "" },
+    { label: "Break 2", startDate: "", endDate: "" },
+  ]
+}
+
+function emptyProgramCalendarDraft(): ProgramCalendarDraft {
+  return { startDate: "", endDate: "", notes: "", breaks: defaultCalendarBreaks("") }
+}
 
 const DEFAULT_PRESET_PER_PROGRAM: Record<string, string> = {
   daycare: "deped_k12",
@@ -225,6 +244,56 @@ export function useSeedState() {
     }
   }
 
+  // ===== PROGRAM CALENDARS (NOT AUTO-SELECTED — optional, like the others) =====
+  const [seedProgramCalendars, setSeedProgramCalendars] = useState(false)
+
+  const [programCalendarConfigs, setProgramCalendarConfigs] =
+    useState<Record<string, ProgramCalendarDraft>>({})
+
+  function toggleSeedProgramCalendars(enabled: boolean) {
+    setSeedProgramCalendars(enabled)
+    if (enabled) {
+      // Auto-on per program: every selected department gets a calendar draft so
+      // no extra per-program clicks are needed.
+      setProgramCalendarConfigs((prev) => {
+        const next = { ...prev }
+        selectedPrograms.forEach((prog) => {
+          if (!next[prog]) next[prog] = emptyProgramCalendarDraft()
+        })
+        return next
+      })
+    }
+  }
+
+  /** Seed a draft for a program and prefill empty school-year dates. */
+  function initProgramCalendar(prog: string, defaults: Partial<ProgramCalendarDraft>) {
+    setProgramCalendarConfigs((prev) => {
+      const existing = prev[prog]
+      if (existing?.startDate && existing?.endDate) return prev
+      const base = existing ?? emptyProgramCalendarDraft()
+      const startDate = base.startDate || (defaults.startDate ?? "")
+      return {
+        ...prev,
+        [prog]: {
+          ...base,
+          startDate,
+          endDate: base.endDate || (defaults.endDate ?? ""),
+          breaks:
+            base.breaks.length > 0
+              ? base.breaks.map((b, i) => (i === 0 ? { ...b, startDate } : b))
+              : defaultCalendarBreaks(startDate),
+        },
+      }
+    })
+  }
+
+  function updateProgramCalendar(prog: string, patch: Partial<ProgramCalendarDraft>) {
+    setProgramCalendarConfigs((prev) => {
+      const current = prev[prog] ?? emptyProgramCalendarDraft()
+      return { ...prev, [prog]: { ...current, ...patch } }
+    })
+  }
+
   // ===== LEVEL & SECTION MANAGEMENT =====
   function resolveEntityLevelNames(entityKey: string, count: number): string[] {
     const course = COLLEGE_COURSES.find((c) => c.code === entityKey);
@@ -312,6 +381,8 @@ export function useSeedState() {
     setGradingSchemesByProgram(buildInitialGradingSchemesByProgram())
     setSeedSemesterTemplates(false)
     setSemesterTemplatesByProgram(buildInitialSemesterTemplatesByProgram())
+    setSeedProgramCalendars(false)
+    setProgramCalendarConfigs({})
   }
 
   // ===== UTILITY FUNCTIONS =====
@@ -387,6 +458,14 @@ export function useSeedState() {
 
     semesterTemplatesByProgram,
     toggleSemesterTemplate,
+
+    // Program Calendars
+    seedProgramCalendars,
+    setSeedProgramCalendars: toggleSeedProgramCalendars,
+
+    programCalendarConfigs,
+    initProgramCalendar,
+    updateProgramCalendar,
 
     // Utilities
     resetAll,
