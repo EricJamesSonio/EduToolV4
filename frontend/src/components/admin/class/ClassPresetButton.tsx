@@ -49,7 +49,7 @@ export function ClassPresetButton({
   const {
     programs, tracks, hasTrack, isCourseTrack, levels, sections,
     programMissingTemplate, semesters,
-  } = useCreateClassData(schoolYearId, programId, semesterId, trackId, levelId, open);
+  } = useCreateClassData(schoolYearId, programId, semesterId, trackId, levelId, "", open);
 
   // These only fire from real picks made inside this modal — never from the
   // initial population of an existing preset — since they're plain state

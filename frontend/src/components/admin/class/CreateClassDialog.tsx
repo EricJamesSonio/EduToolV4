@@ -1,5 +1,5 @@
 "use client";
-import { useEffect , useRef} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
@@ -90,15 +90,28 @@ export function CreateClassDialog({
 
   const {
     programs, tracks, hasTrack, isCourseTrack, levels, sections, subjects,
-    programMissingTemplate, semesters, educators,
+    programMissingTemplate, semesters, educators, educatorClasses, educatorClassesLoading,
   } = useCreateClassData(
     schoolYearId,
     selectedProgramId,
     selectedSemesterId,
     selectedTrackId,
     selectedLevelId,
+    selectedEducatorId,
     open,
   );
+
+  // ── Schedule conflict gating ───────────────────────────────────────────────
+  // ScheduleSlotFields reports whether any currently-entered slot overlaps the
+  // selected educator's existing schedules; while true, submission is blocked
+  // so backend conflicts are prevented up front rather than surfaced as errors.
+  const [scheduleConflicts, setScheduleConflicts] = useState(false);
+  const handleScheduleConflictsChange = useCallback((hasConflict: boolean) => {
+    setScheduleConflicts(hasConflict);
+  }, []);
+  useEffect(() => {
+    if (open) setScheduleConflicts(false);
+  }, [open]);
 
   // ── Cascade resets ──────────────────────────────────────────────────────────
   // Fire only when a field changes after mount (user action). A plain
@@ -184,6 +197,7 @@ export function CreateClassDialog({
 
   const isSubmitDisabled =
     mutation.isPending        ||
+    scheduleConflicts        ||
     !selectedProgramId        ||
     programMissingTemplate    ||
     !selectedSemesterId       ||
@@ -191,7 +205,8 @@ export function CreateClassDialog({
     !selectedLevelId          ||
     !selectedSectionId        ||
     !selectedSubjectId        ||
-    !selectedEducatorId;
+    !selectedEducatorId       ||
+    formValues.schedules.length === 0;
 
   return (
     <Modal open={open} onClose={handleClose} title={
@@ -434,7 +449,11 @@ export function CreateClassDialog({
               )}
             </div>
 
-            <ScheduleSlotFields />
+            <ScheduleSlotFields
+              educatorClasses={educatorClasses}
+              isLoading={educatorClassesLoading}
+              onConflictsChange={handleScheduleConflictsChange}
+            />
 
             <div className="flex justify-end gap-2 pt-1">
               <Button

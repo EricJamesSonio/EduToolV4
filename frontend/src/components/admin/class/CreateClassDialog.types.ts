@@ -25,7 +25,7 @@ export const EMPTY_DEFAULTS: CreateClassForm = {
   subjectId:  "",
   educatorId: "",
   capacity:   "30",
-  schedules:  [{ weekday: "1", startTime: "08:00", endTime: "09:00" }],
+  schedules:  [],
 };
 
 export interface CreateClassDialogProps {
