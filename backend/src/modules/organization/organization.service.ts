@@ -108,7 +108,7 @@ async create(adminId: string, dto: CreateOrganizationDto) {
     const org = await this.orgRepository.findById(orgId)
     if (!org) throw new NotFoundException('Organization not found.')
 
-  await this.orgSeeder.seedOrg({
+  const result = await this.orgSeeder.seedOrg({
     orgId,
     actorId,
     schoolYearId:          dto.schoolYearId,
@@ -124,6 +124,8 @@ async create(adminId: string, dto: CreateOrganizationDto) {
     seedGradingScales:     dto.seedGradingScales,
     seedGradingSchemes:    dto.seedGradingSchemes,
     seedSemesterTemplates: dto.seedSemesterTemplates,
+    seedProgramCalendars:  dto.seedProgramCalendars,
+    programCalendars:      dto.programCalendars,
   })
 
     // Seed org-global holiday config with default Philippine holidays
@@ -137,7 +139,7 @@ async create(adminId: string, dto: CreateOrganizationDto) {
       update: {}, // don't overwrite if already exists
     });
 
-    return { success: true, message: 'Seed completed successfully.' }
+    return { success: true, message: 'Seed completed successfully.', result }
   }
 
   async getAllOrganizations() {
