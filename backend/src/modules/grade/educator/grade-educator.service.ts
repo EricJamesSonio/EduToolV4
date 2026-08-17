@@ -5,8 +5,12 @@ import {
 } from '@nestjs/common';
 import { GradeRepository } from '../grade.repository';
 import { GradeCoreService, GradeRange } from '../core/grade-core.service';
+import {
+  resolveAssessmentInclusion,
+  AssessmentInclusionReason,
+} from '../core/assessment-inclusion.util';
 import { AuditLogService } from 'src/modules/audit-log/audit-log.service';
-import { SetManualScoreDto, SetGradeVisibilityDto } from './dto/grade-educator.dto';
+import { SetManualScoreDto, SetGradeVisibilityDto, SetAssessmentStatusOverrideDto } from './dto/grade-educator.dto';
 
 function componentsToCategories(components: any[]) {
   return components.map((c) => ({
@@ -75,6 +79,202 @@ export class GradeEducatorService {
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
     return this.repo.unlockByStudent(studentId, termId, orgId);
+  }
+
+  // ───────── ASSESSMENT STATUS / OVERRIDE (Phase 3) ─────────
+
+  /**
+   * Resolve the effective grading status of every assessment in a class for a
+   * single student: the submission-derived status, whether it counts toward
+   * the grade (Phase 2 inclusion rule ∩ countable states), the reason from the
+   * Phase 2 enum, and the override row if one exists. Status model per Phase 3:
+   * MISSING/PENDING/SUBMITTED/EXEMPTED mapped onto the include boolean override.
+   */
+  async getAssessmentStatuses(
+    classId: string,
+    studentId: string,
+    orgId: string,
+    educatorId: string,
+  ) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+
+    const enrollment = await this.repo.getActiveEnrollment(classId, studentId, orgId);
+    if (!enrollment) {
+      throw new NotFoundException('Student is not actively enrolled in this class.');
+    }
+
+    const [assessments, submissions, overrides] = await Promise.all([
+      this.repo.findClassAssessments(classId, orgId),
+      this.repo.findSubmissionsByStudentInClass(classId, studentId, orgId),
+      this.repo.findGradingOverridesByClass(classId, orgId),
+    ]);
+
+    const subByAssessment = new Map(
+      submissions.map((s) => [s.assessment_id, s]),
+    );
+    const overrideByAssessment = new Map(
+      overrides.map((o) => [o.assessment_id, o]),
+    );
+
+    return assessments.map((assessment) => {
+      const override = overrideByAssessment.get(assessment.id);
+      const inclusion = resolveAssessmentInclusion({
+        assessmentEffectiveDate: assessment.release_date ?? assessment.created_at,
+        enrollmentDate: enrollment.created_at,
+        override: override ?? null,
+        assessmentDeletedAt: null,
+      });
+
+      const status = this.resolveAssessmentStatus(
+        assessment,
+        subByAssessment.get(assessment.id),
+      );
+      const countsTowardGrade =
+        inclusion.included && (status === 'MISSING' || status === 'SUBMITTED');
+
+      const result: any = {
+        assessmentId: assessment.id,
+        title: assessment.title ?? null,
+        effectiveDate: assessment.release_date ?? assessment.created_at,
+        status,
+        countsTowardGrade,
+        reason: inclusion.reason,
+      };
+
+      if (override) {
+        result.overrideId = override.id;
+        result.overrideStatus = override.include ? 'MISSING' : 'EXEMPTED';
+        result.overrideReason = override.reason ?? null;
+        result.overriddenBy = override.created_by;
+        result.overriddenAt = override.updated_at ?? override.created_at;
+      }
+
+      return result;
+    });
+  }
+
+  /**
+   * Upsert an override for (assessment, student). EXEMPTED maps to
+   * include=false (excluded from grading), MISSING maps to include=true
+   * (forces inclusion, counted as 0 if not submitted). PENDING and SUBMITTED
+   * are rejected by the DTO — they are system-driven states.
+   */
+  async setAssessmentStatusOverride(
+    classId: string,
+    assessmentId: string,
+    studentId: string,
+    orgId: string,
+    educatorId: string,
+    dto: SetAssessmentStatusOverrideDto,
+  ) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+
+    const assessment = await this.repo.findAssessmentInClass(assessmentId, classId, orgId);
+    if (!assessment) throw new NotFoundException('Assessment not found in this class.');
+
+    const enrollment = await this.repo.getActiveEnrollment(classId, studentId, orgId);
+    if (!enrollment) throw new NotFoundException('Student is not actively enrolled in this class.');
+
+    const previous = await this.repo.findAssessmentOverride(assessmentId, studentId, orgId);
+    const previousStatus = previous ? (previous.include ? 'MISSING' : 'EXEMPTED') : null;
+
+    // MISSING forces inclusion; EXEMPTED excludes — mirroring Phase 3 rules.
+    const include = dto.overrideStatus === 'MISSING';
+    const saved = await this.repo.upsertAssessmentOverride({
+      orgId,
+      assessmentId,
+      studentId,
+      include,
+      reason: dto.reason ?? null,
+      createdBy: educatorId,
+    });
+
+    await this.auditLog.logActivityEvent({
+      orgId,
+      actorId: educatorId,
+      action: 'assessment_status_override',
+      entityType: 'class',
+      entityId: classId,
+      metadata: {
+        assessmentId,
+        studentId,
+        previousStatus,
+        newStatus: dto.overrideStatus,
+        reason: dto.reason ?? null,
+      },
+    });
+
+    return {
+      overrideId: saved.id,
+      overrideStatus: saved.include ? 'MISSING' : 'EXEMPTED',
+      overrideReason: saved.reason ?? null,
+      overriddenBy: saved.created_by,
+      overriddenAt: saved.updated_at ?? saved.created_at,
+    };
+  }
+
+  async deleteAssessmentStatusOverride(
+    classId: string,
+    assessmentId: string,
+    studentId: string,
+    orgId: string,
+    educatorId: string,
+  ) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+
+    const enrollment = await this.repo.getActiveEnrollment(classId, studentId, orgId);
+    if (!enrollment) throw new NotFoundException('Student is not actively enrolled in this class.');
+
+    const previous = await this.repo.findAssessmentOverride(assessmentId, studentId, orgId);
+    const previousStatus = previous ? (previous.include ? 'MISSING' : 'EXEMPTED') : null;
+
+    const deleted = await this.repo.deleteAssessmentOverride(assessmentId, studentId, orgId);
+
+    await this.auditLog.logActivityEvent({
+      orgId,
+      actorId: educatorId,
+      action: 'assessment_status_override_deleted',
+      entityType: 'class',
+      entityId: classId,
+      metadata: {
+        assessmentId,
+        studentId,
+        previousStatus,
+        newStatus: null,
+        reason: previous?.reason ?? null,
+      },
+    });
+
+    return { deleted: deleted.count };
+  }
+
+  /**
+   * Map a submission (+ assessment dates) onto the Phase 3 status model.
+   * Draft / not-yet-released work is PENDING; overdue non-submission is
+   * MISSING; exempted/missed/custom/submitted states follow their row flags.
+   */
+  private resolveAssessmentStatus(
+    assessment: any,
+    submission?: any,
+    now: Date = new Date(),
+  ): 'MISSING' | 'PENDING' | 'SUBMITTED' | 'EXEMPTED' {
+    if (!submission) {
+      if (assessment.end_date && now > new Date(assessment.end_date)) return 'MISSING';
+      return 'PENDING';
+    }
+    if (submission.is_exempted || submission.status === 'exempted') return 'EXEMPTED';
+    if (submission.is_missed) return 'MISSING';
+    if (
+      submission.status === 'submitted' ||
+      submission.status === 'custom' ||
+      submission.score != null ||
+      submission.manual_score != null ||
+      submission.manual_section_score != null ||
+      submission.system_section_score != null
+    ) {
+      return 'SUBMITTED';
+    }
+    return 'PENDING'; // draft in progress
   }
 
   async registerAssessmentForAllStudents(assessmentId: string, classId: string, orgId: string) {
@@ -154,11 +354,20 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
     const cls = await this.repo.findClassWithSubject(classId, orgId);
     if (!cls) return;
 
-    const [scheme, submissions, allAssessments, manualScores] = await Promise.all([
+    const [
+      scheme,
+      submissions,
+      allAssessments,
+      manualScores,
+      enrollmentDates,
+      overrides,
+    ] = await Promise.all([
       this.repo.findGradingSchemeForClass(classId, orgId),
       this.repo.findSubmissionsForTerm(classId, termId, orgId),
       this.repo.findAssessmentsForTerm(classId, termId, orgId),
       this.repo.findManualScores(classId, termId, orgId, studentId),
+      this.repo.findEnrollmentDatesByClass(classId, orgId),
+      this.repo.findGradingOverridesByClass(classId, orgId),
     ]);
 
     if (!scheme) return;
@@ -171,11 +380,19 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
 
     const studentSubmissions = submissions.filter((s: any) => s.student_id === studentId);
 
+    const { excludedAssessmentIds } = this.buildInclusionMaps(
+      allAssessments,
+      new Map(enrollmentDates.map((e) => [e.student_id, e.created_at])),
+      new Map(overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o])),
+      studentId,
+    );
+
     const finalScore = this.core.computeWeightedScore(
       studentSubmissions,
       manualScores,
       allAssessments,
       categories,
+      { excludedAssessmentIds },
     );
     const finalGrade = this.core.resolveGrade(finalScore, ranges);
 
@@ -205,22 +422,33 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
     if (!gradingScale) throw new NotFoundException('No grading scale found for this class.');
     const ranges = gradingScale.ranges as unknown as GradeRange[];
 
-    const [submissions, allAssessments, manualScores] = await Promise.all([
-      this.repo.findSubmissionsForTerm(classId, termId, orgId),
-      this.repo.findAssessmentsForTerm(classId, termId, orgId),
-      this.repo.findManualScores(classId, termId, orgId),
-    ]);
+    const [submissions, allAssessments, manualScores, enrollmentDates, overrides] =
+      await Promise.all([
+        this.repo.findSubmissionsForTerm(classId, termId, orgId),
+        this.repo.findAssessmentsForTerm(classId, termId, orgId),
+        this.repo.findManualScores(classId, termId, orgId),
+        this.repo.findEnrollmentDatesByClass(classId, orgId),
+        this.repo.findGradingOverridesByClass(classId, orgId),
+      ]);
 
     let computed = 0;
     for (const studentId of enrolledStudentIds) {
       const studentSubmissions = submissions.filter((s: any) => s.student_id === studentId);
       const studentManuals = manualScores.filter((m: any) => m.student_id === studentId);
 
+      const { excludedAssessmentIds } = this.buildInclusionMaps(
+        allAssessments,
+        new Map(enrollmentDates.map((e) => [e.student_id, e.created_at])),
+        new Map(overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o])),
+        studentId,
+      );
+
       const finalScore = this.core.computeWeightedScore(
         studentSubmissions,
         studentManuals,
         allAssessments,
         categories,
+        { excludedAssessmentIds },
       );
       const finalGrade = this.core.resolveGrade(finalScore, ranges);
 
@@ -278,6 +506,33 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
     return saved;
   }
 
+  // Resolve which assessments are excluded for a single student by the
+  // late-enrollment rule. Returns the ids to drop from grading plus the
+  // per-assessment reason (Phase 2) for display in the UI.
+  private buildInclusionMaps(
+    allAssessments: any[],
+    enrollmentDatesByStudent: Map<string, Date>,
+    overridesByKey: Map<string, { include: boolean }>,
+    studentId: string,
+  ): { excludedAssessmentIds: Set<string>; reasons: Map<string, AssessmentInclusionReason> } {
+    const excludedAssessmentIds = new Set<string>();
+    const reasons = new Map<string, AssessmentInclusionReason>();
+
+    for (const assessment of allAssessments) {
+      const decision = resolveAssessmentInclusion({
+        assessmentEffectiveDate:
+          assessment.release_date ?? assessment.created_at,
+        enrollmentDate: enrollmentDatesByStudent.get(studentId),
+        override: overridesByKey.get(`${assessment.id}:${studentId}`) ?? null,
+        assessmentDeletedAt: assessment.deleted_at ?? null,
+      });
+      reasons.set(assessment.id, decision.reason);
+      if (!decision.included) excludedAssessmentIds.add(assessment.id);
+    }
+
+    return { excludedAssessmentIds, reasons };
+  }
+
   private async buildTermResult(
     classId: string,
     termId: string,
@@ -287,16 +542,32 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
     semesterInfo?: { id: string; name: string },
   ) {
     const enrolledStudentIds: string[] = cls.enrollments.map((e: any) => e.student_id);
+    const [
+      submissions,
+      grades,
+      manualScores,
+      allAssessments,
+      scheme,
+      studentProfiles,
+      enrollmentDates,
+      overrides,
+    ] = await Promise.all([
+      this.repo.findSubmissionsForTerm(classId, termId, orgId),
+      this.repo.findByClassAndTerm(classId, termId, orgId),
+      this.repo.findManualScores(classId, termId, orgId),
+      this.repo.findAssessmentsForTerm(classId, termId, orgId),
+      this.repo.findGradingSchemeForClass(classId, orgId),
+      this.repo.findStudentProfiles(enrolledStudentIds),
+      this.repo.findEnrollmentDatesByClass(classId, orgId),
+      this.repo.findGradingOverridesByClass(classId, orgId),
+    ]);
 
-    const [submissions, grades, manualScores, allAssessments, scheme, studentProfiles] =
-      await Promise.all([
-        this.repo.findSubmissionsForTerm(classId, termId, orgId),
-        this.repo.findByClassAndTerm(classId, termId, orgId),
-        this.repo.findManualScores(classId, termId, orgId),
-        this.repo.findAssessmentsForTerm(classId, termId, orgId),
-        this.repo.findGradingSchemeForClass(classId, orgId),
-        this.repo.findStudentProfiles(enrolledStudentIds),
-      ]);
+    const enrollmentDateByStudent = new Map(
+      enrollmentDates.map((e) => [e.student_id, e.created_at]),
+    );
+    const overridesByKey = new Map(
+      overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o]),
+    );
 
     const categories = scheme ? componentsToCategories(scheme.components) : [];
     const gradeMap = new Map(grades.map((g) => [g.student_id, g]));
@@ -310,7 +581,7 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
         studentSubs.map((s: any) => s.assessment_id),
       );
 
-      const assessmentScores = studentSubs.map((s: any) => ({
+      const assessmentScores: any[] = studentSubs.map((s: any) => ({
         assessmentId: s.assessment_id,
         submissionId: s.id,
         type: s.assessment.type,
@@ -349,6 +620,19 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
         }
       }
 
+      // Late-enrollment rule: which assessments count for this student, and why.
+      const { excludedAssessmentIds, reasons } = this.buildInclusionMaps(
+        allAssessments,
+        enrollmentDateByStudent,
+        overridesByKey,
+        studentId,
+      );
+      for (const scoreEntry of assessmentScores) {
+        scoreEntry.included = !excludedAssessmentIds.has(scoreEntry.assessmentId);
+        scoreEntry.inclusionReason =
+          reasons.get(scoreEntry.assessmentId) ?? 'included';
+      }
+
       // Compute total active weight (sum of weights of categories with at least one valid score)
       const totalActiveWeight = categories.reduce((sum, cat) => {
         if (cat.type === 'manual') {
@@ -376,6 +660,7 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
         allAssessments,
         categories,
         totalActiveWeight,
+        { excludedAssessmentIds },
       );
 
       return {

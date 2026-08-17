@@ -4,12 +4,16 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   UseGuards,
 } from '@nestjs/common';
 import { GradeEducatorService } from './grade-educator.service';
-import { SetManualScoreDto } from './dto/grade-educator.dto';
+import {
+  SetManualScoreDto,
+  SetAssessmentStatusOverrideDto,
+} from './dto/grade-educator.dto';
 import { AuthGuard } from 'src/commons/guards/auth.guard';
 import { RolesGuard } from 'src/commons/guards/role.guard';
 import { Roles } from 'src/commons/decorators/roles.decorator';
@@ -111,5 +115,57 @@ export class GradeEducatorController {
     @CurrentUser('id') educatorId: string,
   ) {
     return this.service.unlockByStudent(classId, termId, studentId, orgId, educatorId);
+  }
+
+  // GET /classes/:classId/grades/students/:studentId/assessments/status
+  @Get('students/:studentId/assessments/status')
+  @Roles('educator', 'admin')
+  getAssessmentStatuses(
+    @Param('classId') classId: string,
+    @Param('studentId') studentId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.service.getAssessmentStatuses(classId, studentId, orgId, educatorId);
+  }
+
+  // POST /classes/:classId/grades/students/:studentId/assessments/:assessmentId/override
+  @Post('students/:studentId/assessments/:assessmentId/override')
+  @Roles('educator', 'admin')
+  setAssessmentStatusOverride(
+    @Param('classId') classId: string,
+    @Param('studentId') studentId: string,
+    @Param('assessmentId') assessmentId: string,
+    @Body() dto: SetAssessmentStatusOverrideDto,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.service.setAssessmentStatusOverride(
+      classId,
+      assessmentId,
+      studentId,
+      orgId,
+      educatorId,
+      dto,
+    );
+  }
+
+  // DELETE /classes/:classId/grades/students/:studentId/assessments/:assessmentId/override
+  @Delete('students/:studentId/assessments/:assessmentId/override')
+  @Roles('educator', 'admin')
+  deleteAssessmentStatusOverride(
+    @Param('classId') classId: string,
+    @Param('studentId') studentId: string,
+    @Param('assessmentId') assessmentId: string,
+    @CurrentUser('org_id') orgId: string,
+    @CurrentUser('id') educatorId: string,
+  ) {
+    return this.service.deleteAssessmentStatusOverride(
+      classId,
+      assessmentId,
+      studentId,
+      orgId,
+      educatorId,
+    );
   }
 }
