@@ -25,6 +25,8 @@ import { SectionDialog } from "@/components/admin/section/SectionDialog";
 import { SectionTable } from "@/components/admin/section/SectionTable";
 import { SectionLevelFilter } from "@/components/admin/section/SectionLevelFilter";
 import { SectionEmptyState } from "@/components/admin/section/SectionEmptyState";
+import { SectionPresetButton } from "@/components/admin/section/SectionPresetButton";
+import { useSectionPreset } from "@/hooks/admin/useSectionPreset";
 import { SchoolYearSelector } from "@/components/shared/SchoolYearSelector";
 import { useOrganizationGuard } from "@/context/OrganizationGuardContext";
 
@@ -87,6 +89,12 @@ export default function SectionsPage(): React.JSX.Element {
     { enabled: !!schoolYearId },
   );
 
+  const { preset, savePreset, setEnabled, clearPreset } = useSectionPreset(schoolYearId);
+
+  // Only trust the preset if its department still exists for this school year.
+  const presetActive =
+    !!preset?.enabled && programs.some((p) => p.id === preset.programId);
+
   const isLoading = sectionsLoading || levelsLoading;
   const isError = sectionsError || levelsError;
 
@@ -134,6 +142,14 @@ export default function SectionsPage(): React.JSX.Element {
 
       {schoolYearId && (
         <div className="flex items-center justify-end gap-2">
+          <SectionPresetButton
+            schoolYearId={schoolYearId}
+            programs={programs}
+            preset={preset}
+            savePreset={savePreset}
+            setEnabled={setEnabled}
+            clearPreset={clearPreset}
+          />
           <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
             <Plus className="mr-1.5 h-4 w-4" />
             New Section
@@ -234,16 +250,24 @@ export default function SectionsPage(): React.JSX.Element {
           programs={programs}
           schoolYearId={schoolYearId}
           defaultProgramId={
-            filterProgramId !== "all" ? filterProgramId : undefined
+            presetActive
+              ? preset!.programId
+              : filterProgramId !== "all" ? filterProgramId : undefined
           }
           defaultCourseId={
-            filterCourseId !== "all" ? filterCourseId : undefined
+            presetActive
+              ? preset!.courseId ?? undefined
+              : filterCourseId !== "all" ? filterCourseId : undefined
           }
           defaultStrandId={
-            filterStrandId !== "all" ? filterStrandId : undefined
+            presetActive
+              ? preset!.strandId ?? undefined
+              : filterStrandId !== "all" ? filterStrandId : undefined
           }
           defaultLevelId={
-            filterLevelId !== "all" ? filterLevelId : undefined
+            presetActive
+              ? preset!.levelId ?? undefined
+              : filterLevelId !== "all" ? filterLevelId : undefined
           }
           open={createOpen}
           onClose={() => setCreateOpen(false)}
