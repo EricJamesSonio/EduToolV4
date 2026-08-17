@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { AxiosError } from "axios";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
@@ -107,16 +108,30 @@ export function OrgDetailsCard() {
     }
   };
 
+  const MAX_LOGO_SIZE = 2 * 1024 * 1024;
+
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > MAX_LOGO_SIZE) {
+      toast.error("Logo file is too large. Please upload an image under 2MB.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     setUploading(true);
     try {
       await organizationApi.uploadOrgLogo(file);
       toast.success("Organization logo updated.");
-    } catch {
-      toast.error("Failed to upload logo.");
+    } catch (err) {
+      const message = (
+        err as AxiosError<{ message?: string | string[] }>
+      )?.response?.data?.message;
+      const serverMessage = Array.isArray(message)
+        ? message.join(", ")
+        : message;
+      toast.error(serverMessage || "Failed to upload logo.");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
