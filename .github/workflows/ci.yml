@@ -1,0 +1,306 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  # DB_USER/PASSWORD/NAME are for the ephemeral CI-only Postgres service container
+  # (spun up and destroyed within each job) — not secrets, nothing to protect.
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DB_NAME: edutool_ci
+  # Backend unit specs that are expected to fail (known-bug proofs) — excluded from the blocking run.
+  UNIT_PROOF_PATTERN: 'grade-lock-proof\.spec\.ts|subject-prerequisite-proof\.spec\.ts'
+  # Backend e2e specs that are expected to fail (known-bug proofs) — excluded from the blocking run.
+  E2E_PROOF_PATTERN: 'cross-semester-destruction\.e2e-spec\.ts|late-enrollment-grading\.e2e-spec\.ts|org-seeder\.e2e-spec\.ts'
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+  backend-lint:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      # NOTE: the "lint" script in package.json runs eslint with --fix, which
+      # rewrites files on the runner and then discards them — it never actually
+      # gates the PR on unfixed style violations. Running eslint directly here
+      # (same glob, no --fix) so this job checks what's actually committed.
+      - name: Lint (check only, no --fix)
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
+
+  backend-typecheck:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx tsc --noEmit -p tsconfig.json
+
+  # tsc --noEmit only checks types — it does not exercise the actual production
+  # build pipeline (nest build), which may use the SWC compiler (@swc/core,
+  # @swc/cli, swc-loader are all present in devDependencies). SWC strips types
+  # without fully checking them and can fail in ways tsc won't catch, so this
+  # job verifies the real build artifact compiles, mirroring frontend-build.
+  backend-build:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run build
+
+  backend-unit-tests:
+    needs: [changes, backend-lint]
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    # jest.config.js already sets testPathIgnorePatterns: ['/node_modules/', '/dist/'].
+    # A CLI --testPathIgnorePatterns flag REPLACES that array rather than merging it,
+    # so we merge node_modules/dist + the proof-spec exclusion into one regex here.
+    # These are mocked unit tests (no real DB per the project's test docs), but the
+    # Joi env schema still requires NODE_ENV/DATABASE_URL/JWT_SECRET to be syntactically
+    # present if any spec bootstraps ConfigModule — dummy values are enough, no Postgres needed.
+    env:
+      NODE_ENV: test
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN || '1d' }}
+      # No Postgres service in this job (unit tests are mocked, per your test docs) —
+      # this only needs to satisfy Joi's "is a string" check, it's never connected to.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/unused
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx jest --ci --testPathIgnorePatterns="/node_modules/|/dist/|${{ env.UNIT_PROOF_PATTERN }}"
+
+  backend-e2e-tests:
+    needs: [changes, backend-unit-tests]
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edutool_ci
+      NODE_ENV: test
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN || '1d' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npx jest --ci --config ./test/jest-e2e.json --runInBand --testPathIgnorePatterns="${{ env.E2E_PROOF_PATTERN }}"
+
+  # Known Critical-tier bug proofs. Expected to be RED — visible in the Actions UI
+  # but never blocks the pipeline.
+  backend-known-bug-proofs:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ${{ env.DB_USER }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_DB: ${{ env.DB_NAME }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edutool_ci
+      NODE_ENV: test
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN || '1d' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - name: Unit proof specs (grade-lock, subject-prerequisite)
+        continue-on-error: true
+        run: npx jest --ci --testPathPattern="${{ env.UNIT_PROOF_PATTERN }}" --passWithNoTests
+      - name: E2E proof specs (cross-semester, late-enrollment, org-seeder)
+        continue-on-error: true
+        run: npx jest --ci --config ./test/jest-e2e.json --runInBand --testPathPattern="${{ env.E2E_PROOF_PATTERN }}" --passWithNoTests
+
+  frontend-lint:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  frontend-typecheck:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  frontend-build:
+    needs: [changes, frontend-lint, frontend-typecheck]
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NEXT_PUBLIC_SOCKET_URL: http://localhost:5000
+      NEXT_PUBLIC_WS_URL: ws://localhost:5000
+      NEXT_PUBLIC_AGORA_APP_ID: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  ci-gate:
+    if: always()
+    needs:
+      - backend-lint
+      - backend-typecheck
+      - backend-build
+      - backend-unit-tests
+      - backend-e2e-tests
+      - frontend-lint
+      - frontend-typecheck
+      - frontend-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs passed
+        run: |
+          for result in \
+            "${{ needs.backend-lint.result }}" \
+            "${{ needs.backend-typecheck.result }}" \
+            "${{ needs.backend-build.result }}" \
+            "${{ needs.backend-unit-tests.result }}" \
+            "${{ needs.backend-e2e-tests.result }}" \
+            "${{ needs.frontend-lint.result }}" \
+            "${{ needs.frontend-typecheck.result }}" \
+            "${{ needs.frontend-build.result }}"; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo "A required job did not succeed (result: $result)"
+              exit 1
+            fi
+          done
+          echo "All required checks passed."

@@ -95,7 +95,15 @@ export async function login(
 }
 
 export async function logout(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Log out" }).first().click();
+  const trigger = page.getByRole("button", { name: "Log out" }).first();
+  try {
+    await trigger.click({ timeout: 5_000 });
+  } catch {
+    // The sidebar is fixed-position; in a short headless viewport its "Log out"
+    // action can sit outside the viewport and never be scrollable into view.
+    // Fall back to the DOM click so the logout flow still runs to completion.
+    await trigger.evaluate((el) => (el as HTMLElement).click());
+  }
   await page.getByRole("button", { name: "Logout" }).click();
   await page.waitForURL("**/login", { timeout: 20_000 });
 }

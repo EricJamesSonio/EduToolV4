@@ -1,0 +1,99 @@
+name: Frontend E2E (Playwright)
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: frontend-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+# playwright.config.ts already defines webServer entries for both the backend
+# (npm run start:dev, cwd ../backend, waits on http://localhost:5000/check)
+# and the frontend (npm run dev, waits on http://localhost:3000), with
+# reuseExistingServer: true. `npx playwright test` spawns both itself and
+# inherits this job's env — so this workflow only needs to prep the DB/seed
+# data and install deps; it must NOT build or start either app manually.
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    # Job-level env (not workflow-level) so secrets are unambiguously resolvable here.
+    env:
+      NODE_ENV: test
+      PORT: 5000
+      # Points at this job's own throwaway Postgres service container below, destroyed
+      # when the job ends — intentionally NOT a secret, and never should be.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edutool_e2e
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN || '1d' }}
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NEXT_PUBLIC_SOCKET_URL: http://localhost:5000
+      NEXT_PUBLIC_WS_URL: ws://localhost:5000
+      NEXT_PUBLIC_AGORA_APP_ID: ci-placeholder
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: edutool_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Prepare database
+        working-directory: backend
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+
+      - name: Seed platform data
+        working-directory: backend
+        # helpers.ts / admin-setup.spec.ts hardcode platform@edutool.dev / platform123 —
+        # this seed must be what produces that account.
+        run: npm run seed:platform
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        working-directory: frontend
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 14
+
+      - name: Upload test artifacts (videos/traces)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: frontend/test-results/
+          retention-days: 7

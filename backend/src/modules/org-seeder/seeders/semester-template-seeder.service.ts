@@ -5,6 +5,7 @@ import {
   SEMESTER_TEMPLATES,
   buildGenericTemplate,
   type SemesterItemDef,
+  type SemesterTemplateDef,
 } from '../data/semester-templates.data';
 import { computeTermDates } from '../utils/date-calculator.util';
 import { SeedContext } from '../seed-context';
@@ -83,25 +84,36 @@ export class SemesterTemplateSeederService {
       });
       const programName = programLookup?.name ?? baseTpl.programType;
 
-      const templateId = seedId('sem-template', baseTpl.programType, ctx.orgId);
+      // The template chain is scoped per school year so that one year's
+      // (re)build or structural change can never cascade into another year's
+      // assignment or term dates.
+      const templateId = seedId('sem-template', baseTpl.programType, ctx.orgId, ctx.schoolYearId);
       const existing = await this.db.semesterTemplate.findFirst({
         where: { id: templateId },
-        include: { semesters: { include: { terms: true } } },
+        include: {
+          semesters: {
+            orderBy: { order_index: 'asc' },
+            include: { terms: { orderBy: { order_index: 'asc' } } },
+          },
+        },
       });
 
       if (existing && this.structureMatches(existing.semesters, tpl.semesters)) {
         ctx.result.semesterTemplates.already_exists++;
         if (canAutoRegister) {
-          await this.db.programSemesterAssignment.upsert({
+          const assignment = await this.db.programSemesterAssignment.upsert({
             where: { program_id: programId },
-            update: {},
+            update: { template_id: existing.id },
             create: {
-              id: seedId('sem-assignment', programId, ctx.orgId),
+              id: seedId('sem-assignment', programId, ctx.orgId, ctx.schoolYearId),
               org_id: ctx.orgId,
               program_id: programId,
               template_id: existing.id,
             },
           });
+
+          const termIds = existing.semesters.flatMap((s) => s.terms.map((t) => t.id));
+          await this.writeTermDates(ctx, assignment.id, termIds, hasDates, syStart, syEnd, tpl);
         }
         continue;
       }
@@ -129,7 +141,7 @@ export class SemesterTemplateSeederService {
       const termIds: string[] = [];
 
       for (const sem of tpl.semesters) {
-        const semItemId = seedId('sem-item', tpl.programType, sem.name, ctx.orgId);
+        const semItemId = seedId('sem-item', tpl.programType, sem.name, ctx.orgId, ctx.schoolYearId);
         const semItem = await this.db.semesterTemplateItem.create({
           data: {
             id: semItemId,
@@ -141,7 +153,14 @@ export class SemesterTemplateSeederService {
         });
 
         for (const term of sem.terms) {
-          const termId = seedId('sem-term', tpl.programType, sem.name, term.name, ctx.orgId);
+          const termId = seedId(
+            'sem-term',
+            tpl.programType,
+            sem.name,
+            term.name,
+            ctx.orgId,
+            ctx.schoolYearId,
+          );
           await this.db.semesterTemplateTerm.create({
             data: {
               id: termId,
@@ -163,35 +182,14 @@ export class SemesterTemplateSeederService {
           where: { program_id: programId },
           update: { template_id: template.id },
           create: {
-            id: seedId('sem-assignment', programId, ctx.orgId),
+            id: seedId('sem-assignment', programId, ctx.orgId, ctx.schoolYearId),
             org_id: ctx.orgId,
             program_id: programId,
             template_id: template.id,
           },
         });
 
-        const termDateData = hasDates
-          ? computeTermDates(syStart!, syEnd!, tpl, termIds).map((td) => ({
-              id: seedId('sem-term-date', assignment.id, td.termId),
-              org_id: ctx.orgId,
-              assignment_id: assignment.id,
-              term_id: td.termId,
-              start_date: td.startDate,
-              end_date: td.endDate,
-            }))
-          : termIds.map((termId) => ({
-              id: seedId('sem-term-date', assignment.id, termId),
-              org_id: ctx.orgId,
-              assignment_id: assignment.id,
-              term_id: termId,
-              start_date: new Date('1970-01-01'),
-              end_date: new Date('1970-01-01'),
-            }));
-
-        await this.db.programSemesterTermDate.createMany({
-          data: termDateData,
-          skipDuplicates: true,
-        });
+        await this.writeTermDates(ctx, assignment.id, termIds, hasDates, syStart, syEnd, tpl);
       } else {
         ctx.result.warnings.push(
           `Semester template "${tpl.name}" was not auto-registered for "${programName}" — ` +
@@ -201,5 +199,35 @@ export class SemesterTemplateSeederService {
 
       ctx.result.semesterTemplates.seeded++;
     }
+  }
+
+  private async writeTermDates(
+    ctx: SeedContext,
+    assignmentId: string,
+    termIds: string[],
+    hasDates: boolean,
+    syStart: Date | null,
+    syEnd: Date | null,
+    tpl: SemesterTemplateDef,
+  ): Promise<void> {
+    const data = hasDates
+      ? computeTermDates(syStart!, syEnd!, tpl, termIds).map((td) => ({
+          id: seedId('sem-term-date', assignmentId, td.termId, ctx.schoolYearId),
+          org_id: ctx.orgId,
+          assignment_id: assignmentId,
+          term_id: td.termId,
+          start_date: td.startDate,
+          end_date: td.endDate,
+        }))
+      : termIds.map((termId) => ({
+          id: seedId('sem-term-date', assignmentId, termId, ctx.schoolYearId),
+          org_id: ctx.orgId,
+          assignment_id: assignmentId,
+          term_id: termId,
+          start_date: new Date('1970-01-01'),
+          end_date: new Date('1970-01-01'),
+        }));
+
+    await this.db.programSemesterTermDate.createMany({ data, skipDuplicates: true });
   }
 }
