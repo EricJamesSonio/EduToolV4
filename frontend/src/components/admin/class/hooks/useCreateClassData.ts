@@ -10,6 +10,7 @@ import { levelApi }            from "@/api/admin/level.api";
 import { sectionApi }          from "@/api/admin/section.api";
 import { semesterApi }         from "@/api/admin/semester.api";
 import { semesterTemplateApi } from "@/api/admin/semester-template.api";
+import { classApi }            from "@/api/admin/class.api";
 import type { Level }          from "@/types/admin/level.types";
 import type { Subject }        from "@/types/admin/subject.types";
 import { toArray }             from "@/utils/classes.utils";
@@ -21,6 +22,7 @@ export function useCreateClassData(
   selectedSemesterId: string,
   selectedTrackId: string,
   selectedLevelId: string,
+  selectedEducatorId: string,
   isEnabled: boolean,
 ) {
   const { data: educatorsRaw } = useAsyncQuery(
@@ -118,6 +120,16 @@ export function useCreateClassData(
     { enabled: !!schoolYearId && !!selectedProgramId && !programMissingTemplate && isEnabled },
   );
 
+  // Existing classes of the chosen educator in this school year. Rendered as
+  // the educator's schedule grid and used to block already-taken day/time
+  // cells. Scoped identically to the backend's assertNoEducatorConflict (org +
+  // educator + school year, archived classes excluded server-side).
+  const { data: educatorClasses, isLoading: educatorClassesLoading } = useAsyncQuery(
+    queryKeys.admin.classes.list({ schoolYearId, educatorId: selectedEducatorId }),
+    () => classApi.getAll({ schoolYearId: schoolYearId!, educatorId: selectedEducatorId }),
+    { enabled: !!schoolYearId && !!selectedEducatorId, staleTime: 5 * 60 * 1000 },
+  );
+
   return {
     programs,
     courses,
@@ -133,5 +145,7 @@ export function useCreateClassData(
     programMissingTemplate,
     semesters,
     educators,
+    educatorClasses,
+    educatorClassesLoading,
   };
 }
