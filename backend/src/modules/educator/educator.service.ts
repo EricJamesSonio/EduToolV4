@@ -58,6 +58,7 @@ export class EducatorService {
       fullName: account.profile?.full_name,
       educatorId,
       plainPassword, // only returned on creation
+      classCount: 0, // a brand new educator has no class assignments yet
       createdAt: account.created_at,
     };
   }
@@ -75,8 +76,13 @@ export class EducatorService {
       limit,
     });
 
+    const educators = await this.withClassCounts(
+      orgId,
+      data.map((a) => this.formatAccount(a)),
+    );
+
     return {
-      data: data.map((a) => this.formatAccount(a)),
+      data: educators,
       meta: {
         total,
         page,
@@ -198,7 +204,7 @@ export class EducatorService {
       throw new NotFoundException('Educator not found.');
     }
 
-    return this.formatAccount(account);
+    return (await this.withClassCounts(orgId, [this.formatAccount(account)]))[0];
   }
 
   // ── PATCH /educators/:id ────────────────────────────────────────────────────
@@ -231,7 +237,7 @@ export class EducatorService {
       profileImage: dto.profileImage,
     });
 
-    return this.formatAccount(updated);
+    return (await this.withClassCounts(orgId, [this.formatAccount(updated)]))[0];
   }
 
   async updateStatus(id: string, orgId: string, dto: UpdateEducatorStatusDto) {
@@ -242,7 +248,7 @@ export class EducatorService {
     }
 
     const updated = await this.educatorRepository.updateStatus(id, dto.status);
-    return this.formatAccount(updated);
+    return (await this.withClassCounts(orgId, [this.formatAccount(updated)]))[0];
   }
 
   /**
@@ -286,6 +292,21 @@ export class EducatorService {
   }
 
   // ── Utility ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Attaches each educator's active class count to their account payload.
+   * All API shapes (list, detail, create, update) stay consistent.
+   */
+  private async withClassCounts<T extends { id: string }>(
+    orgId: string,
+    records: T[],
+  ): Promise<Array<T & { classCount: number }>> {
+    const counts = await this.classService.getEducatorClassCounts(
+      orgId,
+      records.map((r) => r.id),
+    );
+    return records.map((r) => ({ ...r, classCount: counts.get(r.id) ?? 0 }));
+  }
 
   private formatAccount(account: any) {
     const meta = account.profile?.metadata as Record<string, any> | null;
