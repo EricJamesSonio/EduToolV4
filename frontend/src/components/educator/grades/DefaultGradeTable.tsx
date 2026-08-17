@@ -7,6 +7,7 @@ import type { TermGrades, StudentGrade } from "@/types/educator/grade.types";
 import { EmptyState } from "./EmptyState";
 import { StatusCell } from "./StatusCell";
 import { ManualCell } from "./ManualCell";
+import { useAssessmentStatusOverride } from "@/hooks/educator/useGrades";
 import { gradeColor, fmt } from "./utils";
 
 export function DefaultGradeTable({
@@ -27,6 +28,7 @@ export function DefaultGradeTable({
   onRefresh: () => void;
 }) {
   const { students } = termData;
+  const overrideMutation = useAssessmentStatusOverride(classId, termData.termId);
   if (students.length === 0) return <EmptyState />;
 
   const allAssessments = Array.from(
@@ -99,6 +101,15 @@ export function DefaultGradeTable({
               onStatusChange={onRefresh}
               isLocked={isLocked}
               compact
+              included={score?.included ?? true}
+              inclusionReason={score?.inclusionReason}
+              onOverride={(overrideStatus) =>
+                overrideMutation.mutate({
+                  studentId: student.studentId,
+                  assessmentId: a.id,
+                  overrideStatus,
+                })
+              }
             />
           </div>
         );

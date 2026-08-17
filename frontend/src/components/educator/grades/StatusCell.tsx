@@ -15,6 +15,13 @@ const STATUS_ACTIONS = [
   { label: "Exempted", status: "exempted" as const, badge: "E", className: "bg-amber-100 text-amber-700 hover:bg-amber-200" },
 ];
 
+const INCLUSION_LABEL: Record<string, string> = {
+  default_excluded: "Excluded — enrolled after this assessment",
+  override_included: "Included — educator override",
+  override_excluded: "Excluded — educator override",
+  included: "Included in grade",
+};
+
 export function StatusCell({
   score,
   classId,
@@ -28,6 +35,9 @@ export function StatusCell({
   onStatusChange,
   isLocked,
   compact,
+  included,
+  inclusionReason,
+  onOverride,
 }: {
   score: number | null;
   classId: string;
@@ -41,6 +51,9 @@ export function StatusCell({
   onStatusChange: () => void;
   isLocked?: boolean;
   compact?: boolean;
+  included?: boolean;
+  inclusionReason?: string;
+  onOverride?: (overrideStatus: "MISSING" | "EXEMPTED" | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -102,7 +115,7 @@ export function StatusCell({
     setCustomScoreOpen(false);
   };
 
-  const patchStatus = async (effectiveId: string, body: any) => {
+  const patchStatus = async (effectiveId: string, body: { status: string; manualScore?: number }) => {
     setPending(true);
     try {
       await apiClient.patch(
@@ -118,10 +131,75 @@ export function StatusCell({
     }
   };
 
+  const isExcluded = included === false;
+  const reasonLabel = INCLUSION_LABEL[inclusionReason as string] ?? inclusionReason;
+
+  const overrideItems: Array<{ label: string; badge: string; badgeClass: string; action: () => void }> = [];
+  if (onOverride) {
+    if (isExcluded && inclusionReason === "default_excluded") {
+      overrideItems.push({
+        label: "Include (make-up)",
+        badge: "+",
+        badgeClass: "bg-muted text-muted-foreground",
+        action: () => { setOpen(false); onOverride("MISSING"); },
+      });
+    } else if (isExcluded && inclusionReason === "override_excluded") {
+      overrideItems.push({
+        label: "Remove override",
+        badge: "R",
+        badgeClass: "bg-muted text-muted-foreground",
+        action: () => { setOpen(false); onOverride(null); },
+      });
+    } else if (!isExcluded && inclusionReason === "override_included") {
+      overrideItems.push({
+        label: "Remove override",
+        badge: "R",
+        badgeClass: "bg-muted text-muted-foreground",
+        action: () => { setOpen(false); onOverride(null); },
+      });
+    } else if (!isExcluded && inclusionReason === "included") {
+      overrideItems.push({
+        label: "Exclude from grade",
+        badge: "X",
+        badgeClass: "bg-muted text-muted-foreground",
+        action: () => { setOpen(false); onOverride("EXEMPTED"); },
+      });
+    }
+  }
+
+  const handleOverride = (item: { action: () => void }) => {
+    if (isLocked) {
+      toast.error("Grades are locked. Unlock grades before making changes.");
+      return;
+    }
+    item.action();
+  };
+
   const dropdown = dropdownPos ? (
     <div
       style={{ top: dropdownPos.top, left: dropdownPos.left }}
-      className={`fixed z-50 -translate-x-1/2 w-32 rounded-lg border bg-popover shadow-lg py-1 ${dropdownPos.up ? "mb-1" : "mt-1"}`}>
+      className={`fixed z-50 -translate-x-1/2 w-44 rounded-lg border bg-popover shadow-lg py-1 ${dropdownPos.up ? "mb-1" : "mt-1"}`}>
+      {isExcluded && reasonLabel && (
+        <div className="px-3 py-1.5 text-[9px] leading-snug text-muted-foreground">{reasonLabel}</div>
+      )}
+      {overrideItems.length > 0 && (
+        <>
+          {overrideItems.map((item) => (
+            <button
+              key={item.label}
+              onClick={() => handleOverride(item)}
+              disabled={pending}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50 hover:bg-muted"
+            >
+              <span className={`inline-flex items-center justify-center w-4 h-4 rounded text-[8px] font-bold shrink-0 ${item.badgeClass}`}>
+                {item.badge}
+              </span>
+              {item.label}
+            </button>
+          ))}
+          <div className="my-1 h-px bg-border" />
+        </>
+      )}
       {STATUS_ACTIONS.map((action) => (
         <button
           key={action.status}
@@ -144,9 +222,16 @@ export function StatusCell({
         <button
           ref={btnRef}
           onClick={toggleDropdown}
+          title={isExcluded ? reasonLabel : undefined}
           className="text-muted-foreground/50 hover:text-foreground transition-colors leading-none"
         >
-          —
+          {isExcluded ? (
+            <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded text-[8px] font-bold bg-muted text-muted-foreground">
+              X
+            </span>
+          ) : (
+            "—"
+          )}
         </button>
         {open && dropdown}
         {customScoreOpen && (
@@ -192,9 +277,14 @@ export function StatusCell({
       <button
         ref={btnRef}
         onClick={toggleDropdown}
+        title={isExcluded ? reasonLabel : undefined}
         className="tabular-nums text-muted-foreground hover:text-foreground transition-colors text-[11px] leading-none"
       >
-        {isCustom ? (
+        {isExcluded ? (
+          <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded text-[8px] font-bold bg-muted text-muted-foreground">
+            X
+          </span>
+        ) : isCustom ? (
           <span className="inline-flex items-center gap-0.5">
             <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded text-[8px] font-bold bg-amber-100 text-amber-700">C</span>
             <span>{fmt(score, 0)}/{totalItems}</span>
