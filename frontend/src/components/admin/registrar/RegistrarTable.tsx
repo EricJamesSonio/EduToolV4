@@ -25,10 +25,17 @@ export function RegistrarTable({
 }: RegistrarTableProps) {
   const columns = useMemo<ColumnDef<Registrar>[]>(() => [
     {
+      id: "fullName",
+      header: "Name",
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.fullName ?? row.original.username}</span>
+      ),
+    },
+    {
       id: "username",
       header: "Username",
       cell: ({ row }) => (
-        <span className="font-medium">{row.original.username}</span>
+        <span className="text-sm text-muted-foreground">{row.original.username}</span>
       ),
     },
     {

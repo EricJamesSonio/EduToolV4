@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import { useCreateRegistrar } from "@/hooks/admin/useRegistrars";
 import { RegistrarCredentialsCard } from "./RegistrarCredentialsCard";
 import { useOrganization } from "@/hooks/admin/useOrganization";
+import { nameSchema, validateUsername } from "@/utils/validation.util";
 
 function previewRegistrarEmail(username: string, extension: string | null): string {
   if (!extension) return username;
@@ -27,6 +28,7 @@ interface CreateRegistrarDialogProps {
 
 interface CreatedCredentials {
   username: string;
+  fullName?: string;
   email: string;
   password: string;
 }
@@ -35,7 +37,10 @@ export function CreateRegistrarDialog({
   open,
   onClose,
 }: CreateRegistrarDialogProps) {
+  const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
+  const [fullNameError, setFullNameError] = useState<string | null>(null);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<CreatedCredentials | null>(null);
 
@@ -47,15 +52,28 @@ export function CreateRegistrarDialog({
     e.preventDefault();
     setError(null);
 
+    const nameResult = nameSchema.safeParse(fullName.trim());
+    setFullNameError(
+      nameResult.success
+        ? null
+        : (nameResult.error.issues[0]?.message ?? "Full name is required")
+    );
+
+    const usernameMsg = validateUsername(username);
+    setUsernameError(usernameMsg);
+    if (!nameResult.success || usernameMsg) return;
+
     createMutation.mutate(
-      { username },
+      { username, fullName: fullName.trim() },
       {
         onSuccess: (result) => {
           setCredentials({
             username: result.username,
+            fullName: result.fullName ?? fullName.trim(),
             email: result.email,
             password: result.plainPassword,
           });
+          setFullName("");
           setUsername("");
         },
         onError: (err: any) => {
@@ -83,13 +101,38 @@ export function CreateRegistrarDialog({
       >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
+              <Label htmlFor="reg-fullname">Full Name</Label>
+              <Input
+                id="reg-fullname"
+                placeholder="Ericjames Sonio"
+                required
+                maxLength={100}
+                value={fullName}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  setFullNameError(null);
+                }}
+                disabled={createMutation.isPending}
+              />
+              {fullNameError && (
+                <p className="text-xs text-destructive" role="alert">
+                  {fullNameError}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="reg-username">Username</Label>
               <Input
                 id="reg-username"
-                placeholder="registrar"
+                placeholder="esonio"
                 required
+                maxLength={30}
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setUsernameError(null);
+                }}
                 disabled={createMutation.isPending}
               />
 
@@ -99,6 +142,12 @@ export function CreateRegistrarDialog({
                   <span className="font-medium">
                     {previewRegistrarEmail(username, emailExtension)}
                   </span>
+                </p>
+              )}
+
+              {usernameError && (
+                <p className="text-xs text-destructive" role="alert">
+                  {usernameError}
                 </p>
               )}
             </div>
@@ -123,7 +172,11 @@ export function CreateRegistrarDialog({
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={createMutation.isPending || !username.trim()}
+                disabled={
+                  createMutation.isPending ||
+                  !username.trim() ||
+                  !fullName.trim()
+                }
               >
                 {createMutation.isPending ? (
                   <>

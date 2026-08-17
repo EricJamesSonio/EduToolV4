@@ -6,6 +6,7 @@ interface RegistrarCredentials {
   username: string;
   email:    string;
   password: string;
+  fullName?: string;
 }
 
 interface RegistrarCredentialsCardProps {
@@ -28,6 +29,9 @@ export function RegistrarCredentialsCard({
       title={title}
       filename={`registrar-credentials-${credentials.email}`}
       rows={[
+        ...(credentials.fullName
+          ? [{ label: "Full Name", value: credentials.fullName }]
+          : []),
         { label: "Username", value: credentials.username, mono: true },
         { label: "Email", value: credentials.email },
       ]}
