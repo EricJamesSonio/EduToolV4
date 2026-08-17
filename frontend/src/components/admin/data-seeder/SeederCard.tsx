@@ -15,6 +15,7 @@ import { CourseStep } from "./CourseStep";
 import { SubjectStep } from "./SubjectStep";
 import { GradingScaleStep } from "./GradingScaleStep";
 import { GradingSchemeStep } from "./GradingSchemeStep";
+import { ProgramCalendarStep } from "./ProgramCalendarStep";
 import { SemesterTemplateStep } from "./SemesterTemplateStep";
 import { LEVEL_DEFS } from "./constants/seed-data";
 import { useSeederCard } from "./hooks/useSeederCard";
@@ -79,6 +80,12 @@ export function SeederCard() {
     setSeedSemesterTemplates,
     semesterTemplatesByProgram,
     toggleSemesterTemplate,
+    seedProgramCalendars,
+    setSeedProgramCalendars,
+    programCalendarConfigs,
+    initProgramCalendar,
+    updateProgramCalendar,
+    selectedSchoolYear,
   } = useSeederCard();
 
   return (
@@ -204,6 +211,20 @@ export function SeederCard() {
                   gradingSchemesByProgram={gradingSchemesByProgram}
                   onToggleSeed={setSeedGradingSchemes}
                   onToggleScheme={toggleGradingScheme}
+                />
+              </Card>
+
+              <Card id="program-calendars" icon={Calendar} title="Academic Calendar">
+                <ProgramCalendarStep
+                  selectedPrograms={selectedPrograms}
+                  seedProgramCalendars={seedProgramCalendars}
+                  programCalendarConfigs={programCalendarConfigs}
+                  onToggleSeed={setSeedProgramCalendars}
+                  onInitProgramCalendar={initProgramCalendar}
+                  onUpdateProgramCalendar={updateProgramCalendar}
+                  semesterTemplatesByProgram={semesterTemplatesByProgram}
+                  schoolYearStart={selectedSchoolYear?.start_date ?? undefined}
+                  schoolYearEnd={selectedSchoolYear?.end_date ?? undefined}
                 />
               </Card>
 

@@ -39,7 +39,9 @@ export function SemesterTemplateStep({
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground not-interactive">
-            Select which semester templates to create. Each includes quarters/terms for enrollment periods:
+            Select which semester templates to create. Each template starts as 2 semesters with
+            generic &quot;Term 1/2/3&quot; rows, and adapts to the department&apos;s calendar during seeding —
+            one semester per calendar period:
           </p>
           {applicableTemplates.map((template) => {
             const isSelected = semesterTemplatesByProgram[template.programType] !== false

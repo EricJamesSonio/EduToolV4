@@ -5,13 +5,16 @@ import { Checkbox }    from "./ui/Checkbox"
 import { Collapsible } from "./ui/Collapsible"
 import {
   COURSE_SUBJECTS,
+  COURSE_SUBJECT_YEARS,
   LEVEL_DEFS,
   LEVEL_SUBJECTS,
   SHS_STRAND_SUBJECTS,
+  SHS_MAJOR_YEARS,
   COLLEGE_GE_SET,
   SHS_MINOR_SET,
   COLLEGE_GE_LEVEL,
   SHS_MINOR_LEVEL,
+  UNASSIGNED_YEAR,
   subjectKey,
   parseSubjectKey,
 } from "./constants/seed-data"
@@ -40,6 +43,13 @@ function SubjectTypeTag({ type }: { type: "major" | "minor" }) {
   )
 }
 
+// Numeric-first sort so "10th Year"/"Grade 10" sort after "2nd Year"/"Grade 9".
+// Years with no resolvable cardinal number (e.g. "Unassigned Year") rank last.
+function yearRank(year: string): number {
+  const m = year.match(/\d+/)
+  return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER
+}
+
 export function SubjectStep({
   selectedPrograms,
   selectedLevels,
@@ -66,6 +76,7 @@ export function SubjectStep({
     groupName:      string,          // level name, strand name, or course code
     plainSubjects:  string[],        // plain subject names from LEVEL_SUBJECTS etc.
     minorSet?:      Set<string>,
+    yearFor?:       (subjectName: string) => string | undefined,
   ) {
     // Build compound keys for this group
     const groupKeys = plainSubjects.map((s) => subjectKey(groupName, s))
@@ -77,6 +88,88 @@ export function SubjectStep({
     const selCount = availableKeys.filter(
       (k) => selectedSubjects.has(k) && !isDisabled(k),
     ).length
+
+    function renderGrid(keys: string[]) {
+      return (
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          {keys.map((key) => {
+            const { subjectName } = parseSubjectKey(key)
+            const isMinor         = minorSet?.has(subjectName) ?? false
+            return (
+              <div key={key} className="flex items-center gap-2">
+                <Checkbox
+                  checked={selectedSubjects.has(key)}
+                  onChange={() => !isDisabled(key) && onToggleSubject(key)}
+                  label={subjectName}
+                  subtle
+                  disabled={isDisabled(key)}
+                />
+                <SubjectTypeTag type={isMinor ? "minor" : "major"} />
+                {isMinor && (COLLEGE_GE_LEVEL[subjectName] ?? SHS_MINOR_LEVEL[subjectName]) && (
+                  <span className="text-[10px] text-muted-foreground shrink-0 not-interactive">
+                    {COLLEGE_GE_LEVEL[subjectName] ?? SHS_MINOR_LEVEL[subjectName]}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )
+    }
+
+    let rows: React.ReactNode = renderGrid(availableKeys)
+
+    if (yearFor) {
+      // Bucket subjects by year; any subject with no resolvable year lands in a
+      // clearly-labeled "Unassigned Year" container instead of being hidden.
+      const buckets = new Map<string, string[]>()
+      for (const key of availableKeys) {
+        const { subjectName } = parseSubjectKey(key)
+        const year = yearFor(subjectName) ?? UNASSIGNED_YEAR
+        const arr = buckets.get(year) ?? []
+        arr.push(key)
+        buckets.set(year, arr)
+      }
+
+      if (buckets.size > 1) {
+        const years = Array.from(buckets.keys()).sort(
+          (a, b) => yearRank(a) - yearRank(b) || a.localeCompare(b),
+        )
+        rows = (
+          <div className="space-y-3">
+            {years.map((year) => {
+              const keys = buckets.get(year)!
+              const yearSel = keys.filter(
+                (k) => selectedSubjects.has(k) && !isDisabled(k),
+              ).length
+              return (
+                <Collapsible key={year} title={year} count={yearSel} total={keys.length}>
+                  <div className="space-y-2">
+                    <div className="flex gap-3 mb-2">
+                      <button
+                        type="button"
+                        className="text-xs text-primary hover:underline"
+                        onClick={() => onSelectAllForGroup(keys)}
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:underline"
+                        onClick={() => onDeselectAllForGroup(keys)}
+                      >
+                        None
+                      </button>
+                    </div>
+                    {renderGrid(keys)}
+                  </div>
+                </Collapsible>
+              )
+            })}
+          </div>
+        )
+      }
+    }
 
     return (
       <Collapsible
@@ -102,29 +195,7 @@ export function SubjectStep({
               None
             </button>
           </div>
-          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {availableKeys.map((key) => {
-              const { subjectName } = parseSubjectKey(key)
-              const isMinor         = minorSet?.has(subjectName) ?? false
-              return (
-                <div key={key} className="flex items-center gap-2">
-                  <Checkbox
-                    checked={selectedSubjects.has(key)}
-                    onChange={() => !isDisabled(key) && onToggleSubject(key)}
-                    label={subjectName}
-                    subtle
-                    disabled={isDisabled(key)}
-                  />
-                  <SubjectTypeTag type={isMinor ? "minor" : "major"} />
-                  {isMinor && (COLLEGE_GE_LEVEL[subjectName] ?? SHS_MINOR_LEVEL[subjectName]) && (
-                    <span className="text-[10px] text-muted-foreground shrink-0 not-interactive">
-                      {COLLEGE_GE_LEVEL[subjectName] ?? SHS_MINOR_LEVEL[subjectName]}
-                    </span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+          {rows}
         </div>
       </Collapsible>
     )
@@ -172,6 +243,7 @@ export function SubjectStep({
             strand,
             SHS_STRAND_SUBJECTS[strand] ?? [],
             SHS_MINOR_SET,
+            (name) => SHS_MINOR_LEVEL[name] ?? SHS_MAJOR_YEARS[strand]?.[name],
           ),
         )}
 
@@ -184,6 +256,7 @@ export function SubjectStep({
             code,
             COURSE_SUBJECTS[code] ?? [],
             COLLEGE_GE_SET,
+            (name) => COLLEGE_GE_LEVEL[name] ?? COURSE_SUBJECT_YEARS[code]?.[name],
           ),
         )}
     </div>
