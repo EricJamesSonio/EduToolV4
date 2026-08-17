@@ -26,6 +26,37 @@ export const dateSchema = z
   .min(1, "Date is required")
   .refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" });
 
+// ─── Username rules ────────────────────────────────────────────────────────────
+
+/** Letters and numbers only — no symbols, underscores, hyphens, or spaces. */
+export const USERNAME_REGEX = /^[a-zA-Z0-9]+$/;
+
+export const USERNAME_MAX_LENGTH = 30;
+
+export const USERNAME_ERROR_MESSAGE =
+  "Username can only contain letters and numbers (no symbols or spaces)";
+
+/**
+ * Shared username rule used when creating educator, student, and registrar
+ * accounts so every account inherits the same restrictions.
+ */
+export const usernameSchema = z
+  .string()
+  .min(1, "Username is required")
+  .max(
+    USERNAME_MAX_LENGTH,
+    `Username must be at most ${USERNAME_MAX_LENGTH} characters`
+  )
+  .regex(USERNAME_REGEX, USERNAME_ERROR_MESSAGE);
+
+/** Returns an error message for an invalid username, or null when valid. */
+export function validateUsername(username: string): string | null {
+  const result = usernameSchema.safeParse(username);
+  return result.success
+    ? null
+    : (result.error.issues[0]?.message ?? USERNAME_ERROR_MESSAGE);
+}
+
 export const percentageSchema = z
   .number()
   .min(0, "Must be at least 0")
