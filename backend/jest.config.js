@@ -10,7 +10,6 @@ module.exports = {
       prefix: '<rootDir>/',
     }),
 
-    // 🔥 ADD THIS LINE (this is your missing piece)
     '^src/(.*)$': '<rootDir>/src/$1',
   },
 
@@ -19,4 +18,6 @@ module.exports = {
   },
 
   extensionsToTreatAsEsm: ['.ts'],
+
+  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
 };
