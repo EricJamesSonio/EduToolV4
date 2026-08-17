@@ -13,6 +13,7 @@ import {
   Presentation,
   ClipboardCheck,
   CalendarCheck,
+  CalendarDays,
   BarChart2,
   ClipboardList,
   Video,
@@ -24,6 +25,7 @@ const TOP_LEVEL_GROUPS: NavGroup[] = [
     items: [
       { label: "My Classes", href: "/educator/classes", icon: BookOpen },
       { label: "Grading Scheme Library", href: "/educator/grading-scheme-library", icon: Library },
+      { label: "Schedule", href: "/educator/schedule", icon: CalendarDays },
     ],
   },
   {
@@ -47,6 +49,7 @@ export function EducatorSidebar() {
           items: [
             { label: "My Classes", href: "/educator/classes", icon: BookOpen, exact: true },
             { label: "Grading Scheme Library", href: "/educator/grading-scheme-library", icon: Library },
+            { label: "Schedule", href: "/educator/schedule", icon: CalendarDays },
           ],
         },
         {
