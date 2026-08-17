@@ -205,11 +205,25 @@ function seedDefaultBreaks(seedStart: string): CalendarBreak[] {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium">Start Date</label>
-                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-8 text-sm" />
+                  <Input
+                    type="date"
+                    value={startDate}
+                    min={schoolYearStart?.slice(0, 10)}
+                    max={schoolYearEnd?.slice(0, 10)}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-8 text-sm"
+                  />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium">End Date</label>
-                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-8 text-sm" />
+                  <Input
+                    type="date"
+                    value={endDate}
+                    min={schoolYearStart?.slice(0, 10)}
+                    max={schoolYearEnd?.slice(0, 10)}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-8 text-sm"
+                  />
                 </div>
               </div>
               <div className="space-y-1">

@@ -132,6 +132,8 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
                 <Input
                   type="date"
                   value={b.startDate}
+                  min={calendarStart || undefined}
+                  max={calendarEnd || undefined}
                   onChange={(e) => { clearBlocked(); update(idx, "startDate", e.target.value); }}
                   className={`h-8 text-xs ${lockStart ? "opacity-50" : ""}`}
                   disabled={lockStart}
@@ -146,6 +148,8 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
                 <Input
                   type="date"
                   value={b.endDate}
+                  min={calendarStart || undefined}
+                  max={calendarEnd || undefined}
                   onChange={(e) => { clearBlocked(); update(idx, "endDate", e.target.value); }}
                   className={`h-8 text-xs ${lockEnd ? "opacity-50" : ""}`}
                   disabled={lockEnd}
