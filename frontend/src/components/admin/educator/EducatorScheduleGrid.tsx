@@ -1,12 +1,39 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Class } from "@/types/admin/class.types";
 import { WEEKDAYS } from "./EducatorClassAssignmentManager";
+import { minutesToTime } from "@/utils/classes.utils";
+
+export interface ScheduleRange {
+  weekday: number;
+  startMin: number;
+  endMin: number;
+}
+
+export interface DraftCell {
+  weekday: number;
+  minute: number;
+}
 
 interface EducatorScheduleGridProps {
   classes: Class[];
   isLoading?: boolean;
+
+  // ── Interactive selection mode (optional) ─────────────────────────────────
+  // When enabled the grid uses fixed 30-minute rows, shows all weekdays, and
+  // lets the caller select a free day/time range via callback. Class blocks
+  // and already-picked ranges remain non-clickable.
+  interactive?: boolean;
+  showAllDays?: boolean;
+  pickedRanges?: ScheduleRange[];
+  /** Stop accepting new picks once pickedRanges reaches this length. */
+  maxPicks?: number;
+  draftStart?: DraftCell | null;
+  defaultWindowStartMin?: number;
+  defaultWindowEndMin?: number;
+  onDraftStart?: (cell: DraftCell) => void;
+  onPickRange?: (range: ScheduleRange) => void;
 }
 
 interface ScheduleBlock {
@@ -28,6 +55,7 @@ const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sat, Sun appended only if used
 const MIN_INTERVAL_CANDIDATES = [30, 15, 10, 5, 1];
 const PX_PER_MINUTE = 1.1;
 const TIME_COL_WIDTH = 64;
+const INTERACTIVE_STEP_MIN = 30;
 
 const BLOCK_COLORS = [
   "bg-blue-500/15 border-blue-500/40 text-blue-700 dark:text-blue-300",
@@ -44,9 +72,7 @@ function toMinutes(hhmm: string): number {
 }
 
 function toLabel(min: number): string {
-  const h = Math.floor(min / 60) % 24;
-  const m = min % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return minutesToTime(min);
 }
 
 function gcd(a: number, b: number): number {
@@ -113,7 +139,21 @@ function layoutOverlaps(dayBlocks: ScheduleBlock[]): PositionedBlock[] {
   return result;
 }
 
-export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGridProps) {
+export function EducatorScheduleGrid({
+  classes,
+  isLoading,
+  interactive,
+  showAllDays,
+  pickedRanges = [],
+  maxPicks,
+  draftStart,
+  defaultWindowStartMin,
+  defaultWindowEndMin,
+  onDraftStart,
+  onPickRange,
+}: EducatorScheduleGridProps) {
+  const [hover, setHover] = useState<DraftCell | null>(null);
+
   const blocks = useMemo<ScheduleBlock[]>(() => {
     const result: ScheduleBlock[] = [];
     for (const cls of classes) {
@@ -133,11 +173,26 @@ export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGri
   }, [classes]);
 
   const days = useMemo(() => {
+    if (interactive && showAllDays) return DAY_ORDER;
     const used = new Set(blocks.map((b) => b.weekday));
     return DAY_ORDER.filter((d) => d !== 0 || used.has(0));
-  }, [blocks]);
+  }, [blocks, interactive, showAllDays]);
 
   const { gridStart, gridEnd, interval } = useMemo(() => {
+    if (interactive) {
+      const step = INTERACTIVE_STEP_MIN;
+      if (blocks.length === 0) {
+        const start = defaultWindowStartMin ?? 7 * 60;
+        const end = defaultWindowEndMin ?? 18 * 60;
+        return { gridStart: start, gridEnd: end, interval: step };
+      }
+      const starts = blocks.map((b) => b.startMin);
+      const ends = blocks.map((b) => b.endMin);
+      const gridStart = Math.floor(Math.min(...starts) / step) * step - step;
+      const gridEnd = Math.ceil(Math.max(...ends) / step) * step + step;
+      return { gridStart, gridEnd, interval: step };
+    }
+
     if (blocks.length === 0) {
       return { gridStart: 0, gridEnd: 0, interval: 30 };
     }
@@ -157,18 +212,13 @@ export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGri
       MIN_INTERVAL_CANDIDATES.find((c) => rawGcd % c === 0) ??
       MIN_INTERVAL_CANDIDATES[MIN_INTERVAL_CANDIDATES.length - 1];
 
-    // Pad one interval past the last class so its end time gets its own
-    // visible row/label instead of coinciding with the grid's bottom edge.
     const end = rawEnd + chosen;
 
     return { gridStart: start, gridEnd: end, interval: chosen };
-  }, [blocks]);
+  }, [blocks, interactive, defaultWindowStartMin, defaultWindowEndMin]);
 
   // Per-day column layout: each day gets its own contiguous run of grid
   // columns (1 normally, or N if it has N overlapping classes at once).
-  // Placement for both axes then comes straight from CSS Grid track
-  // indices (gridRow / gridColumn) — no manual pixel math, so it can
-  // never drift out of sync with the row lines / time labels.
   const { dayLayout, totalDataCols } = useMemo(() => {
     let col = 2; // column 1 is the time-label column
     const layout: Record<number, { startCol: number; colCount: number; blocks: PositionedBlock[] }> = {};
@@ -187,6 +237,24 @@ export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGri
     return { dayLayout: layout, totalDataCols: col - 2 };
   }, [days, blocks]);
 
+  const pickingLocked =
+    (interactive && maxPicks != null && pickedRanges.length >= maxPicks) ?? false;
+
+  const isOccupied = (weekday: number, minute: number): boolean =>
+    blocks.some((b) => b.weekday === weekday && minute >= b.startMin && minute < b.endMin) ||
+    pickedRanges.some((r) => r.weekday === weekday && minute >= r.startMin && minute < r.endMin);
+
+  const handleCellClick = (weekday: number, minute: number): void => {
+    if (pickingLocked || isOccupied(weekday, minute)) return;
+    if (!draftStart || draftStart.weekday !== weekday || minute <= draftStart.minute) {
+      onDraftStart?.({ weekday, minute });
+      setHover({ weekday, minute });
+      return;
+    }
+    onPickRange?.({ weekday, startMin: draftStart.minute, endMin: minute });
+    setHover(null);
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -197,7 +265,7 @@ export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGri
     );
   }
 
-  if (blocks.length === 0) {
+  if (blocks.length === 0 && !interactive) {
     return (
       <div className="flex flex-col items-center justify-center py-12 border rounded-md">
         <p className="text-sm font-medium not-interactive">No schedule to display</p>
@@ -211,15 +279,22 @@ export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGri
   const totalMinutes = gridEnd - gridStart;
   const numRows = Math.max(1, Math.ceil(totalMinutes / interval));
   const labelStep = Math.max(1, Math.round(30 / interval));
-  const totalCols = 1 + totalDataCols;
+
+  const preview =
+    interactive && draftStart && hover
+      ? (draftStart.weekday === hover.weekday && hover.minute > draftStart.minute
+          ? { weekday: draftStart.weekday, startMin: draftStart.minute, endMin: hover.minute }
+          : null)
+      : null;
 
   return (
     <div className="border rounded-md overflow-x-auto bg-card">
       <div
-        className="grid min-w-[640px]"
+        className={interactive ? "grid" : "grid min-w-[640px]"}
         style={{
           gridTemplateColumns: `${TIME_COL_WIDTH}px repeat(${totalDataCols}, 1fr)`,
           gridTemplateRows: `auto repeat(${numRows}, ${interval * PX_PER_MINUTE}px)`,
+          minWidth: interactive ? 900 : undefined,
         }}
       >
         {/* Header row */}
@@ -252,16 +327,49 @@ export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGri
           );
         })}
 
-        {/* Background grid lines, one per data column */}
-        {Array.from({ length: totalDataCols }).map((_, colIdx) =>
-          Array.from({ length: numRows }).map((_, rowIdx) => (
-            <div
-              key={`bg-${colIdx}-${rowIdx}`}
-              className={`border-b ${colIdx === totalDataCols - 1 ? "" : "border-r"}`}
-              style={{ gridRow: rowIdx + 2, gridColumn: colIdx + 2 }}
-            />
-          ))
-        )}
+        {/* Background grid — display mode renders plain lines, interactive mode
+            renders clickable day/time cells for free slots. */}
+        {interactive
+          ? days.map((d) => {
+              const { startCol, colCount } = dayLayout[d];
+              return Array.from({ length: numRows }).map((_, i) => {
+                const minute = gridStart + i * interval;
+                const occupied = isOccupied(d, minute);
+                const isDraftCell =
+                  draftStart?.weekday === d && draftStart.minute === minute;
+                return (
+                  <div
+                    key={`cell-${d}-${i}`}
+                    role="button"
+                    tabIndex={occupied || pickingLocked ? -1 : 0}
+                    onClick={() => handleCellClick(d, minute)}
+                    onMouseEnter={() => {
+                      if (!pickingLocked) setHover({ weekday: d, minute });
+                    }}
+                    className={occupied || pickingLocked
+                      ? "border-b border-r pointer-events-none cursor-not-allowed"
+                      : `border-b border-r cursor-pointer transition-colors ${
+                          isDraftCell
+                            ? "bg-primary/25 ring-1 ring-inset ring-primary"
+                            : "hover:bg-primary/10"
+                        }`}
+                    style={{
+                      gridRow: i + 2,
+                      gridColumn: `${startCol} / span ${colCount}`,
+                    }}
+                  />
+                );
+              });
+            })
+          : Array.from({ length: totalDataCols }).map((_, colIdx) =>
+              Array.from({ length: numRows }).map((_, rowIdx) => (
+                <div
+                  key={`bg-${colIdx}-${rowIdx}`}
+                  className={`border-b ${colIdx === totalDataCols - 1 ? "" : "border-r"}`}
+                  style={{ gridRow: rowIdx + 2, gridColumn: colIdx + 2 }}
+                />
+              )),
+            )}
 
         {/* Class blocks — placed purely via grid row/column tracks */}
         {days.map((d) => {
@@ -294,6 +402,43 @@ export function EducatorScheduleGrid({ classes, isLoading }: EducatorScheduleGri
             );
           });
         })}
+
+        {/* Hover preview of the in-progress selection */}
+        {interactive && preview && dayLayout[preview.weekday] && (
+          <div
+            className="bg-primary/15 border-primary/60 border rounded-md pointer-events-none"
+            style={{
+              gridRow: `${2 + Math.round((preview.startMin - gridStart) / interval)} / span ${Math.max(1, Math.round((preview.endMin - preview.startMin) / interval))}`,
+              gridColumn: dayLayout[preview.weekday].startCol,
+            }}
+          />
+        )}
+
+        {/* Committed picks — highlighted and non-clickable */}
+        {interactive &&
+          pickedRanges.map((range, idx) => {
+            const { startCol } = dayLayout[range.weekday] ?? {};
+            if (startCol == null) return null;
+            const rowStart = 2 + Math.round((range.startMin - gridStart) / interval);
+            const rowSpan = Math.max(1, Math.round((range.endMin - range.startMin) / interval));
+            return (
+              <div
+                key={`pick-${idx}-${range.startMin}`}
+                className="m-0.5 rounded-md border bg-primary/15 border-primary/60 px-1.5 py-1 overflow-hidden"
+                style={{
+                  gridRow: `${rowStart} / span ${rowSpan}`,
+                  gridColumn: startCol,
+                }}
+              >
+                <p className="text-[11px] font-medium leading-tight truncate not-interactive">
+                  New slot
+                </p>
+                <p className="text-[9px] opacity-70 leading-tight not-interactive">
+                  {toLabel(range.startMin)}–{toLabel(range.endMin)}
+                </p>
+              </div>
+            );
+          })}
       </div>
     </div>
   );

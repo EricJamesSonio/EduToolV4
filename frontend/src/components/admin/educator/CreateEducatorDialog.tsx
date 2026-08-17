@@ -11,8 +11,8 @@ import { Loader2 } from "lucide-react";
 import { useCreateEducator } from "@/hooks/admin/useEducators";
 import { EducatorCredentialsCard } from "./EducatorCredentialsCard";
 import { useOrganization } from "@/hooks/admin/useOrganization";
-import { EmailInput } from "@/components/shared/EmailInput";
 import { buildFullEmail } from "@/lib/email/buildFullEmail";
+import { validateUsername } from "@/utils/validation.util";
 
 interface CreateEducatorDialogProps {
   open: boolean;
@@ -32,6 +32,7 @@ export function CreateEducatorDialog({
 }: CreateEducatorDialogProps) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [credentials, setCredentials] =
     useState<CreatedCredentials | null>(null);
@@ -44,6 +45,10 @@ export function CreateEducatorDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const usernameMsg = validateUsername(email);
+    setUsernameError(usernameMsg);
+    if (usernameMsg) return;
 
     createMutation.mutate(
       {
@@ -107,12 +112,14 @@ export function CreateEducatorDialog({
               <Label htmlFor="edu-email">Email Username</Label>
               <Input
                 id="edu-email"
-                placeholder="juan.delacruz"
+                placeholder="juandelacruz"
                 required
+                maxLength={30}
                 value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
-                }
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setUsernameError(null);
+                }}
                 disabled={createMutation.isPending}
               />
 
@@ -126,6 +133,12 @@ export function CreateEducatorDialog({
                       "educator"
                     )}
                   </span>
+                </p>
+              )}
+
+              {usernameError && (
+                <p className="text-xs text-destructive" role="alert">
+                  {usernameError}
                 </p>
               )}
             </div>
