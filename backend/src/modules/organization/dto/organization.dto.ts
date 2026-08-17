@@ -12,6 +12,7 @@ import {
   IsNumber,
   ValidateNested,
   IsBoolean,
+  IsDateString,
 } from 'class-validator'
 import { Type } from 'class-transformer'
 
@@ -99,6 +100,35 @@ export class SectionItemDto {
   capacity!: number
 }
 
+export class SeedProgramCalendarBreakDto {
+  @IsString()
+  label!: string
+
+  @IsDateString()
+  startDate!: string
+
+  @IsDateString()
+  endDate!: string
+}
+
+export class SeedProgramCalendarDto {
+  @IsDateString()
+  startDate!: string
+
+  @IsDateString()
+  endDate!: string
+
+  @IsOptional()
+  @IsString()
+  notes?: string
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SeedProgramCalendarBreakDto)
+  breaks?: SeedProgramCalendarBreakDto[]
+}
+
 export class SeedOrganizationDto {
   @IsUUID()
   schoolYearId!: string
@@ -154,4 +184,12 @@ export class SeedOrganizationDto {
   @IsOptional()
   @IsBoolean()
   seedSemesterTemplates?: boolean
+
+  @IsOptional()
+  @IsBoolean()
+  seedProgramCalendars?: boolean
+
+  @IsOptional()
+  @IsObject()
+  programCalendars?: Record<string, SeedProgramCalendarDto>
 }
