@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { buildFullEmail } from "@/lib/email/buildFullEmail";
 import { StudentCredentialsCard } from "@/components/admin/student/StudentCredentialsCard";
+import { USERNAME_MAX_LENGTH, USERNAME_REGEX, USERNAME_ERROR_MESSAGE } from "@/utils/validation.util";
 
 interface CredentialsPreview {
   fullName: string;
@@ -169,11 +170,14 @@ export function CreateStudentDialog({
               autoComplete="off"
               {...register("email", {
                 required: "Email username is required",
-              pattern: {
-                value: /^[a-zA-Z0-9_-]+$/,
-                message:
-                  "Only letters, numbers, underscores, and hyphens are allowed.",
-              },
+                maxLength: {
+                  value: USERNAME_MAX_LENGTH,
+                  message: `Username must be at most ${USERNAME_MAX_LENGTH} characters`,
+                },
+                pattern: {
+                  value: USERNAME_REGEX,
+                  message: USERNAME_ERROR_MESSAGE,
+                },
               })}
               disabled={mutation.isPending}
             />
