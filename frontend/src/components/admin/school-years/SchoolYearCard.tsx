@@ -191,18 +191,6 @@ const invalidateSchoolYears = () => {
     }
   };
 
-  const handleCheckReadinessClick = async () => {
-    if (isMutating) return;
-    try {
-      const detail =
-        preparedReadiness ?? (await schoolYearApi.getReadiness(year.id));
-      setPreparedReadiness(detail);
-      setReadinessOpen(true);
-    } catch {
-      toast.error("Failed to load readiness.");
-    }
-  };
-
   const handleConfirm = () => {
     if (confirmAction === "activate") activateMutation.mutate();
     else if (confirmAction === "end") endMutation.mutate();
@@ -274,26 +262,6 @@ const invalidateSchoolYears = () => {
                   : "text-primary border-primary/30 hover:bg-primary/10"
               }
               onClick={handleSetActiveClick}
-              disabled={isMutating}
-            />
-          )}
-
-          {year.status === "pending" && (
-            <ListItemCardAction
-              icon={notReady ? CircleAlert : CheckCircle2}
-              label={notReady ? "Not ready" : "Ready"}
-              iconOnly
-              title={
-                notReady
-                  ? "Not ready — click to see what needs attention"
-                  : "Ready — click to view readiness"
-              }
-              className={
-                notReady
-                  ? "text-amber-500 border-amber-500/30 hover:bg-amber-500/10"
-                  : "text-emerald-500 border-emerald-500/40 hover:bg-emerald-500/10"
-              }
-              onClick={handleCheckReadinessClick}
               disabled={isMutating}
             />
           )}
