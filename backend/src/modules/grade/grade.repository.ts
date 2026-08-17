@@ -130,6 +130,7 @@ export class GradeRepository {
         show_breakdown: true,
         is_published: true,
         manual_max_score: true,
+        release_date: true,
         created_at: true,
       },
       orderBy: { created_at: 'asc' },
@@ -235,6 +236,159 @@ export class GradeRepository {
         enrollments: {
           where: { status: 'active' },
           select: { student_id: true },
+        },
+      },
+    });
+  }
+
+  // Class-level enrollment dates — Enrollment.created_at is "when did this
+  // student enroll into the class", the field GradeCoreService needs for the
+  // late-enrollment exclusion rule. Always org-scoped.
+  async findEnrollmentDatesByClass(
+    classId: string,
+    orgId: string,
+  ): Promise<{ student_id: string; created_at: Date }[]> {
+    return this.db.enrollment.findMany({
+      where: { class_id: classId, org_id: orgId, status: 'active' },
+      select: { student_id: true, created_at: true },
+    });
+  }
+
+  // Educator inclusion/exclusion overrides for every assessment in a class.
+  // Always org-scoped per the Phase 1 constraint.
+  async findGradingOverridesByClass(classId: string, orgId: string) {
+    return this.db.assessmentGradingOverride.findMany({
+      where: {
+        org_id: orgId,
+        assessment: { class_id: classId },
+      },
+    });
+  }
+
+  // ───────── OVERRIDE API (Phase 3) ─────────
+
+  // Every non-deleted assessment in a class across all terms, with the dates
+  // needed to resolve effective date and status. Org-scoped.
+  async findClassAssessments(classId: string, orgId: string) {
+    return this.db.assessment.findMany({
+      where: { class_id: classId, org_id: orgId, deleted_at: null },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        total_items: true,
+        grading_mode: true,
+        release_date: true,
+        end_date: true,
+        created_at: true,
+      },
+      orderBy: { created_at: 'asc' },
+    });
+  }
+
+  // Active enrollment row for a student in a class (soft-deleted rows are
+  // excluded by filtering status). Org-scoped.
+  async getActiveEnrollment(classId: string, studentId: string, orgId: string) {
+    return this.db.enrollment.findFirst({
+      where: {
+        class_id: classId,
+        student_id: studentId,
+        org_id: orgId,
+        status: 'active',
+      },
+    });
+  }
+
+  async findAssessmentOverride(
+    assessmentId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    return this.db.assessmentGradingOverride.findFirst({
+      where: {
+        assessment_id: assessmentId,
+        student_id: studentId,
+        org_id: orgId,
+      },
+    });
+  }
+
+  async findAssessmentInClass(assessmentId: string, classId: string, orgId: string) {
+    return this.db.assessment.findFirst({
+      where: { id: assessmentId, class_id: classId, org_id: orgId, deleted_at: null },
+      select: { id: true, title: true },
+    });
+  }
+
+  async upsertAssessmentOverride(data: {
+    orgId: string;
+    assessmentId: string;
+    studentId: string;
+    include: boolean;
+    reason?: string | null;
+    createdBy: string;
+  }) {
+    return this.db.assessmentGradingOverride.upsert({
+      where: {
+        assessment_id_student_id: {
+          assessment_id: data.assessmentId,
+          student_id: data.studentId,
+        },
+      },
+      create: {
+        org_id: data.orgId,
+        assessment_id: data.assessmentId,
+        student_id: data.studentId,
+        include: data.include,
+        reason: data.reason ?? null,
+        created_by: data.createdBy,
+      },
+      update: {
+        include: data.include,
+        reason: data.reason ?? null,
+        created_by: data.createdBy,
+      },
+    });
+  }
+
+  async deleteAssessmentOverride(
+    assessmentId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    return this.db.assessmentGradingOverride.deleteMany({
+      where: {
+        assessment_id: assessmentId,
+        student_id: studentId,
+        org_id: orgId,
+      },
+    });
+  }
+
+  // A student's submissions across every assessment in a class. Org-scoped.
+  async findSubmissionsByStudentInClass(
+    classId: string,
+    studentId: string,
+    orgId: string,
+  ) {
+    return this.db.submission.findMany({
+      where: {
+        org_id: orgId,
+        student_id: studentId,
+        assessment: { class_id: classId, deleted_at: null },
+      },
+      include: {
+        assessment: {
+          select: {
+            id: true,
+            type: true,
+            title: true,
+            total_items: true,
+            grading_mode: true,
+            release_date: true,
+            end_date: true,
+            created_at: true,
+          },
         },
       },
     });
