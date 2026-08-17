@@ -1498,6 +1498,7 @@ async function main() {
         where: { id: org.id },
         data: {
           name: school.name,
+          description: school.description,
           address: school.address,
           logo_url: school.logo_url,
           ...(org.slug ? {} : { slug: slugifyName(school.name) }),
@@ -1507,6 +1508,7 @@ async function main() {
       org = await db.organization.create({
         data: {
           name: school.name,
+          description: school.description,
           address: school.address,
           logo_url: school.logo_url,
           email_extension: emailExt,
