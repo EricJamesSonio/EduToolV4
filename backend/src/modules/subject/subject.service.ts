@@ -1,5 +1,6 @@
+// ===== File: backend\src\modules\subject\subject.service.ts =====
 // filepath: src/modules/subject/subject.service.ts
-// FIXED VERSION - Updates share() method to use mapped response properties
+// FIXED VERSION - typed repository results to remove @typescript-eslint/no-unsafe-* warnings
 
 import {
   Injectable,
@@ -14,11 +15,91 @@ import {
   ShareSubjectDto,
 } from './dto/subject.dto';
 
+/**
+ * NOTE: SubjectRepository does not currently declare typed return values,
+ * so every value read from it comes back as `any`. Until the repository
+ * itself is typed (e.g. via Prisma's generated types), the shapes below
+ * describe what this service actually reads off those results, and are
+ * used to cast repository responses at the call site.
+ */
+interface SubjectProgramRelation {
+  name: string | null;
+  type: string | null;
+}
+
+interface SubjectRecord {
+  id: string;
+  org_id: string;
+  name: string;
+  subject_type: string | null;
+  program_id: string | null;
+  program: SubjectProgramRelation | null;
+  level_id: string | null;
+  levelName: string | null;
+  course_id: string | null;
+  courseName: string | null;
+  strand_id: string | null;
+  strandName: string | null;
+  is_locked: boolean;
+  year_level: number | string | null;
+  term_label: string | null;
+  prerequisites: unknown[];
+  prereqFor: unknown[];
+  sharings: unknown[];
+  created_at: Date | string | null;
+  updated_at: Date | string | null;
+}
+
+interface ProgramRecord {
+  id: string;
+  type: string;
+}
+
+interface CourseRecord {
+  id: string;
+  program_id: string;
+}
+
+interface StrandRecord {
+  id: string;
+  program_id: string;
+}
+
+interface LevelRecord {
+  id: string;
+  program_id: string;
+}
+
+export interface SubjectResponse {
+  id: string;
+  orgId: string;
+  title: string;
+  subjectType: string;
+  programId: string | null;
+  programName: string | null;
+  programType: string | null;
+  realProgramId: string | null;
+  levelId: string | null;
+  levelName: string | null;
+  courseId: string | null;
+  courseName: string | null;
+  strandId: string | null;
+  strandName: string | null;
+  lockStatus: 'locked' | 'unlocked';
+  yearLevel: number | string | null;
+  termLabel: string | null;
+  prerequisites: unknown[];
+  prereqFor: unknown[];
+  sharings: unknown[];
+  createdAt: Date | string | null;
+  updatedAt: Date | string | null;
+}
+
 @Injectable()
 export class SubjectService {
   constructor(private readonly subjectRepository: SubjectRepository) {}
 
-  private mapToResponse(subject: any) {
+  private mapToResponse(subject: SubjectRecord): SubjectResponse {
     return {
       id: subject.id,
       orgId: subject.org_id,
@@ -72,7 +153,7 @@ export class SubjectService {
     }
   }
 
-  async create(orgId: string, dto: CreateSubjectDto) {
+  async create(orgId: string, dto: CreateSubjectDto): Promise<SubjectResponse> {
     const program = await this.subjectRepository.findProgramById(
       dto.programId,
       orgId,
@@ -81,7 +162,7 @@ export class SubjectService {
 
     this.validateSubjectScope(dto, program.type);
 
-    const subject = await this.subjectRepository.create({
+    const subject = (await this.subjectRepository.create({
       orgId,
       name: dto.name,
       subjectType: dto.subjectType,
@@ -91,11 +172,17 @@ export class SubjectService {
       strandId: dto.strandId,
       yearLevel: dto.yearLevel,
       termLabel: dto.termLabel,
-    });
+    })) as SubjectRecord;
     return this.mapToResponse(subject);
   }
 
-  async findAll(orgId: string, query: QuerySubjectDto) {
+  async findAll(
+    orgId: string,
+    query: QuerySubjectDto,
+  ): Promise<{
+    data: SubjectResponse[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
+  }> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
@@ -120,14 +207,24 @@ export class SubjectService {
     };
   }
 
-  async findById(id: string, orgId: string) {
-    const subject = await this.subjectRepository.findById(id, orgId);
+  async findById(id: string, orgId: string): Promise<SubjectResponse> {
+    const subject = (await this.subjectRepository.findById(
+      id,
+      orgId,
+    )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
     return this.mapToResponse(subject);
   }
 
-  async update(id: string, orgId: string, dto: UpdateSubjectDto) {
-    const subject = await this.subjectRepository.findById(id, orgId);
+  async update(
+    id: string,
+    orgId: string,
+    dto: UpdateSubjectDto,
+  ): Promise<SubjectResponse> {
+    const subject = (await this.subjectRepository.findById(
+      id,
+      orgId,
+    )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
     if (subject.is_locked) {
       throw new BadRequestException(
@@ -145,14 +242,21 @@ export class SubjectService {
     // changes), re-validate that the required course/strand/level are provided
     // for the target program type.
     if (scopeChanged) {
+      const targetProgramId = dto.programId ?? subject.program_id;
+      if (!targetProgramId) {
+        throw new BadRequestException(
+          'Subject has no associated program to validate against.',
+        );
+      }
+
       const program = await this.subjectRepository.findProgramById(
-        dto.programId ?? subject.program_id,
+        targetProgramId,
         orgId,
       );
       if (!program) throw new NotFoundException('Program not found.');
       this.validateSubjectScope(
         {
-          subjectType: dto.subjectType ?? subject.subject_type,
+          subjectType: dto.subjectType ?? subject.subject_type ?? undefined,
           courseId: dto.courseId,
           strandId: dto.strandId,
           levelId: dto.levelId,
@@ -167,7 +271,7 @@ export class SubjectService {
       await this.subjectRepository.clearSharings(id, orgId);
     }
 
-    const updated = await this.subjectRepository.update(id, {
+    const updated = (await this.subjectRepository.update(id, {
       name: dto.name,
       subjectType: dto.subjectType,
       programId: programChanged ? dto.programId : undefined,
@@ -178,25 +282,37 @@ export class SubjectService {
         scopeChanged && dto.strandId === undefined ? null : dto.strandId,
       yearLevel: dto.yearLevel,
       termLabel: dto.termLabel,
-    });
+    })) as SubjectRecord;
     return this.mapToResponse(updated);
   }
 
-  async lock(id: string, orgId: string) {
-    const subject = await this.subjectRepository.findById(id, orgId);
+  async lock(id: string, orgId: string): Promise<SubjectResponse> {
+    const subject = (await this.subjectRepository.findById(
+      id,
+      orgId,
+    )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
     if (subject.is_locked)
       throw new BadRequestException('Subject is already locked.');
-    const updated = await this.subjectRepository.setLocked(id, true);
+    const updated = (await this.subjectRepository.setLocked(
+      id,
+      true,
+    )) as SubjectRecord;
     return this.mapToResponse(updated);
   }
 
-  async unlock(id: string, orgId: string) {
-    const subject = await this.subjectRepository.findById(id, orgId);
+  async unlock(id: string, orgId: string): Promise<SubjectResponse> {
+    const subject = (await this.subjectRepository.findById(
+      id,
+      orgId,
+    )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
     if (!subject.is_locked)
       throw new BadRequestException('Subject is already unlocked.');
-    const updated = await this.subjectRepository.setLocked(id, false);
+    const updated = (await this.subjectRepository.setLocked(
+      id,
+      false,
+    )) as SubjectRecord;
     return this.mapToResponse(updated);
   }
 
@@ -216,25 +332,25 @@ export class SubjectService {
       );
     }
 
-    // Get raw data first for validation (need unmapped properties)
-    const rawSubject = await this.subjectRepository.findById(id, orgId);
+    // Raw record from the repository — same shape used by every other
+    // method in this file (snake_case), so we read it consistently here too.
+    const rawSubject = (await this.subjectRepository.findById(
+      id,
+      orgId,
+    )) as SubjectRecord | null;
     if (!rawSubject) throw new NotFoundException('Subject not found.');
 
-    // Now check the actual properties on the raw subject object
-    // Note: findById returns mapped response, so we need to check unmapped properties
-    // The repository returns mapped data, so we need to be careful here
-
-    if (rawSubject.subjectType !== 'minor') {
+    if (rawSubject.subject_type !== 'minor') {
       throw new BadRequestException('Only minor subjects can be shared.');
     }
 
-    if (!rawSubject.programId) {
+    if (!rawSubject.program_id) {
       throw new BadRequestException(
         'Minor subject must have a programId before sharing.',
       );
     }
 
-    if (!rawSubject.levelId) {
+    if (!rawSubject.level_id) {
       throw new BadRequestException(
         'Minor subject must have a levelId before sharing.',
       );
@@ -246,7 +362,7 @@ export class SubjectService {
         orgId,
       );
       if (!course) throw new NotFoundException('Course not found.');
-      if (course.program_id !== rawSubject.programId) {
+      if (course.program_id !== rawSubject.program_id) {
         throw new BadRequestException(
           'Target course does not belong to the same program as this subject.',
         );
@@ -259,7 +375,7 @@ export class SubjectService {
         orgId,
       );
       if (!strand) throw new NotFoundException('Strand not found.');
-      if (strand.program_id !== rawSubject.programId) {
+      if (strand.program_id !== rawSubject.program_id) {
         throw new BadRequestException(
           'Target strand does not belong to the same program as this subject.',
         );
@@ -272,12 +388,12 @@ export class SubjectService {
         orgId,
       );
       if (!level) throw new NotFoundException('Level not found.');
-      if (level.program_id !== rawSubject.programId) {
+      if (level.program_id !== rawSubject.program_id) {
         throw new BadRequestException(
           'Target level does not belong to the same program as this subject.',
         );
       }
-      if (dto.levelId !== rawSubject.levelId) {
+      if (dto.levelId !== rawSubject.level_id) {
         throw new BadRequestException(
           'Minor subject can only be shared to its own level.',
         );
@@ -291,15 +407,25 @@ export class SubjectService {
     });
   }
 
-  async unshare(id: string, sharingId: string, orgId: string) {
-    const subject = await this.subjectRepository.findById(id, orgId);
+  async unshare(
+    id: string,
+    sharingId: string,
+    orgId: string,
+  ): Promise<{ success: true }> {
+    const subject = (await this.subjectRepository.findById(
+      id,
+      orgId,
+    )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
     await this.subjectRepository.removeSharing(sharingId, orgId);
     return { success: true };
   }
 
   async findSharings(id: string, orgId: string) {
-    const subject = await this.subjectRepository.findById(id, orgId);
+    const subject = (await this.subjectRepository.findById(
+      id,
+      orgId,
+    )) as SubjectRecord | null;
     if (!subject) throw new NotFoundException('Subject not found.');
     return this.subjectRepository.findSharings(id, orgId);
   }
