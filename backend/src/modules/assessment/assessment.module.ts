@@ -5,7 +5,11 @@ import { AssessmentStudentModule } from './student/assessment-student.module';
 import { AssessmentCoreModule } from './core/assessment-core.module';
 
 @Module({
-  imports: [AssessmentCoreModule, AssessmentEducatorModule, AssessmentStudentModule],
+  imports: [
+    AssessmentCoreModule,
+    AssessmentEducatorModule,
+    AssessmentStudentModule,
+  ],
   exports: [AssessmentEducatorModule, AssessmentCoreModule],
 })
 export class AssessmentModule {}

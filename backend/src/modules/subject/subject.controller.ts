@@ -1,8 +1,17 @@
 // filepath: src/modules/subject/subject.controller.ts
 
 import {
-  Controller, Post, Get, Patch, Delete,
-  Body, Param, Query, UseGuards, HttpCode, HttpStatus,
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { SubjectService } from './subject.service';
 import {
@@ -11,9 +20,9 @@ import {
   QuerySubjectDto,
   ShareSubjectDto,
 } from './dto/subject.dto';
-import { AuthGuard }   from '@/commons/guards/auth.guard';
-import { RolesGuard }  from '@/commons/guards/role.guard';
-import { Roles }       from '@/commons/decorators/roles.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('subjects')
@@ -39,10 +48,7 @@ export class SubjectController {
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async findOne(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     return this.subjectService.findById(id, orgId);
   }
 
@@ -59,20 +65,14 @@ export class SubjectController {
   @Patch(':id/lock')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
-  async lock(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async lock(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     return this.subjectService.lock(id, orgId);
   }
 
   @Patch(':id/unlock')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
-  async unlock(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async unlock(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     return this.subjectService.unlock(id, orgId);
   }
 

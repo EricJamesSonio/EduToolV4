@@ -20,14 +20,19 @@ import { MailModule } from '@/modules/mail/mail.module';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('jwt.secret')!,
         signOptions: {
-          expiresIn: configService.get<string>('jwt.expiresIn') as any,
+          expiresIn: configService.get<string>('jwt.expiresIn'),
         },
       }),
     }),
     MailModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthRepository, JwtStrategy, AdminRequestSessionGuard],
+  providers: [
+    AuthService,
+    AuthRepository,
+    JwtStrategy,
+    AdminRequestSessionGuard,
+  ],
   exports: [AuthService, AuthRepository, JwtModule],
 })
 export class AuthModule {}

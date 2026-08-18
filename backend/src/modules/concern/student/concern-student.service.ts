@@ -25,7 +25,12 @@ export class ConcernStudentService {
   }
 
   async submit(
-    caller: { orgId: string; accountId: string; role: string; fullName?: string | null },
+    caller: {
+      orgId: string;
+      accountId: string;
+      role: string;
+      fullName?: string | null;
+    },
     dto: CreateConcernDto,
   ) {
     const concern = await this.core.createConcern(
@@ -77,7 +82,11 @@ export class ConcernStudentService {
     dto: ReplyConcernDto,
   ) {
     // Ownership check first — a student can only reply to their own concern.
-    await this.core.getOwnedById(caller.orgId, caller.concernId, caller.accountId);
+    await this.core.getOwnedById(
+      caller.orgId,
+      caller.concernId,
+      caller.accountId,
+    );
 
     const updated = await this.core.addMessage(
       caller.orgId,

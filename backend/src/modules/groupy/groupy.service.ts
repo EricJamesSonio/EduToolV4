@@ -10,10 +10,7 @@ import { CreateMeetingDto } from '../meeting/dto/meeting.dto';
 import { GroupyRepository } from './groupy.repository';
 import { GroupyGateway } from './groupy.gateway';
 import { GROUPY_STICKERS, getGroupyStickerById } from './data/stickers.data';
-import {
-  SendGroupyMessageDto,
-  CreatePollDto,
-} from './dto/groupy.dto';
+import { SendGroupyMessageDto, CreatePollDto } from './dto/groupy.dto';
 
 interface CurrentUser {
   id: string;
@@ -118,7 +115,9 @@ export class GroupyService {
       gifUrl = dto.gifUrl;
     } else if (type === 'sticker') {
       if (!dto.stickerId) {
-        throw new BadRequestException('stickerId is required for sticker messages.');
+        throw new BadRequestException(
+          'stickerId is required for sticker messages.',
+        );
       }
       if (!getGroupyStickerById(dto.stickerId)) {
         throw new BadRequestException('Unknown sticker.');
@@ -184,7 +183,12 @@ export class GroupyService {
       invitedStudentIds,
       ephemeral: true,
     };
-    const meeting = await this.meetingService.create(classId, orgId, user.id, dto);
+    const meeting = await this.meetingService.create(
+      classId,
+      orgId,
+      user.id,
+      dto,
+    );
     if (!meeting) {
       throw new NotFoundException('Could not create the meeting.');
     }
@@ -220,7 +224,10 @@ export class GroupyService {
     }
 
     await this.groupyRepo.deleteMessage(messageId);
-    this.gateway.emitMessageDeleted({ id: message.id, class_id: message.class_id });
+    this.gateway.emitMessageDeleted({
+      id: message.id,
+      class_id: message.class_id,
+    });
     return { success: true };
   }
 
@@ -313,7 +320,12 @@ export class GroupyService {
     return message;
   }
 
-  async vote(pollId: string, orgId: string, accountId: string, optionId: string) {
+  async vote(
+    pollId: string,
+    orgId: string,
+    accountId: string,
+    optionId: string,
+  ) {
     const poll = await this.groupyRepo.findPollById(pollId, orgId);
     if (!poll) throw new NotFoundException('Poll not found.');
 
@@ -439,7 +451,11 @@ export class GroupyService {
       lastReadMessageId: lastMessageId,
     });
 
-    this.gateway.emitReadUpdated({ classId, accountId, lastReadMessageId: lastMessageId });
+    this.gateway.emitReadUpdated({
+      classId,
+      accountId,
+      lastReadMessageId: lastMessageId,
+    });
 
     return { lastReadMessageId: lastMessageId };
   }

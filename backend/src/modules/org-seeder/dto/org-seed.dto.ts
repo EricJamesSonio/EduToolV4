@@ -9,134 +9,134 @@ import {
   IsObject,
   IsBoolean,
   IsDateString,
-} from 'class-validator'
-import { Type } from 'class-transformer'
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class SectionItemDto {
   @IsString()
-  name!: string
+  name!: string;
 
   @IsNumber()
-  capacity!: number
+  capacity!: number;
 }
 
 class GradingScaleRangeDto {
   @IsString()
-  label!: string
+  label!: string;
 
   @IsNumber()
-  minScore!: number
+  minScore!: number;
 
   @IsNumber()
-  maxScore!: number
+  maxScore!: number;
 
   @IsString()
-  gradeValue!: string
+  gradeValue!: string;
 }
 
 class GradingScaleOptionDto {
   @IsString()
-  presetKey!: string
+  presetKey!: string;
 
   @IsString()
-  name!: string
+  name!: string;
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => GradingScaleRangeDto)
-  ranges!: GradingScaleRangeDto[]
+  ranges!: GradingScaleRangeDto[];
 }
 
 export class ProgramCalendarBreakSeedDto {
   @IsString()
-  label!: string
+  label!: string;
 
   @IsDateString()
-  startDate!: string
+  startDate!: string;
 
   @IsDateString()
-  endDate!: string
+  endDate!: string;
 }
 
 export class ProgramCalendarSeedDto {
   @IsDateString()
-  startDate!: string
+  startDate!: string;
 
   @IsDateString()
-  endDate!: string
+  endDate!: string;
 
   @IsOptional()
   @IsString()
-  notes?: string
+  notes?: string;
 
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProgramCalendarBreakSeedDto)
-  breaks?: ProgramCalendarBreakSeedDto[]
+  breaks?: ProgramCalendarBreakSeedDto[];
 }
 
 export class OrgSeedDto {
   @IsString()
-  orgId!: string
+  orgId!: string;
 
   @IsString()
-  schoolYearId!: string
+  schoolYearId!: string;
 
   @IsArray()
   @IsString({ each: true })
-  programs!: string[]
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  courses?: string[]
+  programs!: string[];
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  strands?: string[]
+  courses?: string[];
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  excludedLevels?: string[]
+  strands?: string[];
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  excludedSubjects?: string[]
+  excludedLevels?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  excludedSubjects?: string[];
 
   @IsOptional()
   @IsObject()
-  levelConfigs?: Record<string, string[]>
+  levelConfigs?: Record<string, string[]>;
 
   @IsOptional()
   @IsObject()
-  sectionConfigs?: Record<string, SectionItemDto[]>
+  sectionConfigs?: Record<string, SectionItemDto[]>;
 
   @IsOptional()
   @IsObject()
-  gradingScales?: Record<string, GradingScaleOptionDto>
+  gradingScales?: Record<string, GradingScaleOptionDto>;
 
   // NEW FLAGS
   @IsOptional()
   @IsBoolean()
-  seedGradingSchemes?: boolean
+  seedGradingSchemes?: boolean;
 
   @IsOptional()
   @IsBoolean()
-  seedSemesterTemplates?: boolean
+  seedSemesterTemplates?: boolean;
 
   @IsOptional()
   @IsBoolean()
-  seedProgramCalendars?: boolean
+  seedProgramCalendars?: boolean;
 
   @IsOptional()
   @IsObject()
-  programCalendars?: Record<string, ProgramCalendarSeedDto>
+  programCalendars?: Record<string, ProgramCalendarSeedDto>;
 
   // new "other" field
   @IsObject()
-  other!: Record<string, any>
+  other!: Record<string, any>;
 }

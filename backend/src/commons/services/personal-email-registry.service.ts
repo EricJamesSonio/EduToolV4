@@ -12,9 +12,7 @@ export class PersonalEmailRegistryService {
     const existing = await this.db.profile.findFirst({
       where: {
         personal_email: email,
-        ...(excludeAccountId
-          ? { account_id: { not: excludeAccountId } }
-          : {}),
+        ...(excludeAccountId ? { account_id: { not: excludeAccountId } } : {}),
       },
       select: { id: true },
     });

@@ -1,21 +1,14 @@
-import {
-  Controller,
-  Patch,
-  Get,
-  Post,
-  Body,
-  UseGuards,
-} from '@nestjs/common'
-import { ProfileService }          from './profile.service'
+import { Controller, Patch, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { ProfileService } from './profile.service';
 import {
   ChangePersonalEmailRequestDto,
   ChangePersonalEmailVerifyDto,
   UpdatePersonalEmailDto,
   UpdateProfileDto,
-}                                  from './dto/profile.dto'
-import { AuthGuard }               from '@/commons/guards/auth.guard'
-import { RolesGuard }              from '@/commons/guards/role.guard'
-import { CurrentUser }             from '@/commons/decorators/current-user.decorator'
+} from './dto/profile.dto';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('profile')
 @UseGuards(AuthGuard, RolesGuard)
@@ -24,7 +17,7 @@ export class ProfileController {
 
   @Get()
   async getProfile(@CurrentUser('id') accountId: string) {
-    return this.profileService.getProfile(accountId)
+    return this.profileService.getProfile(accountId);
   }
 
   @Patch()
@@ -32,7 +25,7 @@ export class ProfileController {
     @CurrentUser('id') accountId: string,
     @Body() dto: UpdateProfileDto,
   ) {
-    return this.profileService.updateProfile(accountId, dto)
+    return this.profileService.updateProfile(accountId, dto);
   }
 
   @Patch('personal-email')
@@ -40,7 +33,7 @@ export class ProfileController {
     @CurrentUser('id') accountId: string,
     @Body() dto: UpdatePersonalEmailDto,
   ) {
-    return this.profileService.updatePersonalEmail(accountId, dto)
+    return this.profileService.updatePersonalEmail(accountId, dto);
   }
 
   @Post('personal-email/change-request')
@@ -48,7 +41,7 @@ export class ProfileController {
     @CurrentUser('id') accountId: string,
     @Body() dto: ChangePersonalEmailRequestDto,
   ) {
-    return this.profileService.requestPersonalEmailChange(accountId, dto)
+    return this.profileService.requestPersonalEmailChange(accountId, dto);
   }
 
   @Post('personal-email/change-verify')
@@ -56,6 +49,6 @@ export class ProfileController {
     @CurrentUser('id') accountId: string,
     @Body() dto: ChangePersonalEmailVerifyDto,
   ) {
-    return this.profileService.verifyPersonalEmailChange(accountId, dto)
+    return this.profileService.verifyPersonalEmailChange(accountId, dto);
   }
 }

@@ -9,7 +9,10 @@ import { generateAdminLoginEmail } from '@/commons/utils/admin-login-email.util'
 import { DatabaseService } from '@/core/database/database.provider';
 import { PlatformRegistrationRepository } from './platform-registration.repository';
 import { MailService } from '@/modules/mail/mail.service';
-import { RequestRevisionDto, RejectRequestDto } from './dto/approve-request.dto';
+import {
+  RequestRevisionDto,
+  RejectRequestDto,
+} from './dto/approve-request.dto';
 
 /**
  * Field names on RegistrationRequest that an applicant may be asked to revise.
@@ -147,7 +150,10 @@ export class PlatformRegistrationService {
     await this.repo.markRequestRevision(id, dto.fieldNotes, reviewedBy);
 
     // Notify the applicant at their Gmail, listing every flagged field + note.
-    await this.mailService.sendRevisionNeededEmail(request.email, dto.fieldNotes);
+    await this.mailService.sendRevisionNeededEmail(
+      request.email,
+      dto.fieldNotes,
+    );
 
     return { message: 'Revision requested' };
   }

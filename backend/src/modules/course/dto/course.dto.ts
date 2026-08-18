@@ -1,37 +1,37 @@
-import { IsString, IsOptional, IsNotEmpty, IsUUID } from 'class-validator'
+import { IsString, IsOptional, IsNotEmpty, IsUUID } from 'class-validator';
 
 export class CreateCourseDto {
   @IsUUID()
-  schoolYearId!: string
+  schoolYearId!: string;
 
   @IsUUID()
-  programId!: string
+  programId!: string;
 
   @IsString()
   @IsNotEmpty()
-  name!: string
+  name!: string;
 
   @IsOptional()
   @IsString()
-  code?: string
+  code?: string;
 }
 
 export class UpdateCourseDto {
   @IsString()
   @IsOptional()
-  name?: string
+  name?: string;
 
   @IsString()
   @IsOptional()
-  code?: string
+  code?: string;
 }
 
 export class CourseQueryDto {
   @IsOptional()
   @IsUUID()
-  schoolYearId?: string
+  schoolYearId?: string;
 
   @IsOptional()
   @IsUUID()
-  programId?: string
+  programId?: string;
 }

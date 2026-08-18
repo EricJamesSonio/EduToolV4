@@ -43,7 +43,10 @@ export class EnrollmentRegistrarController {
 
   @Post('periods')
   @HttpCode(HttpStatus.CREATED)
-  createPeriod(@CurrentUser() user: RegistrarUser, @Body() dto: CreateEnrollmentPeriodDto) {
+  createPeriod(
+    @CurrentUser() user: RegistrarUser,
+    @Body() dto: CreateEnrollmentPeriodDto,
+  ) {
     return this.service.createPeriod(user.org_id, user.id, dto);
   }
 
@@ -113,7 +116,10 @@ export class EnrollmentRegistrarController {
 
   @Post('applications/unlock')
   @HttpCode(HttpStatus.OK)
-  unlock(@CurrentUser() user: RegistrarUser, @Body() dto: UnlockApplicationDto) {
+  unlock(
+    @CurrentUser() user: RegistrarUser,
+    @Body() dto: UnlockApplicationDto,
+  ) {
     return this.service.unlockApplication(user.org_id, user.id, dto);
   }
 }

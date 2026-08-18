@@ -48,7 +48,7 @@ import { GroupyModule } from '../groupy/groupy.module';
     MeetingRepository,
     MeetingGateway,
     AgoraTokenService,
-    EnrollmentRepository
+    EnrollmentRepository,
   ],
   exports: [MeetingService],
 })

@@ -168,7 +168,10 @@ export class ClassRepository {
    * Returns a Map<educatorId, classCount> counting only non-deleted classes.
    * Empty input returns an empty Map (avoids a pointless `in: []` query).
    */
-  async countAssignedClasses(orgId: string, educatorIds: string[]): Promise<Map<string, number>> {
+  async countAssignedClasses(
+    orgId: string,
+    educatorIds: string[],
+  ): Promise<Map<string, number>> {
     if (educatorIds.length === 0) return new Map();
 
     const rows = await this.db.class.groupBy({
@@ -305,11 +308,7 @@ export class ClassRepository {
    * enrolled for the class's school year, not already enrolled in the class,
    * and whose account is active. Unused `search` filters by name / Student ID.
    */
-  async findEligibleStudents(
-    classId: string,
-    orgId: string,
-    search?: string,
-  ) {
+  async findEligibleStudents(classId: string, orgId: string, search?: string) {
     const cls = await this.db.class.findFirst({
       where: { id: classId, org_id: orgId, deleted_at: null },
       select: { school_year_id: true, section_id: true, subject_id: true },
@@ -378,8 +377,16 @@ export class ClassRepository {
         ...(search
           ? {
               OR: [
-                { profile: { full_name: { contains: search, mode: 'insensitive' } } },
-                { profile: { metadata: { path: ['studentId'], string_contains: search } } },
+                {
+                  profile: {
+                    full_name: { contains: search, mode: 'insensitive' },
+                  },
+                },
+                {
+                  profile: {
+                    metadata: { path: ['studentId'], string_contains: search },
+                  },
+                },
               ],
             }
           : {}),

@@ -5,7 +5,7 @@ import { OtpPurpose, Prisma } from '@prisma/client';
 
 @Injectable()
 export class AuthRepository {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(private readonly db: DatabaseService) {}
 
   async findAccountByEmail(email: string) {
     return this.db.account.findFirst({

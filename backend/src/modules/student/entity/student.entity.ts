@@ -17,9 +17,9 @@ export class StudentEntity {
 
   // from Profile
   fullName: string;
-  studentId: string;    // Admin-assigned, stored in profile.metadata
-  levelId: string;      // stored in profile.metadata
-  sectionId: string;    // stored in profile.metadata
+  studentId: string; // Admin-assigned, stored in profile.metadata
+  levelId: string; // stored in profile.metadata
+  sectionId: string; // stored in profile.metadata
   metadata: Record<string, any>;
 }
 

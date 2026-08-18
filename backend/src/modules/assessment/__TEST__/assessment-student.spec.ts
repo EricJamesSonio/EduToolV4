@@ -1,7 +1,4 @@
-import {
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AssessmentStudentService } from '../student/assessment-student.service';
 
 describe('AssessmentStudentService (High-Value Tests)', () => {
@@ -54,11 +51,7 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
     enrollmentRepo.findOneByStudentAndClass.mockResolvedValue(null);
 
     await expect(
-      service.getAssessments(
-        'class-1',
-        'org-1',
-        'student-1',
-      ),
+      service.getAssessments('class-1', 'org-1', 'student-1'),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -85,9 +78,7 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
 
     const future = new Date(Date.now() + 60_000);
 
-    core.findAssessmentsByClass.mockResolvedValue([
-      { id: 'a1' },
-    ]);
+    core.findAssessmentsByClass.mockResolvedValue([{ id: 'a1' }]);
 
     db.submission.findMany.mockResolvedValue([
       {
@@ -114,9 +105,7 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
 
     const past = new Date(Date.now() - 60_000);
 
-    core.findAssessmentsByClass.mockResolvedValue([
-      { id: 'a1' },
-    ]);
+    core.findAssessmentsByClass.mockResolvedValue([{ id: 'a1' }]);
 
     db.submission.findMany.mockResolvedValue([
       {
@@ -174,9 +163,7 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
 
     core.isReleased.mockReturnValue(true);
 
-    core.getQuestions.mockResolvedValue([
-      { id: 'q1' },
-    ]);
+    core.getQuestions.mockResolvedValue([{ id: 'q1' }]);
 
     core.buildAssessmentDetail.mockReturnValue({
       locked: false,
@@ -206,12 +193,7 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
     core.getSubmissionByStudent.mockResolvedValue(null);
 
     await expect(
-      service.getResult(
-        'class-1',
-        'a1',
-        'org-1',
-        'student-1',
-      ),
+      service.getResult('class-1', 'a1', 'org-1', 'student-1'),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -235,11 +217,9 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
     core.getQuestions.mockResolvedValue([]);
     db.submissionAnswer.findMany.mockResolvedValue([]);
 
-    core.buildResult.mockImplementation(
-      (sub, assessment, locked) => ({
-        locked,
-      }),
-    );
+    core.buildResult.mockImplementation((sub, assessment, locked) => ({
+      locked,
+    }));
 
     const result = await service.getResult(
       'class-1',
@@ -273,11 +253,9 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
     core.getQuestions.mockResolvedValue([]);
     db.submissionAnswer.findMany.mockResolvedValue([]);
 
-    core.buildResult.mockImplementation(
-      (sub, assessment, locked) => ({
-        locked,
-      }),
-    );
+    core.buildResult.mockImplementation((sub, assessment, locked) => ({
+      locked,
+    }));
 
     const result = await service.getResult(
       'class-1',
@@ -294,9 +272,7 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
       id: 'enroll-1',
     });
 
-    core.findAssessmentsByClass.mockResolvedValue([
-      { id: 'a1' },
-    ]);
+    core.findAssessmentsByClass.mockResolvedValue([{ id: 'a1' }]);
 
     db.submission.findMany.mockResolvedValue([
       {

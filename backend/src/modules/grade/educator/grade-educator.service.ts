@@ -10,7 +10,11 @@ import {
   AssessmentInclusionReason,
 } from '../core/assessment-inclusion.util';
 import { AuditLogService } from 'src/modules/audit-log/audit-log.service';
-import { SetManualScoreDto, SetGradeVisibilityDto, SetAssessmentStatusOverrideDto } from './dto/grade-educator.dto';
+import {
+  SetManualScoreDto,
+  SetGradeVisibilityDto,
+  SetAssessmentStatusOverrideDto,
+} from './dto/grade-educator.dto';
 
 function componentsToCategories(components: any[]) {
   return components.map((c) => ({
@@ -37,7 +41,10 @@ export class GradeEducatorService {
     dto: SetGradeVisibilityDto,
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-    const updated = await this.repo.setAssessmentVisibility(assessmentId, dto.showBreakdown);
+    const updated = await this.repo.setAssessmentVisibility(
+      assessmentId,
+      dto.showBreakdown,
+    );
 
     await this.auditLog.logActivityEvent({
       orgId,
@@ -98,9 +105,15 @@ export class GradeEducatorService {
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
 
-    const enrollment = await this.repo.getActiveEnrollment(classId, studentId, orgId);
+    const enrollment = await this.repo.getActiveEnrollment(
+      classId,
+      studentId,
+      orgId,
+    );
     if (!enrollment) {
-      throw new NotFoundException('Student is not actively enrolled in this class.');
+      throw new NotFoundException(
+        'Student is not actively enrolled in this class.',
+      );
     }
 
     const [assessments, submissions, overrides] = await Promise.all([
@@ -119,7 +132,8 @@ export class GradeEducatorService {
     return assessments.map((assessment) => {
       const override = overrideByAssessment.get(assessment.id);
       const inclusion = resolveAssessmentInclusion({
-        assessmentEffectiveDate: assessment.release_date ?? assessment.created_at,
+        assessmentEffectiveDate:
+          assessment.release_date ?? assessment.created_at,
         enrollmentDate: enrollment.created_at,
         override: override ?? null,
         assessmentDeletedAt: null,
@@ -169,14 +183,34 @@ export class GradeEducatorService {
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
 
-    const assessment = await this.repo.findAssessmentInClass(assessmentId, classId, orgId);
-    if (!assessment) throw new NotFoundException('Assessment not found in this class.');
+    const assessment = await this.repo.findAssessmentInClass(
+      assessmentId,
+      classId,
+      orgId,
+    );
+    if (!assessment)
+      throw new NotFoundException('Assessment not found in this class.');
 
-    const enrollment = await this.repo.getActiveEnrollment(classId, studentId, orgId);
-    if (!enrollment) throw new NotFoundException('Student is not actively enrolled in this class.');
+    const enrollment = await this.repo.getActiveEnrollment(
+      classId,
+      studentId,
+      orgId,
+    );
+    if (!enrollment)
+      throw new NotFoundException(
+        'Student is not actively enrolled in this class.',
+      );
 
-    const previous = await this.repo.findAssessmentOverride(assessmentId, studentId, orgId);
-    const previousStatus = previous ? (previous.include ? 'MISSING' : 'EXEMPTED') : null;
+    const previous = await this.repo.findAssessmentOverride(
+      assessmentId,
+      studentId,
+      orgId,
+    );
+    const previousStatus = previous
+      ? previous.include
+        ? 'MISSING'
+        : 'EXEMPTED'
+      : null;
 
     // MISSING forces inclusion; EXEMPTED excludes — mirroring Phase 3 rules.
     const include = dto.overrideStatus === 'MISSING';
@@ -222,13 +256,32 @@ export class GradeEducatorService {
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
 
-    const enrollment = await this.repo.getActiveEnrollment(classId, studentId, orgId);
-    if (!enrollment) throw new NotFoundException('Student is not actively enrolled in this class.');
+    const enrollment = await this.repo.getActiveEnrollment(
+      classId,
+      studentId,
+      orgId,
+    );
+    if (!enrollment)
+      throw new NotFoundException(
+        'Student is not actively enrolled in this class.',
+      );
 
-    const previous = await this.repo.findAssessmentOverride(assessmentId, studentId, orgId);
-    const previousStatus = previous ? (previous.include ? 'MISSING' : 'EXEMPTED') : null;
+    const previous = await this.repo.findAssessmentOverride(
+      assessmentId,
+      studentId,
+      orgId,
+    );
+    const previousStatus = previous
+      ? previous.include
+        ? 'MISSING'
+        : 'EXEMPTED'
+      : null;
 
-    const deleted = await this.repo.deleteAssessmentOverride(assessmentId, studentId, orgId);
+    const deleted = await this.repo.deleteAssessmentOverride(
+      assessmentId,
+      studentId,
+      orgId,
+    );
 
     await this.auditLog.logActivityEvent({
       orgId,
@@ -259,10 +312,12 @@ export class GradeEducatorService {
     now: Date = new Date(),
   ): 'MISSING' | 'PENDING' | 'SUBMITTED' | 'EXEMPTED' {
     if (!submission) {
-      if (assessment.end_date && now > new Date(assessment.end_date)) return 'MISSING';
+      if (assessment.end_date && now > new Date(assessment.end_date))
+        return 'MISSING';
       return 'PENDING';
     }
-    if (submission.is_exempted || submission.status === 'exempted') return 'EXEMPTED';
+    if (submission.is_exempted || submission.status === 'exempted')
+      return 'EXEMPTED';
     if (submission.is_missed) return 'MISSING';
     if (
       submission.status === 'submitted' ||
@@ -277,8 +332,16 @@ export class GradeEducatorService {
     return 'PENDING'; // draft in progress
   }
 
-  async registerAssessmentForAllStudents(assessmentId: string, classId: string, orgId: string) {
-    return this.repo.registerAssessmentForAllStudents(assessmentId, classId, orgId);
+  async registerAssessmentForAllStudents(
+    assessmentId: string,
+    classId: string,
+    orgId: string,
+  ) {
+    return this.repo.registerAssessmentForAllStudents(
+      assessmentId,
+      classId,
+      orgId,
+    );
   }
 
   async computeAndSaveGrade(data: {
@@ -296,50 +359,63 @@ export class GradeEducatorService {
     return this.repo.findByClass(classId, orgId);
   }
 
-async getGradesByClass(classId: string, orgId: string, educatorId: string) {
-  await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-  const cls = await this.repo.findClassWithSubject(classId, orgId);
-  if (!cls) throw new NotFoundException('Class not found.');
+  async getGradesByClass(classId: string, orgId: string, educatorId: string) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    const cls = await this.repo.findClassWithSubject(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
 
-  const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
-  const results: any[] = [];
+    const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
+    const results: any[] = [];
 
-  for (const term of terms) {
-    const termResult = await this.buildTermResult(
-      classId, term.id, term.name, orgId, cls,
-      { id: term.semesterIndex.toString(), name: term.semesterName },
-    );
-    results.push(termResult);
+    for (const term of terms) {
+      const termResult = await this.buildTermResult(
+        classId,
+        term.id,
+        term.name,
+        orgId,
+        cls,
+        { id: term.semesterIndex.toString(), name: term.semesterName },
+      );
+      results.push(termResult);
+    }
+
+    return results;
   }
 
-  return results;
-}
+  async getTermOptions(classId: string, orgId: string, educatorId: string) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
+    return terms.map((t) => ({
+      termId: t.id,
+      termName: t.name,
+      semesterName: t.semesterName,
+    }));
+  }
 
-async getTermOptions(classId: string, orgId: string, educatorId: string) {
-  await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-  const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
-  return terms.map((t) => ({
-    termId: t.id,
-    termName: t.name,
-    semesterName: t.semesterName,
-  }));
-}
+  async getGradesByTerm(
+    classId: string,
+    termId: string,
+    orgId: string,
+    educatorId: string,
+  ) {
+    await this.assertEducatorOwnsClass(classId, orgId, educatorId);
+    const cls = await this.repo.findClassWithSubject(classId, orgId);
+    if (!cls) throw new NotFoundException('Class not found.');
 
-  async getGradesByTerm(classId: string, termId: string, orgId: string, educatorId: string) {
-  await this.assertEducatorOwnsClass(classId, orgId, educatorId);
-  const cls = await this.repo.findClassWithSubject(classId, orgId);
-  if (!cls) throw new NotFoundException('Class not found.');
+    const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
+    const term = terms.find((t) => t.id === termId);
 
-  const terms = await this.repo.findTemplateTermsByClass(classId, orgId);
-  const term = terms.find((t) => t.id === termId);
-
-  return this.buildTermResult(
-    classId, termId,
-    term?.name ?? '',
-    orgId, cls,
-    term ? { id: term.semesterIndex.toString(), name: term.semesterName } : undefined,
-  );
-}
+    return this.buildTermResult(
+      classId,
+      termId,
+      term?.name ?? '',
+      orgId,
+      cls,
+      term
+        ? { id: term.semesterIndex.toString(), name: term.semesterName }
+        : undefined,
+    );
+  }
 
   /**
    * Recompute grade for a single student after submission.
@@ -378,7 +454,9 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
     if (!gradingScale) return;
     const ranges = gradingScale.ranges as unknown as GradeRange[];
 
-    const studentSubmissions = submissions.filter((s: any) => s.student_id === studentId);
+    const studentSubmissions = submissions.filter(
+      (s: any) => s.student_id === studentId,
+    );
 
     const { excludedAssessmentIds } = this.buildInclusionMaps(
       allAssessments,
@@ -396,7 +474,14 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
     );
     const finalGrade = this.core.resolveGrade(finalScore, ranges);
 
-    await this.repo.upsert({ orgId, studentId, classId, termId, finalScore, finalGrade });
+    await this.repo.upsert({
+      orgId,
+      studentId,
+      classId,
+      termId,
+      finalScore,
+      finalGrade,
+    });
   }
 
   async computeGrades(
@@ -415,31 +500,44 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
     }
 
     const scheme = await this.repo.findGradingSchemeForClass(classId, orgId);
-    if (!scheme) throw new NotFoundException('No grading scheme found for this class.');
+    if (!scheme)
+      throw new NotFoundException('No grading scheme found for this class.');
     const categories = componentsToCategories(scheme.components);
 
     const gradingScale = await this.resolveGradingScale(cls, orgId);
-    if (!gradingScale) throw new NotFoundException('No grading scale found for this class.');
+    if (!gradingScale)
+      throw new NotFoundException('No grading scale found for this class.');
     const ranges = gradingScale.ranges as unknown as GradeRange[];
 
-    const [submissions, allAssessments, manualScores, enrollmentDates, overrides] =
-      await Promise.all([
-        this.repo.findSubmissionsForTerm(classId, termId, orgId),
-        this.repo.findAssessmentsForTerm(classId, termId, orgId),
-        this.repo.findManualScores(classId, termId, orgId),
-        this.repo.findEnrollmentDatesByClass(classId, orgId),
-        this.repo.findGradingOverridesByClass(classId, orgId),
-      ]);
+    const [
+      submissions,
+      allAssessments,
+      manualScores,
+      enrollmentDates,
+      overrides,
+    ] = await Promise.all([
+      this.repo.findSubmissionsForTerm(classId, termId, orgId),
+      this.repo.findAssessmentsForTerm(classId, termId, orgId),
+      this.repo.findManualScores(classId, termId, orgId),
+      this.repo.findEnrollmentDatesByClass(classId, orgId),
+      this.repo.findGradingOverridesByClass(classId, orgId),
+    ]);
 
     let computed = 0;
     for (const studentId of enrolledStudentIds) {
-      const studentSubmissions = submissions.filter((s: any) => s.student_id === studentId);
-      const studentManuals = manualScores.filter((m: any) => m.student_id === studentId);
+      const studentSubmissions = submissions.filter(
+        (s: any) => s.student_id === studentId,
+      );
+      const studentManuals = manualScores.filter(
+        (m: any) => m.student_id === studentId,
+      );
 
       const { excludedAssessmentIds } = this.buildInclusionMaps(
         allAssessments,
         new Map(enrollmentDates.map((e) => [e.student_id, e.created_at])),
-        new Map(overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o])),
+        new Map(
+          overrides.map((o) => [`${o.assessment_id}:${o.student_id}`, o]),
+        ),
         studentId,
       );
 
@@ -452,7 +550,14 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
       );
       const finalGrade = this.core.resolveGrade(finalScore, ranges);
 
-      await this.repo.upsert({ orgId, studentId, classId, termId, finalScore, finalGrade });
+      await this.repo.upsert({
+        orgId,
+        studentId,
+        classId,
+        termId,
+        finalScore,
+        finalGrade,
+      });
       computed++;
     }
 
@@ -478,7 +583,12 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
   ) {
     await this.assertEducatorOwnsClass(classId, orgId, educatorId);
 
-    const grade = await this.repo.findByStudent(studentId, classId, termId, orgId);
+    const grade = await this.repo.findByStudent(
+      studentId,
+      classId,
+      termId,
+      orgId,
+    );
     if (grade?.is_locked) {
       throw new ForbiddenException(
         'Grade is locked. Admin must unlock before manual scores can be changed.',
@@ -514,7 +624,10 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
     enrollmentDatesByStudent: Map<string, Date>,
     overridesByKey: Map<string, { include: boolean }>,
     studentId: string,
-  ): { excludedAssessmentIds: Set<string>; reasons: Map<string, AssessmentInclusionReason> } {
+  ): {
+    excludedAssessmentIds: Set<string>;
+    reasons: Map<string, AssessmentInclusionReason>;
+  } {
     const excludedAssessmentIds = new Set<string>();
     const reasons = new Map<string, AssessmentInclusionReason>();
 
@@ -541,7 +654,9 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
     cls: any,
     semesterInfo?: { id: string; name: string },
   ) {
-    const enrolledStudentIds: string[] = cls.enrollments.map((e: any) => e.student_id);
+    const enrolledStudentIds: string[] = cls.enrollments.map(
+      (e: any) => e.student_id,
+    );
     const [
       submissions,
       grades,
@@ -574,8 +689,12 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
 
     const students = enrolledStudentIds.map((studentId) => {
       const profile = studentProfiles.get(studentId);
-      const studentSubs = submissions.filter((s: any) => s.student_id === studentId);
-      const studentManuals = manualScores.filter((m: any) => m.student_id === studentId);
+      const studentSubs = submissions.filter(
+        (s: any) => s.student_id === studentId,
+      );
+      const studentManuals = manualScores.filter(
+        (m: any) => m.student_id === studentId,
+      );
 
       const submittedAssessmentIds = new Set(
         studentSubs.map((s: any) => s.assessment_id),
@@ -628,7 +747,9 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
         studentId,
       );
       for (const scoreEntry of assessmentScores) {
-        scoreEntry.included = !excludedAssessmentIds.has(scoreEntry.assessmentId);
+        scoreEntry.included = !excludedAssessmentIds.has(
+          scoreEntry.assessmentId,
+        );
         scoreEntry.inclusionReason =
           reasons.get(scoreEntry.assessmentId) ?? 'included';
       }
@@ -642,7 +763,9 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
             ? sum + cat.weight
             : sum;
         }
-        const catAssessments = allAssessments.filter((a) => a.type === cat.type);
+        const catAssessments = allAssessments.filter(
+          (a) => a.type === cat.type,
+        );
         const hasActive = catAssessments.some((a) =>
           studentSubs.some(
             (s) =>
@@ -677,7 +800,9 @@ async getTermOptions(classId: string, orgId: string, educatorId: string) {
       termId,
       termName,
       students,
-      ...(semesterInfo ? { semesterId: semesterInfo.id, semesterName: semesterInfo.name } : {}),
+      ...(semesterInfo
+        ? { semesterId: semesterInfo.id, semesterName: semesterInfo.name }
+        : {}),
     };
   }
 

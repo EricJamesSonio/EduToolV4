@@ -16,10 +16,16 @@ import { OrgSeederModule } from '@/modules/org-seeder/org-seeder.module';
 import { DatabaseModule } from '@/core/database/database.module';
 import { DatabaseService } from '@/core/database/database.provider';
 import { OrgSeederService } from '@/modules/org-seeder/org-seeder.service';
-import type { OrgSeedOptions, SeedResult } from '@/modules/org-seeder/seed-context';
+import type {
+  OrgSeedOptions,
+  SeedResult,
+} from '@/modules/org-seeder/seed-context';
 
 import { PROGRAMS } from '@/modules/org-seeder/data/programs.data';
-import { COLLEGE_COURSES, BSED_MAJORS } from '@/modules/org-seeder/data/courses.data';
+import {
+  COLLEGE_COURSES,
+  BSED_MAJORS,
+} from '@/modules/org-seeder/data/courses.data';
 import { SHS_STRAND_DEFS } from '@/modules/org-seeder/data/strands.data';
 import { buildLevelDefs } from '@/modules/org-seeder/data/levels.data';
 import { SCHEME_PRESETS } from '@/modules/org-seeder/data/grading-schemes.data';
@@ -45,7 +51,8 @@ function dbReachable(connectionString?: string, timeoutMs = 3000): boolean {
   }
   const host = url.hostname;
   const port = Number(url.port || 5432);
-  const candidates = host === 'localhost' ? ['127.0.0.1', '::1', 'localhost'] : [host];
+  const candidates =
+    host === 'localhost' ? ['127.0.0.1', '::1', 'localhost'] : [host];
 
   const script = [
     'const net = require("net");',
@@ -78,9 +85,13 @@ function dbReachable(connectionString?: string, timeoutMs = 3000): boolean {
 
 const dbUp = hasDbUrl && dbReachable(process.env.DATABASE_URL);
 if (!hasDbUrl) {
-  console.log('[org-seeder e2e] SKIPPED — DATABASE_URL not set; not running against a real DB.');
+  console.log(
+    '[org-seeder e2e] SKIPPED — DATABASE_URL not set; not running against a real DB.',
+  );
 } else if (!dbUp) {
-  console.log('[org-seeder e2e] SKIPPED — database not reachable; not running against a real DB.');
+  console.log(
+    '[org-seeder e2e] SKIPPED — database not reachable; not running against a real DB.',
+  );
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -118,7 +129,9 @@ async function expectReportedAndStored(
     );
     expect(count).toBe(reported.seeded);
   }
-  log(`PASS ${label}: DB count = ${count} == seeder seeded = ${reported.seeded}`);
+  log(
+    `PASS ${label}: DB count = ${count} == seeder seeded = ${reported.seeded}`,
+  );
 }
 
 function makeProgramCalendars() {
@@ -150,14 +163,24 @@ async function snapshotCounts(db: DatabaseService, orgId: string) {
     subjectSharing: await db.subjectSharing.count({ where: common }),
     subjectPrerequisites: await db.subjectPrerequisite.count({ where: common }),
     gradingScales: await db.gradingScale.count({ where: common }),
-    gradingScaleAssignments: await db.gradingScaleAssignment.count({ where: common }),
-    gradingSchemeTemplates: await db.gradingSchemeTemplate.count({ where: common }),
-    gradingSchemeComponents: await db.gradingSchemeTemplateComponent.count({ where: common }),
+    gradingScaleAssignments: await db.gradingScaleAssignment.count({
+      where: common,
+    }),
+    gradingSchemeTemplates: await db.gradingSchemeTemplate.count({
+      where: common,
+    }),
+    gradingSchemeComponents: await db.gradingSchemeTemplateComponent.count({
+      where: common,
+    }),
     semesterTemplates: await db.semesterTemplate.count({ where: common }),
     semesterItems: await db.semesterTemplateItem.count({ where: common }),
     semesterTerms: await db.semesterTemplateTerm.count({ where: common }),
-    programSemesterAssignments: await db.programSemesterAssignment.count({ where: common }),
-    programSemesterTermDates: await db.programSemesterTermDate.count({ where: common }),
+    programSemesterAssignments: await db.programSemesterAssignment.count({
+      where: common,
+    }),
+    programSemesterTermDates: await db.programSemesterTermDate.count({
+      where: common,
+    }),
     programCalendars: await db.programCalendar.count({ where: common }),
     concernCategories: await db.concernCategory.count({ where: common }),
     auditLogs: await db.auditLog.count({ where: common }),
@@ -165,7 +188,10 @@ async function snapshotCounts(db: DatabaseService, orgId: string) {
 }
 
 /** Proves cleanup removed every row created for the test org. */
-async function assertZeroResidual(db: DatabaseService, orgId2: string): Promise<void> {
+async function assertZeroResidual(
+  db: DatabaseService,
+  orgId2: string,
+): Promise<void> {
   const residual = await snapshotCounts(db, orgId2);
   const leftover = Object.entries(residual).filter(([, v]) => v > 0);
   expect(leftover).toEqual([]);
@@ -199,7 +225,10 @@ const EXPECTED = {
   gradingScales: PROGRAMS.length,
   gradingScaleAssignments: PROGRAMS.length,
   gradingSchemeTemplates: SCHEME_PRESETS.length,
-  gradingSchemeComponents: SCHEME_PRESETS.reduce((n, c) => n + c.components.length, 0),
+  gradingSchemeComponents: SCHEME_PRESETS.reduce(
+    (n, c) => n + c.components.length,
+    0,
+  ),
   semesterTemplates: PROGRAMS.length,
   semesterItems: PROGRAMS.length * 2, // 2 semesters per template
   semesterTerms: PROGRAMS.length * 2 * 3, // 3 terms per semester
@@ -229,7 +258,9 @@ runSuite('OrgSeederService e2e (real database)', () => {
   let result2: SeedResult;
 
   beforeAll(async () => {
-    log('--- SETUP: booting real Nest module graph (OrgSeederModule + real DatabaseService) ---');
+    log(
+      '--- SETUP: booting real Nest module graph (OrgSeederModule + real DatabaseService) ---',
+    );
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [OrgSeederModule, DatabaseModule],
     }).compile();
@@ -313,13 +344,19 @@ runSuite('OrgSeederService e2e (real database)', () => {
     check('Level FK validity', async () => {
       const levels = await db.level.findMany({ where: { org_id: orgId } });
       const programIds = new Set(
-        (await db.program.findMany({ where: { org_id: orgId } })).map((p) => p.id),
+        (await db.program.findMany({ where: { org_id: orgId } })).map(
+          (p) => p.id,
+        ),
       );
       const courseIds = new Set(
-        (await db.course.findMany({ where: { org_id: orgId } })).map((c) => c.id),
+        (await db.course.findMany({ where: { org_id: orgId } })).map(
+          (c) => c.id,
+        ),
       );
       const strandIds = new Set(
-        (await db.strand.findMany({ where: { org_id: orgId } })).map((s) => s.id),
+        (await db.strand.findMany({ where: { org_id: orgId } })).map(
+          (s) => s.id,
+        ),
       );
 
       for (const level of levels) {
@@ -328,7 +365,9 @@ runSuite('OrgSeederService e2e (real database)', () => {
         if (level.course_id) expect(courseIds.has(level.course_id)).toBe(true);
         if (level.strand_id) expect(strandIds.has(level.strand_id)).toBe(true);
       }
-      log(`Levels: ${levels.length} checked — program/course/strand/school_year links all valid`);
+      log(
+        `Levels: ${levels.length} checked — program/course/strand/school_year links all valid`,
+      );
     });
   });
 
@@ -336,23 +375,33 @@ runSuite('OrgSeederService e2e (real database)', () => {
     return check('Section FK validity', async () => {
       const sections = await db.section.findMany({ where: { org_id: orgId } });
       const levelIds = new Set(
-        (await db.level.findMany({ where: { org_id: orgId } })).map((l) => l.id),
+        (await db.level.findMany({ where: { org_id: orgId } })).map(
+          (l) => l.id,
+        ),
       );
       const courseIds = new Set(
-        (await db.course.findMany({ where: { org_id: orgId } })).map((c) => c.id),
+        (await db.course.findMany({ where: { org_id: orgId } })).map(
+          (c) => c.id,
+        ),
       );
       const strandIds = new Set(
-        (await db.strand.findMany({ where: { org_id: orgId } })).map((s) => s.id),
+        (await db.strand.findMany({ where: { org_id: orgId } })).map(
+          (s) => s.id,
+        ),
       );
 
       expect(sections.length).toBe(result1.sections.seeded);
       for (const section of sections) {
         expect(levelIds.has(section.level_id)).toBe(true);
         expect(section.school_year_id).toBe(schoolYearId);
-        if (section.course_id) expect(courseIds.has(section.course_id)).toBe(true);
-        if (section.strand_id) expect(strandIds.has(section.strand_id)).toBe(true);
+        if (section.course_id)
+          expect(courseIds.has(section.course_id)).toBe(true);
+        if (section.strand_id)
+          expect(strandIds.has(section.strand_id)).toBe(true);
       }
-      log(`Sections: ${sections.length} checked — all level_id + school_year_id valid`);
+      log(
+        `Sections: ${sections.length} checked — all level_id + school_year_id valid`,
+      );
     });
   });
 
@@ -362,10 +411,14 @@ runSuite('OrgSeederService e2e (real database)', () => {
         where: { org_id: orgId },
       });
       const programIds = new Set(
-        (await db.program.findMany({ where: { org_id: orgId } })).map((p) => p.id),
+        (await db.program.findMany({ where: { org_id: orgId } })).map(
+          (p) => p.id,
+        ),
       );
       const scaleIds = new Set(
-        (await db.gradingScale.findMany({ where: { org_id: orgId } })).map((s) => s.id),
+        (await db.gradingScale.findMany({ where: { org_id: orgId } })).map(
+          (s) => s.id,
+        ),
       );
 
       expect(assignments.length).toBe(EXPECTED.gradingScaleAssignments);
@@ -390,7 +443,12 @@ runSuite('OrgSeederService e2e (real database)', () => {
       expect(templates.length).toBe(EXPECTED.semesterTemplates);
       const itemIds = new Set<string>();
       const termIds = new Set<string>();
-      const allTerms: Array<{ id: string; semester_id: string; order_index: number; name: string }> = [];
+      const allTerms: Array<{
+        id: string;
+        semester_id: string;
+        order_index: number;
+        name: string;
+      }> = [];
 
       for (const tpl of templates) {
         expect(tpl.program_type).toBeTruthy();
@@ -430,9 +488,13 @@ runSuite('OrgSeederService e2e (real database)', () => {
       const assignments = await db.programSemesterAssignment.findMany({
         where: { org_id: orgId },
       });
-      const templates = await db.semesterTemplate.findMany({ where: { org_id: orgId } });
+      const templates = await db.semesterTemplate.findMany({
+        where: { org_id: orgId },
+      });
       const programIds = new Set(
-        (await db.program.findMany({ where: { org_id: orgId } })).map((p) => p.id),
+        (await db.program.findMany({ where: { org_id: orgId } })).map(
+          (p) => p.id,
+        ),
       );
       const templateIds = new Set(templates.map((t) => t.id));
 
@@ -455,7 +517,9 @@ runSuite('OrgSeederService e2e (real database)', () => {
         expect(assignmentIds.has(td.assignment_id)).toBe(true); // assignment exists
         expect(td.term).toBeTruthy();
         // term must belong to the template the assignment references
-        expect(td.term.semester.template_id).toBe(assignmentTemplate.get(td.assignment_id));
+        expect(td.term.semester.template_id).toBe(
+          assignmentTemplate.get(td.assignment_id),
+        );
         expect(td.start_date.getTime() <= td.end_date.getTime()).toBe(true);
         expect(td.start_date.getTime() >= syStart.getTime()).toBe(true);
         expect(td.end_date.getTime() <= syEnd.getTime()).toBe(true);
@@ -480,7 +544,10 @@ runSuite('OrgSeederService e2e (real database)', () => {
 
       const byTemplate = new Map<string, number>();
       for (const c of components) {
-        byTemplate.set(c.template_id, (byTemplate.get(c.template_id) ?? 0) + c.weight);
+        byTemplate.set(
+          c.template_id,
+          (byTemplate.get(c.template_id) ?? 0) + c.weight,
+        );
       }
       for (const tpl of templates) {
         const sum = byTemplate.get(tpl.id) ?? 0;
@@ -499,16 +566,24 @@ runSuite('OrgSeederService e2e (real database)', () => {
       expect(subjects.length).toBeGreaterThan(0);
 
       const programIds = new Set(
-        (await db.program.findMany({ where: { org_id: orgId } })).map((p) => p.id),
+        (await db.program.findMany({ where: { org_id: orgId } })).map(
+          (p) => p.id,
+        ),
       );
       const levelIds = new Set(
-        (await db.level.findMany({ where: { org_id: orgId } })).map((l) => l.id),
+        (await db.level.findMany({ where: { org_id: orgId } })).map(
+          (l) => l.id,
+        ),
       );
       const courseIds = new Set(
-        (await db.course.findMany({ where: { org_id: orgId } })).map((c) => c.id),
+        (await db.course.findMany({ where: { org_id: orgId } })).map(
+          (c) => c.id,
+        ),
       );
       const strandIds = new Set(
-        (await db.strand.findMany({ where: { org_id: orgId } })).map((s) => s.id),
+        (await db.strand.findMany({ where: { org_id: orgId } })).map(
+          (s) => s.id,
+        ),
       );
       const subjectIds = new Set(subjects.map((s) => s.id));
 
@@ -519,7 +594,9 @@ runSuite('OrgSeederService e2e (real database)', () => {
         if (s.strand_id) expect(strandIds.has(s.strand_id)).toBe(true);
       }
 
-      const sharing = await db.subjectSharing.findMany({ where: { org_id: orgId } });
+      const sharing = await db.subjectSharing.findMany({
+        where: { org_id: orgId },
+      });
       for (const sh of sharing) {
         expect(subjectIds.has(sh.subject_id)).toBe(true);
         if (sh.course_id) expect(courseIds.has(sh.course_id)).toBe(true);
@@ -527,7 +604,9 @@ runSuite('OrgSeederService e2e (real database)', () => {
         if (sh.level_id) expect(levelIds.has(sh.level_id)).toBe(true);
       }
 
-      const prereqs = await db.subjectPrerequisite.findMany({ where: { org_id: orgId } });
+      const prereqs = await db.subjectPrerequisite.findMany({
+        where: { org_id: orgId },
+      });
       for (const pr of prereqs) {
         expect(subjectIds.has(pr.subject_id)).toBe(true);
         expect(subjectIds.has(pr.prerequisite_id)).toBe(true);
@@ -541,12 +620,18 @@ runSuite('OrgSeederService e2e (real database)', () => {
 
   it('org settings, concern categories, and audit log are seeded', () => {
     return check('Org-level extras', async () => {
-      expect(await db.orgEnrollmentSetting.count({ where: { org_id: orgId } })).toBe(1);
-      expect(await db.orgConcernSetting.count({ where: { org_id: orgId } })).toBe(1);
+      expect(
+        await db.orgEnrollmentSetting.count({ where: { org_id: orgId } }),
+      ).toBe(1);
+      expect(
+        await db.orgConcernSetting.count({ where: { org_id: orgId } }),
+      ).toBe(1);
       expect(await db.concernCategory.count({ where: { org_id: orgId } })).toBe(
         EXPECTED.concernCategories,
       );
-      const auditLogs = await db.auditLog.findMany({ where: { org_id: orgId } });
+      const auditLogs = await db.auditLog.findMany({
+        where: { org_id: orgId },
+      });
       expect(auditLogs.length).toBeGreaterThanOrEqual(1);
       expect(auditLogs.some((a) => a.action === 'org_seeded')).toBe(true);
       log(
@@ -559,7 +644,9 @@ runSuite('OrgSeederService e2e (real database)', () => {
     check('result.warnings empty', () => {
       expect(result1.warnings).toEqual([]);
     });
-    log(`Warnings: ${result1.warnings.length} (auto-registration succeeded for every program)`);
+    log(
+      `Warnings: ${result1.warnings.length} (auto-registration succeeded for every program)`,
+    );
   });
 
   it('is idempotent — a second seed run leaves every count unchanged', async () => {
@@ -592,19 +679,25 @@ runSuite('OrgSeederService e2e (real database)', () => {
 
   afterAll(async () => {
     if (!db || !orgId) return;
-    log('--- CLEANUP: deleting everything created for the test org (children before parents) ---');
+    log(
+      '--- CLEANUP: deleting everything created for the test org (children before parents) ---',
+    );
 
     const step = async (label: string, fn: () => Promise<unknown>) => {
       const before = await snapshotCounts(db, orgId);
       try {
         await fn();
       } catch (err) {
-        log(`CLEANUP FAIL @ ${label}: ${err instanceof Error ? err.message : String(err)}`);
+        log(
+          `CLEANUP FAIL @ ${label}: ${err instanceof Error ? err.message : String(err)}`,
+        );
         throw err;
       }
       const after = await snapshotCounts(db, orgId);
       const removed = Object.keys(before).filter((k) => before[k] !== after[k]);
-      log(`  cleaned ${label} — removed rows in: ${removed.join(', ') || 'none'}`);
+      log(
+        `  cleaned ${label} — removed rows in: ${removed.join(', ') || 'none'}`,
+      );
     };
 
     try {
@@ -630,7 +723,9 @@ runSuite('OrgSeederService e2e (real database)', () => {
         db.gradingScale.deleteMany({ where: { org_id: orgId } }),
       );
       await step('grading scheme components', () =>
-        db.gradingSchemeTemplateComponent.deleteMany({ where: { org_id: orgId } }),
+        db.gradingSchemeTemplateComponent.deleteMany({
+          where: { org_id: orgId },
+        }),
       );
       await step('grading scheme templates', () =>
         db.gradingSchemeTemplate.deleteMany({ where: { org_id: orgId } }),
@@ -653,27 +748,44 @@ runSuite('OrgSeederService e2e (real database)', () => {
       await step('subject sharings', () =>
         db.subjectSharing.deleteMany({ where: { org_id: orgId } }),
       );
-      await step('subjects', () => db.subject.deleteMany({ where: { org_id: orgId } })),
-      await step('sections', () => db.section.deleteMany({ where: { org_id: orgId } })),
-      await step('levels', () => db.level.deleteMany({ where: { org_id: orgId } })),
-      await step('strands', () => db.strand.deleteMany({ where: { org_id: orgId } })),
-      await step('courses', () => db.course.deleteMany({ where: { org_id: orgId } })),
-      await step('programs', () => db.program.deleteMany({ where: { org_id: orgId } })),
-      await step('concern categories', () =>
-        db.concernCategory.deleteMany({ where: { org_id: orgId } }),
+      (await step('subjects', () =>
+        db.subject.deleteMany({ where: { org_id: orgId } }),
       ),
-      await step('org concern settings', () =>
-        db.orgConcernSetting.deleteMany({ where: { org_id: orgId } }),
-      ),
-      await step('org enrollment settings', () =>
-        db.orgEnrollmentSetting.deleteMany({ where: { org_id: orgId } }),
-      ),
-      await step('audit logs', () => db.auditLog.deleteMany({ where: { org_id: orgId } })),
-      await step('school year', () => db.schoolYear.deleteMany({ where: { id: schoolYearId } })),
-      await step('organization', () => db.organization.deleteMany({ where: { id: orgId } })),
-
-      // Verify zero rows remain for the test org before we disconnect the client.
-      await assertZeroResidual(db, orgId);
+        await step('sections', () =>
+          db.section.deleteMany({ where: { org_id: orgId } }),
+        ),
+        await step('levels', () =>
+          db.level.deleteMany({ where: { org_id: orgId } }),
+        ),
+        await step('strands', () =>
+          db.strand.deleteMany({ where: { org_id: orgId } }),
+        ),
+        await step('courses', () =>
+          db.course.deleteMany({ where: { org_id: orgId } }),
+        ),
+        await step('programs', () =>
+          db.program.deleteMany({ where: { org_id: orgId } }),
+        ),
+        await step('concern categories', () =>
+          db.concernCategory.deleteMany({ where: { org_id: orgId } }),
+        ),
+        await step('org concern settings', () =>
+          db.orgConcernSetting.deleteMany({ where: { org_id: orgId } }),
+        ),
+        await step('org enrollment settings', () =>
+          db.orgEnrollmentSetting.deleteMany({ where: { org_id: orgId } }),
+        ),
+        await step('audit logs', () =>
+          db.auditLog.deleteMany({ where: { org_id: orgId } }),
+        ),
+        await step('school year', () =>
+          db.schoolYear.deleteMany({ where: { id: schoolYearId } }),
+        ),
+        await step('organization', () =>
+          db.organization.deleteMany({ where: { id: orgId } }),
+        ),
+        // Verify zero rows remain for the test org before we disconnect the client.
+        await assertZeroResidual(db, orgId));
     } finally {
       await app.close();
     }

@@ -1,9 +1,17 @@
 // backend/src/modules/academic-calendar/program-calendar/program-calendar.controller.ts
 
 import {
-  Controller, Post, Get, Patch, Delete,
-  Body, Param, Query,
-  UseGuards, HttpCode, HttpStatus,
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ProgramCalendarService } from './program-calendar.service';
 import {
@@ -12,9 +20,9 @@ import {
   QueryProgramCalendarDto,
   SaveHolidayConfigDto,
 } from '../dto/program-calendar.dto';
-import { AuthGuard }   from '@/commons/guards/auth.guard';
-import { RolesGuard }  from '@/commons/guards/role.guard';
-import { Roles }       from '@/commons/decorators/roles.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('program-calendars')
@@ -30,9 +38,7 @@ export class ProgramCalendarController {
    * schoolYearId param accepted but config is org-global.
    */
   @Get('holidays')
-  async getHolidayConfig(
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async getHolidayConfig(@CurrentUser('org_id') orgId: string) {
     return this.service.getHolidayConfig(orgId);
   }
 
@@ -58,9 +64,7 @@ export class ProgramCalendarController {
    */
   @Post('holidays/seed')
   @Roles('admin')
-  async seedDefaultHolidays(
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async seedDefaultHolidays(@CurrentUser('org_id') orgId: string) {
     return this.service.seedDefaultHolidays(orgId);
   }
 
@@ -70,7 +74,7 @@ export class ProgramCalendarController {
   @Get('by-program')
   async findByProgram(
     @CurrentUser('org_id') orgId: string,
-    @Query('programId')    programId: string,
+    @Query('programId') programId: string,
     @Query('schoolYearId') schoolYearId: string,
   ) {
     return this.service.findByProgram(programId, schoolYearId, orgId);
@@ -83,7 +87,7 @@ export class ProgramCalendarController {
   @Get('for-program/:programId')
   async getForProgram(
     @CurrentUser('org_id') orgId: string,
-    @Param('programId')    programId: string,
+    @Param('programId') programId: string,
     @Query('schoolYearId') schoolYearId: string,
   ) {
     return this.service.getCalendarForProgram(programId, schoolYearId, orgId);
@@ -96,7 +100,7 @@ export class ProgramCalendarController {
   @Get('terms')
   async getTerms(
     @CurrentUser('org_id') orgId: string,
-    @Query('programId')    programId: string,
+    @Query('programId') programId: string,
     @Query('schoolYearId') schoolYearId: string,
   ) {
     return this.service.getTermsForProgram(programId, schoolYearId, orgId);
@@ -124,10 +128,7 @@ export class ProgramCalendarController {
   // ── /:id routes LAST ──────────────────────────────────────────────────────
 
   @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async findOne(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     return this.service.findById(id, orgId);
   }
 
@@ -144,10 +145,7 @@ export class ProgramCalendarController {
   @Delete(':id')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async remove(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     await this.service.delete(id, orgId);
   }
 }

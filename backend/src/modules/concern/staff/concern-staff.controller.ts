@@ -38,10 +38,7 @@ export class ConcernStaffController {
 
   // GET /concerns/staff/:id
   @Get(':id')
-  getOne(
-    @CurrentUser('org_id') orgId: string,
-    @Param('id') concernId: string,
-  ) {
+  getOne(@CurrentUser('org_id') orgId: string, @Param('id') concernId: string) {
     return this.service.getOne(orgId, concernId);
   }
 
@@ -55,7 +52,10 @@ export class ConcernStaffController {
     @Param('id') concernId: string,
     @Body() dto: ReplyConcernDto,
   ) {
-    return this.service.reply({ orgId, accountId, role, fullName, concernId }, dto);
+    return this.service.reply(
+      { orgId, accountId, role, fullName, concernId },
+      dto,
+    );
   }
 
   // PATCH /concerns/staff/:id/resolve
@@ -70,10 +70,7 @@ export class ConcernStaffController {
 
   // PATCH /concerns/staff/:id/reopen
   @Patch(':id/reopen')
-  reopen(
-    @CurrentUser('org_id') orgId: string,
-    @Param('id') concernId: string,
-  ) {
+  reopen(@CurrentUser('org_id') orgId: string, @Param('id') concernId: string) {
     return this.service.reopen(orgId, concernId);
   }
 }

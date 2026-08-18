@@ -1,8 +1,15 @@
 // filepath: src/modules/grading-scheme/grading-scheme.controller.ts
 
 import {
-  Controller, Get, Post, Patch, Body,
-  Param, UseGuards, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { GradingSchemeService } from './grading-scheme.service';
 import {
@@ -11,9 +18,9 @@ import {
   ApplyTemplateToClassDto,
   ApplyTemplateToProgramDto,
 } from './dto/grading-scheme.dto';
-import { AuthGuard }   from '@/commons/guards/auth.guard';
-import { RolesGuard }  from '@/commons/guards/role.guard';
-import { Roles }       from '@/commons/decorators/roles.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('grading-schemes')

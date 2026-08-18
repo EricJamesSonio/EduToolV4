@@ -24,7 +24,9 @@ export class AcademicCalendarService {
     const endDate = new Date(dto.endDate);
 
     if (startDate > endDate) {
-      throw new BadRequestException('Start date must be before or equal to end date.');
+      throw new BadRequestException(
+        'Start date must be before or equal to end date.',
+      );
     }
 
     // Check if event is retroactive (start date is in the past)
@@ -66,11 +68,15 @@ export class AcademicCalendarService {
       throw new NotFoundException('Calendar event not found.');
     }
 
-    const startDate = dto.startDate ? new Date(dto.startDate) : event.start_date;
+    const startDate = dto.startDate
+      ? new Date(dto.startDate)
+      : event.start_date;
     const endDate = dto.endDate ? new Date(dto.endDate) : event.end_date;
 
     if (startDate > endDate) {
-      throw new BadRequestException('Start date must be before or equal to end date.');
+      throw new BadRequestException(
+        'Start date must be before or equal to end date.',
+      );
     }
 
     // Warn again if the updated dates are retroactive
@@ -113,14 +119,21 @@ export class AcademicCalendarService {
    * Called by class session generation to skip affected dates.
    */
   async getSessionBlockingEvents(orgId: string, schoolYearId: string) {
-    return this.calendarRepository.findSessionBlockingEvents(orgId, schoolYearId);
+    return this.calendarRepository.findSessionBlockingEvents(
+      orgId,
+      schoolYearId,
+    );
   }
 
   /**
    * Check if a specific date falls on a blocking calendar event.
    * Used by attendance and session generation in Phase 3.
    */
-  async isBlockedDate(orgId: string, schoolYearId: string, date: Date): Promise<boolean> {
+  async isBlockedDate(
+    orgId: string,
+    schoolYearId: string,
+    date: Date,
+  ): Promise<boolean> {
     const events = await this.calendarRepository.findSessionBlockingEvents(
       orgId,
       schoolYearId,

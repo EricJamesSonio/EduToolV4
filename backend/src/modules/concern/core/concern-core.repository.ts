@@ -111,7 +111,10 @@ export class ConcernCoreRepository {
 
       return tx.concern.findFirst({
         where: { id: concern.id },
-        include: { messages: { orderBy: { created_at: 'asc' } }, category: true },
+        include: {
+          messages: { orderBy: { created_at: 'asc' } },
+          category: true,
+        },
       });
     });
   }
@@ -150,7 +153,10 @@ export class ConcernCoreRepository {
 
       return tx.concern.findFirst({
         where: { id: concernId },
-        include: { messages: { orderBy: { created_at: 'asc' } }, category: true },
+        include: {
+          messages: { orderBy: { created_at: 'asc' } },
+          category: true,
+        },
       });
     });
   }
@@ -176,11 +182,23 @@ export class ConcernCoreRepository {
       this.db.concern.findMany({
         where,
         include: {
-          category: { select: { id: true, label: true, is_default: true, is_active: true } },
+          category: {
+            select: {
+              id: true,
+              label: true,
+              is_default: true,
+              is_active: true,
+            },
+          },
           messages: {
             orderBy: { created_at: 'desc' },
             take: 1,
-            select: { id: true, sender_name: true, body: true, created_at: true },
+            select: {
+              id: true,
+              sender_name: true,
+              body: true,
+              created_at: true,
+            },
           },
           _count: { select: { messages: true } },
         },

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ClassRepository } from '../class/class.repository';
 import { SemesterTemplateRepository } from '../semester-template/semester-template.repository';
 
@@ -22,10 +26,7 @@ export class LessonWeekStructureService {
     private readonly semesterTemplateRepo: SemesterTemplateRepository,
   ) {}
 
-  async getWeekStructure(
-    classId: string,
-    orgId: string,
-  ): Promise<WeekSlot[]> {
+  async getWeekStructure(classId: string, orgId: string): Promise<WeekSlot[]> {
     const cls = await this.classRepo.findById(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
 
@@ -41,17 +42,20 @@ export class LessonWeekStructureService {
     });
 
     if (!subject?.program_id) {
-      throw new BadRequestException('Class subject is not linked to a program.');
+      throw new BadRequestException(
+        'Class subject is not linked to a program.',
+      );
     }
 
-    const assignment =
-      await this.semesterTemplateRepo.findAssignmentByProgram(
-        subject.program_id,
-        orgId,
-      );
+    const assignment = await this.semesterTemplateRepo.findAssignmentByProgram(
+      subject.program_id,
+      orgId,
+    );
 
     if (!assignment) {
-      throw new BadRequestException('No semester template assigned to this program.');
+      throw new BadRequestException(
+        'No semester template assigned to this program.',
+      );
     }
 
     const termDatesMap = new Map<string, { start: Date; end: Date }>();
@@ -92,14 +96,22 @@ export class LessonWeekStructureService {
           .map((t: any) => termDatesMap.get(t.id))
           .filter(Boolean) as Array<{ start: Date; end: Date }>;
 
-        const semStart = semTermDates.length > 0
-          ? new Date(Math.min(...semTermDates.map((d) => d.start.getTime())))
-          : null;
-        const semEnd = semTermDates.length > 0
-          ? new Date(Math.max(...semTermDates.map((d) => d.end.getTime())))
-          : null;
+        const semStart =
+          semTermDates.length > 0
+            ? new Date(Math.min(...semTermDates.map((d) => d.start.getTime())))
+            : null;
+        const semEnd =
+          semTermDates.length > 0
+            ? new Date(Math.max(...semTermDates.map((d) => d.end.getTime())))
+            : null;
 
-        if (!semStart || !semEnd || semEnd < classSemesterStart || semStart > classSemesterEnd) continue;
+        if (
+          !semStart ||
+          !semEnd ||
+          semEnd < classSemesterStart ||
+          semStart > classSemesterEnd
+        )
+          continue;
       }
 
       const terms = (sem.terms ?? []).sort(

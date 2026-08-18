@@ -137,7 +137,11 @@ export class GradeRepository {
     });
   }
 
-  async registerAssessmentForAllStudents(assessmentId: string, classId: string, orgId: string) {
+  async registerAssessmentForAllStudents(
+    assessmentId: string,
+    classId: string,
+    orgId: string,
+  ) {
     const enrollments = await this.db.enrollment.findMany({
       where: { class_id: classId, org_id: orgId, status: 'active' },
       select: { student_id: true },
@@ -215,7 +219,11 @@ export class GradeRepository {
 
   // ───────── GRADING SCALE ─────────
 
-  async findGradingScale(programId: string, schoolYearId: string, orgId: string) {
+  async findGradingScale(
+    programId: string,
+    schoolYearId: string,
+    orgId: string,
+  ) {
     const assignment = await this.db.gradingScaleAssignment.findFirst({
       where: {
         org_id: orgId,
@@ -313,9 +321,18 @@ export class GradeRepository {
     });
   }
 
-  async findAssessmentInClass(assessmentId: string, classId: string, orgId: string) {
+  async findAssessmentInClass(
+    assessmentId: string,
+    classId: string,
+    orgId: string,
+  ) {
     return this.db.assessment.findFirst({
-      where: { id: assessmentId, class_id: classId, org_id: orgId, deleted_at: null },
+      where: {
+        id: assessmentId,
+        class_id: classId,
+        org_id: orgId,
+        deleted_at: null,
+      },
       select: { id: true, title: true },
     });
   }
@@ -408,91 +425,100 @@ export class GradeRepository {
     });
   }
 
-async findTemplateTermsByClass(classId: string, orgId: string) {
-  // Get the class → subject → program → semester template assignment → terms with date ranges
-  const cls = await this.db.class.findFirst({
-    where: { id: classId, org_id: orgId, deleted_at: null },
-    select: { subject_id: true, semester_id: true },
-  });
-  if (!cls) return [];
+  async findTemplateTermsByClass(classId: string, orgId: string) {
+    // Get the class → subject → program → semester template assignment → terms with date ranges
+    const cls = await this.db.class.findFirst({
+      where: { id: classId, org_id: orgId, deleted_at: null },
+      select: { subject_id: true, semester_id: true },
+    });
+    if (!cls) return [];
 
-  const subject = await this.db.subject.findFirst({
-    where: { id: cls.subject_id },
-    select: { program_id: true },
-  });
-  if (!subject?.program_id) return [];
+    const subject = await this.db.subject.findFirst({
+      where: { id: cls.subject_id },
+      select: { program_id: true },
+    });
+    if (!subject?.program_id) return [];
 
-  const assignment = await this.db.programSemesterAssignment.findUnique({
-    where: { program_id: subject.program_id },
-    include: {
-      template: {
-        include: {
-          semesters: {
-            orderBy: { order_index: 'asc' },
-            include: {
-              terms: { orderBy: { order_index: 'asc' } },
+    const assignment = await this.db.programSemesterAssignment.findUnique({
+      where: { program_id: subject.program_id },
+      include: {
+        template: {
+          include: {
+            semesters: {
+              orderBy: { order_index: 'asc' },
+              include: {
+                terms: { orderBy: { order_index: 'asc' } },
+              },
             },
           },
         },
+        termDates: true,
       },
-      termDates: true,
-    },
-  });
-  if (!assignment) return [];
-
-  // Scope to the class's actual semester date range
-  let classSemStart: Date | null = null;
-  let classSemEnd: Date | null = null;
-  if (cls.semester_id) {
-    const actualSem = await this.db.semester.findUnique({
-      where: { id: cls.semester_id },
-      select: { start_date: true, end_date: true },
     });
-    if (actualSem) {
-      classSemStart = actualSem.start_date;
-      classSemEnd = actualSem.end_date;
-    }
-  }
+    if (!assignment) return [];
 
-  const termDatesMap = new Map<string, { start: Date; end: Date }>();
-  for (const td of assignment.termDates) {
-    termDatesMap.set(td.term_id, {
-      start: new Date(td.start_date),
-      end: new Date(td.end_date),
-    });
-  }
-
-  const result: { id: string; name: string; semesterName: string; semesterIndex: number }[] = [];
-
-  for (let si = 0; si < assignment.template.semesters.length; si++) {
-    const sem = assignment.template.semesters[si];
-
-    // Filter to semesters overlapping the class's actual semester
-    if (classSemStart && classSemEnd) {
-      const semDates = sem.terms
-        .map((t) => termDatesMap.get(t.id))
-        .filter(Boolean) as { start: Date; end: Date }[];
-
-      if (semDates.length === 0) continue;
-
-      const semStart = new Date(Math.min(...semDates.map((d) => d.start.getTime())));
-      const semEnd = new Date(Math.max(...semDates.map((d) => d.end.getTime())));
-
-      if (semEnd < classSemStart || semStart > classSemEnd) continue;
+    // Scope to the class's actual semester date range
+    let classSemStart: Date | null = null;
+    let classSemEnd: Date | null = null;
+    if (cls.semester_id) {
+      const actualSem = await this.db.semester.findUnique({
+        where: { id: cls.semester_id },
+        select: { start_date: true, end_date: true },
+      });
+      if (actualSem) {
+        classSemStart = actualSem.start_date;
+        classSemEnd = actualSem.end_date;
+      }
     }
 
-    for (const term of sem.terms) {
-      result.push({
-        id: term.id,
-        name: term.name,
-        semesterName: sem.name,
-        semesterIndex: si + 1,
+    const termDatesMap = new Map<string, { start: Date; end: Date }>();
+    for (const td of assignment.termDates) {
+      termDatesMap.set(td.term_id, {
+        start: new Date(td.start_date),
+        end: new Date(td.end_date),
       });
     }
-  }
 
-  return result;
-}
+    const result: {
+      id: string;
+      name: string;
+      semesterName: string;
+      semesterIndex: number;
+    }[] = [];
+
+    for (let si = 0; si < assignment.template.semesters.length; si++) {
+      const sem = assignment.template.semesters[si];
+
+      // Filter to semesters overlapping the class's actual semester
+      if (classSemStart && classSemEnd) {
+        const semDates = sem.terms
+          .map((t) => termDatesMap.get(t.id))
+          .filter(Boolean) as { start: Date; end: Date }[];
+
+        if (semDates.length === 0) continue;
+
+        const semStart = new Date(
+          Math.min(...semDates.map((d) => d.start.getTime())),
+        );
+        const semEnd = new Date(
+          Math.max(...semDates.map((d) => d.end.getTime())),
+        );
+
+        if (semEnd < classSemStart || semStart > classSemEnd) continue;
+      }
+
+      for (const term of sem.terms) {
+        result.push({
+          id: term.id,
+          name: term.name,
+          semesterName: sem.name,
+          semesterIndex: si + 1,
+        });
+      }
+    }
+
+    return result;
+  }
 
   // ───────── MANUAL SCORES ─────────
 
@@ -559,7 +585,9 @@ async findTemplateTermsByClass(classId: string, orgId: string) {
     });
   }
 
-  async findStudentProfiles(studentIds: string[]): Promise<Map<string, { name: string; code: string }>> {
+  async findStudentProfiles(
+    studentIds: string[],
+  ): Promise<Map<string, { name: string; code: string }>> {
     const accounts = await this.db.account.findMany({
       where: { id: { in: studentIds } },
       include: { profile: true },

@@ -22,9 +22,7 @@ import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 @Controller('platform/registration-requests')
 @UseGuards(AuthGuard, PlatformOwnerGuard)
 export class PlatformRegistrationController {
-  constructor(
-    private readonly service: PlatformRegistrationService,
-  ) {}
+  constructor(private readonly service: PlatformRegistrationService) {}
 
   @Get()
   async list(

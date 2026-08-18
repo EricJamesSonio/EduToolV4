@@ -32,7 +32,7 @@ import {
 } from '../modules/org-seeder/data/subjects';
 import { seedId } from '../modules/org-seeder/seed-id';
 import { computeTermDates } from '../modules/org-seeder/utils/date-calculator.util';
-import { slugifyName } from '../modules/organization/organization.repository'; 
+import { slugifyName } from '../modules/organization/organization.repository';
 
 import { SCHOOLS } from './data/schools';
 import { ADMINS } from './data/admins';

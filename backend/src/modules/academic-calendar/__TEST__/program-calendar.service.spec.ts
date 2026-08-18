@@ -8,9 +8,7 @@ jest.mock('../data/holidays.data', () => ({
     { key: 'NEW_YEAR', title: 'New Year', date: new Date() },
   ],
   getDefaultEnabledKeys: jest.fn(() => ['NEW_YEAR']),
-  resolveHolidays: jest.fn(() => [
-    { key: 'NEW_YEAR', title: 'New Year' },
-  ]),
+  resolveHolidays: jest.fn(() => [{ key: 'NEW_YEAR', title: 'New Year' }]),
   buildHolidayDates: jest.fn(() => [
     {
       key: 'NEW_YEAR',
@@ -76,7 +74,7 @@ describe('ProgramCalendarService', () => {
         schoolYearId: 'sy1',
         startDate: '2025-01-01',
         endDate: '2025-12-01',
-      } as any);
+      });
 
       expect(repo.create).toHaveBeenCalled();
       expect(repo.replaceHolidays).toHaveBeenCalled();
@@ -93,7 +91,7 @@ describe('ProgramCalendarService', () => {
         schoolYearId: 'sy1',
         startDate: '2025-01-01',
         endDate: '2025-12-01',
-      } as any);
+      });
 
       expect(spy).toHaveBeenCalled();
     });
@@ -215,7 +213,7 @@ describe('ProgramCalendarService', () => {
 
       const result = await service.saveHolidayConfig('org1', {
         enabledKeys: ['NEW_YEAR'],
-      } as any);
+      });
 
       expect(repo.replaceHolidays).toHaveBeenCalled();
       expect(result).toHaveProperty('synced');

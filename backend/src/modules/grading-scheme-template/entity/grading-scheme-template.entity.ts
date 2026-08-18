@@ -1,4 +1,3 @@
-
 import { ComponentType } from '@/modules/grading-scheme/dto/grading-scheme.dto';
 
 export class GradingSchemeTemplateComponentEntity {

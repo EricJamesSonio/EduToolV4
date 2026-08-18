@@ -41,14 +41,20 @@ export class EnrollmentPortalService {
     return this.jwtService.verify<EnrollmentSessionClaims>(token);
   }
 
-  async getPortal(orgSlug: string, periodToken: string): Promise<PublicPortalInfo> {
+  async getPortal(
+    orgSlug: string,
+    periodToken: string,
+  ): Promise<PublicPortalInfo> {
     const org = await this.repo.findBySlug(orgSlug);
     if (!org) throw new NotFoundException('Enrollment link not found.');
 
     const period = await this.repo.findPeriodByToken(periodToken, org.id);
     if (!period) throw new NotFoundException('Enrollment link not found.');
 
-    const programs = await this.repo.findProgramsForSchoolYear(org.id, period.school_year_id);
+    const programs = await this.repo.findProgramsForSchoolYear(
+      org.id,
+      period.school_year_id,
+    );
 
     const now = new Date();
     const isOpen = now >= period.start_date && now <= period.end_date;
@@ -84,8 +90,15 @@ export class EnrollmentPortalService {
     };
   }
 
-  async sendOtp(orgSlug: string, periodToken: string, dto: SendEnrollmentOtpDto) {
-    const { org, period } = await this.resolveOrgAndPeriod(orgSlug, periodToken);
+  async sendOtp(
+    orgSlug: string,
+    periodToken: string,
+    dto: SendEnrollmentOtpDto,
+  ) {
+    const { org, period } = await this.resolveOrgAndPeriod(
+      orgSlug,
+      periodToken,
+    );
     this.assertAcceptingApplications(period);
     await this.assertEmailNotAlreadyCommitted(org.id, dto.email);
 
@@ -97,7 +110,10 @@ export class EnrollmentPortalService {
     periodToken: string,
     dto: VerifyEnrollmentOtpDto,
   ) {
-    const { org, period } = await this.resolveOrgAndPeriod(orgSlug, periodToken);
+    const { org, period } = await this.resolveOrgAndPeriod(
+      orgSlug,
+      periodToken,
+    );
     this.assertAcceptingApplications(period);
 
     await this.authService.verifyEnrollmentOtp(dto.email, dto.code, org.id);
@@ -143,7 +159,10 @@ export class EnrollmentPortalService {
     session: EnrollmentSessionClaims,
     dto: UpsertEnrollmentApplicationDto,
   ) {
-    const { org, period } = await this.resolveOrgAndPeriod(orgSlug, periodToken);
+    const { org, period } = await this.resolveOrgAndPeriod(
+      orgSlug,
+      periodToken,
+    );
     this.assertSessionMatchesOrg(org, session);
     this.assertAcceptingApplications(period);
     await this.assertEmailNotAlreadyCommitted(org.id, session.personalEmail);
@@ -208,7 +227,10 @@ export class EnrollmentPortalService {
     session: EnrollmentSessionClaims,
     dto: UpsertEnrollmentApplicationDto,
   ) {
-    const { org, period } = await this.resolveOrgAndPeriod(orgSlug, periodToken);
+    const { org, period } = await this.resolveOrgAndPeriod(
+      orgSlug,
+      periodToken,
+    );
     this.assertSessionMatchesOrg(org, session);
     this.assertAcceptingApplications(period);
 
@@ -254,7 +276,10 @@ export class EnrollmentPortalService {
   }
 
   async lookupApplication(applicationCode: string, email?: string) {
-    const results = await this.repo.findApplicationForLookup(applicationCode, email);
+    const results = await this.repo.findApplicationForLookup(
+      applicationCode,
+      email,
+    );
 
     if (results.length === 0) {
       throw new NotFoundException('No application found for that code.');
@@ -308,10 +333,14 @@ export class EnrollmentPortalService {
   }) {
     const now = new Date();
     if (now < period.start_date) {
-      throw new BadRequestException('This enrollment period has not started yet.');
+      throw new BadRequestException(
+        'This enrollment period has not started yet.',
+      );
     }
     if (now > period.end_date) {
-      throw new BadRequestException('This enrollment period has already closed.');
+      throw new BadRequestException(
+        'This enrollment period has already closed.',
+      );
     }
   }
 
@@ -320,7 +349,9 @@ export class EnrollmentPortalService {
     session: EnrollmentSessionClaims,
   ) {
     if (session.orgId !== org.id) {
-      throw new BadRequestException('Session does not match this enrollment link.');
+      throw new BadRequestException(
+        'Session does not match this enrollment link.',
+      );
     }
   }
 
@@ -338,7 +369,9 @@ export class EnrollmentPortalService {
       );
       if (count === 0) return code;
     }
-    throw new ConflictException('Could not generate a unique application code.');
+    throw new ConflictException(
+      'Could not generate a unique application code.',
+    );
   }
 
   /**
@@ -356,7 +389,11 @@ export class EnrollmentPortalService {
     strandId: string | null;
     levelId: string;
   }> {
-    const program = await this.repo.findProgramById(orgId, schoolYearId, dto.program_id);
+    const program = await this.repo.findProgramById(
+      orgId,
+      schoolYearId,
+      dto.program_id,
+    );
     if (!program) {
       throw new BadRequestException('Invalid program selected.');
     }
@@ -410,10 +447,14 @@ export class EnrollmentPortalService {
     if (!level) throw new BadRequestException('Invalid level selected.');
 
     if (courseId && level.course_id !== courseId) {
-      throw new BadRequestException('The level does not belong to the selected course.');
+      throw new BadRequestException(
+        'The level does not belong to the selected course.',
+      );
     }
     if (strandId && level.strand_id !== strandId) {
-      throw new BadRequestException('The level does not belong to the selected strand.');
+      throw new BadRequestException(
+        'The level does not belong to the selected strand.',
+      );
     }
     if (!courseId && !strandId && (level.course_id || level.strand_id)) {
       throw new BadRequestException('The level belongs to a course or strand.');

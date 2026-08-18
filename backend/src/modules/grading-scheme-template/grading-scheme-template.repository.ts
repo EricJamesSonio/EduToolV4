@@ -1,6 +1,6 @@
 // filepath: src/modules/grading-scheme-template/grading-scheme-template.repository.ts
 
-import { Injectable} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { GradingSchemeTemplateComponentDto } from './dto/grading-scheme-template.dto';
 import { Prisma } from '@prisma/client';
@@ -9,27 +9,26 @@ const COMPONENTS_INCLUDE = {
   components: { orderBy: { created_at: 'asc' as const } },
 } satisfies Prisma.GradingSchemeTemplateInclude;
 
-
 function mapComponent(c: any) {
   return {
-    id:         c.id,
-    orgId:      c.org_id,
+    id: c.id,
+    orgId: c.org_id,
     templateId: c.template_id,
-    name:       c.name,
-    type:       c.type,
-    weight:     c.weight,
-    maxScore:   c.max_score,
+    name: c.name,
+    type: c.type,
+    weight: c.weight,
+    maxScore: c.max_score,
   };
 }
 
 function mapTemplate(t: any) {
   return {
-    id:          t.id,
-    orgId:       t.org_id,
-    name:        t.name,
+    id: t.id,
+    orgId: t.org_id,
+    name: t.name,
     programType: t.program_type,
-    createdAt:   t.created_at,
-    components:  t.components?.map(mapComponent) ?? [],
+    createdAt: t.created_at,
+    components: t.components?.map(mapComponent) ?? [],
   };
 }
 
@@ -40,7 +39,7 @@ export class GradingSchemeTemplateRepository {
   async findAll(orgId: string, programType?: string) {
     const templates = await this.db.gradingSchemeTemplate.findMany({
       where: {
-        org_id:       orgId,
+        org_id: orgId,
         ...(programType ? { program_type: programType } : {}),
       },
       include: COMPONENTS_INCLUDE,
@@ -64,7 +63,7 @@ export class GradingSchemeTemplateRepository {
 
     const templates = await this.db.gradingSchemeTemplate.findMany({
       where: {
-        org_id:       orgId,
+        org_id: orgId,
         program_type: { in: types },
       },
       include: COMPONENTS_INCLUDE,
@@ -75,29 +74,29 @@ export class GradingSchemeTemplateRepository {
 
   async findById(id: string, orgId: string) {
     const template = await this.db.gradingSchemeTemplate.findFirst({
-      where:   { id, org_id: orgId },
+      where: { id, org_id: orgId },
       include: COMPONENTS_INCLUDE,
     });
     return template ? mapTemplate(template) : null;
   }
 
   async create(
-    orgId:       string,
-    name:        string,
+    orgId: string,
+    name: string,
     programType: string | undefined,
-    components:  GradingSchemeTemplateComponentDto[],
+    components: GradingSchemeTemplateComponentDto[],
   ) {
     const template = await this.db.gradingSchemeTemplate.create({
       data: {
-        org_id:       orgId,
+        org_id: orgId,
         name,
         program_type: programType ?? null,
         components: {
           create: components.map((c) => ({
-            org_id:    orgId,
-            name:      c.name,
-            type:      c.type,
-            weight:    c.weight,
+            org_id: orgId,
+            name: c.name,
+            type: c.type,
+            weight: c.weight,
             max_score: c.maxScore ?? null,
           })),
         },
@@ -108,20 +107,22 @@ export class GradingSchemeTemplateRepository {
   }
 
   async update(
-    id:    string,
+    id: string,
     orgId: string,
     data: {
-      name?:        string;
+      name?: string;
       programType?: string;
-      components?:  GradingSchemeTemplateComponentDto[];
+      components?: GradingSchemeTemplateComponentDto[];
     },
   ) {
     const updated = await this.db.$transaction(async (tx) => {
       await tx.gradingSchemeTemplate.update({
         where: { id },
         data: {
-          ...(data.name        !== undefined ? { name:         data.name }        : {}),
-          ...(data.programType !== undefined ? { program_type: data.programType } : {}),
+          ...(data.name !== undefined ? { name: data.name } : {}),
+          ...(data.programType !== undefined
+            ? { program_type: data.programType }
+            : {}),
         },
       });
 
@@ -131,18 +132,18 @@ export class GradingSchemeTemplateRepository {
         });
         await tx.gradingSchemeTemplateComponent.createMany({
           data: data.components.map((c) => ({
-            org_id:      orgId,
+            org_id: orgId,
             template_id: id,
-            name:        c.name,
-            type:        c.type,
-            weight:      c.weight,
-            max_score:   c.maxScore ?? null,
+            name: c.name,
+            type: c.type,
+            weight: c.weight,
+            max_score: c.maxScore ?? null,
           })),
         });
       }
 
       return tx.gradingSchemeTemplate.findUnique({
-        where:   { id },
+        where: { id },
         include: COMPONENTS_INCLUDE,
       });
     });

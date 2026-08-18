@@ -116,10 +116,7 @@ export class EducatorController {
   @Delete(':id')
   @Roles('admin')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async remove(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     await this.educatorService.remove(id, orgId);
   }
 

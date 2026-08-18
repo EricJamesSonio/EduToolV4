@@ -68,7 +68,10 @@ export class StudentController {
   ) {
     const csv = await this.studentService.getCredentialsCsv(orgId);
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="student-credentials.csv"');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="student-credentials.csv"',
+    );
     res.send(csv);
   }
 
@@ -77,7 +80,10 @@ export class StudentController {
   async getImportTemplate(@Res() res: Response) {
     const csv = this.studentService.getImportTemplate();
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="student-import-template.csv"');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="student-import-template.csv"',
+    );
     res.send(csv);
   }
 
@@ -115,7 +121,7 @@ export class StudentController {
   async update(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
-    @CurrentUser('id') actorId: string,       // ← ADDED
+    @CurrentUser('id') actorId: string, // ← ADDED
     @Body() dto: UpdateStudentDto,
   ) {
     return this.studentService.update(id, orgId, dto, actorId);
@@ -126,7 +132,7 @@ export class StudentController {
   async updateStatus(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
-    @CurrentUser('id') actorId: string,       // ← ADDED
+    @CurrentUser('id') actorId: string, // ← ADDED
     @Body() dto: UpdateStudentStatusDto,
   ) {
     return this.studentService.updateStatus(id, orgId, dto, actorId);
@@ -138,7 +144,7 @@ export class StudentController {
   async resetPassword(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
-    @CurrentUser('id') actorId: string,       // ← ADDED
+    @CurrentUser('id') actorId: string, // ← ADDED
   ) {
     return this.studentService.resetPassword(id, orgId, actorId);
   }
@@ -157,7 +163,7 @@ export class StudentController {
   async addEnrollment(
     @Param('id') id: string,
     @CurrentUser('org_id') orgId: string,
-    @CurrentUser('id') actorId: string,       // ← ADDED
+    @CurrentUser('id') actorId: string, // ← ADDED
     @Body() dto: AddEnrollmentDto,
   ) {
     return this.studentService.addEnrollment(id, orgId, dto.classId, actorId);
@@ -170,8 +176,13 @@ export class StudentController {
     @Param('id') id: string,
     @Param('enrollmentId') enrollmentId: string,
     @CurrentUser('org_id') orgId: string,
-    @CurrentUser('id') actorId: string,       // ← ADDED
+    @CurrentUser('id') actorId: string, // ← ADDED
   ) {
-    return this.studentService.deleteEnrollment(id, enrollmentId, orgId, actorId);
+    return this.studentService.deleteEnrollment(
+      id,
+      enrollmentId,
+      orgId,
+      actorId,
+    );
   }
 }

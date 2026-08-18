@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common'
-import { DatabaseService } from '@/core/database/database.provider'
-import { CreateStrandDto, UpdateStrandDto } from './dto/strand.dto'
+import { Injectable } from '@nestjs/common';
+import { DatabaseService } from '@/core/database/database.provider';
+import { CreateStrandDto, UpdateStrandDto } from './dto/strand.dto';
 
 @Injectable()
 export class StrandRepository {
@@ -9,18 +9,18 @@ export class StrandRepository {
   async create(orgId: string, dto: CreateStrandDto) {
     return this.db.strand.create({
       data: {
-        org_id:         orgId,
+        org_id: orgId,
         school_year_id: dto.schoolYearId,
-        program_id:     dto.program_id,
-        name:           dto.name,
+        program_id: dto.program_id,
+        name: dto.name,
       },
-    })
+    });
   }
 
   async findAll(orgId: string, schoolYearId: string, programId?: string) {
     return this.db.strand.findMany({
       where: {
-        org_id:         orgId,
+        org_id: orgId,
         school_year_id: schoolYearId,
         ...(programId ? { program_id: programId } : {}),
       },
@@ -30,7 +30,7 @@ export class StrandRepository {
         },
       },
       orderBy: { name: 'asc' },
-    })
+    });
   }
 
   async findOne(id: string, orgId: string) {
@@ -43,7 +43,7 @@ export class StrandRepository {
           },
         },
       },
-    })
+    });
   }
 
   async update(id: string, orgId: string, dto: UpdateStrandDto) {
@@ -52,18 +52,18 @@ export class StrandRepository {
       data: {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
       },
-    })
+    });
   }
 
   async delete(id: string, orgId: string) {
-    return this.db.strand.delete({ where: { id } })
+    return this.db.strand.delete({ where: { id } });
   }
 
   async existsInOrg(id: string, orgId: string): Promise<boolean> {
     const record = await this.db.strand.findFirst({
       where: { id, org_id: orgId },
       select: { id: true },
-    })
-    return !!record
+    });
+    return !!record;
   }
 }

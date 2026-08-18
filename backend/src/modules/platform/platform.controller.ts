@@ -43,7 +43,9 @@ export class PlatformController {
 
   @UseGuards(AuthGuard, PlatformOwnerGuard)
   @Get('schools')
-  getSchools(@Query() query: { search?: string; page?: number; limit?: number }) {
+  getSchools(
+    @Query() query: { search?: string; page?: number; limit?: number },
+  ) {
     return this.service.getSchools(query);
   }
 
@@ -71,4 +73,3 @@ export class PlatformController {
     return this.service.resetPassword(id);
   }
 }
-

@@ -60,6 +60,20 @@ export const run: {
     schedules: Array<{ weekday: number; start_time: string; end_time: string }>;
   };
   programIds: Record<string, string>;
+  // Per-department placement condition, captured after the Phase 7b enrollment
+  // wizard places a student (keyed by programId). A student must be placed into
+  // the department → level → section of a class before being eligible for it.
+  placements: Record<
+    string,
+    {
+      programId: string;
+      name: string;
+      levelId: string;
+      levelName: string;
+      sectionId: string;
+      sectionName: string;
+    }
+  >;
   courseId?: string;
   scaleName?: string;
   scaleId?: string;
@@ -71,6 +85,7 @@ export const run: {
   platformEmail: "platform@edutool.dev",
   platformPassword: "platform123",
   programIds: {},
+  placements: {},
   schemeTemplateIds: {},
 };
 
@@ -104,6 +119,92 @@ const openDialog = async (
     }
   }
   await content.waitFor({ state: "visible", timeout: 15_000 });
+};
+
+// Unwrap the `{ success, data }` envelope for LIST-shaped responses (either
+// `data: T[]` or `data: { data: T[] }`).
+const unwrapList = async <T>(res: APIResponse): Promise<T[]> => {
+  const body = (await res.json()) as { data?: T[] | { data?: T[] } };
+  const d = body?.data;
+  return (Array.isArray(d) ? d : (d?.data ?? [])) as T[];
+};
+
+// Distinct weekly slots for the module-scope createClass below. Every
+// readiness class is bound to the same run.educatorId, so reusing one
+// (weekday 6, 08:00-09:30) slot tripped assertNoEducatorConflict the moment a
+// second class landed in the same phase. Each call takes the next free slot.
+const CLASS_SLOT_POOL: Array<{ weekday: number; startTime: string; endTime: string }> = [
+  { weekday: 6, startTime: "08:00", endTime: "09:30" },
+  { weekday: 6, startTime: "10:00", endTime: "11:30" },
+  { weekday: 6, startTime: "13:00", endTime: "14:30" },
+  { weekday: 6, startTime: "15:00", endTime: "16:30" },
+  { weekday: 6, startTime: "17:00", endTime: "18:30" },
+];
+let classSlotCursor = 0;
+const nextClassSchedule = () => {
+  const schedule = [CLASS_SLOT_POOL[classSlotCursor % CLASS_SLOT_POOL.length]];
+  classSlotCursor += 1;
+  return schedule;
+};
+
+const createSection = async (
+  request: APIRequestContext,
+  headers: { Authorization: string },
+  levelId: string,
+  baseName: string,
+): Promise<string> => {
+  const res = await request.post(`${API_BASE}/sections`, {
+    data: {
+      levelId,
+      schoolYearId: run.schoolYearId,
+      name: uniqueName(baseName),
+      capacity: 30,
+    },
+    headers,
+  });
+  expect(res.status()).toBe(201);
+  return (await unwrapData<{ id: string }>(res)).id;
+};
+
+const createSubject = async (
+  request: APIRequestContext,
+  headers: { Authorization: string },
+  baseName: string,
+  opts: { programId?: string; levelId?: string } = {},
+): Promise<{ id: string; title: string }> => {
+  const res = await request.post(`${API_BASE}/subjects`, {
+    data: {
+      name: uniqueName(baseName),
+      subjectType: opts.levelId ? "minor" : "major",
+      programId: opts.programId ?? run.jhsProgramId,
+      ...(opts.levelId ? { levelId: opts.levelId } : {}),
+    },
+    headers,
+  });
+  expect(res.status()).toBe(201);
+  return await unwrapData<{ id: string; title: string }>(res);
+};
+
+const createClass = async (
+  request: APIRequestContext,
+  headers: { Authorization: string },
+  subjectId: string,
+  sectionId?: string,
+): Promise<string> => {
+  const res = await request.post(`${API_BASE}/classes`, {
+    data: {
+      subjectId,
+      educatorId: run.educatorId,
+      ...(sectionId ? { sectionId } : {}),
+      schoolYearId: run.schoolYearId,
+      semesterId: run.semesterId,
+      capacity: 30,
+      schedules: nextClassSchedule(),
+    },
+    headers,
+  });
+  expect(res.status()).toBe(201);
+  return (await unwrapData<{ id: string }>(res)).id;
 };
 
 test.describe.configure({ mode: "serial" });
@@ -432,91 +533,6 @@ test("Phase 2 — educator account with extension-derived email (UI)", async ({ 
   });
 });
 
-test("Phase 2 — students enrolled in the school year with program + section (API)", async ({
-  request,
-}) => {
-  const headers = await adminHeaders(request);
-
-  const createStudent = async (base: string) => {
-    const res = await request.post(`${API_BASE}/students`, {
-      data: {
-        fullName: uniqueName(base),
-        emailName: uniqueUsername("stu"),
-        studentId: uniqueStudentNumber("STU"),
-      },
-      headers,
-    });
-    expect(res.status()).toBe(201);
-    return await unwrapData<{ id: string; fullName: string; status: string }>(res);
-  };
-
-  await test.step("create three students", async () => {
-    const s1 = await createStudent("Student One");
-    const s2 = await createStudent("Student Two");
-    const s3 = await createStudent("Student Three");
-    run.student1 = s1;
-    run.student2 = s2;
-    run.student3 = s3;
-    expect(s1.id).toBeTruthy();
-    expect(s2.id).toBeTruthy();
-    expect(s3.id).toBeTruthy();
-  });
-
-  await test.step("school-year enrollment for student1", async () => {
-    const res = await request.post(
-      `${API_BASE}/school-years/${run.schoolYearId}/enrollments`,
-      { data: { student_id: run.student1!.id }, headers },
-    );
-    expect(res.status()).toBe(201);
-    const sye = await unwrapData<{
-      id: string;
-      student_id: string;
-      school_year_id: string;
-    }>(res);
-    expect(sye.student_id).toBe(run.student1!.id);
-    expect(sye.school_year_id).toBe(run.schoolYearId);
-  });
-
-  await test.step("program enrollment pins the JHS level", async () => {
-    const res = await request.post(
-      `${API_BASE}/school-years/${run.schoolYearId}/enrollments/students/${run.student1!.id}/programs`,
-      { data: { program_id: run.jhsProgramId, level_id: run.levelIds![0] }, headers },
-    );
-    expect(res.status()).toBe(201);
-    const pe = await unwrapData<{
-      id: string;
-      program_id: string;
-      level: { id: string } | null;
-      section: { id: string } | null;
-    }>(res);
-    expect(pe.program_id).toBe(run.jhsProgramId);
-    expect(pe.level?.id).toBe(run.levelIds![0]);
-    expect(pe.section).toBeNull();
-    run.programEnrollmentId = pe.id;
-  });
-
-  await test.step("assign the created section", async () => {
-    const res = await request.patch(
-      `${API_BASE}/school-years/${run.schoolYearId}/enrollments/programs/${run.programEnrollmentId}`,
-      { data: { section_id: run.sectionId }, headers },
-    );
-    expect(res.status()).toBe(200);
-    const pe = await unwrapData<{ section: { id: string } | null }>(res);
-    expect(pe.section?.id).toBe(run.sectionId);
-  });
-
-  await test.step("enrollment list reflects student1 only", async () => {
-    const res = await request.get(
-      `${API_BASE}/school-years/${run.schoolYearId}/enrollments`,
-      { headers, params: { limit: 100 } },
-    );
-    expect(res.status()).toBe(200);
-    const list = await unwrapData<{ data: Array<{ student_id: string }> }>(res);
-    expect(list.data.some((e) => e.student_id === run.student1!.id)).toBe(true);
-    expect(list.data.some((e) => e.student_id === run.student2!.id)).toBe(false);
-  });
-});
-
 test("Phase 2 — subject, semester, and class created and linked (API + UI)", async ({
   page,
   request,
@@ -603,123 +619,6 @@ test("Phase 2 — subject, semester, and class created and linked (API + UI)", a
     await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
     await page.goto(`/admin/classes?schoolYearId=${run.schoolYearId}`);
     await expect(page.getByText(run.subject!.title, { exact: false }).first()).toBeVisible();
-  });
-});
-
-test("Phase 2 — class enrollment is gated on academic placement (API)", async ({
-  request,
-}) => {
-  const headers = await adminHeaders(request);
-
-  await test.step("student1 (JHS placement) can be enrolled", async () => {
-    const res = await request.post(`${API_BASE}/classes/${run.classItem!.id}/enroll`, {
-      data: { studentId: run.student1!.id },
-      headers,
-    });
-    expect(res.status()).toBe(201);
-    const enr = await unwrapData<{ student_id: string; status: string }>(res);
-    expect(enr.student_id).toBe(run.student1!.id);
-    expect(enr.status).toBe("active");
-  });
-
-  await test.step("enrollments endpoint lists student1", async () => {
-    const res = await request.get(`${API_BASE}/classes/${run.classItem!.id}/enrollments`, {
-      headers,
-    });
-    expect(res.status()).toBe(200);
-    const list = await unwrapData<Array<{ student_id: string; status: string }>>(res);
-    expect(
-      list.some((e) => e.student_id === run.student1!.id && e.status === "active"),
-    ).toBe(true);
-  });
-
-  await test.step("student2 (no placement) is rejected with exact reason", async () => {
-    const res = await request.post(`${API_BASE}/classes/${run.classItem!.id}/enroll`, {
-      data: { studentId: run.student2!.id },
-      headers,
-    });
-    expect(res.status()).toBe(400);
-    const body = (await res.json()) as { message: string };
-    expect(body.message).toContain("Student is not eligible for this class");
-    expect(body.message).toContain(
-      "The student has no active academic placement for this school year.",
-    );
-  });
-
-  await test.step("student3 (placed in another program) is rejected with exact reason", async () => {
-    // Minimal elementary program + level + section for the same school year.
-    const progRes = await request.post(`${API_BASE}/programs`, {
-      data: {
-        schoolYearId: run.schoolYearId,
-        name: uniqueName("Elem Dept"),
-        type: "elementary",
-      },
-      headers,
-    });
-    expect(progRes.status()).toBe(201);
-    const elemProgram = await unwrapData<{ id: string }>(progRes);
-
-    const lvlRes = await request.post(`${API_BASE}/levels`, {
-      data: { programId: elemProgram.id, name: "Grade 1", schoolYearId: run.schoolYearId },
-      headers,
-    });
-    expect(lvlRes.status()).toBe(201);
-    const elemLevel = await unwrapData<{ id: string }>(lvlRes);
-
-    const secRes = await request.post(`${API_BASE}/sections`, {
-      data: {
-        levelId: elemLevel.id,
-        schoolYearId: run.schoolYearId,
-        name: uniqueName("Section G1"),
-        capacity: 30,
-      },
-      headers,
-    });
-    expect(secRes.status()).toBe(201);
-    const elemSection = await unwrapData<{ id: string }>(secRes);
-
-    const syeRes = await request.post(
-      `${API_BASE}/school-years/${run.schoolYearId}/enrollments`,
-      { data: { student_id: run.student3!.id }, headers },
-    );
-    expect(syeRes.status()).toBe(201);
-
-    const peRes = await request.post(
-      `${API_BASE}/school-years/${run.schoolYearId}/enrollments/students/${run.student3!.id}/programs`,
-      { data: { program_id: elemProgram.id, level_id: elemLevel.id }, headers },
-    );
-    expect(peRes.status()).toBe(201);
-    const peData = await unwrapData<{ id: string }>(peRes);
-
-    const updRes = await request.patch(
-      `${API_BASE}/school-years/${run.schoolYearId}/enrollments/programs/${peData.id}`,
-      { data: { section_id: elemSection.id }, headers },
-    );
-    expect(updRes.status()).toBe(200);
-
-    const res = await request.post(`${API_BASE}/classes/${run.classItem!.id}/enroll`, {
-      data: { studentId: run.student3!.id },
-      headers,
-    });
-    expect(res.status()).toBe(400);
-    const body = (await res.json()) as { message: string };
-    expect(body.message).toContain("Student is not eligible for this class");
-    expect(body.message).toContain(
-      "The student does not belong to the same program, course/strand, or level assigned to this class.",
-    );
-  });
-
-  await test.step("eligible-students only surfaces non-enrolled candidates", async () => {
-    const res = await request.get(
-      `${API_BASE}/classes/${run.classItem!.id}/eligible-students`,
-      { headers },
-    );
-    expect(res.status()).toBe(200);
-    const list = await unwrapData<Array<{ id: string }>>(res);
-    const ids = list.map((s) => s.id);
-    expect(ids).not.toContain(run.student1!.id);
-    expect(ids).not.toContain(run.student2!.id);
-    expect(ids).not.toContain(run.student3!.id);
   });
 });
 
@@ -1039,8 +938,8 @@ test("Phase 6 — JHS semester template created and assigned with term dates", a
   });
 
   await test.step("create the JHS semester template", async () => {
-    await page.getByRole("button", { name: "New Template" }).first().click();
     const dialog = page.locator('[data-slot="dialog-content"]');
+    await openDialog(page, page.getByRole("button", { name: "New Template" }).first(), dialog);
 
     run.semesterTemplateName = uniqueName("E2E Semester");
     await dialog.getByPlaceholder('e.g. "Standard 2-Semester"').fill(run.semesterTemplateName);
@@ -1115,6 +1014,470 @@ test("Phase 6 — JHS semester template created and assigned with term dates", a
   console.log(
     `[Phase 6] semester template=${run.semesterTemplateName} (${run.semesterTemplateId}) assigned to ${run.jhsProgramId}`,
   );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 6b/6c — School-year readiness gate (API + UI): the org starts with an
+// unconfigured elementary department and JHS levels 2-3 lacking sections,
+// subjects, and classes, so the new enrollment gates (SCHOOL_YEAR_NOT_READY)
+// block every write. These tests do the full setup — sections/subjects/classes
+// for JHS 2-3, then calendar, grading scale, semester template, scheme, and one
+// class for the elementary department — so all lifecycle tests that follow run
+// against a ready school year.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("Phase 6b — readiness gate: school year not ready before full setup", async ({
+  page,
+  request,
+}) => {
+  const headers = await adminHeaders(request);
+
+  // The program_* blockers below are only observable when the org contains a
+  // program that isn't fully configured. JHS is already configured by Phases
+  // 3-6, so create the elementary department here (unconfigured); Phase 6c
+  // completes it, and Phase 6e's "placed in another program" case reuses it.
+  await test.step("readiness: create the unconfigured elementary department", async () => {
+    const progRes = await request.post(`${API_BASE}/programs`, {
+      data: {
+        schoolYearId: run.schoolYearId,
+        name: uniqueName("Elem Dept"),
+        type: "elementary",
+      },
+      headers,
+    });
+    expect(progRes.status()).toBe(201);
+    const elemProgram = await unwrapData<{ id: string }>(progRes);
+
+    const lvlRes = await request.post(`${API_BASE}/levels`, {
+      data: { programId: elemProgram.id, name: "Grade 1", schoolYearId: run.schoolYearId },
+      headers,
+    });
+    expect(lvlRes.status()).toBe(201);
+    const elemLevel = await unwrapData<{ id: string }>(lvlRes);
+
+    const secRes = await request.post(`${API_BASE}/sections`, {
+      data: {
+        levelId: elemLevel.id,
+        schoolYearId: run.schoolYearId,
+        name: uniqueName("Section G1"),
+        capacity: 30,
+      },
+      headers,
+    });
+    expect(secRes.status()).toBe(201);
+  });
+
+  await test.step("readiness gate: school year not ready, wizard locked in the UI", async () => {
+    const res = await request.get(`${API_BASE}/school-years/${run.schoolYearId}/readiness`, {
+      headers,
+    });
+    expect(res.status()).toBe(200);
+    const readiness = await unwrapData<{ ready: boolean; issues: Array<{ code: string }> }>(res);
+    expect(readiness.ready).toBe(false);
+    const codes = readiness.issues.map((i) => i.code);
+    // Org-wide blockers: JHS levels 2-3 lack sections/subjects/classes; the
+    // Elem department lacks its calendar, grading scale, and semester template.
+    expect(codes).toContain("level_no_sections");
+    expect(codes).toContain("level_no_subjects");
+    expect(codes).toContain("program_no_calendar");
+    expect(codes).toContain("program_no_grading_scale");
+    expect(codes).toContain("program_no_semester_assignment");
+
+    await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
+    await page.goto(`/admin/enrollment?schoolYearId=${run.schoolYearId}`);
+    await expect(
+      page.getByText(/this school year is not ready/i).first(),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Enroll Students" })).toBeDisabled();
+  });
+});
+
+test("Phase 6c — complete school-year readiness (JHS levels 2-3 + elementary department)", async ({
+  page,
+  request,
+}) => {
+  const headers = await adminHeaders(request);
+
+  await test.step("readiness: add sections/subjects/classes for JHS levels 2 and 3", async () => {
+    for (const [i, levelId] of (run.levelIds ?? []).slice(1).entries()) {
+      const sectionId = await createSection(request, headers, levelId, `Section L${i + 2}`);
+      const subject = await createSubject(request, headers, `Level ${i + 2} Elective`, {
+        levelId,
+      });
+      await createClass(request, headers, subject.id, sectionId);
+    }
+    // Level 1 counts toward the readiness contract too: every level needs a
+    // level-bound subject and every subject needs a class. Section A already
+    // has classItem, so only the subject + its class are missing here.
+    const level1Subject = await createSubject(request, headers, "Level 1 Elective", {
+      levelId: run.levelIds![0],
+    });
+    await createClass(request, headers, level1Subject.id, run.sectionId);
+  });
+
+  await test.step("readiness: complete the elementary department setup", async () => {
+    const programs = await unwrapList<{
+      id: string;
+      name: string;
+      type?: string;
+      program_type?: string;
+    }>(
+      await request.get(`${API_BASE}/programs`, {
+        params: { schoolYearId: run.schoolYearId },
+        headers,
+      }),
+    );
+    const elem = programs.find((p) => (p.type ?? p.program_type) === "elementary");
+    expect(elem, "expected an elementary department in the school year").toBeTruthy();
+
+    const levels = await unwrapList<{ id: string; programId?: string; program_id?: string }>(
+      await request.get(`${API_BASE}/levels`, {
+        params: { schoolYearId: run.schoolYearId },
+        headers,
+      }),
+    );
+    const elemLevel = levels.find((l) => (l.programId ?? l.program_id) === elem!.id);
+    expect(elemLevel, "expected the elementary level (Grade 1)").toBeTruthy();
+
+    const sections = await unwrapList<{ id: string; levelId?: string; level_id?: string }>(
+      await request.get(`${API_BASE}/sections`, {
+        params: { schoolYearId: run.schoolYearId },
+        headers,
+      }),
+    );
+    const elemSection = sections.find((s) => (s.levelId ?? s.level_id) === elemLevel!.id);
+    expect(elemSection, "expected the elementary section (Section G1)").toBeTruthy();
+
+    // 1. Calendar — the semester-template assignment requires one.
+    const cal = await request.post(`${API_BASE}/program-calendars`, {
+      data: {
+        programId: elem!.id,
+        schoolYearId: run.schoolYearId,
+        startDate: "2026-08-20",
+        endDate: "2027-06-30",
+        breaks: [
+          { label: "Break 1", startDate: "2026-08-20", endDate: "2026-12-18" },
+          { label: "Break 2", startDate: "2026-12-19", endDate: "2027-06-30" },
+        ],
+      },
+      headers,
+    });
+    expect(cal.status()).toBe(201);
+
+    // 2. Elementary grading scale + program assignment.
+    const scale = await request.post(`${API_BASE}/grading-scales`, {
+      data: {
+        name: uniqueName("E2E Elem Scale"),
+        programType: "elementary",
+        ranges: [
+          { minPercent: 75, maxPercent: 100, gradeValue: "Pass", remark: "Pass", isPassing: true },
+          { minPercent: 0, maxPercent: 74, gradeValue: "Needs Improvement", remark: "Below passing", isPassing: false },
+        ],
+      },
+      headers,
+    });
+    expect(scale.status()).toBe(201);
+    const elemScale = await unwrapData<{ id: string }>(scale);
+    const assignScale = await request.post(
+      `${API_BASE}/grading-scales/programs/${elem!.id}/grading-scale`,
+      { data: { scaleId: elemScale.id, schoolYearId: run.schoolYearId }, headers },
+    );
+    expect(assignScale.status()).toBe(201);
+
+    // 3. Elementary semester template + assignment + auto-configured term dates.
+    const sem = await request.post(`${API_BASE}/semester-templates`, {
+      data: {
+        name: uniqueName("E2E Elem Semester"),
+        programType: "elementary",
+        semesters: [
+          {
+            name: "Semester 1",
+            orderIndex: 1,
+            terms: [1, 2, 3, 4].map((n) => ({ name: `Term ${n}`, orderIndex: n })),
+          },
+          {
+            name: "Semester 2",
+            orderIndex: 2,
+            terms: [1, 2, 3, 4].map((n) => ({ name: `Term ${n}`, orderIndex: n })),
+          },
+        ],
+      },
+      headers,
+    });
+    expect(sem.status()).toBe(201);
+    const elemSemTemplate = await unwrapData<{ id: string }>(sem);
+    const assignSem = await request.post(`${API_BASE}/semester-templates/assignments`, {
+      data: { programId: elem!.id, templateId: elemSemTemplate.id },
+      headers,
+    });
+    expect(assignSem.status()).toBe(201);
+    const datesRes = await request.get(
+      `${API_BASE}/semester-templates/assignments/${elem!.id}/default-term-dates`,
+      { params: { templateId: elemSemTemplate.id }, headers },
+    );
+    expect(datesRes.status()).toBe(200);
+    const termDates = await unwrapList<{ termId: string; startDate: string; endDate: string }>(
+      datesRes,
+    );
+    expect(termDates.length).toBe(8);
+    const saveDates = await request.post(
+      `${API_BASE}/semester-templates/assignments/${elem!.id}/term-dates`,
+      { data: { termDates }, headers },
+    );
+    expect([200, 201]).toContain(saveDates.status());
+
+    // 4. Elementary scheme template — applied to the class after it exists
+    //    (Elem has no pre-existing classes to auto-inherit from, so the first
+    //    Elem class is the anchor that stamps the program template).
+    const scheme = await request.post(`${API_BASE}/grading-scheme-templates`, {
+      data: {
+        name: uniqueName("E2E Elem Scheme"),
+        programType: "elementary",
+        components: [
+          { name: "Written Work", type: "written_work", weight: 25 },
+          { name: "Performance Task", type: "performance_task", weight: 25 },
+          { name: "Quarterly Assessment", type: "quarterly_assessment", weight: 25 },
+          { name: "Exam", type: "exam", weight: 25 },
+        ],
+      },
+      headers,
+    });
+    expect(scheme.status()).toBe(201);
+    const elemScheme = await unwrapData<{ id: string }>(scheme);
+
+    // 5. Elem minor subject (bound to Grade 1) + class in Section G1.
+    const elemSubject = await createSubject(request, headers, "Elem Grade 1", {
+      programId: elem!.id,
+      levelId: elemLevel!.id,
+    });
+    const elemClassId = await createClass(request, headers, elemSubject.id, elemSection!.id);
+    const applyScheme = await request.post(
+      `${API_BASE}/grading-scheme-templates/apply/class`,
+      { data: { classId: elemClassId, templateId: elemScheme.id }, headers },
+    );
+    expect([200, 201]).toContain(applyScheme.status());
+  });
+
+  await test.step("readiness gate: the school year is now ready", async () => {
+    let ready = false;
+    for (let attempt = 0; attempt < 10 && !ready; attempt += 1) {
+      const res = await request.get(`${API_BASE}/school-years/${run.schoolYearId}/readiness`, {
+        headers,
+      });
+      expect(res.status()).toBe(200);
+      ready = (await unwrapData<{ ready: boolean }>(res)).ready;
+      if (!ready) await page.waitForTimeout(200);
+    }
+    expect(ready).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 6d/6e — school-year enrollment + class-eligibility lifecycle that Phase
+// 2 originally ran while readiness was still incomplete. Moved to run AFTER
+// Phase 6c so the gated enrollment endpoints and the placement-before-class
+// rule are exercised against a school year that is actually ready.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("Phase 6d — students enrolled in the school year with program + section (API)", async ({
+  request,
+}) => {
+  const headers = await adminHeaders(request);
+
+  const createStudent = async (base: string) => {
+    const res = await request.post(`${API_BASE}/students`, {
+      data: {
+        fullName: uniqueName(base),
+        emailName: uniqueUsername("stu"),
+        studentId: uniqueStudentNumber("STU"),
+      },
+      headers,
+    });
+    expect(res.status()).toBe(201);
+    return await unwrapData<{ id: string; fullName: string; status: string }>(res);
+  };
+
+  await test.step("create three students", async () => {
+    const s1 = await createStudent("Student One");
+    const s2 = await createStudent("Student Two");
+    const s3 = await createStudent("Student Three");
+    run.student1 = s1;
+    run.student2 = s2;
+    run.student3 = s3;
+    expect(s1.id).toBeTruthy();
+    expect(s2.id).toBeTruthy();
+    expect(s3.id).toBeTruthy();
+  });
+
+  await test.step("school-year enrollment for student1", async () => {
+    const res = await request.post(
+      `${API_BASE}/school-years/${run.schoolYearId}/enrollments`,
+      { data: { student_id: run.student1!.id }, headers },
+    );
+    expect(res.status()).toBe(201);
+    const sye = await unwrapData<{
+      id: string;
+      student_id: string;
+      school_year_id: string;
+    }>(res);
+    expect(sye.student_id).toBe(run.student1!.id);
+    expect(sye.school_year_id).toBe(run.schoolYearId);
+  });
+
+  await test.step("program enrollment pins the JHS level", async () => {
+    const res = await request.post(
+      `${API_BASE}/school-years/${run.schoolYearId}/enrollments/students/${run.student1!.id}/programs`,
+      { data: { program_id: run.jhsProgramId, level_id: run.levelIds![0] }, headers },
+    );
+    expect(res.status()).toBe(201);
+    const pe = await unwrapData<{
+      id: string;
+      program_id: string;
+      level: { id: string } | null;
+      section: { id: string } | null;
+    }>(res);
+    expect(pe.program_id).toBe(run.jhsProgramId);
+    expect(pe.level?.id).toBe(run.levelIds![0]);
+    expect(pe.section).toBeNull();
+    run.programEnrollmentId = pe.id;
+  });
+
+  await test.step("assign the created section", async () => {
+    const res = await request.patch(
+      `${API_BASE}/school-years/${run.schoolYearId}/enrollments/programs/${run.programEnrollmentId}`,
+      { data: { section_id: run.sectionId }, headers },
+    );
+    expect(res.status()).toBe(200);
+    const pe = await unwrapData<{ section: { id: string } | null }>(res);
+    expect(pe.section?.id).toBe(run.sectionId);
+  });
+
+  await test.step("enrollment list reflects student1 only", async () => {
+    const res = await request.get(
+      `${API_BASE}/school-years/${run.schoolYearId}/enrollments`,
+      { headers, params: { limit: 100 } },
+    );
+    expect(res.status()).toBe(200);
+    const list = await unwrapData<{ data: Array<{ student_id: string }> }>(res);
+    expect(list.data.some((e) => e.student_id === run.student1!.id)).toBe(true);
+    expect(list.data.some((e) => e.student_id === run.student2!.id)).toBe(false);
+  });
+});
+
+test("Phase 6e — class enrollment is gated on academic placement (API)", async ({
+  request,
+}) => {
+  const headers = await adminHeaders(request);
+
+  await test.step("student1 (JHS placement) can be enrolled", async () => {
+    const res = await request.post(`${API_BASE}/classes/${run.classItem!.id}/enroll`, {
+      data: { studentId: run.student1!.id },
+      headers,
+    });
+    expect(res.status()).toBe(201);
+    const enr = await unwrapData<{ student_id: string; status: string }>(res);
+    expect(enr.student_id).toBe(run.student1!.id);
+    expect(enr.status).toBe("active");
+  });
+
+  await test.step("enrollments endpoint lists student1", async () => {
+    const res = await request.get(`${API_BASE}/classes/${run.classItem!.id}/enrollments`, {
+      headers,
+    });
+    expect(res.status()).toBe(200);
+    const list = await unwrapData<Array<{ student_id: string; status: string }>>(res);
+    expect(
+      list.some((e) => e.student_id === run.student1!.id && e.status === "active"),
+    ).toBe(true);
+  });
+
+  await test.step("student2 (no placement) is rejected with exact reason", async () => {
+    const res = await request.post(`${API_BASE}/classes/${run.classItem!.id}/enroll`, {
+      data: { studentId: run.student2!.id },
+      headers,
+    });
+    expect(res.status()).toBe(400);
+    const body = (await res.json()) as { message: string };
+    expect(body.message).toContain("Student is not eligible for this class");
+    expect(body.message).toContain(
+      "The student has no active academic placement for this school year.",
+    );
+  });
+
+  await test.step("student3 (placed in another program) is rejected with exact reason", async () => {
+    // Reuse the elementary department Phase 6b created and Phase 6c configured.
+    // Creating a second, unconfigured elementary program here would flip
+    // org-wide readiness back to not-ready and break Phase 7's gated calls.
+    const programs = await unwrapList<{ id: string; type?: string; program_type?: string }>(
+      await request.get(`${API_BASE}/programs`, {
+        params: { schoolYearId: run.schoolYearId },
+        headers,
+      }),
+    );
+    const elemProgram = programs.find((p) => (p.type ?? p.program_type) === "elementary");
+    expect(elemProgram, "expected the elementary department from Phase 6b/6c").toBeTruthy();
+
+    const levels = await unwrapList<{ id: string; programId?: string; program_id?: string }>(
+      await request.get(`${API_BASE}/levels`, {
+        params: { schoolYearId: run.schoolYearId },
+        headers,
+      }),
+    );
+    const elemLevel = levels.find((l) => (l.programId ?? l.program_id) === elemProgram!.id);
+    expect(elemLevel, "expected the elementary level (Grade 1)").toBeTruthy();
+
+    const sections = await unwrapList<{ id: string; levelId?: string; level_id?: string }>(
+      await request.get(`${API_BASE}/sections`, {
+        params: { schoolYearId: run.schoolYearId },
+        headers,
+      }),
+    );
+    const elemSection = sections.find((s) => (s.levelId ?? s.level_id) === elemLevel!.id);
+    expect(elemSection, "expected the elementary section (Section G1)").toBeTruthy();
+
+    const syeRes = await request.post(
+      `${API_BASE}/school-years/${run.schoolYearId}/enrollments`,
+      { data: { student_id: run.student3!.id }, headers },
+    );
+    expect(syeRes.status()).toBe(201);
+
+    const peRes = await request.post(
+      `${API_BASE}/school-years/${run.schoolYearId}/enrollments/students/${run.student3!.id}/programs`,
+      { data: { program_id: elemProgram!.id, level_id: elemLevel!.id }, headers },
+    );
+    expect(peRes.status()).toBe(201);
+    const peData = await unwrapData<{ id: string }>(peRes);
+
+    const updRes = await request.patch(
+      `${API_BASE}/school-years/${run.schoolYearId}/enrollments/programs/${peData.id}`,
+      { data: { section_id: elemSection!.id }, headers },
+    );
+    expect(updRes.status()).toBe(200);
+
+    const res = await request.post(`${API_BASE}/classes/${run.classItem!.id}/enroll`, {
+      data: { studentId: run.student3!.id },
+      headers,
+    });
+    expect(res.status()).toBe(400);
+    const body = (await res.json()) as { message: string };
+    expect(body.message).toContain("Student is not eligible for this class");
+    expect(body.message).toContain(
+      "The student does not belong to the same program, course/strand, or level assigned to this class.",
+    );
+  });
+
+  await test.step("eligible-students only surfaces non-enrolled candidates", async () => {
+    const res = await request.get(
+      `${API_BASE}/classes/${run.classItem!.id}/eligible-students`,
+      { headers },
+    );
+    expect(res.status()).toBe(200);
+    const list = await unwrapData<Array<{ id: string }>>(res);
+    const ids = list.map((s) => s.id);
+    expect(ids).not.toContain(run.student1!.id);
+    expect(ids).not.toContain(run.student2!.id);
+    expect(ids).not.toContain(run.student3!.id);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1236,6 +1599,17 @@ test("Phase 7 — class enrollment lifecycle: gating, duplicates, capacity, and 
     const s5 = await placeJhsStudent("Student Five", run.levelIds![1]);
     student5Id = s5.studentId;
 
+    // The roster dialog only lists ACTIVE student accounts, while POST /students
+    // creates them as `pending`. Activate the candidates we expect to appear
+    // (student1 was created in Phase 2; student5 intentionally stays pending).
+    for (const id of [run.student1!.id, student4Id]) {
+      const act = await request.patch(`${API_BASE}/students/${id}/status`, {
+        data: { status: "active" },
+        headers,
+      });
+      expect(act.status()).toBe(200);
+    }
+
     expect(classBId).toBeTruthy();
     expect(student4Id).toBeTruthy();
     expect(student5Id).toBeTruthy();
@@ -1245,7 +1619,7 @@ test("Phase 7 — class enrollment lifecycle: gating, duplicates, capacity, and 
     await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
     await page.goto(`/admin/classes/${classBId}`);
 
-    await expect(page.getByText("Enrolled Students", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: /Enrolled Students/ })).toBeVisible();
     await expect(page.getByText("No students enrolled yet.", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: "Enroll Student" }).click();
@@ -1285,10 +1659,13 @@ test("Phase 7 — class enrollment lifecycle: gating, duplicates, capacity, and 
   });
 
   await test.step("duplicate enrollments are rejected (same class + same subject/semester)", async () => {
+    // The duplicate-subject check runs before the same-class check, so both a
+    // re-enroll into the very same class and a parallel class for the same
+    // subject/semester surface the subject-scoped 409.
     const sameClass = await enrollStudent(classBId, run.student1!.id);
     expect(sameClass.status()).toBe(409);
     expect(((await sameClass.json()) as { message: string }).message).toContain(
-      "Student is already enrolled in this class.",
+      "Student is already enrolled in a class for this subject in the same semester.",
     );
 
     const sameSubjectSem = await enrollStudent(classCId, run.student1!.id);
@@ -1395,5 +1772,207 @@ test("Phase 7 — class enrollment lifecycle: gating, duplicates, capacity, and 
 
   console.log(
     `[Phase 7] enrolled ${run.student1!.fullName} into ${classBId}; gating/dup/overflow/status guards verified; SY end guard verified for ${run.schoolYearId}`,
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 7b — /admin/enrollment wizard (UI). Readiness setup now lives in
+// Phase 6b/6c (a school year cannot enroll students until EVERY department is
+// structurally ready), so this test only drives the wizard end to end: it
+// places a student department → level → section through the UI, and only THEN
+// does the student become eligible for a section-bound class in the wizard's
+// class panel — proving the placement-before-class rule without any API bypass
+// on the enrollment side.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("Phase 7b — enrollment locked until SY ready; wizard places student dept → level → section → class (UI)", async ({
+  page,
+  request,
+}) => {
+  const headers = await adminHeaders(request);
+
+  let level0Name = "";
+  let subjectFTitle = "";
+  let classFId = "";
+  let student6Name = "";
+  let student6Id = "";
+  let wrongLevelName = "";
+
+  // ── 3. Wizard fixtures ─────────────────────────────────────────────────────
+  await test.step("wizard fixtures: level-bound class + placed/not-yet-placed candidates", async () => {
+    const levels = await unwrapList<{ id: string; name: string }>(
+      await request.get(`${API_BASE}/levels`, {
+        params: { schoolYearId: run.schoolYearId },
+        headers,
+      }),
+    );
+    const level0 = levels.find((l) => l.id === run.levelIds![0]);
+    expect(level0, "expected the generated JHS level 1").toBeTruthy();
+    level0Name = level0!.name;
+
+    // classF: minor subject bound to level[0] + Section A → listed under level[0]
+    // in the wizard class panel; its eligible set comes from the section.
+    const subjectF = await createSubject(request, headers, "Wizard Elective", {
+      levelId: run.levelIds![0],
+    });
+    subjectFTitle = subjectF.title;
+    classFId = await createClass(request, headers, subjectF.id, run.sectionId);
+
+    // student6: brand-new, nothing placed yet → the wizard will place it.
+    student6Name = uniqueName("Student Wizard");
+    const created = await request.post(`${API_BASE}/students`, {
+      data: {
+        studentId: uniqueStudentNumber("STU"),
+        fullName: student6Name,
+        emailName: uniqueUsername("stu"),
+      },
+      headers,
+    });
+    expect(created.status()).toBe(201);
+    student6Id = (await unwrapData<{ id: string }>(created)).id;
+
+    // wrong-level candidate: placed at level 2 (no section) via API → must NEVER
+    // surface in classF's eligible list (level-mismatch negative control).
+    wrongLevelName = uniqueName("Wrong Level Student");
+    const wrong = await request.post(`${API_BASE}/students`, {
+      data: {
+        studentId: uniqueStudentNumber("STU"),
+        fullName: wrongLevelName,
+        emailName: uniqueUsername("stu"),
+      },
+      headers,
+    });
+    expect(wrong.status()).toBe(201);
+    const wrongId = (await unwrapData<{ id: string }>(wrong)).id;
+    const sye = await request.post(
+      `${API_BASE}/school-years/${run.schoolYearId}/enrollments`,
+      { data: { student_id: wrongId }, headers },
+    );
+    expect(sye.status()).toBe(201);
+    const pe = await request.post(
+      `${API_BASE}/school-years/${run.schoolYearId}/enrollments/students/${wrongId}/programs`,
+      { data: { program_id: run.jhsProgramId, level_id: run.levelIds![1] }, headers },
+    );
+    expect(pe.status()).toBe(201);
+
+    // Record the per-program placement condition the wizard drives into.
+    run.placements[run.jhsProgramId!] = {
+      programId: run.jhsProgramId!,
+      name: run.jhsProgramName!,
+      levelId: run.levelIds![0],
+      levelName: level0Name,
+      sectionId: run.sectionId!,
+      sectionName: run.sectionName!,
+    };
+  });
+
+  // ── 4. Wizard UI ───────────────────────────────────────────────────────────
+  await test.step("wizard UI: unlock via /admin/enrollment and pick department + level", async () => {
+    await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
+    await page.goto(`/admin/enrollment?schoolYearId=${run.schoolYearId}`);
+
+    const enrollBtn = page.getByRole("button", { name: "Enroll Students" });
+    await expect(enrollBtn).toBeEnabled();
+    await enrollBtn.click();
+    await page.waitForURL("**/admin/enrollment/enroll**", { timeout: 20_000 });
+
+    const programCard = page.getByRole("button").filter({ hasText: run.jhsProgramName! }).first();
+    await programCard.click();
+
+    await page.getByRole("button", { name: level0Name, exact: true }).first().click();
+  });
+
+  await test.step("wizard UI: class panel BEFORE placement — unplaced and wrong-level students are NOT eligible", async () => {
+    const header = page.getByRole("button").filter({ hasText: subjectFTitle }).first();
+    await header.click();
+
+    const card = page
+      .locator("div.rounded-lg.border.bg-card.overflow-hidden")
+      .filter({ hasText: subjectFTitle })
+      .last();
+    // Anchor on the eligible-list footer so the empty checks are meaningful.
+    await expect(
+      card.getByText(/select students to enroll in this class/i).first(),
+    ).toBeVisible();
+    await expect(card.getByText(student6Name, { exact: true })).toHaveCount(0);
+    await expect(card.getByText(wrongLevelName, { exact: true })).toHaveCount(0);
+
+    // Collapse again so the left panel's "Enroll (1)" button is unambiguous.
+    await header.click();
+  });
+
+  await test.step("wizard UI: enroll the student into the department and level (Enroll Student tab)", async () => {
+    await page.getByRole("tab", { name: "Enroll Student" }).click();
+    await page
+      .getByPlaceholder("Search by name, student ID, or email")
+      .fill(student6Name);
+
+    const row = page.getByRole("button").filter({ hasText: student6Name }).first();
+    await expect(row).toBeVisible();
+    await row.click();
+
+    await page.getByRole("button", { name: "Enroll (1)" }).click();
+    const dialog = page.locator('[data-slot="dialog-content"]');
+    await expect(dialog.getByText("Enroll students?", { exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "Enroll", exact: true }).click();
+    await waitForToast(page, "student(s) enrolled.");
+  });
+
+  await test.step("wizard UI: assign the section on the Pending Section tab", async () => {
+    await page.getByRole("tab", { name: "Pending Section" }).click();
+    const row = page.locator("tr").filter({ hasText: student6Name }).first();
+    await expect(row).toBeVisible();
+    await row.getByRole("combobox").click();
+    await page.getByRole("option", { name: run.sectionName!, exact: true }).click();
+    await row.getByRole("button", { name: "Assign" }).click();
+    await waitForToast(page, "Section assigned.");
+  });
+
+  await test.step("wizard UI: placed student6 is now eligible for classF and enrolls in it", async () => {
+    const header = page.getByRole("button").filter({ hasText: subjectFTitle }).first();
+    await header.click();
+
+    const card = page
+      .locator("div.rounded-lg.border.bg-card.overflow-hidden")
+      .filter({ hasText: subjectFTitle })
+      .last();
+    await expect(card.getByText(student6Name, { exact: true })).toBeVisible();
+    await expect(card.getByText(wrongLevelName, { exact: true })).toHaveCount(0);
+
+    await card.getByRole("button").filter({ hasText: student6Name }).click();
+    await card.getByRole("button", { name: "Enroll (1)" }).click();
+    await waitForToast(page, "student(s) enrolled in");
+  });
+
+  // ── 5. API verification ────────────────────────────────────────────────────
+  await test.step("verify: student6 is placed (dept → level → section) and enrolled in classF", async () => {
+    const sye = await request.get(`${API_BASE}/school-years/${run.schoolYearId}/enrollments`, {
+      headers,
+    });
+    expect(sye.status()).toBe(200);
+    const enrollList = await unwrapList<{
+      student_id: string;
+      programEnrollments: Array<{
+        program_id: string;
+        level: { id: string } | null;
+        section: { id: string } | null;
+      }>;
+    }>(sye);
+    const enr = enrollList.find((e) => e.student_id === student6Id);
+    expect(enr, "expected student6 in the school-year enrollments").toBeTruthy();
+    const pe = enr?.programEnrollments.find((p) => p.program_id === run.jhsProgramId);
+    expect(pe?.level?.id).toBe(run.levelIds![0]);
+    expect(pe?.section?.id).toBe(run.sectionId);
+
+    const classEnr = await request.get(`${API_BASE}/classes/${classFId}/enrollments`, {
+      headers,
+    });
+    expect(classEnr.status()).toBe(200);
+    const classList = await unwrapList<{ student_id: string; status: string }>(classEnr);
+    expect(classList.some((e) => e.student_id === student6Id && e.status === "active")).toBe(true);
+  });
+
+  console.log(
+    `[Phase 7b] readiness gate verified; wizard placed ${student6Name} (JHS → level "${level0Name}" → ${run.sectionName}) and enrolled in class ${classFId}`,
   );
 });

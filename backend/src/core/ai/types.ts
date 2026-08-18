@@ -27,7 +27,12 @@ export interface ConceptExtractResult {
 }
 
 export interface QuestionBlueprint {
-  type: 'identification' | 'true_false' | 'multiple_choice' | 'essay' | 'enumeration';
+  type:
+    | 'identification'
+    | 'true_false'
+    | 'multiple_choice'
+    | 'essay'
+    | 'enumeration';
   sections: string[];
   numbers: string;
   count: number;

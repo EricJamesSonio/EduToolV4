@@ -4,7 +4,7 @@ import PDFDocument from 'pdfkit';
 
 interface SchemeComponent {
   name: string;
-  type: string;   // explicit field — no more name.toLowerCase() fallback
+  type: string; // explicit field — no more name.toLowerCase() fallback
   weight: number;
 }
 
@@ -19,9 +19,14 @@ export class ExportService {
     if (!cls) throw new NotFoundException('Class not found.');
 
     const terms = await this.gradeRepo.findTermsBySemester(cls.semester_id);
-    const scheme = await this.gradeRepo.findGradingSchemeForClass(classId, orgId);
+    const scheme = await this.gradeRepo.findGradingSchemeForClass(
+      classId,
+      orgId,
+    );
     const components = (scheme?.components ?? []) as SchemeComponent[];
-    const enrolledStudentIds: string[] = cls.enrollments.map((e: any) => e.student_id);
+    const enrolledStudentIds: string[] = cls.enrollments.map(
+      (e: any) => e.student_id,
+    );
 
     // Build header row
     const termHeaders: string[] = [];
@@ -97,7 +102,9 @@ export class ExportService {
     }
 
     return rows
-      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .map((r) =>
+        r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','),
+      )
       .join('\n');
   }
 
@@ -114,10 +121,14 @@ export class ExportService {
     const enrollment = cls.enrollments.find(
       (e: any) => e.student_id === studentId,
     );
-    if (!enrollment) throw new NotFoundException('Student not enrolled in this class.');
+    if (!enrollment)
+      throw new NotFoundException('Student not enrolled in this class.');
 
     const terms = await this.gradeRepo.findTermsBySemester(cls.semester_id);
-    const scheme = await this.gradeRepo.findGradingSchemeForClass(classId, orgId);
+    const scheme = await this.gradeRepo.findGradingSchemeForClass(
+      classId,
+      orgId,
+    );
     const components = (scheme?.components ?? []) as SchemeComponent[];
 
     const profile = await this.gradeRepo['db'].profile.findFirst({
@@ -149,9 +160,14 @@ export class ExportService {
     });
 
     return this.buildClassCardSync(
-      classId, studentId, orgId, cls,
-      terms, components,
-      fullName, studentIdLabel,
+      classId,
+      studentId,
+      orgId,
+      cls,
+      terms,
+      components,
+      fullName,
+      studentIdLabel,
       educatorProfile?.full_name ?? '',
       subjectRecord?.name ?? '',
       schoolYear?.name ?? '',
@@ -184,7 +200,9 @@ export class ExportService {
         ]);
         return {
           term,
-          submissions: submissions.filter((s: any) => s.student_id === studentId),
+          submissions: submissions.filter(
+            (s: any) => s.student_id === studentId,
+          ),
           manualScores,
           grade,
         };
@@ -200,9 +218,17 @@ export class ExportService {
       doc.on('error', reject);
 
       // ── Header ────────────────────────────────────────────────────────────
-      doc.fontSize(16).font('Helvetica-Bold').text(orgName, { align: 'center' });
-      doc.fontSize(12).font('Helvetica').text('Class Grade Card', { align: 'center' });
-      doc.fontSize(10).text(`School Year: ${schoolYearName}`, { align: 'center' });
+      doc
+        .fontSize(16)
+        .font('Helvetica-Bold')
+        .text(orgName, { align: 'center' });
+      doc
+        .fontSize(12)
+        .font('Helvetica')
+        .text('Class Grade Card', { align: 'center' });
+      doc
+        .fontSize(10)
+        .text(`School Year: ${schoolYearName}`, { align: 'center' });
       doc.moveDown(1);
 
       // ── Student info ──────────────────────────────────────────────────────
@@ -247,17 +273,16 @@ export class ExportService {
             }
           }
 
-          doc.text(
-            `  ${comp.name} (${comp.weight}%):  ${scoreText}`,
-            { indent: 10 },
-          );
+          doc.text(`  ${comp.name} (${comp.weight}%):  ${scoreText}`, {
+            indent: 10,
+          });
         }
 
         doc.moveDown(0.3);
         doc.font('Helvetica-Bold').fontSize(9);
         doc.text(
           `  Final Score: ${grade ? grade.final_score : 'N/A'}   ` +
-          `Final Grade: ${grade ? grade.final_grade : 'N/A'}`,
+            `Final Grade: ${grade ? grade.final_grade : 'N/A'}`,
           { indent: 10 },
         );
         doc.moveDown(0.8);
@@ -270,7 +295,7 @@ export class ExportService {
       doc.fontSize(10).font('Helvetica-Bold');
       doc.text(
         `Overall Grade: ${lastGrade?.final_grade ?? 'N/A'}   ` +
-        `Remark: ${lastGrade?.final_grade ?? 'N/A'}`,
+          `Remark: ${lastGrade?.final_grade ?? 'N/A'}`,
       );
 
       doc.end();

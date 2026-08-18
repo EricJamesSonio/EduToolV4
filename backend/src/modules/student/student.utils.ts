@@ -5,10 +5,10 @@
  * Never log or persist the returned value.
  */
 export function generateSystemPassword(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from(
-    { length: 10 },
-    () => chars.charAt(Math.floor(Math.random() * chars.length)),
+  const chars =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from({ length: 10 }, () =>
+    chars.charAt(Math.floor(Math.random() * chars.length)),
   ).join('');
 }
 
@@ -38,7 +38,8 @@ export function parseCsv(raw: string): Record<string, string>[] {
 
   const headers = lines[0].map((h) => h.trim());
 
-  return lines.slice(1)
+  return lines
+    .slice(1)
     .filter((cols) => cols.some((c) => c.trim() !== '')) // skip blank rows
     .map((cols) =>
       headers.reduce(

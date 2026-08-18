@@ -1,10 +1,5 @@
 // @/modules/audit-log/audit-log.controller.ts
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { AuditLogService } from './audit-log.service';
 import { QueryAuditLogDto, QueryActivityLogDto } from './dto/audit-log.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';

@@ -101,7 +101,13 @@ export class GradeEducatorController {
     @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
-    return this.service.publishByStudent(classId, termId, studentId, orgId, educatorId);
+    return this.service.publishByStudent(
+      classId,
+      termId,
+      studentId,
+      orgId,
+      educatorId,
+    );
   }
 
   // PATCH /classes/:classId/grades/:termId/students/:studentId/unlock
@@ -114,7 +120,13 @@ export class GradeEducatorController {
     @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
-    return this.service.unlockByStudent(classId, termId, studentId, orgId, educatorId);
+    return this.service.unlockByStudent(
+      classId,
+      termId,
+      studentId,
+      orgId,
+      educatorId,
+    );
   }
 
   // GET /classes/:classId/grades/students/:studentId/assessments/status
@@ -126,7 +138,12 @@ export class GradeEducatorController {
     @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
-    return this.service.getAssessmentStatuses(classId, studentId, orgId, educatorId);
+    return this.service.getAssessmentStatuses(
+      classId,
+      studentId,
+      orgId,
+      educatorId,
+    );
   }
 
   // POST /classes/:classId/grades/students/:studentId/assessments/:assessmentId/override

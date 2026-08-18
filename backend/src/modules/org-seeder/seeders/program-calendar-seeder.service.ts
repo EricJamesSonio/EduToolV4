@@ -15,9 +15,7 @@ import { SeedContext } from '../seed-context';
  */
 @Injectable()
 export class ProgramCalendarSeederService {
-  constructor(
-    private readonly calendarService: ProgramCalendarService,
-  ) {}
+  constructor(private readonly calendarService: ProgramCalendarService) {}
 
   async seed(ctx: SeedContext): Promise<void> {
     if (!ctx.seedProgramCalendars) return;

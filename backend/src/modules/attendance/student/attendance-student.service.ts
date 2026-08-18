@@ -10,11 +10,7 @@ export class AttendanceStudentService {
     private readonly enrollmentRepo: EnrollmentRepository, // ✅ changed
   ) {}
 
-  async getMyAttendance(
-    classId: string,
-    studentId: string,
-    orgId: string,
-  ) {
+  async getMyAttendance(classId: string, studentId: string, orgId: string) {
     // Guard: student must be enrolled
     const enrollment = await this.enrollmentRepo.findOneByStudentAndClass(
       classId,
@@ -32,10 +28,7 @@ export class AttendanceStudentService {
     // Fetch all records for this student across all sessions
     const allRecords = await Promise.all(
       sessions.map((s) =>
-        this.attendanceRepo.findRecordBySessionAndStudent(
-          s.id,
-          studentId,
-        ),
+        this.attendanceRepo.findRecordBySessionAndStudent(s.id, studentId),
       ),
     );
 

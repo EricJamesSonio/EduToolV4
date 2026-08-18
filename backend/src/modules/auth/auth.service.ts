@@ -212,9 +212,8 @@ export class AuthService {
       throw new BadRequestException('You already have an approved account.');
     }
 
-    const account = await this.authRepository.findAdminAccountByPersonalEmail(
-      email,
-    );
+    const account =
+      await this.authRepository.findAdminAccountByPersonalEmail(email);
     if (account) {
       throw new BadRequestException('You already have an approved account.');
     }
@@ -237,11 +236,13 @@ export class AuthService {
     return { message: 'Verification code sent to your email' };
   }
 
-  async verifyAdminRequestOtp(
-    dto: VerifyAdminRequestOtpDto,
-  ): Promise<
+  async verifyAdminRequestOtp(dto: VerifyAdminRequestOtpDto): Promise<
     | { blocked: true; message: string }
-    | { token: string; mode: 'edit' | 'create'; request?: RegistrationRequestView }
+    | {
+        token: string;
+        mode: 'edit' | 'create';
+        request?: RegistrationRequestView;
+      }
   > {
     const otp = await this.authRepository.findValidOtp(dto.email, dto.code);
 
@@ -342,9 +343,7 @@ export class AuthService {
   async refresh(incomingRefreshToken: string): Promise<AuthTokens> {
     let accountId: string;
     try {
-      const payload = this.jwtService.decode(incomingRefreshToken) as {
-        sub: string;
-      };
+      const payload = this.jwtService.decode(incomingRefreshToken);
       if (!payload?.sub) throw new Error();
       accountId = payload.sub;
     } catch {
@@ -413,9 +412,8 @@ export class AuthService {
       email,
     };
 
-    const accessToken = this.jwtService.sign(payload as any, {
-      expiresIn: (this.configService.get<string>('jwt.expiresIn') ??
-        '1h') as any,
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: this.configService.get<string>('jwt.expiresIn') ?? '1h',
     });
 
     const refreshToken = this.jwtService.sign(payload, {

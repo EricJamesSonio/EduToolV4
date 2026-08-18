@@ -69,7 +69,13 @@ export class AgoraTokenService {
     }
 
     const token = this.buildRtcToken(channel, uid);
-    return { token, channel, appId: this.appId, uid, classId: meeting.class_id };
+    return {
+      token,
+      channel,
+      appId: this.appId,
+      uid,
+      classId: meeting.class_id,
+    };
   }
 
   // ── Agora RTC token builder (AccessToken2 spec) ───────────────────────────

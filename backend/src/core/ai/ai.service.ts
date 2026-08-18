@@ -73,15 +73,20 @@ Rules:
 
     const sections: string[] = parsed.sections ?? [];
     const keywords: string[] = parsed.keywords ?? [];
-    const concepts: ConceptItem[] = (parsed.concepts ?? []).map((c: any, i: number) => ({
-      name: c.name ?? `Concept ${i + 1}`,
-      section: c.section ?? sections[0] ?? 'General',
-      definition: c.definition ?? '',
-      properties: c.properties ?? [],
-      difficulty: ['easy', 'medium', 'hard'].includes(c.difficulty) ? c.difficulty : 'medium',
-    }));
+    const concepts: ConceptItem[] = (parsed.concepts ?? []).map(
+      (c: any, i: number) => ({
+        name: c.name ?? `Concept ${i + 1}`,
+        section: c.section ?? sections[0] ?? 'General',
+        definition: c.definition ?? '',
+        properties: c.properties ?? [],
+        difficulty: ['easy', 'medium', 'hard'].includes(c.difficulty)
+          ? c.difficulty
+          : 'medium',
+      }),
+    );
 
-    let questionCapacity: Record<string, number> = parsed.question_capacity ?? {};
+    let questionCapacity: Record<string, number> =
+      parsed.question_capacity ?? {};
     if (!Object.keys(questionCapacity).length) {
       questionCapacity = Object.fromEntries(sections.map((s) => [s, 10]));
     } else {
@@ -90,7 +95,12 @@ Rules:
       }
     }
 
-    const conceptBuild: ConceptBuild = { sections, keywords, questionCapacity, concepts };
+    const conceptBuild: ConceptBuild = {
+      sections,
+      keywords,
+      questionCapacity,
+      concepts,
+    };
 
     validateConceptBuild(conceptBuild);
 
@@ -142,20 +152,30 @@ Rules:
 - concept names must be unique — no duplicates
 - Return JSON ONLY. Start with { end with }`;
 
-    const raw = await this.aiClient.callAi(CONCEPT_BUILD_SYSTEM, prompt, 2500, 0.2);
+    const raw = await this.aiClient.callAi(
+      CONCEPT_BUILD_SYSTEM,
+      prompt,
+      2500,
+      0.2,
+    );
     const parsed = parseJson<any>(raw);
 
     const sections: string[] = parsed.sections ?? [];
     const keywords: string[] = parsed.keywords ?? [];
-    const concepts: ConceptItem[] = (parsed.concepts ?? []).map((c: any, i: number) => ({
-      name: c.name ?? `Concept ${i + 1}`,
-      section: c.section ?? sections[0] ?? 'General',
-      definition: c.definition ?? '',
-      properties: c.properties ?? [],
-      difficulty: ['easy', 'medium', 'hard'].includes(c.difficulty) ? c.difficulty : 'medium',
-    }));
+    const concepts: ConceptItem[] = (parsed.concepts ?? []).map(
+      (c: any, i: number) => ({
+        name: c.name ?? `Concept ${i + 1}`,
+        section: c.section ?? sections[0] ?? 'General',
+        definition: c.definition ?? '',
+        properties: c.properties ?? [],
+        difficulty: ['easy', 'medium', 'hard'].includes(c.difficulty)
+          ? c.difficulty
+          : 'medium',
+      }),
+    );
 
-    let questionCapacity: Record<string, number> = parsed.question_capacity ?? {};
+    let questionCapacity: Record<string, number> =
+      parsed.question_capacity ?? {};
     if (!Object.keys(questionCapacity).length) {
       questionCapacity = Object.fromEntries(sections.map((s) => [s, 10]));
     } else {
@@ -164,7 +184,12 @@ Rules:
       }
     }
 
-    const conceptBuild: ConceptBuild = { sections, keywords, questionCapacity, concepts };
+    const conceptBuild: ConceptBuild = {
+      sections,
+      keywords,
+      questionCapacity,
+      concepts,
+    };
 
     validateConceptBuild(conceptBuild);
 
@@ -195,7 +220,9 @@ Rules:
     }
 
     const total = allChunks.length;
-    this.logger.log(`[Generate] ${blueprints.length} blueprints → ${total} chunks`);
+    this.logger.log(
+      `[Generate] ${blueprints.length} blueprints → ${total} chunks`,
+    );
 
     const compressedLesson = conceptBuild
       ? this.compressLesson(lessonDetail, conceptBuild)
@@ -220,7 +247,13 @@ Rules:
       });
 
       try {
-        const result = await this.generateChunk(compressedLesson, chunk, 4, undefined, signal);
+        const result = await this.generateChunk(
+          compressedLesson,
+          chunk,
+          4,
+          undefined,
+          signal,
+        );
         allQuestions.push(...result);
       } catch (err) {
         this.logger.error(`[Generate] Chunk ${chunk.numbers} failed: ${err}`);
@@ -232,7 +265,9 @@ Rules:
           currentChunk: chunk.numbers,
           error: String(err),
         });
-        throw new Error(`Question generation failed:\nChunk ${chunk.numbers}: ${err}`);
+        throw new Error(
+          `Question generation failed:\nChunk ${chunk.numbers}: ${err}`,
+        );
       }
 
       if (i < total - 1) {
@@ -253,7 +288,10 @@ Rules:
 
   // ── Private: compress lesson using concept data ───────────────────────────────
 
-  private compressLesson(fullLesson: string, conceptBuild: ConceptBuild): string {
+  private compressLesson(
+    fullLesson: string,
+    conceptBuild: ConceptBuild,
+  ): string {
     const sections = conceptBuild.sections
       .map((s) => {
         const concepts = conceptBuild.concepts
@@ -281,7 +319,10 @@ ${sections}
     const end = parseInt(endStr, 10);
 
     const costPerQ = TOKEN_COST[bp.type] ?? 150;
-    const maxPerChunk = Math.max(1, Math.floor((SAFE_OUTPUT_BUDGET - ENVELOPE_OVERHEAD) / costPerQ));
+    const maxPerChunk = Math.max(
+      1,
+      Math.floor((SAFE_OUTPUT_BUDGET - ENVELOPE_OVERHEAD) / costPerQ),
+    );
 
     const chunks: QuestionBlueprint[] = [];
     let cursor = start;
@@ -323,20 +364,35 @@ ${sections}
       1200,
     );
 
-    const prompt = buildChunkPrompt(lessonDetail, type, sections, numbers, count, numList);
+    const prompt = buildChunkPrompt(
+      lessonDetail,
+      type,
+      sections,
+      numbers,
+      count,
+      numList,
+    );
 
     let lastError: unknown;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       if (signal?.aborted) throw new Error('Generation cancelled by user');
       try {
-        const raw = await this.aiClient.callAi(QUESTION_SYSTEM, prompt, maxTokens, 0.5, signal);
+        const raw = await this.aiClient.callAi(
+          QUESTION_SYSTEM,
+          prompt,
+          maxTokens,
+          0.5,
+          signal,
+        );
         if (!raw?.trim()) throw new Error('Empty response from AI');
 
         let data: { questions: any[] } | null = null;
         try {
           data = parseJson<{ questions: any[] }>(raw);
         } catch (parseErr) {
-          this.logger.warn(`[Chunk ${numbers}] Attempt ${attempt}/${maxRetries} parse failed. Full raw (${raw.length} chars): ${raw}`);
+          this.logger.warn(
+            `[Chunk ${numbers}] Attempt ${attempt}/${maxRetries} parse failed. Full raw (${raw.length} chars): ${raw}`,
+          );
           throw parseErr;
         }
         const questions: any[] = data?.questions;
@@ -345,14 +401,18 @@ ${sections}
           throw new Error(`'questions' missing or empty`);
         }
         if (typeof questions[0] !== 'object') {
-          throw new Error('AI returned plain strings instead of question objects');
+          throw new Error(
+            'AI returned plain strings instead of question objects',
+          );
         }
 
         this.logger.log(`[Chunk ${numbers}] ✓ ${questions.length} questions`);
         return questions as GeneratedQuestion[];
       } catch (err) {
         lastError = err;
-        this.logger.warn(`[Chunk ${numbers}] Attempt ${attempt}/${maxRetries} failed`);
+        this.logger.warn(
+          `[Chunk ${numbers}] Attempt ${attempt}/${maxRetries} failed`,
+        );
         onRetry?.(attempt, maxRetries, String(err));
 
         if (attempt < maxRetries) {
@@ -363,6 +423,8 @@ ${sections}
       }
     }
 
-    throw new Error(`Chunk ${numbers} failed after ${maxRetries} attempts: ${lastError}`);
+    throw new Error(
+      `Chunk ${numbers} failed after ${maxRetries} attempts: ${lastError}`,
+    );
   }
 }

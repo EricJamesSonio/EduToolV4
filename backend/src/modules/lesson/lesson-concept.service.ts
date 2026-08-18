@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { LessonRepository } from './lesson.repository';
 import { ClassRepository } from '../class/class.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -29,7 +34,8 @@ export class LessonConceptService {
       throw new ForbiddenException('You do not own this class.');
     }
     const concept = await this.lessonRepo.findConcept(id);
-    if (!concept) throw new NotFoundException('No concept build found for this lesson.');
+    if (!concept)
+      throw new NotFoundException('No concept build found for this lesson.');
     return concept;
   }
 
@@ -49,7 +55,9 @@ export class LessonConceptService {
       throw new BadRequestException('Lesson detail must be at least 10 words.');
     }
 
-    this.triggerConceptExtraction(id, orgId, educatorId, detail).catch(() => {});
+    this.triggerConceptExtraction(id, orgId, educatorId, detail).catch(
+      () => {},
+    );
 
     await this.auditLog.logActivityEvent({
       orgId,
@@ -84,7 +92,7 @@ export class LessonConceptService {
     await this.lessonRepo.upsertConcept({
       orgId,
       lessonId: id,
-      content: result.conceptBuild as any,
+      content: result.conceptBuild,
       rawResponse: result.rawResponse,
       rawRequest: result.rawRequest,
       promptVersion: result.promptVersion,
@@ -120,7 +128,7 @@ export class LessonConceptService {
     await this.lessonRepo.upsertConcept({
       orgId,
       lessonId,
-      content: result.conceptBuild as any,
+      content: result.conceptBuild,
       rawResponse: result.rawResponse,
       rawRequest: result.rawRequest,
       promptVersion: result.promptVersion,

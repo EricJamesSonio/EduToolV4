@@ -81,7 +81,9 @@ export class AttendanceRepository {
       });
     }
 
-    return this.db.attendanceRecord.create({ data: { ...data, status: data.status as any } });
+    return this.db.attendanceRecord.create({
+      data: { ...data, status: data.status as any },
+    });
   }
 
   async markPresentFromSubmission(data: {

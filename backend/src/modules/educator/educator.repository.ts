@@ -34,7 +34,15 @@ export class EducatorRepository {
     });
   }
 
-  async findAll(orgId: string, filters: { search?: string; status?: string; page?: number; limit?: number }) {
+  async findAll(
+    orgId: string,
+    filters: {
+      search?: string;
+      status?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
     const { search, status, page = 1, limit = 20 } = filters;
 
     const where: Prisma.AccountWhereInput = {
@@ -65,8 +73,8 @@ export class EducatorRepository {
         where,
         include: { profile: true },
         orderBy: { created_at: 'desc' },
-        skip:    (page - 1) * limit,
-        take:    limit,
+        skip: (page - 1) * limit,
+        take: limit,
       }),
       this.db.account.count({ where }),
     ]);
@@ -114,7 +122,8 @@ export class EducatorRepository {
 
       const updateData: Record<string, any> = {};
       if (data.fullName) updateData.full_name = data.fullName;
-      if (data.profileImage !== undefined) updateData.profile_image = data.profileImage;
+      if (data.profileImage !== undefined)
+        updateData.profile_image = data.profileImage;
 
       if (Object.keys(updateData).length > 0) {
         await tx.profile.update({

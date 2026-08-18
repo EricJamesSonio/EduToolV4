@@ -13,12 +13,15 @@ import {
 } from '@nestjs/common';
 import { SchoolYearService } from './school-year.service';
 import { SchoolYearReadinessService } from './school-year-readiness.service';
-import { CreateSchoolYearDto, UpdateSchoolYearDto } from './dto/school-year.dto';
+import {
+  CreateSchoolYearDto,
+  UpdateSchoolYearDto,
+} from './dto/school-year.dto';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
-import { SchoolYearCreateResult } from './dto/school-year.dto'
+import { SchoolYearCreateResult } from './dto/school-year.dto';
 
 @Controller('school-years')
 @UseGuards(AuthGuard, RolesGuard)
@@ -34,13 +37,13 @@ export class SchoolYearController {
    */
   @Post()
   @Roles('admin')
-async create(
-  @CurrentUser('org_id') org_id: string,
-  @CurrentUser('id') actorId: string,
-  @Body() dto: CreateSchoolYearDto,
-): Promise<SchoolYearCreateResult> {
-  return this.schoolYearService.create(org_id, dto, actorId)
-}
+  async create(
+    @CurrentUser('org_id') org_id: string,
+    @CurrentUser('id') actorId: string,
+    @Body() dto: CreateSchoolYearDto,
+  ): Promise<SchoolYearCreateResult> {
+    return this.schoolYearService.create(org_id, dto, actorId);
+  }
   /**
    * GET /school-years
    * Returns all school years for the org — all roles can view.

@@ -1,19 +1,12 @@
 // @/modules/analytics/analytics.controller.ts
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
 import { AnalyticsService } from './analytics.service';
 import { AuthGuard } from '@/commons/guards/auth.guard';
 import { RolesGuard } from '@/commons/guards/role.guard';
 import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
-import {
-  GradeAnalyticsQueryDto,
-} from './dto/analytics.dto';
+import { GradeAnalyticsQueryDto } from './dto/analytics.dto';
 
 @Controller('analytics')
 @UseGuards(AuthGuard, RolesGuard)
@@ -41,8 +34,15 @@ export class AnalyticsController {
     @Query('limit') limit?: string,
   ) {
     const parsedPage = page ? Math.max(1, parseInt(page, 10) || 1) : 1;
-    const parsedLimit = limit ? Math.min(200, Math.max(1, parseInt(limit, 10) || 20)) : 20;
-    return this.analyticsService.getEnrollmentBreakdown(orgId, schoolYearId, parsedPage, parsedLimit);
+    const parsedLimit = limit
+      ? Math.min(200, Math.max(1, parseInt(limit, 10) || 20))
+      : 20;
+    return this.analyticsService.getEnrollmentBreakdown(
+      orgId,
+      schoolYearId,
+      parsedPage,
+      parsedLimit,
+    );
   }
 
   // ── Grade Analytics (LOCKED ONLY) ──────────────────────────

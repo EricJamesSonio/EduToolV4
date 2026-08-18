@@ -227,8 +227,7 @@ export class ClassService {
         return {
           ...cls,
           program_id: programId,
-          template_id:
-            (cls as any).gradingSchemes?.[0]?.template_id ?? null,
+          template_id: (cls as any).gradingSchemes?.[0]?.template_id ?? null,
           subject_name: subject?.name ?? null,
           program_name:
             subject?.program?.name ??
@@ -371,11 +370,7 @@ export class ClassService {
     return this.classRepository.findEnrolledStudents(classId, orgId);
   }
 
-  async getEligibleStudents(
-    classId: string,
-    orgId: string,
-    search?: string,
-  ) {
+  async getEligibleStudents(classId: string, orgId: string, search?: string) {
     const cls = await this.classRepository.findById(classId, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
     return this.classRepository.findEligibleStudents(classId, orgId, search);

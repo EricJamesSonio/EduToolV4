@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { LessonRepository } from './lesson.repository';
 import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
 
