@@ -1,0 +1,44 @@
+﻿181|
+182|      expect(result).toEqual([{ id: '1' }]);
+183|    });
+184|  });
+185|
+186|  // ── IS BLOCKED DATE ───────────────────────────────
+187|
+188|  describe('isBlockedDate', () => {
+189|    it('should return true if date is blocked', async () => {
+190|      repository.findSessionBlockingEvents.mockResolvedValue([
+191|        {
+192|          start_date: '2025-01-01',
+193|          end_date: '2025-01-10',
+194|        },
+195|      ]);
+196|
+197|      const result = await service.isBlockedDate(
+198|        'org1',
+199|        'sy1',
+200|        new Date('2025-01-05'),
+201|      );
+202|
+203|      expect(result).toBe(true);
+204|    });
+205|
+206|    it('should return false if date is not blocked', async () => {
+207|      repository.findSessionBlockingEvents.mockResolvedValue([
+208|        {
+209|          start_date: '2025-01-01',
+210|          end_date: '2025-01-03',
+211|        },
+212|      ]);
+213|
+214|      const result = await service.isBlockedDate(
+215|        'org1',
+216|        'sy1',
+217|        new Date('2025-01-05'),
+218|      );
+219|
+220|      expect(result).toBe(false);
+221|    });
+222|  });
+223|});
+224|
