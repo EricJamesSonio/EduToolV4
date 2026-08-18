@@ -66,16 +66,11 @@ export class AssessmentStudentService {
 
       const item = this.core.buildAssessmentListItem(a, submission);
 
-      // Override status if actively reopened
-      if (isReopened) {
-        return {
-          ...item,
-          status: 'open',
-          reopenedUntil: reopenedUntil.toISOString(),
-        };
-      }
-
-      return item;
+      return {
+        ...item,
+        status: isReopened ? 'open' : item.submissionStatus,
+        reopenedUntil: reopenedUntil ? reopenedUntil.toISOString() : null,
+      };
     });
   }
 
