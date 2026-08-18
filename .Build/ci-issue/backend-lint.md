@@ -81,3 +81,5 @@ Error: 63:35 error Unsafe member access .error on an `any` value @typescript-esl
 Error: 63:73 error Unsafe member access .error on an `any` value @typescript-eslint/no-unsafe-member-access
 Error: 67:11 error Unsafe assignment of an `any` value @typescript-eslint/no-unsafe-assignment
 Error: 67:35 error Unsafe member access .choices on an `any` value @typescript-eslint/no-unsafe-member-access
+
+And so on, Theres too many so i cant copy paste it.
