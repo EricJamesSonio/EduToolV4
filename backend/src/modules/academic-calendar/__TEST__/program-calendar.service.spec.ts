@@ -60,14 +60,14 @@ describe('ProgramCalendarService', () => {
       repo.create.mockResolvedValue({
         id: '1',
         start_date: new Date(),
-      });
+      } as any);
 
       repo.findHolidayConfig.mockResolvedValue(null);
       repo.findById.mockResolvedValue({
         id: '1',
         breaks: [],
         holidays: [],
-      });
+      } as any);
 
       const result = await service.create('org1', {
         programId: 'p1',
@@ -82,7 +82,7 @@ describe('ProgramCalendarService', () => {
     });
 
     it('should redirect to update if existing', async () => {
-      repo.findByProgram.mockResolvedValue({ id: 'existing' });
+      repo.findByProgram.mockResolvedValue({ id: 'existing' } as any);
 
       const spy = jest.spyOn(service, 'update').mockResolvedValue({} as any);
 
@@ -112,7 +112,11 @@ describe('ProgramCalendarService', () => {
 
   describe('findById', () => {
     it('should return calendar', async () => {
-      repo.findById.mockResolvedValue({ id: '1', breaks: [], holidays: [] });
+      repo.findById.mockResolvedValue({
+        id: '1',
+        breaks: [],
+        holidays: [],
+      } as any);
 
       const result = await service.findById('1', 'org1');
 
@@ -136,14 +140,14 @@ describe('ProgramCalendarService', () => {
         id: '1',
         start_date: new Date('2025-01-01'),
         end_date: new Date('2025-12-01'),
-      });
+      } as any);
 
-      repo.update.mockResolvedValue({});
+      repo.update.mockResolvedValue({} as any);
       repo.findById.mockResolvedValue({
         id: '1',
         breaks: [],
         holidays: [],
-      });
+      } as any);
 
       const result = await service.update('1', 'org1', {
         notes: 'updated',
@@ -165,7 +169,7 @@ describe('ProgramCalendarService', () => {
       repo.findById.mockResolvedValue({
         start_date: new Date('2025-01-01'),
         end_date: new Date('2025-12-01'),
-      });
+      } as any);
 
       await expect(
         service.update('1', 'org1', {
@@ -180,7 +184,7 @@ describe('ProgramCalendarService', () => {
 
   describe('delete', () => {
     it('should delete calendar', async () => {
-      repo.findById.mockResolvedValue({ id: '1' });
+      repo.findById.mockResolvedValue({ id: '1' } as any);
 
       await service.delete('1', 'org1');
 
@@ -203,13 +207,13 @@ describe('ProgramCalendarService', () => {
       repo.upsertHolidayConfig.mockResolvedValue({
         enabled_keys: ['NEW_YEAR'],
         custom_holidays: [],
-      });
+      } as any);
 
       repo.findAllByOrg.mockResolvedValue([{ id: '1' }]);
       repo.findById.mockResolvedValue({
         id: '1',
         start_date: new Date(),
-      });
+      } as any);
 
       const result = await service.saveHolidayConfig('org1', {
         enabledKeys: ['NEW_YEAR'],
@@ -235,18 +239,18 @@ describe('ProgramCalendarService', () => {
       repo.findHolidayConfig.mockResolvedValue({
         enabled_keys: [],
         custom_holidays: [],
-      });
+      } as any);
 
       repo.upsertHolidayConfig.mockResolvedValue({
         enabled_keys: ['NEW_YEAR'],
         custom_holidays: [],
-      });
+      } as any);
 
       repo.findAllByOrg.mockResolvedValue([{ id: '1' }]);
       repo.findById.mockResolvedValue({
         id: '1',
         start_date: new Date(),
-      });
+      } as any);
 
       const result = await service.seedDefaultHolidays('org1');
 
@@ -263,7 +267,7 @@ describe('ProgramCalendarService', () => {
         id: '1',
         start_date: new Date('2025-01-01'),
         end_date: new Date('2025-12-01'),
-      });
+      } as any);
 
       await expect(
         service.update('1', 'org1', {
