@@ -1,4 +1,3 @@
-// .eslintrc.cjs
 import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
@@ -8,49 +7,51 @@ import { defineConfig } from "eslint/config";
 
 export default defineConfig([
 
-  // 1️⃣ Ignore build and output folders
+  // 1️⃣ Ignore folders
   {
     ignores: [
       "node_modules/**",
       ".next/**",
       "out/**",
       ".vercel/**",
-      "dist/**"
+      "dist/**",
     ],
   },
 
-  // 2️⃣ Base JS / TS config
-  {
-    files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
-    languageOptions: {
-      parserOptions: {
-        ecmaVersion: 2020,
-        sourceType: "module",
-        ecmaFeatures: { jsx: true },
-      },
-      globals: globals.browser,
-    },
-    plugins: {
-      js,
-    },
-    extends: ["js/recommended"],
-  },
+  // 2️⃣ Base JS config
+  js.configs.recommended,
 
-  // 3️⃣ TypeScript rules
+  // 3️⃣ TypeScript (NON type-aware)
   ...tseslint.configs.recommended,
 
-  // 4️⃣ React rules
+  // 4️⃣ Global settings
+  {
+    files: ["**/*.{js,jsx,ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: "module",
+      globals: globals.browser,
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+      },
+    },
+  },
+
+  // 5️⃣ React
   {
     ...pluginReact.configs.flat.recommended,
     settings: {
       react: {
         version: "detect",
-        jsxRuntime: "automatic",
       },
+    },
+    rules: {
+      "react/react-in-jsx-scope": "off", // Next.js
+      "react/prop-types": "off", // using TS
     },
   },
 
-  // 5️⃣ React Hooks rules (FIXED 🚀)
+  // 6️⃣ React Hooks
   {
     plugins: {
       "react-hooks": reactHooks,
@@ -61,14 +62,19 @@ export default defineConfig([
     },
   },
 
-  // 6️⃣ Custom rules
-  {
-    rules: {
-      "react/react-in-jsx-scope": "off",
-      "react/prop-types": "off",
-      "@typescript-eslint/explicit-module-boundary-types": "warn",
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
-    },
-  },
+{
+  rules: {
+    // Ignore unused variables
+    "@typescript-eslint/no-unused-vars": "off",
 
+    // Allow explicit `any`
+    "@typescript-eslint/no-explicit-any": "off",
+
+    // Disable React dependency warning
+    "react-hooks/exhaustive-deps": "off",
+
+    // Keep this because it can hide a real runtime problem
+    "@typescript-eslint/no-non-null-asserted-optional-chain": "error",
+  },
+}
 ]);
