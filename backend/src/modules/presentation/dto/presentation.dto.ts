@@ -4,13 +4,13 @@ export const CreatePresentationDto = z.object({
   lessonId: z.string().uuid(),
   title: z.string().min(1).max(255),
   template: z.string().min(1).max(50).default('modern'),
-  settings: z.record(z.any()).optional(),
+  settings: z.record(z.string(), z.any()).optional(),
 });
 
 export const UpdatePresentationDto = z.object({
   title: z.string().min(1).max(255).optional(),
   template: z.string().min(1).max(50).optional(),
-  settings: z.record(z.any()).optional(),
+  settings: z.record(z.string(), z.any()).optional(),
 });
 
 export const SlideAssignmentDto = z.object({
