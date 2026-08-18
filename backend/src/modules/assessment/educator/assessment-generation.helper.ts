@@ -159,7 +159,7 @@ export class AssessmentGenerationHelper {
         blueprints,
         (progress) => this.setStatus(assessmentId, progress),
         undefined,
-        (conceptRecord?.content as ConceptBuild) ?? undefined,
+        (conceptRecord?.content as unknown as ConceptBuild) ?? undefined,
       );
 
       if (!generated?.length) throw new Error('AI returned no questions.');
