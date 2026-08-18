@@ -55,7 +55,7 @@ export class StrandRepository {
     });
   }
 
-  async delete(id: string, orgId: string) {
+  async delete(id: string, _orgId: string) {
     return this.db.strand.delete({ where: { id } });
   }
 
