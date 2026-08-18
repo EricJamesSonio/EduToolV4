@@ -10,7 +10,6 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  BadRequestException,
 } from '@nestjs/common';
 import { GradeLockService } from './grade-lock.service';
 import { AuthGuard } from '@/commons/guards/auth.guard';
@@ -27,7 +26,6 @@ import {
   RequestUnlockDto,
   GrantUnlockDto,
   DenyUnlockDto,
-  QueryGradeLockDto,
 } from './dto/grade-lock.dto';
 
 @Controller('grade-lock')

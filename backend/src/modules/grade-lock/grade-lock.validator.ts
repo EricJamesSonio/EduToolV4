@@ -124,9 +124,6 @@ export class GradeLockValidator {
         coveredCategories.add(a.type);
       }
 
-      // Build assessment id → title map
-      const assessmentMap = new Map(assessments.map((a: any) => [a.id, a]));
-
       // Get submissions for this term
       const submissions = await this.gradeRepo.findSubmissionsForTerm(
         classId,
@@ -158,7 +155,7 @@ export class GradeLockValidator {
               studentName,
               studentCode,
               assessmentId: assessment.id,
-              assessmentTitle: assessment.title,
+              assessmentTitle: assessment.title ?? '',
             });
           }
         }
