@@ -14,12 +14,7 @@ import { AuthGuard } from 'src/commons/guards/auth.guard';
 import { RolesGuard } from 'src/commons/guards/role.guard';
 import { Roles } from 'src/commons/decorators/roles.decorator';
 import { CurrentUser } from 'src/commons/decorators/current-user.decorator';
-import {
-  ReplyConcernDto,
-  QueryStaffConcernDto,
-  CreateCategoryDto,
-  UpdateCategoryDto,
-} from '../dto/concern.dto';
+import { ReplyConcernDto, QueryStaffConcernDto } from '../dto/concern.dto';
 
 @Controller('concerns/staff')
 @UseGuards(AuthGuard, RolesGuard)
