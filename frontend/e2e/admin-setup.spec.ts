@@ -1039,8 +1039,8 @@ test("Phase 6 — JHS semester template created and assigned with term dates", a
   });
 
   await test.step("create the JHS semester template", async () => {
-    await page.getByRole("button", { name: "New Template" }).first().click();
     const dialog = page.locator('[data-slot="dialog-content"]');
+    await openDialog(page, page.getByRole("button", { name: "New Template" }).first(), dialog);
 
     run.semesterTemplateName = uniqueName("E2E Semester");
     await dialog.getByPlaceholder('e.g. "Standard 2-Semester"').fill(run.semesterTemplateName);
@@ -1236,6 +1236,17 @@ test("Phase 7 — class enrollment lifecycle: gating, duplicates, capacity, and 
     const s5 = await placeJhsStudent("Student Five", run.levelIds![1]);
     student5Id = s5.studentId;
 
+    // The roster dialog only lists ACTIVE student accounts, while POST /students
+    // creates them as `pending`. Activate the candidates we expect to appear
+    // (student1 was created in Phase 2; student5 intentionally stays pending).
+    for (const id of [run.student1!.id, student4Id]) {
+      const act = await request.patch(`${API_BASE}/students/${id}/status`, {
+        data: { status: "active" },
+        headers,
+      });
+      expect(act.status()).toBe(200);
+    }
+
     expect(classBId).toBeTruthy();
     expect(student4Id).toBeTruthy();
     expect(student5Id).toBeTruthy();
@@ -1245,7 +1256,7 @@ test("Phase 7 — class enrollment lifecycle: gating, duplicates, capacity, and 
     await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
     await page.goto(`/admin/classes/${classBId}`);
 
-    await expect(page.getByText("Enrolled Students", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: /Enrolled Students/ })).toBeVisible();
     await expect(page.getByText("No students enrolled yet.", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: "Enroll Student" }).click();
@@ -1285,10 +1296,13 @@ test("Phase 7 — class enrollment lifecycle: gating, duplicates, capacity, and 
   });
 
   await test.step("duplicate enrollments are rejected (same class + same subject/semester)", async () => {
+    // The duplicate-subject check runs before the same-class check, so both a
+    // re-enroll into the very same class and a parallel class for the same
+    // subject/semester surface the subject-scoped 409.
     const sameClass = await enrollStudent(classBId, run.student1!.id);
     expect(sameClass.status()).toBe(409);
     expect(((await sameClass.json()) as { message: string }).message).toContain(
-      "Student is already enrolled in this class.",
+      "Student is already enrolled in a class for this subject in the same semester.",
     );
 
     const sameSubjectSem = await enrollStudent(classCId, run.student1!.id);
