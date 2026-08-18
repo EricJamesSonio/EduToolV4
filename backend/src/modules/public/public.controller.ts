@@ -1,5 +1,5 @@
-import { Controller, Get } from '@nestjs/common'
-import { OrganizationService } from '@/modules/organization/organization.service'
+import { Controller, Get } from '@nestjs/common';
+import { OrganizationService } from '@/modules/organization/organization.service';
 
 @Controller('public')
 export class PublicController {
@@ -7,6 +7,6 @@ export class PublicController {
 
   @Get('organizations')
   async getOrganizations() {
-    return this.orgService.getAllOrganizations()
+    return this.orgService.getAllOrganizations();
   }
 }

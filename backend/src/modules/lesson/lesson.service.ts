@@ -11,7 +11,11 @@ import { AttendanceRepository } from '../attendance/attendance.repository';
 import { LessonConceptService } from './lesson-concept.service';
 import { LessonWeekStructureService } from './lesson-week-structure.service';
 import { LessonStudentService } from './lesson-student.service';
-import { CreateLessonDto, UpdateLessonDto, QueryLessonDto } from './dto/lesson.dto';
+import {
+  CreateLessonDto,
+  UpdateLessonDto,
+  QueryLessonDto,
+} from './dto/lesson.dto';
 
 const MIN_DETAIL_WORDS = 10;
 
@@ -78,7 +82,9 @@ export class LessonService {
       metadata: { lessonId: lesson.id, title: lesson.title },
     });
 
-    this.conceptService.triggerConceptExtraction(lesson.id, orgId, educatorId, dto.detail).catch(() => {});
+    this.conceptService
+      .triggerConceptExtraction(lesson.id, orgId, educatorId, dto.detail)
+      .catch(() => {});
 
     return lesson;
   }
@@ -208,7 +214,12 @@ export class LessonService {
     orgId: string,
     weekNumber?: number,
   ) {
-    return this.studentService.getStudentLessons(classId, studentId, orgId, weekNumber);
+    return this.studentService.getStudentLessons(
+      classId,
+      studentId,
+      orgId,
+      weekNumber,
+    );
   }
 
   async getStudentLesson(
@@ -217,14 +228,15 @@ export class LessonService {
     studentId: string,
     orgId: string,
   ) {
-    return this.studentService.getStudentLesson(classId, lessonId, studentId, orgId);
+    return this.studentService.getStudentLesson(
+      classId,
+      lessonId,
+      studentId,
+      orgId,
+    );
   }
 
-  async getWeekStructure(
-    classId: string,
-    orgId: string,
-    _educatorId?: string,
-  ) {
+  async getWeekStructure(classId: string, orgId: string, _educatorId?: string) {
     return this.weekStructureService.getWeekStructure(classId, orgId);
   }
 
@@ -236,10 +248,7 @@ export class LessonService {
     const existingLessons = await this.lessonRepo.findAll(classId, orgId);
 
     const lessonMap = new Map(
-      existingLessons.map((l) => [
-        `${l.week_number}-${l.sub_index}`,
-        l,
-      ]),
+      existingLessons.map((l) => [`${l.week_number}-${l.sub_index}`, l]),
     );
 
     for (const session of sessions) {

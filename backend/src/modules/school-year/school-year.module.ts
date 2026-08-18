@@ -10,14 +10,13 @@ import { GradingScaleModule } from '../grading-scale/grading-scale.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
-  imports: [
-    LevelModule,
-    SubjectModule,
-    GradingScaleModule,
-    AuditLogModule,
-  ],
+  imports: [LevelModule, SubjectModule, GradingScaleModule, AuditLogModule],
   controllers: [SchoolYearController],
-  providers: [SchoolYearService, SchoolYearRepository, SchoolYearReadinessService],
+  providers: [
+    SchoolYearService,
+    SchoolYearRepository,
+    SchoolYearReadinessService,
+  ],
   exports: [SchoolYearService, SchoolYearReadinessService],
 })
 export class SchoolYearModule {}

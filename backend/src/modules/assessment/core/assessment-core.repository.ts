@@ -36,14 +36,18 @@ export class AssessmentRepository {
         end_date: data.endDate ?? null,
         week_number: data.weekNumber ?? null,
         is_published: false,
-        grading_mode: data.gradingMode as any ?? 'system',
+        grading_mode: (data.gradingMode as any) ?? 'system',
         manual_max_score: data.manualMaxScore ?? null,
         show_breakdown: data.showBreakdown ?? false,
       },
     });
   }
 
-  async findAll(classId: string, orgId: string, filters: { termId?: string; type?: string; weekNumber?: number }) {
+  async findAll(
+    classId: string,
+    orgId: string,
+    filters: { termId?: string; type?: string; weekNumber?: number },
+  ) {
     return this.db.assessment.findMany({
       where: {
         class_id: classId,
@@ -60,19 +64,44 @@ export class AssessmentRepository {
     return this.db.assessment.findFirst({ where: { id, org_id: orgId } });
   }
 
-  async update(id: string, data: { releaseDate?: Date | null; endDate?: Date | null; type?: string; title?: string; isPublished?: boolean; showBreakdown?: boolean; gradingMode?: string; manualMaxScore?: number | null; weekNumber?: number | null }) {
+  async update(
+    id: string,
+    data: {
+      releaseDate?: Date | null;
+      endDate?: Date | null;
+      type?: string;
+      title?: string;
+      isPublished?: boolean;
+      showBreakdown?: boolean;
+      gradingMode?: string;
+      manualMaxScore?: number | null;
+      weekNumber?: number | null;
+    },
+  ) {
     return this.db.assessment.update({
       where: { id },
       data: {
-        ...(data.releaseDate !== undefined ? { release_date: data.releaseDate } : {}),
+        ...(data.releaseDate !== undefined
+          ? { release_date: data.releaseDate }
+          : {}),
         ...(data.endDate !== undefined ? { end_date: data.endDate } : {}),
         ...(data.type !== undefined ? { type: data.type } : {}),
         ...(data.title !== undefined ? { title: data.title } : {}),
-        ...(data.isPublished !== undefined ? { is_published: data.isPublished } : {}),
-        ...(data.showBreakdown !== undefined ? { show_breakdown: data.showBreakdown } : {}),
-        ...(data.gradingMode !== undefined ? { grading_mode: data.gradingMode as any } : {}),
-        ...(data.manualMaxScore !== undefined ? { manual_max_score: data.manualMaxScore } : {}),
-        ...(data.weekNumber !== undefined ? { week_number: data.weekNumber } : {}),
+        ...(data.isPublished !== undefined
+          ? { is_published: data.isPublished }
+          : {}),
+        ...(data.showBreakdown !== undefined
+          ? { show_breakdown: data.showBreakdown }
+          : {}),
+        ...(data.gradingMode !== undefined
+          ? { grading_mode: data.gradingMode as any }
+          : {}),
+        ...(data.manualMaxScore !== undefined
+          ? { manual_max_score: data.manualMaxScore }
+          : {}),
+        ...(data.weekNumber !== undefined
+          ? { week_number: data.weekNumber }
+          : {}),
       },
     });
   }
@@ -83,9 +112,21 @@ export class AssessmentRepository {
 
   // ───────── QUESTIONS ─────────
 
-  async createQuestions(questions: Array<{ orgId: string; assessmentId: string; type: string; questionText: string; correctAnswer?: string; choices?: string[]; order: number; isManual?: boolean; sectionType?: string }>) {
+  async createQuestions(
+    questions: Array<{
+      orgId: string;
+      assessmentId: string;
+      type: string;
+      questionText: string;
+      correctAnswer?: string;
+      choices?: string[];
+      order: number;
+      isManual?: boolean;
+      sectionType?: string;
+    }>,
+  ) {
     return this.db.question.createMany({
-      data: questions.map(q => ({
+      data: questions.map((q) => ({
         org_id: q.orgId,
         assessment_id: q.assessmentId,
         type: q.type,
@@ -110,12 +151,19 @@ export class AssessmentRepository {
     return this.db.question.findFirst({ where: { id } });
   }
 
-  async updateQuestion(id: string, data: { questionText?: string; correctAnswer?: string }) {
+  async updateQuestion(
+    id: string,
+    data: { questionText?: string; correctAnswer?: string },
+  ) {
     return this.db.question.update({
       where: { id },
       data: {
-        ...(data.questionText !== undefined ? { question_text: data.questionText } : {}),
-        ...(data.correctAnswer !== undefined ? { correct_answer: data.correctAnswer } : {}),
+        ...(data.questionText !== undefined
+          ? { question_text: data.questionText }
+          : {}),
+        ...(data.correctAnswer !== undefined
+          ? { correct_answer: data.correctAnswer }
+          : {}),
       },
     });
   }
@@ -123,7 +171,9 @@ export class AssessmentRepository {
   // ───────── SUBMISSIONS ─────────
 
   async findSubmissions(assessmentId: string, orgId: string) {
-    return this.db.submission.findMany({ where: { assessment_id: assessmentId, org_id: orgId } });
+    return this.db.submission.findMany({
+      where: { assessment_id: assessmentId, org_id: orgId },
+    });
   }
 
   async findSubmissionById(id: string) {
@@ -131,7 +181,9 @@ export class AssessmentRepository {
   }
 
   async findSubmissionByStudent(assessmentId: string, studentId: string) {
-    return this.db.submission.findFirst({ where: { assessment_id: assessmentId, student_id: studentId } });
+    return this.db.submission.findFirst({
+      where: { assessment_id: assessmentId, student_id: studentId },
+    });
   }
 
   async upsertSubmission(data: {
@@ -147,7 +199,10 @@ export class AssessmentRepository {
     isMissed?: boolean;
     isExempted?: boolean;
   }) {
-    const existing = await this.findSubmissionByStudent(data.assessmentId, data.studentId);
+    const existing = await this.findSubmissionByStudent(
+      data.assessmentId,
+      data.studentId,
+    );
 
     if (existing) {
       return this.db.submission.update({
@@ -155,12 +210,22 @@ export class AssessmentRepository {
         data: {
           status: data.status as any,
           ...(data.score !== undefined ? { score: data.score } : {}),
-          ...(data.manualScore !== undefined ? { manual_score: data.manualScore } : {}),
-          ...(data.manualSectionScore !== undefined ? { manual_section_score: data.manualSectionScore } : {}),
-          ...(data.systemSectionScore !== undefined ? { system_section_score: data.systemSectionScore } : {}),
+          ...(data.manualScore !== undefined
+            ? { manual_score: data.manualScore }
+            : {}),
+          ...(data.manualSectionScore !== undefined
+            ? { manual_section_score: data.manualSectionScore }
+            : {}),
+          ...(data.systemSectionScore !== undefined
+            ? { system_section_score: data.systemSectionScore }
+            : {}),
           ...(data.isMissed !== undefined ? { is_missed: data.isMissed } : {}),
-          ...(data.isExempted !== undefined ? { is_exempted: data.isExempted } : {}),
-          ...(data.submittedAt !== undefined ? { submitted_at: data.submittedAt } : {}),
+          ...(data.isExempted !== undefined
+            ? { is_exempted: data.isExempted }
+            : {}),
+          ...(data.submittedAt !== undefined
+            ? { submitted_at: data.submittedAt }
+            : {}),
         },
       });
     }
@@ -182,7 +247,10 @@ export class AssessmentRepository {
     });
   }
 
-  async updateSubmissionStatus(id: string, data: { status: string; manualScore?: number; score?: number }) {
+  async updateSubmissionStatus(
+    id: string,
+    data: { status: string; manualScore?: number; score?: number },
+  ) {
     const isMissed = data.status === 'missed';
     const isExempted = data.status === 'exempted';
     return this.db.submission.update({
@@ -191,7 +259,9 @@ export class AssessmentRepository {
         status: data.status as any,
         is_missed: isMissed,
         is_exempted: isExempted,
-        ...(data.manualScore !== undefined ? { manual_score: data.manualScore } : {}),
+        ...(data.manualScore !== undefined
+          ? { manual_score: data.manualScore }
+          : {}),
         ...(data.score !== undefined ? { score: data.score } : {}),
       },
     });
@@ -202,7 +272,9 @@ export class AssessmentRepository {
       where: { id },
       data: {
         manual_score: score,
-        ...(manualSectionScore !== undefined ? { manual_section_score: manualSectionScore } : {}),
+        ...(manualSectionScore !== undefined
+          ? { manual_section_score: manualSectionScore }
+          : {}),
       },
     });
   }

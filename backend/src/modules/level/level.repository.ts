@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common'
-import { DatabaseService } from '@/core/database/database.provider'
-import { buildLevelDefs } from '@/modules/org-seeder/data/levels.data'
+import { Injectable } from '@nestjs/common';
+import { DatabaseService } from '@/core/database/database.provider';
+import { buildLevelDefs } from '@/modules/org-seeder/data/levels.data';
 
 @Injectable()
 export class LevelRepository {
-  constructor(private readonly db: DatabaseService) { }
+  constructor(private readonly db: DatabaseService) {}
 
   async findBySchoolYear(orgId: string, schoolYearId: string) {
     return this.db.level.findMany({
@@ -13,7 +13,7 @@ export class LevelRepository {
         school_year_id: schoolYearId,
       },
       orderBy: [{ program_id: 'asc' }, { name: 'asc' }],
-    })
+    });
   }
 
   async findByProgramAndSchoolYear(
@@ -30,7 +30,7 @@ export class LevelRepository {
         strand_id: null,
       },
       orderBy: { name: 'asc' },
-    })
+    });
   }
 
   async seedFromDefaults(
@@ -40,10 +40,10 @@ export class LevelRepository {
   ) {
     const levelDefs = buildLevelDefs().filter(
       (l) => !!programMap[l.programKey],
-    )
-    if (levelDefs.length === 0) return []
+    );
+    if (levelDefs.length === 0) return [];
 
-    const created: any[] = []
+    const created: any[] = [];
     for (const lvl of levelDefs) {
       const level = await this.db.level.create({
         data: {
@@ -52,48 +52,51 @@ export class LevelRepository {
           program_id: programMap[lvl.programKey],
           name: lvl.name,
         },
-      })
-      created.push(level)
+      });
+      created.push(level);
     }
-    return created
+    return created;
   }
 
   async findById(id: string, orgId: string) {
     return this.db.level.findFirst({
       where: { id, org_id: orgId },
-    })
+    });
   }
 
   async update(id: string, data: { name?: string }) {
     return this.db.level.update({
       where: { id },
       data,
-    })
+    });
   }
 
-  async create(orgId: string, data: {
-    programId: string
-    schoolYearId: string
-    name: string
-    courseId?: string
-    strandId?: string
-  }) {
+  async create(
+    orgId: string,
+    data: {
+      programId: string;
+      schoolYearId: string;
+      name: string;
+      courseId?: string;
+      strandId?: string;
+    },
+  ) {
     return this.db.level.create({
       data: {
         org_id: orgId,
         school_year_id: data.schoolYearId,
-        program_id:     data.programId,
-        course_id:      data.courseId ?? null,
-        strand_id:      data.strandId ?? null,
-        name:           data.name,
+        program_id: data.programId,
+        course_id: data.courseId ?? null,
+        strand_id: data.strandId ?? null,
+        name: data.name,
       },
-    })
+    });
   }
 
   async delete(id: string) {
     return this.db.level.delete({
       where: { id },
-    })
+    });
   }
 
   async findAll(orgId: string, schoolYearId?: string) {
@@ -103,7 +106,7 @@ export class LevelRepository {
         ...(schoolYearId ? { school_year_id: schoolYearId } : {}),
       },
       orderBy: [{ program_id: 'asc' }, { name: 'asc' }],
-    })
+    });
   }
 
   async deleteByProgramAndSchoolYear(
@@ -121,37 +124,39 @@ export class LevelRepository {
         course_id: courseId ?? null,
         strand_id: strandId ?? null,
       },
-    })
+    });
   }
 
-  async bulkCreate(levels: Array<{
-    orgId: string
-    programId: string
-    schoolYearId: string
-    name: string
-    courseId?: string
-    strandId?: string
-  }>) {
+  async bulkCreate(
+    levels: Array<{
+      orgId: string;
+      programId: string;
+      schoolYearId: string;
+      name: string;
+      courseId?: string;
+      strandId?: string;
+    }>,
+  ) {
     await this.db.level.createMany({
       data: levels.map((l) => ({
         org_id: l.orgId,
         school_year_id: l.schoolYearId,
-        program_id:     l.programId,
-        course_id:      l.courseId ?? null,
-        strand_id:      l.strandId ?? null,
-        name:           l.name,
+        program_id: l.programId,
+        course_id: l.courseId ?? null,
+        strand_id: l.strandId ?? null,
+        name: l.name,
       })),
-    })
+    });
     return this.db.level.findMany({
       where: {
         org_id: levels[0].orgId,
         program_id: levels[0].programId,
         school_year_id: levels[0].schoolYearId,
-        course_id:      levels[0].courseId ?? null,
-        strand_id:      levels[0].strandId ?? null,
+        course_id: levels[0].courseId ?? null,
+        strand_id: levels[0].strandId ?? null,
       },
       orderBy: { name: 'asc' },
-    })
+    });
   }
 
   async findByCourseAndSchoolYear(
@@ -166,7 +171,7 @@ export class LevelRepository {
         course_id: courseId,
       },
       orderBy: { name: 'asc' },
-    })
+    });
   }
 
   async findByStrandAndSchoolYear(
@@ -181,6 +186,6 @@ export class LevelRepository {
         strand_id: strandId,
       },
       orderBy: { name: 'asc' },
-    })
+    });
   }
 }

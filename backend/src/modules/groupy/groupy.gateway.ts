@@ -140,11 +140,13 @@ export class GroupyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     accountId: string;
     reactionType: string;
   }) {
-    this.server.to(this.roomName(args.classId)).emit('groupy:reaction:updated', {
-      messageId: args.messageId,
-      accountId: args.accountId,
-      reactionType: args.reactionType,
-    });
+    this.server
+      .to(this.roomName(args.classId))
+      .emit('groupy:reaction:updated', {
+        messageId: args.messageId,
+        accountId: args.accountId,
+        reactionType: args.reactionType,
+      });
   }
 
   emitReactionRemoved(args: {
@@ -152,10 +154,12 @@ export class GroupyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     messageId: string;
     accountId: string;
   }) {
-    this.server.to(this.roomName(args.classId)).emit('groupy:reaction:removed', {
-      messageId: args.messageId,
-      accountId: args.accountId,
-    });
+    this.server
+      .to(this.roomName(args.classId))
+      .emit('groupy:reaction:removed', {
+        messageId: args.messageId,
+        accountId: args.accountId,
+      });
   }
 
   emitPollVoteUpdated(args: {
@@ -163,10 +167,12 @@ export class GroupyGateway implements OnGatewayConnection, OnGatewayDisconnect {
     pollId: string;
     resultsSummary: unknown;
   }) {
-    this.server.to(this.roomName(args.classId)).emit('groupy:poll:vote-updated', {
-      pollId: args.pollId,
-      resultsSummary: args.resultsSummary,
-    });
+    this.server
+      .to(this.roomName(args.classId))
+      .emit('groupy:poll:vote-updated', {
+        pollId: args.pollId,
+        resultsSummary: args.resultsSummary,
+      });
   }
 
   emitPollClosed(args: { classId: string; pollId: string }) {

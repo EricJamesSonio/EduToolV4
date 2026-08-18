@@ -30,7 +30,7 @@ export class BulkEnrollStudentsDto {
 }
 
 export class UpdateSchoolYearEnrollmentDto {
-  @IsEnum(["active", "pending", "unenrolled"] as const)
+  @IsEnum(['active', 'pending', 'unenrolled'] as const)
   status!: SchoolYearEnrollmentStatus;
 
   @IsOptional()
@@ -39,34 +39,31 @@ export class UpdateSchoolYearEnrollmentDto {
 }
 
 // ── Program Enrollment ──────────────────────────────────────────────────────
-export type SchoolYearEnrollmentStatus =
-  | "active"
-  | "pending"
-  | "unenrolled";
+export type SchoolYearEnrollmentStatus = 'active' | 'pending' | 'unenrolled';
 
-export type ProgramEnrollmentStatus = "active" | "pending" | "removed";
+export type ProgramEnrollmentStatus = 'active' | 'pending' | 'removed';
 
 export interface ProgramEnrollmentSnapshot {
-  id:         string;
+  id: string;
   program_id: string;
-  program:    { id: string; name: string; type: string };
-  level:      { id: string; name: string } | null;
-  course:     { id: string; name: string; code: string | null } | null;
-  strand:     { id: string; name: string } | null;
-  section:    { id: string; name: string } | null;
-  status:     ProgramEnrollmentStatus;
+  program: { id: string; name: string; type: string };
+  level: { id: string; name: string } | null;
+  course: { id: string; name: string; code: string | null } | null;
+  strand: { id: string; name: string } | null;
+  section: { id: string; name: string } | null;
+  status: ProgramEnrollmentStatus;
   enrolled_at: string;
 }
 
 export interface StudentSchoolYearEnrollment {
-  id:             string;
-  org_id:         string;
-  student_id:     string;
+  id: string;
+  org_id: string;
+  student_id: string;
   school_year_id: string;
-  status:         SchoolYearEnrollmentStatus;
-  enrolled_at:    string;
-  unenrolled_at:  string | null;
-  notes:          string | null;
+  status: SchoolYearEnrollmentStatus;
+  enrolled_at: string;
+  unenrolled_at: string | null;
+  notes: string | null;
   programEnrollments: ProgramEnrollmentSnapshot[];
 }
 
@@ -74,7 +71,7 @@ export interface StudentSchoolYearEnrollment {
 
 export interface EnrollStudentRequest {
   student_id: string;
-  notes?:     string;
+  notes?: string;
 }
 
 export interface BulkEnrollStudentsRequest {
@@ -87,17 +84,17 @@ export interface UpdateSchoolYearEnrollmentRequest {
 }
 
 export interface EnrollStudentProgramRequest {
-  program_id:  string;
-  level_id?:   string;
-  course_id?:  string;
-  strand_id?:  string;
+  program_id: string;
+  level_id?: string;
+  course_id?: string;
+  strand_id?: string;
   section_id?: string;
 }
 
 export interface UpdateProgramEnrollmentRequest {
-  level_id?:   string | null;
-  course_id?:  string | null;
-  strand_id?:  string | null;
+  level_id?: string | null;
+  course_id?: string | null;
+  strand_id?: string | null;
   section_id?: string | null;
 }
 
@@ -105,7 +102,7 @@ export interface UpdateProgramEnrollmentRequest {
 
 export interface BulkEnrollResult {
   enrolled: string[];
-  failed:   { student_id: string; reason: string }[];
+  failed: { student_id: string; reason: string }[];
 }
 export class EnrollStudentProgramDto {
   @IsString()
@@ -162,8 +159,8 @@ export class PaginatedEnrollmentQueryDto {
 }
 
 export interface PaginatedResult<T> {
-  data:  T[];
+  data: T[];
   total: number;
-  page:  number;
+  page: number;
   limit: number;
 }

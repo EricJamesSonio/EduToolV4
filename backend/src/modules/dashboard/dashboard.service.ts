@@ -3,19 +3,13 @@
 
 import { Injectable } from '@nestjs/common';
 import { DashboardRepository } from './dashboard.repository';
-import {
-  DashboardStatsDto
-} from './dto/dashboard-stats.dto';
-import {
-  AcademicContextDto
-} from './dto/academic-context.dto';
-import {
-  AlertDto
-} from './dto/alerts.dto';
+import { DashboardStatsDto } from './dto/dashboard-stats.dto';
+import { AcademicContextDto } from './dto/academic-context.dto';
+import { AlertDto } from './dto/alerts.dto';
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly dashboardRepository: DashboardRepository) { }
+  constructor(private readonly dashboardRepository: DashboardRepository) {}
 
   /**
    * Get dashboard statistics

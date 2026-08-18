@@ -1,8 +1,12 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common'
-import { ProgramRepository } from './program.repository'
-import { DatabaseService } from '@/core/database/database.provider'
-import { AuditLogService } from '../audit-log/audit-log.service'
-import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto'
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
+import { ProgramRepository } from './program.repository';
+import { DatabaseService } from '@/core/database/database.provider';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto';
 
 @Injectable()
 export class ProgramService {
@@ -17,12 +21,12 @@ export class ProgramService {
       dto.name,
       orgId,
       dto.schoolYearId,
-    )
+    );
 
     if (nameTaken) {
       throw new ConflictException(
         `A program named "${dto.name}" already exists for this school year.`,
-      )
+      );
     }
 
     const program = await this.programRepository.create({
@@ -30,18 +34,20 @@ export class ProgramService {
       schoolYearId: dto.schoolYearId,
       name: dto.name,
       type: dto.type,
-    })
+    });
 
-    this.auditLogService.logAdminAction({
-      orgId,
-      actorId,
-      action: 'program_created',
-      entityType: 'program',
-      entityId: program.id,
-      metadata: { name: dto.name, type: dto.type },
-    }).catch(() => {});
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'program_created',
+        entityType: 'program',
+        entityId: program.id,
+        metadata: { name: dto.name, type: dto.type },
+      })
+      .catch(() => {});
 
-    return program
+    return program;
   }
 
   // ✅ UPDATED: added includeAssignment flag
@@ -54,7 +60,7 @@ export class ProgramService {
       orgId,
       schoolYearId,
       includeAssignment,
-    )
+    );
   }
 
   // ✅ NEW: fetch programs with stats data
@@ -67,34 +73,41 @@ export class ProgramService {
       orgId,
       schoolYearId,
       includeAssignment,
-    )
+    );
   }
 
   async findById(id: string, orgId: string) {
-    const program = await this.programRepository.findById(id, orgId)
-    if (!program) throw new NotFoundException('Program not found.')
-    return program
+    const program = await this.programRepository.findById(id, orgId);
+    if (!program) throw new NotFoundException('Program not found.');
+    return program;
   }
 
-  async update(id: string, orgId: string, dto: UpdateProgramDto, actorId: string) {
-    const program = await this.programRepository.findById(id, orgId)
-    if (!program) throw new NotFoundException('Program not found.')
+  async update(
+    id: string,
+    orgId: string,
+    dto: UpdateProgramDto,
+    actorId: string,
+  ) {
+    const program = await this.programRepository.findById(id, orgId);
+    if (!program) throw new NotFoundException('Program not found.');
 
     const updated = await this.programRepository.update(id, {
       name: dto.name,
       type: dto.type,
-    })
+    });
 
-    this.auditLogService.logAdminAction({
-      orgId,
-      actorId,
-      action: 'program_updated',
-      entityType: 'program',
-      entityId: id,
-      metadata: { name: dto.name },
-    }).catch(() => {});
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'program_updated',
+        entityType: 'program',
+        entityId: id,
+        metadata: { name: dto.name },
+      })
+      .catch(() => {});
 
-    return updated
+    return updated;
   }
 
   async getSemesters(programId: string, schoolYearId: string, orgId: string) {
@@ -108,13 +121,13 @@ export class ProgramService {
           },
         },
       },
-    })
+    });
 
-    if (!assignment) return []
+    if (!assignment) return [];
 
     const templateSemesterNames = new Set(
       assignment.template.semesters.map((s: { name: string }) => s.name),
-    )
+    );
 
     // Find actual Semester records matching those names + school year
     const semesters = await this.db.semester.findMany({
@@ -127,7 +140,7 @@ export class ProgramService {
         terms: { orderBy: { order_index: 'asc' as const } },
       },
       orderBy: { start_date: 'asc' as const },
-    })
+    });
 
     return semesters.map((s) => ({
       id: s.id,
@@ -142,39 +155,41 @@ export class ProgramService {
         start_date: t.start_date,
         end_date: t.end_date,
       })),
-    }))
+    }));
   }
 
   async remove(id: string, orgId: string, actorId: string) {
-    const program = await this.programRepository.findById(id, orgId)
-    if (!program) throw new NotFoundException('Program not found.')
+    const program = await this.programRepository.findById(id, orgId);
+    if (!program) throw new NotFoundException('Program not found.');
 
     const [hasLevels, hasCourses, hasStrands] = await Promise.all([
       this.programRepository.hasLevels(id),
       this.programRepository.hasCourses(id),
       this.programRepository.hasStrands(id),
-    ])
+    ]);
 
-    const blockers: string[] = []
-    if (hasLevels) blockers.push('levels')
-    if (hasCourses) blockers.push('courses')
-    if (hasStrands) blockers.push('strands')
+    const blockers: string[] = [];
+    if (hasLevels) blockers.push('levels');
+    if (hasCourses) blockers.push('courses');
+    if (hasStrands) blockers.push('strands');
 
     if (blockers.length > 0) {
       throw new ConflictException(
         `Cannot delete this program — it still has ${blockers.join(', ')} assigned to it.`,
-      )
+      );
     }
 
-    await this.programRepository.delete(id)
+    await this.programRepository.delete(id);
 
-    this.auditLogService.logAdminAction({
-      orgId,
-      actorId,
-      action: 'program_deleted',
-      entityType: 'program',
-      entityId: id,
-      metadata: { name: program.name },
-    }).catch(() => {});
+    this.auditLogService
+      .logAdminAction({
+        orgId,
+        actorId,
+        action: 'program_deleted',
+        entityType: 'program',
+        entityId: id,
+        metadata: { name: program.name },
+      })
+      .catch(() => {});
   }
 }

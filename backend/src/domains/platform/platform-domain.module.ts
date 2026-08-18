@@ -7,7 +7,17 @@ import { AuthModule } from '@/modules/auth/auth.module';
 import { PlatformRegistrationModule } from '@/modules/platform-registration/platform-registration.module';
 
 @Module({
-  imports: [OrganizationModule, PlatformModule, AuthModule, PlatformRegistrationModule],
-  exports: [OrganizationModule, PlatformModule, AuthModule, PlatformRegistrationModule],
+  imports: [
+    OrganizationModule,
+    PlatformModule,
+    AuthModule,
+    PlatformRegistrationModule,
+  ],
+  exports: [
+    OrganizationModule,
+    PlatformModule,
+    AuthModule,
+    PlatformRegistrationModule,
+  ],
 })
 export class PlatformDomainModule {}

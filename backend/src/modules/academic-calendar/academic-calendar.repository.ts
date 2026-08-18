@@ -76,7 +76,9 @@ export class AcademicCalendarRepository {
         ...(data.type !== undefined ? { type: data.type } : {}),
         ...(data.startDate !== undefined ? { start_date: data.startDate } : {}),
         ...(data.endDate !== undefined ? { end_date: data.endDate } : {}),
-        ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.description !== undefined
+          ? { description: data.description }
+          : {}),
       },
     });
   }

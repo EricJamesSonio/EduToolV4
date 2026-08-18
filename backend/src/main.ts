@@ -45,17 +45,16 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
 
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true,
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transformOptions: { enableImplicitConversion: true },
-  }));
-
-  app.useGlobalFilters(
-    new HttpExceptionFilter(),
-    new AllExceptionFilter(),
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
   );
+
+  app.useGlobalFilters(new HttpExceptionFilter(), new AllExceptionFilter());
 
   app.useGlobalInterceptors(
     new LoggingInterceptor(),
@@ -77,17 +76,17 @@ async function bootstrap() {
 
   // 👇 crossOriginResourcePolicy relaxed so images served from /uploads
   // aren't blocked by the browser when fetched from a different origin/port
-app.use(
-  helmet({
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: [`'self'`],
-        imgSrc: [`'self'`, 'data:'],
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: [`'self'`],
+          imgSrc: [`'self'`, 'data:'],
+        },
       },
-    },
-  }),
-);
+    }),
+  );
 
   const PORT = Number(process.env.PORT) || 3000;
   await app.listen(PORT, '0.0.0.0');

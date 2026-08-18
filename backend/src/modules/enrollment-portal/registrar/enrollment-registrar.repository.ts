@@ -1,7 +1,10 @@
 // src/modules/enrollment-portal/registrar/enrollment-registrar.repository.ts
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
-import { EnrollmentApplicationStatus, SectionOverflowAction } from '@prisma/client';
+import {
+  EnrollmentApplicationStatus,
+  SectionOverflowAction,
+} from '@prisma/client';
 
 export interface CreatePeriodData {
   orgId: string;
@@ -63,7 +66,8 @@ export class EnrollmentRegistrarRepository {
         end_date: data.endDate,
         lock_date: data.lockDate,
         created_by: data.createdBy,
-        section_overflow_action: data.sectionOverflowAction ?? SectionOverflowAction.no_section,
+        section_overflow_action:
+          data.sectionOverflowAction ?? SectionOverflowAction.no_section,
       },
     });
   }
@@ -76,7 +80,7 @@ export class EnrollmentRegistrarRepository {
     });
   }
 
-findPeriodById(orgId: string, id: string) {
+  findPeriodById(orgId: string, id: string) {
     return this.db.enrollmentPeriod.findFirst({
       where: { id, org_id: orgId },
       include: { schoolYear: { select: { id: true, start_date: true } } },
@@ -124,10 +128,20 @@ findPeriodById(orgId: string, id: string) {
     const where = {
       org_id: orgId,
       ...(filters.applicationCode
-        ? { application_code: { equals: filters.applicationCode, mode: 'insensitive' as const } }
+        ? {
+            application_code: {
+              equals: filters.applicationCode,
+              mode: 'insensitive' as const,
+            },
+          }
         : {}),
       ...(filters.personalEmail
-        ? { personal_email: { equals: filters.personalEmail, mode: 'insensitive' as const } }
+        ? {
+            personal_email: {
+              equals: filters.personalEmail,
+              mode: 'insensitive' as const,
+            },
+          }
         : {}),
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.periodId ? { enrollment_period_id: filters.periodId } : {}),
@@ -163,7 +177,12 @@ findPeriodById(orgId: string, id: string) {
         level: { select: { id: true, name: true } },
         section: { select: { id: true, name: true } },
         enrollmentPeriod: {
-          select: { id: true, name: true, token: true, section_overflow_action: true },
+          select: {
+            id: true,
+            name: true,
+            token: true,
+            section_overflow_action: true,
+          },
         },
         schoolYear: { select: { id: true, name: true } },
       },
@@ -172,13 +191,19 @@ findPeriodById(orgId: string, id: string) {
 
   findApplicationByEmail(orgId: string, personalEmail: string) {
     return this.db.enrollmentApplication.findFirst({
-      where: { org_id: orgId, personal_email: { equals: personalEmail, mode: 'insensitive' } },
+      where: {
+        org_id: orgId,
+        personal_email: { equals: personalEmail, mode: 'insensitive' },
+      },
     });
   }
 
   findApplicationByCode(orgId: string, applicationCode: string) {
     return this.db.enrollmentApplication.findFirst({
-      where: { org_id: orgId, application_code: { equals: applicationCode, mode: 'insensitive' } },
+      where: {
+        org_id: orgId,
+        application_code: { equals: applicationCode, mode: 'insensitive' },
+      },
     });
   }
 
@@ -186,11 +211,22 @@ findPeriodById(orgId: string, id: string) {
     orgId: string,
     opts: { personalEmail?: string; applicationCode?: string },
   ) {
-    const where =
-      opts.applicationCode
-        ? { application_code: { equals: opts.applicationCode, mode: 'insensitive' as const } }
-        : { personal_email: { equals: opts.personalEmail as string, mode: 'insensitive' as const } };
-    return this.db.enrollmentApplication.findFirst({ where: { org_id: orgId, ...where } });
+    const where = opts.applicationCode
+      ? {
+          application_code: {
+            equals: opts.applicationCode,
+            mode: 'insensitive' as const,
+          },
+        }
+      : {
+          personal_email: {
+            equals: opts.personalEmail as string,
+            mode: 'insensitive' as const,
+          },
+        };
+    return this.db.enrollmentApplication.findFirst({
+      where: { org_id: orgId, ...where },
+    });
   }
 
   setReviewDecision(
@@ -207,7 +243,9 @@ findPeriodById(orgId: string, id: string) {
         status: data.status,
         reviewed_by: data.reviewedBy,
         reviewed_at: new Date(),
-        ...(data.rejectionReason !== undefined ? { rejection_reason: data.rejectionReason } : {}),
+        ...(data.rejectionReason !== undefined
+          ? { rejection_reason: data.rejectionReason }
+          : {}),
       },
     });
   }

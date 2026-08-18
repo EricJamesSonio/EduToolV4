@@ -5,13 +5,25 @@ function repairTruncatedJson(s: string): string {
   let escape = false;
   for (let i = 0; i < result.length; i++) {
     const ch = result[i];
-    if (escape) { escape = false; continue; }
-    if (ch === '\\' && inString) { escape = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
     if (inString) continue;
     if (ch === '{' || ch === '[') stack.push(ch);
-    else if (ch === '}') { if (stack.length && stack[stack.length - 1] === '{') stack.pop(); }
-    else if (ch === ']') { if (stack.length && stack[stack.length - 1] === '[') stack.pop(); }
+    else if (ch === '}') {
+      if (stack.length && stack[stack.length - 1] === '{') stack.pop();
+    } else if (ch === ']') {
+      if (stack.length && stack[stack.length - 1] === '[') stack.pop();
+    }
   }
   if (inString) result += '"';
   for (let i = stack.length - 1; i >= 0; i--) {
@@ -52,6 +64,8 @@ export function parseJson<T = any>(raw: string): T {
       }
     }
 
-    throw new Error(`Could not parse AI response as JSON. Raw (first 500): ${text.slice(0, 500)}`);
+    throw new Error(
+      `Could not parse AI response as JSON. Raw (first 500): ${text.slice(0, 500)}`,
+    );
   }
 }

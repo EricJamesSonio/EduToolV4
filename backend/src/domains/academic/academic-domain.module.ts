@@ -1,23 +1,22 @@
 // src/domains/academic/academic-domain.module.ts
-import { Module } from '@nestjs/common'
+import { Module } from '@nestjs/common';
 
-import { AcademicCalendarModule } from '@/modules/academic-calendar/academic-calendar.module'
-import { SchoolYearModule } from '@/modules/school-year/school-year.module'
-import { SemesterModule } from '@/modules/semester/semester.module'
-import { LevelModule } from '@/modules/level/level.module'
-import { ProgramModule } from '@/modules/program/program.module'
-import { SectionModule } from '@/modules/section/section.module'
-import { SubjectModule } from '@/modules/subject/subject.module'
-import { TranscriptModule } from '@/modules/transcript/transcript.module'
-import { ExportModule } from '@/modules/export/export.module'
-import { MeetingModule } from '@/modules/meeting/meeting.module'
-import { CourseModule } from '@/modules/course/course.module'
-import { StrandModule } from '@/modules/strand/strand.module'
-import { SubjectPrerequisiteModule } from '@/modules/subject-prerequisite/subject-prerequisite.module'
-import { StudentEnrollmentModule } from '@/modules/student-enrollment/student-enrollment.module'
-import { SemesterTemplateModule } from '@/modules/semester-template/semester-template.module'
+import { AcademicCalendarModule } from '@/modules/academic-calendar/academic-calendar.module';
+import { SchoolYearModule } from '@/modules/school-year/school-year.module';
+import { SemesterModule } from '@/modules/semester/semester.module';
+import { LevelModule } from '@/modules/level/level.module';
+import { ProgramModule } from '@/modules/program/program.module';
+import { SectionModule } from '@/modules/section/section.module';
+import { SubjectModule } from '@/modules/subject/subject.module';
+import { TranscriptModule } from '@/modules/transcript/transcript.module';
+import { ExportModule } from '@/modules/export/export.module';
+import { MeetingModule } from '@/modules/meeting/meeting.module';
+import { CourseModule } from '@/modules/course/course.module';
+import { StrandModule } from '@/modules/strand/strand.module';
+import { SubjectPrerequisiteModule } from '@/modules/subject-prerequisite/subject-prerequisite.module';
+import { StudentEnrollmentModule } from '@/modules/student-enrollment/student-enrollment.module';
+import { SemesterTemplateModule } from '@/modules/semester-template/semester-template.module';
 import { GradingSchemeTemplateModule } from '@/modules/grading-scheme-template/grading-scheme-template.module';
-
 
 @Module({
   imports: [
@@ -36,7 +35,7 @@ import { GradingSchemeTemplateModule } from '@/modules/grading-scheme-template/g
     SubjectPrerequisiteModule,
     StudentEnrollmentModule,
     SemesterTemplateModule,
-    GradingSchemeTemplateModule
+    GradingSchemeTemplateModule,
   ],
   exports: [
     AcademicCalendarModule,
@@ -52,7 +51,7 @@ import { GradingSchemeTemplateModule } from '@/modules/grading-scheme-template/g
     CourseModule,
     StrandModule,
     SubjectPrerequisiteModule,
-    SemesterTemplateModule
+    SemesterTemplateModule,
   ],
 })
 export class AcademicDomainModule {}

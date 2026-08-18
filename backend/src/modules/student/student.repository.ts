@@ -47,21 +47,33 @@ export class StudentRepository {
   async findAll(
     orgId: string,
     filters: {
-      search?:       string;
-      status?:       string;
+      search?: string;
+      status?: string;
       schoolYearId?: string;
-      programId?:    string;
-      courseId?:     string;
-      strandId?:     string;
-      levelId?:      string;
-      sectionId?:    string;
-      page?:         number;
-      limit?:        number;
+      programId?: string;
+      courseId?: string;
+      strandId?: string;
+      levelId?: string;
+      sectionId?: string;
+      page?: number;
+      limit?: number;
     },
   ) {
-    const { search, status, schoolYearId, programId, courseId, strandId, levelId, sectionId, page = 1, limit = 20 } = filters;
+    const {
+      search,
+      status,
+      schoolYearId,
+      programId,
+      courseId,
+      strandId,
+      levelId,
+      sectionId,
+      page = 1,
+      limit = 20,
+    } = filters;
 
-    const hasHierarchyFilter = schoolYearId || programId || courseId || strandId || levelId || sectionId;
+    const hasHierarchyFilter =
+      schoolYearId || programId || courseId || strandId || levelId || sectionId;
 
     // Account has no Prisma relation to StudentSchoolYear (student_id is a plain String,
     // no @relation declared on Account). We resolve matching student_ids first via a
@@ -76,11 +88,11 @@ export class StudentRepository {
           programEnrollments: {
             some: {
               org_id: orgId,
-              ...(programId  ? { program_id: programId } : {}),
-              ...(courseId   ? { course_id:  courseId  } : {}),
-              ...(strandId   ? { strand_id:  strandId  } : {}),
-              ...(levelId    ? { level_id:   levelId   } : {}),
-              ...(sectionId  ? { section_id: sectionId } : {}),
+              ...(programId ? { program_id: programId } : {}),
+              ...(courseId ? { course_id: courseId } : {}),
+              ...(strandId ? { strand_id: strandId } : {}),
+              ...(levelId ? { level_id: levelId } : {}),
+              ...(sectionId ? { section_id: sectionId } : {}),
             },
           },
         },
@@ -95,7 +107,11 @@ export class StudentRepository {
       if (
         matchingStudentIds.length === 0 &&
         sectionId &&
-        !schoolYearId && !programId && !courseId && !strandId && !levelId
+        !schoolYearId &&
+        !programId &&
+        !courseId &&
+        !strandId &&
+        !levelId
       ) {
         const metaMatches = await this.db.profile.findMany({
           where: {
@@ -112,16 +128,26 @@ export class StudentRepository {
     }
 
     const where: Prisma.AccountWhereInput = {
-      org_id:     orgId,
-      role:       'student',
+      org_id: orgId,
+      role: 'student',
       deleted_at: null,
-      ...(matchingStudentIds !== null ? { id: { in: matchingStudentIds } } : {}),
+      ...(matchingStudentIds !== null
+        ? { id: { in: matchingStudentIds } }
+        : {}),
       ...(status ? { status: status as any } : {}),
       ...(search
         ? {
             OR: [
-              { profile: { full_name: { contains: search, mode: 'insensitive' } } },
-              { profile: { metadata: { path: ['studentId'], string_contains: search } } },
+              {
+                profile: {
+                  full_name: { contains: search, mode: 'insensitive' },
+                },
+              },
+              {
+                profile: {
+                  metadata: { path: ['studentId'], string_contains: search },
+                },
+              },
             ],
           }
         : {}),
@@ -132,8 +158,8 @@ export class StudentRepository {
         where,
         include: { profile: true },
         orderBy: { created_at: 'desc' },
-        skip:    (page - 1) * limit,
-        take:    limit,
+        skip: (page - 1) * limit,
+        take: limit,
       }),
       this.db.account.count({ where }),
     ]);
@@ -177,7 +203,10 @@ export class StudentRepository {
   ) {
     return this.db.$transaction(async (tx) => {
       if (data.email) {
-        await tx.account.update({ where: { id: accountId }, data: { email: data.email } });
+        await tx.account.update({
+          where: { id: accountId },
+          data: { email: data.email },
+        });
       }
 
       const current = await tx.profile.findUnique({
@@ -186,7 +215,9 @@ export class StudentRepository {
       });
 
       const currentMeta =
-        current?.metadata && typeof current.metadata === 'object' && !Array.isArray(current.metadata)
+        current?.metadata &&
+        typeof current.metadata === 'object' &&
+        !Array.isArray(current.metadata)
           ? (current.metadata as Record<string, any>)
           : {};
 
@@ -194,17 +225,26 @@ export class StudentRepository {
         where: { account_id: accountId },
         data: {
           ...(data.fullName ? { full_name: data.fullName } : {}),
-          ...(data.personal_email !== undefined ? { personal_email: data.personal_email ?? null } : {}),
-          ...(data.profileImage !== undefined ? { profile_image: data.profileImage } : {}),
+          ...(data.personal_email !== undefined
+            ? { personal_email: data.personal_email ?? null }
+            : {}),
+          ...(data.profileImage !== undefined
+            ? { profile_image: data.profileImage }
+            : {}),
           metadata: {
             ...currentMeta,
-            ...(data.levelId   !== undefined ? { levelId:   data.levelId   } : {}),
-            ...(data.sectionId !== undefined ? { sectionId: data.sectionId } : {}),
+            ...(data.levelId !== undefined ? { levelId: data.levelId } : {}),
+            ...(data.sectionId !== undefined
+              ? { sectionId: data.sectionId }
+              : {}),
           },
         },
       });
 
-      return tx.account.findUnique({ where: { id: accountId }, include: { profile: true } });
+      return tx.account.findUnique({
+        where: { id: accountId },
+        include: { profile: true },
+      });
     });
   }
 
@@ -264,7 +304,10 @@ export class StudentRepository {
     return accounts.map((a) => a.email);
   }
 
-  async findStudentIdsInBatch(studentIds: string[], orgId: string): Promise<string[]> {
+  async findStudentIdsInBatch(
+    studentIds: string[],
+    orgId: string,
+  ): Promise<string[]> {
     if (studentIds.length === 0) return [];
     const profiles = await this.db.profile.findMany({
       where: { account: { org_id: orgId, deleted_at: null } },
@@ -274,7 +317,9 @@ export class StudentRepository {
       profiles
         .map((p) => {
           const meta = p.metadata as Record<string, unknown> | null;
-          return typeof meta?.['studentId'] === 'string' ? meta['studentId'] : null;
+          return typeof meta?.['studentId'] === 'string'
+            ? meta['studentId']
+            : null;
         })
         .filter((id): id is string => id !== null),
     );

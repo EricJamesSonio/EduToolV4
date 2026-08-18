@@ -1,13 +1,17 @@
 // @/modules/assessment/student/assessment-student.service.ts
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AssessmentCoreService } from '../core/assessment-core.service';
 import { DatabaseService } from '@/core/database/database.provider';
-import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository'; 
+import { EnrollmentRepository } from '@/modules/enrollment/enrollment.repository';
 import { GradeRepository } from '@/modules/grade/grade.repository';
 
 @Injectable()
 export class AssessmentStudentService {
-  constructor(  
+  constructor(
     private readonly core: AssessmentCoreService,
     private readonly db: DatabaseService,
     private readonly enrollmentRepo: EnrollmentRepository,
@@ -32,39 +36,48 @@ export class AssessmentStudentService {
     return enrollment;
   }
 
-async getAssessments(classId: string, orgId: string, studentId: string) {
-  await this.assertStudentEnrolled(classId, studentId, orgId);
+  async getAssessments(classId: string, orgId: string, studentId: string) {
+    await this.assertStudentEnrolled(classId, studentId, orgId);
 
-  const assessments = await this.core.findAssessmentsByClass(classId, orgId);
-  if (!assessments.length) return [];
+    const assessments = await this.core.findAssessmentsByClass(classId, orgId);
+    if (!assessments.length) return [];
 
-  const ids = assessments.map((a) => a.id);
+    const ids = assessments.map((a) => a.id);
 
-  // Get this student's submission per assessment
-  const submissions = await this.db.submission.findMany({
-    where: { assessment_id: { in: ids }, student_id: studentId },
-    select: { id: true, assessment_id: true, status: true, reopened_until: true },
-  });
-  const subMap = new Map(submissions.map((s) => [s.assessment_id, s]));
+    // Get this student's submission per assessment
+    const submissions = await this.db.submission.findMany({
+      where: { assessment_id: { in: ids }, student_id: studentId },
+      select: {
+        id: true,
+        assessment_id: true,
+        status: true,
+        reopened_until: true,
+      },
+    });
+    const subMap = new Map(submissions.map((s) => [s.assessment_id, s]));
 
-  // Find active reopens for this student
-  const now = new Date();
+    // Find active reopens for this student
+    const now = new Date();
 
-  return assessments.map((a) => {
-    const submission = subMap.get(a.id) ?? null;
-    const reopenedUntil = submission?.reopened_until;
-    const isReopened = !!reopenedUntil && now <= new Date(reopenedUntil);
+    return assessments.map((a) => {
+      const submission = subMap.get(a.id) ?? null;
+      const reopenedUntil = submission?.reopened_until;
+      const isReopened = !!reopenedUntil && now <= new Date(reopenedUntil);
 
-    const item = this.core.buildAssessmentListItem(a, submission);
+      const item = this.core.buildAssessmentListItem(a, submission);
 
-    // Override status if actively reopened
-    if (isReopened) {
-      return { ...item, status: 'open', reopenedUntil: reopenedUntil.toISOString() };
-    }
+      // Override status if actively reopened
+      if (isReopened) {
+        return {
+          ...item,
+          status: 'open',
+          reopenedUntil: reopenedUntil.toISOString(),
+        };
+      }
 
-    return item;
-  });
-}
+      return item;
+    });
+  }
 
   async getAssessmentDetail(
     classId: string,
@@ -74,7 +87,10 @@ async getAssessments(classId: string, orgId: string, studentId: string) {
   ) {
     await this.assertStudentEnrolled(classId, studentId, orgId);
 
-    const assessment = await this.core.findAssessmentOrThrow(assessmentId, orgId);
+    const assessment = await this.core.findAssessmentOrThrow(
+      assessmentId,
+      orgId,
+    );
     this.core.assertBelongsToClass(assessment, classId);
 
     if (!this.core.isReleased(assessment)) {
@@ -94,7 +110,10 @@ async getAssessments(classId: string, orgId: string, studentId: string) {
   ) {
     await this.assertStudentEnrolled(classId, studentId, orgId);
 
-    const assessment = await this.core.findAssessmentOrThrow(assessmentId, orgId);
+    const assessment = await this.core.findAssessmentOrThrow(
+      assessmentId,
+      orgId,
+    );
     this.core.assertBelongsToClass(assessment, classId);
 
     const submission = await this.core.getSubmissionByStudent(
@@ -121,6 +140,12 @@ async getAssessments(classId: string, orgId: string, studentId: string) {
       where: { submission_id: submission.id },
     });
 
-    return this.core.buildResult(submission, assessment, isLocked, questions, answers);
+    return this.core.buildResult(
+      submission,
+      assessment,
+      isLocked,
+      questions,
+      answers,
+    );
   }
 }

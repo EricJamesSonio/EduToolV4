@@ -82,9 +82,13 @@ export class LessonRepository {
       where: { id },
       data: {
         ...(data.title !== undefined ? { title: data.title } : {}),
-        ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.description !== undefined
+          ? { description: data.description }
+          : {}),
         ...(data.detail !== undefined ? { detail: data.detail } : {}),
-        ...(data.weekNumber !== undefined ? { week_number: data.weekNumber } : {}),
+        ...(data.weekNumber !== undefined
+          ? { week_number: data.weekNumber }
+          : {}),
         ...(data.subIndex !== undefined ? { sub_index: data.subIndex } : {}),
       },
     });

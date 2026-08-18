@@ -60,7 +60,12 @@ export class StudentEnrollmentController {
     @CurrentUser() user: { org_id: string; id: string },
     @Body() dto: BulkEnrollStudentsDto,
   ) {
-    return this.service.bulkEnrollStudents(schoolYearId, user.org_id, dto, user.id);
+    return this.service.bulkEnrollStudents(
+      schoolYearId,
+      user.org_id,
+      dto,
+      user.id,
+    );
   }
 
   @Patch(':enrollmentId')
@@ -69,7 +74,12 @@ export class StudentEnrollmentController {
     @CurrentUser() user: { org_id: string; id: string },
     @Body() dto: UpdateSchoolYearEnrollmentDto,
   ) {
-    return this.service.updateEnrollment(enrollmentId, user.org_id, dto, user.id);
+    return this.service.updateEnrollment(
+      enrollmentId,
+      user.org_id,
+      dto,
+      user.id,
+    );
   }
 
   @Delete(':enrollmentId')

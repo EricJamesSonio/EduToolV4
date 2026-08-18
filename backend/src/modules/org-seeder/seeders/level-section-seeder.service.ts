@@ -26,11 +26,29 @@ export class LevelSectionSeederService {
             .map((l) => l.name);
 
       if (progKey === 'college') {
-        await this.seedCollegeLevelsSections(ctx, progKey, programId, defaultDefs, levelNames);
+        await this.seedCollegeLevelsSections(
+          ctx,
+          progKey,
+          programId,
+          defaultDefs,
+          levelNames,
+        );
       } else if (progKey === 'shs') {
-        await this.seedShsLevelsSections(ctx, progKey, programId, defaultDefs, levelNames);
+        await this.seedShsLevelsSections(
+          ctx,
+          progKey,
+          programId,
+          defaultDefs,
+          levelNames,
+        );
       } else {
-        await this.seedOtherLevelsSections(ctx, progKey, programId, defaultDefs, levelNames);
+        await this.seedOtherLevelsSections(
+          ctx,
+          progKey,
+          programId,
+          defaultDefs,
+          levelNames,
+        );
       }
     }
   }
@@ -39,7 +57,12 @@ export class LevelSectionSeederService {
     ctx: SeedContext,
     progKey: string,
     programId: string,
-    defaultDefs: { programKey: string; courseCode?: string; name: string; sections?: { name: string; capacity: number }[] }[],
+    defaultDefs: {
+      programKey: string;
+      courseCode?: string;
+      name: string;
+      sections?: { name: string; capacity: number }[];
+    }[],
     customNames: string[],
   ) {
     for (const courseCode of Object.keys(ctx.courseMap)) {
@@ -52,7 +75,9 @@ export class LevelSectionSeederService {
         : customNames?.length
           ? customNames
           : defaultDefs
-              .filter((l) => l.programKey === progKey && l.courseCode === courseCode)
+              .filter(
+                (l) => l.programKey === progKey && l.courseCode === courseCode,
+              )
               .map((l) => l.name);
 
       for (const levelName of courseLevelNames) {
@@ -61,7 +86,14 @@ export class LevelSectionSeederService {
           continue;
         }
 
-        const id = seedId('level', progKey, courseCode, levelName, ctx.schoolYearId, ctx.orgId);
+        const id = seedId(
+          'level',
+          progKey,
+          courseCode,
+          levelName,
+          ctx.schoolYearId,
+          ctx.orgId,
+        );
         const existing = await this.db.level.findFirst({ where: { id } });
 
         let levelId: string;
@@ -86,16 +118,30 @@ export class LevelSectionSeederService {
         ctx.levelMap[`${courseCode}|${levelName}`] = levelId;
 
         const defaultSections = defaultDefs.find(
-          (l) => l.programKey === progKey && l.courseCode === courseCode && l.name === levelName,
+          (l) =>
+            l.programKey === progKey &&
+            l.courseCode === courseCode &&
+            l.name === levelName,
         )?.sections ?? [
           { name: 'Section A', capacity: 40 },
           { name: 'Section B', capacity: 40 },
         ];
-        const sections = ctx.sectionConfigs[`${courseCode}|${levelName}`] ?? defaultSections;
+        const sections =
+          ctx.sectionConfigs[`${courseCode}|${levelName}`] ?? defaultSections;
 
         for (const sec of sections) {
-          const sectionId = seedId('section', progKey, courseCode, levelName, sec.name, ctx.schoolYearId, ctx.orgId);
-          const existingSec = await this.db.section.findFirst({ where: { id: sectionId } });
+          const sectionId = seedId(
+            'section',
+            progKey,
+            courseCode,
+            levelName,
+            sec.name,
+            ctx.schoolYearId,
+            ctx.orgId,
+          );
+          const existingSec = await this.db.section.findFirst({
+            where: { id: sectionId },
+          });
 
           if (existingSec) {
             ctx.result.sections.already_exists++;
@@ -122,7 +168,11 @@ export class LevelSectionSeederService {
     ctx: SeedContext,
     progKey: string,
     programId: string,
-    defaultDefs: { programKey: string; name: string; sections?: { name: string; capacity: number }[] }[],
+    defaultDefs: {
+      programKey: string;
+      name: string;
+      sections?: { name: string; capacity: number }[];
+    }[],
     customNames: string[],
   ) {
     for (const strandName of Object.keys(ctx.strandMap)) {
@@ -144,7 +194,14 @@ export class LevelSectionSeederService {
           continue;
         }
 
-        const id = seedId('level', progKey, strandName, levelName, ctx.schoolYearId, ctx.orgId);
+        const id = seedId(
+          'level',
+          progKey,
+          strandName,
+          levelName,
+          ctx.schoolYearId,
+          ctx.orgId,
+        );
         const existing = await this.db.level.findFirst({ where: { id } });
 
         let levelId: string;
@@ -174,11 +231,22 @@ export class LevelSectionSeederService {
           { name: 'Section A', capacity: 40 },
           { name: 'Section B', capacity: 40 },
         ];
-        const sections = ctx.sectionConfigs[`${strandName}|${levelName}`] ?? defaultSections;
+        const sections =
+          ctx.sectionConfigs[`${strandName}|${levelName}`] ?? defaultSections;
 
         for (const sec of sections) {
-          const sectionId = seedId('section', progKey, strandName, levelName, sec.name, ctx.schoolYearId, ctx.orgId);
-          const existingSec = await this.db.section.findFirst({ where: { id: sectionId } });
+          const sectionId = seedId(
+            'section',
+            progKey,
+            strandName,
+            levelName,
+            sec.name,
+            ctx.schoolYearId,
+            ctx.orgId,
+          );
+          const existingSec = await this.db.section.findFirst({
+            where: { id: sectionId },
+          });
 
           if (existingSec) {
             ctx.result.sections.already_exists++;
@@ -205,7 +273,11 @@ export class LevelSectionSeederService {
     ctx: SeedContext,
     progKey: string,
     programId: string,
-    defaultDefs: { programKey: string; name: string; sections?: { name: string; capacity: number }[] }[],
+    defaultDefs: {
+      programKey: string;
+      name: string;
+      sections?: { name: string; capacity: number }[];
+    }[],
     levelNames: string[],
   ) {
     for (const levelName of levelNames) {
@@ -214,7 +286,13 @@ export class LevelSectionSeederService {
         continue;
       }
 
-      const id = seedId('level', progKey, levelName, ctx.schoolYearId, ctx.orgId);
+      const id = seedId(
+        'level',
+        progKey,
+        levelName,
+        ctx.schoolYearId,
+        ctx.orgId,
+      );
       const existing = await this.db.level.findFirst({ where: { id } });
 
       let levelId: string;
@@ -246,8 +324,17 @@ export class LevelSectionSeederService {
       const sections = ctx.sectionConfigs[levelName] ?? defaultSections;
 
       for (const sec of sections) {
-        const sectionId = seedId('section', progKey, levelName, sec.name, ctx.schoolYearId, ctx.orgId);
-        const existingSec = await this.db.section.findFirst({ where: { id: sectionId } });
+        const sectionId = seedId(
+          'section',
+          progKey,
+          levelName,
+          sec.name,
+          ctx.schoolYearId,
+          ctx.orgId,
+        );
+        const existingSec = await this.db.section.findFirst({
+          where: { id: sectionId },
+        });
 
         if (existingSec) {
           ctx.result.sections.already_exists++;

@@ -12,7 +12,10 @@ export class GradingScaleSeederService {
     const assignments =
       Object.keys(ctx.gradingScales).length > 0
         ? Object.entries(ctx.gradingScales)
-            .filter(([progKey]) => ctx.shouldSeedProgram(progKey) && ctx.programMap[progKey])
+            .filter(
+              ([progKey]) =>
+                ctx.shouldSeedProgram(progKey) && ctx.programMap[progKey],
+            )
             .map(([progKey, scale]) => ({
               programKey: progKey,
               programId: ctx.programMap[progKey],
@@ -21,7 +24,9 @@ export class GradingScaleSeederService {
             }))
         : buildScaleAssignments()
             .filter(
-              (sa) => ctx.shouldSeedProgram(sa.programKey) && ctx.programMap[sa.programKey],
+              (sa) =>
+                ctx.shouldSeedProgram(sa.programKey) &&
+                ctx.programMap[sa.programKey],
             )
             .map((sa) => ({
               programKey: sa.programKey,
@@ -32,7 +37,9 @@ export class GradingScaleSeederService {
 
     for (const { programKey, programId, scaleName, ranges } of assignments) {
       const scaleId = seedId('scale', programKey, scaleName, ctx.orgId);
-      let scale = await this.db.gradingScale.findFirst({ where: { id: scaleId } });
+      let scale = await this.db.gradingScale.findFirst({
+        where: { id: scaleId },
+      });
 
       if (!scale) {
         scale = await this.db.gradingScale.create({
@@ -50,7 +57,14 @@ export class GradingScaleSeederService {
         ctx.result.gradingScales.already_exists++;
       }
 
-      const assignmentId = seedId('assign', programKey, scaleName, ctx.schoolYearId, programId, ctx.orgId);
+      const assignmentId = seedId(
+        'assign',
+        programKey,
+        scaleName,
+        ctx.schoolYearId,
+        programId,
+        ctx.orgId,
+      );
       const existingAssign = await this.db.gradingScaleAssignment.findFirst({
         where: { id: assignmentId },
       });

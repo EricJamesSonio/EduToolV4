@@ -15,12 +15,6 @@ const logFormat = printf(({ level, message, timestamp, stack, context }) => {
 
 export const winstonLogger = createLogger({
   level: 'info',
-  format: combine(
-    timestamp(),
-    errors({ stack: true }),
-    logFormat
-  ),
-  transports: [
-    new transports.Console(),
-  ],
+  format: combine(timestamp(), errors({ stack: true }), logFormat),
+  transports: [new transports.Console()],
 });

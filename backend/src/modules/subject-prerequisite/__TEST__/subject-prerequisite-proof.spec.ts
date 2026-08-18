@@ -6,7 +6,11 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
     it('PROOF: when the bulk insert FALTERS, the earlier delete must NOT have torn out the old links', async () => {
       // In-memory stand-in for the DB: the two pre-existing prerequisite links
       // for subject s1 that must survive a failed re-import.
-      const rows: { subject_id: string; prerequisite_id: string; org_id: string }[] = [
+      const rows: {
+        subject_id: string;
+        prerequisite_id: string;
+        org_id: string;
+      }[] = [
         { subject_id: 's1', prerequisite_id: 'p-old-1', org_id: 'org-1' },
         { subject_id: 's1', prerequisite_id: 'p-old-2', org_id: 'org-1' },
       ];
@@ -59,7 +63,22 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
         bulkCreate: jest.fn().mockResolvedValue({ count: 2 }),
         findOne: jest.fn().mockResolvedValue(null),
         create: jest.fn(),
-        findBySubject: jest.fn().mockResolvedValue([]),
+        // The subject's prerequisite definitions still exist — only the
+        // grade-enriched join is empty after the interrupted import.
+        findBySubject: jest.fn().mockResolvedValue([
+          {
+            id: 'l1',
+            subject_id: 's1',
+            prerequisite_id: 'p-math',
+            prerequisite: { id: 'p-math', name: 'Math' },
+          },
+          {
+            id: 'l2',
+            subject_id: 's1',
+            prerequisite_id: 'p-sci',
+            prerequisite: { id: 'p-sci', name: 'Science' },
+          },
+        ]),
         delete: jest.fn(),
       };
 
@@ -87,21 +106,34 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
       const fakeDb = {
         subjectPrerequisite: {
           findMany: jest.fn().mockResolvedValue([
-            { prerequisite_id: 'p-math', prerequisite: { id: 'p-math', name: 'Math' } },
+            {
+              prerequisite_id: 'p-math',
+              prerequisite: { id: 'p-math', name: 'Math' },
+            },
           ]),
         },
         grade: {
           findMany: jest.fn().mockResolvedValue([
             // old school year, failed: arrives first from this unordered query
-            { id: 'g-old', class: { subject_id: 'p-math' }, final_score: 40, is_locked: true },
+            {
+              id: 'g-old',
+              class: { subject_id: 'p-math' },
+              final_score: 40,
+              is_locked: true,
+            },
             // latest school year, passed
-            { id: 'g-new', class: { subject_id: 'p-math' }, final_score: 90, is_locked: true },
+            {
+              id: 'g-new',
+              class: { subject_id: 'p-math' },
+              final_score: 90,
+              is_locked: true,
+            },
           ]),
         },
       };
 
       const repo = new SubjectPrerequisiteRepository(fakeDb as any);
-      const service = new SubjectPrerequisiteService(repo as any);
+      const service = new SubjectPrerequisiteService(repo);
 
       // Correct behavior: the latest locked grade (90) is selected -> eligible.
       const result = await service.checkEligibility('s1', 'stu-1', 'org-1');
@@ -112,18 +144,26 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
       const fakeDb = {
         subjectPrerequisite: {
           findMany: jest.fn().mockResolvedValue([
-            { prerequisite_id: 'p-math', prerequisite: { id: 'p-math', name: 'Math' } },
+            {
+              prerequisite_id: 'p-math',
+              prerequisite: { id: 'p-math', name: 'Math' },
+            },
           ]),
         },
         grade: {
           findMany: jest.fn().mockResolvedValue([
-            { id: 'g-new', class: { subject_id: 'p-math' }, final_score: 90, is_locked: true },
+            {
+              id: 'g-new',
+              class: { subject_id: 'p-math' },
+              final_score: 90,
+              is_locked: true,
+            },
           ]),
         },
       };
 
       const repo = new SubjectPrerequisiteRepository(fakeDb as any);
-      const service = new SubjectPrerequisiteService(repo as any);
+      const service = new SubjectPrerequisiteService(repo);
 
       const result = await service.checkEligibility('s1', 'stu-1', 'org-1');
       expect(result).toEqual({ eligible: true, missing: [] });

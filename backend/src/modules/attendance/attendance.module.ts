@@ -7,7 +7,11 @@ import { AttendanceStudentModule } from './student/attendance-student.module';
 import { LessonModule } from '../lesson/lesson.module';
 
 @Module({
-  imports: [AuditLogModule, AttendanceStudentModule, forwardRef(() => LessonModule)],
+  imports: [
+    AuditLogModule,
+    AttendanceStudentModule,
+    forwardRef(() => LessonModule),
+  ],
   controllers: [AttendanceController],
   providers: [AttendanceService, AttendanceRepository],
   exports: [AttendanceService, AttendanceRepository],

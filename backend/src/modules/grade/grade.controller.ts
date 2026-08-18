@@ -40,7 +40,12 @@ export class GradeController {
     @CurrentUser('org_id') orgId: string,
     @CurrentUser('id') educatorId: string,
   ) {
-    return this.gradeService.getGradesByTerm(classId, termId, orgId, educatorId);
+    return this.gradeService.getGradesByTerm(
+      classId,
+      termId,
+      orgId,
+      educatorId,
+    );
   }
 
   // POST /classes/:classId/grades/:termId/compute

@@ -37,9 +37,9 @@ export class AssessmentScoreEntry {
 export class CategoryBreakdown {
   category: string;
   weight: number;
-  rawAverage: number;      // average % across assessments in this category
+  rawAverage: number; // average % across assessments in this category
   manualScore: number | null; // manual override (e.g. attendance, behavior)
-  weightedScore: number;   // rawAverage * weight (or manualScore * weight)
+  weightedScore: number; // rawAverage * weight (or manualScore * weight)
 }
 
 export class StudentGradeRow {

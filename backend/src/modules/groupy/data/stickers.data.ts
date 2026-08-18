@@ -20,7 +20,11 @@ export const GROUPY_STICKERS: GroupySticker[] = [
   { id: 's5', label: 'Wow', assetPath: '/stickers/s5-wow.png' },
   { id: 's6', label: 'Thinking', assetPath: '/stickers/s6-thinking.png' },
   { id: 's7', label: 'Great Job', assetPath: '/stickers/s7-great-job.png' },
-  { id: 's8', label: 'Good Question', assetPath: '/stickers/s8-good-question.png' },
+  {
+    id: 's8',
+    label: 'Good Question',
+    assetPath: '/stickers/s8-good-question.png',
+  },
   { id: 's9', label: 'Rocket', assetPath: '/stickers/s9-rocket.png' },
   { id: 's10', label: 'Coffee', assetPath: '/stickers/s10-coffee.png' },
 ];

@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common'
-import { DatabaseService } from '@/core/database/database.provider'
-import type { StudentAcademicStructure } from './enrollment-eligibility.util'
+import { Injectable } from '@nestjs/common';
+import { DatabaseService } from '@/core/database/database.provider';
+import type { StudentAcademicStructure } from './enrollment-eligibility.util';
 
 @Injectable()
 export class EnrollmentRepository {
@@ -11,7 +11,7 @@ export class EnrollmentRepository {
     return this.db.class.findFirst({
       where: { id: classId, org_id: orgId, deleted_at: null },
       select: { subject_id: true, school_year_id: true, section_id: true },
-    })
+    });
   }
 
   // Resolves a student's active program enrollment for a given school year.
@@ -23,16 +23,20 @@ export class EnrollmentRepository {
     schoolYearId: string,
   ): Promise<StudentAcademicStructure | null> {
     const ssy = await this.db.studentSchoolYear.findFirst({
-      where: { org_id: orgId, student_id: studentId, school_year_id: schoolYearId },
+      where: {
+        org_id: orgId,
+        student_id: studentId,
+        school_year_id: schoolYearId,
+      },
       include: {
         programEnrollments: {
           where: { status: 'active' },
         },
       },
-    })
+    });
 
-    const pe = ssy?.programEnrollments?.[0]
-    if (!pe) return null
+    const pe = ssy?.programEnrollments?.[0];
+    if (!pe) return null;
 
     return {
       programId: pe.program_id,
@@ -40,14 +44,14 @@ export class EnrollmentRepository {
       courseId: pe.course_id,
       strandId: pe.strand_id,
       sectionId: pe.section_id,
-    }
+    };
   }
 
   async create(data: {
-    orgId: string
-    classId: string
-    studentId: string
-    status: string
+    orgId: string;
+    classId: string;
+    studentId: string;
+    status: string;
   }) {
     return this.db.enrollment.create({
       data: {
@@ -56,7 +60,7 @@ export class EnrollmentRepository {
         student_id: data.studentId,
         status: data.status as any,
       },
-    })
+    });
   }
 
   async findByClass(classId: string, orgId: string) {
@@ -67,37 +71,39 @@ export class EnrollmentRepository {
         status: { not: 'removed' },
       },
       orderBy: { created_at: 'asc' },
-    })
+    });
 
-    if (enrollments.length === 0) return []
+    if (enrollments.length === 0) return [];
 
-    const studentIds = enrollments.map((e) => e.student_id)
+    const studentIds = enrollments.map((e) => e.student_id);
     const accounts = await this.db.account.findMany({
       where: { id: { in: studentIds }, org_id: orgId, role: 'student' },
       select: {
         id: true,
         profile: { select: { full_name: true } },
       },
-    })
+    });
 
-    const nameMap = new Map(accounts.map((a) => [a.id, a.profile?.full_name ?? null]))
+    const nameMap = new Map(
+      accounts.map((a) => [a.id, a.profile?.full_name ?? null]),
+    );
 
     return enrollments.map((e) => ({
       ...e,
       student_name: nameMap.get(e.student_id) ?? null,
-    }))
+    }));
   }
 
   async findById(id: string, orgId: string) {
     return this.db.enrollment.findFirst({
       where: { id, org_id: orgId },
-    })
+    });
   }
 
   async findByStudent(classId: string, studentId: string, orgId: string) {
     return this.db.enrollment.findFirst({
       where: { class_id: classId, student_id: studentId, org_id: orgId },
-    })
+    });
   }
 
   // Checks if student is already enrolled in the same subject within the same semester
@@ -119,27 +125,27 @@ export class EnrollmentRepository {
           deleted_at: null,
         },
       },
-    })
+    });
   }
 
   async countActive(classId: string): Promise<number> {
     return this.db.enrollment.count({
       where: { class_id: classId, status: 'active' },
-    })
+    });
   }
 
   async updateStatus(id: string, status: string) {
     return this.db.enrollment.update({
       where: { id },
       data: { status: status as any },
-    })
+    });
   }
 
   async remove(id: string) {
     return this.db.enrollment.update({
       where: { id },
       data: { status: 'removed' as any },
-    })
+    });
   }
 
   async findByStudentAcrossOrg(studentId: string, orgId: string) {
@@ -159,7 +165,7 @@ export class EnrollmentRepository {
         },
       },
       orderBy: { created_at: 'asc' },
-    })
+    });
   }
 
   async findOneByStudentAndClass(
@@ -180,7 +186,7 @@ export class EnrollmentRepository {
           include: { schedules: true },
         },
       },
-    })
+    });
   }
 
   // Fetches all prerequisite subjects + the student's locked Grade records for them
@@ -197,11 +203,11 @@ export class EnrollmentRepository {
           select: { id: true, name: true },
         },
       },
-    })
+    });
 
-    if (prereqs.length === 0) return []
+    if (prereqs.length === 0) return [];
 
-    const prereqSubjectIds = prereqs.map((p) => p.prerequisite_id)
+    const prereqSubjectIds = prereqs.map((p) => p.prerequisite_id);
 
     const grades = await this.db.grade.findMany({
       where: {
@@ -215,12 +221,13 @@ export class EnrollmentRepository {
       include: {
         class: { select: { subject_id: true } },
       },
-    })
+    });
 
     return prereqs.map((p) => ({
       subject_id: p.prerequisite_id,
       subject_name: p.prerequisite.name,
-      grade: grades.find((g) => g.class.subject_id === p.prerequisite_id) ?? null,
-    }))
+      grade:
+        grades.find((g) => g.class.subject_id === p.prerequisite_id) ?? null,
+    }));
   }
 }

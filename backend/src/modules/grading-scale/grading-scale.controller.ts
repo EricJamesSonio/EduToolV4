@@ -17,9 +17,9 @@ import {
   QueryGradingScaleDto,
   AssignGradingScaleDto,
 } from './dto/grading-scale.dto';
-import { AuthGuard }   from '@/commons/guards/auth.guard';
-import { RolesGuard }  from '@/commons/guards/role.guard';
-import { Roles }       from '@/commons/decorators/roles.decorator';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { Roles } from '@/commons/decorators/roles.decorator';
 import { CurrentUser } from '@/commons/decorators/current-user.decorator';
 
 @Controller('grading-scales')
@@ -108,10 +108,7 @@ export class GradingScaleController {
 
   @Delete(':id')
   @Roles('admin')
-  async delete(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async delete(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     return this.gradingScaleService.delete(id, orgId);
   }
 }

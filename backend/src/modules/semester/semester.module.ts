@@ -1,6 +1,9 @@
 // backend/src/modules/semester/semester.module.ts
 import { Module } from '@nestjs/common';
-import { SemesterController, StudentSemesterController } from './semester.controller';
+import {
+  SemesterController,
+  StudentSemesterController,
+} from './semester.controller';
 import { SemesterService } from './semester.service';
 import { SemesterRepository } from './semester.repository';
 

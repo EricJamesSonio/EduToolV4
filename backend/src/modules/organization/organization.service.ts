@@ -4,17 +4,17 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
-} from '@nestjs/common'
-import { OrganizationRepository } from './organization.repository'
-import { OrgSeederService } from '../org-seeder/org-seeder.service'
-import { AuditLogService } from '../audit-log/audit-log.service'
-import { DatabaseService } from '@/core/database/database.provider'
+} from '@nestjs/common';
+import { OrganizationRepository } from './organization.repository';
+import { OrgSeederService } from '../org-seeder/org-seeder.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { DatabaseService } from '@/core/database/database.provider';
 import {
   CreateOrganizationDto,
   UpdateOrganizationDto,
   SeedOrganizationDto,
-} from './dto/organization.dto'
-import { getDefaultEnabledKeys } from '@/modules/academic-calendar/data/holidays.data'
+} from './dto/organization.dto';
+import { getDefaultEnabledKeys } from '@/modules/academic-calendar/data/holidays.data';
 
 @Injectable()
 export class OrganizationService {
@@ -25,10 +25,12 @@ export class OrganizationService {
     private readonly db: DatabaseService,
   ) {}
 
-async create(adminId: string, dto: CreateOrganizationDto) {
-  const alreadyExists = await this.orgRepository.existsForAdmin(adminId)
+  async create(adminId: string, dto: CreateOrganizationDto) {
+    const alreadyExists = await this.orgRepository.existsForAdmin(adminId);
     if (alreadyExists) {
-      throw new ConflictException('An organization already exists for this account.')
+      throw new ConflictException(
+        'An organization already exists for this account.',
+      );
     }
 
     try {
@@ -36,31 +38,35 @@ async create(adminId: string, dto: CreateOrganizationDto) {
         name: dto.name,
         description: dto.description,
         address: dto.address,
-      })
-      await this.orgRepository.linkToAdmin(adminId, org.id)
+      });
+      await this.orgRepository.linkToAdmin(adminId, org.id);
 
-      this.auditLogService.logAdminAction({
-        orgId: org.id,
-        actorId: adminId,
-        action: 'org_created',
-        entityType: 'organization',
-        entityId: org.id,
-        metadata: { name: dto.name },
-      }).catch(() => {});
+      this.auditLogService
+        .logAdminAction({
+          orgId: org.id,
+          actorId: adminId,
+          action: 'org_created',
+          entityType: 'organization',
+          entityId: org.id,
+          metadata: { name: dto.name },
+        })
+        .catch(() => {});
 
-      return org
+      return org;
     } catch (e: any) {
       if (e?.code === 'P2002' && e?.meta?.target?.includes('email_extension')) {
-        throw new ConflictException('This email extension is already in use by another organization.')
+        throw new ConflictException(
+          'This email extension is already in use by another organization.',
+        );
       }
-      throw e
+      throw e;
     }
   }
 
   async getOwn(orgId: string | null) {
-    if (!orgId) return null
-    const org = await this.orgRepository.findById(orgId)
-    if (!org) return null
+    if (!orgId) return null;
+    const org = await this.orgRepository.findById(orgId);
+    if (!org) return null;
     return {
       id: org.id,
       name: org.name,
@@ -68,12 +74,12 @@ async create(adminId: string, dto: CreateOrganizationDto) {
       address: org.address,
       logoUrl: org.logo_url ?? null,
       emailExtension: org.email_extension ?? null,
-    }
+    };
   }
 
   async update(orgId: string, dto: UpdateOrganizationDto, actorId: string) {
-    const org = await this.orgRepository.findById(orgId)
-    if (!org) throw new NotFoundException('Organization not found.')
+    const org = await this.orgRepository.findById(orgId);
+    if (!org) throw new NotFoundException('Organization not found.');
 
     try {
       const updated = await this.orgRepository.update(orgId, {
@@ -83,67 +89,72 @@ async create(adminId: string, dto: CreateOrganizationDto) {
         ...(dto.emailExtension !== undefined && {
           email_extension: dto.emailExtension ?? undefined,
         }),
-      })
+      });
 
-      this.auditLogService.logAdminAction({
-        orgId,
-        actorId,
-        action: 'org_updated',
-        entityType: 'organization',
-        entityId: orgId,
-        metadata: { name: dto.name },
-      }).catch(() => {});
+      this.auditLogService
+        .logAdminAction({
+          orgId,
+          actorId,
+          action: 'org_updated',
+          entityType: 'organization',
+          entityId: orgId,
+          metadata: { name: dto.name },
+        })
+        .catch(() => {});
 
-      return updated
+      return updated;
     } catch (e: any) {
       if (e?.code === 'P2002' && e?.meta?.target?.includes('email_extension')) {
-        throw new ConflictException('This email extension is already in use by another organization.')
+        throw new ConflictException(
+          'This email extension is already in use by another organization.',
+        );
       }
-      throw e
+      throw e;
     }
   }
 
   async seed(orgId: string, dto: SeedOrganizationDto, actorId: string) {
-    if (!orgId) throw new BadRequestException('No organization found for this account.')
-    const org = await this.orgRepository.findById(orgId)
-    if (!org) throw new NotFoundException('Organization not found.')
+    if (!orgId)
+      throw new BadRequestException('No organization found for this account.');
+    const org = await this.orgRepository.findById(orgId);
+    if (!org) throw new NotFoundException('Organization not found.');
 
-  const result = await this.orgSeeder.seedOrg({
-    orgId,
-    actorId,
-    schoolYearId:          dto.schoolYearId,
-    programs:              dto.programs,
-    courses:               dto.courses,
-    strands:               dto.strands,
-    excludedLevels:        dto.excludedLevels,
-    excludedSubjects:      dto.excludedSubjects,
-    excludedLevelSubjects: dto.excludedLevelSubjects,
-    levelConfigs:          dto.levelConfigs,
-    sectionConfigs:        dto.sectionConfigs,
-    gradingScales:         dto.gradingScales,
-    seedGradingScales:     dto.seedGradingScales,
-    seedGradingSchemes:    dto.seedGradingSchemes,
-    seedSemesterTemplates: dto.seedSemesterTemplates,
-    seedProgramCalendars:  dto.seedProgramCalendars,
-    programCalendars:      dto.programCalendars,
-  })
+    const result = await this.orgSeeder.seedOrg({
+      orgId,
+      actorId,
+      schoolYearId: dto.schoolYearId,
+      programs: dto.programs,
+      courses: dto.courses,
+      strands: dto.strands,
+      excludedLevels: dto.excludedLevels,
+      excludedSubjects: dto.excludedSubjects,
+      excludedLevelSubjects: dto.excludedLevelSubjects,
+      levelConfigs: dto.levelConfigs,
+      sectionConfigs: dto.sectionConfigs,
+      gradingScales: dto.gradingScales,
+      seedGradingScales: dto.seedGradingScales,
+      seedGradingSchemes: dto.seedGradingSchemes,
+      seedSemesterTemplates: dto.seedSemesterTemplates,
+      seedProgramCalendars: dto.seedProgramCalendars,
+      programCalendars: dto.programCalendars,
+    });
 
     // Seed org-global holiday config with default Philippine holidays
     await this.db.orgHolidayConfig.upsert({
-      where:  { org_id: orgId },
+      where: { org_id: orgId },
       create: {
-        org_id:          orgId,
-        enabled_keys:    getDefaultEnabledKeys(),
+        org_id: orgId,
+        enabled_keys: getDefaultEnabledKeys(),
         custom_holidays: [],
       },
       update: {}, // don't overwrite if already exists
     });
 
-    return { success: true, message: 'Seed completed successfully.', result }
+    return { success: true, message: 'Seed completed successfully.', result };
   }
 
   async getAllOrganizations() {
-    return this.orgRepository.findAll()
+    return this.orgRepository.findAll();
   }
 
   // ========================================================================
@@ -152,7 +163,7 @@ async create(adminId: string, dto: CreateOrganizationDto) {
 
   /**
    * ✅ NEW: Check if email extension is unique across all organizations
-   * 
+   *
    * @param extension - The extension to check (e.g., "@example.com")
    * @param excludeOrgId - Optional: exclude this org from the check (for editing)
    * @returns true if unique, false if already in use
@@ -161,24 +172,24 @@ async create(adminId: string, dto: CreateOrganizationDto) {
     extension: string,
     excludeOrgId?: string,
   ): Promise<boolean> {
-    const cleaned = extension.trim().replace(/^@/, '')
-    const fullExtension = `@${cleaned}`
+    const cleaned = extension.trim().replace(/^@/, '');
+    const fullExtension = `@${cleaned}`;
 
     const existing = await this.db.organization.findFirst({
       where: {
         email_extension: fullExtension,
         ...(excludeOrgId && { NOT: { id: excludeOrgId } }),
       },
-    })
+    });
 
-    return !existing
+    return !existing;
   }
 
   /**
    * ✅ NEW: Count accounts in organization (excluding platform_owner)
-   * 
+   *
    * Useful for preventing email extension changes when accounts exist
-   * 
+   *
    * @param orgId - The organization ID
    * @returns Number of accounts (educators, students, admins)
    */
@@ -188,33 +199,33 @@ async create(adminId: string, dto: CreateOrganizationDto) {
         org_id: orgId,
         role: { in: ['educator', 'student'] },
       },
-    })
-    return count
+    });
+    return count;
   }
 
   /**
    * ✅ NEW: Count accounts by role for detailed reporting
-   * 
+   *
    * @param orgId - The organization ID
    * @returns Breakdown of accounts by role
    */
   async countAccountsByRole(orgId: string): Promise<{
-    educators: number
-    students: number
-    admins: number
-    total: number
+    educators: number;
+    students: number;
+    admins: number;
+    total: number;
   }> {
     const [educators, students, admins] = await Promise.all([
       this.db.account.count({ where: { org_id: orgId, role: 'educator' } }),
       this.db.account.count({ where: { org_id: orgId, role: 'student' } }),
       this.db.account.count({ where: { org_id: orgId, role: 'admin' } }),
-    ])
+    ]);
 
     return {
       educators,
       students,
       admins,
       total: educators + students + admins,
-    }
+    };
   }
 }

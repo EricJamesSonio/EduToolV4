@@ -46,14 +46,24 @@ export class EnrollmentRegistrarService {
 
   // ── Period management ────────────────────────────────────────────────────
 
-  async createPeriod(orgId: string, actorId: string, dto: CreateEnrollmentPeriodDto) {
-    const schoolYear = await this.repo.findSchoolYear(orgId, dto.school_year_id);
-    if (!schoolYear) throw new NotFoundException('School year not found for this organization.');
+  async createPeriod(
+    orgId: string,
+    actorId: string,
+    dto: CreateEnrollmentPeriodDto,
+  ) {
+    const schoolYear = await this.repo.findSchoolYear(
+      orgId,
+      dto.school_year_id,
+    );
+    if (!schoolYear)
+      throw new NotFoundException(
+        'School year not found for this organization.',
+      );
 
     this.assertPeriodDates(dto.start_date, dto.end_date, dto.lock_date);
     this.assertBeforeSchoolYearStart(dto.end_date, schoolYear.start_date);
     await this.readinessService.assertReady(orgId, schoolYear.id);
-    const token = (await this.generateUniquePeriodToken(orgId)) as string;
+    const token = await this.generateUniquePeriodToken(orgId);
 
     const period = await this.repo.createPeriod({
       orgId,
@@ -82,15 +92,19 @@ export class EnrollmentRegistrarService {
       this.repo.countApplicationsByPeriodStatus(orgId),
     ]);
 
-    const countsByPeriod = groupedByPeriod.reduce<Record<string, Record<string, number>>>(
-      (acc, g) => {
-        const key = g.enrollment_period_id;
-        acc[key] = acc[key] ?? { pending: 0, locked: 0, approved: 0, rejected: 0 };
-        acc[key][g.status] = g._count._all;
-        return acc;
-      },
-      {},
-    );
+    const countsByPeriod = groupedByPeriod.reduce<
+      Record<string, Record<string, number>>
+    >((acc, g) => {
+      const key = g.enrollment_period_id;
+      acc[key] = acc[key] ?? {
+        pending: 0,
+        locked: 0,
+        approved: 0,
+        rejected: 0,
+      };
+      acc[key][g.status] = g._count._all;
+      return acc;
+    }, {});
 
     return {
       org: {
@@ -99,7 +113,12 @@ export class EnrollmentRegistrarService {
         slug: org?.slug ?? null,
       },
       periods: periods.map((p) => {
-        const c = countsByPeriod[p.id] ?? { pending: 0, locked: 0, approved: 0, rejected: 0 };
+        const c = countsByPeriod[p.id] ?? {
+          pending: 0,
+          locked: 0,
+          approved: 0,
+          rejected: 0,
+        };
         return {
           id: p.id,
           name: p.name,
@@ -125,19 +144,28 @@ export class EnrollmentRegistrarService {
       this.repo.countApplicationsByPeriodStatus(orgId),
     ]);
 
-    const countsByPeriod = groupedByPeriod.reduce<Record<string, Record<string, number>>>(
-      (acc, g) => {
-        const key = g.enrollment_period_id;
-        acc[key] = acc[key] ?? { pending: 0, locked: 0, approved: 0, rejected: 0 };
-        acc[key][g.status] = g._count._all;
-        return acc;
-      },
-      {},
-    );
+    const countsByPeriod = groupedByPeriod.reduce<
+      Record<string, Record<string, number>>
+    >((acc, g) => {
+      const key = g.enrollment_period_id;
+      acc[key] = acc[key] ?? {
+        pending: 0,
+        locked: 0,
+        approved: 0,
+        rejected: 0,
+      };
+      acc[key][g.status] = g._count._all;
+      return acc;
+    }, {});
 
     const now = new Date();
     const availablePeriods = periods.map((p) => {
-      const counts = countsByPeriod[p.id] ?? { pending: 0, locked: 0, approved: 0, rejected: 0 };
+      const counts = countsByPeriod[p.id] ?? {
+        pending: 0,
+        locked: 0,
+        approved: 0,
+        rejected: 0,
+      };
       return {
         id: p.id,
         name: p.name,
@@ -148,11 +176,14 @@ export class EnrollmentRegistrarService {
         school_year: p.schoolYear,
         status: this.periodStatus(p, now),
         counts,
-        total: counts.pending + counts.locked + counts.approved + counts.rejected,
+        total:
+          counts.pending + counts.locked + counts.approved + counts.rejected,
       };
     });
 
-    let selected = periodId ? periods.find((p) => p.id === periodId) : undefined;
+    let selected = periodId
+      ? periods.find((p) => p.id === periodId)
+      : undefined;
     if (!selected) {
       selected =
         periods.find((p) => new Date(p.start_date) <= now) ??
@@ -180,23 +211,46 @@ export class EnrollmentRegistrarService {
       summary[app.status] = (summary[app.status] ?? 0) + 1;
       if (!app.program_id) continue;
 
-      const bucket = buckets.get(app.program_id) ?? { total: 0, enrolled: 0, references: [] };
+      const bucket = buckets.get(app.program_id) ?? {
+        total: 0,
+        enrolled: 0,
+        references: [],
+      };
       buckets.set(app.program_id, bucket);
       bucket.total += 1;
       const enrolled = app.status === 'approved';
       if (enrolled) bucket.enrolled += 1;
 
       if (app.course_id) {
-        bucket.references.push({ kind: 'course', id: app.course_id, levelId: app.level_id, enrolled });
+        bucket.references.push({
+          kind: 'course',
+          id: app.course_id,
+          levelId: app.level_id,
+          enrolled,
+        });
       } else if (app.strand_id) {
-        bucket.references.push({ kind: 'strand', id: app.strand_id, levelId: app.level_id, enrolled });
+        bucket.references.push({
+          kind: 'strand',
+          id: app.strand_id,
+          levelId: app.level_id,
+          enrolled,
+        });
       } else {
-        bucket.references.push({ kind: 'level', id: app.level_id, levelId: null, enrolled });
+        bucket.references.push({
+          kind: 'level',
+          id: app.level_id,
+          levelId: null,
+          enrolled,
+        });
       }
     }
 
     const programOverview = programs.map((program) => {
-      const bucket = buckets.get(program.id) ?? { total: 0, enrolled: 0, references: [] };
+      const bucket = buckets.get(program.id) ?? {
+        total: 0,
+        enrolled: 0,
+        references: [],
+      };
       const counts = (kind: string, id: string, levelId: string | null) => {
         const hits = bucket.references.filter(
           (r) => r.kind === kind && r.id === id && r.levelId === levelId,
@@ -221,7 +275,12 @@ export class EnrollmentRegistrarService {
             ...courseCounts,
             levels: course.levels.map((level) => {
               const c = counts('course', course.id, level.id);
-              return { id: level.id, name: level.name, applied: c.applied, enrolled: c.enrolled };
+              return {
+                id: level.id,
+                name: level.name,
+                applied: c.applied,
+                enrolled: c.enrolled,
+              };
             }),
           };
         }),
@@ -253,13 +312,22 @@ export class EnrollmentRegistrarService {
           status: this.periodStatus(selected, now),
         },
         summary,
-        total: summary.pending + summary.locked + summary.approved + summary.rejected,
+        total:
+          summary.pending +
+          summary.locked +
+          summary.approved +
+          summary.rejected,
         programs: programOverview,
       },
     };
   }
 
-  async updatePeriod(orgId: string, actorId: string, id: string, dto: UpdateEnrollmentPeriodDto) {
+  async updatePeriod(
+    orgId: string,
+    actorId: string,
+    id: string,
+    dto: UpdateEnrollmentPeriodDto,
+  ) {
     const period = await this.repo.findPeriodById(orgId, id);
     if (!period) throw new NotFoundException('Enrollment period not found.');
 
@@ -281,10 +349,16 @@ export class EnrollmentRegistrarService {
     );
 
     const updated = await this.repo.updatePeriod(id, next);
-    await this.logAdmin(orgId, actorId, 'ENROLLMENT_PERIOD_UPDATE', updated.id, {
-      name: updated.name,
-      token: updated.token,
-    });
+    await this.logAdmin(
+      orgId,
+      actorId,
+      'ENROLLMENT_PERIOD_UPDATE',
+      updated.id,
+      {
+        name: updated.name,
+        token: updated.token,
+      },
+    );
     return updated;
   }
 
@@ -292,7 +366,10 @@ export class EnrollmentRegistrarService {
     const period = await this.repo.findPeriodById(orgId, id);
     if (!period) throw new NotFoundException('Enrollment period not found.');
 
-    const applicationCount = await this.repo.countApplicationsByPeriod(orgId, id);
+    const applicationCount = await this.repo.countApplicationsByPeriod(
+      orgId,
+      id,
+    );
     if (applicationCount > 0) {
       throw new ConflictException(
         `Cannot delete an enrollment period with ${applicationCount} application(s).`,
@@ -383,7 +460,11 @@ export class EnrollmentRegistrarService {
     return { success: true, application: this.toApplicationView(rejected) };
   }
 
-  async unlockApplication(orgId: string, actorId: string, dto: UnlockApplicationDto) {
+  async unlockApplication(
+    orgId: string,
+    actorId: string,
+    dto: UnlockApplicationDto,
+  ) {
     if (!dto.personal_email && !dto.application_code) {
       throw new BadRequestException(
         'Provide either personal_email or application_code to unlock an application.',
@@ -402,10 +483,16 @@ export class EnrollmentRegistrarService {
 
     const unlocked = await this.repo.unlockApplication(app.id, actorId);
 
-    await this.logAdmin(orgId, actorId, 'ENROLLMENT_APPLICATION_UNLOCK', app.id, {
-      personal_email: app.personal_email,
-      application_code: app.application_code,
-    });
+    await this.logAdmin(
+      orgId,
+      actorId,
+      'ENROLLMENT_APPLICATION_UNLOCK',
+      app.id,
+      {
+        personal_email: app.personal_email,
+        application_code: app.application_code,
+      },
+    );
 
     return { success: true, application: this.toApplicationView(unlocked) };
   }
@@ -430,7 +517,9 @@ export class EnrollmentRegistrarService {
       const existing = await this.repo.findPeriodByToken(orgId, token);
       if (!existing) return token;
     }
-    throw new ConflictException('Could not generate a unique enrollment period token.');
+    throw new ConflictException(
+      'Could not generate a unique enrollment period token.',
+    );
   }
 
   private assertPeriodDates(start: string, end: string, lock: string) {
@@ -449,7 +538,10 @@ export class EnrollmentRegistrarService {
     }
   }
 
-  private assertBeforeSchoolYearStart(end: string, schoolYearStart: Date | null | undefined) {
+  private assertBeforeSchoolYearStart(
+    end: string,
+    schoolYearStart: Date | null | undefined,
+  ) {
     if (!schoolYearStart) return;
     const endDate = new Date(end);
     if (Number.isNaN(endDate.getTime())) return;
@@ -462,8 +554,18 @@ export class EnrollmentRegistrarService {
     }
   }
 
-  private orgView(org: { id?: string | null; name?: string | null; slug?: string | null } | null) {
-    return { id: org?.id ?? null, name: org?.name ?? null, slug: org?.slug ?? null };
+  private orgView(
+    org: {
+      id?: string | null;
+      name?: string | null;
+      slug?: string | null;
+    } | null,
+  ) {
+    return {
+      id: org?.id ?? null,
+      name: org?.name ?? null,
+      slug: org?.slug ?? null,
+    };
   }
 
   private periodStatus(

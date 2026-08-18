@@ -67,9 +67,16 @@ export class PresentationRepository {
 
   async replaceSlides(
     presentationId: string,
-    slides: { slideNumber: number; title?: string; content: string; lessonSection?: string }[],
+    slides: {
+      slideNumber: number;
+      title?: string;
+      content: string;
+      lessonSection?: string;
+    }[],
   ) {
-    await this.db.slide.deleteMany({ where: { presentation_id: presentationId } });
+    await this.db.slide.deleteMany({
+      where: { presentation_id: presentationId },
+    });
     if (slides.length === 0) return [];
     const created = await this.db.slide.createManyAndReturn({
       data: slides.map((s) => ({

@@ -134,7 +134,7 @@ export class GradingScaleService {
       ranges: dto.ranges,
     });
 
-    return this.mapToEntity(scale as Record<string, unknown>);
+    return this.mapToEntity(scale);
   }
 
   async findAll(
@@ -175,7 +175,7 @@ export class GradingScaleService {
       ranges: dto.ranges,
     });
 
-    return this.mapToEntity(updated as Record<string, unknown>);
+    return this.mapToEntity(updated);
   }
 
   async lock(id: string, orgId: string): Promise<GradingScaleEntity> {
@@ -186,11 +186,11 @@ export class GradingScaleService {
     }
 
     if (scale.is_locked) {
-      return this.mapToEntity(scale as Record<string, unknown>);
+      return this.mapToEntity(scale);
     }
 
     const locked = await this.gradingScaleRepository.lock(id);
-    return this.mapToEntity(locked as Record<string, unknown>);
+    return this.mapToEntity(locked);
   }
 
   async unlock(id: string, orgId: string): Promise<GradingScaleEntity> {
@@ -201,7 +201,7 @@ export class GradingScaleService {
     }
 
     const unlocked = await this.gradingScaleRepository.unlock(id);
-    return this.mapToEntity(unlocked as Record<string, unknown>);
+    return this.mapToEntity(unlocked);
   }
 
   async delete(id: string, orgId: string): Promise<void> {
@@ -217,8 +217,7 @@ export class GradingScaleService {
       );
     }
 
-    const assignments =
-      await this.assignmentRepository.findByScaleId(id);
+    const assignments = await this.assignmentRepository.findByScaleId(id);
 
     for (const a of assignments) {
       const isUsed = await this.gradingScaleRepository.isUsedInGrades(
@@ -248,12 +247,11 @@ export class GradingScaleService {
     remark: string;
     isPassing: boolean;
   } | null> {
-    const assignment =
-      await this.assignmentRepository.findByProgramAndYear(
-        orgId,
-        programId,
-        schoolYearId,
-      );
+    const assignment = await this.assignmentRepository.findByProgramAndYear(
+      orgId,
+      programId,
+      schoolYearId,
+    );
 
     if (!assignment || !assignment.grading_scale) return null;
 
@@ -276,10 +274,12 @@ export class GradingScaleService {
     classId: string,
     orgId: string,
   ): Promise<GradingScaleEntity | null> {
-    const scale =
-      await this.gradingScaleRepository.findByClassId(classId, orgId);
+    const scale = await this.gradingScaleRepository.findByClassId(
+      classId,
+      orgId,
+    );
     if (!scale) return null;
-    return this.mapToEntity(scale as Record<string, unknown>);
+    return this.mapToEntity(scale);
   }
 
   async assignToProgram(
@@ -319,7 +319,10 @@ export class GradingScaleService {
   }
 
   async getAssignments(orgId: string, schoolYearId: string) {
-    const rows = await this.assignmentRepository.findBySchoolYear(orgId, schoolYearId);
+    const rows = await this.assignmentRepository.findBySchoolYear(
+      orgId,
+      schoolYearId,
+    );
     return rows.map((r: Record<string, unknown>) => ({
       id: r.id,
       orgId: r.org_id,

@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
-import { allMajorSubjects, allMinorSubjects, deriveProgramKey } from '../data/subjects';
+import {
+  allMajorSubjects,
+  allMinorSubjects,
+  deriveProgramKey,
+} from '../data/subjects';
 import { SeedContext } from '../seed-context';
 import { seedId } from '../seed-id';
 
@@ -27,9 +31,12 @@ export class MinorSubjectSeederService {
 
     for (const s of collegeMinors) {
       const courseCodes = Object.keys(ctx.courseMap);
-      const excludedFromAllCourses = courseCodes.length > 0
-        ? courseCodes.every((code) => ctx.excludedLevelSubjects[code]?.includes(s.name))
-        : false;
+      const excludedFromAllCourses =
+        courseCodes.length > 0
+          ? courseCodes.every((code) =>
+              ctx.excludedLevelSubjects[code]?.includes(s.name),
+            )
+          : false;
 
       if (excludedFromAllCourses) {
         ctx.result.subjects.skipped++;
@@ -37,9 +44,10 @@ export class MinorSubjectSeederService {
       }
 
       const firstCourseCode = Object.keys(ctx.courseMap)[0];
-      const levelId = s.yearLevel && firstCourseCode
-        ? ctx.levelMap[`${firstCourseCode}|${s.yearLevel}`]
-        : null;
+      const levelId =
+        s.yearLevel && firstCourseCode
+          ? ctx.levelMap[`${firstCourseCode}|${s.yearLevel}`]
+          : null;
       if (!levelId) {
         ctx.result.subjects.skipped++;
         continue;
@@ -106,7 +114,9 @@ export class MinorSubjectSeederService {
         strandSelections.set(dedupeKey, new Set());
       }
       if (s.strandName && ctx.strandMap[s.strandName]) {
-        const isExcluded = ctx.excludedLevelSubjects[s.strandName]?.includes(s.name);
+        const isExcluded = ctx.excludedLevelSubjects[s.strandName]?.includes(
+          s.name,
+        );
         if (!isExcluded) {
           strandSelections.get(dedupeKey)!.add(s.strandName);
         }
@@ -130,15 +140,22 @@ export class MinorSubjectSeederService {
         ctx.result.subjects.already_exists++;
       } else {
         const firstStrandName = Object.keys(ctx.strandMap)[0];
-        const levelId = s.levelName && firstStrandName
-          ? ctx.levelMap[`${firstStrandName}|${s.levelName}`]
-          : null;
+        const levelId =
+          s.levelName && firstStrandName
+            ? ctx.levelMap[`${firstStrandName}|${s.levelName}`]
+            : null;
         if (!levelId) {
           ctx.result.subjects.skipped++;
           continue;
         }
 
-        const id = seedId('subject', 'shs_minor', s.yearLevel, s.name, ctx.orgId);
+        const id = seedId(
+          'subject',
+          'shs_minor',
+          s.yearLevel,
+          s.name,
+          ctx.orgId,
+        );
         const existing = await this.db.subject.findFirst({ where: { id } });
 
         if (existing) {
@@ -166,9 +183,19 @@ export class MinorSubjectSeederService {
         ctx.subjectNameToId[s.name] = subjectId;
       }
 
-      if (s.strandName && ctx.strandMap[s.strandName] && selectedStrands.has(s.strandName)) {
+      if (
+        s.strandName &&
+        ctx.strandMap[s.strandName] &&
+        selectedStrands.has(s.strandName)
+      ) {
         const strandId = ctx.strandMap[s.strandName];
-        const sharingId = seedId('sharing', subjectId, strandId, s.yearLevel, ctx.orgId);
+        const sharingId = seedId(
+          'sharing',
+          subjectId,
+          strandId,
+          s.yearLevel,
+          ctx.orgId,
+        );
         await this.db.subjectSharing.upsert({
           where: { id: sharingId },
           update: {},

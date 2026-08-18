@@ -16,11 +16,15 @@ export interface LessonData {
   detail?: string | null;
 }
 
-const COMMON_ABBREVIATIONS = /\b(?:Dr|Mr|Mrs|Ms|Prof|Sr|Jr|St|Ave|Blvd|Dept|Est|Govt|Co|Inc|Ltd|Corp|vs|etc|e\.g|i\.e|al|approx|appt|apt|assn|atty|bldg|ctr|dept|ed|est|ext|fig|fl|ft|gen|govt|hosp|hr|hwy|ib|id|inc|inst|intl|jr|lbs|mdse|mfg|mgmt|misc|mkt|mm|mt|natl|no|nos|nr|ont|orig|pl|pop|pp|pr|pref|prof|pvt|qt|reed|ref|reg|rel|rep|res|retd|rev|rms|sch|sec|secy|sen|sig|sq|sr|st|sub|supt|surg|tel|temp|tng|treas|tsp|univ|v|vol|vs|wk|yrs)\./gi;
+const COMMON_ABBREVIATIONS =
+  /\b(?:Dr|Mr|Mrs|Ms|Prof|Sr|Jr|St|Ave|Blvd|Dept|Est|Govt|Co|Inc|Ltd|Corp|vs|etc|e\.g|i\.e|al|approx|appt|apt|assn|atty|bldg|ctr|dept|ed|est|ext|fig|fl|ft|gen|govt|hosp|hr|hwy|ib|id|inc|inst|intl|jr|lbs|mdse|mfg|mgmt|misc|mkt|mm|mt|natl|no|nos|nr|ont|orig|pl|pop|pp|pr|pref|prof|pvt|qt|reed|ref|reg|rel|rep|res|retd|rev|rms|sch|sec|secy|sen|sig|sq|sr|st|sub|supt|surg|tel|temp|tng|treas|tsp|univ|v|vol|vs|wk|yrs)\./gi;
 
 const ABBREVIATION_PLACEHOLDER = '\x00ABBR\x00';
 
-function protectAbbreviations(text: string): { text: string; abbreviations: Map<string, string> } {
+function protectAbbreviations(text: string): {
+  text: string;
+  abbreviations: Map<string, string>;
+} {
   const abbreviations = new Map<string, string>();
   let index = 0;
   const result = text.replace(COMMON_ABBREVIATIONS, (match) => {
@@ -32,7 +36,10 @@ function protectAbbreviations(text: string): { text: string; abbreviations: Map<
   return { text: result, abbreviations };
 }
 
-function restoreAbbreviations(text: string, abbreviations: Map<string, string>): string {
+function restoreAbbreviations(
+  text: string,
+  abbreviations: Map<string, string>,
+): string {
   let result = text;
   for (const [placeholder, abbr] of abbreviations) {
     result = result.replaceAll(placeholder, abbr);
@@ -44,7 +51,8 @@ export function splitIntoSentences(text: string): string[] {
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (!normalized) return [];
 
-  const { text: protectedText, abbreviations } = protectAbbreviations(normalized);
+  const { text: protectedText, abbreviations } =
+    protectAbbreviations(normalized);
 
   const rawSentences = protectedText.split(/(?<=[.!?])\s+/);
 
@@ -111,7 +119,10 @@ export function groupIntoSlides(
       continue;
     }
 
-    if (currentWordCount + sentenceWordCount > maxWordsPerSlide && currentContent.length > 0) {
+    if (
+      currentWordCount + sentenceWordCount > maxWordsPerSlide &&
+      currentContent.length > 0
+    ) {
       flush();
     }
 
@@ -124,7 +135,9 @@ export function groupIntoSlides(
   return slides;
 }
 
-export function parseSections(detail: string): { heading?: string; body: string }[] {
+export function parseSections(
+  detail: string,
+): { heading?: string; body: string }[] {
   if (!detail.trim()) return [];
 
   const lines = detail.split('\n');
@@ -194,12 +207,14 @@ export function generateSlidesFromLesson(
       const grouped = groupIntoSlides(sentences, maxWordsPerSlide);
       for (let i = 0; i < grouped.length; i++) {
         const group = grouped[i];
-        const title = i === 0 && section.heading ? section.heading : group.title;
+        const title =
+          i === 0 && section.heading ? section.heading : group.title;
         slides.push({
           slideNumber: slideNum++,
           title,
           content: group.content.join(' '),
-          lessonSection: section.heading?.toLowerCase().replace(/\s+/g, '_') ?? 'content',
+          lessonSection:
+            section.heading?.toLowerCase().replace(/\s+/g, '_') ?? 'content',
         });
       }
     }

@@ -1,5 +1,9 @@
 // @/modules/notification/notification.service.ts
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { NotificationRepository } from './notification.repository';
 import { QueryNotificationDto } from './dto/notification.dto';
 
@@ -11,7 +15,11 @@ export class NotificationService {
 
   // ── GET /notifications ──────────────────────────────────────────────────────
 
-  async findForUser(accountId: string, orgId: string, query: QueryNotificationDto) {
+  async findForUser(
+    accountId: string,
+    orgId: string,
+    query: QueryNotificationDto,
+  ) {
     return this.notificationRepository.findByUser(
       accountId,
       orgId,

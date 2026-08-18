@@ -84,15 +84,12 @@ export class GradingSchemeService {
   }
 
   async applyTemplateToClass(orgId: string, dto: ApplyTemplateToClassDto) {
-    const template = await this.templateService.findById(
-      dto.templateId,
-      orgId,
-    );
+    const template = await this.templateService.findById(dto.templateId, orgId);
 
     const components: GradingSchemeComponentDto[] = template.components.map(
       (c) => ({
         name: c.name,
-        type: c.type as any,
+        type: c.type,
         weight: c.weight,
         maxScore: c.maxScore ?? undefined,
       }),
@@ -110,10 +107,7 @@ export class GradingSchemeService {
   }
 
   async applyTemplateToProgram(orgId: string, dto: ApplyTemplateToProgramDto) {
-    const template = await this.templateService.findById(
-      dto.templateId,
-      orgId,
-    );
+    const template = await this.templateService.findById(dto.templateId, orgId);
 
     const classIds = await this.repo.findClassIdsByProgram(
       dto.programId,
@@ -127,7 +121,7 @@ export class GradingSchemeService {
     const components: GradingSchemeComponentDto[] = template.components.map(
       (c) => ({
         name: c.name,
-        type: c.type as any,
+        type: c.type,
         weight: c.weight,
         maxScore: c.maxScore ?? undefined,
       }),
@@ -157,7 +151,10 @@ export class GradingSchemeService {
     return this.repo.lockByClassId(classId);
   }
 
-  async getAllowedAssessmentTypes(classId: string, orgId: string): Promise<string[]> {
+  async getAllowedAssessmentTypes(
+    classId: string,
+    orgId: string,
+  ): Promise<string[]> {
     const scheme = await this.repo.findByClassId(classId, orgId);
     if (!scheme) return [];
     return scheme.components.map((c) => c.type);

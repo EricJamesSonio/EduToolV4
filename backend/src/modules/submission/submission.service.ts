@@ -22,7 +22,11 @@ export class SubmissionService {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  private async assertAssessmentOpen(assessmentId: string, orgId: string, studentId?: string) {
+  private async assertAssessmentOpen(
+    assessmentId: string,
+    orgId: string,
+    studentId?: string,
+  ) {
     const assessment = await this.assessmentRepo.findById(assessmentId, orgId);
     if (!assessment) throw new NotFoundException('Assessment not found.');
 
@@ -36,8 +40,14 @@ export class SubmissionService {
     // Check end date — skip if student has a reopened_until extension
     if (assessment.end_date && now > new Date(assessment.end_date)) {
       if (studentId) {
-        const submission = await this.submissionRepo.findByStudent(assessmentId, studentId);
-        if (submission?.reopened_until && now < new Date(submission.reopened_until)) {
+        const submission = await this.submissionRepo.findByStudent(
+          assessmentId,
+          studentId,
+        );
+        if (
+          submission?.reopened_until &&
+          now < new Date(submission.reopened_until)
+        ) {
           return assessment; // extension is still valid
         }
       }
@@ -49,12 +59,12 @@ export class SubmissionService {
 
   // ── START / RESUME attempt ────────────────────────────────────────────────
 
-  async startOrResume(
-    assessmentId: string,
-    orgId: string,
-    studentId: string,
-  ) {
-    const assessment = await this.assertAssessmentOpen(assessmentId, orgId, studentId);
+  async startOrResume(assessmentId: string, orgId: string, studentId: string) {
+    const assessment = await this.assertAssessmentOpen(
+      assessmentId,
+      orgId,
+      studentId,
+    );
 
     // Check existing attempt
     const existing = await this.submissionRepo.findByStudent(
@@ -64,7 +74,9 @@ export class SubmissionService {
 
     if (existing) {
       if (existing.status === 'submitted') {
-        throw new ForbiddenException('You have already submitted this assessment.');
+        throw new ForbiddenException(
+          'You have already submitted this assessment.',
+        );
       }
       // Resume draft — return existing with saved answers
       const answers = await this.submissionRepo.findAnswers(existing.id);
@@ -98,7 +110,9 @@ export class SubmissionService {
     );
 
     if (!submission) {
-      throw new NotFoundException('No active attempt found. Start the assessment first.');
+      throw new NotFoundException(
+        'No active attempt found. Start the assessment first.',
+      );
     }
 
     if (submission.status === 'submitted') {
@@ -106,7 +120,8 @@ export class SubmissionService {
     }
 
     // Validate all questionIds belong to this assessment
-    const questions = await this.submissionRepo.findQuestionsByAssessment(assessmentId);
+    const questions =
+      await this.submissionRepo.findQuestionsByAssessment(assessmentId);
     const validIds = new Set(questions.map((q) => q.id));
 
     for (const answer of dto.answers) {
@@ -134,7 +149,11 @@ export class SubmissionService {
     studentId: string,
     dto: FinishSubmissionDto,
   ) {
-    const assessment = await this.assertAssessmentOpen(assessmentId, orgId, studentId);
+    const assessment = await this.assertAssessmentOpen(
+      assessmentId,
+      orgId,
+      studentId,
+    );
 
     const submission = await this.submissionRepo.findByStudent(
       assessmentId,
@@ -142,7 +161,9 @@ export class SubmissionService {
     );
 
     if (!submission) {
-      throw new NotFoundException('No active attempt found. Start the assessment first.');
+      throw new NotFoundException(
+        'No active attempt found. Start the assessment first.',
+      );
     }
 
     if (submission.status === 'submitted') {
@@ -150,7 +171,8 @@ export class SubmissionService {
     }
 
     // Save final answers
-    const questions = await this.submissionRepo.findQuestionsByAssessment(assessmentId);
+    const questions =
+      await this.submissionRepo.findQuestionsByAssessment(assessmentId);
     const validIds = new Set(questions.map((q) => q.id));
 
     for (const answer of dto.answers) {
@@ -190,16 +212,15 @@ export class SubmissionService {
         return true;
       });
 
-      gradedAnswers = autoGradable
-        .map((a) => {
-          const q = questionMap.get(a.question_id)!;
-          return {
-            id: a.id,
-            isCorrect:
-              a.answer.trim().toLowerCase() ===
-              (q.correct_answer ?? '').trim().toLowerCase(),
-          };
-        });
+      gradedAnswers = autoGradable.map((a) => {
+        const q = questionMap.get(a.question_id)!;
+        return {
+          id: a.id,
+          isCorrect:
+            a.answer.trim().toLowerCase() ===
+            (q.correct_answer ?? '').trim().toLowerCase(),
+        };
+      });
 
       await this.submissionRepo.gradeAnswers(submission.id, gradedAnswers);
 
@@ -218,7 +239,9 @@ export class SubmissionService {
 
     // Clear reopened_until if it was set
     if (submission.reopened_until) {
-      await this.submissionRepo.clearReopenedUntil(submission.id).catch(() => {});
+      await this.submissionRepo
+        .clearReopenedUntil(submission.id)
+        .catch(() => {});
     }
 
     // ── Fire-and-forget: auto-mark present ───────────────────────────────────
@@ -236,9 +259,17 @@ export class SubmissionService {
     // ── Fire-and-forget: auto-recompute grade ─────────────────────────────────
     if (assessment.class_id && assessment.term_id) {
       this.gradeService
-        .recomputeStudentGrade(assessment.class_id, assessment.term_id, studentId, orgId)
+        .recomputeStudentGrade(
+          assessment.class_id,
+          assessment.term_id,
+          studentId,
+          orgId,
+        )
         .catch((err) =>
-          console.error(`[Submission] Grade recompute failed for ${studentId}:`, err),
+          console.error(
+            `[Submission] Grade recompute failed for ${studentId}:`,
+            err,
+          ),
         );
     }
 
@@ -253,11 +284,7 @@ export class SubmissionService {
 
   // ── GET ANSWERS (educator view) ───────────────────────────────────────────
 
-  async getAnswers(
-    assessmentId: string,
-    submissionId: string,
-    orgId: string,
-  ) {
+  async getAnswers(assessmentId: string, submissionId: string, orgId: string) {
     const submission = await this.submissionRepo.findById(submissionId);
 
     if (!submission || submission.assessment_id !== assessmentId) {
@@ -265,7 +292,8 @@ export class SubmissionService {
     }
 
     const answers = await this.submissionRepo.findAnswers(submissionId);
-    const questions = await this.submissionRepo.findQuestionsByAssessment(assessmentId);
+    const questions =
+      await this.submissionRepo.findQuestionsByAssessment(assessmentId);
 
     // Merge answers with question text for readability
     const questionMap = new Map(questions.map((q) => [q.id, q]));

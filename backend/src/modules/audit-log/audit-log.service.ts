@@ -53,6 +53,4 @@ export class AuditLogService {
   }) {
     return this.auditLogRepository.createActivityLog(data);
   }
-
-
 }

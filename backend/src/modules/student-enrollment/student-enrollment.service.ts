@@ -7,6 +7,7 @@ import {
 import { StudentEnrollmentRepository } from './student-enrollment.repository';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { SectionService } from '../section/section.service';
+import { SchoolYearReadinessService } from '../school-year/school-year-readiness.service';
 import {
   EnrollStudentDto,
   BulkEnrollStudentsDto,
@@ -22,6 +23,7 @@ export class StudentEnrollmentService {
     private readonly repo: StudentEnrollmentRepository,
     private readonly auditLogService: AuditLogService,
     private readonly sectionService: SectionService,
+    private readonly readinessService: SchoolYearReadinessService,
   ) {}
 
   // ── School-Year Enrollment ────────────────────────────────────────────────
@@ -48,6 +50,8 @@ export class StudentEnrollmentService {
     actorId: string,
     tx?: Prisma.TransactionClient,
   ) {
+    await this.readinessService.assertReady(orgId, schoolYearId);
+
     const existing = await this.repo.findByStudentAndSchoolYear(
       dto.student_id,
       schoolYearId,
@@ -185,6 +189,8 @@ export class StudentEnrollmentService {
     actorId: string,
     tx?: Prisma.TransactionClient,
   ) {
+    await this.readinessService.assertReady(orgId, schoolYearId);
+
     // Student must be enrolled in the school year first
     const schoolYearEnrollment = await this.repo.findByStudentAndSchoolYear(
       studentId,
@@ -245,6 +251,11 @@ export class StudentEnrollmentService {
     if (!record || record.org_id !== orgId) {
       throw new NotFoundException('Program enrollment not found.');
     }
+
+    await this.readinessService.assertReady(
+      orgId,
+      record.studentSchoolYear.school_year_id,
+    );
 
     if (dto.section_id !== undefined) {
       const fromSectionId = record.section_id ?? null;

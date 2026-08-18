@@ -16,7 +16,9 @@ export function validateConceptBuild(build: ConceptBuild): void {
 
   for (const cap of Object.values(build.questionCapacity)) {
     if (typeof cap !== 'number' || cap <= 0) {
-      throw new Error('Validation failed: question capacities must be positive numbers');
+      throw new Error(
+        'Validation failed: question capacities must be positive numbers',
+      );
     }
   }
 

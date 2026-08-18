@@ -37,7 +37,9 @@ export class AdminRequestSessionGuard implements CanActivate {
       request.adminRequestSession = payload;
       return true;
     } catch {
-      throw new UnauthorizedException('Invalid or expired admin request session');
+      throw new UnauthorizedException(
+        'Invalid or expired admin request session',
+      );
     }
   }
 }

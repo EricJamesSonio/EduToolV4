@@ -1,6 +1,16 @@
 import {
-  IsString, IsOptional, IsNumber, IsArray, IsEnum,
-  ValidateNested, MinLength, MaxLength, Min, Max, IsUUID, IsBoolean
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  IsEnum,
+  ValidateNested,
+  MinLength,
+  MaxLength,
+  Min,
+  Max,
+  IsUUID,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ComponentType } from '@/modules/grading-scheme/dto/grading-scheme.dto';

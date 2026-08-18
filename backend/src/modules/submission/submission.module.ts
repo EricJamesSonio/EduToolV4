@@ -9,7 +9,12 @@ import { AttendanceModule } from '../attendance/attendance.module';
 import { GradeEducatorModule } from '../grade/educator/grade-educator.module';
 
 @Module({
-  imports: [AssessmentModule, AssessmentCoreModule, AttendanceModule, GradeEducatorModule],
+  imports: [
+    AssessmentModule,
+    AssessmentCoreModule,
+    AttendanceModule,
+    GradeEducatorModule,
+  ],
   controllers: [SubmissionController],
   providers: [SubmissionService, SubmissionRepository],
   exports: [SubmissionService, SubmissionRepository],

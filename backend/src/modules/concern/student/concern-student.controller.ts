@@ -77,6 +77,9 @@ export class ConcernStudentController {
     @Param('id') concernId: string,
     @Body() dto: ReplyConcernDto,
   ) {
-    return this.service.reply({ orgId, accountId, role, fullName, concernId }, dto);
+    return this.service.reply(
+      { orgId, accountId, role, fullName, concernId },
+      dto,
+    );
   }
 }

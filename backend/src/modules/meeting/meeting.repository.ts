@@ -63,7 +63,9 @@ export class MeetingRepository {
       where: { id },
       data: {
         ...(data.title !== undefined ? { title: data.title } : {}),
-        ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.description !== undefined
+          ? { description: data.description }
+          : {}),
         ...(data.startTime !== undefined ? { start_time: data.startTime } : {}),
       },
       include: { invites: true },
@@ -110,7 +112,9 @@ export class MeetingRepository {
   }
 
   async replaceInvites(orgId: string, meetingId: string, studentIds: string[]) {
-    await this.db.meetingInvite.deleteMany({ where: { meeting_id: meetingId } });
+    await this.db.meetingInvite.deleteMany({
+      where: { meeting_id: meetingId },
+    });
     if (studentIds.length === 0) return;
     return this.db.meetingInvite.createMany({
       data: studentIds.map((studentId) => ({
@@ -129,7 +133,10 @@ export class MeetingRepository {
     return invites.map((i) => i.student_id);
   }
 
-  async isStudentInvited(meetingId: string, studentId: string): Promise<boolean> {
+  async isStudentInvited(
+    meetingId: string,
+    studentId: string,
+  ): Promise<boolean> {
     const invite = await this.db.meetingInvite.findFirst({
       where: { meeting_id: meetingId, student_id: studentId },
     });

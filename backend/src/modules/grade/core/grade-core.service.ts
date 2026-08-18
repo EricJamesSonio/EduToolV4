@@ -118,8 +118,14 @@ export class GradeCoreService {
    * Otherwise use manual_score ?? score.
    */
   mergeHybridScores(submission: any): number {
-    if (submission.assessment?.grading_mode === 'hybrid' || submission.manual_section_score != null) {
-      return (submission.system_section_score ?? 0) + (submission.manual_section_score ?? 0);
+    if (
+      submission.assessment?.grading_mode === 'hybrid' ||
+      submission.manual_section_score != null
+    ) {
+      return (
+        (submission.system_section_score ?? 0) +
+        (submission.manual_section_score ?? 0)
+      );
     }
     return submission.manual_score ?? submission.score ?? 0;
   }
@@ -212,12 +218,12 @@ export class GradeCoreService {
                 const rawScore = this.mergeHybridScores(sub);
                 const effectiveTotal =
                   assessment.grading_mode === 'manual'
-                    ? (assessment.manual_max_score ?? assessment.total_items ?? 1)
+                    ? (assessment.manual_max_score ??
+                      assessment.total_items ??
+                      1)
                     : assessment.total_items;
                 const pct =
-                  effectiveTotal > 0
-                    ? (rawScore / effectiveTotal) * 100
-                    : 0;
+                  effectiveTotal > 0 ? (rawScore / effectiveTotal) * 100 : 0;
                 percentages.push(pct);
               }
             }

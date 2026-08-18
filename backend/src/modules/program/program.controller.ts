@@ -1,31 +1,40 @@
 import {
-  Controller, Post, Get, Patch, Delete,
-  Body, Param, Query, UseGuards, HttpCode, HttpStatus,
-  BadRequestException
-} from '@nestjs/common'
-import { ProgramService } from './program.service'
-import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto'
-import { AuthGuard } from '@/commons/guards/auth.guard'
-import { RolesGuard } from '@/commons/guards/role.guard'
-import { Roles } from '@/commons/decorators/roles.decorator'
-import { CurrentUser } from '@/commons/decorators/current-user.decorator'
-import { IsBooleanString, IsOptional, IsUUID } from 'class-validator'
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  BadRequestException,
+} from '@nestjs/common';
+import { ProgramService } from './program.service';
+import { CreateProgramDto, UpdateProgramDto } from './dto/program.dto';
+import { AuthGuard } from '@/commons/guards/auth.guard';
+import { RolesGuard } from '@/commons/guards/role.guard';
+import { Roles } from '@/commons/decorators/roles.decorator';
+import { CurrentUser } from '@/commons/decorators/current-user.decorator';
+import { IsBooleanString, IsOptional, IsUUID } from 'class-validator';
 
 class ProgramQueryDto {
   @IsOptional()
   @IsUUID()
-  schoolYearId?: string
+  schoolYearId?: string;
 
   @IsOptional()
   @IsBooleanString()
-  includeAssignments?: string
+  includeAssignments?: string;
 }
 
 @Controller('programs')
 @UseGuards(AuthGuard, RolesGuard)
 @Roles('admin')
 export class ProgramController {
-  constructor(private readonly programService: ProgramService) { }
+  constructor(private readonly programService: ProgramService) {}
 
   @Post()
   async create(
@@ -34,10 +43,10 @@ export class ProgramController {
     @Body() dto: CreateProgramDto,
   ) {
     if (!orgId) {
-      throw new BadRequestException('orgId is missing from user context')
+      throw new BadRequestException('orgId is missing from user context');
     }
 
-    return this.programService.create(orgId, dto, actorId)
+    return this.programService.create(orgId, dto, actorId);
   }
 
   @Get()
@@ -46,16 +55,16 @@ export class ProgramController {
     @Query() query: ProgramQueryDto,
   ) {
     if (!orgId) {
-      throw new BadRequestException('orgId is missing from user context')
+      throw new BadRequestException('orgId is missing from user context');
     }
 
-    if (!query.schoolYearId) return []
+    if (!query.schoolYearId) return [];
 
     return this.programService.findAll(
       orgId,
       query.schoolYearId,
       query.includeAssignments === 'true',
-    )
+    );
   }
 
   @Get('with-stats')
@@ -64,28 +73,25 @@ export class ProgramController {
     @Query() query: ProgramQueryDto,
   ) {
     if (!orgId) {
-      throw new BadRequestException('orgId is missing from user context')
+      throw new BadRequestException('orgId is missing from user context');
     }
 
-    if (!query.schoolYearId) return []
+    if (!query.schoolYearId) return [];
 
     return this.programService.findAllWithStats(
       orgId,
       query.schoolYearId,
       query.includeAssignments === 'true',
-    )
+    );
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async findOne(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     if (!orgId) {
-      throw new BadRequestException('orgId is missing from user context')
+      throw new BadRequestException('orgId is missing from user context');
     }
 
-    return this.programService.findById(id, orgId)
+    return this.programService.findById(id, orgId);
   }
 
   @Get(':id/semesters')
@@ -95,10 +101,10 @@ export class ProgramController {
     @CurrentUser('org_id') orgId: string,
   ) {
     if (!orgId) {
-      throw new BadRequestException('orgId is missing from user context')
+      throw new BadRequestException('orgId is missing from user context');
     }
 
-    return this.programService.getSemesters(id, schoolYearId, orgId)
+    return this.programService.getSemesters(id, schoolYearId, orgId);
   }
 
   @Patch(':id')
@@ -109,10 +115,10 @@ export class ProgramController {
     @Body() dto: UpdateProgramDto,
   ) {
     if (!orgId) {
-      throw new BadRequestException('orgId is missing from user context')
+      throw new BadRequestException('orgId is missing from user context');
     }
 
-    return this.programService.update(id, orgId, dto, actorId)
+    return this.programService.update(id, orgId, dto, actorId);
   }
 
   @Delete(':id')
@@ -123,9 +129,9 @@ export class ProgramController {
     @CurrentUser('id') actorId: string,
   ) {
     if (!orgId) {
-      throw new BadRequestException('orgId is missing from user context')
+      throw new BadRequestException('orgId is missing from user context');
     }
 
-    await this.programService.remove(id, orgId, actorId)
+    await this.programService.remove(id, orgId, actorId);
   }
 }

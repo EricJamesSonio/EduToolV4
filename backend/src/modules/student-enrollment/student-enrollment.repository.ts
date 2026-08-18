@@ -149,7 +149,9 @@ export class StudentEnrollmentRepository {
         course: true,
         strand: true,
         section: true,
-        studentSchoolYear: { select: { student_id: true } },
+        studentSchoolYear: {
+          select: { student_id: true, school_year_id: true },
+        },
       },
     });
   }

@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AttendanceService } from '../attendance.service';
 
 describe('AttendanceService (High-Value Tests)', () => {
@@ -173,9 +170,9 @@ describe('AttendanceService (High-Value Tests)', () => {
   it('throws when class does not exist', async () => {
     db.class.findFirst.mockResolvedValue(null);
 
-    await expect(
-      service.getSessions('c1', 'org1'),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.getSessions('c1', 'org1')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   // ─────────────────────────────────────────────
@@ -190,9 +187,9 @@ describe('AttendanceService (High-Value Tests)', () => {
       class_id: 'other-class',
     });
 
-    await expect(
-      service.getSession('c1', 's1', 'org1'),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.getSession('c1', 's1', 'org1')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   // ─────────────────────────────────────────────
@@ -207,20 +204,12 @@ describe('AttendanceService (High-Value Tests)', () => {
       class_id: 'c1',
     });
 
-    db.enrollment.findMany.mockResolvedValue([
-      { student_id: 's1' },
-    ]);
+    db.enrollment.findMany.mockResolvedValue([{ student_id: 's1' }]);
 
     await expect(
-      service.bulkSetAttendance(
-        'c1',
-        's1',
-        'org1',
-        'actor1',
-        {
-          records: [{ studentId: 'bad-student', status: 'P' }],
-        } as any,
-      ),
+      service.bulkSetAttendance('c1', 's1', 'org1', 'actor1', {
+        records: [{ studentId: 'bad-student', status: 'P' }],
+      } as any),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -232,19 +221,11 @@ describe('AttendanceService (High-Value Tests)', () => {
       class_id: 'c1',
     });
 
-    db.enrollment.findMany.mockResolvedValue([
-      { student_id: 's1' },
-    ]);
+    db.enrollment.findMany.mockResolvedValue([{ student_id: 's1' }]);
 
-    await service.bulkSetAttendance(
-      'c1',
-      's1',
-      'org1',
-      'actor1',
-      {
-        records: [{ studentId: 's1', status: 'P' }],
-      } as any,
-    );
+    await service.bulkSetAttendance('c1', 's1', 'org1', 'actor1', {
+      records: [{ studentId: 's1', status: 'P' }],
+    } as any);
 
     expect(attendanceRepo.upsertRecord).toHaveBeenCalled();
   });
@@ -267,14 +248,9 @@ describe('AttendanceService (High-Value Tests)', () => {
     });
 
     await expect(
-      service.updateRecord(
-        'c1',
-        's1',
-        'r1',
-        'org1',
-        'actor1',
-        { status: 'P' } as any,
-      ),
+      service.updateRecord('c1', 's1', 'r1', 'org1', 'actor1', {
+        status: 'P',
+      } as any),
     ).rejects.toThrow(NotFoundException);
   });
 

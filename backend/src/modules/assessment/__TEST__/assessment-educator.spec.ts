@@ -112,9 +112,9 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
       educator_id: 'other-educator',
     });
 
-    await expect(
-      service.findOne('a1', 'org1', 'educator-1'),
-    ).rejects.toThrow(ForbiddenException);
+    await expect(service.findOne('a1', 'org1', 'educator-1')).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 
   it('throws NotFound when class is missing', async () => {
@@ -124,9 +124,9 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
 
     classRepo.findById.mockResolvedValue(null);
 
-    await expect(
-      service.findOne('a1', 'org1', 'educator-1'),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.findOne('a1', 'org1', 'educator-1')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   // ─────────────────────────────────────────────
@@ -141,13 +141,7 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
     });
 
     await expect(
-      service.updateQuestion(
-        'a1',
-        'q1',
-        'org1',
-        'educator-1',
-        {} as any,
-      ),
+      service.updateQuestion('a1', 'q1', 'org1', 'educator-1', {} as any),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -167,13 +161,7 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
     });
 
     await expect(
-      service.updateQuestion(
-        'a1',
-        'q1',
-        'org1',
-        'educator-1',
-        {} as any,
-      ),
+      service.updateQuestion('a1', 'q1', 'org1', 'educator-1', {} as any),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -186,20 +174,13 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
       educator_id: 'educator-1',
     });
 
-    creation.resolveGradingMode.mockReturnValue(
-      GradingMode.MANUAL,
-    );
+    creation.resolveGradingMode.mockReturnValue(GradingMode.MANUAL);
 
     creation.createAssessmentRecord.mockResolvedValue({
       id: 'a1',
     });
 
-    await service.create(
-      'class-1',
-      'org1',
-      'educator-1',
-      {} as any,
-    );
+    await service.create('class-1', 'org1', 'educator-1', {} as any);
 
     expect(generation.startGeneration).not.toHaveBeenCalled();
   });
@@ -209,9 +190,7 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
       educator_id: 'educator-1',
     });
 
-    creation.resolveGradingMode.mockReturnValue(
-      GradingMode.SYSTEM,
-    );
+    creation.resolveGradingMode.mockReturnValue(GradingMode.SYSTEM);
 
     creation.createAssessmentRecord.mockResolvedValue({
       id: 'a1',
@@ -230,10 +209,7 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
       'org1',
       'educator-1',
       expect.objectContaining({
-        ranges: [
-          { questionType: 'essay' },
-          { questionType: 'mcq' },
-        ],
+        ranges: [{ questionType: 'essay' }, { questionType: 'mcq' }],
       }),
     );
   });
@@ -254,11 +230,13 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
 
     await service.publishScores('a1', 'org1', 'educator-1', {
       studentIds: ['s1'],
-    } as any);
+    });
 
-    expect(
-      gradeService.registerAssessmentForAllStudents,
-    ).toHaveBeenCalledWith('a1', 'c1', 'org1');
+    expect(gradeService.registerAssessmentForAllStudents).toHaveBeenCalledWith(
+      'a1',
+      'c1',
+      'org1',
+    );
   });
 
   it('does not fail publish when grade recomputation fails', async () => {
@@ -272,9 +250,7 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
       educator_id: 'educator-1',
     });
 
-    gradeService.computeGrades.mockRejectedValue(
-      new Error('boom'),
-    );
+    gradeService.computeGrades.mockRejectedValue(new Error('boom'));
 
     await expect(
       service.publishScores('a1', 'org1', 'educator-1', {}),
@@ -316,9 +292,7 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
       educator_id: 'educator-1',
     });
 
-    repo.findAll.mockResolvedValue([
-      { id: 'a1' },
-    ]);
+    repo.findAll.mockResolvedValue([{ id: 'a1' }]);
 
     db.submission.groupBy.mockResolvedValue([
       {
@@ -328,9 +302,7 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
       },
     ]);
 
-    db.question.findMany.mockResolvedValue([
-      { id: 'q1', assessment_id: 'a1' },
-    ]);
+    db.question.findMany.mockResolvedValue([{ id: 'q1', assessment_id: 'a1' }]);
 
     db.submission.findMany
       .mockResolvedValueOnce([{ id: 's1', assessment_id: 'a1' }])
@@ -343,12 +315,7 @@ describe('AssessmentEducatorService (High-Value Tests)', () => {
       },
     ]);
 
-    const result = await service.findAll(
-      'c1',
-      'org1',
-      'educator-1',
-      {},
-    );
+    const result = await service.findAll('c1', 'org1', 'educator-1', {});
 
     expect(result[0].submittedCount).toBe(3);
     expect(result[0].pendingEssayCount).toBe(1);

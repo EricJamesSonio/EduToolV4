@@ -13,10 +13,7 @@ import { AuthGuard } from 'src/commons/guards/auth.guard';
 import { RolesGuard } from 'src/commons/guards/role.guard';
 import { Roles } from 'src/commons/decorators/roles.decorator';
 import { CurrentUser } from 'src/commons/decorators/current-user.decorator';
-import {
-  CreateCategoryDto,
-  UpdateCategoryDto,
-} from '../dto/concern.dto';
+import { CreateCategoryDto, UpdateCategoryDto } from '../dto/concern.dto';
 
 @Controller('concerns/categories')
 @UseGuards(AuthGuard, RolesGuard)
@@ -33,10 +30,7 @@ export class ConcernCategoryController {
 
   // POST /concerns/categories
   @Post()
-  create(
-    @CurrentUser('org_id') orgId: string,
-    @Body() dto: CreateCategoryDto,
-  ) {
+  create(@CurrentUser('org_id') orgId: string, @Body() dto: CreateCategoryDto) {
     return this.service.create(orgId, dto);
   }
 

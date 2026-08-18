@@ -73,10 +73,7 @@ export class RegistrarController {
    */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(
-    @Param('id') id: string,
-    @CurrentUser('org_id') orgId: string,
-  ) {
+  async remove(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {
     await this.registrarService.remove(id, orgId);
   }
 

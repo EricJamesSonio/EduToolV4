@@ -4,17 +4,20 @@ import {
   ConflictException,
   BadRequestException,
   ForbiddenException,
-} from '@nestjs/common'
-import { DatabaseService } from '@/core/database/database.provider'
-import { EnrollmentRepository } from './enrollment.repository'
-import { UpdateEnrollmentDto, PrerequisiteCheckResultDto } from './dto/enrollment.dto'
+} from '@nestjs/common';
+import { DatabaseService } from '@/core/database/database.provider';
+import { EnrollmentRepository } from './enrollment.repository';
+import {
+  UpdateEnrollmentDto,
+  PrerequisiteCheckResultDto,
+} from './dto/enrollment.dto';
 import {
   resolveSubjectAcademicStructure,
   isEligibleForClassStructure,
-} from './enrollment-eligibility.util'
+} from './enrollment-eligibility.util';
 
 // Minimum passing score — adjust if your grading scale differs per org
-const PASSING_SCORE = 75
+const PASSING_SCORE = 75;
 
 @Injectable()
 export class EnrollmentService {
@@ -44,11 +47,11 @@ export class EnrollmentService {
       subjectId,
       studentId,
       orgId,
-    )
+    );
 
-    if (rows.length === 0) return { eligible: true, missing: [] }
+    if (rows.length === 0) return { eligible: true, missing: [] };
 
-    const missing: PrerequisiteCheckResultDto['missing'] = []
+    const missing: PrerequisiteCheckResultDto['missing'] = [];
 
     for (const row of rows) {
       if (!row.grade) {
@@ -56,8 +59,8 @@ export class EnrollmentService {
           subject_id: row.subject_id,
           subject_name: row.subject_name,
           reason: 'not_taken',
-        })
-        continue
+        });
+        continue;
       }
 
       if (!row.grade.is_locked) {
@@ -65,8 +68,8 @@ export class EnrollmentService {
           subject_id: row.subject_id,
           subject_name: row.subject_name,
           reason: 'not_locked',
-        })
-        continue
+        });
+        continue;
       }
 
       if (row.grade.final_score < PASSING_SCORE) {
@@ -74,11 +77,11 @@ export class EnrollmentService {
           subject_id: row.subject_id,
           subject_name: row.subject_name,
           reason: 'not_passed',
-        })
+        });
       }
     }
 
-    return { eligible: missing.length === 0, missing }
+    return { eligible: missing.length === 0, missing };
   }
 
   // ── Enrollment CRUD ─────────────────────────────────────────────────────
@@ -97,8 +100,8 @@ export class EnrollmentService {
     const cls = await this.enrollmentRepository.findClassEnrollmentContext(
       classId,
       orgId,
-    )
-    if (!cls) throw new NotFoundException('Class not found.')
+    );
+    if (!cls) throw new NotFoundException('Class not found.');
 
     const [subjectStructure, studentStructure] = await Promise.all([
       resolveSubjectAcademicStructure(this.db, cls.subject_id, orgId),
@@ -107,17 +110,21 @@ export class EnrollmentService {
         orgId,
         cls.school_year_id,
       ),
-    ])
+    ]);
 
     if (
-      !isEligibleForClassStructure(subjectStructure, studentStructure, cls.section_id)
+      !isEligibleForClassStructure(
+        subjectStructure,
+        studentStructure,
+        cls.section_id,
+      )
     ) {
       const reason = !studentStructure
         ? 'The student has no active academic placement for this school year.'
-        : 'The student does not belong to the same program, course/strand, or level assigned to this class.'
+        : 'The student does not belong to the same program, course/strand, or level assigned to this class.';
       throw new BadRequestException(
         `Student is not eligible for this class. ${reason}`,
-      )
+      );
     }
   }
 
@@ -130,17 +137,21 @@ export class EnrollmentService {
     orgId: string,
   ) {
     // 0. Academic structure gate — must match before anything else
-    await this.assertAcademicEligibility(classId, studentId, orgId)
+    await this.assertAcademicEligibility(classId, studentId, orgId);
 
     // 1. Prerequisite gate — block before any other checks
-    const eligibility = await this.checkEligibility(subjectId, studentId, orgId)
+    const eligibility = await this.checkEligibility(
+      subjectId,
+      studentId,
+      orgId,
+    );
     if (!eligibility.eligible) {
       const detail = eligibility.missing
         .map((m) => `"${m.subject_name}" (${m.reason.replace('_', ' ')})`)
-        .join(', ')
+        .join(', ');
       throw new BadRequestException(
         `Student has not met the prerequisites for this subject: ${detail}.`,
-      )
+      );
     }
 
     // 2. Prevent duplicate enrollment in same subject + semester across classes
@@ -149,11 +160,11 @@ export class EnrollmentService {
       subjectId,
       semesterId,
       orgId,
-    )
+    );
     if (duplicate) {
       throw new ConflictException(
         'Student is already enrolled in a class for this subject in the same semester.',
-      )
+      );
     }
 
     // 3. Prevent re-enrollment in the exact same class (unless previously removed)
@@ -161,14 +172,14 @@ export class EnrollmentService {
       classId,
       studentId,
       orgId,
-    )
+    );
     if (existing && existing.status !== 'removed') {
-      throw new ConflictException('Student is already enrolled in this class.')
+      throw new ConflictException('Student is already enrolled in this class.');
     }
 
     // 4. Capacity check — return overflow signal instead of hard error
     if (capacity > 0) {
-      const activeCount = await this.enrollmentRepository.countActive(classId)
+      const activeCount = await this.enrollmentRepository.countActive(classId);
       if (activeCount >= capacity) {
         return {
           overflow: true,
@@ -177,7 +188,7 @@ export class EnrollmentService {
             `Add a new parallel session or mark the student as pending enrollment.`,
           classId,
           studentId,
-        }
+        };
       }
     }
 
@@ -186,11 +197,11 @@ export class EnrollmentService {
       classId,
       studentId,
       status: 'active',
-    })
+    });
   }
 
   async findByClass(classId: string, orgId: string) {
-    return this.enrollmentRepository.findByClass(classId, orgId)
+    return this.enrollmentRepository.findByClass(classId, orgId);
   }
 
   async updateStatus(
@@ -199,28 +210,34 @@ export class EnrollmentService {
     orgId: string,
     dto: UpdateEnrollmentDto,
   ) {
-    const enrollment = await this.enrollmentRepository.findById(enrollmentId, orgId)
+    const enrollment = await this.enrollmentRepository.findById(
+      enrollmentId,
+      orgId,
+    );
     if (!enrollment || enrollment.class_id !== classId) {
-      throw new NotFoundException('Enrollment not found.')
+      throw new NotFoundException('Enrollment not found.');
     }
-    return this.enrollmentRepository.updateStatus(enrollmentId, dto.status)
+    return this.enrollmentRepository.updateStatus(enrollmentId, dto.status);
   }
 
   async remove(classId: string, enrollmentId: string, orgId: string) {
-    const enrollment = await this.enrollmentRepository.findById(enrollmentId, orgId)
+    const enrollment = await this.enrollmentRepository.findById(
+      enrollmentId,
+      orgId,
+    );
     if (!enrollment || enrollment.class_id !== classId) {
-      throw new NotFoundException('Enrollment not found.')
+      throw new NotFoundException('Enrollment not found.');
     }
     if (enrollment.status === 'removed') {
-      throw new ConflictException('Enrollment has already been removed.')
+      throw new ConflictException('Enrollment has already been removed.');
     }
-    return this.enrollmentRepository.remove(enrollmentId)
+    return this.enrollmentRepository.remove(enrollmentId);
   }
 
   // ── Student-facing queries ───────────────────────────────────────────────
 
   async getStudentEnrollments(studentId: string, orgId: string) {
-    return this.enrollmentRepository.findByStudentAcrossOrg(studentId, orgId)
+    return this.enrollmentRepository.findByStudentAcrossOrg(studentId, orgId);
   }
 
   async getStudentEnrollmentForClass(
@@ -232,14 +249,14 @@ export class EnrollmentService {
       classId,
       studentId,
       orgId,
-    )
+    );
     if (!enrollment) {
-      throw new ForbiddenException('You are not enrolled in this class.')
+      throw new ForbiddenException('You are not enrolled in this class.');
     }
-    return enrollment
+    return enrollment;
   }
 
   async countActive(classId: string): Promise<number> {
-    return this.enrollmentRepository.countActive(classId)
+    return this.enrollmentRepository.countActive(classId);
   }
 }

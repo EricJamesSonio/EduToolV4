@@ -26,7 +26,7 @@ export interface PublicProgramOption {
   strands: PublicStrandOption[];
   levels: PublicLevelOption[];
 }
-  export interface PublicPortalInfo {
+export interface PublicPortalInfo {
   org: { id: string; name: string; slug: string };
   period: {
     id: string;

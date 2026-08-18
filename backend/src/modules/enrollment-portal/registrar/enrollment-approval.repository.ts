@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
 import { Prisma, EnrollmentApplicationStatus } from '@prisma/client';
 
-export const DEFAULT_SECTION_CAPACITY = 32
+export const DEFAULT_SECTION_CAPACITY = 32;
 
 export interface SectionSelection {
   orgId: string;
@@ -24,8 +24,12 @@ export class EnrollmentApprovalRepository {
    * one with remaining capacity.
    */
   async findEligibleSections(sel: SectionSelection) {
-    const courseFilter = sel.courseId ? { course_id: sel.courseId } : { course_id: null };
-    const strandFilter = sel.strandId ? { strand_id: sel.strandId } : { strand_id: null };
+    const courseFilter = sel.courseId
+      ? { course_id: sel.courseId }
+      : { course_id: null };
+    const strandFilter = sel.strandId
+      ? { strand_id: sel.strandId }
+      : { strand_id: null };
 
     return this.db.section.findMany({
       where: {
@@ -69,8 +73,12 @@ export class EnrollmentApprovalRepository {
    * the capacity check and any overflow handling stay atomic with an approval.
    */
   findEligibleSectionsTx(tx: Prisma.TransactionClient, sel: SectionSelection) {
-    const courseFilter = sel.courseId ? { course_id: sel.courseId } : { course_id: null };
-    const strandFilter = sel.strandId ? { strand_id: sel.strandId } : { strand_id: null };
+    const courseFilter = sel.courseId
+      ? { course_id: sel.courseId }
+      : { course_id: null };
+    const strandFilter = sel.strandId
+      ? { strand_id: sel.strandId }
+      : { strand_id: null };
 
     return tx.section.findMany({
       where: {
@@ -94,7 +102,11 @@ export class EnrollmentApprovalRepository {
     });
   }
 
-  expandSectionCapacityTx(tx: Prisma.TransactionClient, sectionId: string, capacity: number) {
+  expandSectionCapacityTx(
+    tx: Prisma.TransactionClient,
+    sectionId: string,
+    capacity: number,
+  ) {
     return tx.section.update({
       where: { id: sectionId },
       data: { capacity },

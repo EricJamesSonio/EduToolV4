@@ -132,7 +132,12 @@ export class GroupyController {
     @CurrentUser('id') accountId: string,
     @Body() dto: SetReactionDto,
   ) {
-    return this.groupyService.setReaction(id, orgId, accountId, dto.reactionType);
+    return this.groupyService.setReaction(
+      id,
+      orgId,
+      accountId,
+      dto.reactionType,
+    );
   }
 
   @Delete('messages/:id/reaction')

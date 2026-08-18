@@ -78,7 +78,10 @@ export class ConcernDigestService {
 
     // Window still open (oldest concern younger than the 60s debounce window).
     const now = new Date();
-    if (now.getTime() - oldest.created_at.getTime() < CONCERN_DIGEST_WINDOW_MS) {
+    if (
+      now.getTime() - oldest.created_at.getTime() <
+      CONCERN_DIGEST_WINDOW_MS
+    ) {
       return;
     }
 

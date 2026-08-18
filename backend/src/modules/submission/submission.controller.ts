@@ -42,7 +42,12 @@ export class SubmissionController {
     @CurrentUser('id') studentId: string,
     @Body() dto: SaveDraftDto,
   ) {
-    return this.submissionService.saveDraft(assessmentId, orgId, studentId, dto);
+    return this.submissionService.saveDraft(
+      assessmentId,
+      orgId,
+      studentId,
+      dto,
+    );
   }
 
   // POST /assessments/:assessmentId/submit/finish

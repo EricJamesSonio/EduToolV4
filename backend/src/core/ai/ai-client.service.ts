@@ -11,7 +11,8 @@ export class AiClientService {
 
   constructor(private readonly config: ConfigService) {
     this.apiKey = this.config.get<string>('OPENROUTER_API_KEY') ?? '';
-    this.model = this.config.get<string>('AI_MODEL') ?? 'qwen/qwen3-235b-a22b:free';
+    this.model =
+      this.config.get<string>('AI_MODEL') ?? 'qwen/qwen3-235b-a22b:free';
     // Referer/referrer fields are only used for OpenRouter analytics. If APP_URL
     // is unset we send nothing rather than a hardcoded localhost.
     this.referer = process.env.APP_URL ?? '';
@@ -24,7 +25,9 @@ export class AiClientService {
     temperature = 0.3,
     signal?: AbortSignal,
   ): Promise<string> {
-    this.logger.log(`[AI] Calling model: ${this.model} | max_tokens: ${maxTokens} | temp: ${temperature}`);
+    this.logger.log(
+      `[AI] Calling model: ${this.model} | max_tokens: ${maxTokens} | temp: ${temperature}`,
+    );
 
     const response = await fetch(this.apiUrl, {
       signal,
@@ -48,13 +51,17 @@ export class AiClientService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`OpenRouter API error ${response.status}: ${errorText.slice(0, 500)}`);
+      throw new Error(
+        `OpenRouter API error ${response.status}: ${errorText.slice(0, 500)}`,
+      );
     }
 
     const data = await response.json();
 
     if (data.error) {
-      throw new Error(`OpenRouter error: ${data.error?.message ?? JSON.stringify(data.error)}`);
+      throw new Error(
+        `OpenRouter error: ${data.error?.message ?? JSON.stringify(data.error)}`,
+      );
     }
 
     const content: string = data?.choices?.[0]?.message?.content ?? '';

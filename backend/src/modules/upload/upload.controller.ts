@@ -57,7 +57,12 @@ export class UploadController {
       fileFilter: (_req, file, cb) => {
         const ext = extname(file.originalname).toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
-          cb(new BadRequestException('Only image files (PNG, JPG, GIF, WEBP) are allowed'), false);
+          cb(
+            new BadRequestException(
+              'Only image files (PNG, JPG, GIF, WEBP) are allowed',
+            ),
+            false,
+          );
           return;
         }
         cb(null, true);
@@ -75,7 +80,10 @@ export class UploadController {
     @CurrentUser('id') accountId: string,
   ) {
     const relativePath = `profiles/${file.filename}`;
-    const saved = await this.uploadService.saveProfileImage(accountId, relativePath);
+    const saved = await this.uploadService.saveProfileImage(
+      accountId,
+      relativePath,
+    );
     return { path: saved };
   }
 
@@ -93,7 +101,12 @@ export class UploadController {
       fileFilter: (_req, file, cb) => {
         const ext = extname(file.originalname).toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
-          cb(new BadRequestException('Only image files (PNG, JPG, GIF, WEBP) are allowed'), false);
+          cb(
+            new BadRequestException(
+              'Only image files (PNG, JPG, GIF, WEBP) are allowed',
+            ),
+            false,
+          );
           return;
         }
         cb(null, true);
@@ -111,7 +124,10 @@ export class UploadController {
     @CurrentUser('org_id') orgId: string,
   ) {
     const relativePath = `organizations/${file.filename}`;
-    const saved = await this.uploadService.saveOrganizationLogo(orgId, relativePath);
+    const saved = await this.uploadService.saveOrganizationLogo(
+      orgId,
+      relativePath,
+    );
     return { logoUrl: saved };
   }
 }
