@@ -151,7 +151,7 @@ export class GradingSchemeTemplateRepository {
     return updated ? mapTemplate(updated) : null;
   }
 
-  async delete(id: string, orgId: string) {
+  async delete(id: string, _orgId: string) {
     // components cascade via DB or we delete manually first
     await this.db.gradingSchemeTemplateComponent.deleteMany({
       where: { template_id: id },
