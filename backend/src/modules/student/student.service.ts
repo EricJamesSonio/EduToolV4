@@ -13,7 +13,6 @@ import {
   UpdateStudentStatusDto,
   QueryStudentDto,
   StudentStatus,
-  BulkCreateStudentDto,
 } from './dto/student.dto';
 import {
   generateSystemPassword,
@@ -485,7 +484,7 @@ export class StudentService {
         action: 'password_reset',
         entityType: 'student',
         entityId: id,
-        metadata: null,
+        metadata: undefined,
       })
       .catch(() => {});
 
