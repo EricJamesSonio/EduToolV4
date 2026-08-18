@@ -1,5 +1,3 @@
-import { COLLEGE_COURSES } from './courses.data';
-
 export const SCALE_K12 = [
   {
     minPercent: 90,
