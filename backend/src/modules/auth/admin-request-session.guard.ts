@@ -17,7 +17,7 @@ import { AdminRequestSessionClaims } from './entity/admin-request-session.entity
 export class AdminRequestSessionGuard implements CanActivate {
   constructor(private readonly jwtService: JwtService) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
     const header: string | undefined = request.headers?.authorization;
 

@@ -13,8 +13,9 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Response, Request } from 'express';
+import type { CookieOptions } from 'express-serve-static-core';
 import { AuthService } from './auth.service';
-import { LoginDto, RefreshTokenDto } from './dto/auth.dto';
+import { LoginDto } from './dto/auth.dto';
 import { RegisterDto, VerifyOtpDto, ResendOtpDto } from './dto/register.dto';
 import {
   SendAdminRequestOtpDto,
@@ -92,7 +93,7 @@ export class AuthController {
     return decodeURIComponent(match.slice(name.length + 1));
   }
 
-  private getCookieOptions() {
+  private getCookieOptions(): CookieOptions {
     const isProd = process.env.NODE_ENV === 'production';
     return {
       httpOnly: true,
