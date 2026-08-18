@@ -322,9 +322,11 @@ export class GradeLockRepository {
     })
     if (!cls?.subject?.level_id) return
 
+    // Grade computation resolves the scale with the CLASS school year
+    // (grade-educator.service), so the lock must target that same scale.
     const level = await this.db.level.findUnique({
       where: { id: cls.subject.level_id },
-      select: { program_id: true, school_year_id: true },
+      select: { program_id: true },
     })
     if (!level) return
 
@@ -332,7 +334,7 @@ export class GradeLockRepository {
       where: {
         org_id: orgId,
         program_id: level.program_id,
-        school_year_id: level.school_year_id,
+        school_year_id: cls.school_year_id,
       },
     })
     if (!assignment) return

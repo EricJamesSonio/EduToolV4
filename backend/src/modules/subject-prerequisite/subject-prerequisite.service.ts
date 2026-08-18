@@ -35,7 +35,8 @@ const PASSING_SCORE = 75
     if (dto.prerequisite_ids.includes(dto.subject_id)) {
       throw new BadRequestException('A subject cannot be a prerequisite of itself')
     }
-    await this.prereqRepository.deleteAllForSubject(dto.subject_id, orgId)
+    // The repository performs a single transactional replace — a failed import
+    // must never leave the subject's existing links deleted.
     return this.prereqRepository.bulkCreate(orgId, dto.subject_id, dto.prerequisite_ids)
   }
   async findBySubject(subject_id: string, org_id: string) {
@@ -61,11 +62,26 @@ const PASSING_SCORE = 75
     student_id: string,
     org_id: string,
   ): Promise<PrerequisiteCheckResultDto> {
-    const rows = await this.prereqRepository.getPrerequisitesWithGrades(
+    let rows = await this.prereqRepository.getPrerequisitesWithGrades(
       subject_id,
       student_id,
       org_id,
     )
+
+    // Guard against a silently-downgraded state (e.g. an interrupted import
+    // that left the prerequisite rows missing): if the grade-enriched lookup
+    // is empty but the subject still has prerequisite definitions, treat every
+    // definition as unmet instead of silently approving the student.
+    if (rows.length === 0) {
+      const defined = await this.prereqRepository.findBySubject(subject_id, org_id)
+      if (defined.length > 0) {
+        rows = defined.map((d) => ({
+          subject_id: d.prerequisite_id,
+          subject_name: (d as any).prerequisite?.name ?? d.prerequisite_id,
+          grade: null,
+        }))
+      }
+    }
 
     // No prerequisites defined — always eligible
     if (rows.length === 0) return { eligible: true, missing: [] }

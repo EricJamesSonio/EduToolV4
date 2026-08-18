@@ -16,6 +16,7 @@ export class GradeLockAutoService {
     const deadlineLocks = await this.repo.findExpiredUnlockedLocks(orgId, now)
     for (const lock of deadlineLocks) {
       await this.repo.setLocked(lock.class_id, 'system')
+      await this.repo.lockGradingScaleForClass(lock.class_id, orgId)
       await this.repo.createEvent({
         org_id: orgId,
         class_id: lock.class_id,
@@ -47,6 +48,7 @@ export class GradeLockAutoService {
 
       if (now >= deadline) {
         await this.repo.setLocked(lock.class_id, 'system')
+        await this.repo.lockGradingScaleForClass(lock.class_id, orgId)
         await this.repo.createEvent({
           org_id: orgId,
           class_id: lock.class_id,
