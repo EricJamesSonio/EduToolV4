@@ -651,7 +651,7 @@ async function seedGradingScales(
 async function seedGradingSchemes(
   orgId: string,
   programKeys: string[],
-  programMap: Record<string, string>,
+  _programMap: Record<string, string>,
 ): Promise<void> {
   const schemeProgram: Record<string, string> = {
     'Daycare Scheme': 'daycare',
@@ -906,7 +906,7 @@ async function seedSubjects(
       subjectIds.push(subjectId);
 
       // Share this minor subject across all courses
-      for (const [code, cId] of Object.entries(courseMap)) {
+      for (const [_code, cId] of Object.entries(courseMap)) {
         const sharingId = seedId('sharing', subjectId, cId, orgId);
         await db.subjectSharing.upsert({
           where: { id: sharingId },
@@ -1142,7 +1142,7 @@ async function seedClasses(
   programMap: Record<string, string>,
   subjectIds: string[],
   educatorIds: string[],
-  levelMap: Record<string, string>,
+  _levelMap: Record<string, string>,
 ): Promise<void> {
   if (educatorIds.length === 0 || subjectIds.length === 0) return;
 
