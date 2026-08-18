@@ -104,7 +104,9 @@ jobs:
       - run: npm run build
 
   backend-unit-tests:
-    needs: [changes, backend-lint]
+    # Deliberately independent of backend-lint: unit tests must still run and
+    # gate even if lint fails, so a lint regression can't mask test failures.
+    needs: [changes]
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
@@ -294,6 +296,7 @@ jobs:
   ci-gate:
     if: always()
     needs:
+      - changes
       - backend-lint
       - backend-typecheck
       - backend-build
@@ -306,20 +309,53 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Verify required jobs passed
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          BACKEND_CHANGED: ${{ needs.changes.outputs.backend }}
+          FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
+          BACKEND_LINT: ${{ needs.backend-lint.result }}
+          BACKEND_TYPECHECK: ${{ needs.backend-typecheck.result }}
+          BACKEND_BUILD: ${{ needs.backend-build.result }}
+          BACKEND_UNIT: ${{ needs.backend-unit-tests.result }}
+          BACKEND_E2E: ${{ needs.backend-e2e-tests.result }}
+          FRONTEND_LINT: ${{ needs.frontend-lint.result }}
+          FRONTEND_TYPECHECK: ${{ needs.frontend-typecheck.result }}
+          FRONTEND_UNIT: ${{ needs.frontend-unit-tests.result }}
+          FRONTEND_BUILD: ${{ needs.frontend-build.result }}
         run: |
-          for result in \
-            "${{ needs.backend-lint.result }}" \
-            "${{ needs.backend-typecheck.result }}" \
-            "${{ needs.backend-build.result }}" \
-            "${{ needs.backend-unit-tests.result }}" \
-            "${{ needs.backend-e2e-tests.result }}" \
-            "${{ needs.frontend-lint.result }}" \
-            "${{ needs.frontend-typecheck.result }}" \
-            "${{ needs.frontend-unit-tests.result }}" \
-            "${{ needs.frontend-build.result }}"; do
-            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
-              echo "A required job did not succeed (result: $result)"
-              exit 1
+          set -u
+
+          # The path-filter job itself must have succeeded. If it fails, its outputs
+          # are empty and every downstream `if:` job silently skips — the old gate
+          # accepted those "skipped" results and reported green with nothing tested.
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "::error::The 'changes' (paths-filter) job did not succeed (result: $CHANGES_RESULT)."
+            exit 1
+          fi
+
+          # A job that should have run (its side of the tree changed) must have
+          # *success*, never skipped/failed/cancelled. A job for an unchanged side
+          # is expected to be skipped.
+          check() {
+            local name="$1" result="$2" changed="$3"
+            if [[ "$changed" == "true" ]]; then
+              if [[ "$result" != "success" ]]; then
+                echo "::error::$name should have run (backend/frontend changed) but result was: $result"
+                exit 1
+              fi
+            else
+              echo "::notice::$name skipped — no $name-side changes; not required to run"
             fi
-          done
+          }
+
+          check backend-lint "$BACKEND_LINT" "$BACKEND_CHANGED"
+          check backend-typecheck "$BACKEND_TYPECHECK" "$BACKEND_CHANGED"
+          check backend-build "$BACKEND_BUILD" "$BACKEND_CHANGED"
+          check backend-unit-tests "$BACKEND_UNIT" "$BACKEND_CHANGED"
+          check backend-e2e-tests "$BACKEND_E2E" "$BACKEND_CHANGED"
+          check frontend-lint "$FRONTEND_LINT" "$FRONTEND_CHANGED"
+          check frontend-typecheck "$FRONTEND_TYPECHECK" "$FRONTEND_CHANGED"
+          check frontend-unit-tests "$FRONTEND_UNIT" "$FRONTEND_CHANGED"
+          check frontend-build "$FRONTEND_BUILD" "$FRONTEND_CHANGED"
+
           echo "All required checks passed."
