@@ -2,7 +2,7 @@
 
 ## Simple, Smart School Management for Modern Schools
 
-<img src="./Images/home/hero.png" alt="EduTool Hero" />
+<img src="./.Images/home/hero.png" alt="EduTool Hero" />
 
 ---
 
@@ -16,7 +16,7 @@ Whether you are an administrator, educator, or student, EduTool brings everythin
 
 ## Features
 
-<img src="./Images/home/features.png" alt="EduTool Features" />
+<img src="./.Images/home/features.png" alt="EduTool Features" />
 
 ### For Schools and Administrators
 
@@ -46,7 +46,7 @@ Whether you are an administrator, educator, or student, EduTool brings everythin
 
 ## Security and Trust
 
-<img src="./Images/home/trusted.png" alt="Trusted Schools" />
+<img src="./.Images/home/trusted.png" alt="Trusted Schools" />
 
 EduTool is built to protect school data and ensure reliable access.
 
@@ -61,7 +61,7 @@ EduTool is built to protect school data and ensure reliable access.
 
 ### Request an Account
 
-<img src="./Images/home/request.png" alt="Request Account" />
+<img src="./.Images/home/request.png" alt="Request Account" />
 
 Schools can request access to EduTool. Once approved, administrators receive credentials to begin setup.
 
@@ -69,7 +69,7 @@ Schools can request access to EduTool. Once approved, administrators receive cre
 
 ### Login
 
-<img src="./Images/home/login.png" alt="Login" />
+<img src="./.Images/home/login.png" alt="Login" />
 
 Access your dashboard where all tools and data are organized and ready to use.
 
@@ -83,7 +83,7 @@ After logging in, you can immediately begin managing classes, students, and acad
 
 ## Pricing
 
-<img src="./Images/home/pricing.png" alt="Pricing" />
+<img src="./.Images/home/pricing.png" alt="Pricing" />
 
 EduTool offers flexible plans suitable for different school sizes.
 
