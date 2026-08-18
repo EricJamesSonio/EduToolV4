@@ -58,7 +58,7 @@ export class CourseRepository {
     });
   }
 
-  async delete(id: string, orgId: string) {
+  async delete(id: string, _orgId: string) {
     return this.db.course.delete({ where: { id } });
   }
 
