@@ -6,7 +6,6 @@
 // then queries the real database directly to confirm what was persisted.
 
 import * as path from 'path';
-import { execSync } from 'child_process';
 import { config as loadEnv } from 'dotenv';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
@@ -748,44 +747,56 @@ runSuite('OrgSeederService e2e (real database)', () => {
       await step('subject sharings', () =>
         db.subjectSharing.deleteMany({ where: { org_id: orgId } }),
       );
-      (await step('subjects', () =>
+      await step('subjects', () =>
         db.subject.deleteMany({ where: { org_id: orgId } }),
-      ),
-        await step('sections', () =>
-          db.section.deleteMany({ where: { org_id: orgId } }),
-        ),
-        await step('levels', () =>
-          db.level.deleteMany({ where: { org_id: orgId } }),
-        ),
-        await step('strands', () =>
-          db.strand.deleteMany({ where: { org_id: orgId } }),
-        ),
-        await step('courses', () =>
-          db.course.deleteMany({ where: { org_id: orgId } }),
-        ),
-        await step('programs', () =>
-          db.program.deleteMany({ where: { org_id: orgId } }),
-        ),
-        await step('concern categories', () =>
-          db.concernCategory.deleteMany({ where: { org_id: orgId } }),
-        ),
-        await step('org concern settings', () =>
-          db.orgConcernSetting.deleteMany({ where: { org_id: orgId } }),
-        ),
-        await step('org enrollment settings', () =>
-          db.orgEnrollmentSetting.deleteMany({ where: { org_id: orgId } }),
-        ),
-        await step('audit logs', () =>
-          db.auditLog.deleteMany({ where: { org_id: orgId } }),
-        ),
-        await step('school year', () =>
-          db.schoolYear.deleteMany({ where: { id: schoolYearId } }),
-        ),
-        await step('organization', () =>
-          db.organization.deleteMany({ where: { id: orgId } }),
-        ),
-        // Verify zero rows remain for the test org before we disconnect the client.
-        await assertZeroResidual(db, orgId));
+      );
+
+      await step('sections', () =>
+        db.section.deleteMany({ where: { org_id: orgId } }),
+      );
+
+      await step('levels', () =>
+        db.level.deleteMany({ where: { org_id: orgId } }),
+      );
+
+      await step('strands', () =>
+        db.strand.deleteMany({ where: { org_id: orgId } }),
+      );
+
+      await step('courses', () =>
+        db.course.deleteMany({ where: { org_id: orgId } }),
+      );
+
+      await step('programs', () =>
+        db.program.deleteMany({ where: { org_id: orgId } }),
+      );
+
+      await step('concern categories', () =>
+        db.concernCategory.deleteMany({ where: { org_id: orgId } }),
+      );
+
+      await step('org concern settings', () =>
+        db.orgConcernSetting.deleteMany({ where: { org_id: orgId } }),
+      );
+
+      await step('org enrollment settings', () =>
+        db.orgEnrollmentSetting.deleteMany({ where: { org_id: orgId } }),
+      );
+
+      await step('audit logs', () =>
+        db.auditLog.deleteMany({ where: { org_id: orgId } }),
+      );
+
+      await step('school year', () =>
+        db.schoolYear.deleteMany({ where: { id: schoolYearId } }),
+      );
+
+      await step('organization', () =>
+        db.organization.deleteMany({ where: { id: orgId } }),
+      );
+
+      // Verify zero rows remain for the test org before we disconnect the client.
+      await assertZeroResidual(db, orgId);
     } finally {
       await app.close();
     }

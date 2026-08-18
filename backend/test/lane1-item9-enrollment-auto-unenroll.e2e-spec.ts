@@ -20,7 +20,6 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { v4 as uuid } from 'uuid';
 
 import { CoreModule } from '@/core/core.module';
 import { SchoolYearModule } from '@/modules/school-year/school-year.module';
@@ -29,6 +28,7 @@ import { DatabaseService } from '@/core/database/database.provider';
 import { SchedulerTasks } from '@/core/scheduler/scheduler.tasks';
 import { SchoolYearService } from '@/modules/school-year/school-year.service';
 import { OrgEnrollmentSettingService } from '@/modules/org-enrollment-setting/org-enrollment-setting.service';
+import { genEmail, genId, genPrefixedId, genSlug } from './utils/id.util';
 
 if (!process.env.DATABASE_URL) {
   loadEnv({ path: path.join(__dirname, '..', '.env') });
@@ -61,18 +61,18 @@ runSuite(
     let orgSettingService: OrgEnrollmentSettingService;
 
     const orgA = {
-      id: `e2e9a-org-${uuid()}`,
-      slug: `e2e9a-${uuid().slice(0, 8)}`,
+      id: genPrefixedId('e2e9a-org'),
+      slug: genSlug('e2e9a'),
     };
     const orgB = {
-      id: `e2e9b-org-${uuid()}`,
-      slug: `e2e9b-${uuid().slice(0, 8)}`,
+      id: genPrefixedId('e2e9b-org'),
+      slug: genSlug('e2e9b'),
     };
     const orgC = {
-      id: `e2e9c-org-${uuid()}`,
-      slug: `e2e9c-${uuid().slice(0, 8)}`,
+      id: genPrefixedId('e2e9c-org'),
+      slug: genSlug('e2e9c'),
     };
-    const actorId = `e2e9-act-${uuid()}`;
+    const actorId = genPrefixedId('e2e9-act');
 
     const now = Date.now();
     const day = 24 * 60 * 60 * 1000;
@@ -118,7 +118,7 @@ runSuite(
       const subject = await db.subject.create({
         data: {
           org_id: orgId,
-          name: `Subject-${uuid().slice(0, 4)}`,
+          name: genPrefixedId('Subject'),
           subject_type: 'minor',
           program_id: program.id,
           level_id: level.id,
@@ -137,7 +137,7 @@ runSuite(
         data: {
           org_id: orgId,
           role: 'educator',
-          email: `edu-${orgId.slice(0, 6)}-${uuid().slice(0, 4)}@example.com`,
+          email: genEmail(`edu-${orgId.slice(0, 6)}`),
           password: 'x',
           status: 'active',
         },
@@ -165,7 +165,7 @@ runSuite(
         data: {
           org_id: orgId,
           role: 'student',
-          email: `stu-${tag}-${orgId.slice(0, 6)}-${uuid().slice(0, 4)}@example.com`,
+          email: genEmail(`stu-${tag}-${orgId.slice(0, 6)}`),
           password: 'x',
           status: 'active',
         },
@@ -339,11 +339,7 @@ runSuite(
           schoolYearService.end(sy.id, orgC.id, actorId),
         ).rejects.toBeInstanceOf(ConflictException);
         await expect(
-          schoolYearService.end(
-            '00000000-0000-4000-8000-000000000000',
-            orgC.id,
-            actorId,
-          ),
+          schoolYearService.end(genId(), orgC.id, actorId),
         ).rejects.toBeInstanceOf(NotFoundException);
       });
     }, 120000);
