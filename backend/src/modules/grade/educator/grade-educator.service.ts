@@ -430,7 +430,12 @@ export class GradeEducatorService {
     const cls = await this.repo.findClassWithSubject(classId, orgId);
     if (!cls) return;
 
-    const existing = await this.repo.findByStudent(studentId, classId, termId, orgId);
+    const existing = await this.repo.findByStudent(
+      studentId,
+      classId,
+      termId,
+      orgId,
+    );
     if (existing?.is_locked) {
       await this.auditLog.logActivityEvent({
         orgId,

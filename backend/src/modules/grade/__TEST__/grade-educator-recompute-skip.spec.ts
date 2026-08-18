@@ -20,7 +20,11 @@ describe('GradeEducatorService — locked recompute skip audit (Lane 1 item 2)',
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new GradeEducatorService(repo as any, new GradeCoreService(), auditLog as any);
+    service = new GradeEducatorService(
+      repo as any,
+      new GradeCoreService(),
+      auditLog as any,
+    );
   });
 
   it('PROOF: skipping a locked grade writes a grade_recompute_skipped_locked audit entry with the preserved grade shape', async () => {

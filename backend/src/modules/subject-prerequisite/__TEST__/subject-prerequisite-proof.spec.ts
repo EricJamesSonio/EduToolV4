@@ -66,8 +66,18 @@ describe('Subject prerequisite - proof tests (Lane 1 item 5)', () => {
         // The subject's prerequisite definitions still exist — only the
         // grade-enriched join is empty after the interrupted import.
         findBySubject: jest.fn().mockResolvedValue([
-          { id: 'l1', subject_id: 's1', prerequisite_id: 'p-math', prerequisite: { id: 'p-math', name: 'Math' } },
-          { id: 'l2', subject_id: 's1', prerequisite_id: 'p-sci', prerequisite: { id: 'p-sci', name: 'Science' } },
+          {
+            id: 'l1',
+            subject_id: 's1',
+            prerequisite_id: 'p-math',
+            prerequisite: { id: 'p-math', name: 'Math' },
+          },
+          {
+            id: 'l2',
+            subject_id: 's1',
+            prerequisite_id: 'p-sci',
+            prerequisite: { id: 'p-sci', name: 'Science' },
+          },
         ]),
         delete: jest.fn(),
       };
