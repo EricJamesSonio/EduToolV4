@@ -78,11 +78,7 @@ export class ProgramController {
 
     if (!query.schoolYearId) return [];
 
-    return this.programService.findAllWithStats(
-      orgId,
-      query.schoolYearId,
-      query.includeAssignments === 'true',
-    );
+    return this.programService.findAllWithStats(orgId, query.schoolYearId);
   }
 
   @Get(':id')
