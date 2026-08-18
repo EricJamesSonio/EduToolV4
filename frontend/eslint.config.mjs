@@ -6,8 +6,9 @@ import reactHooks from "eslint-plugin-react-hooks";
 import { defineConfig } from "eslint/config";
 
 export default defineConfig([
-
-  // 1️⃣ Ignore folders
+  // ============================================================
+  // 1. Ignore folders
+  // ============================================================
   {
     ignores: [
       "node_modules/**",
@@ -18,13 +19,20 @@ export default defineConfig([
     ],
   },
 
-  // 2️⃣ Base JS config
+  // ============================================================
+  // 2. Base JavaScript config
+  // ============================================================
   js.configs.recommended,
 
-  // 3️⃣ TypeScript (NON type-aware)
+  // ============================================================
+  // 3. TypeScript config
+  //    NON type-aware linting
+  // ============================================================
   ...tseslint.configs.recommended,
 
-  // 4️⃣ Global settings
+  // ============================================================
+  // 4. Global settings for frontend source files
+  // ============================================================
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
     languageOptions: {
@@ -32,49 +40,95 @@ export default defineConfig([
       sourceType: "module",
       globals: globals.browser,
       parserOptions: {
-        ecmaFeatures: { jsx: true },
+        ecmaFeatures: {
+          jsx: true,
+        },
       },
     },
   },
 
-  // 5️⃣ React
+  // ============================================================
+  // 5. React
+  // ============================================================
   {
     ...pluginReact.configs.flat.recommended,
+
     settings: {
       react: {
         version: "detect",
       },
     },
+
     rules: {
-      "react/react-in-jsx-scope": "off", // Next.js
-      "react/prop-types": "off", // using TS
+      "react/react-in-jsx-scope": "off",
+      "react/prop-types": "off",
     },
   },
 
-  // 6️⃣ React Hooks
+  // ============================================================
+  // 6. React Hooks
+  // ============================================================
   {
     plugins: {
       "react-hooks": reactHooks,
     },
+
     rules: {
+      // Keep this because incorrect hook usage can cause real bugs
       "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
+
+      // Disabled intentionally
+      "react-hooks/exhaustive-deps": "off",
     },
   },
 
-{
-  rules: {
-    // Ignore unused variables
-    "@typescript-eslint/no-unused-vars": "off",
+  // ============================================================
+  // 7. Project-wide rule adjustments
+  // ============================================================
+  {
+    rules: {
+      // --------------------------------------------------------
+      // Relaxed rules
+      // --------------------------------------------------------
 
-    // Allow explicit `any`
-    "@typescript-eslint/no-explicit-any": "off",
+      // Explicit `any` is allowed where needed
+      "@typescript-eslint/no-explicit-any": "off",
 
-    // Disable React dependency warning
-    "react-hooks/exhaustive-deps": "off",
+      // Unused variables are not blocking errors
+      "@typescript-eslint/no-unused-vars": "off",
 
-    // Keep this because it can hide a real runtime problem
-    "@typescript-eslint/no-non-null-asserted-optional-chain": "error",
+      // --------------------------------------------------------
+      // Rules intentionally kept strict
+      // --------------------------------------------------------
+
+      // Can hide real runtime problems
+      "@typescript-eslint/no-non-null-asserted-optional-chain":
+        "error",
+
+      // Detect expressions that don't actually do anything
+      "@typescript-eslint/no-unused-expressions": "error",
+
+      // Core ESLint rule
+      "no-empty": "error",
+
+      // Prefer const when a variable is never reassigned
+      "prefer-const": "error",
+    },
   },
-}
+
+  // ============================================================
+  // 8. Jest configuration
+  // ============================================================
+  {
+    files: ["jest.config.js"],
+
+    languageOptions: {
+      globals: globals.node,
+    },
+
+    rules: {
+      // Jest config uses CommonJS require()
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);
