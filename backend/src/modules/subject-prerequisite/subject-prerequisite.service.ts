@@ -43,7 +43,6 @@ export class SubjectPrerequisiteService {
         'A subject cannot be a prerequisite of itself',
       );
     }
-    await this.prereqRepository.deleteAllForSubject(dto.subject_id, orgId);
     return this.prereqRepository.bulkCreate(
       orgId,
       dto.subject_id,

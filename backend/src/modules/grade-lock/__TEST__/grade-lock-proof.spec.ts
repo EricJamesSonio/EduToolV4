@@ -19,9 +19,7 @@ describe('Grade-lock chain — proof tests (Lane 1 item 3)', () => {
           },
         ]),
         findUnlockedLocksWithSchoolYear: jest.fn().mockResolvedValue([]),
-        setLocked: jest
-          .fn()
-          .mockResolvedValue({ class_id: 'c1', is_locked: true }),
+        setLocked: jest.fn().mockResolvedValue({ class_id: 'c1', is_locked: true }),
         createEvent: jest.fn().mockResolvedValue({}),
         lockGradingScaleForClass: jest.fn().mockResolvedValue(undefined),
       };
@@ -36,21 +34,12 @@ describe('Grade-lock chain — proof tests (Lane 1 item 3)', () => {
     });
 
     it('sanity: manual lockClass DOES call lockGradingScaleForClass', async () => {
-      const validator = {
-        validateReadiness: jest
-          .fn()
-          .mockResolvedValue({ ready: true, issues: [] }),
-      };
+      const validator = { validateReadiness: jest.fn().mockResolvedValue({ ready: true, issues: [] }) };
       const repo = {
-        findClassById: jest
-          .fn()
-          .mockResolvedValue({ id: 'c1', educator_id: 'e1', deleted_at: null }),
+        findClassById: jest.fn().mockResolvedValue({ id: 'c1', educator_id: 'e1', deleted_at: null }),
         findLockByClassId: jest.fn().mockResolvedValue({
           is_locked: false,
-          setting: {
-            lock_deadline: new Date(Date.now() + 60_000),
-            deadlineDays: null,
-          },
+          setting: { lock_deadline: new Date(Date.now() + 60_000), deadlineDays: null },
         }),
         resolveDeadline: undefined,
         setLocked: jest.fn().mockResolvedValue({ class_id: 'c1' }),
@@ -58,11 +47,7 @@ describe('Grade-lock chain — proof tests (Lane 1 item 3)', () => {
         createEvent: jest.fn().mockResolvedValue({}),
       };
 
-      const ops = new GradeLockOperationsService(
-        repo as any,
-        validator as any,
-        auditLog as any,
-      );
+      const ops = new GradeLockOperationsService(repo as any, validator as any, auditLog as any);
       await ops.lockClass('c1', 'e1', 'org-1', {});
 
       expect(repo.lockGradingScaleForClass).toHaveBeenCalledWith('c1', 'org-1');
@@ -108,10 +93,7 @@ describe('Grade-lock chain — proof tests (Lane 1 item 3)', () => {
       // resolves the scale with cls.school_year_id = sy-2027, so the lock must
       // target the same scale — the assignment lookup must use sy-2027.
       expect(capturedWhere).toEqual(
-        expect.objectContaining({
-          program_id: 'p-1',
-          school_year_id: 'sy-2027',
-        }),
+        expect.objectContaining({ program_id: 'p-1', school_year_id: 'sy-2027' }),
       );
     });
   });
@@ -120,79 +102,49 @@ describe('Grade-lock chain — proof tests (Lane 1 item 3)', () => {
     it('PROOF: granting with a newDeadline does NOT persist it onto the GradeLockSetting', async () => {
       // Setting's lock_deadline is already in the past -> the hourly sweep will
       // select this lock again AFTER it has been unlocked by the grant.
-      const setting = {
-        lock_deadline: new Date(Date.now() - 60_000),
-        deadlineDays: null,
-      };
+      const setting = { id: 's1', lock_deadline: new Date(Date.now() - 60_000), deadlineDays: null };
 
       const repo = {
-        findClassById: jest
-          .fn()
-          .mockResolvedValue({ id: 'c1', educator_id: 'e1' }),
-        findLockByClassId: jest
-          .fn()
-          .mockResolvedValue({ is_locked: true, setting }),
-        setUnlocked: jest
-          .fn()
-          .mockResolvedValue({ class_id: 'c1', is_locked: false, setting }),
+        findClassById: jest.fn().mockResolvedValue({ id: 'c1', educator_id: 'e1' }),
+        findLockByClassId: jest.fn().mockResolvedValue({ is_locked: true, setting }),
+        setUnlocked: jest.fn().mockResolvedValue({ class_id: 'c1', is_locked: false, setting }),
         createEvent: jest.fn().mockResolvedValue({}),
         updateSetting: jest.fn().mockResolvedValue(undefined),
       };
 
-      const requests = new GradeLockRequestsService(
-        repo as any,
-        auditLog as any,
-      );
+      const requests = new GradeLockRequestsService(repo as any, auditLog as any);
       const future = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
-      await requests.grantUnlock('c1', 'u1', 'org-1', {
-        reason: 'allow regrade',
-        newDeadline: future,
-      });
+      await requests.grantUnlock('c1', 'u1', 'org-1', { reason: 'allow regrade', newDeadline: future });
 
-      // Correct behavior: a granted newDeadline must be written to the setting
-      // so the auto-lock sweep does not re-lock the class within the hour.
-      expect(repo.updateSetting).toHaveBeenCalledWith(
-        'c1',
-        expect.objectContaining({ lock_deadline: future }),
-      );
+      // Correct behavior: a granted newDeadline must be written to the SETTING
+      // (keyed by the setting's id, not the class id) so the auto-lock sweep
+      // does not re-lock the class within the hour.
+      expect(repo.updateSetting).toHaveBeenCalledWith('s1', expect.objectContaining({ lock_deadline: future }));
     });
   });
 
   describe('(d) a resolved grant/deny still blocks future requests (no resolved marker)', () => {
     it('PROOF: requestUnlock throws Conflict even though the earlier request was already GRANTED', async () => {
       const repo = {
-        findClassById: jest
-          .fn()
-          .mockResolvedValue({ id: 'c1', educator_id: 'e1' }),
+        findClassById: jest.fn().mockResolvedValue({ id: 'c1', educator_id: 'e1' }),
         findLockByClassId: jest.fn().mockResolvedValue({
           is_locked: true,
           setting: { lock_deadline: new Date(Date.now() + 60_000) },
         }),
         findEventsByClassId: jest.fn().mockResolvedValue([
-          {
-            type: 'unlock_request',
-            created_at: new Date(Date.now() - 3_600_000),
-          },
-          {
-            type: 'grant_unlock',
-            created_at: new Date(Date.now() - 3_500_000),
-          },
+          { type: 'unlock_request', created_at: new Date(Date.now() - 3_600_000) },
+          { type: 'grant_unlock', created_at: new Date(Date.now() - 3_500_000) },
         ]),
         createEvent: jest.fn().mockResolvedValue({}),
       };
 
-      const requests = new GradeLockRequestsService(
-        repo as any,
-        auditLog as any,
-      );
+      const requests = new GradeLockRequestsService(repo as any, auditLog as any);
 
       // Correct behavior: the earlier request was RESOLVED by a grant, so a
       // fresh unlock request for the same class must be permitted.
       await expect(
-        requests.requestUnlock('c1', 'e1', 'org-1', {
-          reason: 'regrade again',
-        }),
+        requests.requestUnlock('c1', 'e1', 'org-1', { reason: 'regrade again' }),
       ).resolves.toEqual({ success: true });
     });
   });
