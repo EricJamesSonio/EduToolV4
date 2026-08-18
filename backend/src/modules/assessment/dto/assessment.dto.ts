@@ -10,7 +10,6 @@ import {
   IsDateString,
   IsEnum,
   Min,
-  Max,
   ValidateNested,
   ArrayNotEmpty,
 } from 'class-validator';
