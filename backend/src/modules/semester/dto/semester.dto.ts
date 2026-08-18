@@ -9,7 +9,6 @@ import {
   MinLength,
   MaxLength,
   Min,
-  ArrayMaxSize,
   ArrayMinSize,
   IsUUID,
 } from 'class-validator';

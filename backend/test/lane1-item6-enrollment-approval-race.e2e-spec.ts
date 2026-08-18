@@ -62,11 +62,9 @@ runSuite(
   () => {
     let app: INestApplication;
     let db: DatabaseService;
-    let approvalService: EnrollmentApprovalService;
     let autoLock: EnrollmentAutoLockService;
     let registrarRepo: EnrollmentRegistrarRepository;
     let approvalRepo: EnrollmentApprovalRepository;
-    let registrarService: EnrollmentRegistrarService;
 
     const orgA = {
       id: `e2e6a-org-${uuid()}`,
@@ -270,11 +268,9 @@ runSuite(
       app = moduleFixture.createNestApplication();
       await app.init();
       db = app.get(DatabaseService);
-      approvalService = app.get(EnrollmentApprovalService);
       autoLock = app.get(EnrollmentAutoLockService);
       registrarRepo = app.get(EnrollmentRegistrarRepository);
       approvalRepo = app.get(EnrollmentApprovalRepository);
-      registrarService = app.get(EnrollmentRegistrarService);
     }, 120000);
 
     it('(a) PROOF: the sweep can lock an application WHILE the approval is inside its window, and the approval write still lands (no write-time pending guard)', async () => {
@@ -300,8 +296,8 @@ runSuite(
             orgA.id,
             appRow.id,
           );
-          log(`(a) pre-check read status: ${preCheck.status}`);
-          expect(preCheck.status).toBe('pending');
+          log(`(a) pre-check read status: ${preCheck!.status}`);
+          expect(preCheck!.status).toBe('pending');
 
           // Mimic the approval transaction: open a real interactive $transaction, take
           // its read (the pending status), then HOLD while the real sweep commits.
@@ -311,7 +307,7 @@ runSuite(
           const writeGate = new Promise<void>((r) => (releaseWrite = r));
 
           const approvalWrite = db.$transaction(async (tx) => {
-            const inside = await tx.enrollmentApplication.findUnique({
+            const _inside = await tx.enrollmentApplication.findUnique({
               where: { id: appRow.id },
             });
             markRead();
@@ -362,7 +358,6 @@ runSuite(
           const sy = await orgFixture(orgB, 'E2E Item 6b Org');
           const { program, level } = await programLevelFixture(orgB.id, sy.id);
           const section = await sectionFixture(orgB.id, sy.id, level.id, 5); // capacity 5
-          const period = await periodFixture(orgB.id, sy.id, +1); // lock_date in the FUTURE
 
           // Section at capacity-1: 4 existing active enrollments.
           for (let i = 0; i < 4; i++) {

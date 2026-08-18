@@ -17,7 +17,7 @@ import { config as loadEnv } from 'dotenv';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { ConflictException } from '@nestjs/common';
-import { v4 as uuid } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 import { CoreModule } from '@/core/core.module';
 import { EnrollmentPortalModule } from '@/modules/enrollment-portal/enrollment-portal.module';
@@ -32,6 +32,41 @@ import { EnrollmentPortalService } from '@/modules/enrollment-portal/enrollment-
 import { EnrollmentRegistrarService } from '@/modules/enrollment-portal/registrar/enrollment-registrar.service';
 import type { EnrollmentSessionClaims } from '@/modules/enrollment-portal/entity/enrollment-portal.entity';
 import type { UpsertEnrollmentApplicationDto } from '@/modules/enrollment-portal/dto/enrollment-portal.dto';
+
+// ---------------------------------------------------------------------------
+// Local typing boundary
+//
+// `uuid`'s `v4` export, and the return values of the portal/registrar service
+// calls below, aren't narrowed by the type-aware linter in this test project
+// and surface as `any`. Rather than sprinkle `any`/casts through every call
+// site, we pin down a typed `uuid()` helper and minimal local interfaces
+// (only the fields this spec actually reads) once, here, and cast at the
+// point each service call resolves. Everything downstream is then a real
+// type instead of `any`.
+// ---------------------------------------------------------------------------
+const uuid: () => string = uuidv4;
+
+interface CreatedApplication {
+  id: string;
+  application_code: string;
+  status: string;
+  last_name: string;
+}
+
+interface RejectApplicationResult {
+  application: {
+    status: string;
+  };
+}
+
+interface UpdatedApplication {
+  last_name: string;
+}
+
+interface RejectionAuditMetadata {
+  reason?: string;
+  personal_email?: string;
+}
 
 if (!process.env.DATABASE_URL) {
   loadEnv({ path: path.join(__dirname, '..', '.env') });
@@ -169,26 +204,26 @@ runSuite(
           const session = sessionFor(email);
 
           // Applicant builds a complete application through the portal.
-          const created = await portal.createApplication(
+          const created = (await portal.createApplication(
             org.slug,
             period.token,
             session,
             dtoFor('Amy Rejected'),
-          );
+          )) as CreatedApplication;
           log(
             `(a) created application ${created.application_code} -> ${created.status}`,
           );
           expect(created.status).toBe('pending');
 
           // Registrar rejects it with a reason.
-          const rejected = await registrar.rejectApplication(
+          const rejected = (await registrar.rejectApplication(
             org.id,
             actorId,
             created.id,
             {
               reason: 'Incomplete documents — missing birth certificate.',
             },
-          );
+          )) as RejectApplicationResult;
           log(`(a) rejected result status=${rejected.application.status}`);
           expect(rejected.application.status).toBe('rejected');
 
@@ -213,7 +248,8 @@ runSuite(
             },
           });
           log(`(a) audit: ${audit ? `found id=${audit.id}` : 'MISSING'}`);
-          const metadata: any = audit?.metadata ?? null;
+          const metadata = (audit?.metadata ??
+            null) as RejectionAuditMetadata | null;
           log(`(a) audit metadata: ${JSON.stringify(metadata)}`);
           expect(audit).toBeTruthy();
           expect(metadata?.reason).toBe(
@@ -240,12 +276,12 @@ runSuite(
         const email = `rejected-edit-${uuid().slice(0, 8)}@gmail.com`;
         const session = sessionFor(email);
 
-        const created = await portal.createApplication(
+        const created = (await portal.createApplication(
           org.slug,
           period.token,
           session,
           dtoFor('Robert Rejected'),
-        );
+        )) as CreatedApplication;
         await registrar.rejectApplication(org.id, actorId, created.id, {
           reason: 'Duplicate submission.',
         });
@@ -257,7 +293,7 @@ runSuite(
           ...session,
           applicationId: created.id,
         };
-        const updated = await portal.updateApplication(
+        const updated = (await portal.updateApplication(
           org.slug,
           period.token,
           editSession,
@@ -265,7 +301,7 @@ runSuite(
             ...dtoFor('Robert Rejected'),
             last_name: 'Rejected-Updated',
           },
-        );
+        )) as UpdatedApplication;
         log(`(b) update succeeded, returned last_name=${updated.last_name}`);
         expect(updated.last_name).toBe('Rejected-Updated');
 

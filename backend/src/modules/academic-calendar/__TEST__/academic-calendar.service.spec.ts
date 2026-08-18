@@ -2,6 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AcademicCalendarService } from '../academic-calendar.service';
 import { AcademicCalendarRepository } from '../academic-calendar.repository';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  CreateCalendarEventDto,
+  CalendarEventType,
+} from '../dto/academic-calendar.dto';
 
 describe('AcademicCalendarService', () => {
   let service: AcademicCalendarService;
@@ -36,16 +40,16 @@ describe('AcademicCalendarService', () => {
 
   describe('create', () => {
     it('should create event successfully', async () => {
-      const dto = {
+      const dto: CreateCalendarEventDto = {
         schoolYearId: 'sy1',
         title: 'Test Event',
-        type: 'holiday',
+        type: CalendarEventType.HOLIDAY,
         startDate: '2025-01-01',
         endDate: '2025-01-02',
         description: 'desc',
       };
 
-      repository.create.mockResolvedValue({ id: '1', ...dto });
+      repository.create.mockResolvedValue({ id: '1', ...dto } as any);
 
       const result = await service.create('org1', dto);
 
@@ -54,10 +58,10 @@ describe('AcademicCalendarService', () => {
     });
 
     it('should throw if startDate > endDate', async () => {
-      const dto = {
+      const dto: CreateCalendarEventDto = {
         schoolYearId: 'sy1',
         title: 'Invalid Event',
-        type: 'holiday',
+        type: CalendarEventType.HOLIDAY,
         startDate: '2025-01-03',
         endDate: '2025-01-01',
         description: '',
@@ -72,16 +76,16 @@ describe('AcademicCalendarService', () => {
       const pastDate = new Date();
       pastDate.setDate(pastDate.getDate() - 5);
 
-      const dto = {
+      const dto: CreateCalendarEventDto = {
         schoolYearId: 'sy1',
         title: 'Past Event',
-        type: 'holiday',
+        type: CalendarEventType.HOLIDAY,
         startDate: pastDate.toISOString(),
         endDate: pastDate.toISOString(),
         description: '',
       };
 
-      repository.create.mockResolvedValue({ id: '1', ...dto });
+      repository.create.mockResolvedValue({ id: '1', ...dto } as any);
 
       const result = await service.create('org1', dto);
 
@@ -93,7 +97,7 @@ describe('AcademicCalendarService', () => {
 
   describe('findAll', () => {
     it('should return events', async () => {
-      repository.findAll.mockResolvedValue([{ id: '1' }]);
+      repository.findAll.mockResolvedValue([{ id: '1' } as any]);
 
       const result = await service.findAll('org1', {
         schoolYearId: 'sy1',
@@ -115,7 +119,7 @@ describe('AcademicCalendarService', () => {
       };
 
       repository.findById.mockResolvedValue(existing as any);
-      repository.update.mockResolvedValue({ id: '1' });
+      repository.update.mockResolvedValue({ id: '1' } as any);
 
       const result = await service.update('1', 'org1', {
         title: 'Updated',
@@ -175,7 +179,9 @@ describe('AcademicCalendarService', () => {
 
   describe('getSessionBlockingEvents', () => {
     it('should return blocking events', async () => {
-      repository.findSessionBlockingEvents.mockResolvedValue([{ id: '1' }]);
+      repository.findSessionBlockingEvents.mockResolvedValue([
+        { id: '1' } as any,
+      ]);
 
       const result = await service.getSessionBlockingEvents('org1', 'sy1');
 
@@ -189,9 +195,9 @@ describe('AcademicCalendarService', () => {
     it('should return true if date is blocked', async () => {
       repository.findSessionBlockingEvents.mockResolvedValue([
         {
-          start_date: '2025-01-01',
-          end_date: '2025-01-10',
-        },
+          start_date: new Date('2025-01-01'),
+          end_date: new Date('2025-01-10'),
+        } as any,
       ]);
 
       const result = await service.isBlockedDate(
@@ -206,9 +212,9 @@ describe('AcademicCalendarService', () => {
     it('should return false if date is not blocked', async () => {
       repository.findSessionBlockingEvents.mockResolvedValue([
         {
-          start_date: '2025-01-01',
-          end_date: '2025-01-03',
-        },
+          start_date: new Date('2025-01-01'),
+          end_date: new Date('2025-01-03'),
+        } as any,
       ]);
 
       const result = await service.isBlockedDate(

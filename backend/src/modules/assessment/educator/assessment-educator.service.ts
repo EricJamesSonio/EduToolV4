@@ -563,7 +563,7 @@ export class AssessmentEducatorService {
     previewId: string,
     classId: string,
     orgId: string,
-    educatorId: string,
+    _educatorId: string,
   ) {
     const result = this.generation.getPreviewResult(previewId);
     if (!result)

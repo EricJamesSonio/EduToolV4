@@ -40,7 +40,7 @@ export class TranscriptStudentService {
 
     if (enrollments.length === 0) return [];
 
-    const classEntries: TranscriptEntry[] = await Promise.all(
+    const classEntries: TranscriptEntry[][] = await Promise.all(
       enrollments.map(async (enrollment) => {
         const cls = enrollment.class;
 

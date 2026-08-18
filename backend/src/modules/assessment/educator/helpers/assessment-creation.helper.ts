@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { AssessmentRepository } from '../../core/assessment-core.repository';
 import { LessonRepository } from '@/modules/lesson/lesson.repository';
 import { DatabaseService } from '@/core/database/database.provider';

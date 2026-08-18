@@ -44,16 +44,18 @@ Whether you are an administrator, educator, or student, EduTool brings everythin
 
 ---
 
-## Security and Trust
+## Trusted by Schools
 
 <img src="./.Images/home/trusted.png" alt="Trusted Schools" />
 
-EduTool is built to protect school data and ensure reliable access.
+EduTool is actively used by schools that rely on it for their daily academic operations.
 
-- Secure login system
-- Role-based access control
-- Protected and private data
-- Designed for institutional use
+It is trusted for its consistency, reliability, and ability to handle real-world school workflows.
+
+- Used in actual school environments
+- Reliable for daily academic management
+- Designed to support growing institutions
+- Built to handle real operational needs
 
 ---
 

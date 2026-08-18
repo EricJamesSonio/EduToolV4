@@ -1,12 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  MinLength,
-  MaxLength,
-  IsNotEmpty,
-  IsUUID,
-} from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsUUID } from 'class-validator';
 
 export enum ProgramType {
   DAYCARE = 'daycare',

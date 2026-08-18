@@ -12,57 +12,6 @@ const PROGRAM_LIST_INCLUDE = {
   },
 };
 
-const PROGRAM_STATS_INCLUDE_COLLEGE = {
-  courses: {
-    orderBy: { name: 'asc' as const },
-    include: {
-      subjects: {
-        select: {
-          id: true,
-          name: true,
-          year_level: true,
-          term_label: true,
-          is_locked: true,
-        },
-        orderBy: [
-          { year_level: 'asc' as const },
-          { term_label: 'asc' as const },
-          { name: 'asc' as const },
-        ],
-      },
-    },
-  },
-};
-
-const PROGRAM_STATS_INCLUDE_SENIOR_HIGH = {
-  strands: {
-    orderBy: { name: 'asc' as const },
-    include: {
-      subjects: {
-        select: {
-          id: true,
-          name: true,
-          year_level: true,
-          term_label: true,
-          is_locked: true,
-        },
-        orderBy: [
-          { year_level: 'asc' as const },
-          { term_label: 'asc' as const },
-          { name: 'asc' as const },
-        ],
-      },
-    },
-  },
-};
-
-const PROGRAM_STATS_INCLUDE_DEFAULT = {
-  levels: {
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' as const },
-  },
-};
-
 const PROGRAM_DETAIL_INCLUDE = {
   courses: {
     orderBy: { name: 'asc' as const },
@@ -153,11 +102,7 @@ export class ProgramRepository {
     });
   }
 
-  async findAllWithStats(
-    orgId: string,
-    schoolYearId: string,
-    includeAssignment = false,
-  ) {
+  async findAllWithStats(orgId: string, schoolYearId: string) {
     const programs = await this.db.program.findMany({
       where: {
         org_id: orgId,

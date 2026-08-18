@@ -71,3 +71,18 @@ npx playwright show-report
 
 - Backend unit/e2e proof tests for known Critical-tier bugs (items 1–5, grading/grade-lock/seeder/prerequisites) are **expected to fail** — red output confirms the bug is still present, not a broken test.
 - Playwright's `trace: 'on-first-retry'` and `video: 'on'` are already configured — failed runs auto-capture debugging artifacts, viewable via `show-report`.
+
+## Frontend/Backend — Lint & Type Check
+
+Run from `frontend/`.
+
+```bash
+# ESLint — check the frontend for lint errors
+npx eslint .
+
+# ESLint — automatically fix fixable lint issues
+npx eslint . --fix
+
+# TypeScript — type-check without generating files
+npx tsc --noEmit
+```

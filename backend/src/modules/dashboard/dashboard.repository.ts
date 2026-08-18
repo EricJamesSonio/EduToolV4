@@ -15,7 +15,7 @@ export class DashboardRepository {
    * Get dashboard statistics
    * Returns mock data for demonstration purposes
    */
-  async getStats(): Promise<DashboardStatsDto> {
+  getStats(): DashboardStatsDto {
     // Mock data - in production this would query the database
     return {
       totalStudents: 1234,
@@ -33,7 +33,7 @@ export class DashboardRepository {
    * Get academic context information
    * Returns mock data for demonstration purposes
    */
-  async getAcademicContext(): Promise<AcademicContextDto> {
+  getAcademicContext(): AcademicContextDto {
     // Mock data - in production this would query the database
     return {
       schoolYear: '2025-2026',
@@ -48,7 +48,7 @@ export class DashboardRepository {
    * Get alerts and important notices
    * Returns mock data for demonstration purposes
    */
-  async getAlerts(): Promise<AlertDto[]> {
+  getAlerts(): AlertDto[] {
     // Mock data - in production this would query the database
     return [
       {

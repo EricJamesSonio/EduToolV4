@@ -87,6 +87,16 @@ export const run: {
   programIds: {},
   placements: {},
   schemeTemplateIds: {},
+};const requireRunValue = <K extends keyof typeof run>(
+  key: K,
+): NonNullable<(typeof run)[K]> => {
+  const value = run[key];
+
+  if (value === undefined) {
+    throw new Error(`Required run state "${String(key)}" has not been initialized.`);
+  }
+
+  return value as NonNullable<(typeof run)[K]>;
 };
 
 // Authenticated API headers for the run's admin account.
@@ -247,8 +257,9 @@ test("Phase 1 — platform → admin → org → school year", async ({ page }) 
 
     // Credentials card surfaces the same generated password
     await expect(modal.getByText("Admin account created")).toBeVisible();
-    await expect(modal.locator(".font-mono")).toHaveText(run.adminPassword);
-    await modal.getByRole("button", { name: "Done" }).click();
+await expect(modal.locator(".font-mono")).toHaveText(
+  requireRunValue("adminPassword"),
+);
   });
 
   await test.step("platform logout clears the session", async () => {
@@ -507,8 +518,9 @@ test("Phase 2 — educator account with extension-derived email (UI)", async ({ 
     await modal.locator("#edu-email").fill(username);
 
     // Mirrors buildFullEmail: role sub-domain is inserted before the TLD.
-    const dotIndex = run.orgExtension.indexOf(".");
-    const eduDomain = `${run.orgExtension.slice(0, dotIndex)}.educator${run.orgExtension.slice(dotIndex)}`;
+const orgExtension = requireRunValue("orgExtension");
+const dotIndex = orgExtension.indexOf(".");
+const eduDomain = `${orgExtension.slice(0, dotIndex)}.educator${orgExtension.slice(dotIndex)}`;
     const fullEmail = `${username}@${eduDomain}`;
     await expect(modal.getByText(fullEmail, { exact: true }).first()).toBeVisible();
 
@@ -528,7 +540,9 @@ test("Phase 2 — educator account with extension-derived email (UI)", async ({ 
     await expect(
       credCard.getByText("Educator account created", { exact: true }),
     ).toBeVisible();
-    await expect(credCard.getByText(run.educatorPassword, { exact: true })).toBeVisible();
+    await expect(
+  credCard.getByText(requireRunValue("educatorPassword"), { exact: true }),
+).toBeVisible();
     await credCard.getByRole("button", { name: "Done" }).click();
   });
 });
@@ -720,7 +734,7 @@ test("Phase 3 — grading scale created (UI) and assigned to the JHS department"
 
   await test.step("assignment is registered via the API", async () => {
     const res = await request.get(`${API_BASE}/grading-scales/assignments`, {
-      params: { schoolYearId: run.schoolYearId },
+      params: { schoolYearId: requireRunValue("schoolYearId") },
       headers,
     });
     expect(res.status()).toBe(200);
@@ -815,7 +829,7 @@ test("Phase 4 — grading scheme template created (UI) and applied to the JHS pr
   await test.step("program assignment registers the template via the API", async () => {
     const res = await request.get(
       `${API_BASE}/grading-scheme-templates/assignments/program`,
-      { params: { schoolYearId: run.schoolYearId }, headers },
+      { params: { schoolYearId: run.schoolYearId! }, headers },
     );
     expect(res.status()).toBe(200);
     const list = await unwrapData<
@@ -885,7 +899,10 @@ test("Phase 5 — JHS department calendar with two semester breaks", async ({
 
   await test.step("calendar is queryable per program with persisted breaks", async () => {
     const res = await request.get(`${API_BASE}/program-calendars/by-program`, {
-      params: { programId: run.jhsProgramId, schoolYearId: run.schoolYearId },
+      params: {
+  programId: requireRunValue("jhsProgramId"),
+  schoolYearId: requireRunValue("schoolYearId"),
+},
       headers,
     });
     expect(res.status()).toBe(200);
@@ -996,7 +1013,7 @@ test("Phase 6 — JHS semester template created and assigned with term dates", a
   await test.step("assignment with term dates is registered via the API", async () => {
     const res = await request.get(
       `${API_BASE}/semester-templates/assignments/by-school-year`,
-      { params: { schoolYearId: run.schoolYearId }, headers },
+      { params: { schoolYearId: run.schoolYearId! }, headers },
     );
     expect(res.status()).toBe(200);
     const list = await unwrapData<
@@ -1123,7 +1140,7 @@ test("Phase 6c — complete school-year readiness (JHS levels 2-3 + elementary d
       program_type?: string;
     }>(
       await request.get(`${API_BASE}/programs`, {
-        params: { schoolYearId: run.schoolYearId },
+        params: { schoolYearId: run.schoolYearId! },
         headers,
       }),
     );
@@ -1132,7 +1149,7 @@ test("Phase 6c — complete school-year readiness (JHS levels 2-3 + elementary d
 
     const levels = await unwrapList<{ id: string; programId?: string; program_id?: string }>(
       await request.get(`${API_BASE}/levels`, {
-        params: { schoolYearId: run.schoolYearId },
+        params: { schoolYearId: run.schoolYearId! },
         headers,
       }),
     );
@@ -1141,7 +1158,7 @@ test("Phase 6c — complete school-year readiness (JHS levels 2-3 + elementary d
 
     const sections = await unwrapList<{ id: string; levelId?: string; level_id?: string }>(
       await request.get(`${API_BASE}/sections`, {
-        params: { schoolYearId: run.schoolYearId },
+        params: { schoolYearId: run.schoolYearId! },
         headers,
       }),
     );
@@ -1180,7 +1197,7 @@ test("Phase 6c — complete school-year readiness (JHS levels 2-3 + elementary d
     const elemScale = await unwrapData<{ id: string }>(scale);
     const assignScale = await request.post(
       `${API_BASE}/grading-scales/programs/${elem!.id}/grading-scale`,
-      { data: { scaleId: elemScale.id, schoolYearId: run.schoolYearId }, headers },
+      { data: { scaleId: elemScale.id, schoolYearId: run.schoolYearId! }, headers },
     );
     expect(assignScale.status()).toBe(201);
 
@@ -1321,7 +1338,7 @@ test("Phase 6d — students enrolled in the school year with program + section (
       school_year_id: string;
     }>(res);
     expect(sye.student_id).toBe(run.student1!.id);
-    expect(sye.school_year_id).toBe(run.schoolYearId);
+    expect(sye.school_year_id).toBe(run.schoolYearId!);
   });
 
   await test.step("program enrollment pins the JHS level", async () => {
@@ -1410,7 +1427,7 @@ test("Phase 6e — class enrollment is gated on academic placement (API)", async
     // org-wide readiness back to not-ready and break Phase 7's gated calls.
     const programs = await unwrapList<{ id: string; type?: string; program_type?: string }>(
       await request.get(`${API_BASE}/programs`, {
-        params: { schoolYearId: run.schoolYearId },
+        params: { schoolYearId: run.schoolYearId! },
         headers,
       }),
     );
@@ -1419,7 +1436,7 @@ test("Phase 6e — class enrollment is gated on academic placement (API)", async
 
     const levels = await unwrapList<{ id: string; programId?: string; program_id?: string }>(
       await request.get(`${API_BASE}/levels`, {
-        params: { schoolYearId: run.schoolYearId },
+        params: { schoolYearId: run.schoolYearId! },
         headers,
       }),
     );
@@ -1428,7 +1445,7 @@ test("Phase 6e — class enrollment is gated on academic placement (API)", async
 
     const sections = await unwrapList<{ id: string; levelId?: string; level_id?: string }>(
       await request.get(`${API_BASE}/sections`, {
-        params: { schoolYearId: run.schoolYearId },
+        params: { schoolYearId: run.schoolYearId! },
         headers,
       }),
     );
@@ -1802,7 +1819,7 @@ test("Phase 7b — enrollment locked until SY ready; wizard places student dept 
   await test.step("wizard fixtures: level-bound class + placed/not-yet-placed candidates", async () => {
     const levels = await unwrapList<{ id: string; name: string }>(
       await request.get(`${API_BASE}/levels`, {
-        params: { schoolYearId: run.schoolYearId },
+        params: { schoolYearId: run.schoolYearId! },
         headers,
       }),
     );

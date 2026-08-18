@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '@/core/database/database.provider';
-import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class PlatformRegistrationRepository {

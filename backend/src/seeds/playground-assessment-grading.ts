@@ -92,9 +92,6 @@ function fmt(d: unknown): string {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
-  let app: INestApplication;
-  let db: DatabaseService;
-
   // `--cleanup <orgId>` only runs cleanup for an existing org (e.g. a leftover
   // from a previously interrupted run) and exits.
   const cleanupArgIdx = process.argv.indexOf('--cleanup');
@@ -110,10 +107,10 @@ async function main() {
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
   }).compile();
-  app = moduleFixture.createNestApplication();
+  const app: INestApplication = moduleFixture.createNestApplication();
   await app.init();
 
-  db = app.get(DatabaseService);
+  const db: DatabaseService = app.get(DatabaseService);
 
   if (cleanupOrgId) {
     log(`--- CLEANUP-ONLY: deleting all rows for org ${cleanupOrgId} ---`);

@@ -49,7 +49,10 @@ describe('AnalyticsService', () => {
   });
 
   it('should fallback to active school year', async () => {
-    repo.getActiveSchoolYear.mockResolvedValue({ id: 'active-sy' });
+    repo.getActiveSchoolYear.mockResolvedValue({
+      id: 'active-sy',
+      name: 'Active School Year',
+    });
 
     repo.countStudents.mockResolvedValue(10);
     repo.countPendingStudents.mockResolvedValue(2);
@@ -152,11 +155,15 @@ describe('AnalyticsService', () => {
   // ── getEducatorLoad ───────────────────────────────
 
   it('should return educator load', async () => {
-    repo.getEducatorLoad.mockResolvedValue([{ educatorId: 'e1', load: 3 }]);
+    repo.getEducatorLoad.mockResolvedValue([
+      { educatorId: 'e1', totalClasses: 3, totalStudents: 40 },
+    ]);
 
     const result = await service.getEducatorLoad('org1', 'sy1');
 
-    expect(result).toEqual([{ educatorId: 'e1', load: 3 }]);
+    expect(result).toEqual([
+      { educatorId: 'e1', totalClasses: 3, totalStudents: 40 },
+    ]);
   });
 
   // ── getAlerts ─────────────────────────────────────

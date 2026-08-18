@@ -64,16 +64,8 @@ export class ProgramService {
   }
 
   // ✅ NEW: fetch programs with stats data
-  async findAllWithStats(
-    orgId: string,
-    schoolYearId: string,
-    includeAssignment = false,
-  ) {
-    return this.programRepository.findAllWithStats(
-      orgId,
-      schoolYearId,
-      includeAssignment,
-    );
+  async findAllWithStats(orgId: string, schoolYearId: string) {
+    return this.programRepository.findAllWithStats(orgId, schoolYearId);
   }
 
   async findById(id: string, orgId: string) {

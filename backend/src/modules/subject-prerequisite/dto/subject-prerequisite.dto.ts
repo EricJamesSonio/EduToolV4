@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsArray, IsUUID } from 'class-validator';
+import { IsString, IsArray, IsUUID } from 'class-validator';
 
 export class CreatePrerequisiteDto {
   @IsUUID()

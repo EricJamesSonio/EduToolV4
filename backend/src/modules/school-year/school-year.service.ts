@@ -20,11 +20,6 @@ import {
 
 const TEN_MONTHS_MS = 10 * 30 * 24 * 60 * 60 * 1000;
 
-interface CreateResult {
-  data: Awaited<ReturnType<SchoolYearRepository['findById']>>;
-  warning?: string;
-}
-
 @Injectable()
 export class SchoolYearService {
   constructor(
