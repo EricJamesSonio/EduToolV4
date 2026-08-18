@@ -60,11 +60,7 @@ export class SubmissionService {
   // ── START / RESUME attempt ────────────────────────────────────────────────
 
   async startOrResume(assessmentId: string, orgId: string, studentId: string) {
-    const assessment = await this.assertAssessmentOpen(
-      assessmentId,
-      orgId,
-      studentId,
-    );
+    await this.assertAssessmentOpen(assessmentId, orgId, studentId);
 
     // Check existing attempt
     const existing = await this.submissionRepo.findByStudent(
@@ -284,7 +280,7 @@ export class SubmissionService {
 
   // ── GET ANSWERS (educator view) ───────────────────────────────────────────
 
-  async getAnswers(assessmentId: string, submissionId: string, orgId: string) {
+  async getAnswers(assessmentId: string, submissionId: string, _orgId: string) {
     const submission = await this.submissionRepo.findById(submissionId);
 
     if (!submission || submission.assessment_id !== assessmentId) {
