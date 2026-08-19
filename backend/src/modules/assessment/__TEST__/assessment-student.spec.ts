@@ -9,7 +9,7 @@ describe('AssessmentStudentService (High-Value Tests)', () => {
     findAssessmentOrThrow: jest.fn(),
     buildAssessmentListItem: jest.fn((a, s) => ({
       id: a.id,
-      status: s?.status ?? 'not_started',
+      submissionStatus: s?.status ?? 'not_started',
     })),
     getQuestions: jest.fn(),
     getSubmissionByStudent: jest.fn(),

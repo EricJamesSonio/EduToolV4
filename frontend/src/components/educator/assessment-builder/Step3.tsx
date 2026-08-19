@@ -126,7 +126,7 @@ export function Step3({
 
   function setSectionCount(idx: number, newCount: number) {
     const clamped = Math.max(1, newCount);
-    let arr = sections.map((sec, i) => {
+    const arr = sections.map((sec, i) => {
       if (i === idx) {
         const from = sec.from;
         const to = from + clamped - 1;

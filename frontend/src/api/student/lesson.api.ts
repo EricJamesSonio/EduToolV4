@@ -9,7 +9,7 @@ export interface StudentLesson {
   detail: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function mapLesson(l: any): StudentLesson {
   return {
     id: l.id,

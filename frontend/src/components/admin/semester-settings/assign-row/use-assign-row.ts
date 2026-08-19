@@ -106,7 +106,7 @@ export function useAssignRow(
     if (current && !selectedTemplateId) {
       setSelectedTemplateId(current.template_id)
     }
-  }, [current]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [current]) 
 
   // ── Smart default computation when selecting a template ──
 

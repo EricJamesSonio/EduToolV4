@@ -97,7 +97,12 @@ export function useCrudUpdate<T extends { id: string }, UpdateData = Partial<T>>
   });
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateData }) => api.update?.(id, data)!,
+    mutationFn: ({ id, data }: { id: string; data: UpdateData }) => {
+  if (!api.update) {
+    throw new Error(`update is not implemented for ${entityName}`);
+  }
+  return api.update(id, data);
+},
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({
         queryKey: Array.isArray(queryKey) ? [...queryKey, 'detail', id] : [queryKey, 'detail', id],

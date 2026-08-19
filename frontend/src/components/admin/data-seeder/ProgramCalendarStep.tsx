@@ -46,7 +46,7 @@ export function ProgramCalendarStep({
         endDate:   schoolYearEnd?.slice(0, 10) ?? "",
       })
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [seedProgramCalendars, selectedPrograms, schoolYearStart, schoolYearEnd])
 
   return (

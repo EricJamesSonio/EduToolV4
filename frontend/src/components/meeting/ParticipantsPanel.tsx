@@ -102,7 +102,7 @@ function FullscreenView({
         remote?.videoTrack?.play(`remote-${remote?.uid}`);
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   return (
@@ -200,7 +200,7 @@ function GridView({
       });
     });
     return () => cancelAnimationFrame(raf);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [remoteUsers.length]);
 
   const cols =

@@ -19,7 +19,11 @@ const classDraftKeys = {
 export function saveClassDraft(values: Partial<CreateClassForm>): void {
   try {
     localStorage.setItem(DRAFT_KEY, JSON.stringify(values));
-  } catch { }
+  } catch (error) {
+    // localStorage can throw (quota exceeded, private browsing, disabled) —
+    // draft saving is best-effort, so we swallow it but log for visibility.
+    console.warn("Failed to save class draft:", error);
+  }
 }
 
 /**
@@ -40,9 +44,10 @@ export function loadClassDraft(): Partial<CreateClassForm> | null {
 export function clearClassDraft(): void {
   try {
     localStorage.removeItem(DRAFT_KEY);
-  } catch { }
+  } catch (error) {
+    console.warn("Failed to clear class draft:", error);
+  }
 }
-
 /**
  * Hook to manage class draft with React Query
  * Provides persistent storage with better caching and synchronization

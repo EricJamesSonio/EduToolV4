@@ -154,10 +154,10 @@ export class SubjectService {
   }
 
   async create(orgId: string, dto: CreateSubjectDto): Promise<SubjectResponse> {
-    const program = await this.subjectRepository.findProgramById(
+    const program = (await this.subjectRepository.findProgramById(
       dto.programId,
       orgId,
-    );
+    )) as ProgramRecord | null;
     if (!program) throw new NotFoundException('Program not found.');
 
     this.validateSubjectScope(dto, program.type);
@@ -249,10 +249,10 @@ export class SubjectService {
         );
       }
 
-      const program = await this.subjectRepository.findProgramById(
+      const program = (await this.subjectRepository.findProgramById(
         targetProgramId,
         orgId,
-      );
+      )) as ProgramRecord | null;
       if (!program) throw new NotFoundException('Program not found.');
       this.validateSubjectScope(
         {
@@ -357,10 +357,10 @@ export class SubjectService {
     }
 
     if (dto.courseId) {
-      const course = await this.subjectRepository.findCourseById(
+      const course = (await this.subjectRepository.findCourseById(
         dto.courseId,
         orgId,
-      );
+      )) as CourseRecord | null;
       if (!course) throw new NotFoundException('Course not found.');
       if (course.program_id !== rawSubject.program_id) {
         throw new BadRequestException(
@@ -370,10 +370,10 @@ export class SubjectService {
     }
 
     if (dto.strandId) {
-      const strand = await this.subjectRepository.findStrandById(
+      const strand = (await this.subjectRepository.findStrandById(
         dto.strandId,
         orgId,
-      );
+      )) as StrandRecord | null;
       if (!strand) throw new NotFoundException('Strand not found.');
       if (strand.program_id !== rawSubject.program_id) {
         throw new BadRequestException(
@@ -383,10 +383,10 @@ export class SubjectService {
     }
 
     if (dto.levelId) {
-      const level = await this.subjectRepository.findLevelById(
+      const level = (await this.subjectRepository.findLevelById(
         dto.levelId,
         orgId,
-      );
+      )) as LevelRecord | null;
       if (!level) throw new NotFoundException('Level not found.');
       if (level.program_id !== rawSubject.program_id) {
         throw new BadRequestException(

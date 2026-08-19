@@ -19,8 +19,6 @@ export interface LessonData {
 const COMMON_ABBREVIATIONS =
   /\b(?:Dr|Mr|Mrs|Ms|Prof|Sr|Jr|St|Ave|Blvd|Dept|Est|Govt|Co|Inc|Ltd|Corp|vs|etc|e\.g|i\.e|al|approx|appt|apt|assn|atty|bldg|ctr|dept|ed|est|ext|fig|fl|ft|gen|govt|hosp|hr|hwy|ib|id|inc|inst|intl|jr|lbs|mdse|mfg|mgmt|misc|mkt|mm|mt|natl|no|nos|nr|ont|orig|pl|pop|pp|pr|pref|prof|pvt|qt|reed|ref|reg|rel|rep|res|retd|rev|rms|sch|sec|secy|sen|sig|sq|sr|st|sub|supt|surg|tel|temp|tng|treas|tsp|univ|v|vol|vs|wk|yrs)\./gi;
 
-const ABBREVIATION_PLACEHOLDER = '\x00ABBR\x00';
-
 function protectAbbreviations(text: string): {
   text: string;
   abbreviations: Map<string, string>;
