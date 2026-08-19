@@ -21,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RegistrarTable } from "@/components/admin/registrar/RegistrarTable";
 import { CreateRegistrarDialog } from "@/components/admin/registrar/CreateRegistrarDialog";
 import { RegistrarCredentialsCard } from "@/components/admin/registrar/RegistrarCredentialsCard";
+import { HelpGuide } from "@/components/shared/help-guide/HelpGuide";
 import type { AxiosError } from "axios";
 
 export default function RegistrarsPage(): React.JSX.Element {
@@ -94,27 +95,27 @@ export default function RegistrarsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Registrars"
-        actions={
-          <div className="flex items-center gap-2">
-            {hasEmailExtension ? (
-              <Button onClick={() => setCreateOpen(true)} size="sm">
-                <UserPlus className="mr-1.5 h-4 w-4" />
-                New Registrar
-              </Button>
-            ) : (
-              <Button
-                onClick={handleSetupEmail}
-                size="sm"
-                variant="destructive"
-                disabled={orgLoading}
-              >
-                <AlertCircle className="mr-1.5 h-4 w-4" />
-                Setup Email Extension
-              </Button>
-            )}
-          </div>
-        }
+        actions={<HelpGuide slug="admin_registrars" />}
       />
+
+      <div className="flex items-center justify-end gap-2">
+        {hasEmailExtension ? (
+          <Button onClick={() => setCreateOpen(true)} size="sm">
+            <UserPlus className="mr-1.5 h-4 w-4" />
+            New Registrar
+          </Button>
+        ) : (
+          <Button
+            onClick={handleSetupEmail}
+            size="sm"
+            variant="destructive"
+            disabled={orgLoading}
+          >
+            <AlertCircle className="mr-1.5 h-4 w-4" />
+            Setup Email Extension
+          </Button>
+        )}
+      </div>
 
       {!hasEmailExtension && !orgLoading && (
         <Alert variant="destructive">

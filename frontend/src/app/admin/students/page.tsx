@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
-import { Users, Plus, Download, AlertCircle } from "lucide-react";
+import { Users, Plus, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
@@ -131,10 +131,6 @@ const enrichedStudents: Student[] = useMemo(
   [students, enrollmentsForYear],
 );
 
-  const handleDownloadCredentials = () => {
-    window.open(studentApi.downloadCredentials(), "_blank");
-  };
-
   const handleSetupEmail = () => {
     router.push("/admin/organization");
   };
@@ -143,44 +139,39 @@ const enrichedStudents: Student[] = useMemo(
     <div className="space-y-6">
       <PageHeader
         title="Students"
-        actions={
-          <div className="flex items-center gap-2">
-            <HelpGuide slug="admin_students" />
-            <Button variant="outline" size="sm" onClick={handleDownloadCredentials}>
-              <Download className="mr-1.5 h-4 w-4" />
-              Download Credentials
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => ensureOrganization(() => router.push("/admin/students/import"))}
-            >
-              Import CSV
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => ensureOrganization(() => setBulkOpen(true))}>
-              <Users className="mr-1.5 h-4 w-4" />
-              Bulk Create
-            </Button>
-
-            {!hasEmailExtension ? (
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={handleSetupEmail}
-                disabled={orgLoading}
-              >
-                <AlertCircle className="mr-1.5 h-4 w-4" />
-                Setup Email Extension
-              </Button>
-            ) : (
-              <Button size="sm" onClick={() => ensureOrganization(() => setCreateOpen(true))}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                New Student
-              </Button>
-            )}
-          </div>
-        }
+        actions={<HelpGuide slug="admin_students" />}
       />
+
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => ensureOrganization(() => router.push("/admin/students/import"))}
+        >
+          Import CSV
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => ensureOrganization(() => setBulkOpen(true))}>
+          <Users className="mr-1.5 h-4 w-4" />
+          Bulk Create
+        </Button>
+
+        {!hasEmailExtension ? (
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={handleSetupEmail}
+            disabled={orgLoading}
+          >
+            <AlertCircle className="mr-1.5 h-4 w-4" />
+            Setup Email Extension
+          </Button>
+        ) : (
+          <Button size="sm" onClick={() => ensureOrganization(() => setCreateOpen(true))}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            New Student
+          </Button>
+        )}
+      </div>
 
       {!hasEmailExtension && !orgLoading && (
         <Alert variant="destructive">

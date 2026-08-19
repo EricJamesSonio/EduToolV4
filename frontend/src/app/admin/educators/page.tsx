@@ -87,34 +87,34 @@ export default function EducatorsPage(): React.JSX.Element {
     <div className="space-y-6">
       <PageHeader
         title="Educators"
-        actions={
-          <div className="flex items-center gap-2">
-            <HelpGuide slug="admin_educators" />
-            {hasEmailExtension ? (
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => ensureOrganization(() => setBulkOpen(true))}>
-                  <Users className="mr-1.5 h-4 w-4" />
-                  Bulk Create
-                </Button>
-                <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
-                  <UserPlus className="mr-1.5 h-4 w-4" />
-                  New Educator
-                </Button>
-              </div>
-            ) : (
-              <Button
-                onClick={handleSetupEmail}
-                size="sm"
-                variant="destructive"
-                disabled={orgLoading}
-              >
-                <AlertCircle className="mr-1.5 h-4 w-4" />
-                Setup Email Extension
-              </Button>
-            )}
-          </div>
-        }
+        actions={<HelpGuide slug="admin_educators" />}
       />
+
+      <div className="flex items-center justify-end gap-2">
+        {hasEmailExtension ? (
+          <>
+            <Button variant="outline" size="sm" onClick={() => ensureOrganization(() => setBulkOpen(true))}>
+              <Users className="mr-1.5 h-4 w-4" />
+              Bulk Create
+            </Button>
+            <Button onClick={() => ensureOrganization(() => setCreateOpen(true))} size="sm">
+              <UserPlus className="mr-1.5 h-4 w-4" />
+              New Educator
+            </Button>
+          </>
+        ) : (
+          <Button
+            onClick={handleSetupEmail}
+            size="sm"
+            variant="destructive"
+            disabled={orgLoading}
+          >
+            <AlertCircle className="mr-1.5 h-4 w-4" />
+            Setup Email Extension
+          </Button>
+        )}
+      </div>
+   
 
       {/* Alert when no email extension */}
       {!hasEmailExtension && !orgLoading && (
