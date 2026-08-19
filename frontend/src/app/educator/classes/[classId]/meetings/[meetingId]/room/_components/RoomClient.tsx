@@ -85,7 +85,6 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
       });
     }
     return () => { meetingCtx.minimize(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokenData]);
 
   const { joined, localVideo, remoteUsers, toggleMic, toggleCamera } = meetingCtx;
@@ -134,7 +133,7 @@ export default function EducatorMeetingRoomClient(): React.JSX.Element {
     finalizeAndSave();
     meetingCtx.leaveMeeting();
     router.push(backUrl);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [meetingCtx.meetingEnded, backUrl]);
 
   // ── Attendance tracking ───────────────────────────────────────────────────
