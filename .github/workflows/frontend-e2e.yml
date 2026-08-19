@@ -21,9 +21,12 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     # Job-level env (not workflow-level) so secrets are unambiguously resolvable here.
+    # NOTE: PORT is intentionally NOT set here anymore — it's backend-only and now
+    # lives in playwright.config.ts's webServer env for the backend entry. Setting
+    # it at job level made `npm run dev` (frontend) inherit PORT=5000 too, since
+    # Next.js reads process.env.PORT, causing an EADDRINUSE race against the backend.
     env:
       NODE_ENV: test
-      PORT: 5000
       # Points at this job's own throwaway Postgres service container below, destroyed
       # when the job ends — intentionally NOT a secret, and never should be.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edutool_e2e

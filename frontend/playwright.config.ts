@@ -30,6 +30,9 @@ export default defineConfig({
       cwd: "../backend",
       stdout: "ignore",
       stderr: "pipe",
+      // Scoped here instead of the CI job env, so it can never leak into
+      // the frontend's `npm run dev` step and cause a port collision.
+      env: { PORT: "5000" },
     },
     {
       command: "npm run dev",
