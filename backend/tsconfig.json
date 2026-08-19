@@ -32,6 +32,15 @@
       "@/*": ["./src/*"]
     }
   },
+  "ts-node": {
+    "require": ["reflect-metadata"],
+    "transpileOnly": true,
+    "compilerOptions": {
+      "module": "CommonJS",
+      "moduleResolution": "Node",
+      "resolvePackageJsonExports": false
+    }
+  },
   "include": ["src", "test"],
   "exclude": ["node_modules", "dist"]
 }
