@@ -35,6 +35,31 @@ const ORDINALS = [
 ];
 
 /**
+ * Suffix applied when a calendar-derived semester count differs from the
+ * regular 2-semester default. Templates are org-global and reused by name
+ * across every school year, so structurally different templates (e.g. a
+ * trimester calendar vs a regular one) must never collide under one shared
+ * name — the suffix keeps them distinct.
+ */
+const SEMESTER_COUNT_LABELS: Record<number, string> = {
+  1: ' - Annual',
+  2: '', // regular default — no suffix, matches existing seeded data
+  3: ' - Trisem',
+  4: ' - Quadmester',
+  5: ' - Quintmester',
+  6: ' - Sextmester',
+};
+
+export function getAdaptedTemplateName(
+  baseName: string,
+  semesterCount: number,
+): string {
+  const suffix =
+    SEMESTER_COUNT_LABELS[semesterCount] ?? ` - ${semesterCount} Semesters`;
+  return `${baseName}${suffix}`;
+}
+
+/**
  * Builds a generic semester template with `semesterCount` semesters, each
  * containing the same generic "Term 1/2/3" rows. The seed flow calls this with
  * the calendar's period count so the template always matches the Academic
@@ -46,7 +71,7 @@ export function buildGenericTemplate(
   semesterCount: number,
 ): SemesterTemplateDef {
   return {
-    name,
+    name: getAdaptedTemplateName(name, semesterCount),
     programType,
     semesters: Array.from({ length: semesterCount }, (_, i) => ({
       name: ORDINALS[i] ?? `${i + 1}th Semester`,

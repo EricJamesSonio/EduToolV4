@@ -70,96 +70,100 @@ export function SemesterTemplateStep({
             calendar above — {MIN_CALENDAR_PERIODS} calendar periods produce{" "}
             {MIN_CALENDAR_PERIODS} semesters, 3 periods produce a trimester template, and so on.
           </p>
-          {applicablePrograms.map((programType) => {
-            const base = SEMESTER_TEMPLATE_BY_PROGRAM[programType]
-            const config = programCalendarConfigs[programType]
-            const breakCount = getBreakCount(config)
-            const configured = isCalendarConfigured(config)
-            const alreadyExists = disabledTemplateNames.has(base.name)
-            const isSelected =
-              configured && !alreadyExists && semesterTemplatesByProgram[programType] !== false
-            const liveTemplate = configured
-              ? buildGenericTemplate(base.name, programType, breakCount)
-              : null
-            const totalTerms =
-              liveTemplate?.semesters.reduce((sum, sem) => sum + sem.terms.length, 0) ?? 0
+{applicablePrograms.map((programType) => {
+  const base = SEMESTER_TEMPLATE_BY_PROGRAM[programType]
+  const config = programCalendarConfigs[programType]
+  const breakCount = getBreakCount(config)
+  const configured = isCalendarConfigured(config)
+  const liveTemplate = configured
+    ? buildGenericTemplate(base.name, programType, breakCount)
+    : null
+  // Must check against the LIVE (adapted, suffixed) name — base.name is
+  // always the plain 2-sem label. Checking against it would incorrectly
+  // flag a trisem/quad variant as "already exists" just because the plain
+  // variant was seeded in a previous school year.
+  const alreadyExists = !!liveTemplate && disabledTemplateNames.has(liveTemplate.name)
+  const isSelected =
+    configured && !alreadyExists && semesterTemplatesByProgram[programType] !== false
+  const totalTerms =
+    liveTemplate?.semesters.reduce((sum, sem) => sum + sem.terms.length, 0) ?? 0
 
-            return (
-              <div
-                key={programType}
-                className={cn(
-                  "transition-opacity",
-                  (!configured || alreadyExists) && "opacity-40 pointer-events-none select-none"
-                )}
-              >
-                <ProgramPanel
-                  program={programType}
-                  badge={
-                    <Badge
-                      variant={isSelected ? "outline" : "secondary"}
-                      className="text-xs font-normal"
-                    >
-                      {alreadyExists
-                        ? "Already exists"
-                        : !configured
-                          ? "Calendar not configured"
-                          : isSelected
-                            ? liveTemplate!.name
-                            : "Not selected"}
-                    </Badge>
-                  }
+  return (
+    <div
+      key={programType}
+      className={cn(
+        "transition-opacity",
+        (!configured || alreadyExists) && "opacity-40 pointer-events-none select-none"
+      )}
+    >
+      <ProgramPanel
+        program={programType}
+        badge={
+          <Badge
+            variant={isSelected ? "outline" : "secondary"}
+            className="text-xs font-normal"
+          >
+            {alreadyExists
+              ? "Already exists"
+              : !configured
+                ? "Calendar not configured"
+                : isSelected
+                  ? liveTemplate!.name
+                  : "Not selected"}
+          </Badge>
+        }
+      >
+        {alreadyExists ? (
+          <p className="text-xs text-muted-foreground not-interactive">
+            A semester template named &quot;{liveTemplate!.name}&quot; already exists for your
+            organization and will be reused — edit it on the Semester Settings page.
+          </p>
+        ) : !configured ? (
+          <p className="text-xs text-muted-foreground not-interactive">
+            Add at least {MIN_CALENDAR_PERIODS} complete periods to this
+            department&apos;s calendar above ({breakCount} of {MIN_CALENDAR_PERIODS}{" "}
+            set) to enable its semester template.
+          </p>
+        ) : (
+          <>
+            <SelectableCard
+              selected={isSelected}
+              onSelect={() => onToggleTemplate(programType, !isSelected)}
+              title={liveTemplate!.name}
+              subtitle={`${liveTemplate!.semesters.length} ${
+                liveTemplate!.semesters.length === 1 ? "semester" : "semesters"
+              } • ${totalTerms} ${totalTerms === 1 ? "term" : "terms"}`}
+            />
+
+            <CollapsiblePreview label="Preview terms" count={totalTerms}>
+              {liveTemplate!.semesters.map((semester, semIdx) => (
+                <div
+                  key={`${programType}-sem-${semIdx}`}
+                  className="px-3 py-1.5 space-y-1.5"
                 >
-                  {alreadyExists ? (
-                    <p className="text-xs text-muted-foreground not-interactive">
-                      A semester template named &quot;{base.name}&quot; already exists for your
-                      organization and will be reused — edit it on the Semester Settings page.
-                    </p>
-                  ) : !configured ? (
-                    <p className="text-xs text-muted-foreground not-interactive">
-                      Add at least {MIN_CALENDAR_PERIODS} complete periods to this
-                      department&apos;s calendar above ({breakCount} of {MIN_CALENDAR_PERIODS}{" "}
-                      set) to enable its semester template.
-                    </p>
-                  ) : (
-                    <>
-                      <SelectableCard
-                        selected={isSelected}
-                        onSelect={() => onToggleTemplate(programType, !isSelected)}
-                        title={liveTemplate!.name}
-                        subtitle={`${liveTemplate!.semesters.length} ${
-                          liveTemplate!.semesters.length === 1 ? "semester" : "semesters"
-                        } • ${totalTerms} ${totalTerms === 1 ? "term" : "terms"}`}
-                      />
-
-                      <CollapsiblePreview label="Preview terms" count={totalTerms}>
-                        {liveTemplate!.semesters.map((semester, semIdx) => (
-                          <div
-                            key={`${programType}-sem-${semIdx}`}
-                            className="px-3 py-1.5 space-y-1.5"
-                          >
-                            <div className="text-xs font-semibold text-foreground not-interactive">
-                              {semester.name}
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {semester.terms.map((term) => (
-                                <Badge
-                                  key={`${programType}-term-${term.order_index}`}
-                                  variant="secondary"
-                                  className="font-normal text-[11px] px-2 py-0"
-                                >
-                                  {term.name}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </CollapsiblePreview>
-                    </>
-                  )}
-                </ProgramPanel>
-              </div>
-            )
-          })}
+                  <div className="text-xs font-semibold text-foreground not-interactive">
+                    {semester.name}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {semester.terms.map((term) => (
+                      <Badge
+                        key={`${programType}-term-${term.order_index}`}
+                        variant="secondary"
+                        className="font-normal text-[11px] px-2 py-0"
+                      >
+                        {term.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </CollapsiblePreview>
+          </>
+        )}
+      </ProgramPanel>
+    </div>
+  )
+})}
         </div>
       )}
     </div>

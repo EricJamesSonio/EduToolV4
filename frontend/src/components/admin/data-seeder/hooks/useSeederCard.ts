@@ -294,21 +294,22 @@ export function useSeederCard() {
           )
         : undefined;
 
-    seedMutation.mutate({
-      schoolYearId: selectedSchoolYearId,
-      programs: Array.from(selectedPrograms),
-      courses: selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
-      strands: selectedPrograms.has("shs") ? Array.from(selectedStrands) : undefined,
-      levelConfigs: Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
-      sectionConfigs: sectionConfigsPayload,
-      excludedLevelSubjects:
-        Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
-      seedGradingScales: seedGradingScale ? true : false,
-      seedGradingSchemes: seedGradingSchemes ? Object.values(gradingSchemesByProgram).some(Boolean) : false,
-      seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesByProgram).some(Boolean) : false,
-      seedProgramCalendars: !!programCalendars && Object.keys(programCalendars).length > 0,
-      programCalendars,
-    });
+seedMutation.mutate({
+  schoolYearId: selectedSchoolYearId,
+  programs: Array.from(selectedPrograms),
+  courses: selectedPrograms.has("college") ? Array.from(selectedCourses) : undefined,
+  strands: selectedPrograms.has("shs") ? Array.from(selectedStrands) : undefined,
+  levelConfigs: Object.keys(levelConfigsPayload).length > 0 ? levelConfigsPayload : undefined,
+  sectionConfigs: sectionConfigsPayload,
+  excludedLevelSubjects:
+    Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
+  gradingScales,
+  seedGradingScales: seedGradingScale ? true : false,
+  seedGradingSchemes: seedGradingSchemes ? Object.values(gradingSchemesByProgram).some(Boolean) : false,
+  seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesByProgram).some(Boolean) : false,
+  seedProgramCalendars: !!programCalendars && Object.keys(programCalendars).length > 0,
+  programCalendars,
+});
   }
 
   // Derived sets for disabled states

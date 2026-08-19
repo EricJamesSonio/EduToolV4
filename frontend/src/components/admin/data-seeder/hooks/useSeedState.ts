@@ -191,7 +191,6 @@ export function useSeedState() {
       [prog]: presetKey,
     }))
   }
-
 const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => {
   const out: Record<string, GradingScalePreset> = {}
 
