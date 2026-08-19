@@ -79,7 +79,7 @@ export function TermDatesModal({
     ) {
       requestTemplateChange(preselectedTemplateId)
     }
-  }, [preselectedTemplateId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [preselectedTemplateId])
 
   const hasContent = (!!current || (!!selectedTemplateId && selectedTemplateId !== "none")) && allTerms.length > 0
 
