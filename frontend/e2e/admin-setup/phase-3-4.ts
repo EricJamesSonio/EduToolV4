@@ -160,7 +160,8 @@ export function registerPhase3And4() {
         appliedCount: number;
       };
       expect(result.success).toBe(true);
-      // The JHS subject → class pair created in Phase 2 lives under this program.
+      // The JHS classes created in Phase 2f (one per level) live under this
+      // program, so the program-level apply stamps each of them.
       expect(result.appliedCount).toBeGreaterThanOrEqual(1);
 
       await waitForToast(page, "Applied");

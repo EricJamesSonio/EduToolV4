@@ -5,7 +5,7 @@ import {
   type Locator,
   type Page,
 } from "@playwright/test";
-import { API_BASE, apiLogin, uniqueName } from "../helpers";
+import { API_BASE, apiLogin, login, waitForApi, waitForToast } from "../helpers";
 
 // Serial: every phase depends on the previous phase's data. Shared state flows
 // through `run` so later tests (Phases 1-6) reuse the same entities.
@@ -28,24 +28,21 @@ export const run: {
   jhsProgramName?: string;
   jhsProgramId?: string;
   levelIds?: string[];
+  // Generated level names (e.g. "1", "2", "3") keyed by id, so UI helpers can
+  // pick the right option in the class/subject dialogs.
+  levelNamesById: Record<string, string>;
+  // Section captured per level after Phase 2 extends the section test to all
+  // three JHS levels.
+  sectionByLevel: Record<string, { id: string; name: string }>;
+  // Minor subject created per level via the subject UI in Phase 2e.
+  subjectByLevel: Record<string, { id: string; title: string }>;
   sectionName?: string;
   sectionId?: string;
   student1?: { id: string; fullName: string };
   student2?: { id: string; fullName: string };
   student3?: { id: string; fullName: string };
-  subject?: { id: string; title: string; programId: string };
-  semesterId?: string;
   programEnrollmentId?: string;
-  classItem?: {
-    id: string;
-    subject_id: string;
-    educator_id: string;
-    section_id: string;
-    school_year_id: string;
-    semester_id: string;
-    capacity: number;
-    schedules: Array<{ weekday: number; start_time: string; end_time: string }>;
-  };
+  classItem?: ClassItem;
   programIds: Record<string, string>;
   // Per-department placement condition, captured after the Phase 7b enrollment
   // wizard places a student (keyed by programId). A student must be placed into
@@ -61,7 +58,6 @@ export const run: {
       sectionName: string;
     }
   >;
-  courseId?: string;
   scaleName?: string;
   scaleId?: string;
   schemeTemplateIds: Record<string, string>;
@@ -71,9 +67,25 @@ export const run: {
 } = {
   platformEmail: "platform@edutool.dev",
   platformPassword: "platform123",
+  levelNamesById: {},
+  sectionByLevel: {},
+  subjectByLevel: {},
   programIds: {},
   placements: {},
   schemeTemplateIds: {},
+};
+
+// Shape of a created class row returned by POST /classes (used for the class
+// the Phase 2e/2f modal creates for JHS level 1).
+export type ClassItem = {
+  id: string;
+  subject_id: string;
+  educator_id: string;
+  section_id: string;
+  school_year_id: string;
+  semester_id: string;
+  capacity: number;
+  schedules: Array<{ weekday: number; start_time: string; end_time: string }>;
 };
 
 // Authenticated API headers for the run's admin account.
@@ -84,9 +96,13 @@ export const adminHeaders = async (
   return { Authorization: `Bearer ${token}` };
 };
 
-// Unwrap the ResponseInterceptor envelope `{ success, data }`.
-export const unwrapData = async <T>(res: APIResponse): Promise<T> =>
-  (await res.json()).data as T;
+// Unwrap the ResponseInterceptor envelope `{ success, data }` down to its `data`
+// payload. Accepts both the APIRequestContext response and the page-level
+// Response type (for waitForApi).
+export const unwrapData = async <T>(res: { json(): Promise<unknown> }): Promise<T> => {
+  const body = (await res.json()) as { success?: boolean; data?: T };
+  return body.data as T;
+};
 
 // Several admin pages wrap dialog-open buttons in `ensureOrganization()`,
 // which silently drops the click while the org query is still loading. Retry
@@ -116,80 +132,150 @@ export const unwrapList = async <T>(res: APIResponse): Promise<T[]> => {
   return (Array.isArray(d) ? d : (d?.data ?? [])) as T[];
 };
 
-// Distinct weekly slots for the module-scope createClass below. Every
-// readiness class is bound to the same run.educatorId, so reusing one
-// (weekday 6, 08:00-09:30) slot tripped assertNoEducatorConflict the moment a
-// second class landed in the same phase. Each call takes the next free slot.
-const CLASS_SLOT_POOL: Array<{ weekday: number; startTime: string; endTime: string }> = [
-  { weekday: 6, startTime: "08:00", endTime: "09:30" },
-  { weekday: 6, startTime: "10:00", endTime: "11:30" },
-  { weekday: 6, startTime: "13:00", endTime: "14:30" },
-  { weekday: 6, startTime: "15:00", endTime: "16:30" },
-  { weekday: 6, startTime: "17:00", endTime: "18:30" },
-];
-let classSlotCursor = 0;
-export const nextClassSchedule = () => {
-  const schedule = [CLASS_SLOT_POOL[classSlotCursor % CLASS_SLOT_POOL.length]];
-  classSlotCursor += 1;
-  return schedule;
-};
+// ── UI-driven creation helpers ────────────────────────────────────────────────
+// Every ORM entity in the later phases is now created through the real admin
+// dialogs (Subjects page + Classes page modal), so the modal interactions the
+// backend serves are exercised end to end.
 
-export const createSection = async (
-  request: APIRequestContext,
-  headers: { Authorization: string },
-  levelId: string,
-  baseName: string,
-): Promise<string> => {
-  const res = await request.post(`${API_BASE}/sections`, {
-    data: {
-      levelId,
-      schoolYearId: run.schoolYearId,
-      name: uniqueName(baseName),
-      capacity: 30,
-    },
-    headers,
-  });
-  expect(res.status()).toBe(201);
-  return (await unwrapData<{ id: string }>(res)).id;
-};
+// Pick a free 30-minute block in the class modal's educator schedule grid.
+// Interactive cells are `div[role="button"][tabindex="0"]` while free; the grid
+// DOM is ordered weekday (Mon..Sun) then minute, so the first adjacent row pair
+// in the same weekday column is a free contiguous block. The first click starts
+// the draft, the second (same day, later minute) commits the range.
+export async function pickFreeSlot(modal: Locator): Promise<void> {
+  const free = modal.locator("div[role='button'][tabindex='0']");
+  await expect(free.first()).toBeVisible({ timeout: 15_000 });
 
-export const createSubject = async (
-  request: APIRequestContext,
-  headers: { Authorization: string },
-  baseName: string,
-  opts: { programId?: string; levelId?: string } = {},
-): Promise<{ id: string; title: string }> => {
-  const res = await request.post(`${API_BASE}/subjects`, {
-    data: {
-      name: uniqueName(baseName),
-      subjectType: opts.levelId ? "minor" : "major",
-      programId: opts.programId ?? run.jhsProgramId,
-      ...(opts.levelId ? { levelId: opts.levelId } : {}),
-    },
-    headers,
-  });
-  expect(res.status()).toBe(201);
-  return await unwrapData<{ id: string; title: string }>(res);
-};
+  const cells = await free.evaluateAll((els) =>
+    els.map((el) => {
+      const style = (el as HTMLElement).style;
+      const col = Number(style.gridColumn.split(" ")[0]);
+      const row = Number(style.gridRow.split(" ")[0]);
+      return { col, row };
+    }),
+  );
 
-export const createClass = async (
-  request: APIRequestContext,
-  headers: { Authorization: string },
-  subjectId: string,
-  sectionId?: string,
-): Promise<string> => {
-  const res = await request.post(`${API_BASE}/classes`, {
-    data: {
-      subjectId,
-      educatorId: run.educatorId,
-      ...(sectionId ? { sectionId } : {}),
-      schoolYearId: run.schoolYearId,
-      semesterId: run.semesterId,
-      capacity: 30,
-      schedules: nextClassSchedule(),
-    },
-    headers,
+  let start = -1;
+  for (let i = 0; i < cells.length - 1; i += 1) {
+    if (cells[i].col === cells[i + 1].col && cells[i + 1].row === cells[i].row + 1) {
+      start = i;
+      break;
+    }
+  }
+  expect(start, "expected a free contiguous slot in the educator schedule").toBeGreaterThanOrEqual(0);
+
+  await free.nth(start).click();
+  await free.nth(start + 1).click();
+}
+
+// Create a subject (major or minor) through the /admin/subjects dialog. For JHS
+// the dialog requires a department AND a level regardless of type, so the level
+// is always picked; minor subjects become level-bound by construction.
+export async function createSubjectViaUI(
+  page: Page,
+  params: {
+    programName: string;
+    subjectType: "major" | "minor";
+    levelId: string;
+    name: string;
+  },
+): Promise<{ id: string; title: string }> {
+  await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
+  await page.goto("/admin/subjects");
+
+  const minor = params.subjectType === "minor";
+  if (minor) {
+    await page.getByRole("tab", { name: "Minor Subjects" }).click();
+  }
+
+  const trigger = page.getByRole("button", {
+    name: minor ? "New Minor Subject" : "New Subject",
   });
-  expect(res.status()).toBe(201);
-  return (await unwrapData<{ id: string }>(res)).id;
-};
+  await trigger.waitFor({ state: "visible", timeout: 15_000 });
+
+  const dialog = page.locator('[data-slot="dialog-content"]');
+  await openDialog(page, trigger, dialog);
+
+  // Department
+  await dialog.getByRole("combobox").nth(0).click();
+  await page.getByRole("option", { name: params.programName, exact: true }).click();
+  // Level (generated name, e.g. "1"); for minors "— None —" is skipped by name.
+  await dialog.getByRole("combobox").nth(1).click();
+  await page
+    .getByRole("option", { name: run.levelNamesById[params.levelId] ?? "", exact: true })
+    .click();
+
+  await dialog.getByPlaceholder(/e\.g\./).fill(params.name);
+
+  const respPromise = waitForApi(page, "POST", "/subjects");
+  await dialog.getByRole("button", { name: "Create Subject" }).click();
+  const resp = await respPromise;
+  await waitForToast(page, "Subject created.");
+  return await unwrapData<{ id: string; title: string }>(resp);
+}
+
+// Create a class through the /admin/classes "New Class" modal: department →
+// semester (first available — deterministic) → level → section → subject →
+// educator → capacity, then a free schedule slot, then submit. Returns the full
+// created class row so callers can pin it into `run.classItem`.
+export async function createClassViaUI(
+  page: Page,
+  params: {
+    programName: string;
+    levelId: string;
+    sectionName: string;
+    subjectTitle: string;
+    educatorFullName: string;
+    capacity: number;
+  },
+): Promise<ClassItem> {
+  await login(page, run.adminEmail!, run.adminPassword!, "/admin/dashboard");
+  await page.goto("/admin/classes");
+
+  const trigger = page.getByRole("button", { name: "New Class" });
+  await trigger.waitFor({ state: "visible", timeout: 15_000 });
+
+  const dialog = page.locator('[data-slot="dialog-content"]');
+  await openDialog(page, trigger, dialog);
+
+  const levelName = run.levelNamesById[params.levelId] ?? "";
+
+  // Department
+  await dialog.getByRole("combobox").nth(0).click();
+  await page.getByRole("option", { name: params.programName, exact: true }).click();
+  // Semester — always pick the first available option (template's first term set).
+  // The select stays disabled until the semester-template assignment query lands.
+  await expect(dialog.getByRole("combobox").nth(1)).toBeEnabled();
+  await dialog.getByRole("combobox").nth(1).click();
+  await page.getByRole("option").first().click();
+  // Level
+  await expect(dialog.getByRole("combobox").nth(2)).toBeEnabled();
+  await dialog.getByRole("combobox").nth(2).click();
+  await page.getByRole("option", { name: levelName, exact: true }).click();
+  // Section
+  await expect(dialog.getByRole("combobox").nth(3)).toBeEnabled();
+  await dialog.getByRole("combobox").nth(3).click();
+  await page.getByRole("option", { name: params.sectionName, exact: true }).click();
+  // Subject
+  await expect(dialog.getByRole("combobox").nth(4)).toBeEnabled();
+  await dialog.getByRole("combobox").nth(4).click();
+  await page.getByRole("option", { name: params.subjectTitle, exact: true }).click();
+  // Educator
+  await expect(dialog.getByRole("combobox").nth(5)).toBeEnabled();
+  await dialog.getByRole("combobox").nth(5).click();
+  await page.getByRole("option", { name: params.educatorFullName, exact: true }).click();
+  // Capacity
+  await dialog.getByRole("spinbutton").fill(String(params.capacity));
+
+  // Schedule — the grid renders once the educator is chosen; pick a free block.
+  await pickFreeSlot(dialog);
+
+  const submit = dialog.getByRole("button", { name: "Create Class" });
+  await expect(submit).toBeEnabled();
+
+  const respPromise = waitForApi(page, "POST", "/classes");
+  await submit.click();
+  const resp = await respPromise;
+  await waitForToast(page, "Class created.");
+  return await unwrapData<ClassItem>(resp);
+}

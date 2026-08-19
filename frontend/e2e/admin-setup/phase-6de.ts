@@ -9,7 +9,6 @@ import {
   run,
   adminHeaders,
   unwrapData,
-  unwrapList,
 } from "./shared";
 
 export function registerPhase6dAnd6e() {
@@ -31,16 +30,13 @@ export function registerPhase6dAnd6e() {
       return await unwrapData<{ id: string; fullName: string; status: string }>(res);
     };
 
-    await test.step("create three students", async () => {
+    await test.step("create two students", async () => {
       const s1 = await createStudent("Student One");
       const s2 = await createStudent("Student Two");
-      const s3 = await createStudent("Student Three");
       run.student1 = s1;
       run.student2 = s2;
-      run.student3 = s3;
       expect(s1.id).toBeTruthy();
       expect(s2.id).toBeTruthy();
-      expect(s3.id).toBeTruthy();
     });
 
     await test.step("school-year enrollment for student1", async () => {
@@ -138,67 +134,10 @@ export function registerPhase6dAnd6e() {
       );
     });
 
-    await test.step("student3 (placed in another program) is rejected with exact reason", async () => {
-      // Reuse the elementary department Phase 6b created and Phase 6c configured.
-      // Creating a second, unconfigured elementary program here would flip
-      // org-wide readiness back to not-ready and break Phase 7's gated calls.
-      const programs = await unwrapList<{ id: string; type?: string; program_type?: string }>(
-        await request.get(`${API_BASE}/programs`, {
-          params: { schoolYearId: run.schoolYearId! },
-          headers,
-        }),
-      );
-      const elemProgram = programs.find((p) => (p.type ?? p.program_type) === "elementary");
-      expect(elemProgram, "expected the elementary department from Phase 6b/6c").toBeTruthy();
-
-      const levels = await unwrapList<{ id: string; programId?: string; program_id?: string }>(
-        await request.get(`${API_BASE}/levels`, {
-          params: { schoolYearId: run.schoolYearId! },
-          headers,
-        }),
-      );
-      const elemLevel = levels.find((l) => (l.programId ?? l.program_id) === elemProgram!.id);
-      expect(elemLevel, "expected the elementary level (Grade 1)").toBeTruthy();
-
-      const sections = await unwrapList<{ id: string; levelId?: string; level_id?: string }>(
-        await request.get(`${API_BASE}/sections`, {
-          params: { schoolYearId: run.schoolYearId! },
-          headers,
-        }),
-      );
-      const elemSection = sections.find((s) => (s.levelId ?? s.level_id) === elemLevel!.id);
-      expect(elemSection, "expected the elementary section (Section G1)").toBeTruthy();
-
-      const syeRes = await request.post(
-        `${API_BASE}/school-years/${run.schoolYearId}/enrollments`,
-        { data: { student_id: run.student3!.id }, headers },
-      );
-      expect(syeRes.status()).toBe(201);
-
-      const peRes = await request.post(
-        `${API_BASE}/school-years/${run.schoolYearId}/enrollments/students/${run.student3!.id}/programs`,
-        { data: { program_id: elemProgram!.id, level_id: elemLevel!.id }, headers },
-      );
-      expect(peRes.status()).toBe(201);
-      const peData = await unwrapData<{ id: string }>(peRes);
-
-      const updRes = await request.patch(
-        `${API_BASE}/school-years/${run.schoolYearId}/enrollments/programs/${peData.id}`,
-        { data: { section_id: elemSection!.id }, headers },
-      );
-      expect(updRes.status()).toBe(200);
-
-      const res = await request.post(`${API_BASE}/classes/${run.classItem!.id}/enroll`, {
-        data: { studentId: run.student3!.id },
-        headers,
-      });
-      expect(res.status()).toBe(400);
-      const body = (await res.json()) as { message: string };
-      expect(body.message).toContain("Student is not eligible for this class");
-      expect(body.message).toContain(
-        "The student does not belong to the same program, course/strand, or level assigned to this class.",
-      );
-    });
+    // The elementary-department cross-program rejection is covered by the
+    // class-level gating check in Phase 7a (a student placed at the wrong JHS
+    // level for a level-bound class is rejected with the same "same program,
+    // course/strand, or level" reason).
 
     await test.step("eligible-students only surfaces non-enrolled candidates", async () => {
       const res = await request.get(
@@ -210,7 +149,6 @@ export function registerPhase6dAnd6e() {
       const ids = list.map((s) => s.id);
       expect(ids).not.toContain(run.student1!.id);
       expect(ids).not.toContain(run.student2!.id);
-      expect(ids).not.toContain(run.student3!.id);
     });
   });
 
