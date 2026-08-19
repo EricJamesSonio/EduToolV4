@@ -69,14 +69,18 @@ export function HolidayBaseTab({ year }: HolidayBaseTabProps) {
     },
   );
 
-  function toggleKey(key: string, enabled: boolean) {
-    setEnabledKeys((prev) => {
-      const next = new Set(prev);
-      enabled ? next.add(key) : next.delete(key);
-      return next;
-    });
-    setDirty(true);
-  }
+function toggleKey(key: string, enabled: boolean) {
+  setEnabledKeys((prev) => {
+    const next = new Set(prev);
+    if (enabled) {
+      next.add(key);
+    } else {
+      next.delete(key);
+    }
+    return next;
+  });
+  setDirty(true);
+}
 
   function addCustom(holiday: CustomHoliday) {
     setCustomHolidays((prev) => [...prev, holiday]);

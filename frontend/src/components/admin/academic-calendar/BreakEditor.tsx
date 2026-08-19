@@ -53,13 +53,13 @@ export function BreakEditor({ breaks, onChange, calendarStart, calendarEnd }: Pr
     // Intentionally excludes `breaks`/`onChange` — this should only re-run when
     // the calendar boundary values themselves change, not on every break edit,
     // or it would fight with update()'s own cascading logic below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [calendarStart, calendarEnd, breaks.length]);
 
   function addBreak() {
     clearBlocked();
     let startVal = "";
-    let endVal   = "";
+    const endVal   = "";
     if (breaks.length === 0) {
       startVal = calendarStart;
     } else {
