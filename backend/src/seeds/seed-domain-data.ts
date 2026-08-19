@@ -8,6 +8,18 @@
  * Usage:  npx ts-node src/seeds/seed-domain-data.ts
  *
  * This script is IDEMPOTENT — re-running it will skip already-seeded records.
+ *
+ * IMPORTANT — School Year Readiness:
+ * Domain data (programs → courses/strands → levels → sections → subjects →
+ * academic calendars → semester templates → classes → class grading schemes)
+ * is seeded deterministically so every subject and every level/section ends
+ * up with at least one class, mirroring exactly what
+ * `SchoolYearReadinessService.detail()` checks for. After all of that is
+ * seeded, `checkSchoolYearReadiness()` re-runs those same checks directly
+ * against the DB. Students are only enrolled (and the school year only
+ * activated) for an org if that check comes back ready — otherwise the org
+ * is skipped and the blocking issues are printed, instead of silently
+ * bypassing the same gate the real activation flow enforces.
  */
 
 // MUST be the very first import — class-validator/class-transformer decorators
@@ -17,7 +29,6 @@
 import 'reflect-metadata';
 
 import { PrismaClient, AccountStatus } from '@prisma/client';
-
 import * as bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
 
@@ -50,6 +61,22 @@ const SEED_PASSWORD = 'seed123';
 const SY_START = new Date('2025-07-01');
 const SY_END = new Date('2026-06-30');
 const SY_NAME = 'SY 2025-2026';
+
+// Single source of truth for progKey <-> grading-scheme-preset-name mapping.
+// Both seedGradingSchemes() and the class-level grading scheme seeder derive
+// from this, so the two can never drift into mismatched namespaces.
+const PROGRAM_SCHEME_PRESET_NAME: Record<string, string> = {
+  daycare: 'Daycare Scheme',
+  kinder: 'Kindergarten Scheme',
+  elementary: 'Elementary Scheme',
+  jhs: 'High School Scheme',
+  shs: 'Senior High School Scheme',
+  college: 'College Scheme',
+};
+const SCHEME_PRESET_NAME_TO_PROGRAM: Record<string, string> =
+  Object.fromEntries(
+    Object.entries(PROGRAM_SCHEME_PRESET_NAME).map(([k, v]) => [v, k]),
+  );
 
 // ── Admin configurations ───────────────────────────────────────────────────
 interface AdminSeedConfig {
@@ -660,17 +687,8 @@ async function seedGradingSchemes(
   programKeys: string[],
   _programMap: Record<string, string>,
 ): Promise<void> {
-  const schemeProgram: Record<string, string> = {
-    'Daycare Scheme': 'daycare',
-    'Kindergarten Scheme': 'kinder',
-    'Elementary Scheme': 'elementary',
-    'High School Scheme': 'jhs',
-    'Senior High School Scheme': 'shs',
-    'College Scheme': 'college',
-  };
-
   for (const preset of SCHEME_PRESETS) {
-    const progKey = schemeProgram[preset.name];
+    const progKey = SCHEME_PRESET_NAME_TO_PROGRAM[preset.name];
     if (progKey && !programKeys.includes(progKey)) continue;
 
     const id = seedId('scheme-template', preset.name, orgId);
@@ -699,6 +717,100 @@ async function seedGradingSchemes(
         max_score: null,
       })),
     });
+  }
+}
+
+// ── Program academic calendars ──────────────────────────────────────────────
+// Must run BEFORE semester templates: readiness requires "calendar first, then
+// the matching semester template." The number of breaks is derived directly
+// from that program's own semester template (2 semesters -> 2 breaks, 3 -> 3),
+// so the break count and semester count can never drift apart.
+
+function computeCalendarBreaks(
+  start: Date,
+  end: Date,
+  breakCount: number,
+): { label: string; start_date: Date; end_date: Date; order_index: number }[] {
+  if (breakCount <= 0) return [];
+
+  const totalMs = end.getTime() - start.getTime();
+  const breakDurationMs = 7 * 24 * 60 * 60 * 1000; // 1 week per break
+  const segments = breakCount + 1;
+
+  const breaks: {
+    label: string;
+    start_date: Date;
+    end_date: Date;
+    order_index: number;
+  }[] = [];
+
+  for (let i = 1; i <= breakCount; i++) {
+    const position = start.getTime() + (totalMs * i) / segments;
+    const breakStart = new Date(position);
+    let breakEnd = new Date(position + breakDurationMs);
+    if (breakEnd.getTime() > end.getTime()) breakEnd = new Date(end.getTime());
+
+    breaks.push({
+      label: `Break ${i}`,
+      start_date: breakStart,
+      end_date: breakEnd,
+      order_index: i,
+    });
+  }
+
+  return breaks;
+}
+
+async function seedProgramCalendars(
+  orgId: string,
+  schoolYearId: string,
+  programKeys: string[],
+  programMap: Record<string, string>,
+): Promise<void> {
+  for (const progKey of programKeys) {
+    const programId = programMap[progKey];
+    if (!programId) continue;
+
+    // Matches the schema's real @@unique([program_id, school_year_id]),
+    // so this check is robust regardless of id-generation scheme.
+    const existing = await db.programCalendar.findFirst({
+      where: {
+        program_id: programId,
+        school_year_id: schoolYearId,
+        org_id: orgId,
+      },
+    });
+    if (existing) continue;
+
+    const tpl = SEMESTER_TEMPLATES.find((t) => t.programType === progKey);
+    const breakCount = tpl?.semesters.length ?? 1;
+
+    const calendar = await db.programCalendar.create({
+      data: {
+        id: seedId('program-calendar', progKey, schoolYearId, orgId),
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        program_id: programId,
+        start_date: SY_START,
+        end_date: SY_END,
+        notes: `Auto-seeded calendar with ${breakCount} break(s), matching the ${breakCount}-semester template for this program.`,
+      },
+    });
+
+    const breaks = computeCalendarBreaks(SY_START, SY_END, breakCount);
+    if (breaks.length > 0) {
+      await db.programCalendarBreak.createMany({
+        data: breaks.map((b) => ({
+          id: uuid(),
+          org_id: orgId,
+          calendar_id: calendar.id,
+          label: b.label,
+          start_date: b.start_date,
+          end_date: b.end_date,
+          order_index: b.order_index,
+        })),
+      });
+    }
   }
 }
 
@@ -931,6 +1043,50 @@ async function seedSubjects(
     }
   }
 
+  // ── Fallback: guarantee every seeded level has at least one subject ──────
+  // Readiness requires every level to have ≥1 subject. Major/minor subject
+  // data may not cover every level definition, so any level that still has
+  // zero subjects after the above gets one created directly from its own DB
+  // record (reading program/course/strand off the Level row itself, rather
+  // than re-parsing the composite levelMap key, so it's correct regardless
+  // of naming scheme).
+  const uniqueLevelIds = [...new Set(Object.values(levelMap))];
+  for (const levelId of uniqueLevelIds) {
+    const hasSubject = await db.subject.count({
+      where: { level_id: levelId, org_id: orgId },
+    });
+    if (hasSubject > 0) continue;
+
+    const levelRecord = await db.level.findUnique({ where: { id: levelId } });
+    if (!levelRecord) continue;
+
+    const fallbackId = seedId('subject-fallback', levelId, orgId);
+    const existingFallback = await db.subject.findFirst({
+      where: { id: fallbackId },
+    });
+    if (existingFallback) {
+      subjectIds.push(existingFallback.id);
+      continue;
+    }
+
+    const created = await db.subject.create({
+      data: {
+        id: fallbackId,
+        org_id: orgId,
+        subject_type: 'major',
+        program_id: levelRecord.program_id,
+        level_id: levelRecord.id,
+        course_id: levelRecord.course_id ?? undefined,
+        strand_id: levelRecord.strand_id ?? undefined,
+        name: 'General Studies',
+        year_level: levelRecord.name,
+        term_label: null,
+        is_locked: false,
+      },
+    });
+    subjectIds.push(created.id);
+  }
+
   return subjectIds;
 }
 
@@ -1142,6 +1298,15 @@ async function seedStudents(
   return studentIds;
 }
 
+// ── Classes + per-class grading schemes ─────────────────────────────────────
+// Deterministic pass: for every level, pair each of its subjects with each of
+// its sections (cycling the shorter list) so every subject AND every section
+// under that level ends up with at least one class — satisfying both the
+// "subject has classes" and "section has classes" readiness requirements
+// without a full N×M combinatorial blow-up. Each new class also gets a
+// grading scheme copied from that program's grading scheme template,
+// satisfying "class has a grading scheme."
+
 async function seedClasses(
   orgId: string,
   schoolYearId: string,
@@ -1149,7 +1314,7 @@ async function seedClasses(
   programMap: Record<string, string>,
   subjectIds: string[],
   educatorIds: string[],
-  _levelMap: Record<string, string>,
+  levelMap: Record<string, string>,
 ): Promise<void> {
   if (educatorIds.length === 0 || subjectIds.length === 0) return;
 
@@ -1170,7 +1335,6 @@ async function seedClasses(
     );
     if (!firstSem) continue;
 
-    // Create a Semester record in the Semester table
     const semesterId = seedId(
       'semester',
       progKey,
@@ -1198,27 +1362,93 @@ async function seedClasses(
     semesterMap[progKey] = semesterId;
   }
 
-  // Get all sections
-  const allSections = await db.section.findMany({
-    where: { org_id: orgId, school_year_id: schoolYearId },
-  });
+  // Reverse map: programId -> progKey, so a Level record can tell us which
+  // program config it belongs to.
+  const programIdToKey: Record<string, string> = {};
+  for (const [key, id] of Object.entries(programMap)) programIdToKey[id] = key;
 
-  // Get all subjects
-  const allSubjects = await db.subject.findMany({
-    where: { id: { in: subjectIds }, org_id: orgId },
-  });
+  // Grading scheme template cache, keyed by progKey, loaded lazily.
+  const schemeTemplateCache = new Map<
+    string,
+    {
+      templateId: string;
+      components: {
+        name: string;
+        type: string;
+        weight: number;
+        max_score: number | null;
+      }[];
+    } | null
+  >();
 
-  // Group subjects by program
-  const subjectsByProgram: Record<string, typeof allSubjects> = {};
-  for (const subj of allSubjects) {
-    const progId = subj.program_id;
-    if (!progId) continue;
-    const progKey = Object.entries(programMap).find(
-      ([, id]) => id === progId,
-    )?.[0];
-    if (!progKey) continue;
-    if (!subjectsByProgram[progKey]) subjectsByProgram[progKey] = [];
-    subjectsByProgram[progKey].push(subj);
+  async function getSchemeTemplateForProgKey(progKey: string) {
+    if (schemeTemplateCache.has(progKey))
+      return schemeTemplateCache.get(progKey)!;
+
+    const presetName = PROGRAM_SCHEME_PRESET_NAME[progKey];
+    if (!presetName) {
+      schemeTemplateCache.set(progKey, null);
+      return null;
+    }
+
+    const templateId = seedId('scheme-template', presetName, orgId);
+    const template = await db.gradingSchemeTemplate.findFirst({
+      where: { id: templateId },
+      include: { components: true },
+    });
+    if (!template) {
+      schemeTemplateCache.set(progKey, null);
+      return null;
+    }
+
+    const result = {
+      templateId: template.id,
+      components: template.components.map((c) => ({
+        name: c.name,
+        type: c.type,
+        weight: c.weight,
+        max_score: c.max_score,
+      })),
+    };
+    schemeTemplateCache.set(progKey, result);
+    return result;
+  }
+
+  async function ensureClassGradingScheme(
+    classId: string,
+    progKey: string,
+  ): Promise<void> {
+    const tpl = await getSchemeTemplateForProgKey(progKey);
+    if (!tpl) return;
+
+    const existing = await db.gradingScheme.findFirst({
+      where: { class_id: classId, org_id: orgId },
+    });
+    if (existing) return;
+
+    const scheme = await db.gradingScheme.create({
+      data: {
+        id: uuid(),
+        org_id: orgId,
+        class_id: classId,
+        template_id: tpl.templateId,
+        name: 'Default Grading Scheme',
+        is_default: true,
+      },
+    });
+
+    await db.gradingSchemeComponent.createMany({
+      data: tpl.components.map((c) => ({
+        id: uuid(),
+        org_id: orgId,
+        grading_scheme_id: scheme.id,
+        name: c.name,
+        type: c.type,
+        weight: c.weight,
+        max_score: c.max_score,
+        is_optional: false,
+      })),
+    });
   }
 
   // Pre-load already-seeded classes so re-runs never double-book an educator or
@@ -1241,36 +1471,69 @@ async function seedClasses(
     }
   }
 
-  for (const progKey of programKeys) {
+  const uniqueLevelIds = [...new Set(Object.values(levelMap))];
+  const levels = await db.level.findMany({
+    where: {
+      id: { in: uniqueLevelIds },
+      org_id: orgId,
+      school_year_id: schoolYearId,
+    },
+    select: { id: true, name: true, program_id: true },
+  });
+
+  const allSubjects = await db.subject.findMany({
+    where: { id: { in: subjectIds }, org_id: orgId },
+  });
+
+  for (const level of levels) {
+    const progKey = programIdToKey[level.program_id];
+    if (!progKey || !programKeys.includes(progKey)) continue;
+
     const semesterId = semesterMap[progKey];
     if (!semesterId) continue;
 
-    const progSubjects = subjectsByProgram[progKey] ?? [];
-    if (progSubjects.length === 0) continue;
+    const levelSubjects = allSubjects.filter((s) => s.level_id === level.id);
+    const levelSections = await db.section.findMany({
+      where: {
+        level_id: level.id,
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        deleted_at: null,
+      },
+    });
 
-    const classCount = randInt(3, 5);
-    for (let c = 0; c < classCount; c++) {
-      const subject = pick(progSubjects);
-      const section = allSections.length > 0 ? pick(allSections) : null;
+    if (levelSubjects.length === 0 || levelSections.length === 0) {
+      console.warn(
+        `  ⚠ Level "${level.name}" has ${levelSubjects.length} subject(s) and ${levelSections.length} section(s); cannot seed classes for it.`,
+      );
+      continue;
+    }
+
+    const pairCount = Math.max(levelSubjects.length, levelSections.length);
+    for (let i = 0; i < pairCount; i++) {
+      const subject = levelSubjects[i % levelSubjects.length];
+      const section = levelSections[i % levelSections.length];
 
       const classId = seedId(
         'class',
         progKey,
+        level.id,
         subject.id,
-        String(c),
+        section.id,
         schoolYearId,
         orgId,
       );
       const existingClass = await db.class.findFirst({
         where: { id: classId },
       });
-      if (existingClass) continue;
+      if (existingClass) {
+        await ensureClassGradingScheme(existingClass.id, progKey);
+        continue;
+      }
 
-      // Reserve a slot that does not collide with the educator's or section's
-      // existing classes within this school year.
       const allocation = allocateScheduleSlot(
         educatorIds,
-        section?.id ?? null,
+        section.id,
         educatorUsed,
         sectionUsed,
       );
@@ -1282,13 +1545,13 @@ async function seedClasses(
       }
       const { educator, slot } = allocation;
 
-      await db.class.create({
+      const created = await db.class.create({
         data: {
           id: classId,
           org_id: orgId,
           subject_id: subject.id,
           educator_id: educator,
-          section_id: section?.id ?? undefined,
+          section_id: section.id,
           school_year_id: schoolYearId,
           semester_id: semesterId,
           capacity: randInt(30, 50),
@@ -1307,7 +1570,9 @@ async function seedClasses(
       });
 
       usedAdd(educatorUsed, educator, slot.key);
-      if (section) usedAdd(sectionUsed, section.id, slot.key);
+      usedAdd(sectionUsed, section.id, slot.key);
+
+      await ensureClassGradingScheme(created.id, progKey);
     }
   }
 }
@@ -1437,6 +1702,252 @@ async function repairScheduleConflicts(): Promise<number> {
   }
 
   return fixed;
+}
+
+// ── Readiness gate ───────────────────────────────────────────────────────────
+// Re-implements the exact blocking checks from SchoolYearReadinessService.detail()
+// directly against the DB (the seed script runs outside Nest's DI container, so
+// the real service can't be injected here). Every query below mirrors that
+// service 1:1 so the seed can never mark a year "ready" that the real
+// activation flow would reject, or vice versa.
+
+interface ReadinessCheckResult {
+  ready: boolean;
+  issues: string[];
+}
+
+async function checkSchoolYearReadiness(
+  orgId: string,
+  schoolYearId: string,
+): Promise<ReadinessCheckResult> {
+  const issues: string[] = [];
+
+  const schoolYear = await db.schoolYear.findFirst({
+    where: { id: schoolYearId, org_id: orgId },
+    select: { id: true, name: true, start_date: true },
+  });
+  if (!schoolYear) {
+    return { ready: false, issues: ['School year not found.'] };
+  }
+  if (!schoolYear.start_date) {
+    issues.push(`School year "${schoolYear.name}" has no start date.`);
+  }
+
+  const programs = await db.program.findMany({
+    where: { school_year_id: schoolYearId, org_id: orgId },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      _count: { select: { levels: true, courses: true, strands: true } },
+    },
+  });
+  if (programs.length === 0) {
+    issues.push(`School year "${schoolYear.name}" has no programs.`);
+  }
+
+  for (const program of programs) {
+    if (program._count.levels === 0) {
+      issues.push(`Program "${program.name}" has no levels.`);
+    }
+
+    if (program.type === 'college') {
+      const courses = await db.course.findMany({
+        where: { program_id: program.id, org_id: orgId },
+        select: { id: true, name: true, _count: { select: { levels: true } } },
+      });
+      for (const course of courses) {
+        if (course._count.levels === 0) {
+          issues.push(`Course "${course.name}" has no levels.`);
+        }
+      }
+    } else if (program.type === 'senior_high') {
+      const strands = await db.strand.findMany({
+        where: { program_id: program.id, org_id: orgId },
+        select: { id: true, name: true, _count: { select: { levels: true } } },
+      });
+      for (const strand of strands) {
+        if (strand._count.levels === 0) {
+          issues.push(`Strand "${strand.name}" has no levels.`);
+        }
+      }
+    }
+  }
+
+  const levels = await db.level.findMany({
+    where: { school_year_id: schoolYearId, org_id: orgId },
+    select: {
+      id: true,
+      name: true,
+      _count: {
+        select: {
+          sections: { where: { deleted_at: null } },
+          subjects: true,
+        },
+      },
+    },
+  });
+  for (const level of levels) {
+    if (level._count.sections === 0) {
+      issues.push(`Level "${level.name}" has no sections.`);
+    }
+    if (level._count.subjects === 0) {
+      issues.push(`Level "${level.name}" has no subjects.`);
+    }
+  }
+
+  const levelIds = levels.map((l) => l.id);
+  const programIds = programs.map((p) => p.id);
+  const courses = await db.course.findMany({
+    where: { school_year_id: schoolYearId, org_id: orgId },
+    select: { id: true },
+  });
+  const strands = await db.strand.findMany({
+    where: { school_year_id: schoolYearId, org_id: orgId },
+    select: { id: true },
+  });
+  const courseIds = courses.map((c) => c.id);
+  const strandIds = strands.map((s) => s.id);
+
+  const subjects = await db.subject.findMany({
+    where: {
+      org_id: orgId,
+      OR: [
+        { level_id: { in: levelIds } },
+        { program_id: { in: programIds } },
+        { course_id: { in: courseIds } },
+        { strand_id: { in: strandIds } },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      _count: { select: { classes: { where: { deleted_at: null } } } },
+    },
+  });
+  const subjectsNoClass = subjects.filter((s) => s._count.classes === 0);
+  if (subjectsNoClass.length > 0) {
+    issues.push(`${subjectsNoClass.length} subject(s) have no class created.`);
+  }
+
+  const sectionClassCounts = await db.class.groupBy({
+    by: ['section_id'],
+    where: { org_id: orgId, deleted_at: null },
+    _count: { _all: true },
+  });
+  const sectionsWithClasses = new Set<string>(
+    sectionClassCounts
+      .filter((r) => r.section_id !== null)
+      .map((r) => r.section_id as string),
+  );
+  const sections = await db.section.findMany({
+    where: { school_year_id: schoolYearId, org_id: orgId, deleted_at: null },
+    select: { id: true, name: true },
+  });
+  const sectionsNoClass = sections.filter(
+    (s) => !sectionsWithClasses.has(s.id),
+  );
+  if (sectionsNoClass.length > 0) {
+    issues.push(`${sectionsNoClass.length} section(s) have no class created.`);
+  }
+
+  const programsWithoutCalendar = await db.program.findMany({
+    where: {
+      school_year_id: schoolYearId,
+      org_id: orgId,
+      programCalendars: { none: {} },
+    },
+    select: { id: true, name: true },
+  });
+  if (programsWithoutCalendar.length > 0) {
+    issues.push(
+      `${programsWithoutCalendar.length} program(s) have no academic calendar set up.`,
+    );
+  }
+
+  const programsWithoutScale = await db.program.findMany({
+    where: {
+      school_year_id: schoolYearId,
+      org_id: orgId,
+      gradingScaleAssignments: { none: {} },
+    },
+    select: { id: true, name: true },
+  });
+  if (programsWithoutScale.length > 0) {
+    issues.push(
+      `${programsWithoutScale.length} program(s) have no grading scale assigned.`,
+    );
+  }
+
+  const programSem = await db.program.findMany({
+    where: { school_year_id: schoolYearId, org_id: orgId },
+    select: {
+      id: true,
+      name: true,
+      semesterAssignment: {
+        select: {
+          id: true,
+          template: {
+            select: {
+              semesters: { select: { terms: { select: { id: true } } } },
+            },
+          },
+        },
+      },
+    },
+  });
+  const termDateCounts = await db.programSemesterTermDate.groupBy({
+    by: ['assignment_id'],
+    where: { org_id: orgId },
+    _count: { _all: true },
+  });
+  const termDateByAssignment = new Map<string, number>();
+  for (const row of termDateCounts) {
+    termDateByAssignment.set(row.assignment_id, row._count._all);
+  }
+
+  let noAssignmentCount = 0;
+  let incompleteDatesCount = 0;
+  for (const prog of programSem) {
+    const assignment = prog.semesterAssignment;
+    if (!assignment) {
+      noAssignmentCount++;
+      continue;
+    }
+    const requiredTerms = assignment.template.semesters.reduce(
+      (sum, sem) => sum + sem.terms.length,
+      0,
+    );
+    const presentDates = termDateByAssignment.get(assignment.id) ?? 0;
+    if (presentDates < requiredTerms) incompleteDatesCount++;
+  }
+  if (noAssignmentCount > 0) {
+    issues.push(
+      `${noAssignmentCount} program(s) have no semester template assigned.`,
+    );
+  }
+  if (incompleteDatesCount > 0) {
+    issues.push(
+      `${incompleteDatesCount} program(s) have incomplete semester term dates.`,
+    );
+  }
+
+  const classesWithoutScheme = await db.class.findMany({
+    where: {
+      school_year_id: schoolYearId,
+      org_id: orgId,
+      deleted_at: null,
+      gradingSchemes: { none: {} },
+    },
+    select: { id: true },
+  });
+  if (classesWithoutScheme.length > 0) {
+    issues.push(
+      `${classesWithoutScheme.length} class(es) have no grading scheme.`,
+    );
+  }
+
+  return { ready: issues.length === 0, issues };
 }
 
 // ── Main orchestrator ───────────────────────────────────────────────────────
@@ -1610,11 +2121,15 @@ async function main() {
     await seedGradingSchemes(org.id, progKeys, programMap);
     console.log(`  └ grading scheme templates: seeded`);
 
-    // h) Semester templates
+    // h) Program academic calendars — MUST run before semester templates.
+    await seedProgramCalendars(org.id, schoolYearId, progKeys, programMap);
+    console.log(`  └ academic calendars: seeded`);
+
+    // i) Semester templates (break count derived above already matches this)
     await seedSemesterTemplates(org.id, schoolYearId, progKeys, programMap);
     console.log(`  └ semester templates: seeded`);
 
-    // i) Subjects
+    // j) Subjects (includes fallback so every level has ≥1 subject)
     const subjectIds = await seedSubjects(
       org.id,
       schoolYearId,
@@ -1626,25 +2141,11 @@ async function main() {
     );
     console.log(`  └ subjects: ${subjectIds.length}`);
 
-    // j) Educators
+    // k) Educators
     const educatorIds = await seedEducators(org.id, emailExt, educatorCount);
     console.log(`  └ educators: ${educatorIds.length}`);
 
-    // k) Students
-    const studentIds = await seedStudents(
-      org.id,
-      emailExt,
-      studentCount,
-      levelMap,
-      progKeys,
-      programMap,
-      courseMap,
-      strandMap,
-      schoolYearId,
-    );
-    console.log(`  └ students: ${studentIds.length}`);
-
-    // l) Classes
+    // l) Classes + per-class grading schemes (deterministic full coverage)
     await seedClasses(
       org.id,
       schoolYearId,
@@ -1654,7 +2155,45 @@ async function main() {
       educatorIds,
       levelMap,
     );
-    console.log(`  └ classes: seeded`);
+    console.log(`  └ classes & class grading schemes: seeded`);
+
+    // m) Readiness gate — only enroll students (and activate) if the school
+    //    year actually passes the same checks the real activation flow uses.
+    const readiness = await checkSchoolYearReadiness(org.id, schoolYearId);
+
+    if (readiness.ready) {
+      console.log(`  ✅ School year is READY — proceeding to enroll students.`);
+
+      await db.schoolYear.updateMany({
+        where: { org_id: org.id, id: { not: schoolYearId }, status: 'active' },
+        data: { status: 'ended' },
+      });
+      await db.schoolYear.update({
+        where: { id: schoolYearId },
+        data: { status: 'active' },
+      });
+
+      const studentIds = await seedStudents(
+        org.id,
+        emailExt,
+        studentCount,
+        levelMap,
+        progKeys,
+        programMap,
+        courseMap,
+        strandMap,
+        schoolYearId,
+      );
+      console.log(`  └ students: ${studentIds.length}`);
+    } else {
+      console.warn(
+        `  ⚠ School year is NOT READY — skipping student enrollment for ${school.name}.`,
+      );
+      for (const issue of readiness.issues) {
+        console.warn(`      - ${issue}`);
+      }
+    }
+
     console.log('');
   }
 
