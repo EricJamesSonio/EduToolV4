@@ -147,14 +147,11 @@ export default function GradeLockPage(): React.ReactElement {
       <GradeLockGlobalRuleBanner deadline={activeTemplate?.lock_deadline} />
 
       <GradeLockHierarchyFilter
-        schoolYears={schoolYears ?? []}
-        schoolYearsLoading={schoolYearsLoading}
         selectedSchoolYearId={selectedSchoolYearId ?? ""}
         selectedProgram={selectedProgram}
         selectedCourseStrand={selectedCourseStrand}
         selectedLevel={selectedLevel}
         filteredCount={filteredLocks.length}
-        onSchoolYearSelect={handleSchoolYearSelect}
         onProgramChange={setSelectedProgram}
         onCourseStrandChange={(value) => {
           setSelectedCourseStrand(value);
