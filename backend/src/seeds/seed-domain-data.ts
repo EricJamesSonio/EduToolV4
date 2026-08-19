@@ -10,7 +10,14 @@
  * This script is IDEMPOTENT — re-running it will skip already-seeded records.
  */
 
+// MUST be the very first import — class-validator/class-transformer decorators
+// (used transitively via org-seeder data/services) call Reflect.getMetadata at
+// module-load time. This is a standalone entry point (not routed through
+// main.ts), so the polyfill has to be installed here before anything else runs.
+import 'reflect-metadata';
+
 import { PrismaClient, AccountStatus } from '@prisma/client';
+
 import * as bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
 
