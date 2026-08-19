@@ -465,7 +465,7 @@ export class SchoolYearReadinessService {
     candidate: ReadinessIssue & { when: boolean },
   ): void {
     if (!candidate.when) return;
-    const { when, ...issue } = candidate;
+    const { when: _when, ...issue } = candidate;
     const count = issues.filter((i) => i.code === issue.code).length;
     if (count >= MAX_ISSUES_PER_CODE) return;
     issues.push(issue);
