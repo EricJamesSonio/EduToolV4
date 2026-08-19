@@ -119,9 +119,12 @@ export function registerPhase0And1() {
     });
 
     await test.step("assert school year status pending", async () => {
-      await page.goto(run.schoolYearRoute!);
-      await expect(page.getByText(run.schoolYearName!, { exact: false }).first()).toBeVisible();
-      await expect(page.getByText("Pending", { exact: true }).first()).toBeVisible();
+    const syResp = waitForApi(page, "GET", `/school-years/${run.schoolYearId}`);
+    await page.goto(run.schoolYearRoute!);
+    await syResp;
+
+    await expect(page.getByText(run.schoolYearName!, { exact: false }).first()).toBeVisible();
+    await expect(page.getByText("Pending", { exact: true }).first()).toBeVisible();
     });
 
     console.log(
