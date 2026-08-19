@@ -63,7 +63,6 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
       });
     }
     return () => { meetingCtx.minimize(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokenData]);
 
   const { joined, localVideo, remoteUsers, toggleMic, toggleCamera } = meetingCtx;
@@ -120,7 +119,14 @@ export default function StudentMeetingRoomClient(): React.JSX.Element {
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleToggleMic   = async () => { await toggleMic();    setMicOn((v) => !v); };
   const handleToggleCam   = async () => { await toggleCamera(); setCamOn((v) => !v); };
-  const handleToggleHand  = () => { handRaised ? lowerHand() : raiseHand(); setHandRaised((v) => !v); };
+  const handleToggleHand = () => {
+  if (handRaised) {
+    lowerHand();
+  } else {
+    raiseHand();
+  }
+  setHandRaised((v) => !v);
+};
   const handleTogglePanel = (panel: NonNullable<SidePanelType>) => setSidePanel((p) => p === panel ? null : panel);
 
   const handleLeave = () => {
