@@ -88,6 +88,9 @@ export function SeederCard() {
     initProgramCalendar,
     updateProgramCalendar,
     selectedSchoolYear,
+      existingGradingScaleNames,
+  existingGradingSchemeNames,
+  existingSemesterTemplateNames,
   } = useSeederCard();
 
   // ===== Navigation guard: don't let the user silently lose an in-progress
@@ -222,23 +225,25 @@ export function SeederCard() {
           {selectedPrograms.size > 0 && (
             <>
               <Card id="grading-scale" icon={BarChart3} title="Grading Scale">
-                <GradingScaleStep
-                  selectedPrograms={selectedPrograms}
-                  seedGradingScale={seedGradingScale}
-                  gradingScaleByProgram={gradingScaleByProgram}
-                  onToggleSeed={setSeedGradingScale}
-                  onSelectPreset={setGradingScaleForProgram}
-                />
+<GradingScaleStep
+  selectedPrograms={selectedPrograms}
+  seedGradingScale={seedGradingScale}
+  gradingScaleByProgram={gradingScaleByProgram}
+  disabledScaleNames={existingGradingScaleNames}
+  onToggleSeed={setSeedGradingScale}
+  onSelectPreset={setGradingScaleForProgram}
+/>
               </Card>
 
               <Card id="grading-scheme" icon={Scale} title="Grading Scheme">
-                <GradingSchemeStep
-                  selectedPrograms={selectedPrograms}
-                  seedGradingSchemes={seedGradingSchemes}
-                  gradingSchemesByProgram={gradingSchemesByProgram}
-                  onToggleSeed={setSeedGradingSchemes}
-                  onToggleScheme={toggleGradingScheme}
-                />
+<GradingSchemeStep
+  selectedPrograms={selectedPrograms}
+  seedGradingSchemes={seedGradingSchemes}
+  gradingSchemesByProgram={gradingSchemesByProgram}
+  disabledSchemeNames={existingGradingSchemeNames}
+  onToggleSeed={setSeedGradingSchemes}
+  onToggleScheme={toggleGradingScheme}
+/>
               </Card>
 
               <Card id="program-calendars" icon={Calendar} title="Academic Calendar">
@@ -256,15 +261,16 @@ export function SeederCard() {
               </Card>
 
               <Card id="semester-templates" icon={Calendar} title="Semester Templates">
-                <SemesterTemplateStep
-                  selectedPrograms={selectedPrograms}
-                  seedSemesterTemplates={seedSemesterTemplates}
-                  semesterTemplatesByProgram={semesterTemplatesByProgram}
-                  seedProgramCalendars={seedProgramCalendars}
-                  programCalendarConfigs={programCalendarConfigs}
-                  onToggleSeed={setSeedSemesterTemplates}
-                  onToggleTemplate={toggleSemesterTemplate}
-                />
+<SemesterTemplateStep
+  selectedPrograms={selectedPrograms}
+  seedSemesterTemplates={seedSemesterTemplates}
+  semesterTemplatesByProgram={semesterTemplatesByProgram}
+  seedProgramCalendars={seedProgramCalendars}
+  programCalendarConfigs={programCalendarConfigs}
+  disabledTemplateNames={existingSemesterTemplateNames}
+  onToggleSeed={setSeedSemesterTemplates}
+  onToggleTemplate={toggleSemesterTemplate}
+/>
               </Card>
             </>
           )}

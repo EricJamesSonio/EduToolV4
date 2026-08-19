@@ -192,23 +192,20 @@ export function useSeedState() {
     }))
   }
 
-  const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => {
-    const out: Record<string, GradingScalePreset> = {}
+const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => {
+  const out: Record<string, GradingScalePreset> = {}
 
-    Array.from(selectedPrograms).forEach((prog) => {
-      const key = gradingScaleByProgram[prog]
+  Array.from(selectedPrograms).forEach((prog) => {
+    // Fall back to the first preset — matches what GradingScaleStep shows
+    // as selected by default, so what's actually seeded always matches
+    // what the admin saw selected in the UI.
+    const key = gradingScaleByProgram[prog] ?? GRADING_SCALE_PRESETS[0].key
+    const preset = GRADING_SCALE_PRESETS.find((p) => p.key === key)
+    if (preset) out[prog] = preset
+  })
 
-      if (!key) return
-
-      const preset = GRADING_SCALE_PRESETS.find((p) => p.key === key)
-
-      if (preset) {
-        out[prog] = preset
-      }
-    })
-
-    return out
-  }, [selectedPrograms, gradingScaleByProgram])
+  return out
+}, [selectedPrograms, gradingScaleByProgram])
 
   // ===== GRADING SCHEMES (NOT AUTO-SELECTED) =====
   const [seedGradingSchemes, setSeedGradingSchemes] = useState(false)

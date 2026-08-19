@@ -20,6 +20,7 @@ interface SemesterTemplateStepProps {
   semesterTemplatesByProgram: Record<string, boolean>
   seedProgramCalendars:       boolean
   programCalendarConfigs:     Record<string, ProgramCalendarDraft>
+  disabledTemplateNames:      Set<string>
   onToggleSeed:               (enabled: boolean) => void
   onToggleTemplate:           (programType: string, enabled: boolean) => void
 }
@@ -30,6 +31,7 @@ export function SemesterTemplateStep({
   semesterTemplatesByProgram,
   seedProgramCalendars,
   programCalendarConfigs,
+  disabledTemplateNames,
   onToggleSeed,
   onToggleTemplate,
 }: SemesterTemplateStepProps) {
@@ -39,10 +41,6 @@ export function SemesterTemplateStep({
 
   if (applicablePrograms.length === 0) return null
 
-  // At least one selected department needs a fully-configured calendar
-  // (Academic Calendar step on + >= MIN_CALENDAR_PERIODS complete periods)
-  // before this step is usable at all — there's nothing to derive a template
-  // from otherwise.
   const hasAnyConfiguredCalendar =
     seedProgramCalendars &&
     applicablePrograms.some((p) => isCalendarConfigured(programCalendarConfigs[p]))
@@ -77,7 +75,9 @@ export function SemesterTemplateStep({
             const config = programCalendarConfigs[programType]
             const breakCount = getBreakCount(config)
             const configured = isCalendarConfigured(config)
-            const isSelected = configured && semesterTemplatesByProgram[programType] !== false
+            const alreadyExists = disabledTemplateNames.has(base.name)
+            const isSelected =
+              configured && !alreadyExists && semesterTemplatesByProgram[programType] !== false
             const liveTemplate = configured
               ? buildGenericTemplate(base.name, programType, breakCount)
               : null
@@ -89,7 +89,7 @@ export function SemesterTemplateStep({
                 key={programType}
                 className={cn(
                   "transition-opacity",
-                  !configured && "opacity-40 pointer-events-none select-none"
+                  (!configured || alreadyExists) && "opacity-40 pointer-events-none select-none"
                 )}
               >
                 <ProgramPanel
@@ -99,15 +99,22 @@ export function SemesterTemplateStep({
                       variant={isSelected ? "outline" : "secondary"}
                       className="text-xs font-normal"
                     >
-                      {!configured
-                        ? "Calendar not configured"
-                        : isSelected
-                          ? liveTemplate!.name
-                          : "Not selected"}
+                      {alreadyExists
+                        ? "Already exists"
+                        : !configured
+                          ? "Calendar not configured"
+                          : isSelected
+                            ? liveTemplate!.name
+                            : "Not selected"}
                     </Badge>
                   }
                 >
-                  {!configured ? (
+                  {alreadyExists ? (
+                    <p className="text-xs text-muted-foreground not-interactive">
+                      A semester template named &quot;{base.name}&quot; already exists for your
+                      organization and will be reused — edit it on the Semester Settings page.
+                    </p>
+                  ) : !configured ? (
                     <p className="text-xs text-muted-foreground not-interactive">
                       Add at least {MIN_CALENDAR_PERIODS} complete periods to this
                       department&apos;s calendar above ({breakCount} of {MIN_CALENDAR_PERIODS}{" "}
@@ -115,7 +122,6 @@ export function SemesterTemplateStep({
                     </p>
                   ) : (
                     <>
-                      {/* Template selectable card */}
                       <SelectableCard
                         selected={isSelected}
                         onSelect={() => onToggleTemplate(programType, !isSelected)}
@@ -125,7 +131,6 @@ export function SemesterTemplateStep({
                         } • ${totalTerms} ${totalTerms === 1 ? "term" : "terms"}`}
                       />
 
-                      {/* Terms preview */}
                       <CollapsiblePreview label="Preview terms" count={totalTerms}>
                         {liveTemplate!.semesters.map((semester, semIdx) => (
                           <div

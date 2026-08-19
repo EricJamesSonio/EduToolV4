@@ -11,6 +11,7 @@ interface GradingSchemeStepProps {
   selectedPrograms:        Set<string>
   seedGradingSchemes:      boolean
   gradingSchemesByProgram: Record<string, boolean>
+  disabledSchemeNames:     Set<string>
   onToggleSeed:            (enabled: boolean) => void
   onToggleScheme:          (programType: string, enabled: boolean) => void
 }
@@ -19,6 +20,7 @@ export function GradingSchemeStep({
   selectedPrograms,
   seedGradingSchemes,
   gradingSchemesByProgram,
+  disabledSchemeNames,
   onToggleSeed,
   onToggleScheme,
 }: GradingSchemeStepProps) {
@@ -42,19 +44,22 @@ export function GradingSchemeStep({
             Select which grading scheme templates to create for your departments:
           </p>
           {applicableSchemes.map((scheme) => {
-            const isSelected = gradingSchemesByProgram[scheme.programType] !== false
+            const alreadyExists = disabledSchemeNames.has(scheme.name)
+            const isSelected = !alreadyExists && gradingSchemesByProgram[scheme.programType] !== false
 
             return (
               <ProgramPanel
                 key={scheme.programType}
                 program={scheme.programType}
                 badge={
-                  <Badge variant={isSelected ? "outline" : "secondary"} className="text-xs font-normal">
-                    {isSelected ? scheme.name : "Not selected"}
+                  <Badge
+                    variant={alreadyExists || !isSelected ? "secondary" : "outline"}
+                    className="text-xs font-normal"
+                  >
+                    {alreadyExists ? "Already exists" : isSelected ? scheme.name : "Not selected"}
                   </Badge>
                 }
               >
-                {/* Scheme selectable card */}
                 <SelectableCard
                   selected={isSelected}
                   onSelect={() => onToggleScheme(scheme.programType, !isSelected)}
@@ -62,24 +67,31 @@ export function GradingSchemeStep({
                   subtitle={`${scheme.components.length} ${
                     scheme.components.length === 1 ? "component" : "components"
                   }`}
+                  disabled={alreadyExists}
+                  disabledReason={
+                    alreadyExists
+                      ? "Already exists — edit it on the Grading Schemes page"
+                      : undefined
+                  }
                 />
 
-                {/* Components preview */}
-                <CollapsiblePreview label="Preview components" count={scheme.components.length}>
-                  {scheme.components.map((comp) => (
-                    <div key={comp.name} className="flex items-center justify-between px-3 py-1.5 text-xs">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 uppercase">
-                          {comp.type}
-                        </Badge>
-                        <span className="text-muted-foreground not-interactive">{comp.name}</span>
+                {!alreadyExists && (
+                  <CollapsiblePreview label="Preview components" count={scheme.components.length}>
+                    {scheme.components.map((comp) => (
+                      <div key={comp.name} className="flex items-center justify-between px-3 py-1.5 text-xs">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 uppercase">
+                            {comp.type}
+                          </Badge>
+                          <span className="text-muted-foreground not-interactive">{comp.name}</span>
+                        </div>
+                        <span className="font-mono text-muted-foreground tabular-nums not-interactive">
+                          {comp.weight}%
+                        </span>
                       </div>
-                      <span className="font-mono text-muted-foreground tabular-nums not-interactive">
-                        {comp.weight}%
-                      </span>
-                    </div>
-                  ))}
-                </CollapsiblePreview>
+                    ))}
+                  </CollapsiblePreview>
+                )}
               </ProgramPanel>
             )
           })}

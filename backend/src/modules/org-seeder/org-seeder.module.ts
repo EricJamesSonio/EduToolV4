@@ -13,10 +13,16 @@ import { MinorSubjectSeederService } from './seeders/minor-subject-seeder.servic
 import { PrerequisiteSeederService } from './seeders/prerequisite-seeder.service';
 import { AcademicCalendarModule } from '../academic-calendar/academic-calendar.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
-import { GradingScaleModule } from '../grading-scale/grading-scale.module'; // add this
+import { GradingScaleModule } from '../grading-scale/grading-scale.module';
+import { GradingSchemeTemplateModule } from '../grading-scheme-template/grading-scheme-template.module';
 
 @Module({
-  imports: [AuditLogModule, AcademicCalendarModule, GradingScaleModule], // add it here
+  imports: [
+    AuditLogModule,
+    AcademicCalendarModule,
+    GradingScaleModule,
+    GradingSchemeTemplateModule,
+  ],
   providers: [
     OrgSeederService,
     ProgramSeederService,

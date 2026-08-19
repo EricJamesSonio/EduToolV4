@@ -20,6 +20,9 @@ import {
   SECTION_DEFAULTS,
   parseSubjectKey,
 } from "../constants/seed-data";
+import { useGradingScales } from "@/hooks/admin/useGradingScales";
+import { useGradingSchemeTemplates } from "@/hooks/admin/useGradingSchemeTemplates";
+import { useSemesterTemplates } from "@/hooks/admin/useSemesterTemplate";
 
 interface PendingSchoolYear {
   name: string;
@@ -132,6 +135,11 @@ export function useSeederCard() {
     { enabled: !!selectedSchoolYearId },
   );
 
+  // Org-scoped (not tied to a specific school year), so no school-year gate.
+  const { data: existingGradingScalesList = [] } = useGradingScales();
+  const { data: existingGradingSchemeTemplatesList = [] } = useGradingSchemeTemplates();
+  const { data: existingSemesterTemplatesList = [] } = useSemesterTemplates();
+
   const seedState = useSeedState();
 
   const {
@@ -189,13 +197,16 @@ export function useSeederCard() {
   const seedMutation = useMutationWithInvalidation(
     organizationApi.seedOrg,
     {
-      invalidateKeys: [
-        queryKeys.admin.programs.all,
-        queryKeys.admin.courses.all,
-        queryKeys.admin.strands.all,
-        queryKeys.admin.levels.all,
-        queryKeys.admin.subjects.all,
-      ],
+    invalidateKeys: [
+      queryKeys.admin.programs.all,
+      queryKeys.admin.courses.all,
+      queryKeys.admin.strands.all,
+      queryKeys.admin.levels.all,
+      queryKeys.admin.subjects.all,
+      queryKeys.admin.gradingScales.list(),
+      queryKeys.admin.gradingSchemeTemplates.all,
+      queryKeys.admin.semesterTemplates.all,
+    ],
       onSuccess: (result) => {
         const warnings: string[] = result?.result?.warnings ?? [];
         if (warnings.length > 0) {
@@ -292,11 +303,11 @@ export function useSeederCard() {
       sectionConfigs: sectionConfigsPayload,
       excludedLevelSubjects:
         Object.keys(excludedLevelSubjects).length > 0 ? excludedLevelSubjects : undefined,
-seedGradingScales: seedGradingScale ? true : false,
-seedGradingSchemes: seedGradingSchemes ? Object.values(gradingSchemesByProgram).some(Boolean) : false,
-seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesByProgram).some(Boolean) : false,
-seedProgramCalendars: !!programCalendars && Object.keys(programCalendars).length > 0,
-programCalendars,
+      seedGradingScales: seedGradingScale ? true : false,
+      seedGradingSchemes: seedGradingSchemes ? Object.values(gradingSchemesByProgram).some(Boolean) : false,
+      seedSemesterTemplates: seedSemesterTemplates ? Object.values(semesterTemplatesByProgram).some(Boolean) : false,
+      seedProgramCalendars: !!programCalendars && Object.keys(programCalendars).length > 0,
+      programCalendars,
     });
   }
 
@@ -308,6 +319,9 @@ programCalendars,
   const existingStrandNames = new Set(existingStrands.map((s) => s.name));
   const existingLevelNames = new Set(existingLevels.map((l) => l.name));
   const existingSubjectTitles = new Set(existingSubjects.map((s) => s.title));
+  const existingGradingScaleNames = new Set(existingGradingScalesList.map((s) => s.name));
+  const existingGradingSchemeNames = new Set(existingGradingSchemeTemplatesList.map((t) => t.name));
+  const existingSemesterTemplateNames = new Set(existingSemesterTemplatesList.map((t) => t.name));
 
   // Toggle helpers
   const helpers = {
@@ -434,6 +448,9 @@ programCalendars,
     existingStrandNames,
     existingLevelNames,
     existingSubjectTitles,
+    existingGradingScaleNames,
+    existingGradingSchemeNames,
+    existingSemesterTemplateNames,
 
     // Helpers
     helpers,
