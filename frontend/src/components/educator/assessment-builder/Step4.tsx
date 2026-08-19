@@ -67,7 +67,11 @@ export function Step4({
     setCancelling(true);
     try {
       await assessmentApi.cancelPreview(classId, previewId);
-    } catch {}
+    } catch (error) {
+      // Cancellation is best-effort — we navigate back regardless,
+      // but log so a real API/network failure isn't silently swallowed.
+      console.error("Failed to cancel preview:", error);
+    }
     router.back();
   }
 
