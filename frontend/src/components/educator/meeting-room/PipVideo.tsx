@@ -182,7 +182,7 @@ export default function PipVideo({ videoId, camOn, micOn, zClass = "z-20", onExp
     const clampedX = Math.max(0, Math.min(pos.x, p.width  - el.offsetWidth));
     const clampedY = Math.max(0, Math.min(pos.y, p.height - el.offsetHeight));
     if (clampedX !== pos.x || clampedY !== pos.y) setPos({ x: clampedX, y: clampedY });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [size]);
 
   const { onMouseDown, onTouchStart } = usePipDrag(pipRef, pos, setPos, !resizing);
