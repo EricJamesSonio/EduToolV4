@@ -218,7 +218,13 @@ export function useSeederCard() {
         setCollapsed(true);
         resetAll();
       },
-      onError: () => toast.error("Seed failed. Please try again."),
+      onError: (err: unknown) => {
+  const message =
+    isAxiosError<{ message?: string }>(err) && err.response?.data?.message
+      ? err.response.data.message
+      : "Seed failed. Please try again.";
+  toast.error(message);
+},
     }
   );
 
