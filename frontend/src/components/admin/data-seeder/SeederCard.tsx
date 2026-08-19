@@ -1,10 +1,12 @@
 // frontend/src/components/admin/data-seeder/SeederCard.tsx
 "use client";
 
+import { useEffect } from "react";
 import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, BarChart3, Calendar, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, pickCardColor } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useNavigationGuard } from "@/context/NavigationGuardContext";
 
 import { SchoolYearStep } from "./SchoolYearStep";
 import { ProgramStep } from "./ProgramStep";
@@ -87,6 +89,31 @@ export function SeederCard() {
     updateProgramCalendar,
     selectedSchoolYear,
   } = useSeederCard();
+
+  // ===== Navigation guard: don't let the user silently lose an in-progress
+  // seed by clicking away in the sidebar. "In progress" = at least one
+  // department has been selected — matches the point where real, non-trivial
+  // choices start piling up (levels, sections, subjects, calendars, etc. all
+  // key off the selected departments).
+  const { setGuard } = useNavigationGuard();
+
+  useEffect(() => {
+    setGuard(() => selectedPrograms.size > 0);
+    return () => setGuard(null);
+  }, [selectedPrograms, setGuard]);
+
+  // Same protection for tab close / refresh / typed-URL navigation, which the
+  // sidebar guard can't catch since it only intercepts our own <Link> clicks.
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (selectedPrograms.size > 0) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [selectedPrograms]);
 
   return (
     <>
@@ -233,6 +260,8 @@ export function SeederCard() {
                   selectedPrograms={selectedPrograms}
                   seedSemesterTemplates={seedSemesterTemplates}
                   semesterTemplatesByProgram={semesterTemplatesByProgram}
+                  seedProgramCalendars={seedProgramCalendars}
+                  programCalendarConfigs={programCalendarConfigs}
                   onToggleSeed={setSeedSemesterTemplates}
                   onToggleTemplate={toggleSemesterTemplate}
                 />

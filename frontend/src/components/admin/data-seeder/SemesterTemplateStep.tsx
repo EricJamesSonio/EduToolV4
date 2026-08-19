@@ -1,16 +1,25 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
-import { SEMESTER_TEMPLATES } from "./constants/seed-data"
+import { cn } from "@/lib/utils"
+import { buildGenericTemplate, SEMESTER_TEMPLATE_BY_PROGRAM } from "./constants/semester-templates"
 import { CollapsiblePreview } from "./ui/CollapsiblePreview"
 import { EnableToggle } from "./ui/EnableToggle"
 import { ProgramPanel } from "./ui/ProgramPanel"
 import { SelectableCard } from "./ui/SelectableCard"
+import {
+  getBreakCount,
+  isCalendarConfigured,
+  MIN_CALENDAR_PERIODS,
+  type ProgramCalendarDraft,
+} from "./hooks/useSeedState"
 
 interface SemesterTemplateStepProps {
   selectedPrograms:           Set<string>
   seedSemesterTemplates:      boolean
   semesterTemplatesByProgram: Record<string, boolean>
+  seedProgramCalendars:       boolean
+  programCalendarConfigs:     Record<string, ProgramCalendarDraft>
   onToggleSeed:               (enabled: boolean) => void
   onToggleTemplate:           (programType: string, enabled: boolean) => void
 }
@@ -19,82 +28,131 @@ export function SemesterTemplateStep({
   selectedPrograms,
   seedSemesterTemplates,
   semesterTemplatesByProgram,
+  seedProgramCalendars,
+  programCalendarConfigs,
   onToggleSeed,
   onToggleTemplate,
 }: SemesterTemplateStepProps) {
-  const applicableTemplates = SEMESTER_TEMPLATES.filter((tpl) =>
-    selectedPrograms.has(tpl.programType)
+  const applicablePrograms = Array.from(selectedPrograms).filter(
+    (p) => !!SEMESTER_TEMPLATE_BY_PROGRAM[p]
   )
 
-  if (applicableTemplates.length === 0) return null
+  if (applicablePrograms.length === 0) return null
+
+  // At least one selected department needs a fully-configured calendar
+  // (Academic Calendar step on + >= MIN_CALENDAR_PERIODS complete periods)
+  // before this step is usable at all — there's nothing to derive a template
+  // from otherwise.
+  const hasAnyConfiguredCalendar =
+    seedProgramCalendars &&
+    applicablePrograms.some((p) => isCalendarConfigured(programCalendarConfigs[p]))
 
   return (
     <div className="space-y-3">
-      <EnableToggle enabled={seedSemesterTemplates} onToggle={onToggleSeed} />
+      <EnableToggle
+        enabled={seedSemesterTemplates && hasAnyConfiguredCalendar}
+        onToggle={onToggleSeed}
+        disabled={!hasAnyConfiguredCalendar}
+      />
 
-      {!seedSemesterTemplates ? (
+      {!hasAnyConfiguredCalendar ? (
+        <p className="text-xs text-muted-foreground not-interactive">
+          {!seedProgramCalendars
+            ? "Enable and configure the Academic Calendar step above first. Semester templates are generated from each department's calendar — they aren't entered separately."
+            : `None of your departments have a fully configured calendar yet. Give a department at least ${MIN_CALENDAR_PERIODS} complete periods in the Academic Calendar step above to unlock its semester template here.`}
+        </p>
+      ) : !seedSemesterTemplates ? (
         <p className="text-xs text-muted-foreground not-interactive">
           Semester templates will not be created. Enable above to include them.
         </p>
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground not-interactive">
-            Select which semester templates to create. Each template starts as 2 semesters with
-            generic &quot;Term 1/2/3&quot; rows, and adapts to the department&apos;s calendar during seeding —
-            one semester per calendar period:
+            Each template&apos;s semester count is generated from its department&apos;s academic
+            calendar above — {MIN_CALENDAR_PERIODS} calendar periods produce{" "}
+            {MIN_CALENDAR_PERIODS} semesters, 3 periods produce a trimester template, and so on.
           </p>
-          {applicableTemplates.map((template) => {
-            const isSelected = semesterTemplatesByProgram[template.programType] !== false
-            const totalTerms = template.semesters.reduce(
-              (sum, sem) => sum + sem.terms.length,
-              0
-            )
+          {applicablePrograms.map((programType) => {
+            const base = SEMESTER_TEMPLATE_BY_PROGRAM[programType]
+            const config = programCalendarConfigs[programType]
+            const breakCount = getBreakCount(config)
+            const configured = isCalendarConfigured(config)
+            const isSelected = configured && semesterTemplatesByProgram[programType] !== false
+            const liveTemplate = configured
+              ? buildGenericTemplate(base.name, programType, breakCount)
+              : null
+            const totalTerms =
+              liveTemplate?.semesters.reduce((sum, sem) => sum + sem.terms.length, 0) ?? 0
 
             return (
-              <ProgramPanel
-                key={template.programType}
-                program={template.programType}
-                badge={
-                  <Badge variant={isSelected ? "outline" : "secondary"} className="text-xs font-normal">
-                    {isSelected ? template.name : "Not selected"}
-                  </Badge>
-                }
+              <div
+                key={programType}
+                className={cn(
+                  "transition-opacity",
+                  !configured && "opacity-40 pointer-events-none select-none"
+                )}
               >
-                {/* Template selectable card */}
-                <SelectableCard
-                  selected={isSelected}
-                  onSelect={() => onToggleTemplate(template.programType, !isSelected)}
-                  title={template.name}
-                  subtitle={`${template.semesters.length} ${
-                    template.semesters.length === 1 ? "semester" : "semesters"
-                  } • ${totalTerms} ${totalTerms === 1 ? "term" : "terms"}`}
-                />
-
-                {/* Terms preview */}
-                <CollapsiblePreview label="Preview terms" count={totalTerms}>
-                  {template.semesters.map((semester, semIdx) => (
-                    <div
-                      key={`${template.programType}-sem-${semIdx}`}
-                      className="px-3 py-1.5 space-y-1.5"
+                <ProgramPanel
+                  program={programType}
+                  badge={
+                    <Badge
+                      variant={isSelected ? "outline" : "secondary"}
+                      className="text-xs font-normal"
                     >
-                      <div className="text-xs font-semibold text-foreground not-interactive">
-                        {semester.name}
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {semester.terms.map((term) => (
-                          <Badge
-                            key={`${template.programType}-term-${term.order_index}`}
-                            variant="secondary"
-                            className="font-normal text-[11px] px-2 py-0"
+                      {!configured
+                        ? "Calendar not configured"
+                        : isSelected
+                          ? liveTemplate!.name
+                          : "Not selected"}
+                    </Badge>
+                  }
+                >
+                  {!configured ? (
+                    <p className="text-xs text-muted-foreground not-interactive">
+                      Add at least {MIN_CALENDAR_PERIODS} complete periods to this
+                      department&apos;s calendar above ({breakCount} of {MIN_CALENDAR_PERIODS}{" "}
+                      set) to enable its semester template.
+                    </p>
+                  ) : (
+                    <>
+                      {/* Template selectable card */}
+                      <SelectableCard
+                        selected={isSelected}
+                        onSelect={() => onToggleTemplate(programType, !isSelected)}
+                        title={liveTemplate!.name}
+                        subtitle={`${liveTemplate!.semesters.length} ${
+                          liveTemplate!.semesters.length === 1 ? "semester" : "semesters"
+                        } • ${totalTerms} ${totalTerms === 1 ? "term" : "terms"}`}
+                      />
+
+                      {/* Terms preview */}
+                      <CollapsiblePreview label="Preview terms" count={totalTerms}>
+                        {liveTemplate!.semesters.map((semester, semIdx) => (
+                          <div
+                            key={`${programType}-sem-${semIdx}`}
+                            className="px-3 py-1.5 space-y-1.5"
                           >
-                            {term.name}
-                          </Badge>
+                            <div className="text-xs font-semibold text-foreground not-interactive">
+                              {semester.name}
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {semester.terms.map((term) => (
+                                <Badge
+                                  key={`${programType}-term-${term.order_index}`}
+                                  variant="secondary"
+                                  className="font-normal text-[11px] px-2 py-0"
+                                >
+                                  {term.name}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
                         ))}
-                      </div>
-                    </div>
-                  ))}
-                </CollapsiblePreview>
-              </ProgramPanel>
+                      </CollapsiblePreview>
+                    </>
+                  )}
+                </ProgramPanel>
+              </div>
             )
           })}
         </div>

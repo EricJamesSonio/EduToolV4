@@ -32,6 +32,28 @@ export interface ProgramCalendarDraft {
   breaks: CalendarBreak[]
 }
 
+/**
+ * Minimum number of complete (start + end filled) calendar periods a
+ * department needs before its calendar counts as "configured" and its
+ * semester template can be derived from it. 2 periods = regular 2-semester
+ * template, 3 periods = trimester, etc.
+ */
+export const MIN_CALENDAR_PERIODS = 2
+
+/** Number of complete periods (breaks with both dates filled) in a draft. */
+export function getBreakCount(config?: ProgramCalendarDraft): number {
+  return config?.breaks.filter((b) => b.startDate && b.endDate).length ?? 0
+}
+
+/**
+ * Whether a department's calendar draft is "configured" enough to derive a
+ * semester template from — has its own date range and at least
+ * MIN_CALENDAR_PERIODS complete periods.
+ */
+export function isCalendarConfigured(config?: ProgramCalendarDraft): boolean {
+  return !!config?.startDate && !!config?.endDate && getBreakCount(config) >= MIN_CALENDAR_PERIODS
+}
+
 function defaultCalendarBreaks(startDate: string): CalendarBreak[] {
   return [
     { label: "Break 1", startDate, endDate: "" },
@@ -233,11 +255,14 @@ export function useSeedState() {
     setSeedSemesterTemplates(enabled)
     if (enabled) {
       // Selecting the master "Semester Templates" toggle auto-selects every
-      // applicable program template so no extra per-program clicks are needed.
+      // applicable program *whose academic calendar is already configured*
+      // (>= MIN_CALENDAR_PERIODS complete periods). Departments without a
+      // configured calendar yet are left off until their calendar is set up —
+      // otherwise we'd be auto-selecting a template we can't actually derive.
       setSemesterTemplatesByProgram((prev) => {
         const next = { ...prev }
         SEMESTER_TEMPLATES.forEach((tpl) => {
-          next[tpl.programType] = true
+          next[tpl.programType] = isCalendarConfigured(programCalendarConfigs[tpl.programType])
         })
         return next
       })
@@ -293,6 +318,31 @@ export function useSeedState() {
       return { ...prev, [prog]: { ...current, ...patch } }
     })
   }
+
+  // Keep semester templates in sync with the academic calendar: if the
+  // calendar step is turned off entirely, or a specific department's
+  // calendar no longer meets the minimum period count (e.g. the user deleted
+  // a break after enabling the template), its semester template can't stay
+  // selected — otherwise the two would silently drift apart, which is the
+  // exact bug this whole sync exists to prevent.
+  useEffect(() => {
+    if (!seedProgramCalendars) {
+      if (seedSemesterTemplates) setSeedSemesterTemplates(false)
+      return
+    }
+    setSemesterTemplatesByProgram((prev) => {
+      let changed = false
+      const next = { ...prev }
+      Object.keys(next).forEach((prog) => {
+        if (next[prog] && !isCalendarConfigured(programCalendarConfigs[prog])) {
+          next[prog] = false
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedProgramCalendars, programCalendarConfigs, seedSemesterTemplates])
 
   // ===== LEVEL & SECTION MANAGEMENT =====
   function resolveEntityLevelNames(entityKey: string, count: number): string[] {

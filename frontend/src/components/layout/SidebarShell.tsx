@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useSidebar } from "@/context/SidebarContext";
+import { useNavigationGuardOptional } from "@/context/NavigationGuardContext";
 import type { LucideIcon } from "lucide-react";
 
 export interface NavItem {
@@ -47,6 +48,7 @@ function NavLink({
   collapsed: boolean;
 }) {
   const isActive = useIsActive(item.href, item.exact);
+  const guard = useNavigationGuardOptional();
   const Icon = item.icon;
 
   const base =
@@ -56,9 +58,21 @@ function NavLink({
     ? "bg-muted text-foreground"
     : "text-muted-foreground hover:bg-muted/60 hover:text-foreground";
 
+  // When a NavigationGuardProvider is mounted above us (e.g. inside the admin
+  // layout), route the click through it so pages with unsaved in-progress
+  // state (like the Data Seeder) get a chance to confirm before we navigate
+  // away. Outside a provider, links behave exactly as before.
+  const handleClick = guard
+    ? (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault();
+        guard.requestNavigation(item.href);
+      }
+    : undefined;
+
   const linkContent = (
     <Link
       href={item.href}
+      onClick={handleClick}
       className={cn(base, stateStyles, collapsed && "justify-center px-2")}
     >
       <Icon
