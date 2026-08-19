@@ -13,9 +13,10 @@ import { MinorSubjectSeederService } from './seeders/minor-subject-seeder.servic
 import { PrerequisiteSeederService } from './seeders/prerequisite-seeder.service';
 import { AcademicCalendarModule } from '../academic-calendar/academic-calendar.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { GradingScaleModule } from '../grading-scale/grading-scale.module'; // add this
 
 @Module({
-  imports: [AuditLogModule, AcademicCalendarModule],
+  imports: [AuditLogModule, AcademicCalendarModule, GradingScaleModule], // add it here
   providers: [
     OrgSeederService,
     ProgramSeederService,

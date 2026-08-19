@@ -1,13 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { v4 as uuid } from 'uuid';
-import { DatabaseService } from '@/core/database/database.provider';
+import { GradingSchemeTemplateRepository } from '@/modules/grading-scheme-template/grading-scheme-template.repository';
 import { SCHEME_PRESETS } from '../data/grading-schemes.data';
 import { SeedContext } from '../seed-context';
-import { seedId } from '../seed-id';
 
 @Injectable()
 export class GradingSchemeSeederService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly repo: GradingSchemeTemplateRepository) {}
 
   async seed(ctx: SeedContext): Promise<void> {
     const schemeProgram: Record<string, string> = {
@@ -26,36 +24,23 @@ export class GradingSchemeSeederService {
         continue;
       }
 
-      const id = seedId('scheme-template', preset.name, ctx.orgId);
-      const existing = await this.db.gradingSchemeTemplate.findFirst({
-        where: { id },
-      });
-
+      const existing = await this.repo.findByName(ctx.orgId, preset.name);
       if (existing) {
         ctx.result.gradingSchemeTemplates.already_exists++;
         continue;
       }
 
-      const template = await this.db.gradingSchemeTemplate.create({
-        data: {
-          id,
-          org_id: ctx.orgId,
-          name: preset.name,
-          program_type: progKey ?? null,
-        },
-      });
-
-      await this.db.gradingSchemeTemplateComponent.createMany({
-        data: preset.components.map((c: any) => ({
-          id: uuid(),
-          org_id: ctx.orgId,
-          template_id: template.id,
+      await this.repo.create(
+        ctx.orgId,
+        preset.name,
+        progKey,
+        preset.components.map((c) => ({
           name: c.name,
           type: c.type,
           weight: c.weight,
-          max_score: null,
+          maxScore: undefined,
         })),
-      });
+      );
 
       ctx.result.gradingSchemeTemplates.seeded++;
     }

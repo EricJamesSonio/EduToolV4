@@ -341,7 +341,7 @@ export function useSeedState() {
       })
       return changed ? next : prev
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [seedProgramCalendars, programCalendarConfigs, seedSemesterTemplates])
 
   // ===== LEVEL & SECTION MANAGEMENT =====

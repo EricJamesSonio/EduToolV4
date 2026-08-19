@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { GradingSchemeTemplateRepository } from './grading-scheme-template.repository';
 import {
@@ -67,6 +68,12 @@ export class GradingSchemeTemplateService {
   }
 
   async create(orgId: string, dto: CreateGradingSchemeTemplateDto) {
+    const existing = await this.repo.findByName(orgId, dto.name);
+    if (existing) {
+      throw new ConflictException(
+        'A grading scheme template with this name already exists.',
+      );
+    }
     this.validateWeights(dto.components);
     return this.repo.create(orgId, dto.name, dto.programType, dto.components);
   }

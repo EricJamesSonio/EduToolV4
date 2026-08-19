@@ -48,6 +48,14 @@ export class GradingSchemeTemplateRepository {
     return templates.map(mapTemplate);
   }
 
+  async findByName(orgId: string, name: string) {
+    const template = await this.db.gradingSchemeTemplate.findFirst({
+      where: { org_id: orgId, name },
+      include: COMPONENTS_INCLUDE,
+    });
+    return template ? mapTemplate(template) : null;
+  }
+
   async findByProgramTypes(
     orgId: string,
     programTypes: string[],
