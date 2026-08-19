@@ -48,6 +48,7 @@ export interface SeedOrganizationRequest {
   excludedSubjects?:     string[]                        // plain names — for minors/GE
   excludedLevelSubjects?: Record<string, string[]>       // levelName → plain subject names
   levelConfigs?:         Record<string, string[]>
+  gradingScales?:        Record<string, GradingScalePayload>
   seedGradingScales?:     boolean
   sectionConfigs?:       Record<string, { name: string; capacity: number }[]>
   seedGradingSchemes?:    boolean
