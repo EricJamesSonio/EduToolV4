@@ -32,6 +32,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edutool_e2e
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN || '1d' }}
+      CORS_ORIGIN: http://localhost:3000
       NEXT_PUBLIC_API_URL: http://localhost:5000
       NEXT_PUBLIC_SOCKET_URL: http://localhost:5000
       NEXT_PUBLIC_WS_URL: ws://localhost:5000
