@@ -35,8 +35,21 @@ export interface GetClassesQuery {
   educatorId?:   string;
   subjectId?:    string;
   sectionId?:    string;
+  programId?:    string;  // NEW — department filter
+  search?:       string;  // NEW — subject/educator search
   page?:         number;
   limit?:        number;
+}
+
+export interface DistinctEducatorsQuery {
+  schoolYearId?: string;
+  semesterId?:   string;
+  programId?:    string;
+}
+
+export interface DistinctEducator {
+  id: string;
+  fullName: string;
 }
 
 export interface EnrollmentResponse {
@@ -141,8 +154,8 @@ function mapClass(raw: RawClass): Class {
     capacity:        raw.capacity,
     enrolledCount:   raw._count?.enrollments ?? raw.enrolled_count ?? 0,
     status:          (raw.status as Class["status"]) ?? (raw.deleted_at ? "archived" : "active"),
-    isArchived:      raw.deleted_at !== null,                    // ← ADD
-    title:           raw.subject_name ?? raw.subject_id,        // ← ADD (fallback to ID until enriched)
+    isArchived:      raw.deleted_at !== null,
+    title:           raw.subject_name ?? raw.subject_id,
     schedules:       (raw.schedules ?? []).map(mapSchedule),
     createdAt:       raw.created_at,
     updatedAt:       raw.updated_at,
@@ -191,6 +204,24 @@ export const classApi = {
   getAll: async (query?: GetClassesQuery): Promise<Class[]> => {
     const result = await classApi.getPage({ ...query, limit: MAX_SELECT_LIMIT });
     return result.data;
+  },
+
+  // NEW — used by ClassesFilterBar so the Educator dropdown only lists
+  // teachers with at least one class matching the current Department/Semester
+  // scope, instead of every educator in the org.
+  getDistinctEducators: async (
+    query?: DistinctEducatorsQuery,
+  ): Promise<DistinctEducator[]> => {
+    const params = query
+      ? Object.fromEntries(
+          Object.entries(query).filter(([, v]) => v !== undefined && v !== ""),
+        )
+      : undefined;
+    const res = await client.get<ApiResponse<DistinctEducator[]>>(
+      "/classes/educators",
+      { params },
+    );
+    return res.data?.data ?? [];
   },
 
   getOne: async (id: string): Promise<Class> => {
