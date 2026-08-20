@@ -3,8 +3,8 @@
 import { useAsyncQuery } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { semesterApi } from "@/api/admin/semester.api";
-import { educatorApi } from "@/api/admin/educator.api";
 import { programApi } from "@/api/admin/program.api";
+import { classApi } from "@/api/admin/class.api";
 import type { Semester } from "@/types/admin/semester.types";
 import {
   Select,
@@ -27,9 +27,28 @@ type ClassesFilterBarProps = Pick<
   | "setFilterProgramId"
   | "setFilterSemesterId"
   | "setFilterEducatorId"
+  | "setDepartmentAndSemester"
   | "setSearch"
 > & {
   schoolYearId: string | null;
+};
+
+interface GroupedSemester {
+  semesterId: string;
+  semesterName: string;
+  programId: string;
+  programName: string;
+}
+
+// A composite key so a single <Select> can carry both programId and
+// semesterId for the "All Departments" grouped list — a semester name can
+// resolve to the same physical Semester row across different departments'
+// templates, so we can't identify the intended selection by semesterId alone.
+const encodeComposite = (programId: string, semesterId: string) =>
+  `${programId}::${semesterId}`;
+const decodeComposite = (value: string): [string, string] => {
+  const [programId, semesterId] = value.split("::");
+  return [programId, semesterId];
 };
 
 export function ClassesFilterBar({
@@ -40,16 +59,10 @@ export function ClassesFilterBar({
   setFilterProgramId,
   setFilterSemesterId,
   setFilterEducatorId,
+  setDepartmentAndSemester,
   setSearch,
   schoolYearId,
 }: ClassesFilterBarProps): React.JSX.Element {
-  // ===== Educators =====
-  const { data: educatorsRaw } = useAsyncQuery(
-    queryKeys.admin.educators.list(),
-    () => educatorApi.getAll(),
-  );
-  const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
-
   // ===== Departments (Programs) — scoped to the selected school year =====
   const { data: programsRaw } = useAsyncQuery(
     queryKeys.admin.programs.list({ schoolYearId }),
@@ -59,29 +72,56 @@ export function ClassesFilterBar({
   const programs = toArray<{ id: string; name: string }>(programsRaw);
 
   // ===== Semesters =====
-  // When a department is selected: fetch only the semesters actually
-  // assigned to that department's semester template, for this school year.
-  // Uses the real semesterApi.getByProgram(programId, schoolYearId) method —
-  // GET /programs/:id/semesters?schoolYearId=... — already returns deduped,
-  // correctly-named Semester rows, so no extra client-side dedup is needed.
+  // Department selected: plain department-scoped list, no ambiguity —
+  // labels are just the semester name.
   const { data: deptSemestersRaw } = useAsyncQuery(
     queryKeys.admin.programs.semesters(filterProgramId, schoolYearId),
     () => semesterApi.getByProgram(filterProgramId, schoolYearId!),
     { enabled: !!schoolYearId && filterProgramId !== "all" },
   );
+  const deptSemesters = toArray<Semester>(deptSemestersRaw);
 
-  // When no department is selected: fall back to all semesters for the
-  // current school year only (still scoped — no more cross-year duplicates
-  // like the old semesterApi.getAll() with no schoolYearId argument).
-  const { data: allSemestersRaw } = useAsyncQuery(
-    queryKeys.admin.semesters.list({ schoolYearId }),
-    () => semesterApi.getAll(schoolYearId!),
+  // Department = "All": grouped list, one entry per (program, semester)
+  // pairing that actually exists this school year — e.g. "1st - College",
+  // "1st - Daycare" as distinct, selectable options even when they happen
+  // to share the same underlying semesterId.
+  const { data: groupedSemestersRaw } = useAsyncQuery(
+    queryKeys.admin.programs.semestersGrouped(schoolYearId),
+    () => programApi.getSemestersGrouped(schoolYearId!),
     { enabled: !!schoolYearId && filterProgramId === "all" },
   );
+  const groupedSemesters = toArray<GroupedSemester>(groupedSemestersRaw);
 
-  const semesters = toArray<Semester>(
-    filterProgramId !== "all" ? deptSemestersRaw : allSemestersRaw,
+  // ===== Educators — scoped to the current Department/Semester selection =====
+  const { data: educatorsRaw } = useAsyncQuery(
+    queryKeys.admin.classes.distinctEducators({
+      schoolYearId,
+      programId: filterProgramId !== "all" ? filterProgramId : undefined,
+      semesterId: filterSemesterId !== "all" ? filterSemesterId : undefined,
+    }),
+    () =>
+      classApi.getDistinctEducators({
+        schoolYearId: schoolYearId ?? undefined,
+        programId: filterProgramId !== "all" ? filterProgramId : undefined,
+        semesterId: filterSemesterId !== "all" ? filterSemesterId : undefined,
+      }),
+    { enabled: !!schoolYearId },
   );
+  const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
+
+  function handleSemesterChange(value: string) {
+    if (value === "all") {
+      setFilterSemesterId("all");
+      return;
+    }
+    if (filterProgramId === "all") {
+      // composite value from the grouped list
+      const [programId, semesterId] = decodeComposite(value);
+      setDepartmentAndSemester(programId, semesterId);
+    } else {
+      setFilterSemesterId(value);
+    }
+  }
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
@@ -112,26 +152,41 @@ export function ClassesFilterBar({
         </SelectContent>
       </Select>
 
-      {/* Semester — scoped to the selected department (or school year if "all") */}
+      {/* Semester — grouped-with-department labels when "All", plain when a
+          specific department is already selected */}
       <Select
+        // Once a grouped option is picked, setDepartmentAndSemester flips
+        // filterProgramId away from "all" on the same render pass, so by
+        // the time this re-renders we're already in "department selected"
+        // mode and filterSemesterId is a plain id matching deptSemesters —
+        // no composite value ever needs to be reflected back here.
         value={filterSemesterId}
-        onValueChange={(v) => setFilterSemesterId(v ?? "all")}
+        onValueChange={handleSemesterChange}
         disabled={!schoolYearId}
       >
-        <SelectTrigger className="w-44">
+        <SelectTrigger className="w-56">
           <SelectValue placeholder="All Semesters" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Semesters</SelectItem>
-          {semesters.map((sem) => (
-            <SelectItem key={sem.id} value={sem.id}>
-              {sem.name}
-            </SelectItem>
-          ))}
+          {filterProgramId === "all"
+            ? groupedSemesters.map((g) => (
+                <SelectItem
+                  key={encodeComposite(g.programId, g.semesterId)}
+                  value={encodeComposite(g.programId, g.semesterId)}
+                >
+                  {g.semesterName} - {g.programName}
+                </SelectItem>
+              ))
+            : deptSemesters.map((sem) => (
+                <SelectItem key={sem.id} value={sem.id}>
+                  {sem.name}
+                </SelectItem>
+              ))}
         </SelectContent>
       </Select>
 
-      {/* Educator */}
+      {/* Educator — scoped to the current Department/Semester selection */}
       <Select
         value={filterEducatorId}
         onValueChange={(v) => setFilterEducatorId(v ?? "all")}
