@@ -150,6 +150,81 @@ export class ProgramService {
     }));
   }
 
+  // ✅ NEW: for the Classes page "All Departments" semester filter.
+  // Returns one row per (program, semester) pairing that actually exists for
+  // this school year, so the frontend can render disambiguated labels like
+  // "1st - College" / "1st - Daycare" and — since a semester name can
+  // resolve to the SAME physical Semester row across different departments'
+  // templates — select both filterProgramId and filterSemesterId together
+  // when the user picks one, instead of a semesterId alone.
+  async getSemestersGroupedByProgram(orgId: string, schoolYearId: string) {
+    const assignments = await this.db.programSemesterAssignment.findMany({
+      where: { org_id: orgId },
+      include: {
+        program: { select: { id: true, name: true } },
+        template: {
+          include: {
+            semesters: { orderBy: { order_index: 'asc' as const } },
+          },
+        },
+      },
+    });
+
+    if (assignments.length === 0) return [];
+
+    // Collect every distinct semester name referenced by any template, then
+    // resolve them all to actual Semester rows in one query.
+    const allNames = new Set<string>();
+    for (const a of assignments) {
+      for (const s of a.template.semesters) allNames.add(s.name);
+    }
+
+    const semesterRows = await this.db.semester.findMany({
+      where: {
+        org_id: orgId,
+        school_year_id: schoolYearId,
+        name: { in: [...allNames] },
+      },
+      orderBy: { start_date: 'asc' as const },
+    });
+
+    const semesterByName = new Map(semesterRows.map((s) => [s.name, s]));
+
+    const result: Array<{
+      semesterId: string;
+      semesterName: string;
+      startDate: Date;
+      endDate: Date;
+      programId: string;
+      programName: string;
+    }> = [];
+
+    for (const a of assignments) {
+      for (const templateSemester of a.template.semesters) {
+        const row = semesterByName.get(templateSemester.name);
+        if (!row) continue; // no actual semester created yet for this school year
+        result.push({
+          semesterId: row.id,
+          semesterName: row.name,
+          startDate: row.start_date,
+          endDate: row.end_date,
+          programId: a.program.id,
+          programName: a.program.name,
+        });
+      }
+    }
+
+    // Order by semester start date, then department name, for a stable,
+    // readable dropdown.
+    result.sort((x, y) => {
+      const byDate = x.startDate.getTime() - y.startDate.getTime();
+      if (byDate !== 0) return byDate;
+      return x.programName.localeCompare(y.programName);
+    });
+
+    return result;
+  }
+
   async remove(id: string, orgId: string, actorId: string) {
     const program = await this.programRepository.findById(id, orgId);
     if (!program) throw new NotFoundException('Program not found.');
