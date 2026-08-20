@@ -284,10 +284,14 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
       )}
 
 <ClassesFilterBar
+  filterProgramId={filters.filterProgramId}
   filterSemesterId={filters.filterSemesterId}
   filterEducatorId={filters.filterEducatorId}
+  search={filters.search}
+  setFilterProgramId={filters.setFilterProgramId}
   setFilterSemesterId={handleFilterSemesterChange}
   setFilterEducatorId={handleFilterEducatorChange}
+  setSearch={filters.setSearch}
   schoolYearId={selectedSchoolYearId}
 />
 
