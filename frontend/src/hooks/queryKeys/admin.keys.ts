@@ -53,6 +53,12 @@ export const adminQueryKeys = {
         classId,
         'eligible-students',
       ] as const,
+    distinctEducators: (filters: {
+      schoolYearId?: string | null;
+      programId?: string;
+      semesterId?: string;
+    }) =>
+      [...adminKeys.all, 'classes', 'distinct-educators', filters] as const,
   },
 
   courses: {
@@ -196,6 +202,13 @@ export const adminQueryKeys = {
         'detail',
         programId,
         'semesters',
+        schoolYearId,
+      ] as const,
+    semestersGrouped: (schoolYearId: string | null) =>
+      [
+        ...adminKeys.all,
+        'programs',
+        'semesters-grouped',
         schoolYearId,
       ] as const,
   },
