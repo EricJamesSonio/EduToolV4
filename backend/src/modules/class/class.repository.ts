@@ -37,29 +37,50 @@ export class ClassRepository {
     });
   }
 
-  async findAll(
-    orgId: string,
-    filters: {
-      schoolYearId?: string;
-      semesterId?: string;
-      educatorId?: string;
-      subjectId?: string;
-      sectionId?: string;
-      page?: number;
-      limit?: number;
-    },
-  ) {
-    const { page = 1, limit = 20 } = filters;
+async findAll(
+  orgId: string,
+  filters: {
+    schoolYearId?: string;
+    semesterId?: string;
+    educatorId?: string;
+    subjectId?: string;
+    sectionId?: string;
+    programId?: string;   // ← NEW
+    search?: string;      // ← NEW
+    page?: number;
+    limit?: number;
+  },
+) {
+  const { page = 1, limit = 20 } = filters;
 
-    const where = {
-      org_id: orgId,
-      deleted_at: null,
-      ...(filters.schoolYearId && { school_year_id: filters.schoolYearId }),
-      ...(filters.semesterId && { semester_id: filters.semesterId }),
-      ...(filters.educatorId && { educator_id: filters.educatorId }),
-      ...(filters.subjectId && { subject_id: filters.subjectId }),
-      ...(filters.sectionId && { section_id: filters.sectionId }),
-    };
+  const where: any = {
+    org_id: orgId,
+    deleted_at: null,
+    ...(filters.schoolYearId && { school_year_id: filters.schoolYearId }),
+    ...(filters.semesterId && { semester_id: filters.semesterId }),
+    ...(filters.educatorId && { educator_id: filters.educatorId }),
+    ...(filters.subjectId && { subject_id: filters.subjectId }),
+    ...(filters.sectionId && { section_id: filters.sectionId }),
+    ...(filters.programId && {
+      subject: {
+        OR: [
+          { program_id: filters.programId },
+          { course: { program_id: filters.programId } },
+          { strand: { program_id: filters.programId } },
+        ],
+      },
+    }),
+    ...(filters.search && {
+      OR: [
+        { subject: { name: { contains: filters.search, mode: 'insensitive' } } },
+        {
+          educator: {
+            profile: { full_name: { contains: filters.search, mode: 'insensitive' } },
+          },
+        },
+      ],
+    }),
+  };
 
     const include = {
       _count: {

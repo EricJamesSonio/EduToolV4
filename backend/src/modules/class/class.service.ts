@@ -199,19 +199,21 @@ export class ClassService {
 
   // --- everything below is unchanged from your original ---
 
-  async findAll(orgId: string, query: QueryClassDto) {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+async findAll(orgId: string, query: QueryClassDto) {
+  const page = query.page ?? 1;
+  const limit = query.limit ?? 20;
 
-    const { data, total } = await this.classRepository.findAll(orgId, {
-      schoolYearId: query.schoolYearId,
-      semesterId: query.semesterId,
-      educatorId: query.educatorId,
-      subjectId: query.subjectId,
-      sectionId: query.sectionId,
-      page,
-      limit,
-    });
+  const { data, total } = await this.classRepository.findAll(orgId, {
+    schoolYearId: query.schoolYearId,
+    semesterId: query.semesterId,
+    educatorId: query.educatorId,
+    subjectId: query.subjectId,
+    sectionId: query.sectionId,
+    programId: query.programId,   // ← NEW
+    search: query.search,         // ← NEW
+    page,
+    limit,
+  });
 
     return {
       data: data.map((cls) => {
