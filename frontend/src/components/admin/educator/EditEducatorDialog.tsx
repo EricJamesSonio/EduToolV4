@@ -25,6 +25,7 @@ interface Props {
 interface FormValues {
   fullName:   string;
   emailLocal: string;
+  educatorId: string;
 }
 
 function getInitials(name: string): string {
@@ -57,6 +58,7 @@ export function EditEducatorDialog({
     defaultValues: {
       fullName:   educator.fullName,
       emailLocal: splitEmail(educator.email).local,
+      educatorId: educator.educatorId ?? educator.educatorCode ?? "",
     },
   });
 
@@ -64,6 +66,7 @@ export function EditEducatorDialog({
     reset({
       fullName:   educator.fullName,
       emailLocal: splitEmail(educator.email).local,
+      educatorId: educator.educatorId ?? educator.educatorCode ?? "",
     });
   }, [educator, reset]);
 
@@ -102,7 +105,11 @@ export function EditEducatorDialog({
     try {
       await updateMutation.mutateAsync({
         id: educator.id,
-        data: { fullName: values.fullName, email },
+        data: {
+          fullName:   values.fullName,
+          email,
+          educatorId: values.educatorId,
+        },
       });
       onClose();
     } catch {
@@ -150,6 +157,17 @@ export function EditEducatorDialog({
           </div>
 
           <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="educatorId">Educator ID</Label>
+              <Input
+                id="educatorId"
+                {...register("educatorId", { required: "Educator ID is required" })}
+              />
+              {errors.educatorId && (
+                <p className="text-xs text-destructive">{errors.educatorId.message}</p>
+              )}
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="fullName">Full Name</Label>
               <Input
