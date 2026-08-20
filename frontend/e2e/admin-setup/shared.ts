@@ -112,8 +112,12 @@ export const openDialog = async (
   trigger: Locator,
   content: Locator,
 ): Promise<void> => {
+  // Some pages render a duplicate "New <Entity>" button in the empty state
+  // (toolbar + empty-state action). Both open the same dialog, so click the
+  // first to keep the strict-mode locator happy.
+  const target = trigger.first();
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    await trigger.click();
+    await target.click();
     try {
       await content.waitFor({ state: "visible", timeout: 1500 });
       return;

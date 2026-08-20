@@ -98,11 +98,17 @@ interface ApiResponse<T> {
   data:    T;
 }
 
-// Extract "HH:mm" from ISO datetime "2026-04-02T08:00:00.000Z"
+// Extract "HH:mm" from ISO datetime "2026-04-02T08:00:00.000Z".
+// The backend stores schedule times as local wall-clock (parseTimeToDate uses
+// setHours), so the round-trip must read them back in LOCAL time — reading UTC
+// shifts every slot by the UTC offset (e.g. "06:30" local -> "22:30" on UTC+8)
+// and breaks the schedule grid's occupancy vs. the conflict check.
 function toTimeString(iso: string): string {
   try {
     const d = new Date(iso);
-    return d.toISOString().substring(11, 16);
+    const h = String(d.getHours()).padStart(2, "0");
+    const m = String(d.getMinutes()).padStart(2, "0");
+    return `${h}:${m}`;
   } catch {
     return iso;
   }

@@ -172,6 +172,10 @@ export function registerPhase2() {
       run.sectionId = run.sectionByLevel[run.levelIds![0]].id;
       expect(run.sectionId).toBeTruthy();
 
+      // The list refetch after create can lag the POST under load; a fresh
+      // navigation re-queries from the server deterministically.
+      await page.goto("/admin/sections");
+
       for (const levelId of run.levelIds!) {
         await expect(
           page.getByText(run.sectionByLevel[levelId].name, { exact: true }).first(),

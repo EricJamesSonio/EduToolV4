@@ -30,6 +30,9 @@ export function registerPhase7() {
     page,
     request,
   }) => {
+    // 9 UI dialogs (4 subjects + 5 classes) + many API calls; under Turbopack
+    // dev-compile slowness this routinely exceeds the 180s global timeout.
+    test.setTimeout(300_000);
     const headers = await adminHeaders(request);
 
     let classBId = "";

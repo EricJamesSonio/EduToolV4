@@ -42,8 +42,8 @@ function formatTime(iso: string): string {
   try {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;
-    const hours = d.getUTCHours();
-    const minutes = d.getUTCMinutes();
+    const hours = d.getHours();
+    const minutes = d.getMinutes();
     const ampm = hours >= 12 ? "PM" : "AM";
     const h = hours % 12 || 12;
     const m = minutes.toString().padStart(2, "0");
