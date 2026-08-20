@@ -136,13 +136,6 @@ export function registerPhase2() {
     await test.step("create a section for each generated JHS level", async () => {
       // Same guard-race handling as Phase 1: "New Section" is wrapped in
       // ensureOrganization, which bails while GET /organization is still loading.
-      page.on("response", async (r) => {
-        const u = r.url();
-        if (u.includes("/sections")) {
-          const body = await r.text().catch(() => "");
-          console.log(`[TPL]/sections ${r.request().method()} ${u} -> ${r.status()} ${body.slice(0, 500)}`);
-        }
-      });
       const orgResp = waitForApi(page, "GET", "/organization");
       await page.goto("/admin/sections");
       await orgResp;
@@ -180,20 +173,11 @@ export function registerPhase2() {
       expect(run.sectionId).toBeTruthy();
 
       for (const levelId of run.levelIds!) {
-        const name = run.sectionByLevel[levelId].name;
-        const locator = page.getByText(name, { exact: true }).first();
-        const count = await page.getByText(name, { exact: true }).count();
-        const inDom = await locator.isVisible().catch(() => false);
-        console.log(`[TPL] asserting section name="${name}" matches=${count} visible=${inDom}`);
-        if (process.env.TPLDUMP === "1") {
-          const html = await page.content();
-          const { mkdirSync } = await import("node:fs");
-          mkdirSync("test-results", { recursive: true });
-          const { writeFileSync } = await import("node:fs");
-          writeFileSync("test-results/tpl-dump.html", html);
-        }
-        await expect(locator).toBeVisible();
+        await expect(
+          page.getByText(run.sectionByLevel[levelId].name, { exact: true }).first(),
+        ).toBeVisible();
       }
+      await expect(page.getByText("Showing 1–3 of 3 results", { exact: false }).first()).toBeVisible();
     });
 
     await test.step("level_no_sections cleared for every generated level", async () => {

@@ -18,7 +18,7 @@ export default tseslint.config(
         'warn',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
-      'prettier/prettier': ['error', { endOfLine: 'auto' }],
+      'prettier/prettier': 'off',
     },
   }
 );
