@@ -75,6 +75,12 @@ export class UpdateStudentDto {
   email?: string;
 
   @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  studentId?: string;
+
+  @IsOptional()
   @IsUUID()
   levelId?: string;
 
