@@ -246,6 +246,7 @@ export class StudentRepository {
     data: {
       fullName?: string;
       email?: string;
+      studentId?: string;
       personal_email?: string | null;
       levelId?: string;
       sectionId?: string;
@@ -284,6 +285,9 @@ export class StudentRepository {
             : {}),
           metadata: {
             ...currentMeta,
+            ...(data.studentId !== undefined
+              ? { studentId: data.studentId }
+              : {}),
             ...(data.levelId !== undefined ? { levelId: data.levelId } : {}),
             ...(data.sectionId !== undefined
               ? { sectionId: data.sectionId }
