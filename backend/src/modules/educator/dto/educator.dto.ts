@@ -44,7 +44,7 @@ export class UpdateEducatorDto {
   fullName?: string;
 
   @IsOptional()
-  @IsEmail()
+  @IsEmail({ require_tld: false })
   email?: string;
 
   @IsOptional()
