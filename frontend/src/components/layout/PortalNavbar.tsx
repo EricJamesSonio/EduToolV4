@@ -4,18 +4,9 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useSidebar } from "@/context/SidebarContext";
 import { NotificationDropdown } from "@/components/shared/NotificationDropdown";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getProfileImageUrl } from "@/utils/profile.util";
-import { LogOut, Menu, User } from "lucide-react";
+import { Menu } from "lucide-react";
 
 const PROFILE_ROUTES: Record<string, string> = {
   student: "/student/profile",
@@ -34,7 +25,7 @@ function getInitials(name: string): string {
 }
 
 export function PortalNavbar() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { toggleMobileOpen } = useSidebar();
 
   return (
@@ -65,55 +56,20 @@ export function PortalNavbar() {
         <div className="flex items-center gap-1">
           <NotificationDropdown />
 
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted transition-colors outline-none">
-              <Avatar className="h-7 w-7">
-                <AvatarImage src={user?.profileImage ? getProfileImageUrl(user.profileImage) : undefined} alt={user?.fullName ?? ""} />
-                <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">
-                  {user?.fullName ? getInitials(user.fullName) : "?"}
-                </AvatarFallback>
-              </Avatar>
-              <span className="hidden sm:block font-medium max-w-[140px] truncate">
-                {user?.fullName ?? "User"}
-              </span>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-medium truncate">{user?.fullName}</span>
-                    <span className="text-xs text-muted-foreground truncate">
-                      {user?.email}
-                    </span>
-                  </div>
-                </DropdownMenuLabel>
-              </DropdownMenuGroup>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <Link href={PROFILE_ROUTES[user?.role ?? ""] ?? "/"} className="flex items-center cursor-pointer w-full">
-                    <User className="mr-2 h-4 w-4" />
-                    My Profile
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  onClick={logout}
-                  className="text-destructive focus:text-destructive cursor-pointer"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Link
+            href={PROFILE_ROUTES[user?.role ?? ""] ?? "/"}
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted transition-colors outline-none"
+          >
+            <Avatar className="h-7 w-7">
+              <AvatarImage src={user?.profileImage ? getProfileImageUrl(user.profileImage) : undefined} alt={user?.fullName ?? ""} />
+              <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">
+                {user?.fullName ? getInitials(user.fullName) : "?"}
+              </AvatarFallback>
+            </Avatar>
+            <span className="hidden sm:block font-medium max-w-[140px] truncate">
+              {user?.fullName ?? "User"}
+            </span>
+          </Link>
         </div>
       </div>
     </nav>
