@@ -5,10 +5,7 @@ import { db } from '../db';
 import { seedId } from '../../../modules/org-seeder/seed-id';
 import { SALT_ROUNDS, SEED_PASSWORD } from '../constants';
 import { pick } from '../utils/random.util';
-import {
-  buildStudentEmail,
-  generateStudentId,
-} from '../utils/identity.util';
+import { buildStudentEmail, generateStudentId } from '../utils/identity.util';
 
 export async function seedStudents(
   orgId: string,

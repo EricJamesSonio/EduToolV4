@@ -3,10 +3,7 @@ import { AccountStatus } from '@prisma/client';
 import { db } from '../db';
 import { seedId } from '../../../modules/org-seeder/seed-id';
 import { SALT_ROUNDS, SEED_PASSWORD } from '../constants';
-import {
-  buildEducatorEmail,
-  generateEducatorId,
-} from '../utils/identity.util';
+import { buildEducatorEmail, generateEducatorId } from '../utils/identity.util';
 
 export async function seedEducators(
   orgId: string,
