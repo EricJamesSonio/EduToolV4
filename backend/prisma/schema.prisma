@@ -162,6 +162,105 @@ model Profile {
   account Account @relation(fields: [account_id], references: [id])
 }
 
+model SchoolProfileDepartment {
+  id         String   @id @default(uuid())
+  org_id     String
+  type       String   // matches Program.type — daycare/kinder/elementary/jhs/shs/college
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  courses  SchoolProfileCourse[]
+  strands  SchoolProfileStrand[]
+  levels   SchoolProfileLevel[]
+  subjects SchoolProfileSubject[] // shared/minor subjects belong to the department, not a course/strand
+
+  @@unique([org_id, type])
+}
+
+model SchoolProfileCourse {
+  id            String @id @default(uuid())
+  org_id        String
+  department_id String
+  code          String?
+  name          String
+
+  department SchoolProfileDepartment @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  levels     SchoolProfileLevel[]
+  sharings   SchoolProfileSubjectSharing[]
+}
+
+model SchoolProfileStrand {
+  id            String @id @default(uuid())
+  org_id        String
+  department_id String
+  name          String
+
+  department SchoolProfileDepartment @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  levels     SchoolProfileLevel[]
+  sharings   SchoolProfileSubjectSharing[]
+}
+
+model SchoolProfileLevel {
+  id            String  @id @default(uuid())
+  org_id        String
+  department_id String
+  course_id     String?
+  strand_id     String?
+  name          String
+  order_index   Int
+
+  department SchoolProfileDepartment @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  course     SchoolProfileCourse?    @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  strand     SchoolProfileStrand?    @relation(fields: [strand_id], references: [id], onDelete: Cascade)
+  sections   SchoolProfileSection[]
+  subjects   SchoolProfileSubject[] // major subjects tied to a specific level
+}
+
+model SchoolProfileSection {
+  id       String @id @default(uuid())
+  org_id   String
+  level_id String
+  name     String
+  capacity Int
+
+  level SchoolProfileLevel @relation(fields: [level_id], references: [id], onDelete: Cascade)
+}
+
+model SchoolProfileSubject {
+  id            String  @id @default(uuid())
+  org_id        String
+  // Major subjects: level_id set, department_id null (via level's own department).
+  // Minor/GE/shared subjects: department_id set directly, level_id null —
+  // mirrors the real Subject model's program_id-only shape for GE subjects.
+  department_id String?
+  level_id      String?
+  name          String
+  subject_type  String  @default("major") // "major" | "minor"
+
+  department SchoolProfileDepartment? @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  level      SchoolProfileLevel?      @relation(fields: [level_id], references: [id], onDelete: Cascade)
+  sharings   SchoolProfileSubjectSharing[]
+}
+
+// Mirrors the real SubjectSharing model — links a minor/shared subject to
+// the specific courses/strands that offer it, without duplicating the
+// subject row itself. A college GE subject shared across BSIT, BSCS, and
+// BSBA gets one SchoolProfileSubject row and three sharing rows here.
+model SchoolProfileSubjectSharing {
+  id         String  @id @default(uuid())
+  org_id     String
+  subject_id String
+  course_id  String?
+  strand_id  String?
+
+  subject SchoolProfileSubject @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  course  SchoolProfileCourse? @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  strand  SchoolProfileStrand? @relation(fields: [strand_id], references: [id], onDelete: Cascade)
+
+  @@unique([subject_id, course_id])
+  @@unique([subject_id, strand_id])
+}
+
 //////////////////////
 // STRUCTURE
 //////////////////////
