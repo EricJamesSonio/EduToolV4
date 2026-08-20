@@ -189,6 +189,15 @@ export const adminQueryKeys = {
       [...adminKeys.all, 'programs', 'detail', programId, 'courses'] as const,
     strands: (programId: string) =>
       [...adminKeys.all, 'programs', 'detail', programId, 'strands'] as const,
+    semesters: (programId: string, schoolYearId: string | null) =>
+      [
+        ...adminKeys.all,
+        'programs',
+        'detail',
+        programId,
+        'semesters',
+        schoolYearId,
+      ] as const,
   },
 
   registrars: {
