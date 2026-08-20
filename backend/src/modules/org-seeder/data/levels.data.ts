@@ -1,9 +1,11 @@
 import { COLLEGE_COURSES, BSED_MAJORS } from './courses.data';
+import { SHS_STRAND_DEFS } from './strands.data';
 
 export type SectionDef = { name: string; capacity: number };
 export type LevelDef = {
   programKey: string;
   courseCode?: string;
+  strandCode?: string;
   name: string;
   sections: SectionDef[];
 };
@@ -60,10 +62,24 @@ export function buildLevelDefs(): LevelDef[] {
     defs.push({ programKey: 'jhs', name: `Grade ${g}`, sections: s3x40() });
   }
 
-  defs.push(
-    { programKey: 'shs', name: 'Grade 11', sections: s3x40() },
-    { programKey: 'shs', name: 'Grade 12', sections: s3x40() },
-  );
+  // SHS levels are now per-strand, mirroring how college levels are per-course —
+  // each strand gets its own Grade 11 / Grade 12 rows, not one shared pair.
+  for (const strand of SHS_STRAND_DEFS) {
+    defs.push(
+      {
+        programKey: 'shs',
+        strandCode: strand.name,
+        name: 'Grade 11',
+        sections: s3x40(),
+      },
+      {
+        programKey: 'shs',
+        strandCode: strand.name,
+        name: 'Grade 12',
+        sections: s3x40(),
+      },
+    );
+  }
 
   for (const course of [...COLLEGE_COURSES, ...BSED_MAJORS]) {
     for (let y = 1; y <= course.years; y++) {

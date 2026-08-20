@@ -1,4 +1,3 @@
-// src/domains/academic/academic-domain.module.ts
 import { Module } from '@nestjs/common';
 
 import { AcademicCalendarModule } from '@/modules/academic-calendar/academic-calendar.module';
@@ -17,6 +16,7 @@ import { SubjectPrerequisiteModule } from '@/modules/subject-prerequisite/subjec
 import { StudentEnrollmentModule } from '@/modules/student-enrollment/student-enrollment.module';
 import { SemesterTemplateModule } from '@/modules/semester-template/semester-template.module';
 import { GradingSchemeTemplateModule } from '@/modules/grading-scheme-template/grading-scheme-template.module';
+import { SchoolProfileModule } from '@/modules/school-profile/school-profile.module';
 
 @Module({
   imports: [
@@ -36,6 +36,7 @@ import { GradingSchemeTemplateModule } from '@/modules/grading-scheme-template/g
     StudentEnrollmentModule,
     SemesterTemplateModule,
     GradingSchemeTemplateModule,
+    SchoolProfileModule,
   ],
   exports: [
     AcademicCalendarModule,
@@ -52,6 +53,7 @@ import { GradingSchemeTemplateModule } from '@/modules/grading-scheme-template/g
     StrandModule,
     SubjectPrerequisiteModule,
     SemesterTemplateModule,
+    SchoolProfileModule,
   ],
 })
 export class AcademicDomainModule {}
