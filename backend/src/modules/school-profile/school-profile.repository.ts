@@ -24,28 +24,95 @@ const PROFILE_TREE_INCLUDE = {
     include: { sections: true, subjects: true },
   },
   subjects: {
-    where: { level_id: null }, // department-level minor/shared subjects
+    where: { level_id: null },
     include: { sharings: true },
   },
 };
+
+function mapSection(raw: any) {
+  return {
+    id: raw.id,
+    name: raw.name,
+    capacity: raw.capacity,
+  };
+}
+
+function mapSharing(raw: any) {
+  return {
+    id: raw.id,
+    courseId: raw.course_id,
+    strandId: raw.strand_id,
+  };
+}
+
+function mapSubject(raw: any) {
+  return {
+    id: raw.id,
+    name: raw.name,
+    subjectType: raw.subject_type,
+    sharings: raw.sharings?.map(mapSharing) ?? [],
+  };
+}
+
+function mapLevel(raw: any) {
+  return {
+    id: raw.id,
+    courseId: raw.course_id,
+    strandId: raw.strand_id,
+    name: raw.name,
+    orderIndex: raw.order_index,
+    sections: (raw.sections ?? []).map(mapSection),
+    subjects: (raw.subjects ?? []).map(mapSubject),
+  };
+}
+
+function mapCourse(raw: any) {
+  return {
+    id: raw.id,
+    name: raw.name,
+    code: raw.code,
+    levels: (raw.levels ?? []).map(mapLevel),
+  };
+}
+
+function mapStrand(raw: any) {
+  return {
+    id: raw.id,
+    name: raw.name,
+    levels: (raw.levels ?? []).map(mapLevel),
+  };
+}
+
+function mapDepartment(raw: any) {
+  return {
+    id: raw.id,
+    type: raw.type,
+    courses: (raw.courses ?? []).map(mapCourse),
+    strands: (raw.strands ?? []).map(mapStrand),
+    levels: (raw.levels ?? []).map(mapLevel),
+    subjects: (raw.subjects ?? []).map(mapSubject),
+  };
+}
 
 @Injectable()
 export class SchoolProfileRepository {
   constructor(private readonly db: DatabaseService) {}
 
   async findAllDepartments(orgId: string) {
-    return this.db.schoolProfileDepartment.findMany({
+    const departments = await this.db.schoolProfileDepartment.findMany({
       where: { org_id: orgId },
       include: PROFILE_TREE_INCLUDE,
       orderBy: { created_at: 'asc' },
     });
+    return departments.map(mapDepartment);
   }
 
   async findDepartmentByType(orgId: string, type: string) {
-    return this.db.schoolProfileDepartment.findFirst({
+    const department = await this.db.schoolProfileDepartment.findFirst({
       where: { org_id: orgId, type },
       include: PROFILE_TREE_INCLUDE,
     });
+    return department ? mapDepartment(department) : null;
   }
 
   async createDepartment(orgId: string, type: string) {
