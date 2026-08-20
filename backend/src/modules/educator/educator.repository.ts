@@ -156,9 +156,24 @@ export class EducatorRepository {
     return results.map((r) => r.email);
   }
 
+  async findByEducatorId(educatorId: string, orgId: string) {
+    return this.db.profile.findFirst({
+      where: {
+        metadata: { path: ['educatorId'], equals: educatorId },
+        account: { org_id: orgId, role: 'educator', deleted_at: null },
+      },
+      include: { account: true },
+    });
+  }
+
   async updateProfile(
     accountId: string,
-    data: { fullName?: string; email?: string; profileImage?: string },
+    data: {
+      fullName?: string;
+      email?: string;
+      educatorId?: string;
+      profileImage?: string;
+    },
   ) {
     return this.db.$transaction(async (tx) => {
       if (data.email) {
@@ -172,6 +187,25 @@ export class EducatorRepository {
       if (data.fullName) updateData.full_name = data.fullName;
       if (data.profileImage !== undefined)
         updateData.profile_image = data.profileImage;
+
+      if (data.educatorId !== undefined) {
+        const current = await tx.profile.findUnique({
+          where: { account_id: accountId },
+          select: { metadata: true },
+        });
+
+        const currentMeta =
+          current?.metadata &&
+          typeof current.metadata === 'object' &&
+          !Array.isArray(current.metadata)
+            ? (current.metadata as Record<string, any>)
+            : {};
+
+        updateData.metadata = {
+          ...currentMeta,
+          educatorId: data.educatorId,
+        };
+      }
 
       if (Object.keys(updateData).length > 0) {
         await tx.profile.update({

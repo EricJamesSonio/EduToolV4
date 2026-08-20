@@ -253,9 +253,30 @@ export class EducatorService {
       }
     }
 
+    // Guard: new educatorId must be unique within org
+    if (dto.educatorId) {
+      const currentMeta = account.profile?.metadata as
+        | Record<string, any>
+        | null;
+      const currentEducatorId = currentMeta?.educatorId as string | undefined;
+
+      if (dto.educatorId !== currentEducatorId) {
+        const idTaken = await this.educatorRepository.findByEducatorId(
+          dto.educatorId,
+          orgId,
+        );
+        if (idTaken && idTaken.account_id !== id) {
+          throw new ConflictException(
+            'An educator with this Educator ID already exists in the organization.',
+          );
+        }
+      }
+    }
+
     const updated = await this.educatorRepository.updateProfile(id, {
       fullName: dto.fullName,
       email,
+      educatorId: dto.educatorId,
       profileImage: dto.profileImage,
     });
 
