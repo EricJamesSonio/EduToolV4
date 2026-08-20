@@ -130,7 +130,12 @@ runSuite('Cross-year semester template destruction (Lane 1 item 4)', () => {
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [OrgSeederModule, DatabaseModule, AiModule, ConfigModule.forRoot({ isGlobal: true })],
+      imports: [
+        OrgSeederModule,
+        DatabaseModule,
+        AiModule,
+        ConfigModule.forRoot({ isGlobal: true }),
+      ],
     }).compile();
     app = moduleFixture.createNestApplication();
     await app.init();

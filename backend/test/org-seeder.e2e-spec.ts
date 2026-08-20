@@ -117,7 +117,12 @@ runSuite('OrgSeederService e2e (real database)', () => {
       '--- SETUP: booting real Nest module graph (OrgSeederModule + real DatabaseService) ---',
     );
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [OrgSeederModule, DatabaseModule, AiModule, ConfigModule.forRoot({ isGlobal: true })],
+      imports: [
+        OrgSeederModule,
+        DatabaseModule,
+        AiModule,
+        ConfigModule.forRoot({ isGlobal: true }),
+      ],
     }).compile();
 
     app = moduleFixture.createNestApplication();
