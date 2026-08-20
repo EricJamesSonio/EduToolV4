@@ -18,6 +18,8 @@ import { INestApplication } from '@nestjs/common';
 
 import { OrgSeederModule } from '@/modules/org-seeder/org-seeder.module';
 import { DatabaseModule } from '@/core/database/database.module';
+import { AiModule } from '@/core/ai/ai.module';
+import { ConfigModule } from '@nestjs/config';
 import { DatabaseService } from '@/core/database/database.provider';
 import { OrgSeederService } from '@/modules/org-seeder/org-seeder.service';
 import type {
@@ -115,7 +117,7 @@ runSuite('OrgSeederService e2e (real database)', () => {
       '--- SETUP: booting real Nest module graph (OrgSeederModule + real DatabaseService) ---',
     );
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [OrgSeederModule, DatabaseModule],
+      imports: [OrgSeederModule, DatabaseModule, AiModule, ConfigModule.forRoot({ isGlobal: true })],
     }).compile();
 
     app = moduleFixture.createNestApplication();
