@@ -26,7 +26,11 @@ export interface ScheduleSlotKey {
   end: string;
 }
 
-export function scheduleKey(weekday: number, start: string, end: string): string {
+export function scheduleKey(
+  weekday: number,
+  start: string,
+  end: string,
+): string {
   return `${weekday}|${start}|${end}`;
 }
 
