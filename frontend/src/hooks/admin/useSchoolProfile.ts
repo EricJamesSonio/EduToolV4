@@ -1,9 +1,13 @@
-// ===== File: frontend\src\hooks\admin\useSchoolProfile.ts =====
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { schoolProfileApi } from "@/api/admin/school-profile.api";
 import type {
   SchoolProfileDepartment,
+  SchoolProfileCourse,
+  SchoolProfileStrand,
+  SchoolProfileLevel,
+  SchoolProfileSection,
+  SchoolProfileSubject,
   CreateProfileCourseRequest,
   UpdateProfileCourseRequest,
   CreateProfileStrandRequest,
@@ -42,7 +46,7 @@ export const useDeselectDepartment = () => {
 
 export const useCreateProfileCourse = () => {
   return useMutationWithInvalidation<
-    unknown,
+    SchoolProfileCourse,
     Error,
     { departmentId: string; data: CreateProfileCourseRequest }
   >(
@@ -53,7 +57,7 @@ export const useCreateProfileCourse = () => {
 
 export const useUpdateProfileCourse = () => {
   return useMutationWithInvalidation<
-    unknown,
+    SchoolProfileCourse,
     Error,
     { id: string; data: UpdateProfileCourseRequest }
   >(
@@ -71,7 +75,7 @@ export const useDeleteProfileCourse = () => {
 
 export const useCreateProfileStrand = () => {
   return useMutationWithInvalidation<
-    unknown,
+    SchoolProfileStrand,
     Error,
     { departmentId: string; data: CreateProfileStrandRequest }
   >(
@@ -82,7 +86,7 @@ export const useCreateProfileStrand = () => {
 
 export const useUpdateProfileStrand = () => {
   return useMutationWithInvalidation<
-    unknown,
+    SchoolProfileStrand,
     Error,
     { id: string; data: UpdateProfileStrandRequest }
   >(
@@ -100,7 +104,7 @@ export const useDeleteProfileStrand = () => {
 
 export const useCreateProfileLevel = () => {
   return useMutationWithInvalidation<
-    unknown,
+    SchoolProfileLevel,
     Error,
     { departmentId: string; data: CreateProfileLevelRequest }
   >(
@@ -111,7 +115,7 @@ export const useCreateProfileLevel = () => {
 
 export const useUpdateProfileLevel = () => {
   return useMutationWithInvalidation<
-    unknown,
+    SchoolProfileLevel,
     Error,
     { id: string; data: UpdateProfileLevelRequest }
   >(
@@ -129,7 +133,7 @@ export const useDeleteProfileLevel = () => {
 
 export const useCreateProfileSection = () => {
   return useMutationWithInvalidation<
-    unknown,
+    SchoolProfileSection,
     Error,
     { levelId: string; data: CreateProfileSectionRequest }
   >(
@@ -140,7 +144,7 @@ export const useCreateProfileSection = () => {
 
 export const useUpdateProfileSection = () => {
   return useMutationWithInvalidation<
-    unknown,
+    SchoolProfileSection,
     Error,
     { id: string; data: UpdateProfileSectionRequest }
   >(
@@ -158,7 +162,7 @@ export const useDeleteProfileSection = () => {
 
 export const useCreateProfileSubject = () => {
   return useMutationWithInvalidation<
-    unknown,
+    SchoolProfileSubject,
     Error,
     { levelId: string; data: CreateProfileSubjectRequest }
   >(
@@ -169,7 +173,7 @@ export const useCreateProfileSubject = () => {
 
 export const useUpdateProfileSubject = () => {
   return useMutationWithInvalidation<
-    unknown,
+    SchoolProfileSubject,
     Error,
     { id: string; data: UpdateProfileSubjectRequest }
   >(

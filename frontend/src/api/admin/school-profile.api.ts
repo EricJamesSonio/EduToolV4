@@ -1,6 +1,11 @@
 import client from "@/api/client";
 import type {
   SchoolProfileDepartment,
+  SchoolProfileCourse,
+  SchoolProfileStrand,
+  SchoolProfileLevel,
+  SchoolProfileSection,
+  SchoolProfileSubject,
   CreateProfileCourseRequest,
   UpdateProfileCourseRequest,
   CreateProfileStrandRequest,
@@ -12,16 +17,12 @@ import type {
   CreateProfileSubjectRequest,
   UpdateProfileSubjectRequest,
 } from "@/types/admin/school-profile.types";
-import type { SchoolProfileCourse } from "@/types/admin/school-profile.types";
-import type { SchoolProfileStrand } from "@/types/admin/school-profile.types";
-import type { SchoolProfileLevel } from "@/types/admin/school-profile.types";
-import type { SchoolProfileSection } from "@/types/admin/school-profile.types";
-import type { SchoolProfileSubject } from "@/types/admin/school-profile.types";
 
 interface ApiEnvelope<T> {
   success: boolean;
   data: T;
 }
+
 
 export const schoolProfileApi = {
   getProfile: async (): Promise<SchoolProfileDepartment[]> => {
