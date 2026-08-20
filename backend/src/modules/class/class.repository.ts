@@ -37,50 +37,50 @@ export class ClassRepository {
     });
   }
 
-async findAll(
-  orgId: string,
-  filters: {
-    schoolYearId?: string;
-    semesterId?: string;
-    educatorId?: string;
-    subjectId?: string;
-    sectionId?: string;
-    programId?: string;   // ← NEW
-    search?: string;      // ← NEW
-    page?: number;
-    limit?: number;
-  },
-) {
-  const { page = 1, limit = 20 } = filters;
+  async findAll(
+    orgId: string,
+    filters: {
+      schoolYearId?: string;
+      semesterId?: string;
+      educatorId?: string;
+      subjectId?: string;
+      sectionId?: string;
+      programId?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    const { page = 1, limit = 20 } = filters;
 
-  const where: any = {
-    org_id: orgId,
-    deleted_at: null,
-    ...(filters.schoolYearId && { school_year_id: filters.schoolYearId }),
-    ...(filters.semesterId && { semester_id: filters.semesterId }),
-    ...(filters.educatorId && { educator_id: filters.educatorId }),
-    ...(filters.subjectId && { subject_id: filters.subjectId }),
-    ...(filters.sectionId && { section_id: filters.sectionId }),
-    ...(filters.programId && {
-      subject: {
-        OR: [
-          { program_id: filters.programId },
-          { course: { program_id: filters.programId } },
-          { strand: { program_id: filters.programId } },
-        ],
-      },
-    }),
-    ...(filters.search && {
-      OR: [
-        { subject: { name: { contains: filters.search, mode: 'insensitive' } } },
-        {
-          educator: {
-            profile: { full_name: { contains: filters.search, mode: 'insensitive' } },
-          },
+    const where: any = {
+      org_id: orgId,
+      deleted_at: null,
+      ...(filters.schoolYearId && { school_year_id: filters.schoolYearId }),
+      ...(filters.semesterId && { semester_id: filters.semesterId }),
+      ...(filters.educatorId && { educator_id: filters.educatorId }),
+      ...(filters.subjectId && { subject_id: filters.subjectId }),
+      ...(filters.sectionId && { section_id: filters.sectionId }),
+      ...(filters.programId && {
+        subject: {
+          OR: [
+            { program_id: filters.programId },
+            { course: { program_id: filters.programId } },
+            { strand: { program_id: filters.programId } },
+          ],
         },
-      ],
-    }),
-  };
+      }),
+      ...(filters.search && {
+        OR: [
+          { subject: { name: { contains: filters.search, mode: 'insensitive' } } },
+          {
+            educator: {
+              profile: { full_name: { contains: filters.search, mode: 'insensitive' } },
+            },
+          },
+        ],
+      }),
+    };
 
     const include = {
       _count: {
@@ -134,6 +134,57 @@ async findAll(
     ]);
 
     return { data, total };
+  }
+
+  /**
+   * Returns the distinct educators who have at least one non-deleted class
+   * matching the given scope. Used by the Classes page Educator filter so
+   * it only lists teachers relevant to the currently selected
+   * Department/Semester — not every educator in the org.
+   */
+  async findDistinctEducators(
+    orgId: string,
+    filters: {
+      schoolYearId?: string;
+      semesterId?: string;
+      programId?: string;
+    },
+  ) {
+    const where: any = {
+      org_id: orgId,
+      deleted_at: null,
+      ...(filters.schoolYearId && { school_year_id: filters.schoolYearId }),
+      ...(filters.semesterId && { semester_id: filters.semesterId }),
+      ...(filters.programId && {
+        subject: {
+          OR: [
+            { program_id: filters.programId },
+            { course: { program_id: filters.programId } },
+            { strand: { program_id: filters.programId } },
+          ],
+        },
+      }),
+    };
+
+    const rows = await this.db.class.findMany({
+      where,
+      distinct: ['educator_id'],
+      select: {
+        educator: {
+          select: {
+            id: true,
+            profile: { select: { full_name: true } },
+          },
+        },
+      },
+    });
+
+    return rows
+      .map((r) => ({
+        id: r.educator.id,
+        fullName: r.educator.profile?.full_name ?? '',
+      }))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName));
   }
 
   async findById(id: string, orgId: string) {
@@ -296,11 +347,7 @@ async findAll(
 
   async findEnrolledStudents(classId: string, orgId: string) {
     const enrollments = await this.db.enrollment.findMany({
-      where: {
-        class_id: classId,
-        org_id: orgId,
-        status: { not: 'removed' },
-      },
+      where: { class_id: classId, org_id: orgId, status: { not: 'removed' } },
       select: { student_id: true },
     });
 

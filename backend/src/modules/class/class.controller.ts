@@ -50,6 +50,25 @@ export class ClassController {
     return this.classService.findAll(orgId, query);
   }
 
+  // NEW — for the Classes page Educator filter, scoped to the currently
+  // selected Department/Semester. Must stay above `@Get(':id')`, since Nest
+  // matches routes in declaration order and "educators" would otherwise be
+  // swallowed as an :id param.
+  @Get('educators')
+  @Roles('admin', 'educator')
+  async getDistinctEducators(
+    @CurrentUser('org_id') orgId: string,
+    @Query('schoolYearId') schoolYearId?: string,
+    @Query('semesterId') semesterId?: string,
+    @Query('programId') programId?: string,
+  ) {
+    return this.classService.getDistinctEducators(orgId, {
+      schoolYearId,
+      semesterId,
+      programId,
+    });
+  }
+
   @Get(':id')
   @Roles('admin', 'educator')
   async findOne(@Param('id') id: string, @CurrentUser('org_id') orgId: string) {

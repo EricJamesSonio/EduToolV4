@@ -199,21 +199,21 @@ export class ClassService {
 
   // --- everything below is unchanged from your original ---
 
-async findAll(orgId: string, query: QueryClassDto) {
-  const page = query.page ?? 1;
-  const limit = query.limit ?? 20;
+  async findAll(orgId: string, query: QueryClassDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
 
-  const { data, total } = await this.classRepository.findAll(orgId, {
-    schoolYearId: query.schoolYearId,
-    semesterId: query.semesterId,
-    educatorId: query.educatorId,
-    subjectId: query.subjectId,
-    sectionId: query.sectionId,
-    programId: query.programId,   // ← NEW
-    search: query.search,         // ← NEW
-    page,
-    limit,
-  });
+    const { data, total } = await this.classRepository.findAll(orgId, {
+      schoolYearId: query.schoolYearId,
+      semesterId: query.semesterId,
+      educatorId: query.educatorId,
+      subjectId: query.subjectId,
+      sectionId: query.sectionId,
+      programId: query.programId,
+      search: query.search,
+      page,
+      limit,
+    });
 
     return {
       data: data.map((cls) => {
@@ -257,6 +257,19 @@ async findAll(orgId: string, query: QueryClassDto) {
     const cls = await this.classRepository.findById(id, orgId);
     if (!cls) throw new NotFoundException('Class not found.');
     return cls;
+  }
+
+  // NEW — for the Classes page Educator filter, scoped to the currently
+  // selected Department/Semester instead of listing every educator in the org.
+  async getDistinctEducators(
+    orgId: string,
+    query: { schoolYearId?: string; semesterId?: string; programId?: string },
+  ) {
+    return this.classRepository.findDistinctEducators(orgId, {
+      schoolYearId: query.schoolYearId,
+      semesterId: query.semesterId,
+      programId: query.programId,
+    });
   }
 
   async update(id: string, orgId: string, dto: UpdateClassDto) {
