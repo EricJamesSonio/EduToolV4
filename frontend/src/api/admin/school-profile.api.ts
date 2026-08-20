@@ -17,6 +17,7 @@ import type {
   CreateProfileSubjectRequest,
   UpdateProfileSubjectRequest,
 } from "@/types/admin/school-profile.types";
+import type { DraftDepartment } from "@/hooks/admin/useSchoolProfileDraft"
 
 interface ApiEnvelope<T> {
   success: boolean;
@@ -170,4 +171,36 @@ export const schoolProfileApi = {
   deleteSubject: async (id: string): Promise<void> => {
     await client.delete(`/school-profile/subjects/${id}`);
   },
+  saveProfile: async (departments: DraftDepartment[]): Promise<void> => {
+  const payload = departments.map((d) => ({
+    type: d.type,
+    courses: d.courses.map((c) => ({
+      name: c.name,
+      code: c.code,
+      levels: c.levels.map((l) => ({
+        name: l.name,
+        orderIndex: l.orderIndex,
+        sections: l.sections.map((s) => ({ name: s.name, capacity: s.capacity })),
+        subjects: l.subjects.map((s) => ({ name: s.name, subjectType: s.subjectType })),
+      })),
+    })),
+    strands: d.strands.map((s) => ({
+      name: s.name,
+      levels: s.levels.map((l) => ({
+        name: l.name,
+        orderIndex: l.orderIndex,
+        sections: l.sections.map((sec) => ({ name: sec.name, capacity: sec.capacity })),
+        subjects: l.subjects.map((sub) => ({ name: sub.name, subjectType: sub.subjectType })),
+      })),
+    })),
+    levels: d.levels.map((l) => ({
+      name: l.name,
+      orderIndex: l.orderIndex,
+      sections: l.sections.map((s) => ({ name: s.name, capacity: s.capacity })),
+      subjects: l.subjects.map((s) => ({ name: s.name, subjectType: s.subjectType })),
+    })),
+    subjects: d.subjects.map((s) => ({ name: s.name, subjectType: s.subjectType })),
+  }))
+  await client.post("/school-profile/save", { departments: payload })
+},
 };
