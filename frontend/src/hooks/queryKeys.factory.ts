@@ -317,6 +317,10 @@ export const queryKeys = {
       categories: (filters?: QueryFilters) =>
         [...adminKeys.all, 'concerns', 'categories', filters] as const,
     },
+        schoolProfile: {
+      all: [...adminKeys.all, 'schoolProfile'] as const,
+      list: () => [...adminKeys.all, 'schoolProfile', 'list'] as const,
+    },
   },
 
   educator: {
