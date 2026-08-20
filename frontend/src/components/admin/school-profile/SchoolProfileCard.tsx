@@ -1,37 +1,24 @@
 "use client"
 
-import { Layers, LayoutList } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Layers, LayoutList, Loader2, Database } from "lucide-react"
 import { cn, pickCardColor } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
-import { useState } from "react"
+import { useNavigationGuard } from "@/context/NavigationGuardContext"
+import { toast } from "sonner"
+import { isAxiosError } from "axios"
 import type { ProgramType } from "@/types/admin/program.types"
 import { PROGRAM_TYPE_LABELS } from "@/types/admin/program.types"
-import {
-  useSchoolProfile,
-  useSelectDepartment,
-  useDeselectDepartment,
-  useCreateProfileCourse,
-  useUpdateProfileCourse,
-  useDeleteProfileCourse,
-  useCreateProfileStrand,
-  useUpdateProfileStrand,
-  useDeleteProfileStrand,
-  useCreateProfileLevel,
-  useUpdateProfileLevel,
-  useDeleteProfileLevel,
-  useCreateProfileSection,
-  useUpdateProfileSection,
-  useDeleteProfileSection,
-  useCreateProfileSubject,
-  useUpdateProfileSubject,
-  useDeleteProfileSubject,
-} from "@/hooks/admin/useSchoolProfile"
+import { useSchoolProfile, useSaveSchoolProfile } from "@/hooks/admin/useSchoolProfile"
+import { useSchoolProfileDraft } from "@/hooks/admin/useSchoolProfileDraft"
 import { DepartmentStep } from "./DepartmentStep"
 import { CourseStep } from "./CourseStep"
 import { StrandStep } from "./StrandStep"
 import { LevelStep } from "./LevelStep"
 import { SectionStep } from "./SectionStep"
 import { SubjectStep } from "./SubjectStep"
+import type { DraftDepartment } from "@/hooks/admin/useSchoolProfileDraft"
 
 function Card({ id, icon: Icon, title, children }: { id: string; icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) {
   return (
@@ -47,63 +34,67 @@ function Card({ id, icon: Icon, title, children }: { id: string; icon: React.Com
   )
 }
 
-export function SchoolProfileCard() {
-  const { data: departments = [], isLoading } = useSchoolProfile()
+function collectAllLevels(dept: DraftDepartment) {
+  return [
+    ...dept.levels.map((l) => ({ ...l, groupLabel: PROGRAM_TYPE_LABELS[dept.type] })),
+    ...dept.courses.flatMap((c) => c.levels.map((l) => ({ ...l, groupLabel: c.name, parentKey: c.key }))),
+    ...dept.strands.flatMap((s) => s.levels.map((l) => ({ ...l, groupLabel: s.name, parentKey: s.key }))),
+  ]
+}
 
-  const selectDepartment = useSelectDepartment()
-  const deselectDepartment = useDeselectDepartment()
-  const createCourse = useCreateProfileCourse()
-  const updateCourse = useUpdateProfileCourse()
-  const deleteCourse = useDeleteProfileCourse()
-  const createStrand = useCreateProfileStrand()
-  const updateStrand = useUpdateProfileStrand()
-  const deleteStrand = useDeleteProfileStrand()
-  const createLevel = useCreateProfileLevel()
-  const updateLevel = useUpdateProfileLevel()
-  const deleteLevel = useDeleteProfileLevel()
-  const createSection = useCreateProfileSection()
-  const updateSection = useUpdateProfileSection()
-  const deleteSection = useDeleteProfileSection()
-  const createSubject = useCreateProfileSubject()
-  const updateSubject = useUpdateProfileSubject()
-  const deleteSubject = useDeleteProfileSubject()
+export function SchoolProfileCard() {
+  const { data: savedDepartments = [], isLoading } = useSchoolProfile()
+  const draft = useSchoolProfileDraft(savedDepartments)
+  const saveMutation = useSaveSchoolProfile()
 
   const [pendingDeselect, setPendingDeselect] = useState<ProgramType | null>(null)
 
-  const selectedTypes = new Set(departments.map((d) => d.type))
+  const { setGuard } = useNavigationGuard()
+  useEffect(() => {
+    setGuard(() => draft.dirty)
+    return () => setGuard(null)
+  }, [draft.dirty, setGuard])
+
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (draft.dirty) {
+        e.preventDefault()
+        e.returnValue = ""
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [draft.dirty])
 
   const handleToggleDepartment = (type: ProgramType) => {
-    if (selectedTypes.has(type)) {
+    if (draft.selectedTypes.has(type)) {
       setPendingDeselect(type)
     } else {
-      selectDepartment.mutate(type)
+      draft.selectDepartment(type)
     }
   }
 
   const confirmDeselect = () => {
     if (!pendingDeselect) return
-    deselectDepartment.mutate(pendingDeselect)
+    draft.deselectDepartment(pendingDeselect)
     setPendingDeselect(null)
   }
 
-  const anyMutating =
-    selectDepartment.isPending ||
-    deselectDepartment.isPending ||
-    createCourse.isPending ||
-    updateCourse.isPending ||
-    deleteCourse.isPending ||
-    createStrand.isPending ||
-    updateStrand.isPending ||
-    deleteStrand.isPending ||
-    createLevel.isPending ||
-    updateLevel.isPending ||
-    deleteLevel.isPending ||
-    createSection.isPending ||
-    updateSection.isPending ||
-    deleteSection.isPending ||
-    createSubject.isPending ||
-    updateSubject.isPending ||
-    deleteSubject.isPending
+  const handleSave = () => {
+    saveMutation.mutate(Object.values(draft.departments), {
+      onSuccess: () => {
+        toast.success("Configuration saved. The Data Seeder will now use this setup.")
+        draft.markSaved()
+      },
+      onError: (err: unknown) => {
+        const message =
+          isAxiosError<{ message?: string }>(err) && err.response?.data?.message
+            ? err.response.data.message
+            : "Failed to save configuration. Please try again."
+        toast.error(message)
+      },
+    })
+  }
 
   if (isLoading) {
     return (
@@ -117,15 +108,15 @@ export function SchoolProfileCard() {
     <div className="space-y-6">
       <Card id="departments" icon={Layers} title="Departments">
         <DepartmentStep
-          selectedTypes={selectedTypes}
+          selectedTypes={draft.selectedTypes}
           onToggle={handleToggleDepartment}
-          disabled={anyMutating}
+          disabled={saveMutation.isPending}
         />
       </Card>
 
-      {departments.map((department) => (
+      {Object.values(draft.departments).map((department) => (
         <Card
-          key={department.id}
+          key={department.type}
           id="structure"
           icon={LayoutList}
           title={PROGRAM_TYPE_LABELS[department.type]}
@@ -133,97 +124,87 @@ export function SchoolProfileCard() {
           <div className="space-y-5">
             {department.type === "college" && (
               <CourseStep
-                departmentId={department.id}
+                departmentId={department.type}
                 courses={department.courses}
-                disabled={anyMutating}
-                onAdd={(departmentId, name) => createCourse.mutate({ departmentId, data: { name } })}
-                onRename={(id, name) => updateCourse.mutate({ id, data: { name } })}
-                onDelete={(id) => deleteCourse.mutate(id)}
+                disabled={saveMutation.isPending}
+                onAdd={(_, name) => draft.addCourse(department.type, name)}
+                onRename={(courseKey, name) => draft.renameCourse(department.type, courseKey, name)}
+                onDelete={(courseKey) => draft.deleteCourse(department.type, courseKey)}
               />
             )}
 
             {department.type === "shs" && (
               <StrandStep
-                departmentId={department.id}
+                departmentId={department.type}
                 strands={department.strands}
-                disabled={anyMutating}
-                onAdd={(departmentId, name) => createStrand.mutate({ departmentId, data: { name } })}
-                onRename={(id, name) => updateStrand.mutate({ id, data: { name } })}
-                onDelete={(id) => deleteStrand.mutate(id)}
+                disabled={saveMutation.isPending}
+                onAdd={(_, name) => draft.addStrand(department.type, name)}
+                onRename={(strandKey, name) => draft.renameStrand(department.type, strandKey, name)}
+                onDelete={(strandKey) => draft.deleteStrand(department.type, strandKey)}
               />
             )}
 
             {department.type === "college" &&
               department.courses.map((course) => (
                 <LevelStep
-                  key={course.id}
-                  parentId={course.id}
+                  key={course.key}
+                  parentId={course.key}
                   groupLabel={course.name}
                   levels={course.levels}
-                  disabled={anyMutating}
-                  onAdd={(courseId, name, orderIndex) =>
-                    createLevel.mutate({ departmentId: department.id, data: { name, courseId, orderIndex } })
-                  }
-                  onRename={(id, name) => updateLevel.mutate({ id, data: { name } })}
-                  onDelete={(id) => deleteLevel.mutate(id)}
+                  disabled={saveMutation.isPending}
+                  onAdd={(parentKey, name) => draft.addLevel(department.type, parentKey, name)}
+                  onRename={(levelKey, name) => draft.renameLevel(department.type, levelKey, name)}
+                  onDelete={(levelKey) => draft.deleteLevel(department.type, levelKey)}
                 />
               ))}
 
             {department.type === "shs" &&
               department.strands.map((strand) => (
                 <LevelStep
-                  key={strand.id}
-                  parentId={strand.id}
+                  key={strand.key}
+                  parentId={strand.key}
                   groupLabel={strand.name}
                   levels={strand.levels}
-                  disabled={anyMutating}
-                  onAdd={(strandId, name, orderIndex) =>
-                    createLevel.mutate({ departmentId: department.id, data: { name, strandId, orderIndex } })
-                  }
-                  onRename={(id, name) => updateLevel.mutate({ id, data: { name } })}
-                  onDelete={(id) => deleteLevel.mutate(id)}
+                  disabled={saveMutation.isPending}
+                  onAdd={(parentKey, name) => draft.addLevel(department.type, parentKey, name)}
+                  onRename={(levelKey, name) => draft.renameLevel(department.type, levelKey, name)}
+                  onDelete={(levelKey) => draft.deleteLevel(department.type, levelKey)}
                 />
               ))}
 
             {department.type !== "college" && department.type !== "shs" && (
               <LevelStep
-                parentId={department.id}
+                parentId={department.type}
                 groupLabel="Levels"
                 levels={department.levels}
-                disabled={anyMutating}
-                onAdd={(departmentId, name, orderIndex) =>
-                  createLevel.mutate({ departmentId, data: { name, orderIndex } })
-                }
-                onRename={(id, name) => updateLevel.mutate({ id, data: { name } })}
-                onDelete={(id) => deleteLevel.mutate(id)}
+                disabled={saveMutation.isPending}
+                onAdd={(parentKey, name) => draft.addLevel(department.type, parentKey, name)}
+                onRename={(levelKey, name) => draft.renameLevel(department.type, levelKey, name)}
+                onDelete={(levelKey) => draft.deleteLevel(department.type, levelKey)}
               />
             )}
 
-            {[
-              ...department.levels,
-              ...department.courses.flatMap((c) => c.levels),
-              ...department.strands.flatMap((s) => s.levels),
-            ].map((level) => (
-              <div key={level.id} className="space-y-3">
+            {collectAllLevels(department).map((level) => (
+              <div key={level.key} className="space-y-3">
                 <SectionStep
-                  levelId={level.id}
+                  levelId={level.key}
                   levelLabel={`${level.name} — Sections`}
                   sections={level.sections}
-                  disabled={anyMutating}
-                  onAdd={(levelId, name, capacity) =>
-                    createSection.mutate({ levelId, data: { name, capacity } })
+                  disabled={saveMutation.isPending}
+                  onAdd={(levelKey, name, capacity) => draft.addSection(department.type, levelKey, name, capacity)}
+                  onUpdate={(sectionKey, name, capacity) =>
+                    draft.updateSection(department.type, level.key, sectionKey, name, capacity)
                   }
-                  onUpdate={(id, name, capacity) => updateSection.mutate({ id, data: { name, capacity } })}
-                  onDelete={(id) => deleteSection.mutate(id)}
+                  onDelete={(sectionKey) => draft.deleteSection(department.type, level.key, sectionKey)}
                 />
                 <SubjectStep
-                  levelId={level.id}
+                  levelId={level.key}
                   levelLabel={`${level.name} — Subjects`}
                   subjects={level.subjects}
-                  disabled={anyMutating}
-                  onAdd={(levelId, name) => createSubject.mutate({ levelId, data: { name } })}
-                  onRename={(id, name) => updateSubject.mutate({ id, data: { name } })}
-                  onDelete={(id) => deleteSubject.mutate(id)}
+                  disabled={saveMutation.isPending}
+                  onAdd={(levelKey, name) => draft.addSubject(department.type, levelKey, name)}
+                  onRename={(subjectKey, name) => draft.renameSubject(department.type, level.key, subjectKey, name)}
+                  onDelete={(subjectKey) => draft.deleteSubject(department.type, level.key, subjectKey)}
                 />
               </div>
             ))}
@@ -231,17 +212,40 @@ export function SchoolProfileCard() {
         </Card>
       ))}
 
+      {draft.selectedTypes.size > 0 && (
+        <Card id="save" icon={Database} title="Save Configuration">
+          <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-4">
+            <p className="text-xs text-muted-foreground not-interactive">
+              Saving replaces the Data Seeder&apos;s predefined data for your selected departments
+              with this configuration. Unselected departments are left untouched.
+            </p>
+            <Button onClick={handleSave} disabled={saveMutation.isPending} className="shrink-0">
+              {saveMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Database className="mr-2 h-4 w-4" />
+                  Save Configuration
+                </>
+              )}
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <ConfirmDialog
         open={!!pendingDeselect}
         title="Remove this department?"
         message={
           pendingDeselect
-            ? `This will delete everything configured under "${PROGRAM_TYPE_LABELS[pendingDeselect]}" — courses/strands, levels, sections, and subjects. This can't be undone.`
+            ? `This removes "${PROGRAM_TYPE_LABELS[pendingDeselect]}" from your configuration draft. It won't be saved unless you click Save Configuration — your existing saved data (if any) stays untouched until then.`
             : ""
         }
-        confirmLabel="Remove Department"
+        confirmLabel="Remove from Draft"
         destructive
-        isLoading={deselectDepartment.isPending}
         onConfirm={confirmDeselect}
         onOpenChange={(o) => {
           if (!o) setPendingDeselect(null)

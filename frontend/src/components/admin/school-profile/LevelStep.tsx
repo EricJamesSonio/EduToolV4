@@ -3,15 +3,15 @@
 import { LayoutList } from "lucide-react"
 import { EditableItemRow } from "./ui/EditableItemRow"
 import { AddItemInput } from "./ui/AddItemInput"
-import type { SchoolProfileLevel } from "@/types/admin/school-profile.types"
+import type { DraftLevel } from "@/hooks/admin/useSchoolProfileDraft"
 
 interface LevelStepProps {
-  parentId: string // departmentId, courseId, or strandId — parent decides which create call to fire
+  parentId: string
   groupLabel: string
-  levels: SchoolProfileLevel[]
-  onAdd: (parentId: string, name: string, orderIndex: number) => void
-  onRename: (levelId: string, name: string) => void
-  onDelete: (levelId: string) => void
+  levels: DraftLevel[]
+  onAdd: (parentId: string, name: string) => void
+  onRename: (levelKey: string, name: string) => void
+  onDelete: (levelKey: string) => void
   disabled?: boolean
 }
 
@@ -40,11 +40,11 @@ export function LevelStep({
       <div className="space-y-1.5">
         {sorted.map((level) => (
           <EditableItemRow
-            key={level.id}
+            key={level.key}
             label={level.name}
             disabled={disabled}
-            onRename={(name) => onRename(level.id, name)}
-            onDelete={() => onDelete(level.id)}
+            onRename={(name) => onRename(level.key, name)}
+            onDelete={() => onDelete(level.key)}
           />
         ))}
       </div>
@@ -52,7 +52,7 @@ export function LevelStep({
       <AddItemInput
         placeholder="e.g. Grade 11"
         disabled={disabled}
-        onAdd={(name) => onAdd(parentId, name, sorted.length)}
+        onAdd={(name) => onAdd(parentId, name)}
       />
     </div>
   )

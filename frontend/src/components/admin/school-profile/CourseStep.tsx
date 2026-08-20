@@ -3,14 +3,14 @@
 import { Layers } from "lucide-react"
 import { EditableItemRow } from "./ui/EditableItemRow"
 import { AddItemInput } from "./ui/AddItemInput"
-import type { SchoolProfileCourse } from "@/types/admin/school-profile.types"
+import type { DraftCourse } from "@/hooks/admin/useSchoolProfileDraft"
 
 interface CourseStepProps {
   departmentId: string
-  courses: SchoolProfileCourse[]
+  courses: DraftCourse[]
   onAdd: (departmentId: string, name: string) => void
-  onRename: (courseId: string, name: string) => void
-  onDelete: (courseId: string) => void
+  onRename: (courseKey: string, name: string) => void
+  onDelete: (courseKey: string) => void
   disabled?: boolean
 }
 
@@ -38,12 +38,12 @@ export function CourseStep({
       <div className="space-y-2">
         {courses.map((course) => (
           <EditableItemRow
-            key={course.id}
+            key={course.key}
             label={course.name}
             subtitle={course.code ?? undefined}
             disabled={disabled}
-            onRename={(name) => onRename(course.id, name)}
-            onDelete={() => onDelete(course.id)}
+            onRename={(name) => onRename(course.key, name)}
+            onDelete={() => onDelete(course.key)}
           />
         ))}
       </div>

@@ -3,15 +3,15 @@
 import { BookOpen } from "lucide-react"
 import { EditableItemRow } from "./ui/EditableItemRow"
 import { AddItemInput } from "./ui/AddItemInput"
-import type { SchoolProfileSubject } from "@/types/admin/school-profile.types"
+import type { DraftSubject } from "@/hooks/admin/useSchoolProfileDraft"
 
 interface SubjectStepProps {
   levelId: string
   levelLabel: string
-  subjects: SchoolProfileSubject[]
+  subjects: DraftSubject[]
   onAdd: (levelId: string, name: string) => void
-  onRename: (subjectId: string, name: string) => void
-  onDelete: (subjectId: string) => void
+  onRename: (subjectKey: string, name: string) => void
+  onDelete: (subjectKey: string) => void
   disabled?: boolean
 }
 
@@ -40,11 +40,11 @@ export function SubjectStep({
       <div className="space-y-1.5">
         {majors.map((subject) => (
           <EditableItemRow
-            key={subject.id}
+            key={subject.key}
             label={subject.name}
             disabled={disabled}
-            onRename={(name) => onRename(subject.id, name)}
-            onDelete={() => onDelete(subject.id)}
+            onRename={(name) => onRename(subject.key, name)}
+            onDelete={() => onDelete(subject.key)}
           />
         ))}
       </div>

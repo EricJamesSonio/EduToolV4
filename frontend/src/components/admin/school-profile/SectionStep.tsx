@@ -4,15 +4,15 @@ import { useState } from "react"
 import { Trash2, Scale } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import type { SchoolProfileSection } from "@/types/admin/school-profile.types"
+import type { DraftSection } from "@/hooks/admin/useSchoolProfileDraft"
 
 interface SectionStepProps {
   levelId: string
   levelLabel: string
-  sections: SchoolProfileSection[]
+  sections: DraftSection[]
   onAdd: (levelId: string, name: string, capacity: number) => void
-  onUpdate: (sectionId: string, name: string, capacity: number) => void
-  onDelete: (sectionId: string) => void
+  onUpdate: (sectionKey: string, name: string, capacity: number) => void
+  onDelete: (sectionKey: string) => void
   disabled?: boolean
 }
 
@@ -22,7 +22,7 @@ function SectionRow({
   onDelete,
   disabled,
 }: {
-  section: SchoolProfileSection
+  section: DraftSection
   onUpdate: (name: string, capacity: number) => void
   onDelete: () => void
   disabled: boolean
@@ -109,11 +109,11 @@ export function SectionStep({
       <div className="space-y-1.5">
         {sections.map((section) => (
           <SectionRow
-            key={section.id}
+            key={section.key}
             section={section}
             disabled={disabled}
-            onUpdate={(name, capacity) => onUpdate(section.id, name, capacity)}
-            onDelete={() => onDelete(section.id)}
+            onUpdate={(name, capacity) => onUpdate(section.key, name, capacity)}
+            onDelete={() => onDelete(section.key)}
           />
         ))}
       </div>
