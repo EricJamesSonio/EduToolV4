@@ -19,6 +19,8 @@ import type {
   CreateProfileSubjectRequest,
   UpdateProfileSubjectRequest,
 } from "@/types/admin/school-profile.types";
+import type { DraftDepartment } from "./useSchoolProfileDraft"
+
 
 const profileKey = queryKeys.admin.schoolProfile.list();
 
@@ -29,6 +31,13 @@ export const useSchoolProfile = () => {
     { meta: { preset: "list", feature: "school-profile" } },
   );
 };
+
+export const useSaveSchoolProfile = () => {
+  return useMutationWithInvalidation<void, Error, DraftDepartment[]>(
+    (departments) => schoolProfileApi.saveProfile(departments),
+    { invalidateKeys: [profileKey] },
+  )
+}
 
 export const useSelectDepartment = () => {
   return useMutationWithInvalidation<SchoolProfileDepartment, Error, string>(
