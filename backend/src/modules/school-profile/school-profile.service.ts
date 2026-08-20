@@ -25,6 +25,7 @@ import type {
   UpdateProfileSectionDto,
   CreateProfileSubjectDto,
   UpdateProfileSubjectDto,
+  SaveSchoolProfileDto,
 } from './dto/school-profile.dto';
 
 const VALID_DEPARTMENT_TYPES = new Set(PROGRAMS.map((p) => p.type));
@@ -35,6 +36,105 @@ export class SchoolProfileService {
     private readonly repo: SchoolProfileRepository,
     private readonly db: DatabaseService,
   ) {}
+  async saveProfile(orgId: string, dto: SaveSchoolProfileDto) {
+  const submittedTypes = new Set(dto.departments.map((d) => d.type));
+  for (const type of submittedTypes) {
+    if (!VALID_DEPARTMENT_TYPES.has(type)) {
+      throw new BadRequestException(`Unknown department type "${type}".`);
+    }
+  }
+
+  return this.db.$transaction(async (tx) => {
+    const existing = await tx.schoolProfileDepartment.findMany({
+      where: { org_id: orgId },
+      select: { id: true },
+    });
+    for (const dept of existing) {
+      await tx.schoolProfileDepartment.delete({ where: { id: dept.id } });
+    }
+
+    for (const deptDto of dto.departments) {
+      const department = await tx.schoolProfileDepartment.create({
+        data: { org_id: orgId, type: deptDto.type },
+      });
+
+      const writeLevels = async (
+        levels: typeof deptDto.levels,
+        courseId?: string,
+        strandId?: string,
+      ) => {
+        for (const levelDto of levels) {
+          const level = await tx.schoolProfileLevel.create({
+            data: {
+              org_id: orgId,
+              department_id: department.id,
+              course_id: courseId ?? null,
+              strand_id: strandId ?? null,
+              name: levelDto.name,
+              order_index: levelDto.orderIndex,
+            },
+          });
+
+          for (const sectionDto of levelDto.sections) {
+            await tx.schoolProfileSection.create({
+              data: {
+                org_id: orgId,
+                level_id: level.id,
+                name: sectionDto.name,
+                capacity: sectionDto.capacity,
+              },
+            });
+          }
+
+          for (const subjectDto of levelDto.subjects) {
+            await tx.schoolProfileSubject.create({
+              data: {
+                org_id: orgId,
+                level_id: level.id,
+                name: subjectDto.name,
+                subject_type: subjectDto.subjectType,
+              },
+            });
+          }
+        }
+      };
+
+      for (const courseDto of deptDto.courses) {
+        const course = await tx.schoolProfileCourse.create({
+          data: {
+            org_id: orgId,
+            department_id: department.id,
+            name: courseDto.name,
+            code: courseDto.code ?? null,
+          },
+        });
+        await writeLevels(courseDto.levels, course.id, undefined);
+      }
+
+      for (const strandDto of deptDto.strands) {
+        const strand = await tx.schoolProfileStrand.create({
+          data: { org_id: orgId, department_id: department.id, name: strandDto.name },
+        });
+        await writeLevels(strandDto.levels, undefined, strand.id);
+      }
+
+      await writeLevels(deptDto.levels, undefined, undefined);
+
+      for (const subjectDto of deptDto.subjects) {
+        await tx.schoolProfileSubject.create({
+          data: {
+            org_id: orgId,
+            department_id: department.id,
+            name: subjectDto.name,
+            subject_type: subjectDto.subjectType,
+          },
+        });
+      }
+    }
+
+    return { success: true };
+  });
+}
 
   async getProfile(orgId: string) {
     return this.repo.findAllDepartments(orgId);

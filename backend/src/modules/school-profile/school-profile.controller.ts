@@ -26,7 +26,9 @@ import {
   UpdateProfileSectionDto,
   CreateProfileSubjectDto,
   UpdateProfileSubjectDto,
+  SaveSchoolProfileDto,
 } from './dto/school-profile.dto';
+
 
 @Controller('school-profile')
 @UseGuards(AuthGuard, RolesGuard)
@@ -55,6 +57,13 @@ export class SchoolProfileController {
   ) {
     await this.service.deselectDepartment(orgId, type);
   }
+    @Post('save')
+async saveProfile(
+  @CurrentUser('org_id') orgId: string,
+  @Body() dto: SaveSchoolProfileDto,
+) {
+  return this.service.saveProfile(orgId, dto);
+}
 
   @Post('departments/:departmentId/courses')
   async createCourse(
