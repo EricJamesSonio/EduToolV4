@@ -81,17 +81,19 @@ export function EnrollStudentInClassDialog({
               onValueChange={(value) => setSelectedClassId(value ?? "")}
               disabled={classesLoading || classes.length === 0}
             >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={
-                    classesLoading
-                      ? "Loading classes..."
-                      : classes.length === 0
-                        ? "No classes available for this department"
-                        : "Select a class"
-                  }
-                />
-              </SelectTrigger>
+<SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      classesLoading
+                        ? "Loading classes..."
+                        : classes.length === 0
+                          ? "No classes available for this department"
+                          : "Select a class"
+                    }
+                  >
+                    {selectedClassId && classes.find((c) => c.id === selectedClassId)?.subjectName ?? selectedClassId}
+                  </SelectValue>
+                </SelectTrigger>
               <SelectContent>
                 {classes.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
