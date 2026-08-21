@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -45,6 +45,9 @@ export function EditEducatorDialog({
 }: Props): React.JSX.Element {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageUploading, setImageUploading] = useState(false);
+  const [localProfileImage, setLocalProfileImage] = useState<
+    string | null | undefined
+  >(educator.profileImage);
 
   const { domain } = splitEmail(educator.email);
   const updateMutation = useUpdateEducator();
@@ -68,6 +71,7 @@ export function EditEducatorDialog({
       emailLocal: splitEmail(educator.email).local,
       educatorId: educator.educatorId ?? educator.educatorCode ?? "",
     });
+    setLocalProfileImage(educator.profileImage);
   }, [educator, reset]);
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -89,6 +93,7 @@ export function EditEducatorDialog({
         id: educator.id,
         data: { profileImage: data.path },
       });
+      setLocalProfileImage(data.path);
     } catch {
       // useUpdateEducator's onError already surfaces a toast for update
       // failures; this catch only exists so the upload-step rejection
@@ -108,7 +113,6 @@ export function EditEducatorDialog({
         data: {
           fullName:   values.fullName,
           email,
-          educatorId: values.educatorId,
         },
       });
       onClose();
@@ -123,7 +127,7 @@ export function EditEducatorDialog({
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
               <Avatar className="h-14 w-14">
-                <AvatarImage src={getProfileImageUrl(educator.profileImage)} alt={educator.fullName} />
+                <AvatarImage src={getProfileImageUrl(localProfileImage)} alt={educator.fullName} />
                 <AvatarFallback className="text-base font-semibold bg-primary/10 text-primary">
                   {getInitials(educator.fullName)}
                 </AvatarFallback>
