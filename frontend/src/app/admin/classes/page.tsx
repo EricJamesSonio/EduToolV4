@@ -61,6 +61,20 @@ function ClassesPageInner(): React.JSX.Element {
 
   const filters = useClassFilters();
 
+  const {
+    filterProgramId,
+    filterSemesterId,
+    filterEducatorId,
+    search,
+    setFilterProgramId,
+    setFilterSemesterId,
+    setFilterEducatorId,
+    setDepartmentAndSemester,
+    setSearch,
+    resetSemester,
+    query,
+  } = filters;
+
   // ===== School Years =====
   const { data: schoolYearsRaw, isLoading: isSchoolYearsLoading } = useAsyncQuery(
     queryKeys.admin.schoolYears.list(),
@@ -284,14 +298,15 @@ const schoolYears = toArray<SchoolYear>(schoolYearsRaw);
       )}
 
 <ClassesFilterBar
-  filterProgramId={filters.filterProgramId}
-  filterSemesterId={filters.filterSemesterId}
-  filterEducatorId={filters.filterEducatorId}
-  search={filters.search}
-  setFilterProgramId={filters.setFilterProgramId}
-  setFilterSemesterId={handleFilterSemesterChange}
-  setFilterEducatorId={handleFilterEducatorChange}
-  setSearch={filters.setSearch}
+  filterProgramId={filterProgramId}
+  filterSemesterId={filterSemesterId}
+  filterEducatorId={filterEducatorId}
+  search={search}
+  setFilterProgramId={setFilterProgramId}
+  setFilterSemesterId={setFilterSemesterId}
+  setFilterEducatorId={setFilterEducatorId}
+  setDepartmentAndSemester={setDepartmentAndSemester}
+  setSearch={setSearch}
   schoolYearId={selectedSchoolYearId}
 />
 
