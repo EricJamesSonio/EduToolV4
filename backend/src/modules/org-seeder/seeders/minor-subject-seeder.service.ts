@@ -34,7 +34,6 @@ export class MinorSubjectSeederService {
   ): Promise<void> {
     const minors = profile.subjects.filter((s) => s.subjectType === 'minor');
     const courseCodes = Object.keys(ctx.courseMap);
-    const firstCourseCode = courseCodes[0];
 
     for (const s of minors) {
       const excludedFromAll =
