@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { ConflictException } from '@nestjs/common';
 
 /**
  * Build a Prisma "where" clause for case-insensitive name uniqueness checks.

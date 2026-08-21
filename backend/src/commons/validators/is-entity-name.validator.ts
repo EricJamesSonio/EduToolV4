@@ -1,4 +1,4 @@
-import { IsString, MinLength, MaxLength, ValidateIf, registerDecorator, ValidationOptions } from 'class-validator';
+import { registerDecorator, ValidationOptions } from 'class-validator';
 
 /**
  * Custom decorator that validates a name field:
