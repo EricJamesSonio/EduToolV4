@@ -1,4 +1,4 @@
-import { IsString, MinLength, MaxLength, ValidateIf, registerDecorator, ValidationOptions, Constraints } from 'class-validator';
+import { IsString, MinLength, MaxLength, ValidateIf, registerDecorator, ValidationOptions } from 'class-validator';
 
 /**
  * Custom decorator that validates a name field:
@@ -17,10 +17,6 @@ export function IsEntityName(validationOptions?: ValidationOptions) {
       options: validationOptions,
       validator: {
         validate(value: unknown) {
-          if (ValidateIf(undefined, undefined, { value })) {
-            return true;
-          }
-
           if (typeof value !== 'string') return true; // let required/other validators handle non-strings
 
           const trimmed = value.trim();
@@ -51,7 +47,7 @@ export function normalizeEntityName(value: string): string | undefined {
 /**
  * Constraints available for the decorator
  */
-export const IsEntityNameConstraints: Constraints = {
+export const IsEntityNameConstraints = {
   minLength: 1,
   maxLength: 100,
 };

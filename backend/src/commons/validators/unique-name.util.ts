@@ -1,3 +1,7 @@
+import {
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 /**
@@ -14,8 +18,8 @@ export function buildUniqueNameWhere(
   orgId: string,
   excludeId?: string,
   scopes: { [key: string]: any } = {},
-): Prisma.WhereOptions {
-  const where: Prisma.WhereOptions = {
+) {
+  const where: { [key: string]: any } = {
     org_id: orgId,
     name: {
       equals: name,
