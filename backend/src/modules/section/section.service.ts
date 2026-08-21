@@ -43,12 +43,11 @@ export class SectionService {
     }
 
     // Check for duplicate section name (case-insensitive, scoped to level + school year + course/strand)
-    const nameToCheck = dto.name.trim().toLowerCase();
     const existingSection = await this.db.section.findFirst({
       where: {
         org_id: orgId,
         name: {
-          equals: dto.name,
+          equals: dto.name.trim().toLowerCase(),
           mode: 'insensitive' as const,
         },
         ...(dto.levelId ? { level_id: dto.levelId } : {}),
