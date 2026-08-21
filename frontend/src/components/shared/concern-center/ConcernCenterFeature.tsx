@@ -127,7 +127,9 @@ export function ConcernCenterFeature({
             <Label htmlFor="concern-category">Category</Label>
             <Select value={categoryId} onValueChange={(v) => v && setCategoryId(v)} required>
               <SelectTrigger id="concern-category">
-                <SelectValue placeholder="Select a category" />
+                <SelectValue placeholder="Select a category">
+                {categories.find((c) => c.id === categoryId)?.label ?? "Select a category"}
+              </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {categoriesLoading ? (
