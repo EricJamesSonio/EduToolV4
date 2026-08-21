@@ -243,6 +243,9 @@ export function TemplateFormDialog({
                 disabled={isSaving}
                 placeholder='e.g. "Standard Semester Scheme"'
               />
+              {name.trim().length > 0 && name.trim().length < 2 && (
+                <p className="text-xs text-destructive">Name must be at least 2 characters.</p>
+              )}
             </div>
 
             {showProgramType && (
