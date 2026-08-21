@@ -8,11 +8,16 @@ interface DepartmentStepProps {
   selectedTypes: Set<ProgramType>
   onToggle: (type: ProgramType) => void
   disabled?: boolean
+  visibleTypesOverride?: string[]
 }
 
 const SELECTABLE_TYPES = PROGRAM_TYPE_VALUES.filter((t) => t !== "custom")
 
-export function DepartmentStep({ selectedTypes, onToggle, disabled = false }: DepartmentStepProps) {
+export function DepartmentStep({ selectedTypes, onToggle, disabled = false, visibleTypesOverride }: DepartmentStepProps) {
+  const typesToRender = visibleTypesOverride
+    ? SELECTABLE_TYPES.filter((t) => visibleTypesOverride.includes(t))
+    : SELECTABLE_TYPES
+
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground not-interactive">
@@ -20,7 +25,7 @@ export function DepartmentStep({ selectedTypes, onToggle, disabled = false }: De
         profile — only selected departments appear here to configure further.
       </p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {SELECTABLE_TYPES.map((type) => {
+        {typesToRender.map((type) => {
           const selected = selectedTypes.has(type)
           return (
             <button
@@ -39,9 +44,7 @@ export function DepartmentStep({ selectedTypes, onToggle, disabled = false }: De
               <div
                 className={cn(
                   "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors",
-                  selected
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-muted-foreground/40",
+                  selected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40",
                 )}
               >
                 {selected && <Check className="h-2.5 w-2.5" />}

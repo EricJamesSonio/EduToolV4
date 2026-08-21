@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { ProgramType } from "@/types/admin/program.types"
 import type { SchoolProfileDepartment } from "@/types/admin/school-profile.types"
 import {
@@ -155,27 +155,24 @@ function fromSavedDepartment(saved: SchoolProfileDepartment): DraftDepartment {
   })
 
   return {
-    departments,
-    selectedTypes,
-    dirty,
-    selectDepartment,
-    deselectDepartment,
-    addCourse,
-    renameCourse,
-    deleteCourse,
-    addStrand,
-    renameStrand,
-    deleteStrand,
-    addLevel,
-    renameLevel,
-    deleteLevel,
-    addSection,
-    updateSection,
-    deleteSection,
-    addSubject,
-    renameSubject,
-    deleteSubject,
-    markSaved,
+    type: saved.type,
+    courses: saved.courses.map((c): DraftCourse => ({
+      key: c.id,
+      name: c.name,
+      code: c.code,
+      levels: c.levels.map((l) => toDraftLevel(l)),
+    })),
+    strands: saved.strands.map((s): DraftStrand => ({
+      key: s.id,
+      name: s.name,
+      levels: s.levels.map((l) => toDraftLevel(l)),
+    })),
+    levels: saved.levels.map(toDraftLevel),
+    subjects: saved.subjects.map((s): DraftSubject => ({
+      key: s.id,
+      name: s.name,
+      subjectType: s.subjectType,
+    })),
   }
 }
 
@@ -191,6 +188,30 @@ export function useSchoolProfileDraft(savedDepartments: SchoolProfileDepartment[
     return map
   }, [savedDepartments])
 
+  // Keep draft in sync with server when the user has no unsaved edits.
+  // This fixes the "saved config disappears after logout/relogin" illusion:
+  // the old once-flag hydrated=true after the first empty fetch and never
+  // re-hydrated when the profile query later resolved.
+  useEffect(() => {
+    if (dirty) return
+    const initial: Record<string, DraftDepartment> = {}
+    for (const saved of savedDepartments) {
+      initial[saved.type] = fromSavedDepartment(saved)
+    }
+    setDepartments((prev) => {
+      const prevKeys = Object.keys(prev).sort().join(",")
+      const nextKeys = Object.keys(initial).sort().join(",")
+      if (prevKeys !== nextKeys) return initial
+      for (const k of Object.keys(initial)) {
+        const a = prev[k]
+        const b = initial[k]
+        if (!a || JSON.stringify(a) !== JSON.stringify(b)) return initial
+      }
+      // Also handle case where server cleared config
+      if (Object.keys(prev).length !== Object.keys(initial).length) return initial
+      return prev
+    })
+  }, [savedDepartments, dirty])
   const selectedTypes = useMemo(() => new Set(Object.keys(departments) as ProgramType[]), [departments])
 
   function selectDepartment(type: ProgramType) {

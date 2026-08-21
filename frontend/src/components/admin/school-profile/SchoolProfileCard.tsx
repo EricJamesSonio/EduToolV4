@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Layers, LayoutList, Loader2, Database, Eye, Pencil } from "lucide-react"
+import { Layers, LayoutList, Loader2, Database, Eye, Pencil, ChevronDown, ChevronRight } from "lucide-react"
 import { cn, pickCardColor } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
@@ -32,6 +32,41 @@ function Card({ id, icon: Icon, title, children }: { id: string; icon: React.Com
         <h3 className="font-semibold text-lg leading-tight not-interactive">{title}</h3>
       </div>
       {children}
+    </div>
+  )
+}
+
+function CollapsibleDepartmentCard({
+  id,
+  icon: Icon,
+  title,
+  defaultOpen,
+  children,
+}: {
+  id: string
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? false)
+  useEffect(() => setOpen(defaultOpen ?? false), [defaultOpen])
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between p-6 text-left hover:bg-muted/20 transition-colors"
+      >
+        <div className="flex items-start gap-3">
+          <div className={`icon-container ${pickCardColor(id)} shrink-0 mt-0.5`}>
+            <Icon className="h-4.5 w-4.5" />
+          </div>
+          <h3 className="font-semibold text-lg leading-tight not-interactive">{title}</h3>
+        </div>
+        {open ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+      </button>
+      {open && <div className="px-6 pb-6 space-y-5">{children}</div>}
     </div>
   )
 }
@@ -84,14 +119,18 @@ export function SchoolProfileCard() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload)
   }, [draft.dirty, readOnly])
 
+  const savedTypes = useMemo(() => new Set(savedDepartments.map((d) => d.type as ProgramType)), [savedDepartments])
+
   // View mode only ever shows departments that are actually saved/selected.
   // Edit mode shows every department (configured + untouched) via the
   // existing DepartmentStep toggle grid.
+  // After the hydration fix, draft.departments mirrors savedDepartments when
+  // not dirty, so filtering draft is stable; we also fallback to savedTypes
+  // for pills so View never appears empty during the brief hydration window.
   const visibleDepartments = useMemo(() => {
     if (!readOnly) return Object.values(draft.departments)
-    const savedTypes = new Set(savedDepartments.map((d) => d.type))
     return Object.values(draft.departments).filter((d) => savedTypes.has(d.type))
-  }, [readOnly, draft.departments, savedDepartments])
+  }, [readOnly, draft.departments, savedTypes])
 
   const handleToggleDepartment = (type: ProgramType) => {
     if (readOnly) return
@@ -160,26 +199,22 @@ export function SchoolProfileCard() {
         </div>
       )}
 
-      <Card id="departments" icon={Layers} title="Departments">
-        {readOnly ? (
-          <p className="text-xs text-muted-foreground not-interactive">
-            Showing your configured departments. Switch to Edit to add more or make changes.
-          </p>
-        ) : null}
-        <DepartmentStep
-          selectedTypes={draft.selectedTypes}
-          onToggle={handleToggleDepartment}
-          disabled={readOnly || saveMutation.isPending}
-        />
-      </Card>
+<Card id="departments" icon={Layers} title="Departments">
+  {readOnly ? (
+    <p className="text-xs text-muted-foreground not-interactive">
+      Showing your configured departments. Switch to Edit to add more or make changes.
+    </p>
+  ) : null}
+  <DepartmentStep
+    selectedTypes={readOnly ? savedTypes : draft.selectedTypes}
+    onToggle={handleToggleDepartment}
+    disabled={readOnly || saveMutation.isPending}
+    visibleTypesOverride={readOnly ? Array.from(savedTypes) : undefined}
+  />
+</Card>
 
-      {visibleDepartments.map((department) => (
-        <Card
-          key={department.type}
-          id="structure"
-          icon={LayoutList}
-          title={PROGRAM_TYPE_LABELS[department.type]}
-        >
+      {visibleDepartments.map((department) => {
+        const content = (
           <div className="space-y-5">
             {department.type === "college" && (
               <CourseStep
@@ -268,8 +303,23 @@ export function SchoolProfileCard() {
               </div>
             ))}
           </div>
-        </Card>
-      ))}
+        )
+        return readOnly ? (
+          <CollapsibleDepartmentCard
+            key={department.type}
+            id="structure"
+            icon={LayoutList}
+            title={PROGRAM_TYPE_LABELS[department.type]}
+            defaultOpen={false}
+          >
+            {content}
+          </CollapsibleDepartmentCard>
+        ) : (
+          <Card key={department.type} id="structure" icon={LayoutList} title={PROGRAM_TYPE_LABELS[department.type]}>
+            {content}
+          </Card>
+        )
+      })}
 
       {!readOnly && draft.selectedTypes.size > 0 && (
         <Card id="save" icon={Database} title="Save Configuration">
