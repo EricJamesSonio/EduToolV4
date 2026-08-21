@@ -28,6 +28,33 @@ import type {
   SaveSchoolProfileDto,
 } from './dto/school-profile.dto';
 
+export interface SchoolProfileDepartmentData {
+  id: string;
+  type: string;
+  courses: Array<{
+    id: string;
+    name: string;
+    code: string | null;
+    levels: SchoolProfileLevelData[];
+  }>;
+  strands: Array<{
+    id: string;
+    name: string;
+    levels: SchoolProfileLevelData[];
+  }>;
+  levels: SchoolProfileLevelData[];
+  subjects: Array<{ id: string; name: string; subjectType: string }>;
+}
+
+export interface SchoolProfileLevelData {
+  id: string;
+  courseId: string | null;
+  strandId: string | null;
+  name: string;
+  orderIndex: number;
+  sections: Array<{ id: string; name: string; capacity: number }>;
+  subjects: Array<{ id: string; name: string; subjectType: string }>;
+}
 const VALID_DEPARTMENT_TYPES = new Set(PROGRAMS.map((p) => p.type));
 
 @Injectable()
@@ -134,6 +161,14 @@ export class SchoolProfileService {
 
     return { success: true };
   });
+}
+async getAllByType(orgId: string): Promise<Record<string, SchoolProfileDepartmentData | null>> {
+  const departments = await this.repo.findAllDepartments(orgId);
+  const byType: Record<string, SchoolProfileDepartmentData | null> = {};
+  for (const dept of departments) {
+    byType[dept.type] = dept as SchoolProfileDepartmentData;
+  }
+  return byType;
 }
 
   async getProfile(orgId: string) {
