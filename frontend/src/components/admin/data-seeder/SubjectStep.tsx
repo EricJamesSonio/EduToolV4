@@ -23,6 +23,7 @@ interface SubjectStepProps {
   levelSubjectsOverride?:  Record<string, string[]>
   courseSubjectsOverride?: Record<string, string[]>
   strandSubjectsOverride?: Record<string, string[]>
+  levelDefsOverride?: Record<string, string[]>
 }
 
 function SubjectTypeTag({ type }: { type: "major" | "minor" }) {
@@ -42,6 +43,7 @@ export function SubjectStep({
   selectedPrograms, selectedLevels, selectedStrands, selectedCourses, selectedSubjects,
   disabledSubjectTitles, onToggleSubject, onSelectAllForGroup, onDeselectAllForGroup,
   allSelectableSubjects, levelSubjectsOverride, courseSubjectsOverride, strandSubjectsOverride,
+  levelDefsOverride,
 }: SubjectStepProps) {
   if (allSelectableSubjects.length === 0) return null
 
@@ -150,14 +152,15 @@ export function SubjectStep({
       </div>
 
       {Array.from(selectedPrograms)
-        .filter((p) => LEVEL_DEFS[p])
-        .flatMap((prog) =>
-          LEVEL_DEFS[prog]
+        .filter((p) => LEVEL_DEFS[p] || !!levelDefsOverride?.[p])
+        .flatMap((prog) => {
+          const effLevels = levelDefsOverride?.[prog] ?? LEVEL_DEFS[prog] ?? []
+          return effLevels
             .filter((lvl) => selectedLevels.has(lvl))
             .map((lvl) =>
               renderSubjectCollapsible(lvl, lvl, lvl, levelSubjectsOverride?.[lvl] ?? LEVEL_SUBJECTS[lvl] ?? []),
-            ),
-        )}
+            )
+        })}
 
       {selectedPrograms.has("shs") &&
         Array.from(selectedStrands).map((strand) =>

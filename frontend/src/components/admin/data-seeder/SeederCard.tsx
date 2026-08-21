@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, BarChart3, Calendar, Database } from "lucide-react";
+import { Loader2, CalendarDays, Layers, LayoutList, Scale, BookOpen, BarChart3, Calendar, Database, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, pickCardColor } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -41,6 +41,9 @@ function Card({ id, icon: Icon, title, children }: { id: string; icon: React.Com
 }
 
 export function SeederCard() {
+  const { data: savedProfileDepartments = [] } = useSchoolProfile();
+  const overrides = useEffectiveSeedData(savedProfileDepartments);
+
   const {
     schoolYears,
     syLoading,
@@ -53,6 +56,7 @@ export function SeederCard() {
     createSchoolYearMutation,
     seedMutation,
     handleSeed,
+    handleApplyPreset,
     summaryText,
     summaryItems,
     derivedSelectedLevels,
@@ -93,10 +97,7 @@ export function SeederCard() {
       existingGradingScaleNames,
   existingGradingSchemeNames,
   existingSemesterTemplateNames,
-  } = useSeederCard();
-
-  const { data: savedProfileDepartments = [] } = useSchoolProfile();
-  const overrides = useEffectiveSeedData(savedProfileDepartments);
+  } = useSeederCard(overrides);
 
   // ===== Navigation guard: don't let the user silently lose an in-progress
   // seed by clicking away in the sidebar. "In progress" = at least one
@@ -144,6 +145,37 @@ export function SeederCard() {
             !selectedSchoolYearId ? "opacity-40 pointer-events-none select-none" : "",
           )}
         >
+          {/* Apply Preset — only when a preset exists and the selected school year is fresh (no seeded departments yet) */}
+          {selectedSchoolYearId && savedProfileDepartments.length > 0 && existingProgramTypes.size === 0 && (
+            <Card id="preset" icon={Sparkles} title="Apply Preset">
+              <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Preset available from School Profile</p>
+                  <p className="text-xs text-muted-foreground not-interactive">
+                    This school year has no data yet. Apply your saved preset ({savedProfileDepartments.map((d) => d.type).join(", ")}) to seed departments, levels, sections and subjects in one click.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => handleApplyPreset(savedProfileDepartments)}
+                  disabled={seedMutation.isPending}
+                  className="shrink-0 gap-1.5"
+                >
+                  {seedMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Applying...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Apply Preset
+                    </>
+                  )}
+                </Button>
+              </div>
+            </Card>
+          )}
+
           {/* Programs */}
           <Card id="programs" icon={Layers} title="Departments">
             <ProgramStep
@@ -155,8 +187,8 @@ export function SeederCard() {
             />
           </Card>
 
-          {/* Levels */}
-          {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
+          {/* Levels — also show when an override defines levels for a program */}
+          {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p] || !!overrides.levelDefsByEntity[p]) && (
             <Card id="levels" icon={LayoutList} title="Levels">
               <LevelStep
                 selectedPrograms={selectedPrograms}
@@ -174,7 +206,7 @@ export function SeederCard() {
           )}
 
           {/* Sections */}
-          {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p]) && (
+          {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p] || !!overrides.levelDefsByEntity[p]) && (
             <Card id="sections" icon={Scale} title="Sections">
               <SectionStep
                 selectedPrograms={selectedPrograms}
@@ -235,6 +267,7 @@ export function SeederCard() {
               levelSubjectsOverride={overrides.levelSubjectsByLevelName}
               courseSubjectsOverride={overrides.courseSubjectsByCode}
               strandSubjectsOverride={overrides.strandSubjectsByName}
+              levelDefsOverride={overrides.levelDefsByEntity}
             />
           </Card>
 
