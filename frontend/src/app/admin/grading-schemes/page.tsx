@@ -95,11 +95,23 @@ export default function GradingSchemesPage(): React.JSX.Element {
         { templateId: editTarget.id, data: dto },
         {
           onSuccess: () => { setEditTarget(null); },
+          onError: (e) => {
+            const err = e as AxiosError<{ message: string }>;
+            toast.error(
+              err?.response?.data?.message ?? "Failed to update template."
+            );
+          },
         }
       );
     } else {
       createMutation.mutate(dto, {
         onSuccess: () => { setCreateOpen(false); },
+        onError: (e) => {
+          const err = e as AxiosError<{ message: string }>;
+          toast.error(
+            err?.response?.data?.message ?? "Failed to create template.",
+          );
+        },
       });
     }
   };
