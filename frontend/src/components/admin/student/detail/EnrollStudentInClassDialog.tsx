@@ -91,7 +91,7 @@ export function EnrollStudentInClassDialog({
                           : "Select a class"
                     }
                   >
-                    {selectedClassId && classes.find((c) => c.id === selectedClassId)?.subjectName ?? selectedClassId}
+                    {selectedClassId && (classes.find((c) => c.id === selectedClassId)?.subjectName ?? selectedClassId)}
                   </SelectValue>
                 </SelectTrigger>
               <SelectContent>
