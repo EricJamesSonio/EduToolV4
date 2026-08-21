@@ -311,8 +311,10 @@ export function GradingScaleAssignmentSection({
                 value={selectedScaleId}
                 onValueChange={(v) => setSelectedScaleId(v ?? "")}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Choose a grading scale..." />
+<SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose a grading scale...">
+                      {compatibleScales.find((s) => s.id === selectedScaleId)?.name ?? "Choose a grading scale..."}
+                    </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {compatibleScales.length === 0 ? (
