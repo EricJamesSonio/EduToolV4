@@ -125,7 +125,9 @@ export function ProgramEnrollmentDialog({
               onValueChange={(v) => setValue("program_id", v ?? "")}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select department" />
+                <SelectValue placeholder="Select department">
+                {programs.find((p) => p.id === watch("program_id"))?.name ?? "Select department"}
+              </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {programs.map((p) => (
@@ -143,7 +145,9 @@ export function ProgramEnrollmentDialog({
                 onValueChange={(v) => setValue("level_id", v ?? "")}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select level" />
+                  <SelectValue placeholder="Select level">
+                {programLevels.find((l) => l.id === watch("level_id"))?.name ?? "Select level"}
+              </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">— None —</SelectItem>
@@ -163,7 +167,9 @@ export function ProgramEnrollmentDialog({
                 onValueChange={(v) => setValue("course_id", v ?? "")}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select course" />
+                  <SelectValue placeholder="Select course">
+                {(selectedProgram?.courses ?? []).find((c) => c.id === watch("course_id"))?.name ?? "Select course"}
+              </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">— None —</SelectItem>
@@ -185,7 +191,9 @@ export function ProgramEnrollmentDialog({
                 onValueChange={(v) => setValue("strand_id", v ?? "")}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select strand" />
+                  <SelectValue placeholder="Select strand">
+                {(selectedProgram?.strands ?? []).find((s) => s.id === watch("strand_id"))?.name ?? "Select strand"}
+              </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">— None —</SelectItem>
