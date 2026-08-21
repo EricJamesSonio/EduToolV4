@@ -109,14 +109,14 @@ export function ClassesFilterBar({
   );
   const educators = toArray<{ id: string; fullName: string }>(educatorsRaw);
 
-  function handleSemesterChange(value: string) {
-    if (value === "all") {
+  function handleSemesterChange(value: string | null) {
+    if (value === null || value === "all") {
       setFilterSemesterId("all");
       return;
     }
     if (filterProgramId === "all") {
       // composite value from the grouped list
-      const [programId, semesterId] = decodeComposite(value);
+      const [programId, semesterId] = decodeComposite(value!);
       setDepartmentAndSemester(programId, semesterId);
     } else {
       setFilterSemesterId(value);
