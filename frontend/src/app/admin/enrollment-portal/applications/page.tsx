@@ -173,8 +173,10 @@ export default function EnrollmentApplicationsPage(): React.JSX.Element {
               router.replace(v ? `/admin/enrollment-portal/applications?period_id=${v}` : "/admin/enrollment-portal/applications");
             }}
           >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All periods" />
+<SelectTrigger className="w-48">
+                <SelectValue placeholder="All periods">
+                  {periods.find((p) => p.id === filters.periodId)?.name ?? "All periods"}
+                </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All periods</SelectItem>
