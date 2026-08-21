@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Layers, LayoutList, Loader2, Database } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Layers, LayoutList, Loader2, Database, Eye, Pencil } from "lucide-react"
 import { cn, pickCardColor } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
@@ -19,6 +19,8 @@ import { LevelStep } from "./LevelStep"
 import { SectionStep } from "./SectionStep"
 import { SubjectStep } from "./SubjectStep"
 import type { DraftDepartment } from "@/hooks/admin/useSchoolProfileDraft"
+
+type Mode = "view" | "edit"
 
 function Card({ id, icon: Icon, title, children }: { id: string; icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) {
   return (
@@ -47,26 +49,52 @@ export function SchoolProfileCard() {
   const draft = useSchoolProfileDraft(savedDepartments)
   const saveMutation = useSaveSchoolProfile()
 
+  const hasSavedConfig = savedDepartments.length > 0
+  const [mode, setMode] = useState<Mode>("view")
+
+  // Default to View the first time a saved config is detected (e.g. after
+  // the initial fetch resolves); never force it back to View on later
+  // renders so an admin actively editing isn't kicked out mid-edit.
+  const [modeInitialized, setModeInitialized] = useState(false)
+  useEffect(() => {
+    if (!modeInitialized && !isLoading) {
+      setMode(hasSavedConfig ? "view" : "edit")
+      setModeInitialized(true)
+    }
+  }, [modeInitialized, isLoading, hasSavedConfig])
+
+  const readOnly = mode === "view"
+
   const [pendingDeselect, setPendingDeselect] = useState<ProgramType | null>(null)
 
   const { setGuard } = useNavigationGuard()
   useEffect(() => {
-    setGuard(() => draft.dirty)
+    setGuard(() => !readOnly && draft.dirty)
     return () => setGuard(null)
-  }, [draft.dirty, setGuard])
+  }, [draft.dirty, readOnly, setGuard])
 
   useEffect(() => {
     function handleBeforeUnload(e: BeforeUnloadEvent) {
-      if (draft.dirty) {
+      if (!readOnly && draft.dirty) {
         e.preventDefault()
         e.returnValue = ""
       }
     }
     window.addEventListener("beforeunload", handleBeforeUnload)
     return () => window.removeEventListener("beforeunload", handleBeforeUnload)
-  }, [draft.dirty])
+  }, [draft.dirty, readOnly])
+
+  // View mode only ever shows departments that are actually saved/selected.
+  // Edit mode shows every department (configured + untouched) via the
+  // existing DepartmentStep toggle grid.
+  const visibleDepartments = useMemo(() => {
+    if (!readOnly) return Object.values(draft.departments)
+    const savedTypes = new Set(savedDepartments.map((d) => d.type))
+    return Object.values(draft.departments).filter((d) => savedTypes.has(d.type))
+  }, [readOnly, draft.departments, savedDepartments])
 
   const handleToggleDepartment = (type: ProgramType) => {
+    if (readOnly) return
     if (draft.selectedTypes.has(type)) {
       setPendingDeselect(type)
     } else {
@@ -85,6 +113,7 @@ export function SchoolProfileCard() {
       onSuccess: () => {
         toast.success("Configuration saved. The Data Seeder will now use this setup.")
         draft.markSaved()
+        setMode("view")
       },
       onError: (err: unknown) => {
         const message =
@@ -106,15 +135,45 @@ export function SchoolProfileCard() {
 
   return (
     <div className="space-y-6">
+      {hasSavedConfig && (
+        <div className="inline-flex rounded-lg border bg-muted/30 p-1">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className={cn("gap-1.5 rounded-md", mode === "view" && "bg-background shadow-sm")}
+            onClick={() => setMode("view")}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            View
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className={cn("gap-1.5 rounded-md", mode === "edit" && "bg-background shadow-sm")}
+            onClick={() => setMode("edit")}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
+          </Button>
+        </div>
+      )}
+
       <Card id="departments" icon={Layers} title="Departments">
+        {readOnly ? (
+          <p className="text-xs text-muted-foreground not-interactive">
+            Showing your configured departments. Switch to Edit to add more or make changes.
+          </p>
+        ) : null}
         <DepartmentStep
           selectedTypes={draft.selectedTypes}
           onToggle={handleToggleDepartment}
-          disabled={saveMutation.isPending}
+          disabled={readOnly || saveMutation.isPending}
         />
       </Card>
 
-      {Object.values(draft.departments).map((department) => (
+      {visibleDepartments.map((department) => (
         <Card
           key={department.type}
           id="structure"
@@ -126,7 +185,7 @@ export function SchoolProfileCard() {
               <CourseStep
                 departmentId={department.type}
                 courses={department.courses}
-                disabled={saveMutation.isPending}
+                disabled={readOnly || saveMutation.isPending}
                 onAdd={(_, name) => draft.addCourse(department.type, name)}
                 onRename={(courseKey, name) => draft.renameCourse(department.type, courseKey, name)}
                 onDelete={(courseKey) => draft.deleteCourse(department.type, courseKey)}
@@ -137,7 +196,7 @@ export function SchoolProfileCard() {
               <StrandStep
                 departmentId={department.type}
                 strands={department.strands}
-                disabled={saveMutation.isPending}
+                disabled={readOnly || saveMutation.isPending}
                 onAdd={(_, name) => draft.addStrand(department.type, name)}
                 onRename={(strandKey, name) => draft.renameStrand(department.type, strandKey, name)}
                 onDelete={(strandKey) => draft.deleteStrand(department.type, strandKey)}
@@ -151,7 +210,7 @@ export function SchoolProfileCard() {
                   parentId={course.key}
                   groupLabel={course.name}
                   levels={course.levels}
-                  disabled={saveMutation.isPending}
+                  disabled={readOnly || saveMutation.isPending}
                   onAdd={(parentKey, name) => draft.addLevel(department.type, parentKey, name)}
                   onRename={(levelKey, name) => draft.renameLevel(department.type, levelKey, name)}
                   onDelete={(levelKey) => draft.deleteLevel(department.type, levelKey)}
@@ -165,7 +224,7 @@ export function SchoolProfileCard() {
                   parentId={strand.key}
                   groupLabel={strand.name}
                   levels={strand.levels}
-                  disabled={saveMutation.isPending}
+                  disabled={readOnly || saveMutation.isPending}
                   onAdd={(parentKey, name) => draft.addLevel(department.type, parentKey, name)}
                   onRename={(levelKey, name) => draft.renameLevel(department.type, levelKey, name)}
                   onDelete={(levelKey) => draft.deleteLevel(department.type, levelKey)}
@@ -177,7 +236,7 @@ export function SchoolProfileCard() {
                 parentId={department.type}
                 groupLabel="Levels"
                 levels={department.levels}
-                disabled={saveMutation.isPending}
+                disabled={readOnly || saveMutation.isPending}
                 onAdd={(parentKey, name) => draft.addLevel(department.type, parentKey, name)}
                 onRename={(levelKey, name) => draft.renameLevel(department.type, levelKey, name)}
                 onDelete={(levelKey) => draft.deleteLevel(department.type, levelKey)}
@@ -190,7 +249,7 @@ export function SchoolProfileCard() {
                   levelId={level.key}
                   levelLabel={`${level.name} — Sections`}
                   sections={level.sections}
-                  disabled={saveMutation.isPending}
+                  disabled={readOnly || saveMutation.isPending}
                   onAdd={(levelKey, name, capacity) => draft.addSection(department.type, levelKey, name, capacity)}
                   onUpdate={(sectionKey, name, capacity) =>
                     draft.updateSection(department.type, level.key, sectionKey, name, capacity)
@@ -201,7 +260,7 @@ export function SchoolProfileCard() {
                   levelId={level.key}
                   levelLabel={`${level.name} — Subjects`}
                   subjects={level.subjects}
-                  disabled={saveMutation.isPending}
+                  disabled={readOnly || saveMutation.isPending}
                   onAdd={(levelKey, name) => draft.addSubject(department.type, levelKey, name)}
                   onRename={(subjectKey, name) => draft.renameSubject(department.type, level.key, subjectKey, name)}
                   onDelete={(subjectKey) => draft.deleteSubject(department.type, level.key, subjectKey)}
@@ -212,7 +271,7 @@ export function SchoolProfileCard() {
         </Card>
       ))}
 
-      {draft.selectedTypes.size > 0 && (
+      {!readOnly && draft.selectedTypes.size > 0 && (
         <Card id="save" icon={Database} title="Save Configuration">
           <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/30 p-4">
             <p className="text-xs text-muted-foreground not-interactive">
