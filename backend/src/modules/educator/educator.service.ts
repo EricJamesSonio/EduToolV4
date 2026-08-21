@@ -28,6 +28,12 @@ export class EducatorService {
   // ── POST /educators ─────────────────────────────────────────────────────────
 
   async create(orgId: string, dto: CreateEducatorDto) {
+    if (!dto.fullName) {
+      throw new BadRequestException('fullName is required.');
+    }
+    if (!dto.emailName) {
+      throw new BadRequestException('emailName is required.');
+    }
     const email = await this.buildOrgEmail(orgId, dto.emailName);
     // Guard: email must be unique within the org
     const existing = await this.educatorRepository.findByEmail(email, orgId);
