@@ -542,8 +542,10 @@ export function TemplateAssignmentPanel({
                 value={selectedTemplateId}
                 onValueChange={(v) => setSelectedTemplateId(v ?? "")}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Choose a template..." />
+<SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose a template...">
+                      {templates.find((t) => t.id === selectedTemplateId)?.name ?? "Choose a template..."}
+                    </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {compatibleTemplates.length === 0 ? (
