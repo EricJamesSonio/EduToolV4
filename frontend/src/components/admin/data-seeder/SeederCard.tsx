@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { cn, pickCardColor } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useNavigationGuard } from "@/context/NavigationGuardContext";
+import { useSchoolProfile } from "@/hooks/admin/useSchoolProfile"
+import { useEffectiveSeedData } from "./hooks/useEffectiveSeedData"
 
 import { SchoolYearStep } from "./SchoolYearStep";
 import { ProgramStep } from "./ProgramStep";
@@ -93,6 +95,9 @@ export function SeederCard() {
   existingSemesterTemplateNames,
   } = useSeederCard();
 
+  const { data: savedProfileDepartments = [] } = useSchoolProfile();
+  const overrides = useEffectiveSeedData(savedProfileDepartments);
+
   // ===== Navigation guard: don't let the user silently lose an in-progress
   // seed by clicking away in the sidebar. "In progress" = at least one
   // department has been selected — matches the point where real, non-trivial
@@ -161,6 +166,9 @@ export function SeederCard() {
                 levelConfigs={levelConfigs}
                 onSetCount={setLevelCount}
                 onRenameAt={renameLevelAt}
+                coursesOverride={overrides.collegeCourses}
+                strandsOverride={overrides.shsStrands}
+                levelDefsOverride={overrides.levelDefsByEntity}
               />
             </Card>
           )}
@@ -175,6 +183,10 @@ export function SeederCard() {
                 levelConfigs={levelConfigs}
                 sectionConfigs={sectionConfigs}
                 onSetSections={setSectionsForLevel}
+                coursesOverride={overrides.collegeCourses}
+                strandsOverride={overrides.shsStrands}
+                levelDefsOverride={overrides.levelDefsByEntity}
+                sectionsOverride={overrides.sectionsByLevelName}
               />
             </Card>
           )}
@@ -188,6 +200,7 @@ export function SeederCard() {
                 onToggleStrand={helpers.toggleStrand}
                 onSelectAllStrands={helpers.selectAllStrands}
                 onDeselectAllStrands={helpers.deselectAllStrands}
+                strandsOverride={overrides.shsStrands}
               />
             </Card>
           )}
@@ -201,6 +214,7 @@ export function SeederCard() {
                 onToggleCourse={helpers.toggleCourse}
                 onSelectAllCourses={helpers.selectAllCourses}
                 onDeselectAllCourses={helpers.deselectAllCourses}
+                coursesOverride={overrides.collegeCourses}
               />
             </Card>
           )}
@@ -218,6 +232,9 @@ export function SeederCard() {
               onSelectAllForGroup={helpers.selectAllForGroup}
               onDeselectAllForGroup={helpers.deselectAllForGroup}
               allSelectableSubjects={allSelectableSubjects}
+              levelSubjectsOverride={overrides.levelSubjectsByLevelName}
+              courseSubjectsOverride={overrides.courseSubjectsByCode}
+              strandSubjectsOverride={overrides.strandSubjectsByName}
             />
           </Card>
 
@@ -225,25 +242,25 @@ export function SeederCard() {
           {selectedPrograms.size > 0 && (
             <>
               <Card id="grading-scale" icon={BarChart3} title="Grading Scale">
-<GradingScaleStep
-  selectedPrograms={selectedPrograms}
-  seedGradingScale={seedGradingScale}
-  gradingScaleByProgram={gradingScaleByProgram}
-  disabledScaleNames={existingGradingScaleNames}
-  onToggleSeed={setSeedGradingScale}
-  onSelectPreset={setGradingScaleForProgram}
-/>
+                <GradingScaleStep
+                  selectedPrograms={selectedPrograms}
+                  seedGradingScale={seedGradingScale}
+                  gradingScaleByProgram={gradingScaleByProgram}
+                  disabledScaleNames={existingGradingScaleNames}
+                  onToggleSeed={setSeedGradingScale}
+                  onSelectPreset={setGradingScaleForProgram}
+                />
               </Card>
 
               <Card id="grading-scheme" icon={Scale} title="Grading Scheme">
-<GradingSchemeStep
-  selectedPrograms={selectedPrograms}
-  seedGradingSchemes={seedGradingSchemes}
-  gradingSchemesByProgram={gradingSchemesByProgram}
-  disabledSchemeNames={existingGradingSchemeNames}
-  onToggleSeed={setSeedGradingSchemes}
-  onToggleScheme={toggleGradingScheme}
-/>
+                <GradingSchemeStep
+                  selectedPrograms={selectedPrograms}
+                  seedGradingSchemes={seedGradingSchemes}
+                  gradingSchemesByProgram={gradingSchemesByProgram}
+                  disabledSchemeNames={existingGradingSchemeNames}
+                  onToggleSeed={setSeedGradingSchemes}
+                  onToggleScheme={toggleGradingScheme}
+                />
               </Card>
 
               <Card id="program-calendars" icon={Calendar} title="Academic Calendar">
@@ -261,16 +278,16 @@ export function SeederCard() {
               </Card>
 
               <Card id="semester-templates" icon={Calendar} title="Semester Templates">
-<SemesterTemplateStep
-  selectedPrograms={selectedPrograms}
-  seedSemesterTemplates={seedSemesterTemplates}
-  semesterTemplatesByProgram={semesterTemplatesByProgram}
-  seedProgramCalendars={seedProgramCalendars}
-  programCalendarConfigs={programCalendarConfigs}
-  disabledTemplateNames={existingSemesterTemplateNames}
-  onToggleSeed={setSeedSemesterTemplates}
-  onToggleTemplate={toggleSemesterTemplate}
-/>
+                <SemesterTemplateStep
+                  selectedPrograms={selectedPrograms}
+                  seedSemesterTemplates={seedSemesterTemplates}
+                  semesterTemplatesByProgram={semesterTemplatesByProgram}
+                  seedProgramCalendars={seedProgramCalendars}
+                  programCalendarConfigs={programCalendarConfigs}
+                  disabledTemplateNames={existingSemesterTemplateNames}
+                  onToggleSeed={setSeedSemesterTemplates}
+                  onToggleTemplate={toggleSemesterTemplate}
+                />
               </Card>
             </>
           )}
