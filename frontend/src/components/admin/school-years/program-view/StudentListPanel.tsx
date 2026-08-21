@@ -143,7 +143,9 @@ export function StudentListPanel({
           {showSectionFilter && (
             <Select value={sectionFilter} onValueChange={(v) => { if (v !== null) setSectionFilter(v); }}>
               <SelectTrigger className="h-7 text-xs w-36">
-                <SelectValue placeholder="All Sections" />
+                <SelectValue placeholder="All Sections">
+                {availableSections.find((s) => s.id === sectionFilter)?.name ?? "All Sections"}
+              </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Sections</SelectItem>
