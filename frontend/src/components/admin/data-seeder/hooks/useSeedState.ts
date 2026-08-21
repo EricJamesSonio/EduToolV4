@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import type { CalendarBreak } from "@/api/admin/program-calendar.api"
+import type { EffectiveSeedOverrides } from "./useEffectiveSeedData"
 import {
   COLLEGE_COURSES,
   COLLEGE_YEAR_LABELS,
@@ -74,14 +75,31 @@ const DEFAULT_PRESET_PER_PROGRAM: Record<string, string> = {
   college: "college_5pt",
 }
 
-function buildInitialSectionConfigs(): Record<string, SectionConfig> {
+function buildInitialSectionConfigs(overrides?: EffectiveSeedOverrides): Record<string, SectionConfig> {
   const out: Record<string, SectionConfig> = {}
 
   Object.entries(LEVEL_DEFS).forEach(([, names]) => {
     names.forEach((levelName) => {
-      out[levelName] = SECTION_DEFAULTS.map((s) => ({ ...s }))
+      out[levelName] = overrides?.sectionsByLevelName?.[levelName]?.map((s) => ({ ...s }))
+        ?? SECTION_DEFAULTS.map((s) => ({ ...s }))
     })
   })
+
+  if (overrides) {
+    Object.entries(overrides.levelDefsByEntity).forEach(([, names]) => {
+      names.forEach((levelName) => {
+        if (!out[levelName]) {
+          out[levelName] = overrides.sectionsByLevelName?.[levelName]?.map((s) => ({ ...s }))
+            ?? SECTION_DEFAULTS.map((s) => ({ ...s }))
+        } else if (overrides.sectionsByLevelName?.[levelName]) {
+          out[levelName] = overrides.sectionsByLevelName[levelName].map((s) => ({ ...s }))
+        }
+      })
+    })
+    Object.entries(overrides.sectionsByLevelName).forEach(([levelName, sections]) => {
+      if (!out[levelName]) out[levelName] = sections.map((s) => ({ ...s }))
+    })
+  }
 
   return out
 }
@@ -114,7 +132,7 @@ function buildInitialLevelConfigs(): Record<string, ProgramLevelConfig> {
   return {}
 }
 
-export function useSeedState() {
+export function useSeedState(overrides?: EffectiveSeedOverrides) {
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set())
 
   // ===== LEVEL CONFIGS (NOT AUTO-SELECTED) =====
@@ -123,8 +141,32 @@ export function useSeedState() {
   )
 
   const [sectionConfigs, setSectionConfigs] = useState<Record<string, SectionConfig>>(
-    buildInitialSectionConfigs,
+    () => buildInitialSectionConfigs(overrides),
   )
+
+  // Merge in override sections that arrived after initial mount (profile loads async).
+  // Only adds missing keys so we never clobber a user-edited section config.
+  useEffect(() => {
+    if (!overrides) return
+    setSectionConfigs((prev) => {
+      const next = { ...prev }
+      let changed = false
+      Object.entries(overrides.sectionsByLevelName).forEach(([levelName, sections]) => {
+        if (!next[levelName]) {
+          next[levelName] = sections.map((s) => ({ ...s }))
+          changed = true
+        }
+      })
+      Object.values(overrides.levelDefsByEntity).flat().forEach((levelName) => {
+        if (!next[levelName]) {
+          next[levelName] = overrides.sectionsByLevelName[levelName]?.map((s) => ({ ...s }))
+            ?? SECTION_DEFAULTS.map((s) => ({ ...s }))
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+  }, [overrides])
 
   // ===== COURSES & STRANDS (NOT AUTO-SELECTED) =====
   const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set())
@@ -137,13 +179,21 @@ export function useSeedState() {
   const allSelectableSubjects = useMemo(() => {
     const out = new Set<string>()
 
+    const effectiveLevelDefs = (prog: string): string[] | undefined =>
+      overrides?.levelDefsByEntity?.[prog] ?? LEVEL_DEFS[prog]
+    const getLevelSubjects = (lvl: string): string[] | undefined =>
+      overrides?.levelSubjectsByLevelName?.[lvl] ?? LEVEL_SUBJECTS[lvl]
+    const getCourseSubjects = (code: string): string[] | undefined =>
+      overrides?.courseSubjectsByCode?.[code] ?? COURSE_SUBJECTS[code]
+    const getStrandSubjects = (name: string): string[] | undefined =>
+      overrides?.strandSubjectsByName?.[name] ?? SHS_STRAND_SUBJECTS[name]
+
     selectedPrograms.forEach((prog) => {
-      if (LEVEL_DEFS[prog]) {
-        // Fall back to LEVEL_DEFS[prog] when the user hasn't adjusted
-        // level count yet — same fallback used in SeederCard and derivedSelectedLevels
-        const levelNames = levelConfigs[prog]?.names ?? LEVEL_DEFS[prog]
+      const effLevels = effectiveLevelDefs(prog)
+      if (effLevels) {
+        const levelNames = levelConfigs[prog]?.names ?? effLevels
         levelNames.forEach((lvl) => {
-          LEVEL_SUBJECTS[lvl]?.forEach((s) => {
+          getLevelSubjects(lvl)?.forEach((s) => {
             out.add(subjectKey(lvl, s))
           })
         })
@@ -151,7 +201,7 @@ export function useSeedState() {
 
       if (prog === "shs") {
         selectedStrands.forEach((strand) => {
-          SHS_STRAND_SUBJECTS[strand]?.forEach((s) => {
+          getStrandSubjects(strand)?.forEach((s) => {
             out.add(subjectKey(strand, s))
           })
         })
@@ -159,7 +209,7 @@ export function useSeedState() {
 
       if (prog === "college") {
         selectedCourses.forEach((code) => {
-          COURSE_SUBJECTS[code]?.forEach((s) => {
+          getCourseSubjects(code)?.forEach((s) => {
             out.add(subjectKey(code, s))
           })
         })
@@ -167,7 +217,7 @@ export function useSeedState() {
     })
 
     return Array.from(out)
-  }, [selectedPrograms, levelConfigs, selectedStrands, selectedCourses])
+  }, [selectedPrograms, levelConfigs, selectedStrands, selectedCourses, overrides])
 
   useEffect(() => {
     setSelectedSubjects((prev) => {
@@ -342,9 +392,35 @@ const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => 
 
   // ===== LEVEL & SECTION MANAGEMENT =====
   function resolveEntityLevelNames(entityKey: string, count: number): string[] {
+    const overrideNames = overrides?.levelDefsByEntity?.[entityKey]
+    if (overrideNames) {
+      if (count <= overrideNames.length) return overrideNames.slice(0, count)
+      const extraCount = count - overrideNames.length
+      const generated = generateLevelNames(entityKey, count)
+      return [...overrideNames, ...generated.slice(overrideNames.length, overrideNames.length + extraCount)]
+    }
+    // College course override may carry custom year count via collegeCourses
+    if (overrides?.collegeCourses) {
+      const oc = overrides.collegeCourses.find((c) => c.code === entityKey)
+      if (oc) {
+        const base = overrides.levelDefsByEntity[entityKey] ?? COLLEGE_YEAR_LABELS
+        return base.slice(0, count)
+      }
+    }
     const course = COLLEGE_COURSES.find((c) => c.code === entityKey);
-    if (course) return COLLEGE_YEAR_LABELS.slice(0, count);
-    if (SHS_STRANDS.includes(entityKey)) return LEVEL_DEFS["shs"]?.slice(0, count) ?? [];
+    if (course) {
+      const base = overrides?.levelDefsByEntity?.[entityKey] ?? COLLEGE_YEAR_LABELS
+      return base.slice(0, count);
+    }
+    if (
+      SHS_STRANDS.includes(entityKey) ||
+      !!overrides?.shsStrands?.includes(entityKey) ||
+      !!overrides?.levelDefsByEntity?.[entityKey]
+    ) {
+      const base = overrides?.levelDefsByEntity?.[entityKey] ?? LEVEL_DEFS["shs"] ?? []
+      return base.slice(0, count)
+    }
+    if (overrides?.levelDefsByEntity?.[entityKey]) return overrides.levelDefsByEntity[entityKey].slice(0, count)
     return generateLevelNames(entityKey, count);
   }
 
@@ -387,7 +463,9 @@ const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => 
         const next = { ...prevSec }
 
         const current =
-          next[oldName] ?? SECTION_DEFAULTS.map((s) => ({ ...s }))
+          next[oldName]
+            ?? overrides?.sectionsByLevelName?.[oldName]?.map((s) => ({ ...s }))
+            ?? SECTION_DEFAULTS.map((s) => ({ ...s }))
 
         delete next[oldName]
 
@@ -420,7 +498,7 @@ const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => 
     setSelectedStrands(new Set())
     setSelectedSubjects(new Set())
     setLevelConfigs(buildInitialLevelConfigs())
-    setSectionConfigs(buildInitialSectionConfigs())
+    setSectionConfigs(buildInitialSectionConfigs(overrides))
     setSeedGradingScale(false)
     setGradingScaleByProgram(buildInitialGradingScaleByProgram())
     setSeedGradingSchemes(false)
