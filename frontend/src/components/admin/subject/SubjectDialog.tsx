@@ -68,6 +68,7 @@ export function SubjectDialog({
     handleSubmit,
     reset,
     setValue,
+    setError,
     watch,
     formState: { errors },
   } = useForm<SubjectFormValues>({
@@ -185,7 +186,6 @@ export function SubjectDialog({
       strandId: defaultStrandId ?? "",
       subjectType: defaultSubjectType,
     });
-    setDuplicateWarning(null);
     onClose();
   };
 
