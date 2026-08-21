@@ -11,7 +11,10 @@ export class StrandSeederService {
   async seed(ctx: SeedContext): Promise<void> {
     if (!ctx.shouldSeedProgram('shs') || !ctx.programMap['shs']) return;
 
-    for (const s of SHS_STRAND_DEFS) {
+    const profile = ctx.profileDepartments['shs'];
+    const strands = profile ? profile.strands.map((s) => ({ name: s.name })) : SHS_STRAND_DEFS;
+
+    for (const s of strands) {
       if (!ctx.shouldSeedStrand(s.name)) {
         ctx.result.strands.skipped++;
         continue;
