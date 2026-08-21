@@ -97,17 +97,17 @@ export class BulkCreateEducatorDto {
   @Type(() => BulkEducatorEntry)
   @ArrayMinSize(1)
   @ArrayMaxSize(200)
-  entrie0?: BulkEducatorEntry[];
+  entries: BulkEducatorEntry[];
 }
 
 export class BulkEducatorEntry {
   @IsString()
   @MinLength(2)
   @MaxLength(150)
-  fullName?: string;
+  fullName!: string;
 
   @IsString()
   @MinLength(1)
   @MaxLength(50)
-  id?: string;
+  id!: string;
 }
