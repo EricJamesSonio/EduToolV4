@@ -55,7 +55,9 @@ export function ConcernFilterBar({
         onValueChange={(v) => onFilterChange("categoryId", v ?? "all")}
       >
         <SelectTrigger className="w-44">
-          <SelectValue placeholder="All Categories" />
+          <SelectValue placeholder="All Categories">
+                {categories.find((c) => c.id === filters.categoryId)?.label ?? "All Categories"}
+              </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Categories</SelectItem>
