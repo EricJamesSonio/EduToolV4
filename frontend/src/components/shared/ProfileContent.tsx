@@ -1,3 +1,4 @@
+// ===== File: frontend/src/components/shared/ProfileContent.tsx =====
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -100,17 +101,17 @@ interface InfoRowProps {
 
 function InfoRow({ icon: Icon, label, value, iconStyle, children }: InfoRowProps): React.JSX.Element {
   return (
-    <div className="flex items-center gap-4 py-4">
+    <div className="flex items-center gap-4 lg:gap-5 py-4 lg:py-5">
       <div className={cn(
-        "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+        "flex h-10 w-10 lg:h-12 lg:w-12 shrink-0 items-center justify-center rounded-lg",
         iconStyle,
       )}>
-        <Icon className="h-5 w-5" />
+        <Icon className="h-5 w-5 lg:h-6 lg:w-6" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
+        <p className="text-xs lg:text-sm text-muted-foreground mb-0.5">{label}</p>
         {children ?? (
-          <p className="text-sm font-semibold text-foreground">
+          <p className="text-sm lg:text-base font-semibold text-foreground">
             {value ?? "—"}
           </p>
         )}
@@ -263,21 +264,21 @@ export function ProfileContent(): React.JSX.Element {
     (fullName ?? "") !== (user.fullName ?? "");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:space-y-8 lg:max-w-6xl lg:mx-auto">
       <PageHeader title="My Profile" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
         {/* Left: Avatar hero card */}
         <div className="lg:col-span-2">
           <Card className="border-border/60 h-full">
-            <CardContent className="flex flex-col items-center text-center pt-8 pb-6 px-6">
-              <div className="relative mb-5">
-                <Avatar className="h-28 w-28">
+            <CardContent className="flex flex-col items-center text-center pt-8 pb-6 px-6 lg:pt-12 lg:pb-10 lg:px-8">
+              <div className="relative mb-5 lg:mb-7">
+                <Avatar className="h-28 w-28 lg:h-40 lg:w-40">
                   <AvatarImage
                     src={profileImageUrl}
                     alt={user.fullName ?? ""}
                   />
-                  <AvatarFallback className="text-3xl font-semibold bg-primary/10 text-primary">
+                  <AvatarFallback className="text-3xl lg:text-5xl font-semibold bg-primary/10 text-primary">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
@@ -285,12 +286,12 @@ export function ProfileContent(): React.JSX.Element {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  className="absolute -bottom-1 -right-1 flex h-8 w-8 lg:h-11 lg:w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
                   {uploading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 lg:h-5 lg:w-5 animate-spin" />
                   ) : (
-                    <Camera className="h-4 w-4" />
+                    <Camera className="h-4 w-4 lg:h-5 lg:w-5" />
                   )}
                 </button>
                 <input
@@ -302,21 +303,21 @@ export function ProfileContent(): React.JSX.Element {
                 />
               </div>
 
-              <h2 className="text-xl font-bold text-foreground mb-1">
+              <h2 className="text-xl lg:text-3xl font-bold text-foreground mb-1 lg:mb-2">
                 {user.fullName ?? "Unnamed User"}
               </h2>
-              <p className="text-sm text-muted-foreground mb-4">{user.email}</p>
+              <p className="text-sm lg:text-base text-muted-foreground mb-4 lg:mb-6">{user.email}</p>
 
-              <div className="flex items-center gap-2 flex-wrap justify-center">
+              <div className="flex items-center gap-2 lg:gap-3 flex-wrap justify-center">
                 <Badge
                   variant="outline"
-                  className={cn("text-xs font-medium capitalize px-3 py-1", ROLE_STYLES[user.role])}
+                  className={cn("text-xs lg:text-sm font-medium capitalize px-3 py-1 lg:px-4 lg:py-1.5", ROLE_STYLES[user.role])}
                 >
                   {formatRole(user.role)}
                 </Badge>
                 <Badge
                   variant="outline"
-                  className={cn("text-xs font-medium capitalize px-3 py-1", STATUS_STYLES[user.status])}
+                  className={cn("text-xs lg:text-sm font-medium capitalize px-3 py-1 lg:px-4 lg:py-1.5", STATUS_STYLES[user.status])}
                 >
                   {user.status}
                 </Badge>
@@ -326,15 +327,15 @@ export function ProfileContent(): React.JSX.Element {
         </div>
 
         {/* Right: Details + edit card */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="lg:col-span-3 space-y-6 lg:space-y-8">
           <Card className="border-border/60">
-            <CardContent className="px-6 py-2">
+            <CardContent className="px-6 py-2 lg:px-8 lg:py-3">
               <InfoRow icon={Mail} label="Email address" value={user.email} iconStyle={ICON_STYLES.mail} />
               <Separator />
               <InfoRow icon={ShieldCheck} label="Role" iconStyle={ICON_STYLES.role}>
                 <Badge
                   variant="outline"
-                  className={cn("text-xs font-medium capitalize mt-0.5", ROLE_STYLES[user.role])}
+                  className={cn("text-xs lg:text-sm font-medium capitalize mt-0.5", ROLE_STYLES[user.role])}
                 >
                   {formatRole(user.role)}
                 </Badge>
@@ -343,7 +344,7 @@ export function ProfileContent(): React.JSX.Element {
               <InfoRow icon={ShieldCheck} label="Account status" iconStyle={ICON_STYLES.status}>
                 <Badge
                   variant="outline"
-                  className={cn("text-xs font-medium capitalize mt-0.5", STATUS_STYLES[user.status])}
+                  className={cn("text-xs lg:text-sm font-medium capitalize mt-0.5", STATUS_STYLES[user.status])}
                 >
                   {user.status}
                 </Badge>
@@ -366,18 +367,18 @@ export function ProfileContent(): React.JSX.Element {
 
           {/* Editable fields */}
           <Card className="border-border/60">
-            <CardContent className="px-6 py-5">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Edit details</h3>
-              <form onSubmit={handleSubmit} className="space-y-4">
+            <CardContent className="px-6 py-5 lg:px-8 lg:py-7">
+              <h3 className="text-sm lg:text-base font-semibold text-foreground mb-4 lg:mb-5">Edit details</h3>
+              <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-5">
                 <div className="space-y-1.5">
-                  <Label htmlFor="fullName" className="text-xs text-muted-foreground">
+                  <Label htmlFor="fullName" className="text-xs lg:text-sm text-muted-foreground">
                     Full name
                   </Label>
                   <div className="relative">
-                    <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 lg:h-5 lg:w-5 text-muted-foreground" />
                     <Input
                       id="full-name"
-                      className="pl-9"
+                      className="pl-9 lg:pl-10 lg:h-11 lg:text-base"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Your full name"
@@ -387,7 +388,7 @@ export function ProfileContent(): React.JSX.Element {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={saving || !hasChanges}>
+                  <Button type="submit" disabled={saving || !hasChanges} className="lg:h-11 lg:px-6 lg:text-base">
                     {saving ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
@@ -402,11 +403,11 @@ export function ProfileContent(): React.JSX.Element {
 
           {/* Personal email (change via OTP) */}
           <Card className="border-border/60">
-            <CardContent className="px-6 py-5">
+            <CardContent className="px-6 py-5 lg:px-8 lg:py-7">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground">Personal email</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 max-w-sm">
+                  <h3 className="text-sm lg:text-base font-semibold text-foreground">Personal email</h3>
+                  <p className="text-xs lg:text-sm text-muted-foreground mt-0.5 max-w-sm">
                     Used for your own contact details. Changing it requires a
                     verification code sent to the new Gmail address.
                   </p>
@@ -423,6 +424,7 @@ export function ProfileContent(): React.JSX.Element {
                       setNewEmail("");
                       setOtpCode("");
                     }}
+                    className="lg:h-9 lg:px-4 lg:text-sm"
                   >
                     Change
                   </Button>
@@ -430,16 +432,16 @@ export function ProfileContent(): React.JSX.Element {
               </div>
 
               {!changingEmail ? (
-                <p className="text-sm font-semibold text-foreground mt-4">
+                <p className="text-sm lg:text-base font-semibold text-foreground mt-4">
                   {personalEmail || <span className="text-muted-foreground font-normal">Not set</span>}
                 </p>
               ) : changeStep === "enter-email" ? (
                 <div className="mt-4 space-y-3">
                   <div className="relative">
-                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 lg:h-5 lg:w-5 text-muted-foreground" />
                     <Input
                       type="email"
-                      className="pl-9"
+                      className="pl-9 lg:pl-10 lg:h-11 lg:text-base"
                       value={newEmail}
                       onChange={(e) => {
                         setNewEmail(e.target.value);
@@ -449,13 +451,14 @@ export function ProfileContent(): React.JSX.Element {
                     />
                   </div>
                   {changeError && (
-                    <p className="text-xs text-red-600">{changeError}</p>
+                    <p className="text-xs lg:text-sm text-red-600">{changeError}</p>
                   )}
                   <div className="flex gap-2">
                     <Button
                       type="button"
                       onClick={handleSendEmailChangeCode}
                       disabled={changeBusy}
+                      className="lg:h-11 lg:px-6 lg:text-base"
                     >
                       {changeBusy ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -469,6 +472,7 @@ export function ProfileContent(): React.JSX.Element {
                       variant="ghost"
                       onClick={() => setChangingEmail(false)}
                       disabled={changeBusy}
+                      className="lg:h-11 lg:px-6 lg:text-base"
                     >
                       Cancel
                     </Button>
@@ -477,11 +481,11 @@ export function ProfileContent(): React.JSX.Element {
               ) : (
                 <div className="mt-4 space-y-3">
                   <div className="relative">
-                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 lg:h-5 lg:w-5 text-muted-foreground" />
                     <Input
                       inputMode="numeric"
                       maxLength={6}
-                      className="pl-9"
+                      className="pl-9 lg:pl-10 lg:h-11 lg:text-base"
                       value={otpCode}
                       onChange={(e) => {
                         setOtpCode(e.target.value.replace(/\D/g, ""));
@@ -491,13 +495,14 @@ export function ProfileContent(): React.JSX.Element {
                     />
                   </div>
                   {changeError && (
-                    <p className="text-xs text-red-600">{changeError}</p>
+                    <p className="text-xs lg:text-sm text-red-600">{changeError}</p>
                   )}
                   <div className="flex gap-2">
                     <Button
                       type="button"
                       onClick={handleVerifyEmailChange}
                       disabled={changeBusy}
+                      className="lg:h-11 lg:px-6 lg:text-base"
                     >
                       {changeBusy ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -514,6 +519,7 @@ export function ProfileContent(): React.JSX.Element {
                         setChangeError("");
                       }}
                       disabled={changeBusy}
+                      className="lg:h-11 lg:px-6 lg:text-base"
                     >
                       Cancel
                     </Button>
