@@ -155,20 +155,27 @@ function fromSavedDepartment(saved: SchoolProfileDepartment): DraftDepartment {
   })
 
   return {
-    type: saved.type,
-    courses: saved.courses.map((c) => ({
-      key: c.id,
-      name: c.name,
-      code: c.code,
-      levels: c.levels.map(toDraftLevel),
-    })),
-    strands: saved.strands.map((s) => ({
-      key: s.id,
-      name: s.name,
-      levels: s.levels.map(toDraftLevel),
-    })),
-    levels: saved.levels.map(toDraftLevel),
-    subjects: saved.subjects.map((s) => ({ key: s.id, name: s.name, subjectType: s.subjectType })),
+    departments,
+    selectedTypes,
+    dirty,
+    selectDepartment,
+    deselectDepartment,
+    addCourse,
+    renameCourse,
+    deleteCourse,
+    addStrand,
+    renameStrand,
+    deleteStrand,
+    addLevel,
+    renameLevel,
+    deleteLevel,
+    addSection,
+    updateSection,
+    deleteSection,
+    addSubject,
+    renameSubject,
+    deleteSubject,
+    markSaved,
   }
 }
 
