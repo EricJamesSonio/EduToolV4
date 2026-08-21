@@ -10,9 +10,10 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsEntityName } from '@/commons/validators/is-entity-name.validator';
 
 export class CreateSubjectDto {
-  @IsString()
+  @IsEntityName()
   @MinLength(2)
   @MaxLength(150)
   name!: string;
@@ -50,8 +51,8 @@ export class CreateSubjectDto {
 }
 
 export class UpdateSubjectDto {
+  @IsEntityName()
   @IsOptional()
-  @IsString()
   @MinLength(2)
   @MaxLength(150)
   name?: string;
