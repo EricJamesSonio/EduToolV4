@@ -1,4 +1,5 @@
 import { DatabaseService } from '@/core/database/database.provider';
+import type { SchoolProfileDepartmentData } from '../school-profile/school-profile.service';
 
 export interface SeedCount {
   seeded: number;
@@ -17,6 +18,7 @@ export interface SeedResult {
   gradingSchemeTemplates: SeedCount;
   semesterTemplates: SeedCount;
   programCalendars: SeedCount;
+  
   /** Non-fatal issues surfaced to the admin (e.g. template not auto-registered due to calendar mismatch). */
   warnings: string[];
 }
@@ -96,6 +98,7 @@ export class SeedContext {
   readonly strandMap: Record<string, string> = {};
   readonly levelMap: Record<string, string> = {};
   readonly subjectNameToId: Record<string, string> = {};
+  readonly profileDepartments: Record<string, SchoolProfileDepartmentData | null> = {};
 
   readonly result: SeedResult = {
     programs: emptyCount(),
