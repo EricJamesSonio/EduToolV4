@@ -455,6 +455,12 @@ export function CreateClassDialog({
               onConflictsChange={handleScheduleConflictsChange}
             />
 
+            {scheduleConflicts && (
+              <p className="text-xs text-destructive mt-1">
+                Schedule conflict detected. The class cannot be created due to overlapping educator schedules.
+              </p>
+            )}
+
             <div className="flex justify-end gap-2 pt-1">
               <Button
                 type="button"

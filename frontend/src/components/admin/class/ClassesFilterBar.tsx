@@ -140,7 +140,9 @@ export function ClassesFilterBar({
         disabled={!schoolYearId}
       >
         <SelectTrigger className="w-48">
-          <SelectValue placeholder="All Departments" />
+          <SelectValue placeholder="All Departments">
+                {programs.find((p) => p.id === filterProgramId)?.name ?? "All Departments"}
+              </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Departments</SelectItem>
@@ -165,7 +167,11 @@ export function ClassesFilterBar({
         disabled={!schoolYearId}
       >
         <SelectTrigger className="w-56">
-          <SelectValue placeholder="All Semesters" />
+          <SelectValue placeholder="All Semesters">
+                {filterProgramId === "all"
+                  ? groupedSemesters.find((g) => encodeComposite(g.programId, g.semesterId) === filterSemesterId)?.semesterName
+                  : deptSemesters.find((s) => s.id === filterSemesterId)?.name ?? "All Semesters"}
+              </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Semesters</SelectItem>
@@ -192,7 +198,9 @@ export function ClassesFilterBar({
         onValueChange={(v) => setFilterEducatorId(v ?? "all")}
       >
         <SelectTrigger className="w-48">
-          <SelectValue placeholder="All Educators" />
+          <SelectValue placeholder="All Educators">
+                {educators.find((e) => e.id === filterEducatorId)?.fullName ?? "All Educators"}
+              </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Educators</SelectItem>
