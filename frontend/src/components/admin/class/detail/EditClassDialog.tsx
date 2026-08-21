@@ -144,7 +144,9 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
               onValueChange={(v) => setValue("educatorId", v ?? "")}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select an educator" />
+                <SelectValue placeholder="Select an educator">
+                {educators.find((e) => e.id === selectedEducatorId)?.fullName ?? "Select an educator"}
+              </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {educators.map((e) => (
@@ -167,7 +169,9 @@ export function EditClassDialog({ cls, open, onClose, schoolYearId }: EditClassD
               onValueChange={(v) => setValue("sectionId", v ?? "")}
             >
               <SelectTrigger>
-                <SelectValue placeholder="No section" />
+                <SelectValue placeholder="No section">
+                {sections.find((s) => s.id === selectedSectionId)?.name ?? "No section"}
+              </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">No section</SelectItem>
