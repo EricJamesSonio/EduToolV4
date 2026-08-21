@@ -16,7 +16,7 @@ export const nameSchema = z
   .min(1, "Name is required")
   .max(100, "Name must be 100 characters or fewer")
   .refine(
-    (val) => /^[\p{L}\p{N} ]+$/.test(val) && val.trim() !== "",
+    (val) => /^[\p{L}\p{N} ]+$/u.test(val) && val.trim() !== "",
     "Name must contain only letters, numbers, and spaces"
   );
 
