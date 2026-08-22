@@ -22,6 +22,11 @@ export interface NavigationGuardContextValue {
    */
   setGuard: (isDirty: (() => boolean) | null) => void;
   /**
+   * Returns true if the currently registered guard reports dirty state.
+   * Useful for guarding non-navigation state changes (e.g. view/edit mode).
+   */
+  isDirty: () => boolean;
+  /**
    * Attempts an internal navigation to `href`. If a guard is active and
    * reports dirty state, opens a confirmation dialog and defers the
    * navigation until the user confirms discarding their progress.
@@ -39,6 +44,8 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
   const setGuard = useCallback((isDirty: (() => boolean) | null) => {
     guardRef.current = isDirty;
   }, []);
+
+  const isDirty = useCallback(() => !!guardRef.current?.(), []);
 
   const requestNavigation = useCallback(
     (href: string) => {
@@ -62,7 +69,7 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <NavigationGuardContext.Provider value={{ setGuard, requestNavigation }}>
+    <NavigationGuardContext.Provider value={{ setGuard, isDirty, requestNavigation }}>
       {children}
 
       <ConfirmDialog
