@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { COLLEGE_COURSES, LEVEL_DEFS, LEVEL_MAX, LEVEL_MIN, PROGRAMS, SHS_STRANDS, generateLevelNames, getDefaultLevelNames } from "./constants/seed-data"
 import type { ProgramLevelConfig } from "./hooks/useSeedState"
+import { Checkbox } from "./ui/Checkbox"
 
 interface LevelStepProps {
   selectedPrograms:   Set<string>
@@ -19,6 +20,10 @@ interface LevelStepProps {
   coursesOverride?:   { code: string; name: string; years: number }[] | null
   strandsOverride?:   string[] | null
   levelDefsOverride?: Record<string, string[]>
+  readOnly?: boolean
+  selectedLevelKeys?: Set<string>
+  onToggleLevel?: (levelKey: string) => void
+  toLevelKey?: (entityKey: string, levelName: string) => string
 }
 
 function getLevelEntities(
@@ -93,6 +98,10 @@ function ProgramLevelsPanel({
   onRenameAt,
   coursesOverride,
   levelDefsOverride,
+  readOnly = false,
+  selectedLevelKeys,
+  onToggleLevel,
+  toLevelKey,
 }: {
   prog: string
   config: ProgramLevelConfig
@@ -100,6 +109,10 @@ function ProgramLevelsPanel({
   onRenameAt: (index: number, name: string) => void
   coursesOverride?: { code: string; name: string; years: number }[] | null
   levelDefsOverride?: Record<string, string[]>
+  readOnly?: boolean
+  selectedLevelKeys?: Set<string>
+  onToggleLevel?: (levelKey: string) => void
+  toLevelKey?: (entityKey: string, levelName: string) => string
 }) {
   const [open, setOpen] = useState(true)
   const [editingIndex, setEditing] = useState<number | null>(null)
@@ -138,51 +151,92 @@ function ProgramLevelsPanel({
         </button>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground not-interactive">Levels:</span>
-          <CountStepper value={config.count} min={min} max={max} onChange={onSetCount} />
+          {!readOnly && <CountStepper value={config.count} min={min} max={max} onChange={onSetCount} />}
           <Badge variant="secondary" className="text-xs tabular-nums">{config.count}</Badge>
         </div>
       </div>
 
       {open && (
         <div className="px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-3 not-interactive">
-            Click the <Pencil className="inline h-3 w-3" /> icon to rename a level. Use + / − to add or remove levels.
-          </p>
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {config.names.map((name, i) => (
-              <div key={i} className="flex items-center gap-1 rounded-md border bg-background px-2 py-1.5 group">
-                {editingIndex === i ? (
-                  <Input
-                    autoFocus
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={() => commitEdit(i)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitEdit(i)
-                      if (e.key === "Escape") setEditing(null)
-                    }}
-                    className="h-6 text-xs px-1 border-0 shadow-none focus-visible:ring-0 p-0"
-                  />
-                ) : (
-                  <span className="flex-1 text-xs font-medium truncate not-interactive">{name}</span>
-                )}
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {editingIndex !== i && (
-                    <>
-                      <button type="button" onClick={() => startEdit(i)} className="p-0.5 rounded text-muted-foreground hover:text-foreground" title="Rename">
-                        <Pencil className="h-2.5 w-2.5" />
-                      </button>
-                      {name !== defaultNameAt(i) && (
-                        <button type="button" onClick={() => resetName(i)} className="p-0.5 rounded text-muted-foreground hover:text-foreground" title="Reset to default">
-                          <RotateCcw className="h-2.5 w-2.5" />
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
+          {readOnly ? (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground not-interactive">Uncheck to exclude a level from this seed (bring back by checking again).</p>
+              <div className="flex gap-3 mb-2">
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => config.names.forEach((n) => {
+                    const k = toLevelKey ? toLevelKey(prog, n) : `${prog}::${n}`
+                    if (!selectedLevelKeys?.has(k)) onToggleLevel?.(k)
+                  })}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:underline"
+                  onClick={() => config.names.forEach((n) => {
+                    const k = toLevelKey ? toLevelKey(prog, n) : `${prog}::${n}`
+                    if (selectedLevelKeys?.has(k)) onToggleLevel?.(k)
+                  })}
+                >
+                  None
+                </button>
               </div>
-            ))}
-          </div>
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                {config.names.map((name) => {
+                  const levelKey = toLevelKey ? toLevelKey(prog, name) : `${prog}::${name}`
+                  const checked = selectedLevelKeys?.has(levelKey) ?? true
+                  return (
+                    <div key={levelKey} className="flex items-center gap-2">
+                      <Checkbox checked={checked} onChange={() => onToggleLevel?.(levelKey)} label={name} subtle />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground mb-3 not-interactive">
+                Click the <Pencil className="inline h-3 w-3" /> icon to rename a level. Use + / − to add or remove levels.
+              </p>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                {config.names.map((name, i) => (
+                  <div key={i} className="flex items-center gap-1 rounded-md border bg-background px-2 py-1.5 group">
+                    {editingIndex === i ? (
+                      <Input
+                        autoFocus
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => commitEdit(i)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitEdit(i)
+                          if (e.key === "Escape") setEditing(null)
+                        }}
+                        className="h-6 text-xs px-1 border-0 shadow-none focus-visible:ring-0 p-0"
+                      />
+                    ) : (
+                      <span className="flex-1 text-xs font-medium truncate not-interactive">{name}</span>
+                    )}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {editingIndex !== i && (
+                        <>
+                          <button type="button" onClick={() => startEdit(i)} className="p-0.5 rounded text-muted-foreground hover:text-foreground" title="Rename">
+                            <Pencil className="h-2.5 w-2.5" />
+                          </button>
+                          {name !== defaultNameAt(i) && (
+                            <button type="button" onClick={() => resetName(i)} className="p-0.5 rounded text-muted-foreground hover:text-foreground" title="Reset to default">
+                              <RotateCcw className="h-2.5 w-2.5" />
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -199,6 +253,10 @@ export function LevelStep({
   coursesOverride,
   strandsOverride,
   levelDefsOverride,
+  readOnly = false,
+  selectedLevelKeys,
+  onToggleLevel,
+  toLevelKey,
 }: LevelStepProps) {
   const programsWithLevels = Array.from(selectedPrograms).filter((p) => LEVEL_DEFS[p] || levelDefsOverride?.[p])
   if (programsWithLevels.length === 0) return null
@@ -227,6 +285,10 @@ export function LevelStep({
               onRenameAt={(i, name) => onRenameAt(key, i, name)}
               coursesOverride={coursesOverride}
               levelDefsOverride={levelDefsOverride}
+              readOnly={readOnly}
+              selectedLevelKeys={selectedLevelKeys}
+              onToggleLevel={onToggleLevel}
+              toLevelKey={toLevelKey}
             />
           )
         })}

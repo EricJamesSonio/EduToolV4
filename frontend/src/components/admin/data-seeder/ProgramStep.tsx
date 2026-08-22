@@ -7,6 +7,7 @@ interface ProgramStepProps {
   onToggleProgram: (key: string) => void
   onSelectAllPrograms: () => void
   onDeselectAllPrograms: () => void
+  allowedProgramTypes?: Set<string> | null
 }
 
 interface ProgramDef {
@@ -30,8 +31,32 @@ export function ProgramStep({
   onToggleProgram,
   onSelectAllPrograms,
   onDeselectAllPrograms,
+  allowedProgramTypes,
 }: ProgramStepProps) {
   const isDisabled = (type: string) => disabledProgramTypes.has(type)
+  const visiblePrograms = allowedProgramTypes && allowedProgramTypes.size > 0
+    ? PROGRAM_DEFS.filter((p) => allowedProgramTypes.has(p.key))
+    : PROGRAM_DEFS
+
+  function handleSelectAll(): void {
+    if (allowedProgramTypes && allowedProgramTypes.size > 0) {
+      visiblePrograms.forEach((prog) => {
+        if (!selectedPrograms.has(prog.key) && !isDisabled(prog.type)) onToggleProgram(prog.key)
+      })
+      return
+    }
+    onSelectAllPrograms()
+  }
+
+  function handleDeselectAll(): void {
+    if (allowedProgramTypes && allowedProgramTypes.size > 0) {
+      visiblePrograms.forEach((prog) => {
+        if (selectedPrograms.has(prog.key)) onToggleProgram(prog.key)
+      })
+      return
+    }
+    onDeselectAllPrograms()
+  }
 
   return (
     <div className="space-y-2">
@@ -39,20 +64,20 @@ export function ProgramStep({
         <button
           type="button"
           className="text-xs text-primary hover:underline"
-          onClick={onSelectAllPrograms}
+          onClick={handleSelectAll}
         >
           All
         </button>
         <button
           type="button"
           className="text-xs text-muted-foreground hover:underline"
-          onClick={onDeselectAllPrograms}
+          onClick={handleDeselectAll}
         >
           None
         </button>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {PROGRAM_DEFS.map((prog) => (
+        {visiblePrograms.map((prog) => (
           <button
             key={prog.key}
             type="button"

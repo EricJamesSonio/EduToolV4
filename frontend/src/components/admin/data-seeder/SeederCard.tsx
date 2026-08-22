@@ -43,6 +43,8 @@ function Card({ id, icon: Icon, title, children }: { id: string; icon: React.Com
 export function SeederCard() {
   const { data: savedProfileDepartments = [] } = useSchoolProfile();
   const overrides = useEffectiveSeedData(savedProfileDepartments);
+  const hasPreset = savedProfileDepartments.length > 0
+  const allowedProgramTypes = hasPreset ? new Set(savedProfileDepartments.map((d) => d.type)) : null
 
   const {
     schoolYears,
@@ -76,6 +78,12 @@ export function SeederCard() {
     renameLevelAt,
     sectionConfigs,
     setSectionsForLevel,
+    selectedLevelKeys,
+    selectedSectionKeys,
+    toLevelKey,
+    toSectionKey,
+    toggleLevelKey,
+    toggleSectionKey,
     seedGradingScale,
     setSeedGradingScale,
     gradingScaleByProgram,
@@ -176,7 +184,7 @@ export function SeederCard() {
             </Card>
           )}
 
-          {/* Programs */}
+          {/* Programs — when preset exists, only its departments are selectable */}
           <Card id="programs" icon={Layers} title="Departments">
             <ProgramStep
               selectedPrograms={selectedPrograms}
@@ -184,6 +192,7 @@ export function SeederCard() {
               onToggleProgram={helpers.toggleProgram}
               onSelectAllPrograms={helpers.selectAllPrograms}
               onDeselectAllPrograms={helpers.deselectAllPrograms}
+              allowedProgramTypes={allowedProgramTypes}
             />
           </Card>
 
@@ -215,7 +224,7 @@ export function SeederCard() {
             </Card>
           )}
 
-          {/* Levels — also show when an override defines levels for a program */}
+          {/* Levels — also show when an override defines levels for a program; seeder is read-only (select/unselect only, edit in Configure) */}
           {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p] || !!overrides.levelDefsByEntity[p]) && (
             <Card id="levels" icon={LayoutList} title="Levels">
               <LevelStep
@@ -229,11 +238,15 @@ export function SeederCard() {
                 coursesOverride={overrides.collegeCourses}
                 strandsOverride={overrides.shsStrands}
                 levelDefsOverride={overrides.levelDefsByEntity}
+                readOnly
+                selectedLevelKeys={selectedLevelKeys}
+                onToggleLevel={toggleLevelKey}
+                toLevelKey={toLevelKey}
               />
             </Card>
           )}
 
-          {/* Sections — after Levels */}
+          {/* Sections — after Levels; read-only */}
           {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p] || !!overrides.levelDefsByEntity[p]) && (
             <Card id="sections" icon={Scale} title="Sections">
               <SectionStep
@@ -247,6 +260,12 @@ export function SeederCard() {
                 strandsOverride={overrides.shsStrands}
                 levelDefsOverride={overrides.levelDefsByEntity}
                 sectionsOverride={overrides.sectionsByLevelName}
+                readOnly
+                selectedLevelKeys={selectedLevelKeys}
+                selectedSectionKeys={selectedSectionKeys}
+                onToggleSection={toggleSectionKey}
+                toLevelKey={toLevelKey}
+                toSectionKey={toSectionKey}
               />
             </Card>
           )}

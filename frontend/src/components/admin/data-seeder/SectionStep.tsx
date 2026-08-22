@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { COLLEGE_COURSES, LEVEL_DEFS, PROGRAMS, SECTION_DEFAULTS, SHS_STRANDS, getDefaultLevelNames } from "./constants/seed-data"
 import type { SectionConfig } from "./hooks/useSeedState"
+import { Checkbox } from "./ui/Checkbox"
 
 interface SectionStepProps {
   selectedPrograms: Set<string>
@@ -18,6 +19,12 @@ interface SectionStepProps {
   strandsOverride?: string[] | null
   levelDefsOverride?: Record<string, string[]>
   sectionsOverride?: Record<string, { name: string; capacity: number }[]>
+  readOnly?: boolean
+  selectedLevelKeys?: Set<string>
+  selectedSectionKeys?: Set<string>
+  onToggleSection?: (sectionKey: string) => void
+  toLevelKey?: (entityKey: string, levelName: string) => string
+  toSectionKey?: (levelKey: string, sectionName: string) => string
 }
 
 function getLevelEntities(
@@ -53,7 +60,7 @@ function entityLabel(entityKey: string, coursesOverride?: { code: string; name: 
 }
 
 function SectionRow({
-  section, isOnly, onRename, onChangeCapacity, onRemove, onReset, defaultSection,
+  section, isOnly, onRename, onChangeCapacity, onRemove, onReset, defaultSection, readOnly = false,
 }: {
   section: { name: string; capacity: number }
   isOnly: boolean
@@ -62,6 +69,7 @@ function SectionRow({
   onRemove: () => void
   onReset: () => void
   defaultSection: { name: string; capacity: number } | undefined
+  readOnly?: boolean
 }) {
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState(section.name)
@@ -101,45 +109,55 @@ function SectionRow({
           min={1}
           max={999}
           value={section.capacity}
+          disabled={readOnly}
+          readOnly={readOnly}
           onChange={(e) => {
+            if (readOnly) return
             const v = parseInt(e.target.value, 10)
             if (!isNaN(v) && v > 0) onChangeCapacity(v)
           }}
           className="h-6 w-14 text-xs px-1 text-center tabular-nums"
         />
       </div>
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        {!editingName && (
-          <button type="button" onClick={() => { setNameValue(section.name); setEditingName(true) }} className="p-0.5 rounded text-muted-foreground hover:text-foreground" title="Rename">
-            <Pencil className="h-2.5 w-2.5" />
+      {!readOnly && (
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          {!editingName && (
+            <button type="button" onClick={() => { setNameValue(section.name); setEditingName(true) }} className="p-0.5 rounded text-muted-foreground hover:text-foreground" title="Rename">
+              <Pencil className="h-2.5 w-2.5" />
+            </button>
+          )}
+          {!isDefault && defaultSection && (
+            <button type="button" onClick={onReset} className="p-0.5 rounded text-muted-foreground hover:text-foreground" title="Reset to default">
+              <RotateCcw className="h-2.5 w-2.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={isOnly}
+            className={cn("p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors", "disabled:opacity-30 disabled:cursor-not-allowed")}
+            title="Remove section"
+          >
+            <Minus className="h-2.5 w-2.5" />
           </button>
-        )}
-        {!isDefault && defaultSection && (
-          <button type="button" onClick={onReset} className="p-0.5 rounded text-muted-foreground hover:text-foreground" title="Reset to default">
-            <RotateCcw className="h-2.5 w-2.5" />
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={isOnly}
-          className={cn("p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors", "disabled:opacity-30 disabled:cursor-not-allowed")}
-          title="Remove section"
-        >
-          <Minus className="h-2.5 w-2.5" />
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   )
 }
 
 function LevelSectionsPanel({
-  levelName, sections, onSetSections, defaults,
+  levelName, sections, onSetSections, defaults, readOnly = false, levelKey, selectedSectionKeys, onToggleSection, toSectionKey,
 }: {
   levelName: string
   sections: SectionConfig
   onSetSections: (sections: SectionConfig) => void
   defaults: { name: string; capacity: number }[]
+  readOnly?: boolean
+  levelKey?: string
+  selectedSectionKeys?: Set<string>
+  onToggleSection?: (sectionKey: string) => void
+  toSectionKey?: (levelKey: string, sectionName: string) => string
 }) {
   function addSection() {
     const next = sections.length + 1
@@ -163,6 +181,50 @@ function LevelSectionsPanel({
     const next = [...sections]; next[i] = { ...def }; onSetSections(next)
   }
 
+  if (readOnly) {
+    return (
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-medium text-muted-foreground not-interactive">{levelName}</span>
+          <span className="text-xs text-muted-foreground tabular-nums">{sections.length} section(s)</span>
+        </div>
+        <div className="space-y-1">
+          {sections.map((sec) => {
+            const sectionKey = toSectionKey && levelKey ? toSectionKey(levelKey, sec.name) : `${levelKey ?? levelName}::${sec.name}`
+            const checked = selectedSectionKeys?.has(sectionKey) ?? true
+            return (
+              <div key={sectionKey} className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5">
+                <Checkbox checked={checked} onChange={() => onToggleSection?.(sectionKey)} label={`${sec.name} (cap ${sec.capacity})`} subtle />
+              </div>
+            )
+          })}
+        </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            className="text-xs text-primary hover:underline"
+            onClick={() => sections.forEach((sec) => {
+              const k = toSectionKey && levelKey ? toSectionKey(levelKey, sec.name) : `${levelKey ?? levelName}::${sec.name}`
+              if (!selectedSectionKeys?.has(k)) onToggleSection?.(k)
+            })}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:underline"
+            onClick={() => sections.forEach((sec) => {
+              const k = toSectionKey && levelKey ? toSectionKey(levelKey, sec.name) : `${levelKey ?? levelName}::${sec.name}`
+              if (selectedSectionKeys?.has(k)) onToggleSection?.(k)
+            })}
+          >
+            None
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between mb-1">
@@ -179,6 +241,7 @@ function LevelSectionsPanel({
             section={sec}
             isOnly={sections.length === 1}
             defaultSection={defaults[i]}
+            readOnly={readOnly}
             onRename={(name) => renameAt(i, name)}
             onChangeCapacity={(cap) => setCapacityAt(i, cap)}
             onRemove={() => removeAt(i)}
@@ -191,7 +254,7 @@ function LevelSectionsPanel({
 }
 
 function EntitySectionsPanel({
-  entityKey, levelNames, sectionConfigs, onSetSections, coursesOverride, sectionsOverride,
+  entityKey, levelNames, sectionConfigs, onSetSections, coursesOverride, sectionsOverride, readOnly = false, selectedSectionKeys, onToggleSection, toLevelKey, toSectionKey,
 }: {
   entityKey: string
   levelNames: string[]
@@ -199,6 +262,11 @@ function EntitySectionsPanel({
   onSetSections: (levelName: string, sections: SectionConfig) => void
   coursesOverride?: { code: string; name: string; years: number }[] | null
   sectionsOverride?: Record<string, { name: string; capacity: number }[]>
+  readOnly?: boolean
+  selectedSectionKeys?: Set<string>
+  onToggleSection?: (sectionKey: string) => void
+  toLevelKey?: (entityKey: string, levelName: string) => string
+  toSectionKey?: (levelKey: string, sectionName: string) => string
 }) {
   const [open, setOpen] = useState(true)
   const label = entityLabel(entityKey, coursesOverride)
@@ -219,17 +287,27 @@ function EntitySectionsPanel({
       {open && (
         <div className="px-4 py-3 space-y-4">
           <p className="text-xs text-muted-foreground not-interactive">
-            Each level gets its own sections. Click <Pencil className="inline h-3 w-3" /> to rename, edit the cap number directly, or use + / − to add or remove sections per level.
+            {readOnly
+              ? "Sections from your School Profile preset."
+              : "Each level gets its own sections. Click pencil to rename, edit cap directly, or use + / − to add or remove sections per level."}
           </p>
-          {levelNames.map((levelName) => (
-            <LevelSectionsPanel
-              key={levelName}
-              levelName={levelName}
-              sections={sectionConfigs[levelName] ?? defaultsFor(levelName)}
-              defaults={defaultsFor(levelName)}
-              onSetSections={(sections) => onSetSections(levelName, sections)}
-            />
-          ))}
+          {levelNames.map((levelName) => {
+            const levelKey = toLevelKey ? toLevelKey(entityKey, levelName) : `${entityKey}::${levelName}`
+            return (
+              <LevelSectionsPanel
+                key={levelName}
+                levelName={levelName}
+                levelKey={levelKey}
+                sections={sectionConfigs[levelName] ?? defaultsFor(levelName)}
+                defaults={defaultsFor(levelName)}
+                readOnly={readOnly}
+                selectedSectionKeys={selectedSectionKeys}
+                onToggleSection={onToggleSection}
+                toSectionKey={toSectionKey}
+                onSetSections={(sections) => onSetSections(levelName, sections)}
+              />
+            )
+          })}
         </div>
       )}
     </div>
@@ -247,6 +325,12 @@ export function SectionStep({
   strandsOverride,
   levelDefsOverride,
   sectionsOverride,
+  readOnly = false,
+  selectedLevelKeys,
+  selectedSectionKeys,
+  onToggleSection,
+  toLevelKey,
+  toSectionKey,
 }: SectionStepProps) {
   const programsWithLevels = Array.from(selectedPrograms).filter((p) => LEVEL_DEFS[p] || levelDefsOverride?.[p])
   if (programsWithLevels.length === 0) return null
@@ -259,7 +343,13 @@ export function SectionStep({
     <div className="space-y-2">
       <div className="space-y-2">
         {entities.map(({ key }) => {
-          const levelNames = levelConfigs[key]?.names ?? levelDefsOverride?.[key] ?? getDefaultLevelNames(key)
+          const rawLevelNames = levelConfigs[key]?.names ?? levelDefsOverride?.[key] ?? getDefaultLevelNames(key)
+          const levelNames = readOnly && selectedLevelKeys && selectedLevelKeys.size > 0
+            ? rawLevelNames.filter((lvl) => {
+                const lk = toLevelKey ? toLevelKey(key, lvl) : `${key}::${lvl}`
+                return selectedLevelKeys.has(lk)
+              })
+            : rawLevelNames
           return (
             <EntitySectionsPanel
               key={key}
@@ -269,6 +359,11 @@ export function SectionStep({
               onSetSections={onSetSections}
               coursesOverride={coursesOverride}
               sectionsOverride={sectionsOverride}
+              readOnly={readOnly}
+              selectedSectionKeys={selectedSectionKeys}
+              onToggleSection={onToggleSection}
+              toLevelKey={toLevelKey}
+              toSectionKey={toSectionKey}
             />
           )
         })}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { CalendarBreak } from "@/api/admin/program-calendar.api"
 import type { EffectiveSeedOverrides } from "./useEffectiveSeedData"
 import {
@@ -144,6 +144,10 @@ export function useSeedState(overrides?: EffectiveSeedOverrides) {
     () => buildInitialSectionConfigs(overrides),
   )
 
+  // ===== LEVEL/SECTION SELECTION (read-only seeder: reduce/bring back) =====
+  const [selectedLevelKeys, setSelectedLevelKeys] = useState<Set<string>>(new Set())
+  const [selectedSectionKeys, setSelectedSectionKeys] = useState<Set<string>>(new Set())
+
   // Merge in override sections that arrived after initial mount (profile loads async).
   // Only adds missing keys so we never clobber a user-edited section config.
   useEffect(() => {
@@ -176,6 +180,99 @@ export function useSeedState(overrides?: EffectiveSeedOverrides) {
   // ===== SUBJECTS (NOT AUTO-SELECTED) =====
   const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(new Set())
 
+  const toLevelKey = (entityKey: string, levelName: string): string => `${entityKey}::${levelName}`
+  const toSectionKey = (levelKey: string, sectionName: string): string => `${levelKey}::${sectionName}`
+
+  const allLevelKeys = useMemo(() => {
+    const keys = new Set<string>()
+    selectedPrograms.forEach((prog) => {
+      if (prog === "college") {
+        selectedCourses.forEach((code) => {
+          const effLevels = overrides?.levelDefsByEntity?.[code] ?? getDefaultLevelNames(code)
+          effLevels.forEach((lvl) => keys.add(toLevelKey(code, lvl)))
+        })
+      } else if (prog === "shs") {
+        selectedStrands.forEach((strand) => {
+          const effLevels = overrides?.levelDefsByEntity?.[strand] ?? LEVEL_DEFS["shs"] ?? []
+          effLevels.forEach((lvl) => keys.add(toLevelKey(strand, lvl)))
+        })
+      } else {
+        const effLevels = overrides?.levelDefsByEntity?.[prog] ?? LEVEL_DEFS[prog] ?? []
+        const names = levelConfigs[prog]?.names ?? effLevels
+        names.forEach((lvl) => keys.add(toLevelKey(prog, lvl)))
+      }
+    })
+    return keys
+  }, [selectedPrograms, selectedCourses, selectedStrands, overrides, levelConfigs])
+
+  const allSectionKeys = useMemo(() => {
+    const keys = new Set<string>()
+    allLevelKeys.forEach((levelKey) => {
+      const [, levelName] = levelKey.split("::")
+      if (!levelName) return
+      const sections = sectionConfigs[levelName] ?? overrides?.sectionsByLevelName?.[levelName] ?? SECTION_DEFAULTS
+      sections.forEach((s) => keys.add(toSectionKey(levelKey, s.name)))
+    })
+    return keys
+  }, [allLevelKeys, sectionConfigs, overrides])
+
+  const prevAllLevelKeysRef = useRef<Set<string>>(new Set())
+  const prevAllSectionKeysRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    const prev = prevAllLevelKeysRef.current
+    const added = new Set<string>()
+    for (const k of allLevelKeys) if (!prev.has(k)) added.add(k)
+    if (added.size > 0 || prev.size !== allLevelKeys.size) {
+      setSelectedLevelKeys((prevSel) => {
+        const next = new Set(prevSel)
+        for (const k of added) next.add(k)
+        for (const k of Array.from(next)) if (!allLevelKeys.has(k)) next.delete(k)
+        if (prev.size === 0 && next.size === 0 && allLevelKeys.size > 0) {
+          return new Set(allLevelKeys)
+        }
+        return next
+      })
+    }
+    prevAllLevelKeysRef.current = new Set(allLevelKeys)
+  }, [allLevelKeys])
+
+  useEffect(() => {
+    const prev = prevAllSectionKeysRef.current
+    const added = new Set<string>()
+    for (const k of allSectionKeys) if (!prev.has(k)) added.add(k)
+    if (added.size > 0 || prev.size !== allSectionKeys.size) {
+      setSelectedSectionKeys((prevSel) => {
+        const next = new Set(prevSel)
+        for (const k of added) next.add(k)
+        for (const k of Array.from(next)) if (!allSectionKeys.has(k)) next.delete(k)
+        if (prev.size === 0 && next.size === 0 && allSectionKeys.size > 0) {
+          return new Set(allSectionKeys)
+        }
+        return next
+      })
+    }
+    prevAllSectionKeysRef.current = new Set(allSectionKeys)
+  }, [allSectionKeys])
+
+  function toggleLevelKey(key: string): void {
+    setSelectedLevelKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function toggleSectionKey(key: string): void {
+    setSelectedSectionKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   const allSelectableSubjects = useMemo(() => {
     const out = new Set<string>()
 
@@ -187,12 +284,17 @@ export function useSeedState(overrides?: EffectiveSeedOverrides) {
       overrides?.courseSubjectsByCode?.[code] ?? COURSE_SUBJECTS[code]
     const getStrandSubjects = (name: string): string[] | undefined =>
       overrides?.strandSubjectsByName?.[name] ?? SHS_STRAND_SUBJECTS[name]
+    const isLevelSelectedForSubject = (entityKey: string, levelName: string): boolean => {
+      if (selectedLevelKeys.size === 0) return true
+      return selectedLevelKeys.has(toLevelKey(entityKey, levelName))
+    }
 
     selectedPrograms.forEach((prog) => {
       const effLevels = effectiveLevelDefs(prog)
       if (effLevels) {
         const levelNames = levelConfigs[prog]?.names ?? effLevels
         levelNames.forEach((lvl) => {
+          if (!isLevelSelectedForSubject(prog, lvl)) return
           getLevelSubjects(lvl)?.forEach((s) => {
             out.add(subjectKey(lvl, s))
           })
@@ -497,6 +599,8 @@ const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => 
     setSelectedCourses(new Set())
     setSelectedStrands(new Set())
     setSelectedSubjects(new Set())
+    setSelectedLevelKeys(new Set())
+    setSelectedSectionKeys(new Set())
     setLevelConfigs(buildInitialLevelConfigs())
     setSectionConfigs(buildInitialSectionConfigs(overrides))
     setSeedGradingScale(false)
@@ -559,6 +663,18 @@ const resolvedGradingScales = useMemo((): Record<string, GradingScalePreset> => 
 
     sectionConfigs,
     setSectionsForLevel: renameLevelSections,
+
+    // Level/Section selection (read-only seeder)
+    selectedLevelKeys,
+    setSelectedLevelKeys,
+    selectedSectionKeys,
+    setSelectedSectionKeys,
+    allLevelKeys,
+    allSectionKeys,
+    toLevelKey,
+    toSectionKey,
+    toggleLevelKey,
+    toggleSectionKey,
 
     // Grading Scales
     seedGradingScale,

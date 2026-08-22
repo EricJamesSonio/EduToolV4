@@ -1,5 +1,5 @@
 // frontend/src/components/admin/data-seeder/hooks/useSeederCard.ts
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAsyncQuery, useMutationWithInvalidation } from "@/hooks/hook-factory.utils";
 import { queryKeys } from "@/hooks/queryKeys.factory";
 import { toast } from "sonner";
@@ -165,7 +165,20 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
     seedProgramCalendars,
     programCalendarConfigs,
     resetAll,
-  } = seedState;
+    selectedLevelKeys,
+    selectedSectionKeys,
+    toLevelKey,
+    toSectionKey,
+    toggleLevelKey,
+    toggleSectionKey,
+  } = seedState as typeof seedState & {
+    selectedLevelKeys: Set<string>
+    selectedSectionKeys: Set<string>
+    toLevelKey: (entityKey: string, levelName: string) => string
+    toSectionKey: (levelKey: string, sectionName: string) => string
+    toggleLevelKey: (key: string) => void
+    toggleSectionKey: (key: string) => void
+  }
 
   function buildSectionConfigsPayload(): Record<string, { name: string; capacity: number }[]> {
     const payload: Record<string, { name: string; capacity: number }[]> = {};
@@ -178,6 +191,14 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
       sectionConfigs[levelName]
         ?? overrides?.sectionsByLevelName?.[levelName]
         ?? SECTION_DEFAULTS
+    const isLevelSelected = (entityKey: string, levelName: string): boolean => {
+      if (selectedLevelKeys.size === 0) return true
+      return selectedLevelKeys.has(toLevelKey(entityKey, levelName))
+    }
+    const filterSections = (levelKey: string, sections: { name: string; capacity: number }[]): { name: string; capacity: number }[] => {
+      if (selectedSectionKeys.size === 0) return sections
+      return sections.filter((s) => selectedSectionKeys.has(toSectionKey(levelKey, s.name)))
+    }
 
     for (const prog of selectedPrograms) {
       if (!effectiveHasLevels(prog)) continue;
@@ -186,18 +207,24 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
       if (prog === "college") {
         for (const course of selectedCourses) {
           for (const levelName of levelNames) {
-            payload[`${course}|${levelName}`] = effectiveSection(levelName);
+            if (!isLevelSelected(course, levelName)) continue
+            const levelKey = toLevelKey(course, levelName)
+            payload[`${course}|${levelName}`] = filterSections(levelKey, effectiveSection(levelName));
           }
         }
       } else if (prog === "shs") {
         for (const strand of selectedStrands) {
           for (const levelName of levelNames) {
-            payload[`${strand}|${levelName}`] = effectiveSection(levelName);
+            if (!isLevelSelected(strand, levelName)) continue
+            const levelKey = toLevelKey(strand, levelName)
+            payload[`${strand}|${levelName}`] = filterSections(levelKey, effectiveSection(levelName));
           }
         }
       } else {
         for (const levelName of levelNames) {
-          payload[levelName] = effectiveSection(levelName);
+          if (!isLevelSelected(prog, levelName)) continue
+          const levelKey = toLevelKey(prog, levelName)
+          payload[levelName] = filterSections(levelKey, effectiveSection(levelName));
         }
       }
     }
@@ -261,25 +288,50 @@ export function useSeederCard(overrides?: EffectiveSeedOverrides) {
 
     const effectiveHasLevels = (p: string) =>
       !!(overrides?.levelDefsByEntity?.[p] ?? LEVEL_DEFS[p])
-    const levelConfigsPayload = Object.fromEntries(
-      Array.from(selectedPrograms)
-        .filter((p) => effectiveHasLevels(p))
-        .flatMap((p) => {
-          const entries: [string, string[]][] = [];
-          if (levelConfigs[p]?.names) entries.push([p, levelConfigs[p]!.names]);
-          if (p === "college") {
-            Array.from(selectedCourses).forEach((code) => {
-              if (levelConfigs[code]?.names) entries.push([code, levelConfigs[code]!.names]);
-            });
+    const levelConfigsPayload = (() => {
+      if (selectedLevelKeys.size > 0) {
+        const byEntity = new Map<string, string[]>()
+        for (const key of selectedLevelKeys) {
+          const sep = key.indexOf("::")
+          if (sep === -1) continue
+          const entity = key.slice(0, sep)
+          const lvl = key.slice(sep + 2)
+          const isCourse = selectedCourses.has(entity)
+          const isStrand = selectedStrands.has(entity)
+          const isProg = selectedPrograms.has(entity)
+          if (isCourse && selectedPrograms.has("college")) {
+            if (!byEntity.has(entity)) byEntity.set(entity, [])
+            byEntity.get(entity)!.push(lvl)
+          } else if (isStrand && selectedPrograms.has("shs")) {
+            if (!byEntity.has(entity)) byEntity.set(entity, [])
+            byEntity.get(entity)!.push(lvl)
+          } else if (isProg) {
+            if (!byEntity.has(entity)) byEntity.set(entity, [])
+            byEntity.get(entity)!.push(lvl)
           }
-          if (p === "shs") {
-            Array.from(selectedStrands).forEach((name) => {
-              if (levelConfigs[name]?.names) entries.push([name, levelConfigs[name]!.names]);
-            });
-          }
-          return entries;
-        }),
-    );
+        }
+        if (byEntity.size > 0) return Object.fromEntries(byEntity)
+      }
+      return Object.fromEntries(
+        Array.from(selectedPrograms)
+          .filter((p) => effectiveHasLevels(p))
+          .flatMap((p) => {
+            const entries: [string, string[]][] = [];
+            if (levelConfigs[p]?.names) entries.push([p, levelConfigs[p]!.names]);
+            if (p === "college") {
+              Array.from(selectedCourses).forEach((code) => {
+                if (levelConfigs[code]?.names) entries.push([code, levelConfigs[code]!.names]);
+              });
+            }
+            if (p === "shs") {
+              Array.from(selectedStrands).forEach((name) => {
+                if (levelConfigs[name]?.names) entries.push([name, levelConfigs[name]!.names]);
+              });
+            }
+            return entries;
+          }),
+      )
+    })()
 
     const sectionConfigsPayload = buildSectionConfigsPayload();
 
@@ -406,9 +458,14 @@ seedMutation.mutate({
     overrides?.levelDefsByEntity?.[p] ?? LEVEL_DEFS[p] ?? []
   const effectiveHasLevelsForCount = (p: string) =>
     !!(overrides?.levelDefsByEntity?.[p] ?? LEVEL_DEFS[p])
-  const totalLevelCount = Array.from(selectedPrograms)
-    .filter((p) => effectiveHasLevelsForCount(p))
-    .reduce((sum, p) => sum + (levelConfigs[p]?.count ?? effectiveLevelsForCount(p).length), 0);
+  const totalLevelCount = selectedLevelKeys.size > 0
+    ? Array.from(selectedLevelKeys).filter((k) => {
+        const entity = k.split("::")[0]
+        return selectedPrograms.has(entity) || selectedCourses.has(entity) || selectedStrands.has(entity)
+      }).length
+    : Array.from(selectedPrograms)
+        .filter((p) => effectiveHasLevelsForCount(p))
+        .reduce((sum, p) => sum + (levelConfigs[p]?.count ?? effectiveLevelsForCount(p).length), 0);
   const totalSectionCount = Object.values(sectionConfigsPayload).reduce(
     (sum, sections) => sum + sections.length, 0,
   );
@@ -469,11 +526,22 @@ seedMutation.mutate({
       : []),
   ];
 
-  const derivedSelectedLevels = new Set(
-    Array.from(selectedPrograms)
-      .filter((p) => !!(overrides?.levelDefsByEntity?.[p] ?? LEVEL_DEFS[p]))
-      .flatMap((p) => levelConfigs[p]?.names ?? overrides?.levelDefsByEntity?.[p] ?? LEVEL_DEFS[p] ?? []),
-  );
+  const derivedSelectedLevels = useMemo(() => {
+    if (selectedLevelKeys.size > 0) {
+      const names = new Set<string>()
+      for (const key of selectedLevelKeys) {
+        const sep = key.indexOf("::")
+        if (sep !== -1) names.add(key.slice(sep + 2))
+        else names.add(key)
+      }
+      return names
+    }
+    return new Set(
+      Array.from(selectedPrograms)
+        .filter((p) => !!(overrides?.levelDefsByEntity?.[p] ?? LEVEL_DEFS[p]))
+        .flatMap((p) => levelConfigs[p]?.names ?? overrides?.levelDefsByEntity?.[p] ?? LEVEL_DEFS[p] ?? []),
+    )
+  }, [selectedLevelKeys, selectedPrograms, levelConfigs, overrides])
 
   return {
     // School year
