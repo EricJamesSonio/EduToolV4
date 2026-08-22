@@ -227,13 +227,15 @@ export function ProfileContent(): React.JSX.Element {
       const formData = new FormData();
       formData.append("file", file);
 
-      const { data } = await apiClient.post<{ path: string }>(
+      const { data: body } = await apiClient.post<{ success: boolean; data: { path: string } }>(
         "/uploads/profile",
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
+      const path = (body as unknown as { path?: string })?.path ?? body.data?.path;
+      if (!path) throw new Error("Upload did not return a file path");
 
-      const updated = await profileApi.updateProfile({ profileImage: data.path });
+      const updated = await profileApi.updateProfile({ profileImage: path });
       publishUser(updated);
       toast.success("Profile photo updated");
     } catch {
