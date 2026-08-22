@@ -30,7 +30,6 @@ describe('GroupyService', () => {
       upsertReadReceipt: jest.fn(),
       getReadReceipt: jest.fn(),
       listMembers: jest.fn(),
-      findMessages: jest.fn(),
     };
     gateway = {
       emitMessageNew: jest.fn(),
