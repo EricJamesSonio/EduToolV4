@@ -24,17 +24,9 @@ describe('LevelService', () => {
       bulkCreate: jest.fn(),
     };
     db = {
-      level: { findMany: jest.fn(), update: jest.fn(), delete: jest.fn(), deleteMany: jest.fn() },
       program: { findFirst: jest.fn() },
-      section: { findMany: jest.fn() },
-      subject: { findMany: jest.fn() },
       studentProgramEnrollment: { count: jest.fn() },
       class: { count: jest.fn() },
-      subjectPrerequisite: { deleteMany: jest.fn() },
-      subjectSharing: { deleteMany: jest.fn() },
-      subject: { deleteMany: jest.fn() },
-      section: { deleteMany: jest.fn() }, // will be overridden but need both
-      level: { delete: jest.fn(), findMany: jest.fn(), update: jest.fn() },
       $transaction: jest.fn(async (cb) => {
         if (Array.isArray(cb)) return Promise.all(cb);
         const tx: any = {
@@ -47,7 +39,6 @@ describe('LevelService', () => {
         return cb(tx);
       }),
     };
-    // Need to handle both db.level and db.section etc without overwrite - merge
     db.level = { findMany: jest.fn(), update: jest.fn(), delete: jest.fn(), deleteMany: jest.fn(), findFirst: jest.fn() };
     db.section = { findMany: jest.fn(), deleteMany: jest.fn() };
     db.subject = { findMany: jest.fn(), deleteMany: jest.fn() };
