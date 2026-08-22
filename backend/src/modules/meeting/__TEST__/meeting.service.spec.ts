@@ -56,6 +56,7 @@ describe('MeetingService', () => {
       const res = await service.create(classId, orgId, educatorId, { title: 'M', startTime: new Date().toISOString(), invitedStudentIds: [studentId] } as any);
       expect(meetingRepo.createInvites).toHaveBeenCalledWith(orgId, 'meet-1', [studentId]);
       expect(notif.createBulkNotifications).toHaveBeenCalled();
+      if (!res) throw new Error('expected res to be defined');
       expect(res.id).toBe('meet-1');
     });
     it('creates with all enrollments when no invites provided', async () => {
