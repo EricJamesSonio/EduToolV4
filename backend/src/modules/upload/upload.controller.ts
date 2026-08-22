@@ -77,14 +77,16 @@ export class UploadController {
       }),
     )
     file: Express.Multer.File,
-    @CurrentUser('id') accountId: string,
   ) {
     const relativePath = `profiles/${file.filename}`;
-    const saved = await this.uploadService.saveProfileImage(
-      accountId,
-      relativePath,
-    );
-    return { path: saved };
+    // NOTE: no DB write here — the file is only stored on disk and the
+    // caller must explicitly PATCH its target (student/educator/self)
+    // with { profileImage: relativePath }. Previously this endpoint
+    // auto-saved to the *caller's* profile via uploadService.saveProfileImage,
+    // which meant an admin uploading for a student would overwrite the
+    // admin's own avatar and the subsequent PATCH never received the path
+    // due to a wrapped-response bug on the frontend.
+    return { path: relativePath };
   }
 
   @Post('organization-logo')
