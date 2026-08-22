@@ -192,6 +192,7 @@ describe('SubmissionService', () => {
       submissionRepo.findAnswers.mockResolvedValue([{ id: 'a-1', question_id: 'q-1', answer: 'x' }]);
       submissionRepo.findQuestionsByAssessment.mockResolvedValue([{ id: 'q-1', question_text: 'Q?' }]);
       const res = await service.getAnswers(assessmentId, 'sub-1', orgId);
+      if (!res[0] || !res[0].question) throw new Error('expected res[0].question to be defined');
       expect(res[0].question.question_text).toBe('Q?');
     });
     it('closeExpiredDrafts delegates', async () => {
