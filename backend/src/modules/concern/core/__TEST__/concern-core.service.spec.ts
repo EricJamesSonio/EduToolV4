@@ -50,6 +50,7 @@ describe('ConcernCoreService', () => {
     repo.createConcernWithFirstMessage.mockResolvedValue({ id: 'c-1' });
     const res = await service.createConcern('org-1', 'cat-1', { accountId: 'acc-1', role: 'student' as any, name: 'John' }, 'Subject', 'Body');
     expect(repo.createConcernWithFirstMessage).toHaveBeenCalledWith('org-1', expect.objectContaining({ categoryId: 'cat-1', senderAccountId: 'acc-1' }));
+    if (!res) throw new Error('expected res to be defined');
     expect(res.id).toBe('c-1');
   });
 
@@ -72,6 +73,7 @@ describe('ConcernCoreService', () => {
     repo.addMessageAndMaybeReopen.mockResolvedValue({ id: 'msg-1' });
     const res = await service.addMessage('org-1', 'c-1', { accountId: 'acc-1', role: 'student' as any, name: 'John' }, 'Hello');
     expect(repo.addMessageAndMaybeReopen).toHaveBeenCalled();
+    if (!res) throw new Error('expected res to be defined');
     expect(res.id).toBe('msg-1');
   });
 
