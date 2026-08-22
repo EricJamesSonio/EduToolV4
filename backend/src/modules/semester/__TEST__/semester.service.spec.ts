@@ -76,6 +76,7 @@ describe('SemesterService', () => {
       const res = await service.create(orgId, semDto() as any);
       expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ name: '1st Semester' }));
       expect(repo.upsertTerms).toHaveBeenCalled();
+      if (!res) throw new Error('expected res to be defined');
       expect(res.id).toBe('sem-1');
     });
   });
@@ -102,6 +103,7 @@ describe('SemesterService', () => {
       const res = await service.update('sem-1', orgId, { name: 'Updated', terms: [{ name: 'Term 1', orderIndex: 0, startDate: '2024-06-01', endDate: '2024-07-01' }] } as any);
       expect(repo.update).toHaveBeenCalled();
       expect(repo.upsertTerms).toHaveBeenCalled();
+      if (!res) throw new Error('expected res to be defined');
       expect(res.name).toBe('Updated');
     });
     it('throws when term missing name/orderIndex', async () => {
