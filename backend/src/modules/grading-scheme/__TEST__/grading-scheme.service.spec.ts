@@ -102,6 +102,7 @@ describe('GradingSchemeService', () => {
       repo.upsertForClass.mockResolvedValue({ id: 'gs-1' });
       const res = await service.applyTemplateToClass(orgId, { classId, templateId: 'tmpl-1' } as any);
       expect(repo.upsertForClass).toHaveBeenCalledWith(orgId, classId, 'tmpl-1', 'Tpl', expect.any(Array));
+      if (!res) throw new Error('expected res to be defined');
       expect(res.id).toBe('gs-1');
     });
   });
