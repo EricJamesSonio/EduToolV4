@@ -23,7 +23,7 @@ import { OrgSeederService } from '@/modules/org-seeder/org-seeder.service';
 import { SchoolProfileService } from '@/modules/school-profile/school-profile.service';
 import { genPrefixedId } from './utils/id.util';
 import { isDatabaseReachable } from './utils/net.util';
-import { snapshotCounts, log, check, makeProgramCalendars } from './utils/org-seeder-test.fixtures';
+import { log, check, makeProgramCalendars } from './utils/org-seeder-test.fixtures';
 
 if (!process.env.DATABASE_URL) {
   loadEnv({ path: path.join(__dirname, '..', '.env') });
@@ -130,17 +130,20 @@ runSuite('SchoolProfile -> Seeder integration (real DB)', () => {
 
       const college = departments.find((d: any) => d.type === 'college');
       expect(college).toBeDefined();
+      if (!college) throw new Error('college department not found');
       expect(college.courses).toHaveLength(1);
       expect(college.courses[0].code).toBe('BSCS');
       expect(college.courses[0].levels).toHaveLength(2);
       expect(college.courses[0].levels[0].sections[0].name).toBe('A');
 
       const shs = departments.find((d: any) => d.type === 'shs');
+      if (!shs) throw new Error('shs department not found');
       expect(shs.strands).toHaveLength(1);
       expect(shs.strands[0].name).toBe('STEM');
       expect(shs.strands[0].levels).toHaveLength(2);
 
       const elem = departments.find((d: any) => d.type === 'elementary');
+      if (!elem) throw new Error('elementary department not found');
       expect(elem.levels).toHaveLength(1);
       expect(elem.levels[0].name).toBe('Grade 1');
     });
@@ -159,10 +162,14 @@ runSuite('SchoolProfile -> Seeder integration (real DB)', () => {
       const labels = departments.map((d: any) => d.type).sort();
       expect(labels).toEqual(['college', 'elementary', 'shs']);
       // College subtext would be "BS Computer Science"
-      const collegeSubtext = departments.find((d: any) => d.type === 'college').courses.map((c: any) => c.name).join(' · ');
+      const collegeDept = departments.find((d: any) => d.type === 'college');
+      if (!collegeDept) throw new Error('college department not found');
+      const collegeSubtext = collegeDept.courses.map((c: any) => c.name).join(' · ');
       expect(collegeSubtext).toBe('BS Computer Science');
       // SHS subtext would be "STEM"
-      const shsSubtext = departments.find((d: any) => d.type === 'shs').strands.map((s: any) => s.name).join(' · ');
+      const shsDept = departments.find((d: any) => d.type === 'shs');
+      if (!shsDept) throw new Error('shs department not found');
+      const shsSubtext = shsDept.strands.map((s: any) => s.name).join(' · ');
       expect(shsSubtext).toBe('STEM');
     });
   });
