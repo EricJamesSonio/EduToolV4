@@ -56,8 +56,9 @@ export function SubjectStep({
     collapsibleKey: string, title: string, groupName: string, plainSubjects: string[],
     minorSet?: Set<string>, yearFor?: (subjectName: string) => string | undefined,
   ) {
-    const groupKeys = plainSubjects.map((s) => subjectKey(groupName, s))
-    const availableKeys = groupKeys.filter((k) => allSelectableSubjects.includes(k))
+    const uniqueSubjects = [...new Set(plainSubjects)]
+    const groupKeys = uniqueSubjects.map((s) => subjectKey(groupName, s))
+    const availableKeys = [...new Set(groupKeys.filter((k) => allSelectableSubjects.includes(k)))]
     if (availableKeys.length === 0) return null
 
     const selCount = availableKeys.filter((k) => selectedSubjects.has(k) && !isDisabled(k)).length

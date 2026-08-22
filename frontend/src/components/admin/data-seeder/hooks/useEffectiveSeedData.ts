@@ -39,22 +39,22 @@ export function useEffectiveSeedData(
     for (const dept of savedDepartments) {
       // Department-level (no course/strand) — daycare/kinder/elementary/jhs
       if (dept.levels.length > 0) {
-        levelDefsByEntity[dept.type] = dept.levels.map((l) => l.name)
+        levelDefsByEntity[dept.type] = [...new Set(dept.levels.map((l) => l.name))]
         for (const level of dept.levels) {
           sectionsByLevelName[level.name] = level.sections.map((s) => ({
             name: s.name,
             capacity: s.capacity,
           }))
-          levelSubjectsByLevelName[level.name] = level.subjects
-            .filter((s) => s.subjectType === "major")
-            .map((s) => s.name)
+          levelSubjectsByLevelName[level.name] = [
+            ...new Set(level.subjects.filter((s) => s.subjectType === "major").map((s) => s.name)),
+          ]
         }
       }
 
       // Course-scoped (college)
       for (const course of dept.courses) {
         const entityKey = course.code ?? course.name
-        levelDefsByEntity[entityKey] = course.levels.map((l) => l.name)
+        levelDefsByEntity[entityKey] = [...new Set(course.levels.map((l) => l.name))]
         const allCourseSubjects: string[] = []
         for (const level of course.levels) {
           sectionsByLevelName[level.name] = level.sections.map((s) => ({
@@ -64,12 +64,12 @@ export function useEffectiveSeedData(
           const majors = level.subjects.filter((s) => s.subjectType === "major").map((s) => s.name)
           allCourseSubjects.push(...majors)
         }
-        courseSubjectsByCode[entityKey] = allCourseSubjects
+        courseSubjectsByCode[entityKey] = [...new Set(allCourseSubjects)]
       }
 
       // Strand-scoped (shs)
       for (const strand of dept.strands) {
-        levelDefsByEntity[strand.name] = strand.levels.map((l) => l.name)
+        levelDefsByEntity[strand.name] = [...new Set(strand.levels.map((l) => l.name))]
         const allStrandSubjects: string[] = []
         for (const level of strand.levels) {
           sectionsByLevelName[level.name] = level.sections.map((s) => ({
@@ -79,7 +79,7 @@ export function useEffectiveSeedData(
           const majors = level.subjects.filter((s) => s.subjectType === "major").map((s) => s.name)
           allStrandSubjects.push(...majors)
         }
-        strandSubjectsByName[strand.name] = allStrandSubjects
+        strandSubjectsByName[strand.name] = [...new Set(allStrandSubjects)]
       }
     }
 
