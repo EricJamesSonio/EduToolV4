@@ -1,7 +1,6 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { MessageSquare } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ClassInfoCard } from "@/components/student/class/overview/ClassInfoCard";
@@ -10,14 +9,17 @@ import { GradeSummaryCard } from "@/components/student/class/overview/GradeSumma
 import { useStudentClass } from "@/hooks/student/useStudentClasses";
 import { useStudentAssessments } from "@/hooks/student/useStudentAssessments";
 import { useStudentGrades } from "@/hooks/student/useStudentGrades";
-import { useGroupyUnread } from "@/hooks/groupy/useGroupyUnread";
-import { Button } from "@/components/ui/button";
+// HIDDEN: Groupy Class Chat - imports kept commented for easy restore
+// import { MessageSquare } from "lucide-react";
+// import { useGroupyUnread } from "@/hooks/groupy/useGroupyUnread";
+// import { Button } from "@/components/ui/button";
 
 export default function StudentClassDetailPage(): React.JSX.Element {
   const { classId } = useParams<{ classId: string }>();
   const router = useRouter();
 
-  const { data: groupyUnread } = useGroupyUnread(classId);
+  // HIDDEN: Groupy unread badge - hidden per request (Class Chat disabled)
+  // const { data: groupyUnread } = useGroupyUnread(classId);
 
   const { data: classData, isLoading: classLoading } = useStudentClass(classId);
   const { data: assessments = [], isLoading: assessmentsLoading } = useStudentAssessments(classId);
@@ -33,22 +35,23 @@ export default function StudentClassDetailPage(): React.JSX.Element {
           { label: "My Classes", href: "/student/classes" },
           { label: subjectName },
         ]}
-        actions={
-          <Button
-            size="sm"
-            variant="outline"
-            className="relative gap-1.5"
-            onClick={() => router.push(`/student/classes/${classId}/groupy`)}
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            Class Chat
-            {groupyUnread?.hasUnread && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-white ring-2 ring-background">
-                !
-              </span>
-            )}
-          </Button>
-        }
+        // HIDDEN: Class Chat (Groupy) button - hidden per request, original code preserved below
+        // actions={
+        //   <Button
+        //     size="sm"
+        //     variant="outline"
+        //     className="relative gap-1.5"
+        //     onClick={() => router.push(`/student/classes/${classId}/groupy`)}
+        //   >
+        //     <MessageSquare className="h-3.5 w-3.5" />
+        //     Class Chat
+        //     {groupyUnread?.hasUnread && (
+        //       <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold leading-none text-white ring-2 ring-background">
+        //         !
+        //       </span>
+        //     )}
+        //   </Button>
+        // }
       />
 
       {classLoading ? (
