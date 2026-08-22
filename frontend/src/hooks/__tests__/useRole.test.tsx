@@ -105,26 +105,24 @@ describe('useRoleGuard', () => {
   });
 
   it('pageshow handler checks persisted and calls store', () => {
-    const store = require('@/store/auth.store').useAuthStore;
-    const originalGetState = store.getState;
-    const mockGetState = jest.fn().mockReturnValue({ user: null });
-    store.getState = mockGetState;
+    const getStateSpy = jest.spyOn(useAuthStore, 'getState').mockReturnValue({ user: null } as unknown as ReturnType<typeof useAuthStore.getState>);
 
     mockUseAuth.mockReturnValue({ user: { role: 'admin' }, isLoading: false });
     renderHook(() => useRoleGuard(['admin']));
 
-    const handler = addEventListenerSpy.mock.calls.find(c => c[0] === 'pageshow')?.[1];
+    const handler = addEventListenerSpy.mock.calls.find((c: [string, unknown]) => c[0] === 'pageshow')?.[1] as ((e: { persisted: boolean }) => void) | undefined;
     expect(handler).toBeDefined();
+    if (!handler) throw new Error('pageshow handler not found');
     // Should check persisted and call getState when persisted true
-    handler({ persisted: true } as any);
-    expect(mockGetState).toHaveBeenCalled();
+    handler({ persisted: true });
+    expect(getStateSpy).toHaveBeenCalled();
 
-    const callsBefore = mockGetState.mock.calls.length;
-    handler({ persisted: false } as any);
-    // When not persisted, handler returns early before calling getState? Actually it returns if !e.persisted
-    expect(mockGetState.mock.calls.length).toBe(callsBefore);
+    const callsBefore = getStateSpy.mock.calls.length;
+    handler({ persisted: false });
+    // When not persisted, handler returns early before calling getState
+    expect(getStateSpy.mock.calls.length).toBe(callsBefore);
 
-    store.getState = originalGetState;
+    getStateSpy.mockRestore();
   });
 
   it('allows multiple roles', () => {
