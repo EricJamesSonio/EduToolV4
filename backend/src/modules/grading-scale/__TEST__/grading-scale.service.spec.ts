@@ -33,11 +33,7 @@ describe('GradingScaleService', () => {
       upsert: jest.fn(),
       findBySchoolYear: jest.fn(),
       remove: jest.fn(),
-      findByProgramAndYear: jest.fn(),
     };
-    // need duplicate correct name
-    assignRepo.findByProgramAndYear = jest.fn();
-    assignRepo.findByScaleId = jest.fn();
     db = { program: { findFirst: jest.fn() } };
     service = new GradingScaleService(scaleRepo, assignRepo, db);
     jest.clearAllMocks();
