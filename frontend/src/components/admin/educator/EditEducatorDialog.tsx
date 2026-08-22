@@ -76,6 +76,7 @@ export function EditEducatorDialog({
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file) return;
 
     setImageUploading(true);
@@ -83,17 +84,19 @@ export function EditEducatorDialog({
       const formData = new FormData();
       formData.append("file", file);
 
-      const { data } = await apiClient.post<{ path: string }>(
+      const { data: body } = await apiClient.post<{ success: boolean; data: { path: string } }>(
         "/uploads/profile",
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
+      const path: string | undefined = (body as unknown as { path?: string })?.path ?? body.data?.path;
+      if (!path) throw new Error("Upload did not return a file path");
 
-      await updateMutation.mutateAsync({
+      const updated = await updateMutation.mutateAsync({
         id: educator.id,
-        data: { profileImage: data.path },
+        data: { profileImage: path },
       });
-      setLocalProfileImage(data.path);
+      setLocalProfileImage(updated.profileImage ?? path);
     } catch {
       // useUpdateEducator's onError already surfaces a toast for update
       // failures; this catch only exists so the upload-step rejection
@@ -101,7 +104,6 @@ export function EditEducatorDialog({
       toast.error("Failed to upload profile photo");
     } finally {
       setImageUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
