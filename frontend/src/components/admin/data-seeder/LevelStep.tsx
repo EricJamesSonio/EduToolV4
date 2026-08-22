@@ -66,15 +66,14 @@ function entityMinMax(
   coursesOverride?: { code: string; name: string; years: number }[] | null,
   levelDefsOverride?: Record<string, string[]>,
 ): { min: number; max: number } {
+  const overrideLen = levelDefsOverride?.[entityKey]?.length ?? 0
   if (LEVEL_MIN[entityKey] !== undefined) {
-    const overrideLen = levelDefsOverride?.[entityKey]?.length
-    return { min: LEVEL_MIN[entityKey], max: Math.max(LEVEL_MAX[entityKey] ?? 12, overrideLen ?? 0) }
+    return { min: LEVEL_MIN[entityKey], max: Math.max(LEVEL_MAX[entityKey] ?? 12, 12, overrideLen) }
   }
   const course = (coursesOverride ?? COLLEGE_COURSES).find((c) => c.code === entityKey)
-  if (course) return { min: 1, max: course.years }
+  if (course) return { min: 1, max: Math.max(course.years, 12, overrideLen) }
   if (SHS_STRANDS.includes(entityKey) || levelDefsOverride?.[entityKey]) {
-    const overrideLen = levelDefsOverride?.[entityKey]?.length
-    return { min: 1, max: Math.max(2, overrideLen ?? 0) }
+    return { min: 1, max: Math.max(6, 12, overrideLen) }
   }
   return { min: 1, max: 12 }
 }
