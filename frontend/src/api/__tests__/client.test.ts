@@ -31,14 +31,15 @@ describe('api/client', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetState.mockReturnValue({ accessToken: null, clearAuth: mockClearAuth, setAccessToken: mockSetAccessToken });
-    // @ts-ignore mock store returns shape above
-    (useAuthStore as any).getState = mockGetState;
+    (useAuthStore as unknown as { getState: typeof mockGetState }).getState = mockGetState;
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     // Mock window.location.replace to avoid jsdom NotImplemented
     try {
       Object.defineProperty(window.location, 'replace', { value: jest.fn(), writable: true, configurable: true });
-    } catch {}
+    } catch {
+      /* ignore - window.location mock may already exist */
+    }
   });
 
   afterEach(() => {
@@ -47,11 +48,13 @@ describe('api/client', () => {
     try {
       // Restore original if needed
       jest.restoreAllMocks();
-    } catch {}
+    } catch {
+      /* ignore - restore may not be needed */
+    }
   });
 
   afterAll(() => {
-    process.env.NODE_ENV = originalNodeEnv;
+    Object.defineProperty(process.env, 'NODE_ENV', { value: originalNodeEnv, writable: true, configurable: true });
   });
 
   describe('request interceptor - Authorization header', () => {
@@ -74,11 +77,11 @@ describe('api/client', () => {
 
   describe('request interceptor - development dedup and trackCall', () => {
     beforeEach(() => {
-      process.env.NODE_ENV = 'development';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', writable: true, configurable: true });
     });
 
     it('logs dedup when same request is pending', async () => {
-      process.env.NODE_ENV = 'development';
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', writable: true, configurable: true });
       const handler = (apiClient.interceptors.request as any).handlers[0].fulfilled;
       const uniqueUrl = `/dedup-test-${Date.now()}-${Math.random()}`;
       const config: any = { method: 'get', url: uniqueUrl, headers: {}, params: { a: 1 } };
