@@ -377,6 +377,15 @@ export function useSchoolProfileDraft(savedDepartments: SchoolProfileDepartment[
     setDirty(false)
   }
 
+  function discardChanges(): void {
+    const initial: Record<string, DraftDepartment> = {}
+    for (const saved of savedDepartments) {
+      initial[saved.type] = fromSavedDepartment(saved)
+    }
+    setDepartments(initial)
+    setDirty(false)
+  }
+
   return {
     departments,
     selectedTypes,
@@ -399,5 +408,6 @@ export function useSchoolProfileDraft(savedDepartments: SchoolProfileDepartment[
     renameSubject,
     deleteSubject,
     markSaved,
+    discardChanges,
   }
 }
