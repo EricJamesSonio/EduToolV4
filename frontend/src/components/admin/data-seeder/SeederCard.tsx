@@ -187,6 +187,34 @@ export function SeederCard() {
             />
           </Card>
 
+          {/* Strands (SHS) — before Levels because Levels depend on selected Strands */}
+          {selectedPrograms.has("shs") && (
+            <Card id="strands" icon={BookOpen} title="SHS Strands">
+              <StrandStep
+                selectedStrands={selectedStrands}
+                disabledStrandNames={existingStrandNames}
+                onToggleStrand={helpers.toggleStrand}
+                onSelectAllStrands={helpers.selectAllStrands}
+                onDeselectAllStrands={helpers.deselectAllStrands}
+                strandsOverride={overrides.shsStrands}
+              />
+            </Card>
+          )}
+
+          {/* Courses (College) — before Levels because Levels depend on selected Courses (e.g. BSA 5yr vs 4yr) */}
+          {selectedPrograms.has("college") && (
+            <Card id="courses" icon={BookOpen} title="College Courses">
+              <CourseStep
+                selectedCourses={selectedCourses}
+                disabledCourseCodes={existingCourseCodes}
+                onToggleCourse={helpers.toggleCourse}
+                onSelectAllCourses={helpers.selectAllCourses}
+                onDeselectAllCourses={helpers.deselectAllCourses}
+                coursesOverride={overrides.collegeCourses}
+              />
+            </Card>
+          )}
+
           {/* Levels — also show when an override defines levels for a program */}
           {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p] || !!overrides.levelDefsByEntity[p]) && (
             <Card id="levels" icon={LayoutList} title="Levels">
@@ -205,7 +233,7 @@ export function SeederCard() {
             </Card>
           )}
 
-          {/* Sections */}
+          {/* Sections — after Levels */}
           {Array.from(selectedPrograms).some((p) => LEVEL_DEFS[p] || !!overrides.levelDefsByEntity[p]) && (
             <Card id="sections" icon={Scale} title="Sections">
               <SectionStep
@@ -219,34 +247,6 @@ export function SeederCard() {
                 strandsOverride={overrides.shsStrands}
                 levelDefsOverride={overrides.levelDefsByEntity}
                 sectionsOverride={overrides.sectionsByLevelName}
-              />
-            </Card>
-          )}
-
-          {/* Strands (SHS) */}
-          {selectedPrograms.has("shs") && (
-            <Card id="strands" icon={BookOpen} title="SHS Strands">
-              <StrandStep
-                selectedStrands={selectedStrands}
-                disabledStrandNames={existingStrandNames}
-                onToggleStrand={helpers.toggleStrand}
-                onSelectAllStrands={helpers.selectAllStrands}
-                onDeselectAllStrands={helpers.deselectAllStrands}
-                strandsOverride={overrides.shsStrands}
-              />
-            </Card>
-          )}
-
-          {/* Courses (College) */}
-          {selectedPrograms.has("college") && (
-            <Card id="courses" icon={BookOpen} title="College Courses">
-              <CourseStep
-                selectedCourses={selectedCourses}
-                disabledCourseCodes={existingCourseCodes}
-                onToggleCourse={helpers.toggleCourse}
-                onSelectAllCourses={helpers.selectAllCourses}
-                onDeselectAllCourses={helpers.deselectAllCourses}
-                coursesOverride={overrides.collegeCourses}
               />
             </Card>
           )}
