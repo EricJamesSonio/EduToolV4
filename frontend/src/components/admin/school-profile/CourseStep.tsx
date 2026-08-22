@@ -48,11 +48,13 @@ export function CourseStep({
         ))}
       </div>
 
-      <AddItemInput
-        placeholder="e.g. BS Information Technology"
-        disabled={disabled}
-        onAdd={(name) => onAdd(departmentId, name)}
-      />
+      {!disabled && (
+        <AddItemInput
+          placeholder="e.g. BS Information Technology"
+          disabled={disabled}
+          onAdd={(name) => onAdd(departmentId, name)}
+        />
+      )}
     </div>
   )
 }

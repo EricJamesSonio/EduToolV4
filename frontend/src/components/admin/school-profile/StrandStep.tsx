@@ -47,11 +47,13 @@ export function StrandStep({
         ))}
       </div>
 
-      <AddItemInput
-        placeholder="e.g. STEM"
-        disabled={disabled}
-        onAdd={(name) => onAdd(departmentId, name)}
-      />
+      {!disabled && (
+        <AddItemInput
+          placeholder="e.g. STEM"
+          disabled={disabled}
+          onAdd={(name) => onAdd(departmentId, name)}
+        />
+      )}
     </div>
   )
 }

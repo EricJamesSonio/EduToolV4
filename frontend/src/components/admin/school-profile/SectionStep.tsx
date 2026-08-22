@@ -60,16 +60,18 @@ function SectionRow({
         onChange={(e) => setCapacity(e.target.value)}
         onBlur={commitCapacity}
       />
-      <Button
-        type="button"
-        size="icon"
-        variant="ghost"
-        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-        onClick={onDelete}
-        disabled={disabled}
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </Button>
+      {!disabled && (
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          onClick={onDelete}
+          disabled={disabled}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      )}
     </div>
   )
 }
@@ -118,35 +120,37 @@ export function SectionStep({
         ))}
       </div>
 
-      <div className="flex items-center gap-2">
-        <Input
-          value={newName}
-          placeholder="e.g. Section C"
-          disabled={disabled}
-          className="h-8 text-sm"
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-        />
-        <Input
-          type="number"
-          min={1}
-          value={newCapacity}
-          disabled={disabled}
-          className="h-8 w-24 text-sm tabular-nums"
-          onChange={(e) => setNewCapacity(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-        />
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-8 shrink-0"
-          onClick={submit}
-          disabled={disabled || !newName.trim()}
-        >
-          Add
-        </Button>
-      </div>
+      {!disabled && (
+        <div className="flex items-center gap-2">
+          <Input
+            value={newName}
+            placeholder="e.g. Section C"
+            disabled={disabled}
+            className="h-8 text-sm"
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+          />
+          <Input
+            type="number"
+            min={1}
+            value={newCapacity}
+            disabled={disabled}
+            className="h-8 w-24 text-sm tabular-nums"
+            onChange={(e) => setNewCapacity(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 shrink-0"
+            onClick={submit}
+            disabled={disabled || !newName.trim()}
+          >
+            Add
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

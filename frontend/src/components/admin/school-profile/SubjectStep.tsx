@@ -49,11 +49,13 @@ export function SubjectStep({
         ))}
       </div>
 
-      <AddItemInput
-        placeholder="e.g. Mathematics"
-        disabled={disabled}
-        onAdd={(name) => onAdd(levelId, name)}
-      />
+      {!disabled && (
+        <AddItemInput
+          placeholder="e.g. Mathematics"
+          disabled={disabled}
+          onAdd={(name) => onAdd(levelId, name)}
+        />
+      )}
     </div>
   )
 }

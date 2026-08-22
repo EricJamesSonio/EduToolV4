@@ -86,26 +86,30 @@ export function EditableItemRow({
               <p className="truncate text-xs text-muted-foreground not-interactive">{subtitle}</p>
             )}
           </div>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-            onClick={() => setEditing(true)}
-            disabled={disabled}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={onDelete}
-            disabled={disabled}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          {!disabled && (
+            <>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={() => setEditing(true)}
+                disabled={disabled}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={onDelete}
+                disabled={disabled}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
         </>
       )}
     </div>

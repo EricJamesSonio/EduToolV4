@@ -49,11 +49,13 @@ export function LevelStep({
         ))}
       </div>
 
-      <AddItemInput
-        placeholder="e.g. Grade 11"
-        disabled={disabled}
-        onAdd={(name) => onAdd(parentId, name)}
-      />
+      {!disabled && (
+        <AddItemInput
+          placeholder="e.g. Grade 11"
+          disabled={disabled}
+          onAdd={(name) => onAdd(parentId, name)}
+        />
+      )}
     </div>
   )
 }
