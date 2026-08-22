@@ -120,6 +120,7 @@ describe('ClassService', () => {
       const res = await service.create(orgId, { subjectId, educatorId, schoolYearId, semesterId: 'sem-direct', capacity: 30, schedules: [makeSlot(1, '08:00', '09:00')] } as any, actorId);
       expect(db.programSemesterAssignment.findFirst).not.toHaveBeenCalled();
       expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ semesterId: 'sem-direct' }));
+      if (!res) throw new Error('expected res to be defined');
       expect(res.id).toBe(classId);
     });
 
@@ -198,6 +199,7 @@ describe('ClassService', () => {
       expect(gradingTemplateService.autoApplyForNewClass).toHaveBeenCalledWith(orgId, classId, programId, schoolYearId, 'college');
       expect(attendanceService.generateSessionsForClass).toHaveBeenCalledWith(classId, orgId);
       expect(auditLogService.logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ action: 'class_created', entityId: classId }));
+      if (!res) throw new Error('expected res to be defined');
       expect(res.id).toBe(classId);
     });
 
@@ -319,6 +321,7 @@ describe('ClassService', () => {
       expect(enrollmentService.enroll).toHaveBeenCalledWith(classId, subjectId, 'sem-1', 30, 's1', orgId);
       expect(repo.lockGradingSchemeForClass).toHaveBeenCalledWith(classId, orgId);
       expect(auditLogService.logAdminAction).toHaveBeenCalledWith(expect.objectContaining({ action: 'enrollment_created' }));
+      if (!res || !('id' in res)) throw new Error('expected enrollment result with id');
       expect(res.id).toBe('enr-1');
     });
     it('does not lock when overflow', async () => {
