@@ -130,6 +130,7 @@ describe('EnrollmentService', () => {
       repo.countActive.mockResolvedValue(0);
       repo.create.mockResolvedValue({ id: 'new-enr' });
       const res = await service.enroll(classId, subjectId, semesterId, 30, studentId, orgId);
+      if (!res || !('id' in res)) throw new Error('expected enrollment result with id');
       expect(res.id).toBe('new-enr');
     });
 
@@ -153,6 +154,7 @@ describe('EnrollmentService', () => {
       repo.create.mockResolvedValue({ id: 'enr-1' });
       const res = await service.enroll(classId, subjectId, semesterId, 0, studentId, orgId);
       expect(repo.countActive).not.toHaveBeenCalled();
+      if (!res || !('id' in res)) throw new Error('expected enrollment result with id');
       expect(res.id).toBe('enr-1');
     });
 
@@ -165,6 +167,7 @@ describe('EnrollmentService', () => {
       repo.create.mockResolvedValue({ id: 'enr-1', status: 'active' });
       const res = await service.enroll(classId, subjectId, semesterId, 30, studentId, orgId);
       expect(repo.create).toHaveBeenCalledWith({ orgId, classId, studentId, status: 'active' });
+      if (!res || !('id' in res)) throw new Error('expected enrollment result with id');
       expect(res.id).toBe('enr-1');
     });
   });
