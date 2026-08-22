@@ -94,13 +94,16 @@ export function EditStudentDialog({
       const formData = new FormData();
       formData.append("file", file);
 
-      const { data } = await apiClient.post<{ path: string }>(
+      const { data: body } = await apiClient.post<{ success: boolean; data: { path: string } }>(
         "/uploads/profile",
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
+      // Response is wrapped by ResponseInterceptor as { success, data: { path } }
+      const path: string | undefined = (body as unknown as { path?: string })?.path ?? body.data?.path;
+      if (!path) throw new Error("Upload did not return a file path");
 
-      return studentApi.update(student.id, { profileImage: data.path });
+      return studentApi.update(student.id, { profileImage: path });
     },
     {
       invalidateKeys: [
