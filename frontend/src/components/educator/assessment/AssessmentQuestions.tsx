@@ -85,7 +85,7 @@ export function AssessmentQuestions({
                       className={cn(
                         "flex items-center gap-3 rounded-lg border px-3 py-2 text-sm",
                         q.correctAnswer === c.text
-                          ? "border-green-300 bg-green-50"
+                          ? "border-success/30 bg-success/10"
                           : "bg-white"
                       )}
                     >
@@ -94,7 +94,7 @@ export function AssessmentQuestions({
                       </span>
                       <span>{c.text}</span>
                       {q.correctAnswer === c.text && (
-                        <span className="ml-auto text-xs font-medium text-green-600">
+                        <span className="ml-auto text-xs font-medium text-success">
                           Correct
                         </span>
                       )}

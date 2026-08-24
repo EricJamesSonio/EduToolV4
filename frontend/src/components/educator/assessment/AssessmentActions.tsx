@@ -106,7 +106,7 @@ export function AssessmentActions({
             disabled={isPublishing}
             onClick={() => setPublishDialogOpen(true)}
           >
-            {isPublishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-green-600" />}
+            {isPublishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-success" />}
             Publish Scores
           </Button>
           <AlertDialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
