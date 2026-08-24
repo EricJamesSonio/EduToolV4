@@ -1,0 +1,70 @@
+name: ticket-state-guard
+
+# Mechanical enforcement for the ticket-state protocol described in
+# shared/rules/git-workflow.md §Ticket-state protocol (ai-skills submodule,
+# reachable from the app worktree).
+#
+# A raw `git commit && git push` to ticket-state that skips the
+# fetch/reset/single-commit steps is not stopped by anything about the
+# branch itself. This check catches the shape of that mistake after the
+# fact: it validates that the newest commit on ticket-state only touches
+# a plausible combination of files for a claim or a handoff write, not an
+# arbitrary mix. It does not replace the protocol — it flags when the
+# protocol was probably skipped.
+#
+# This file must live ON the ticket-state branch itself (not main/development)
+# for the push trigger below to fire. Set this as a required status check on
+# ticket-state's branch protection rules so a push that fails it can't land
+# without review.
+
+on:
+  push:
+    branches:
+      - ticket-state
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Inspect the pushed commit's changed files
+        id: diff
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD)
+          echo "changed<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "Changed files in this push:"
+          echo "$CHANGED"
+
+      - name: Validate against expected write shapes
+        run: |
+          CHANGED="${{ steps.diff.outputs.changed }}"
+
+          TOUCHES_TICKET=$(echo "$CHANGED" | grep -c '^tickets/' || true)
+          TOUCHES_COUNTER=$(echo "$CHANGED" | grep -c '^counters/' || true)
+          TOUCHES_HANDOFF=$(echo "$CHANGED" | grep -c '^handoffs/' || true)
+          TOTAL=$(echo "$CHANGED" | grep -c '.' || true)
+
+          # Shape 1: claiming an existing ticket — one ticket file only.
+          # Shape 2: claiming + numbering a new ticket — one ticket file
+          #          + its domain counter, nothing else.
+          # Shape 3: a handoff write — exactly one handoffs/<TICK-ID>.md file.
+          CLAIM_ONLY=$([ "$TOUCHES_TICKET" -ge 1 ] && [ "$TOUCHES_COUNTER" -eq 0 ] && [ "$TOUCHES_HANDOFF" -eq 0 ] && echo yes || echo no)
+          CLAIM_WITH_COUNTER=$([ "$TOUCHES_TICKET" -ge 1 ] && [ "$TOUCHES_COUNTER" -ge 1 ] && [ "$TOUCHES_HANDOFF" -eq 0 ] && echo yes || echo no)
+          HANDOFF_ONLY=$([ "$TOUCHES_HANDOFF" -eq 1 ] && [ "$TOUCHES_TICKET" -eq 0 ] && [ "$TOUCHES_COUNTER" -eq 0 ] && [ "$TOTAL" -eq 1 ] && echo yes || echo no)
+
+          if [ "$CLAIM_ONLY" = "yes" ] || [ "$CLAIM_WITH_COUNTER" = "yes" ] || [ "$HANDOFF_ONLY" = "yes" ]; then
+            echo "OK — commit matches an expected ticket-state write shape."
+            exit 0
+          fi
+
+          echo "::error::This commit's changed files don't match a known ticket-state"
+          echo "::error::write shape (ticket claim, ticket+counter claim, or single"
+          echo "::error::handoff file). This usually means the fetch/reset/single-commit"
+          echo "::error::protocol in shared/rules/git-workflow.md was skipped. Changed files:"
+          echo "$CHANGED"
+          exit 1
