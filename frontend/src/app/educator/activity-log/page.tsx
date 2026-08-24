@@ -84,7 +84,7 @@ function buildColumns(
       header: "Class",
       cell: ({ row }) => {
         const classId = row.original.metadata?.classId as string | undefined;
-        const name = classId ? (classMap.get(classId) ?? classId) : "—";
+        const name = classId ? (classMap.get(classId) ?? "Unknown Class") : "—";
         return <span className="text-sm">{name}</span>;
       },
     },
@@ -137,7 +137,7 @@ export default function EducatorActivityLogPage() {
   const classMap = useMemo(() => {
     const m = new Map<string, string>();
     toArray<EducatorClass>(classesRaw).forEach((cls) => {
-      m.set(cls.id, subjectMap.get(cls.subject_id) ?? cls.subject_id);
+      m.set(cls.id, subjectMap.get(cls.subject_id) ?? "Unnamed Class");
     });
     return m;
   }, [classesRaw, subjectMap]);
@@ -150,7 +150,7 @@ export default function EducatorActivityLogPage() {
     toArray<EducatorClass>(classesRaw).forEach((cls) => {
       opts.push({
         value: cls.id,
-        label: subjectMap.get(cls.subject_id) ?? cls.subject_id,
+        label: subjectMap.get(cls.subject_id) ?? "Unnamed Class",
       });
     });
     return opts;
