@@ -8,7 +8,6 @@
  * repairScheduleConflicts (post-hoc reconciliation).
  */
 
-import { SY_START } from '../constants';
 import { pick, shuffleArray } from './random.util';
 
 export const SCHEDULE_WEEKDAYS = [0, 1, 2, 3, 4];
@@ -41,9 +40,9 @@ export function timeOnly(date: Date | string): string {
 }
 
 /** Build a Date anchored to the school-year start (consistent with seed style). */
-export function scheduleDate(hhmm: string): Date {
+export function scheduleDate(hhmm: string, anchor?: Date): Date {
   const [h, m] = hhmm.split(':').map(Number);
-  const d = new Date(SY_START);
+  const d = anchor ? new Date(anchor) : new Date();
   d.setHours(h, m, 0, 0);
   return d;
 }
