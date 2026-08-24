@@ -155,7 +155,7 @@ function mapClass(raw: RawClass): Class {
     enrolledCount:   raw._count?.enrollments ?? raw.enrolled_count ?? 0,
     status:          (raw.status as Class["status"]) ?? (raw.deleted_at ? "archived" : "active"),
     isArchived:      raw.deleted_at !== null,
-    title:           raw.subject_name ?? raw.subject_id,
+    title:           raw.subject_name ?? "Unnamed Class",
     schedules:       (raw.schedules ?? []).map(mapSchedule),
     createdAt:       raw.created_at,
     updatedAt:       raw.updated_at,
@@ -262,6 +262,22 @@ export const classApi = {
       { params: search ? { search } : undefined },
     );
     return res.data?.data ?? [];
+  },
+
+  // Only classes matching the student's active placement (program/course/strand/level/section)
+  // Pre-filtered on the server so the Admin never sees the "not eligible" error.
+  getEligibleForStudent: async (
+    studentId: string,
+    search?: string,
+  ): Promise<Class[]> => {
+    const res = await client.get<ApiResponse<RawClass[]> | RawClass[]>(
+      `/classes/eligible-for-student/${studentId}`,
+      { params: search ? { search } : undefined },
+    );
+    const rawList: RawClass[] = Array.isArray(res.data)
+      ? (res.data as unknown as RawClass[])
+      : (((res.data as ApiResponse<RawClass[]>)?.data ?? []) as unknown as RawClass[]);
+    return rawList.map(mapClass);
   },
 
   enroll: async (
