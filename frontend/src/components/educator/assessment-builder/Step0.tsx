@@ -59,8 +59,8 @@ export function Step0({
                 className={cn(
                   "rounded-md p-2.5 w-fit",
                   i === 0
-                    ? "bg-blue-500/10 text-blue-600"
-                    : "bg-amber-500/10 text-amber-600"
+                    ? "bg-info/10 text-info"
+                    : "bg-warning/10 text-warning"
                 )}
               >
                 {mode === "system" ? (

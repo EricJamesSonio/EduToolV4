@@ -79,8 +79,8 @@ export function Step4({
     <div className="flex flex-col items-center justify-center py-16 gap-4 max-w-md mx-auto text-center">
       {ready ? (
         <>
-          <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-            <Check className="h-6 w-6 text-green-600" />
+          <div className="w-12 h-12 rounded-full bg-success/15 flex items-center justify-center">
+            <Check className="h-6 w-6 text-success" />
           </div>
           <p className="text-sm font-medium">
             Questions generated! Advancing...
@@ -88,10 +88,10 @@ export function Step4({
         </>
       ) : failed ? (
         <>
-          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-            <span className="text-red-600 text-xl font-bold">!</span>
+          <div className="w-12 h-12 rounded-full bg-destructive/15 flex items-center justify-center">
+            <span className="text-destructive text-xl font-bold">!</span>
           </div>
-          <p className="text-sm font-medium text-red-600">
+          <p className="text-sm font-medium text-destructive">
             Generation failed
           </p>
           <p className="text-xs text-muted-foreground">

@@ -28,7 +28,7 @@ function QuestionCard({
         <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
           {index > 0 && <>Item {index}</>}
           {isManualQ && (
-            <span className="ml-2 text-amber-600">
+            <span className="ml-2 text-warning">
               (Manually graded)
             </span>
           )}
@@ -50,7 +50,7 @@ function QuestionCard({
                 className={cn(
                   "flex items-center gap-2 px-3 py-1.5 rounded text-sm border",
                   question.correctAnswer === c.text
-                    ? "border-green-300 bg-green-50"
+                    ? "border-success/30 bg-success/10"
                     : "border-border"
                 )}
               >
@@ -59,7 +59,7 @@ function QuestionCard({
                 </span>
                 <span>{c.text}</span>
                 {question.correctAnswer === c.text && (
-                  <span className="text-xs text-green-600 ml-auto font-medium">
+                  <span className="text-xs text-success ml-auto font-medium">
                     Correct
                   </span>
                 )}
@@ -151,7 +151,7 @@ export function Step5({
       {/* ── Assessment Summary Card ── */}
       <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Check className="h-5 w-5 text-green-600" />
+          <Check className="h-5 w-5 text-success" />
           Assessment Summary
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -238,11 +238,11 @@ export function Step5({
               {questions.length !== 1 ? "s" : ""}
             </span>
             {questions.filter((q) => q.isManual).length > 0 && (
-              <span className="text-amber-600">
+              <span className="text-warning">
                 {questions.filter((q) => q.isManual).length} manually graded
               </span>
             )}
-            <span className="text-green-600">
+            <span className="text-success">
               {questions.filter((q) => !q.isManual).length} auto-graded
             </span>
           </div>
@@ -268,14 +268,14 @@ export function Step5({
               return (
                 <div
                   key={sec.id}
-                  className="rounded-lg border bg-amber-50/40 p-4 space-y-2"
+                  className="rounded-lg border bg-warning/10 p-4 space-y-2"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Section {si + 1}
                       </span>
-                      <span className="text-xs px-2 py-0.5 rounded-full border border-amber-200 bg-amber-100 text-amber-700">
+                      <span className="text-xs px-2 py-0.5 rounded-full border badge-warning">
                         Manual (Educator-Written)
                       </span>
                     </div>
@@ -321,7 +321,7 @@ export function Step5({
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Section {si + 1}
                     </span>
-                    <span className="text-xs px-2 py-0.5 rounded-full border bg-blue-50 border-blue-200 text-blue-700">
+                    <span className="text-xs px-2 py-0.5 rounded-full border badge-info">
                       {sec.questionType.replace(/_/g, " ")}
                     </span>
                   </div>

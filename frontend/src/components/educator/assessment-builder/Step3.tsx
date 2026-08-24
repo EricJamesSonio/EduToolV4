@@ -267,7 +267,7 @@ export function Step3({
       </div>
 
       {hasManualSections && (
-        <div className="rounded-lg border bg-blue-50/40 border-blue-200 px-4 py-3 flex items-center gap-3 text-sm">
+        <div className="rounded-lg border bg-info/10 border-info/20 px-4 py-3 flex items-center gap-3 text-sm">
           <span className="text-muted-foreground">
             Overall Total (AI + Manual):
           </span>
@@ -471,7 +471,7 @@ export function Step3({
                       className={cn(
                         "text-xs",
                         hasEnoughItems
-                          ? "text-green-600"
+                          ? "text-success"
                           : "text-destructive"
                       )}
                     >
@@ -537,12 +537,12 @@ export function Step3({
           className={cn(
             "text-sm",
             valid
-              ? "text-green-600"
+              ? "text-success"
               : gap
-                ? "text-amber-600"
+                ? "text-warning"
                 : overflow
                   ? "text-destructive"
-                  : "text-amber-600"
+                  : "text-warning"
           )}
         >
           {totalCovered} / {totalItems} AI items covered

@@ -71,8 +71,8 @@ export function Step1({
                 className={cn(
                   "inline-block text-xs px-2 py-0.5 rounded-full border",
                   hasConcept
-                    ? "bg-green-50 text-green-700 border-green-200"
-                    : "bg-zinc-100 text-zinc-500 border-zinc-200"
+                    ? "badge-success"
+                    : "badge-muted"
                 )}
               >
                 {hasConcept ? "Concept ready" : "No concept build"}

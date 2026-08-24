@@ -87,10 +87,10 @@ export function ConceptSectionGrid({
                 const isSelected = selectedIndicesSet.has(ci.index);
                 const diffColor =
                   ci.difficulty === "easy"
-                    ? "bg-green-100 text-green-700 border-green-200"
+                    ? "badge-success"
                     : ci.difficulty === "hard"
-                      ? "bg-red-100 text-red-700 border-red-200"
-                      : "bg-amber-100 text-amber-700 border-amber-200";
+                      ? "badge-destructive"
+                      : "badge-warning";
                 return (
                   <label
                     key={ci.index}
