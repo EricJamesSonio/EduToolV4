@@ -26,7 +26,7 @@ export function ProgramCard({ program, onDelete }: ProgramCardProps): React.JSX.
 
   const label = PROGRAM_TYPE_LABELS[program.type as keyof typeof PROGRAM_TYPE_LABELS];
   const color = PROGRAM_TYPE_COLORS[program.type as keyof typeof PROGRAM_TYPE_COLORS]
-    ?? "bg-slate-500/10 text-slate-600 border-slate-200";
+    ?? "badge-muted";
 
   return (
     <div className={listItemCardClass}>
