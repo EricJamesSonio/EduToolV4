@@ -41,7 +41,15 @@ export class UpdateSchoolYearEnrollmentDto {
 // ── Program Enrollment ──────────────────────────────────────────────────────
 export type SchoolYearEnrollmentStatus = 'active' | 'pending' | 'unenrolled';
 
-export type ProgramEnrollmentStatus = 'active' | 'pending' | 'removed';
+export type ProgramEnrollmentStatus = 'active' | 'ended';
+
+export type ProgramEnrollmentEndReason =
+  | 'shifted'
+  | 'completed'
+  | 'withdrawn'
+  | 'dropped'
+  | 'admin_correction'
+  | 'other';
 
 export interface ProgramEnrollmentSnapshot {
   id: string;
@@ -53,6 +61,9 @@ export interface ProgramEnrollmentSnapshot {
   section: { id: string; name: string } | null;
   status: ProgramEnrollmentStatus;
   enrolled_at: string;
+  section_assigned_at?: string | null;
+  end_reason?: ProgramEnrollmentEndReason | null;
+  ended_at?: string | null;
 }
 
 export interface StudentSchoolYearEnrollment {
@@ -142,6 +153,19 @@ export class UpdateProgramEnrollmentDto {
   @IsOptional()
   @IsString()
   section_id?: string;
+}
+
+export class RemoveProgramEnrollmentDto {
+  @IsOptional()
+  @IsEnum([
+    'shifted',
+    'completed',
+    'withdrawn',
+    'dropped',
+    'admin_correction',
+    'other',
+  ] as const)
+  reason?: ProgramEnrollmentEndReason;
 }
 
 export class PaginatedEnrollmentQueryDto {
