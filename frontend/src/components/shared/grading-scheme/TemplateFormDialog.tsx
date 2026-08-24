@@ -319,8 +319,8 @@ export function TemplateFormDialog({
                       totalWeight > 100
                         ? "bg-destructive"
                         : totalWeight === 100
-                        ? "bg-emerald-500"
-                        : "bg-amber-400"
+                        ? "bg-success"
+                        : "bg-warning"
                     )}
                     style={{ width: `${Math.min(totalWeight, 100)}%` }}
                   />
@@ -328,13 +328,13 @@ export function TemplateFormDialog({
                 <span
                   className={cn(
                     "text-sm font-semibold tabular-nums",
-                    totalWeight === 100 ? "text-green-600" : "text-destructive"
+                    totalWeight === 100 ? "text-success" : "text-destructive"
                   )}
                 >
                   {totalWeight}% / 100%
                 </span>
                 {totalWeight !== 100 && (
-                  <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                  <AlertCircle className="h-3.5 w-3.5 text-warning" />
                 )}
               </div>
             </div>
